@@ -14,6 +14,49 @@ let stagesList = [];
 let teamsList = [];
 let availableControllers = [];
 
+// --- UI UTILITIES (PREMIUM UPGRADES) ---
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.querySelector('.mobile-overlay');
+    if (sidebar && overlay) {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('open');
+    }
+}
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return alert(message); // Fallback
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    const icon = type === 'success' ? '<i class="fa-solid fa-circle-check" style="color:var(--success); font-size:1.25rem;"></i>' 
+                                    : '<i class="fa-solid fa-circle-exclamation" style="color:var(--danger); font-size:1.25rem;"></i>';
+    toast.innerHTML = `${icon} <span style="font-weight:500;">${message}</span>`;
+    
+    container.appendChild(toast);
+    setTimeout(() => { 
+        toast.style.animation = 'fadeOut 0.3s forwards'; 
+        setTimeout(() => toast.remove(), 300); 
+    }, 3000);
+}
+
+function setLoading(btnId, isLoading) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    if (isLoading) {
+        btn.dataset.originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+    } else {
+        btn.innerHTML = btn.dataset.originalText;
+        btn.disabled = false;
+        btn.style.opacity = '1';
+    }
+}
+
 // --- CORE NAVIGATION & LOGOUT ---
 function switchTab(tabId) {
     // Hide all sections and un-highlight nav items
@@ -22,14 +65,29 @@ function switchTab(tabId) {
     
     // Show active section
     document.getElementById(tabId).classList.add('active');
-    document.querySelector(`[onclick="switchTab('${tabId}')"]`).classList.add('active');
+    const activeNav = document.querySelector(`[onclick="switchTab('${tabId}')"]`);
+    if(activeNav) {
+        activeNav.classList.add('active');
+        const pageTitle = document.getElementById('page-title');
+        if(pageTitle) pageTitle.innerText = activeNav.innerText.trim();
+    }
 
-    // Trigger specific data loads
-    if (tabId === 'categories') loadCategories();
-    else if (tabId === 'competitions') loadCompetitions();
-    else if (tabId === 'participants') loadParticipants();
-    else if (tabId === 'stages') loadStagesAndTeams();
-    else if (tabId === 'users') loadUsers();
+    // Auto-close sidebar on mobile
+    if(window.innerWidth <= 768) {
+        document.getElementById('sidebar')?.classList.remove('open');
+        document.querySelector('.mobile-overlay')?.classList.remove('open');
+    }
+
+    // Trigger specific data loads with error handling
+    try {
+        if (tabId === 'categories') loadCategories();
+        else if (tabId === 'competitions') loadCompetitions();
+        else if (tabId === 'participants') loadParticipants();
+        else if (tabId === 'stages') loadStagesAndTeams();
+        else if (tabId === 'users') loadUsers();
+    } catch (e) {
+        showToast("Failed to fetch dashboard data.", "error");
+    }
 }
 
 function logout() {
@@ -40,33 +98,43 @@ function logout() {
 }
 
 // --- MODAL UTILS ---
-function closeModal() { document.getElementById('formModal').style.display = 'none'; }
+function closeModal() { 
+    const modal = document.getElementById('formModal');
+    if(modal) modal.classList.remove('show'); 
+}
+
 function openModal(title, bodyHTML, saveFunction) {
     document.getElementById('modalTitle').innerText = title;
     document.getElementById('modalBody').innerHTML = bodyHTML;
-    document.getElementById('modalSaveBtn').onclick = saveFunction;
-    document.getElementById('modalSaveBtn').innerText = 'Save Changes';
-    document.getElementById('modalSaveBtn').disabled = false;
-    document.getElementById('formModal').style.display = 'flex';
+    
+    const saveBtn = document.getElementById('modalSaveBtn');
+    saveBtn.onclick = saveFunction;
+    saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save Changes';
+    saveBtn.disabled = false;
+    
+    document.getElementById('formModal').classList.add('show');
 }
 
 // --- CATEGORIES MANAGEMENT ---
 async function loadCategories() {
-    const { data } = await supabaseClient.from('categories').select('*').order('name');
-    categoriesList = data || [];
-    
-    const tbody = document.getElementById('categories-tbody');
-    tbody.innerHTML = '';
-    
-    categoriesList.forEach(cat => {
-        tbody.innerHTML += `
-            <tr>
-                <td style="font-weight: 500;">${cat.name}</td>
-                <td>${cat.is_general ? '<span class="badge badge-primary">General (No Limits)</span>' : 'Standard'}</td>
-                <td><button class="btn btn-danger" onclick="deleteCategory('${cat.id}')">Delete</button></td>
-            </tr>
-        `;
-    });
+    try {
+        const { data, error } = await supabaseClient.from('categories').select('*').order('name');
+        if(error) throw error;
+        
+        categoriesList = data || [];
+        const tbody = document.getElementById('categories-tbody');
+        tbody.innerHTML = '';
+        
+        categoriesList.forEach(cat => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${cat.name}</td>
+                    <td>${cat.is_general ? '<span class="badge badge-primary">General (No Limits)</span>' : 'Standard'}</td>
+                    <td><button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteCategory('${cat.id}')"><i class="fa-solid fa-trash"></i></button></td>
+                </tr>
+            `;
+        });
+    } catch(e) { showToast(e.message, 'error'); }
 }
 
 function openCategoryModal() {
@@ -88,39 +156,55 @@ function openCategoryModal() {
 async function saveCategory() {
     const name = document.getElementById('catName').value;
     const is_general = document.getElementById('catGeneral').value === 'true';
-    if(!name) return alert('Name is required');
-    const { error } = await supabaseClient.from('categories').insert([{ name, is_general }]);
-    if (error) alert(error.message); else { closeModal(); loadCategories(); }
+    if(!name) return showToast('Name is required', 'error');
+    
+    setLoading('modalSaveBtn', true);
+    try {
+        const { error } = await supabaseClient.from('categories').insert([{ name, is_general }]);
+        if (error) throw error;
+        showToast('Category created successfully!');
+        closeModal(); 
+        loadCategories();
+    } catch(e) { showToast(e.message, 'error'); }
+    finally { setLoading('modalSaveBtn', false); }
 }
 
 async function deleteCategory(id) {
     if(confirm("Delete this category? This might fail if competitions are linked to it.")) {
-        const { error } = await supabaseClient.from('categories').delete().eq('id', id);
-        if(error) alert(error.message); else loadCategories();
+        try {
+            const { error } = await supabaseClient.from('categories').delete().eq('id', id);
+            if(error) throw error;
+            showToast('Category deleted.');
+            loadCategories();
+        } catch(e) { showToast(e.message, 'error'); }
     }
 }
 
 // --- COMPETITIONS MANAGEMENT ---
 async function loadCompetitions() {
-    if (stagesList.length === 0) { const { data } = await supabaseClient.from('stages').select('*'); stagesList = data || []; }
-    if (categoriesList.length === 0) await loadCategories();
+    try {
+        if (stagesList.length === 0) { const { data } = await supabaseClient.from('stages').select('*'); stagesList = data || []; }
+        if (categoriesList.length === 0) await loadCategories();
 
-    const { data } = await supabaseClient.from('competitions').select(`*, categories(name), stages(name)`).order('name');
-    const tbody = document.getElementById('competitions-tbody');
-    tbody.innerHTML = '';
-    
-    (data || []).forEach(comp => {
-        tbody.innerHTML += `
-            <tr>
-                <td style="font-weight: 500;">${comp.name}</td>
-                <td><span class="badge badge-primary">${comp.categories?.name || 'N/A'}</span></td>
-                <td>${comp.stages?.name || 'Unassigned'}</td>
-                <td>${comp.max_mark}</td>
-                <td>${comp.max_participants} per team</td>
-                <td><button class="btn btn-danger" onclick="deleteCompetition('${comp.id}')">Delete</button></td>
-            </tr>
-        `;
-    });
+        const { data, error } = await supabaseClient.from('competitions').select(`*, categories(name), stages(name)`).order('name');
+        if(error) throw error;
+
+        const tbody = document.getElementById('competitions-tbody');
+        tbody.innerHTML = '';
+        
+        (data || []).forEach(comp => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${comp.name}</td>
+                    <td><span class="badge badge-primary">${comp.categories?.name || 'N/A'}</span></td>
+                    <td>${comp.stages?.name || 'Unassigned'}</td>
+                    <td>${comp.max_mark}</td>
+                    <td>${comp.max_participants} per team</td>
+                    <td><button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteCompetition('${comp.id}')"><i class="fa-solid fa-trash"></i></button></td>
+                </tr>
+            `;
+        });
+    } catch(e) { showToast(e.message, 'error'); }
 }
 
 function openCompModal() {
@@ -146,69 +230,95 @@ async function saveCompetition() {
     const stage_id = document.getElementById('compStage').value || null;
     const max_mark = document.getElementById('compMarks').value;
     const max_participants = document.getElementById('compParticipants').value;
-    if(!name) return alert('Name is required');
-    const { error } = await supabaseClient.from('competitions').insert([{ name, category_id, stage_id, max_mark, max_participants }]);
-    if (error) alert(error.message); else { closeModal(); loadCompetitions(); }
+    
+    if(!name) return showToast('Name is required', 'error');
+    
+    setLoading('modalSaveBtn', true);
+    try {
+        const { error } = await supabaseClient.from('competitions').insert([{ name, category_id, stage_id, max_mark, max_participants }]);
+        if (error) throw error;
+        showToast('Competition created successfully!');
+        closeModal(); 
+        loadCompetitions();
+    } catch(e) { showToast(e.message, 'error'); }
+    finally { setLoading('modalSaveBtn', false); }
 }
 
 async function deleteCompetition(id) {
     if(confirm("Delete this competition?")) {
-        const { error } = await supabaseClient.from('competitions').delete().eq('id', id);
-        if(error) alert(error.message); else loadCompetitions();
+        try {
+            const { error } = await supabaseClient.from('competitions').delete().eq('id', id);
+            if(error) throw error;
+            showToast('Competition deleted.');
+            loadCompetitions();
+        } catch(e) { showToast(e.message, 'error'); }
     }
 }
 
 // --- STAGES & TEAMS MANAGEMENT ---
 async function loadStagesAndTeams() {
-    // Load Stages
-    const { data: stages } = await supabaseClient.from('stages').select(`*, users(username)`).order('stage_no');
-    stagesList = stages || [];
-    const stbody = document.getElementById('stages-tbody');
-    stbody.innerHTML = '';
-    stagesList.forEach(s => {
-        stbody.innerHTML += `
-            <tr>
-                <td style="font-weight: 500;">${s.name} <br><small style="color:var(--text-muted)">Controller: ${s.users?.username || 'None'}</small></td>
-                <td>Stage ${s.stage_no}</td>
-                <td><button class="btn btn-danger" style="padding:0.3rem 0.6rem;" onclick="deleteStage('${s.id}')">Delete</button></td>
-            </tr>
-        `;
-    });
+    try {
+        // Load Stages
+        const { data: stages, error: stageError } = await supabaseClient.from('stages').select(`*, users(username)`).order('stage_no');
+        if(stageError) throw stageError;
+        
+        stagesList = stages || [];
+        const stbody = document.getElementById('stages-tbody');
+        stbody.innerHTML = '';
+        stagesList.forEach(s => {
+            stbody.innerHTML += `
+                <tr>
+                    <td>${s.name} <br><small style="color:var(--text-muted)">Controller: ${s.users?.username || 'None'}</small></td>
+                    <td>Stage ${s.stage_no}</td>
+                    <td><button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteStage('${s.id}')"><i class="fa-solid fa-trash"></i></button></td>
+                </tr>
+            `;
+        });
 
-    // Load Teams
-    const { data: teams } = await supabaseClient.from('teams').select('*').order('name');
-    teamsList = teams || [];
-    const ttbody = document.getElementById('teams-tbody');
-    ttbody.innerHTML = '';
-    teamsList.forEach(t => {
-        ttbody.innerHTML += `
-            <tr>
-                <td style="font-weight: 500;">${t.name}</td>
-                <td><button class="btn btn-danger" style="padding:0.3rem 0.6rem;" onclick="deleteTeam('${t.id}')">Delete</button></td>
-            </tr>
-        `;
-    });
+        // Load Teams
+        const { data: teams, error: teamError } = await supabaseClient.from('teams').select('*').order('name');
+        if(teamError) throw teamError;
+        
+        teamsList = teams || [];
+        const ttbody = document.getElementById('teams-tbody');
+        ttbody.innerHTML = '';
+        teamsList.forEach(t => {
+            ttbody.innerHTML += `
+                <tr>
+                    <td>${t.name}</td>
+                    <td><button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteTeam('${t.id}')"><i class="fa-solid fa-trash"></i></button></td>
+                </tr>
+            `;
+        });
+    } catch(e) { showToast(e.message, 'error'); }
 }
 
 async function openStageModal() {
-    if (availableControllers.length === 0) {
-        const { data } = await supabaseClient.from('users').select('*').eq('role', 'stage_controller');
-        availableControllers = data || [];
-    }
-    let controllerOpts = availableControllers.map(c => `<option value="${c.id}">${c.username}</option>`).join('');
-    
-    openModal('Add Stage', `
-        <div class="form-group"><label>Stage Name</label><input type="text" id="stageName" placeholder="e.g. Main Auditorium"></div>
-        <div class="form-group"><label>Stage Number (ID)</label><input type="number" id="stageNo" value="1"></div>
-        <div class="form-group"><label>Assign Controller</label><select id="stageController"><option value="">-- Select Controller --</option>${controllerOpts}</select></div>
-    `, async () => {
-        const name = document.getElementById('stageName').value;
-        const stage_no = document.getElementById('stageNo').value;
-        const controller_id = document.getElementById('stageController').value || null;
-        if(!name || !stage_no) return alert('Name and Number required');
-        const { error } = await supabaseClient.from('stages').insert([{ name, stage_no, controller_id }]);
-        if(error) alert(error.message); else { closeModal(); loadStagesAndTeams(); }
-    });
+    try {
+        if (availableControllers.length === 0) {
+            const { data } = await supabaseClient.from('users').select('*').eq('role', 'stage_controller');
+            availableControllers = data || [];
+        }
+        let controllerOpts = availableControllers.map(c => `<option value="${c.id}">${c.username}</option>`).join('');
+        
+        openModal('Add Stage', `
+            <div class="form-group"><label>Stage Name</label><input type="text" id="stageName" placeholder="e.g. Main Auditorium"></div>
+            <div class="form-group"><label>Stage Number (ID)</label><input type="number" id="stageNo" value="1"></div>
+            <div class="form-group"><label>Assign Controller</label><select id="stageController"><option value="">-- Select Controller --</option>${controllerOpts}</select></div>
+        `, async () => {
+            const name = document.getElementById('stageName').value;
+            const stage_no = document.getElementById('stageNo').value;
+            const controller_id = document.getElementById('stageController').value || null;
+            if(!name || !stage_no) return showToast('Name and Number required', 'error');
+            
+            setLoading('modalSaveBtn', true);
+            const { error } = await supabaseClient.from('stages').insert([{ name, stage_no, controller_id }]);
+            setLoading('modalSaveBtn', false);
+            
+            if(error) showToast(error.message, 'error'); 
+            else { showToast('Stage added!'); closeModal(); loadStagesAndTeams(); }
+        });
+    } catch(e) { showToast(e.message, 'error'); }
 }
 
 function openTeamModal() {
@@ -216,38 +326,63 @@ function openTeamModal() {
         <div class="form-group"><label>Team Name</label><input type="text" id="teamName" placeholder="e.g. Gryffindor"></div>
     `, async () => {
         const name = document.getElementById('teamName').value;
-        if(!name) return alert('Name required');
+        if(!name) return showToast('Name required', 'error');
+        
+        setLoading('modalSaveBtn', true);
         const { error } = await supabaseClient.from('teams').insert([{ name }]);
-        if(error) alert(error.message); else { closeModal(); loadStagesAndTeams(); }
+        setLoading('modalSaveBtn', false);
+        
+        if(error) showToast(error.message, 'error'); 
+        else { showToast('Team added!'); closeModal(); loadStagesAndTeams(); }
     });
 }
 
-async function deleteStage(id) { if(confirm("Delete stage?")) { await supabaseClient.from('stages').delete().eq('id', id); loadStagesAndTeams(); } }
-async function deleteTeam(id) { if(confirm("Delete team?")) { await supabaseClient.from('teams').delete().eq('id', id); loadStagesAndTeams(); } }
+async function deleteStage(id) { 
+    if(confirm("Delete stage?")) { 
+        try {
+            await supabaseClient.from('stages').delete().eq('id', id); 
+            showToast('Stage deleted.');
+            loadStagesAndTeams(); 
+        } catch(e) { showToast(e.message, 'error'); }
+    } 
+}
+async function deleteTeam(id) { 
+    if(confirm("Delete team?")) { 
+        try {
+            await supabaseClient.from('teams').delete().eq('id', id); 
+            showToast('Team deleted.');
+            loadStagesAndTeams(); 
+        } catch(e) { showToast(e.message, 'error'); }
+    } 
+}
 
 // --- PARTICIPANTS MANAGEMENT & PDF CARDS ---
 async function loadParticipants() {
-    if (categoriesList.length === 0) await loadCategories();
-    if (teamsList.length === 0) { const { data } = await supabaseClient.from('teams').select('*'); teamsList = data || []; }
+    try {
+        if (categoriesList.length === 0) await loadCategories();
+        if (teamsList.length === 0) { const { data } = await supabaseClient.from('teams').select('*'); teamsList = data || []; }
 
-    const { data } = await supabaseClient.from('participants').select(`*, categories(name), teams(name)`).order('name');
-    const tbody = document.getElementById('participants-tbody');
-    tbody.innerHTML = '';
-    
-    (data || []).forEach(p => {
-        tbody.innerHTML += `
-            <tr>
-                <td style="font-family: monospace; font-weight: 600; color: var(--primary);">${p.unique_id}</td>
-                <td style="font-weight: 500;">${p.name}</td>
-                <td><span class="badge" style="background:#F1F5F9; color:#475569;">${p.teams?.name || 'Unassigned'}</span></td>
-                <td>${p.categories?.name || 'N/A'}</td>
-                <td>
-                    <button class="btn btn-outline" style="padding:0.3rem 0.6rem; font-size:0.75rem;" onclick="generateSingleCard('${p.id}')">Download</button>
-                    <button class="btn btn-danger" style="padding:0.3rem 0.6rem; font-size:0.75rem;" onclick="deleteParticipant('${p.id}')">Delete</button>
-                </td>
-            </tr>
-        `;
-    });
+        const { data, error } = await supabaseClient.from('participants').select(`*, categories(name), teams(name)`).order('name');
+        if(error) throw error;
+        
+        const tbody = document.getElementById('participants-tbody');
+        tbody.innerHTML = '';
+        
+        (data || []).forEach(p => {
+            tbody.innerHTML += `
+                <tr>
+                    <td style="font-family: monospace; font-weight: 600; color: var(--primary);">${p.unique_id}</td>
+                    <td>${p.name}</td>
+                    <td><span class="badge" style="background:#F1F5F9; color:#475569;">${p.teams?.name || 'Unassigned'}</span></td>
+                    <td>${p.categories?.name || 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-outline" style="padding:0.4rem; font-size:0.75rem;" onclick="generateSingleCard('${p.id}')"><i class="fa-solid fa-download"></i></button>
+                        <button class="btn btn-danger" style="padding:0.4rem; font-size:0.75rem;" onclick="deleteParticipant('${p.id}')"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch(e) { showToast(e.message, 'error'); }
 }
 
 function openParticipantModal() {
@@ -271,15 +406,27 @@ async function saveParticipant() {
     const batch_no = document.getElementById('partBatch').value;
     const unique_id = `FEST-2026-${Math.floor(100000 + Math.random() * 900000)}`;
     
-    if(!name) return alert('Name is required');
-    const { error } = await supabaseClient.from('participants').insert([{ unique_id, name, team_id, category_id, batch_no }]);
-    if (error) alert(error.message); else { closeModal(); loadParticipants(); }
+    if(!name) return showToast('Name is required', 'error');
+    
+    setLoading('modalSaveBtn', true);
+    try {
+        const { error } = await supabaseClient.from('participants').insert([{ unique_id, name, team_id, category_id, batch_no }]);
+        if (error) throw error;
+        showToast('Participant registered!');
+        closeModal(); 
+        loadParticipants();
+    } catch(e) { showToast(e.message, 'error'); }
+    finally { setLoading('modalSaveBtn', false); }
 }
 
 async function deleteParticipant(id) {
     if(confirm("Are you sure you want to delete this participant?")) {
-        const { error } = await supabaseClient.from('participants').delete().eq('id', id);
-        if(error) alert(error.message); else loadParticipants();
+        try {
+            const { error } = await supabaseClient.from('participants').delete().eq('id', id);
+            if(error) throw error;
+            showToast('Participant removed.');
+            loadParticipants();
+        } catch(e) { showToast(e.message, 'error'); }
     }
 }
 
@@ -303,8 +450,9 @@ function buildCardElement(participant) {
 }
 
 async function generateSingleCard(participantId) {
-    const { data: p } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').eq('id', participantId).single();
-    if (!p) return alert("Could not fetch participant.");
+    showToast('Generating PDF...', 'success');
+    const { data: p, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').eq('id', participantId).single();
+    if (error || !p) return showToast("Could not fetch participant data.", 'error');
     
     const container = document.getElementById('print-container');
     container.innerHTML = '';
@@ -314,85 +462,130 @@ async function generateSingleCard(participantId) {
     new QRCode(document.getElementById(`qr-${p.id}`), { text: p.unique_id, width: 65, height: 65, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
     
     const opt = { margin: 0, filename: `${p.name}_ID_Card.pdf`, image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 4, useCORS: true }, jsPDF: { unit: 'mm', format: 'a7', orientation: 'portrait' } };
-    html2pdf().set(opt).from(cardElement).save();
+    html2pdf().set(opt).from(cardElement).save().then(() => showToast('PDF Downloaded!'));
 }
 
 async function generateBulkCards() {
     const btn = event.currentTarget;
     const originalText = btn.innerHTML;
-    btn.innerHTML = "⏳ Generating..."; btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...'; 
+    btn.disabled = true;
 
-    const { data: participants } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').order('name');
-    if (!participants || !participants.length) { btn.innerHTML = originalText; btn.disabled = false; return alert("No participants found."); }
+    try {
+        const { data: participants, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').order('name');
+        if (error) throw error;
+        if (!participants || !participants.length) { 
+            showToast("No participants found to print.", 'error'); 
+            return; 
+        }
 
-    const container = document.getElementById('print-container');
-    container.innerHTML = '';
+        const container = document.getElementById('print-container');
+        container.innerHTML = '';
 
-    participants.forEach(p => {
-        const cardElement = buildCardElement(p);
-        container.appendChild(cardElement);
-        new QRCode(document.getElementById(`qr-${p.id}`), { text: p.unique_id, width: 65, height: 65, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
-    });
+        participants.forEach(p => {
+            const cardElement = buildCardElement(p);
+            container.appendChild(cardElement);
+            new QRCode(document.getElementById(`qr-${p.id}`), { text: p.unique_id, width: 65, height: 65, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+        });
 
-    const opt = { margin: 0, filename: `Fest_2026_All_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 4, useCORS: true }, jsPDF: { unit: 'mm', format: 'a7', orientation: 'portrait' } };
-    html2pdf().set(opt).from(container).save().then(() => { btn.innerHTML = originalText; btn.disabled = false; container.innerHTML = ''; });
+        const opt = { margin: 0, filename: `Fest_2026_All_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 4, useCORS: true }, jsPDF: { unit: 'mm', format: 'a7', orientation: 'portrait' } };
+        html2pdf().set(opt).from(container).save().then(() => { 
+            showToast('Bulk PDF Generated Successfully!');
+            container.innerHTML = ''; 
+        });
+    } catch(e) { 
+        showToast(e.message, 'error'); 
+    } finally {
+        btn.innerHTML = originalText; 
+        btn.disabled = false;
+    }
 }
 
 // --- USER MANAGEMENT ---
 async function loadUsers() {
-    const { data } = await supabaseClient.from('users').select('id, username, role').neq('role', 'master_admin').order('role');
-    const tbody = document.getElementById('users-tbody');
-    tbody.innerHTML = '';
-    (data || []).forEach(u => {
-        const roleDisplay = u.role.replace('_', ' ').toUpperCase();
-        tbody.innerHTML += `
-            <tr>
-                <td style="font-weight: 600;">${u.username}</td>
-                <td><span class="badge badge-primary">${roleDisplay}</span></td>
-                <td><button class="btn btn-danger" onclick="deleteUser('${u.id}', '${u.username}')">Delete</button></td>
-            </tr>
-        `;
-    });
+    try {
+        const { data, error } = await supabaseClient.from('users').select('id, username, role').neq('role', 'master_admin').order('role');
+        if(error) throw error;
+        
+        const tbody = document.getElementById('users-tbody');
+        tbody.innerHTML = '';
+        (data || []).forEach(u => {
+            const roleDisplay = u.role.replace('_', ' ').toUpperCase();
+            tbody.innerHTML += `
+                <tr>
+                    <td>${u.username}</td>
+                    <td><span class="badge badge-primary">${roleDisplay}</span></td>
+                    <td><button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteUser('${u.id}', '${u.username}')"><i class="fa-solid fa-trash"></i></button></td>
+                </tr>
+            `;
+        });
+    } catch(e) { showToast(e.message, 'error'); }
 }
 
 function openUserModal() {
     openModal('Create Staff Account', `
         <div class="form-group"><label>Username</label><input type="text" id="newUsername" autocomplete="off"></div>
         <div class="form-group"><label>Password</label><input type="text" id="newPassword" autocomplete="off"></div>
-        <div class="form-group"><label>Role</label><select id="newUserRole"><option value="judge">Judge</option><option value="stage_controller">Stage Controller</option><option value="fest_manager">Fest Manager</option><option value="admin">Admin</option></select></div>
+        <div class="form-group">
+            <label>Role</label>
+            <select id="newUserRole">
+                <option value="judge">Judge</option>
+                <option value="stage_controller">Stage Controller</option>
+                <option value="fest_manager">Fest Manager</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
     `, async () => {
         const username = document.getElementById('newUsername').value.trim();
         const password_hash = document.getElementById('newPassword').value.trim();
         const role = document.getElementById('newUserRole').value;
-        if (!username || !password_hash) return alert('Username and Password required.');
+        if (!username || !password_hash) return showToast('Username and Password required.', 'error');
         
-        document.getElementById('modalSaveBtn').innerText = "Saving...";
+        setLoading('modalSaveBtn', true);
         const { error } = await supabaseClient.from('users').insert([{ username, password_hash, role }]);
+        setLoading('modalSaveBtn', false);
         
         if (error) {
-            document.getElementById('modalSaveBtn').innerText = "Save Changes";
-            if (error.code === '23505') alert('Username taken.'); else alert('Error: ' + error.message);
-        } else { closeModal(); loadUsers(); }
+            if (error.code === '23505') showToast('Username already taken.', 'error'); 
+            else showToast(error.message, 'error');
+        } else { 
+            showToast('Account created successfully!');
+            closeModal(); 
+            loadUsers(); 
+        }
     });
 }
 
 async function deleteUser(id, username) {
     if (confirm(`Delete the user "${username}"? This cannot be undone.`)) {
-        const { error } = await supabaseClient.from('users').delete().eq('id', id);
-        if (error) {
-            if (error.code === '23503') alert(`Cannot delete ${username} as they are linked to judgements/stages. Reassign them first.`);
-            else alert(error.message);
-        } else loadUsers();
+        try {
+            const { error } = await supabaseClient.from('users').delete().eq('id', id);
+            if (error) {
+                if (error.code === '23503') showToast(`Cannot delete ${username} as they are linked to active records.`, 'error');
+                else throw error;
+            } else {
+                showToast(`User ${username} deleted.`);
+                loadUsers();
+            }
+        } catch(e) { showToast(e.message, 'error'); }
     }
 }
 
 // --- CSV BULK UPLOAD EXPORT (PapaParse) ---
 async function downloadCSV(tableName) {
-    const { data, error } = await supabaseClient.from(tableName).select('*');
-    if (error) return alert("Export error: " + error.message);
-    const blob = new Blob([Papa.unparse(data)], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.setAttribute("download", `${tableName}_export.csv`);
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    try {
+        const { data, error } = await supabaseClient.from(tableName).select('*');
+        if (error) throw error;
+        
+        const blob = new Blob([Papa.unparse(data)], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a"); 
+        link.href = URL.createObjectURL(blob); 
+        link.setAttribute("download", `${tableName}_export.csv`);
+        document.body.appendChild(link); 
+        link.click(); 
+        document.body.removeChild(link);
+        showToast('Export successful!');
+    } catch(e) { showToast("Export error: " + e.message, 'error'); }
 }
 
 function downloadTemplate(type) {
@@ -400,17 +593,26 @@ function downloadTemplate(type) {
     if(type === 'categories') headers = ['name', 'is_general'];
     if(type === 'competitions') headers = ['name', 'max_participants', 'max_mark', 'stage_id', 'category_id'];
     if(type === 'participants') headers = ['name', 'category_id', 'batch_no', 'team_id'];
+    
     const blob = new Blob([headers.join(',') + '\n'], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.setAttribute("download", `${type}_template.csv`);
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    const link = document.createElement("a"); 
+    link.href = URL.createObjectURL(blob); 
+    link.setAttribute("download", `${type}_template.csv`);
+    document.body.appendChild(link); 
+    link.click(); 
+    document.body.removeChild(link);
 }
 
 async function handleBulkUpload(tableName, fileInputId) {
     const fileInput = document.getElementById(fileInputId);
-    if (!fileInput.files.length) return alert("Select a CSV file first.");
+    if (!fileInput.files.length) return showToast("Select a CSV file first.", 'error');
+    
+    showToast('Parsing CSV...', 'success');
+    
     Papa.parse(fileInput.files[0], {
         header: true, skipEmptyLines: true, complete: async function(results) {
-            if(!results.data.length) return alert("No valid rows found.");
+            if(!results.data.length) return showToast("No valid rows found in CSV.", 'error');
+            
             const cleanData = results.data.map(row => {
                 if (row.is_general) row.is_general = (row.is_general.toLowerCase() === 'true');
                 if (row.max_participants) row.max_participants = parseInt(row.max_participants);
@@ -419,12 +621,20 @@ async function handleBulkUpload(tableName, fileInputId) {
                 if (tableName === 'participants' && !row.unique_id) row.unique_id = `FEST-2026-${Math.floor(100000 + Math.random() * 900000)}`;
                 return row;
             });
-            const { error } = await supabaseClient.from(tableName).insert(cleanData);
-            if(error) alert(`Upload failed: ${error.message}`);
-            else { alert(`Success! Imported records.`); switchTab(tableName); }
+            
+            try {
+                const { error } = await supabaseClient.from(tableName).insert(cleanData);
+                if(error) throw error;
+                showToast(`Success! Imported ${cleanData.length} records.`); 
+                switchTab(tableName); 
+            } catch(e) {
+                showToast(`Upload failed: ${e.message}`, 'error');
+            }
         }
     });
 }
 
 // Initialize Default Tab
-loadCategories();
+document.addEventListener("DOMContentLoaded", () => {
+    loadCategories();
+});
