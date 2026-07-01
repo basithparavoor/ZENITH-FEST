@@ -531,7 +531,7 @@ async function deleteTeam(id) {
     } 
 }
 
-// --- PARTICIPANTS MANAGEMENT & PDF CARDS ---
+// --- PARTICIPANTS MANAGEMENT ---
 async function loadParticipants() {
     try {
         if (categoriesList.length === 0) await loadCategories();
@@ -545,29 +545,62 @@ async function loadParticipants() {
         const tbody = document.getElementById('participants-tbody');
         tbody.innerHTML = '';
         
-        // 1. Populate the Filter Dropdown
         const catFilter = document.getElementById('filterCategory');
         if(catFilter && catFilter.options.length === 1) {
             categoriesList.forEach(c => catFilter.innerHTML += `<option value="${c.name}">${c.name}</option>`);
         }
 
-        // 2. Generate the Rows with Checkboxes
         participantsList.forEach(p => {
+            // Safely stringify data to pass into our button functions
+            const safeData = JSON.stringify(p).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+            
             tbody.innerHTML += `
                 <tr>
                     <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}"></td>
                     <td style="font-family: monospace; font-weight: 600; color: var(--primary);">${p.unique_id}</td>
                     <td>${p.name}</td>
-                    <td><span class="badge" style="background:#F1F5F9; color:#475569;">${p.teams?.name || 'Unassigned'}</span></td>
+                    <td><span class="badge" style="background:#F1F5F9; color:#475569;">${p.teams?.name || 'UNASSIGNED'}</span></td>
                     <td>${p.categories?.name || 'N/A'}</td>
                     <td>
-                        <button class="btn btn-outline" style="padding:0.4rem; font-size:0.75rem;" onclick="generateSingleCard('${p.id}')"><i class="fa-solid fa-download"></i></button>
-                        <button class="btn btn-danger" style="padding:0.4rem; font-size:0.75rem;" onclick="deleteParticipant('${p.id}')"><i class="fa-solid fa-trash"></i></button>
+                        <button class="btn btn-outline" style="padding:0.4rem; font-size:0.75rem;" title="View Details" onclick='viewParticipantCard(${safeData})'><i class="fa-solid fa-eye"></i></button>
+                        <button class="btn btn-outline" style="padding:0.4rem; font-size:0.75rem;" title="Edit" onclick='openParticipantModal(${safeData})'><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn btn-outline" style="padding:0.4rem; font-size:0.75rem;" title="Download ID" onclick="generateSingleCard('${p.id}')"><i class="fa-solid fa-download"></i></button>
+                        <button class="btn btn-danger" style="padding:0.4rem; font-size:0.75rem;" title="Delete" onclick="deleteParticipant('${p.id}')"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
             `;
         });
     } catch(e) { showToast(e.message, 'error'); }
+}
+
+function viewParticipantCard(p) {
+    const teamName = p.teams ? p.teams.name : 'UNASSIGNED';
+    const catName = p.categories ? p.categories.name : 'GENERAL';
+    const photoSrc = p.photo_url ? p.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=NO+PHOTO';
+    
+    // We are reusing the listModal to display this beautiful card
+    document.getElementById('listModalTitle').innerText = 'Participant Profile';
+    document.getElementById('listModalTable').innerHTML = `
+        <div style="display: flex; gap: 1.5rem; align-items: flex-start; text-transform: uppercase; padding: 1rem;">
+            <img src="${photoSrc}" style="width: 130px; height: 195px; object-fit: cover; border-radius: 12px; border: 3px solid var(--border); box-shadow: var(--shadow-sm);">
+            <div style="flex: 1;">
+                <h3 style="font-size: 1.5rem; margin-bottom: 0.25rem; font-weight: 800; color: var(--primary);">${p.name}</h3>
+                <p style="font-family: monospace; font-size: 1rem; margin-bottom: 1.5rem; font-weight: 600; color: var(--text-muted);">${p.unique_id}</p>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1rem;">
+                    <div><strong style="font-size: 0.75rem; color: var(--text-muted);">TEAM</strong><br><span style="font-weight:600;">${teamName}</span></div>
+                    <div><strong style="font-size: 0.75rem; color: var(--text-muted);">CATEGORY</strong><br><span style="font-weight:600;">${catName}</span></div>
+                    <div><strong style="font-size: 0.75rem; color: var(--text-muted);">BATCH NO</strong><br><span style="font-weight:600;">${p.batch_no || '1'}</span></div>
+                    <div>
+                        <strong style="font-size: 0.75rem; color: var(--text-muted);">COMPETITIONS</strong><br>
+                        <!-- Clicking this button triggers your existing viewRelationalData function -->
+                        <button class="badge-count" style="margin-top:0.35rem; border:none;" onclick="viewRelationalData('participant_competitions', 'participant_id', '${p.id}', 'competition_id')">VIEW ENROLLMENTS</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.getElementById('listModal').classList.add('show');
 }
 // --- PARTICIPANT EDIT & CROPPER ---
 function openParticipantModal(editData = null) {
@@ -927,18 +960,190 @@ document.addEventListener("DOMContentLoaded", () => {
     loadCategories();
 });
 
-// --- IMAGE CROPPER INITIALIZATION ---
+// Global variable to hold the finalized crop
+let croppedImageBlob = null; 
+
 function initCropper(input) {
     const container = document.getElementById('cropContainer');
     const image = document.getElementById('cropImage');
+    
+    // Reset any previous crop data
+    croppedImageBlob = null;
+    document.getElementById('cropActions').style.display = 'block';
+    
     if (input.files && input.files[0]) {
         container.style.display = 'block';
         image.src = URL.createObjectURL(input.files[0]);
         if (currentCropper) currentCropper.destroy();
-        currentCropper = new Cropper(image, {
-            aspectRatio: 2 / 3,
-            viewMode: 1
-        });
+        currentCropper = new Cropper(image, { aspectRatio: 2 / 3, viewMode: 1 });
+    }
+}
+
+// New function to load a saved photo into the cropper
+function loadExistingPhoto(url) {
+    const container = document.getElementById('cropContainer');
+    const image = document.getElementById('cropImage');
+    
+    croppedImageBlob = null;
+    document.getElementById('cropActions').style.display = 'block';
+    container.style.display = 'block';
+    
+    // crossOrigin is required to allow Cropper.js to edit an image from a different domain (Supabase)
+    image.crossOrigin = "anonymous"; 
+    image.src = url;
+    
+    if (currentCropper) currentCropper.destroy();
+    image.onload = () => {
+        currentCropper = new Cropper(image, { aspectRatio: 2 / 3, viewMode: 1 });
+    };
+}
+
+// Explicitly finalize the crop before submitting the main form
+async function saveCrop() {
+    if (!currentCropper) return showToast('No image loaded to crop!', 'error');
+    
+    showToast('Finalizing image...', 'success');
+    const canvas = currentCropper.getCroppedCanvas({ width: 400, height: 600 });
+    
+    // Convert to a file blob
+    croppedImageBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+    
+    // Provide UI feedback
+    document.getElementById('cropActions').style.display = 'none';
+    currentCropper.destroy();
+    currentCropper = null;
+    
+    document.getElementById('cropImage').src = URL.createObjectURL(croppedImageBlob);
+    document.getElementById('cropImage').style.border = "4px solid var(--success)";
+    showToast('Crop saved! You can now save the participant.', 'success');
+}
+
+function openParticipantModal(editData = null) {
+    let catOpts = categoriesList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    let teamOpts = teamsList.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+    const isEdit = !!editData;
+    const pId = isEdit ? editData.id : '';
+    const pName = isEdit ? editData.name : '';
+    const pBatch = isEdit ? editData.batch_no : '1';
+    const pPhoto = isEdit && editData.photo_url ? editData.photo_url : null;
+    
+    // Reset global crop state on modal open
+    croppedImageBlob = null;
+
+    let photoSection = `
+        <div class="form-group">
+            <label>Participant Photo (2:3 Ratio)</label>
+            <input type="file" id="partPhoto" accept="image/png, image/jpeg, image/webp" onchange="initCropper(this)" style="padding: 0.6rem; background: white;">
+    `;
+    
+    // If editing and they have a photo, show the "Crop Existing" button
+    if (pPhoto) {
+        photoSection += `
+            <button type="button" class="btn btn-outline" style="margin-top:0.5rem; width:100%;" onclick="loadExistingPhoto('${pPhoto}')">
+                <i class="fa-solid fa-crop"></i> Re-Crop Saved Photo
+            </button>
+        `;
+    }
+
+    photoSection += `
+            <div class="img-container" id="cropContainer" style="display:none; margin-top:10px; text-align:center;">
+                <img id="cropImage" src="" style="max-width: 100%;">
+                <div id="cropActions" style="margin-top: 10px;">
+                    <button type="button" class="btn btn-success" style="width: 100%;" onclick="saveCrop()">
+                        <i class="fa-solid fa-check"></i> Save Crop
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    openModal(isEdit ? 'Edit Participant' : 'Register Participant', `
+        <input type="hidden" id="partId" value="${pId}">
+        <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="partName" placeholder="PARTICIPANT NAME" value="${pName}">
+        </div>
+        
+        ${photoSection}
+
+        <div class="form-group">
+            <label>Team</label>
+            <select id="partTeam">
+                <option value="">-- SELECT TEAM --</option>
+                ${teamOpts}
+            </select>
+        </div>
+        <div style="display:flex; gap:1rem;">
+            <div class="form-group" style="flex:1;">
+                <label>Category</label>
+                <select id="partCategory">${catOpts}</select>
+            </div>
+            <div class="form-group" style="flex:1;">
+                <label>Batch No</label>
+                <input type="number" id="partBatch" min="1" max="7" value="${pBatch}">
+            </div>
+        </div>
+    `, saveParticipant);
+
+    if (isEdit) {
+        if(editData.team_id) document.getElementById('partTeam').value = editData.team_id;
+        if(editData.category_id) document.getElementById('partCategory').value = editData.category_id;
+    }
+}
+
+async function saveParticipant() {
+    const id = document.getElementById('partId').value;
+    const name = document.getElementById('partName').value;
+    const team_id = document.getElementById('partTeam').value || null;
+    const category_id = document.getElementById('partCategory').value;
+    const batch_no = document.getElementById('partBatch').value;
+    
+    const unique_id = id ? undefined : `FEST-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+    
+    if(!name) return showToast('Name is required', 'error');
+    if(currentCropper && !croppedImageBlob) return showToast('Please click "Save Crop" on the image before submitting.', 'error');
+    
+    setLoading('modalSaveBtn', true);
+    
+    try {
+        let photo_url = undefined; 
+
+        // Upload the explicitly saved crop blob
+        if (croppedImageBlob) {
+            showToast('Uploading cropped photo...', 'success');
+            
+            const fileName = `profile_${Date.now()}.jpg`; 
+            const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                .from('photos')
+                .upload(fileName, croppedImageBlob, { contentType: 'image/jpeg', upsert: true });
+                
+            if (uploadError) throw uploadError;
+
+            const { data: publicUrlData } = supabaseClient.storage.from('photos').getPublicUrl(fileName);
+            photo_url = publicUrlData.publicUrl;
+        }
+
+        const payload = { name, team_id, category_id, batch_no };
+        if (id) payload.id = id;
+        if (unique_id) payload.unique_id = unique_id;
+        if (photo_url) payload.photo_url = photo_url; 
+
+        const { error } = await supabaseClient.from('participants').upsert([payload]);
+        if (error) throw error;
+        
+        showToast(id ? 'Participant updated!' : 'Participant registered successfully!');
+        
+        if(currentCropper) { currentCropper.destroy(); currentCropper = null; }
+        croppedImageBlob = null;
+        
+        closeModal(); 
+        loadParticipants();
+        
+    } catch(e) { 
+        showToast(e.message, 'error'); 
+    } finally { 
+        setLoading('modalSaveBtn', false); 
     }
 }
 
