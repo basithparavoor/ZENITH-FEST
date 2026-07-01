@@ -174,12 +174,6 @@ async function viewRelationalData(table, filterColumn, filterId) {
     } catch (e) { showToast("Error loading data: " + e.message, 'error'); }
 }
 
-// Custom Logout Logic
-function logout() { document.getElementById('logoutModal').classList.add('show'); }
-function confirmLogout() {
-    localStorage.removeItem('festUser');[cite: 2]
-    window.location.href = 'index.html';[cite: 2]
-}
 
 function openCategoryModal() {
     openModal('Create Category', `
