@@ -155,56 +155,84 @@ async function loadCategories() {
 }
 
 // Function to handle viewing counts in a popup
-async function viewRelationalData(table, filterColumn, filterId) {
+async function viewRelationalData(fetchTable, filterColumn, filterId, displayColumn = 'name') {
     try {
-        const { data, error } = await supabaseClient.from(table).select('*').eq(filterColumn, filterId);
+        // Fetch the related data based on the ID clicked
+        const { data, error } = await supabaseClient
+            .from(fetchTable)
+            .select('*')
+            .eq(filterColumn, filterId);
+            
         if (error) throw error;
         
         const tbody = document.getElementById('listModalTable');
-        tbody.innerHTML = `<tr><th>Name / Identifier</th></tr>`; // Header
+        tbody.innerHTML = `<tr><th>${displayColumn.toUpperCase()}</th></tr>`; 
         
-        if (data.length === 0) tbody.innerHTML += `<tr><td>No records found.</td></tr>`;
+        if (!data || data.length === 0) {
+            tbody.innerHTML += `<tr><td style="color: var(--text-muted);">No records found.</td></tr>`;
+        } else {
+            data.forEach(item => {
+                // Safely grab the requested column (name, username, unique_id, etc.)
+                const displayText = item[displayColumn] || item.username || item.unique_id || 'Unknown';
+                tbody.innerHTML += `<tr><td>${displayText}</td></tr>`;
+            });
+        }
         
-        data.forEach(item => {
-            tbody.innerHTML += `<tr><td style="text-transform: uppercase;">${item.name || item.username || item.unique_id}</td></tr>`;
-        });
-        
-        document.getElementById('listModalTitle').innerText = `View ${table.toUpperCase()}`;
+        document.getElementById('listModalTitle').innerText = `Viewing ${fetchTable}`;
         document.getElementById('listModal').classList.add('show');
-    } catch (e) { showToast("Error loading data: " + e.message, 'error'); }
+    } catch (e) { 
+        showToast("Error loading data: " + e.message, 'error'); 
+    }
 }
 
+// 1. Update the modal function to accept data
+function openCategoryModal(editData = null) {
+    // If editData exists, we populate the fields. If not, they are blank.
+    const isEdit = !!editData;
+    const catId = isEdit ? editData.id : '';
+    const catName = isEdit ? editData.name : '';
+    const isGeneral = isEdit ? editData.is_general.toString() : 'false';
 
-function openCategoryModal() {
-    openModal('Create Category', `
+    openModal(isEdit ? 'Edit Category' : 'Create Category', `
+        <input type="hidden" id="catId" value="${catId}">
         <div class="form-group">
             <label>Category Name</label>
-            <input type="text" id="catName" placeholder="e.g. Senior Secondary">
+            <input type="text" id="catName" value="${catName}" placeholder="E.G. SENIOR SECONDARY">
         </div>
         <div class="form-group">
             <label>Type</label>
             <select id="catGeneral">
-                <option value="false">Standard (Limits apply)</option>
-                <option value="true">General (Anyone can participate)</option>
+                <option value="false" ${isGeneral === 'false' ? 'selected' : ''}>Standard (Limits apply)</option>
+                <option value="true" ${isGeneral === 'true' ? 'selected' : ''}>General (Anyone can participate)</option>
             </select>
         </div>
     `, saveCategory);
 }
 
+// 2. Update the save function to Upsert
 async function saveCategory() {
+    const id = document.getElementById('catId').value; // Check if we are editing
     const name = document.getElementById('catName').value;
     const is_general = document.getElementById('catGeneral').value === 'true';
+    
     if(!name) return showToast('Name is required', 'error');
     
     setLoading('modalSaveBtn', true);
     try {
-        const { error } = await supabaseClient.from('categories').insert([{ name, is_general }]);
+        const payload = { name, is_general };
+        if (id) payload.id = id; // If ID exists, Supabase will update instead of insert
+
+        const { error } = await supabaseClient.from('categories').upsert([payload]);
         if (error) throw error;
-        showToast('Category created successfully!');
+        
+        showToast(id ? 'Category updated!' : 'Category created!');
         closeModal(); 
         loadCategories();
-    } catch(e) { showToast(e.message, 'error'); }
-    finally { setLoading('modalSaveBtn', false); }
+    } catch(e) { 
+        showToast(e.message, 'error'); 
+    } finally { 
+        setLoading('modalSaveBtn', false); 
+    }
 }
 
 async function deleteCategory(id) {
@@ -224,55 +252,97 @@ async function loadCompetitions() {
         if (stagesList.length === 0) { const { data } = await supabaseClient.from('stages').select('*'); stagesList = data || []; }
         if (categoriesList.length === 0) await loadCategories();
 
-        const { data, error } = await supabaseClient.from('competitions').select(`*, categories(name), stages(name)`).order('name');
+        // Fetch competitions along with the count of assigned participants
+        const { data, error } = await supabaseClient
+            .from('competitions')
+            .select(`*, categories(name), stages(name), participant_competitions(count)`)
+            .order('name');
+            
         if(error) throw error;
-        
         competitionsList = data || [];
 
         const tbody = document.getElementById('competitions-tbody');
         tbody.innerHTML = '';
         
-        // 1. Populate Filter Dropdown
         const filterCat = document.getElementById('filterCompCategory');
         if(filterCat && filterCat.options.length === 1) {
             categoriesList.forEach(c => filterCat.innerHTML += `<option value="${c.name}">${c.name}</option>`);
         }
 
-        // 2. Generate Rows with Checkboxes
         (data || []).forEach(comp => {
+            const studentCount = comp.participant_competitions[0]?.count || 0;
+            
             tbody.innerHTML += `
                 <tr>
                     <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${comp.id}"></td>
                     <td>${comp.name}</td>
                     <td><span class="badge badge-primary">${comp.categories?.name || 'N/A'}</span></td>
                     <td>${comp.stages?.name || 'Unassigned'}</td>
-                    <td>${comp.max_mark}</td>
-                    <td>${comp.max_participants} per team</td>
-                    <td><button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteCompetition('${comp.id}')"><i class="fa-solid fa-trash"></i></button></td>
+                    <td>
+                        <span class="badge-count" onclick="viewCompParticipants('${comp.id}')">
+                            ${studentCount} / ${comp.max_participants} Limit
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openCompModal(${JSON.stringify(comp).replace(/'/g, "&apos;")})'><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteCompetition('${comp.id}')"><i class="fa-solid fa-trash"></i></button>
+                    </td>
                 </tr>
             `;
         });
     } catch(e) { showToast(e.message, 'error'); }
 }
 
-function openCompModal() {
-    let catOpts = categoriesList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-    let stageOpts = stagesList.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+// Special function to view participants linked to a competition (Many-to-Many)
+async function viewCompParticipants(compId) {
+    try {
+        const { data, error } = await supabaseClient
+            .from('participant_competitions')
+            .select('participants(name, unique_id)')
+            .eq('competition_id', compId);
+            
+        if (error) throw error;
+        
+        const tbody = document.getElementById('listModalTable');
+        tbody.innerHTML = `<tr><th>PARTICIPANT NAME</th></tr>`; 
+        
+        if (!data || data.length === 0) tbody.innerHTML += `<tr><td style="color:var(--text-muted);">No students assigned.</td></tr>`;
+        
+        data.forEach(item => {
+            tbody.innerHTML += `<tr><td>${item.participants?.name} (${item.participants?.unique_id})</td></tr>`;
+        });
+        
+        document.getElementById('listModalTitle').innerText = `Enrolled Students`;
+        document.getElementById('listModal').classList.add('show');
+    } catch (e) { showToast(e.message, 'error'); }
+}
 
-    openModal('New Competition', `
-        <div class="form-group"><label>Competition Name</label><input type="text" id="compName"></div>
+function openCompModal(editData = null) {
+    const isEdit = !!editData;
+    const cId = isEdit ? editData.id : '';
+    const cName = isEdit ? editData.name : '';
+    const cMarks = isEdit ? editData.max_mark : '100';
+    const cLimit = isEdit ? editData.max_participants : '1';
+
+    let catOpts = categoriesList.map(c => `<option value="${c.id}" ${isEdit && editData.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
+    let stageOpts = stagesList.map(s => `<option value="${s.id}" ${isEdit && editData.stage_id === s.id ? 'selected' : ''}>${s.name}</option>`).join('');
+
+    openModal(isEdit ? 'Edit Competition' : 'New Competition', `
+        <input type="hidden" id="compId" value="${cId}">
+        <div class="form-group"><label>Competition Name</label><input type="text" id="compName" value="${cName}"></div>
         <div style="display:flex; gap:1rem;">
             <div class="form-group" style="flex:1;"><label>Category</label><select id="compCategory">${catOpts}</select></div>
-            <div class="form-group" style="flex:1;"><label>Stage</label><select id="compStage"><option value="">-- No Stage Yet --</option>${stageOpts}</select></div>
+            <div class="form-group" style="flex:1;"><label>Stage</label><select id="compStage"><option value="">-- NO STAGE YET --</option>${stageOpts}</select></div>
         </div>
         <div style="display:flex; gap:1rem;">
-            <div class="form-group" style="flex:1;"><label>Max Marks</label><input type="number" id="compMarks" value="100"></div>
-            <div class="form-group" style="flex:1;"><label>Participants / Team</label><input type="number" id="compParticipants" value="1"></div>
+            <div class="form-group" style="flex:1;"><label>Max Marks</label><input type="number" id="compMarks" value="${cMarks}"></div>
+            <div class="form-group" style="flex:1;"><label>Participants / Team</label><input type="number" id="compParticipants" value="${cLimit}"></div>
         </div>
     `, saveCompetition);
 }
 
 async function saveCompetition() {
+    const id = document.getElementById('compId').value;
     const name = document.getElementById('compName').value;
     const category_id = document.getElementById('compCategory').value;
     const stage_id = document.getElementById('compStage').value || null;
@@ -283,15 +353,21 @@ async function saveCompetition() {
     
     setLoading('modalSaveBtn', true);
     try {
-        const { error } = await supabaseClient.from('competitions').insert([{ name, category_id, stage_id, max_mark, max_participants }]);
+        const payload = { name, category_id, stage_id, max_mark, max_participants };
+        if (id) payload.id = id;
+
+        const { error } = await supabaseClient.from('competitions').upsert([payload]);
         if (error) throw error;
-        showToast('Competition created successfully!');
+        
+        showToast(id ? 'Competition updated!' : 'Competition created!');
         closeModal(); 
         loadCompetitions();
-    } catch(e) { showToast(e.message, 'error'); }
-    finally { setLoading('modalSaveBtn', false); }
+    } catch(e) { 
+        showToast(e.message, 'error'); 
+    } finally { 
+        setLoading('modalSaveBtn', false); 
+    }
 }
-
 async function deleteCompetition(id) {
     if(confirm("Delete this competition?")) {
         try {
@@ -306,85 +382,136 @@ async function deleteCompetition(id) {
 // --- STAGES & TEAMS MANAGEMENT ---
 async function loadStagesAndTeams() {
     try {
-        // Load Stages
-        const { data: stages, error: stageError } = await supabaseClient.from('stages').select(`*, users(username)`).order('stage_no');
+        // Load Stages with Competition Counts
+        const { data: stages, error: stageError } = await supabaseClient
+            .from('stages')
+            .select(`*, users(username), competitions(count)`)
+            .order('stage_no');
         if(stageError) throw stageError;
         
         stagesList = stages || [];
         const stbody = document.getElementById('stages-tbody');
         stbody.innerHTML = '';
+        
         stagesList.forEach(s => {
+            const compCount = s.competitions[0]?.count || 0;
             stbody.innerHTML += `
                 <tr>
-                    <td>${s.name} <br><small style="color:var(--text-muted)">Controller: ${s.users?.username || 'None'}</small></td>
-                    <td>Stage ${s.stage_no}</td>
-                    <td><button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteStage('${s.id}')"><i class="fa-solid fa-trash"></i></button></td>
+                    <td>
+                        <strong>${s.name}</strong><br>
+                        <small style="color:var(--text-muted)">CONTROLLER: ${s.users?.username || 'NONE'}</small>
+                    </td>
+                    <td>STAGE ${s.stage_no}</td>
+                    <td><span class="badge-count" onclick="viewRelationalData('competitions', 'stage_id', '${s.id}')">${compCount} COMPS</span></td>
+                    <td>
+                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openStageModal(${JSON.stringify(s).replace(/'/g, "&apos;")})'><i class="fa-solid fa-pen"></i></button>
+                    </td>
                 </tr>
             `;
         });
 
-        // Load Teams
-        const { data: teams, error: teamError } = await supabaseClient.from('teams').select('*').order('name');
+        // Load Teams with Participant Counts
+        const { data: teams, error: teamError } = await supabaseClient
+            .from('teams')
+            .select('*, participants(count)')
+            .order('name');
         if(teamError) throw teamError;
         
         teamsList = teams || [];
         const ttbody = document.getElementById('teams-tbody');
         ttbody.innerHTML = '';
+        
         teamsList.forEach(t => {
+            const memberCount = t.participants[0]?.count || 0;
             ttbody.innerHTML += `
                 <tr>
-                    <td>${t.name}</td>
-                    <td><button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteTeam('${t.id}')"><i class="fa-solid fa-trash"></i></button></td>
+                    <td>
+                        <strong>${t.name}</strong><br>
+                        <small style="color:var(--text-muted)">MGR: ${t.manager_name || 'N/A'} | ASST: ${t.assistant_manager_name || 'N/A'}</small>
+                    </td>
+                    <td><span class="badge-count" onclick="viewRelationalData('participants', 'team_id', '${t.id}')">${memberCount} MEMBERS</span></td>
+                    <td>
+                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openTeamModal(${JSON.stringify(t).replace(/'/g, "&apos;")})'><i class="fa-solid fa-pen"></i></button>
+                    </td>
                 </tr>
             `;
         });
     } catch(e) { showToast(e.message, 'error'); }
 }
 
-async function openStageModal() {
+async function openStageModal(editData = null) {
     try {
         if (availableControllers.length === 0) {
             const { data } = await supabaseClient.from('users').select('*').eq('role', 'stage_controller');
             availableControllers = data || [];
         }
-        let controllerOpts = availableControllers.map(c => `<option value="${c.id}">${c.username}</option>`).join('');
         
-        openModal('Add Stage', `
-            <div class="form-group"><label>Stage Name</label><input type="text" id="stageName" placeholder="e.g. Main Auditorium"></div>
-            <div class="form-group"><label>Stage Number (ID)</label><input type="number" id="stageNo" value="1"></div>
-            <div class="form-group"><label>Assign Controller</label><select id="stageController"><option value="">-- Select Controller --</option>${controllerOpts}</select></div>
+        const isEdit = !!editData;
+        const sId = isEdit ? editData.id : '';
+        const sName = isEdit ? editData.name : '';
+        const sNo = isEdit ? editData.stage_no : '1';
+        
+        let controllerOpts = availableControllers.map(c => 
+            `<option value="${c.id}" ${isEdit && editData.controller_id === c.id ? 'selected' : ''}>${c.username}</option>`
+        ).join('');
+        
+        openModal(isEdit ? 'Edit Stage' : 'Add Stage', `
+            <input type="hidden" id="stageId" value="${sId}">
+            <div class="form-group"><label>Stage Name</label><input type="text" id="stageName" value="${sName}"></div>
+            <div class="form-group"><label>Stage Number (ID)</label><input type="number" id="stageNo" value="${sNo}"></div>
+            <div class="form-group"><label>Assign Controller</label><select id="stageController"><option value="">-- SELECT CONTROLLER --</option>${controllerOpts}</select></div>
         `, async () => {
+            const id = document.getElementById('stageId').value;
             const name = document.getElementById('stageName').value;
             const stage_no = document.getElementById('stageNo').value;
             const controller_id = document.getElementById('stageController').value || null;
+            
             if(!name || !stage_no) return showToast('Name and Number required', 'error');
             
             setLoading('modalSaveBtn', true);
-            const { error } = await supabaseClient.from('stages').insert([{ name, stage_no, controller_id }]);
+            const payload = { name, stage_no, controller_id };
+            if (id) payload.id = id;
+
+            const { error } = await supabaseClient.from('stages').upsert([payload]);
             setLoading('modalSaveBtn', false);
             
             if(error) showToast(error.message, 'error'); 
-            else { showToast('Stage added!'); closeModal(); loadStagesAndTeams(); }
+            else { showToast(id ? 'Stage updated!' : 'Stage added!'); closeModal(); loadStagesAndTeams(); }
         });
     } catch(e) { showToast(e.message, 'error'); }
 }
 
-function openTeamModal() {
-    openModal('Add Team', `
-        <div class="form-group"><label>Team Name</label><input type="text" id="teamName" placeholder="e.g. Gryffindor"></div>
+function openTeamModal(editData = null) {
+    const isEdit = !!editData;
+    const tId = isEdit ? editData.id : '';
+    const tName = isEdit ? editData.name : '';
+    const tMgr = isEdit && editData.manager_name ? editData.manager_name : '';
+    const tAsst = isEdit && editData.assistant_manager_name ? editData.assistant_manager_name : '';
+
+    openModal(isEdit ? 'Edit Team' : 'Add Team', `
+        <input type="hidden" id="teamId" value="${tId}">
+        <div class="form-group"><label>Team Name</label><input type="text" id="teamName" value="${tName}"></div>
+        <div class="form-group"><label>Manager Name</label><input type="text" id="teamMgr" value="${tMgr}"></div>
+        <div class="form-group"><label>Assistant Manager Name</label><input type="text" id="teamAsst" value="${tAsst}"></div>
     `, async () => {
+        const id = document.getElementById('teamId').value;
         const name = document.getElementById('teamName').value;
-        if(!name) return showToast('Name required', 'error');
+        const manager_name = document.getElementById('teamMgr').value;
+        const assistant_manager_name = document.getElementById('teamAsst').value;
+        
+        if(!name) return showToast('Team Name required', 'error');
         
         setLoading('modalSaveBtn', true);
-        const { error } = await supabaseClient.from('teams').insert([{ name }]);
+        const payload = { name, manager_name, assistant_manager_name };
+        if (id) payload.id = id;
+
+        const { error } = await supabaseClient.from('teams').upsert([payload]);
         setLoading('modalSaveBtn', false);
         
         if(error) showToast(error.message, 'error'); 
-        else { showToast('Team added!'); closeModal(); loadStagesAndTeams(); }
+        else { showToast(id ? 'Team updated!' : 'Team added!'); closeModal(); loadStagesAndTeams(); }
     });
 }
-
 async function deleteStage(id) { 
     if(confirm("Delete stage?")) { 
         try {
@@ -442,25 +569,37 @@ async function loadParticipants() {
         });
     } catch(e) { showToast(e.message, 'error'); }
 }
+// --- PARTICIPANT EDIT & CROPPER ---
 function openParticipantModal(editData = null) {
     let catOpts = categoriesList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     let teamOpts = teamsList.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
-    openModal(editData ? 'Edit Participant' : 'Register Participant', `
-        <input type="hidden" id="partId" value="${editData ? editData.id : ''}">
+    const isEdit = !!editData;
+    const pId = isEdit ? editData.id : '';
+    const pName = isEdit ? editData.name : '';
+    const pBatch = isEdit ? editData.batch_no : '1';
+    const pPhoto = isEdit && editData.photo_url ? `<p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">Current photo saved. Uploading a new one will replace it.</p>` : '';
+
+    openModal(isEdit ? 'Edit Participant' : 'Register Participant', `
+        <input type="hidden" id="partId" value="${pId}">
         <div class="form-group">
             <label>Full Name</label>
-            <input type="text" id="partName" placeholder="Participant Name" value="${editData ? editData.name : ''}">
+            <input type="text" id="partName" placeholder="PARTICIPANT NAME" value="${pName}">
         </div>
+        
         <div class="form-group">
             <label>Participant Photo (Will crop to 2:3 ratio)</label>
+            ${pPhoto}
             <input type="file" id="partPhoto" accept="image/png, image/jpeg, image/webp" onchange="initCropper(this)" style="padding: 0.6rem; background: white;">
-            <div class="img-container" id="cropContainer"><img id="cropImage" src=""></div>
+            <div class="img-container" id="cropContainer" style="display:none; margin-top:10px;">
+                <img id="cropImage" src="" style="max-width: 100%;">
+            </div>
         </div>
+
         <div class="form-group">
             <label>Team</label>
             <select id="partTeam">
-                <option value="">-- Select Team --</option>
+                <option value="">-- SELECT TEAM --</option>
                 ${teamOpts}
             </select>
         </div>
@@ -471,42 +610,57 @@ function openParticipantModal(editData = null) {
             </div>
             <div class="form-group" style="flex:1;">
                 <label>Batch No</label>
-                <input type="number" id="partBatch" min="1" max="7" value="1">
+                <input type="number" id="partBatch" min="1" max="7" value="${pBatch}">
             </div>
         </div>
     `, saveParticipant);
+
+    // If editing, pre-select dropdowns
+    if (isEdit) {
+        if(editData.team_id) document.getElementById('partTeam').value = editData.team_id;
+        if(editData.category_id) document.getElementById('partCategory').value = editData.category_id;
+    }
 }
+
 async function saveParticipant() {
+    const id = document.getElementById('partId').value;
     const name = document.getElementById('partName').value;
     const team_id = document.getElementById('partTeam').value || null;
     const category_id = document.getElementById('partCategory').value;
     const batch_no = document.getElementById('partBatch').value;
-    const photoInput = document.getElementById('partPhoto');
-    const unique_id = `FEST-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+    
+    // If it's a new user, generate a new ID. If editing, we leave unique_id alone (handled by DB).
+    const unique_id = id ? undefined : `FEST-2026-${Math.floor(100000 + Math.random() * 900000)}`;
     
     if(!name) return showToast('Name is required', 'error');
     
     setLoading('modalSaveBtn', true);
     
     try {
-        let photo_url = null;
+        let photo_url = undefined; // Undefined means it won't overwrite existing data if left blank
 
-        // Handle Photo Upload if a file is selected
-        if (photoInput.files.length > 0) {
-            const file = photoInput.files[0];
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${unique_id}.${fileExt}`; // Name the file after their Unique ID
+        // Handle the cropped photo!
+        if (currentCropper) {
+            showToast('Processing image...', 'success');
             
-            showToast('Uploading photo...', 'success');
+            // Get the cropped canvas data
+            const canvas = currentCropper.getCroppedCanvas({
+                width: 400, // Enforce a standard width for the 2:3 ratio
+                height: 600
+            });
+            
+            // Convert canvas to a blob (file)
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+            const fileName = `profile_${Date.now()}.jpg`; 
             
             // Upload to Supabase Storage
             const { data: uploadData, error: uploadError } = await supabaseClient.storage
                 .from('photos')
-                .upload(fileName, file);
+                .upload(fileName, blob, { contentType: 'image/jpeg' });
                 
             if (uploadError) throw uploadError;
 
-            // Retrieve the public URL for the ID card
+            // Retrieve the public URL
             const { data: publicUrlData } = supabaseClient.storage
                 .from('photos')
                 .getPublicUrl(fileName);
@@ -514,19 +668,21 @@ async function saveParticipant() {
             photo_url = publicUrlData.publicUrl;
         }
 
-        // Save to Database
-        const { error } = await supabaseClient.from('participants').insert([{ 
-            unique_id, 
-            name, 
-            team_id, 
-            category_id, 
-            batch_no, 
-            photo_url 
-        }]);
-        
+        // Build the payload
+        const payload = { name, team_id, category_id, batch_no };
+        if (id) payload.id = id; // Editing
+        if (unique_id) payload.unique_id = unique_id; // New Registration
+        if (photo_url) payload.photo_url = photo_url; // Only update photo if a new one was uploaded
+
+        // Upsert to Database
+        const { error } = await supabaseClient.from('participants').upsert([payload]);
         if (error) throw error;
         
-        showToast('Participant registered successfully!');
+        showToast(id ? 'Participant updated!' : 'Participant registered successfully!');
+        
+        // Cleanup Cropper
+        if(currentCropper) { currentCropper.destroy(); currentCropper = null; }
+        
         closeModal(); 
         loadParticipants();
         
@@ -536,7 +692,6 @@ async function saveParticipant() {
         setLoading('modalSaveBtn', false); 
     }
 }
-
 async function deleteParticipant(id) {
     if(confirm("Are you sure you want to delete this participant?")) {
         try {
@@ -553,24 +708,30 @@ function buildCardElement(participant) {
     const card = document.createElement('div');
     card.className = 'id-card';
     
-    // Generate a hash-based color for consistent team coloring
-    const stringToColour = (str) => {
-        let hash = 0; for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-        let colour = '#'; for (let i = 0; i < 3; i++) colour += ('00' + ((hash >> (i * 8)) & 0xFF).toString(16)).substr(-2);
-        return colour;
+    // Define premium hex colors for your specific teams
+    const teamColors = {
+        'GRYFFINDOR': '#991B1B', // Deep Red
+        'SLYTHERIN': '#166534',  // Deep Green
+        'RAVENCLAW': '#1E3A8A',  // Deep Blue
+        'HUFFLEPUFF': '#CA8A04'  // Gold/Yellow
     };
     
-    const teamColor = participant.teams ? stringToColour(participant.teams.name) : 'var(--primary)';
-    const photoSrc = participant.photo_url ? participant.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=Photo';
+    const teamName = participant.teams ? participant.teams.name.toUpperCase() : 'INDEPENDENT';
+    // Fallback to a premium dark gray if the team isn't in the list above
+    const teamColor = teamColors[teamName] || '#374151'; 
+    const photoSrc = participant.photo_url ? participant.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=PHOTO';
     
     card.innerHTML = `
-        <div class="id-header" style="background: ${teamColor};"><h2>FEST 2026</h2><p>Official Pass</p></div>
-        <img src="${photoSrc}" class="id-photo" style="border-color: ${teamColor}" alt="Participant">
+        <div class="id-header" style="background: ${teamColor};">
+            <h2>FEST 2026</h2>
+            <p style="font-size: 8px; opacity: 0.8; letter-spacing: 1px;">OFFICIAL PASS</p>
+        </div>
+        <img src="${photoSrc}" class="id-photo" style="border-color: ${teamColor}; border-width: 4px;" alt="Participant">
         <div class="id-details">
-            <div class="id-name" style="text-transform: uppercase;">${participant.name}</div>
-            <div class="id-team" style="color: ${teamColor}; text-transform: uppercase;">${participant.teams?.name || 'Independent'}</div>
-            <div class="id-cat">${participant.categories?.name || 'General'}</div>
-            <div class="id-uid">${participant.unique_id}</div>
+            <div class="id-name" style="text-transform: uppercase; font-size: 18px; margin-bottom: 4px;">${participant.name}</div>
+            <div class="id-team" style="color: white; background: ${teamColor}; padding: 3px 8px; border-radius: 12px; display: inline-block; font-size: 10px; margin-bottom: 8px;">${teamName}</div>
+            <div class="id-cat" style="font-weight: 600; color: #475569;">${participant.categories?.name || 'GENERAL'}</div>
+            <div class="id-uid" style="font-size: 11px; margin-top: 8px; font-weight: bold;">${participant.unique_id}</div>
         </div>
         <div class="id-qr" id="qr-${participant.id}"></div>
     `;
@@ -817,20 +978,57 @@ async function loadAssignments() {
     } catch (e) { showToast(e.message, 'error'); }
 }
 
-function openAssignModal() {
+// --- ASSIGNMENTS & BULK ASSIGNMENTS FIX ---
+async function openAssignModal() {
+    // FORCE data load if lists are empty
+    if (participantsList.length === 0) {
+        const { data } = await supabaseClient.from('participants').select('*').order('name');
+        participantsList = data || [];
+    }
+    if (competitionsList.length === 0) {
+        const { data } = await supabaseClient.from('competitions').select('*').order('name');
+        competitionsList = data || [];
+    }
+
     let partOpts = participantsList.map(p => `<option value="${p.id}">${p.name} (${p.unique_id})</option>`).join('');
     let compOpts = competitionsList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 
     openModal('Assign Student to Competition', `
-        <div class="form-group"><label>Select Participant</label><select id="assignPart">${partOpts}</select></div>
-        <div class="form-group"><label>Select Competition</label><select id="assignComp">${compOpts}</select></div>
+        <div class="form-group">
+            <label>Select Participant</label>
+            <select id="assignPart">
+                <option value="">-- SELECT PARTICIPANT --</option>
+                ${partOpts}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Select Competition</label>
+            <select id="assignComp">
+                <option value="">-- SELECT COMPETITION --</option>
+                ${compOpts}
+            </select>
+        </div>
     `, async () => {
         const participant_id = document.getElementById('assignPart').value;
         const competition_id = document.getElementById('assignComp').value;
         
-        const { error } = await supabaseClient.from('participant_competitions').insert([{ participant_id, competition_id }]);
-        if (error) showToast(error.message, 'error');
-        else { showToast('Assigned!'); closeModal(); loadAssignments(); }
+        if (!participant_id || !competition_id) return showToast('Please select both a participant and a competition.', 'error');
+
+        setLoading('modalSaveBtn', true);
+        try {
+            const { error } = await supabaseClient.from('participant_competitions').insert([{ participant_id, competition_id }]);
+            if (error) {
+                if (error.code === '23505') throw new Error('Student is already assigned to this competition!');
+                throw error;
+            }
+            showToast('Student Assigned!'); 
+            closeModal(); 
+            loadAssignments();
+        } catch (e) {
+            showToast(e.message, 'error');
+        } finally {
+            setLoading('modalSaveBtn', false);
+        }
     });
 }
 // --- UNIVERSAL TABLE CONTROLS ---
@@ -933,43 +1131,53 @@ async function bulkPrintSelected() {
     }
 }
 
-// 3. Bulk Assign to Competition
-function openBulkAssignModal() {
+async function openBulkAssignModal() {
     const ids = getSelectedIds('participants-tbody');
-    if(ids.length === 0) return showToast('Select participants to assign', 'error');
+    if(ids.length === 0) return showToast('Select participants to assign first.', 'error');
+
+    // Ensure competitions list is loaded
+    if (competitionsList.length === 0) {
+        const { data } = await supabaseClient.from('competitions').select('*').order('name');
+        competitionsList = data || [];
+    }
 
     let compOpts = competitionsList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     
     openModal('Bulk Assign to Competition', `
         <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--primary-light); border-radius: 8px; color: var(--primary); font-weight: 600;">
-            <i class="fa-solid fa-users"></i> You are assigning ${ids.length} selected participant(s).
+            <i class="fa-solid fa-users"></i> ASSIGNING ${ids.length} SELECTED PARTICIPANT(S).
         </div>
         <div class="form-group">
             <label>Select Competition</label>
-            <select id="bulkAssignComp">${compOpts}</select>
+            <select id="bulkAssignComp">
+                <option value="">-- SELECT COMPETITION --</option>
+                ${compOpts}
+            </select>
         </div>
     `, async () => {
         const competition_id = document.getElementById('bulkAssignComp').value;
+        if (!competition_id) return showToast('Select a competition.', 'error');
+
         const inserts = ids.map(participant_id => ({ participant_id, competition_id }));
         
         setLoading('modalSaveBtn', true);
-        
         try {
             const { error } = await supabaseClient.from('participant_competitions').insert(inserts);
             if (error) {
-                if (error.code === '23505') throw new Error('One or more selected participants are already assigned to this competition.');
+                if (error.code === '23505') throw new Error('One or more selected participants are already assigned here.');
                 throw error;
             }
             
             showToast(`Successfully assigned ${ids.length} participants!`); 
             closeModal(); 
             
+            // Uncheck the boxes and flip to assignments tab to see results
             document.querySelectorAll('#participants-tbody input[type="checkbox"]').forEach(cb => cb.checked = false);
             switchTab('assignments');
         } catch (e) { 
             showToast(e.message, 'error'); 
         } finally {
-       setLoading('modalSaveBtn', false);
+            setLoading('modalSaveBtn', false);
         }
     });
 }
