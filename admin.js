@@ -133,7 +133,7 @@ async function loadCategories() {
         const tbody = document.getElementById('categories-tbody');
         tbody.innerHTML = '';
         
-       categoriesList.forEach(cat => {
+        categoriesList.forEach(cat => {
             const partCount = cat.participants[0]?.count || 0;
             const compCount = cat.competitions[0]?.count || 0;
             tbody.innerHTML += `
@@ -150,6 +150,8 @@ async function loadCategories() {
                 </tr>
             `;
         });
+    } catch(e) { showToast(e.message, 'error'); }
+}
 
 // Function to handle viewing counts in a popup
 async function viewRelationalData(table, filterColumn, filterId) {
@@ -837,47 +839,6 @@ function openAssignModal() {
     });
 }
 // --- UNIVERSAL TABLE CONTROLS ---
-
-// 1. Live Text Search
-function filterTable(tbodyId, query) {
-    const rows = document.querySelectorAll(`#${tbodyId} tr`);
-    query = query.toLowerCase();
-    rows.forEach(row => {
-        const text = row.innerText.toLowerCase();
-        row.style.display = text.includes(query) ? '' : 'none';
-    });
-}
-
-// 2. Dropdown Filtering (Targeting a specific column)
-function filterTableByColumn(tbodyId, colIndex, value) {
-    const rows = document.querySelectorAll(`#${tbodyId} tr`);
-    value = value.toLowerCase();
-    rows.forEach(row => {
-        const cellText = row.cells[colIndex].innerText.toLowerCase();
-        // If value is empty (All), show it. Otherwise, match the text.
-        if (value === "" || cellText.includes(value)) row.style.display = '';
-        else row.style.display = 'none';
-    });
-}
-
-// 3. Select All Checkboxes
-function toggleSelectAll(tbodyId, masterCheckbox) {
-    const checkboxes = document.querySelectorAll(`#${tbodyId} input[type="checkbox"].row-cb`);
-    checkboxes.forEach(cb => {
-        // Only select visible rows (respects active search/filters)
-        if (cb.closest('tr').style.display !== 'none') {
-            cb.checked = masterCheckbox.checked;
-        }
-    });
-}
-
-// 4. Get Selected IDs for Bulk Actions
-function getSelectedIds(tbodyId) {
-    const checkboxes = document.querySelectorAll(`#${tbodyId} input[type="checkbox"].row-cb:checked`);
-    return Array.from(checkboxes).map(cb => cb.value);
-}
-
-// --- UNIVERSAL TABLE CONTROLS ---
 function filterTable(tbodyId, query) {
     const rows = document.querySelectorAll(`#${tbodyId} tr`);
     query = query.toLowerCase();
@@ -1001,7 +962,6 @@ function openBulkAssignModal() {
         try {
             const { error } = await supabaseClient.from('participant_competitions').insert(inserts);
             if (error) {
-                // Handle duplicate assignments gracefully
                 if (error.code === '23505') throw new Error('One or more selected participants are already assigned to this competition.');
                 throw error;
             }
@@ -1009,10 +969,7 @@ function openBulkAssignModal() {
             showToast(`Successfully assigned ${ids.length} participants!`); 
             closeModal(); 
             
-            // Clear selections
             document.querySelectorAll('#participants-tbody input[type="checkbox"]').forEach(cb => cb.checked = false);
-            
-            // Optionally auto-switch to assignments tab to see results
             switchTab('assignments');
         } catch (e) { 
             showToast(e.message, 'error'); 
