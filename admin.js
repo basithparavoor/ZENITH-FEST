@@ -93,11 +93,12 @@ function switchTab(tabId) {
     }
 }
 
-function logout() {
-    if (confirm("Are you sure you want to securely log out of the Admin Dashboard?")) {
-        localStorage.removeItem('festUser');
-        window.location.href = 'index.html';
-    }
+// Custom Logout Logic
+function logout() { document.getElementById('logoutModal').classList.add('show'); }
+
+function confirmLogout() {
+    localStorage.removeItem('festUser');
+    window.location.href = 'index.html';
 }
 
 // --- MODAL UTILS ---
@@ -974,7 +975,7 @@ function openBulkAssignModal() {
         } catch (e) { 
             showToast(e.message, 'error'); 
         } finally {
-            setLoading('modalSaveBtn', false);
+       setLoading('modalSaveBtn', false);
         }
     });
 }
