@@ -246,16 +246,16 @@ async function deleteCategory(id) {
     }
 }
 
-// --- COMPETITIONS MANAGEMENT ---
+// --- COMPETITIONS MANAGEMENT (SAFE VERSION) ---
 async function loadCompetitions() {
     try {
         if (stagesList.length === 0) { const { data } = await supabaseClient.from('stages').select('*'); stagesList = data || []; }
         if (categoriesList.length === 0) await loadCategories();
 
-        // Fetch competitions along with the count of assigned participants
+        // Removed participant_competitions(count) to prevent the Schema Cache error
         const { data, error } = await supabaseClient
             .from('competitions')
-            .select(`*, categories(name), stages(name), participant_competitions(count)`)
+            .select(`*, categories(name), stages(name)`)
             .order('name');
             
         if(error) throw error;
@@ -270,7 +270,8 @@ async function loadCompetitions() {
         }
 
         (data || []).forEach(comp => {
-            const studentCount = comp.participant_competitions[0]?.count || 0;
+            // Replaced the database count with a placeholder until Foreign Keys are fixed
+            const studentCount = "?"; 
             
             tbody.innerHTML += `
                 <tr>
@@ -292,7 +293,6 @@ async function loadCompetitions() {
         });
     } catch(e) { showToast(e.message, 'error'); }
 }
-
 // Special function to view participants linked to a competition (Many-to-Many)
 async function viewCompParticipants(compId) {
     try {
