@@ -276,6 +276,8 @@
         <div class="nav-item" onclick="switchTab('competitions')">Competitions</div>
         <div class="nav-item" onclick="switchTab('participants')">Participants & ID Cards</div>
         <div class="nav-item" onclick="switchTab('stages')">Stages & Teams</div>
+        <!-- Add this below the other nav-items -->
+<div class="nav-item" onclick="switchTab('users')">User Management</div>
     </div>
 
     <!-- Main Content Area -->
@@ -385,6 +387,31 @@
             <p style="color: var(--text-muted); margin-top: 1rem;">This module will handle adding stages, assigning controllers, and creating teams.</p>
         </div>
     </div>
+
+    <!-- 4. USERS TAB -->
+<div id="users" class="content-section">
+    <div class="action-bar">
+        <button class="btn btn-primary" onclick="openUserModal()">+ Create User</button>
+        <div class="bulk-actions">
+            <button class="btn btn-outline" onclick="downloadCSV('users')">Export Users</button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="users-tbody">
+                <!-- Populated by JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
 
     <!-- Reusable Form Modal -->
     <div id="formModal" class="modal-overlay">

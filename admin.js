@@ -480,9 +480,120 @@ async function generateBulkCards() {
 }
 
 // --- UPDATE switchTab ---
-// (Make sure you update the switchTab function at the top of admin.js to trigger loadParticipants)
+// Ensure this replaces the previous originalSwitchTab wrapper
 const originalSwitchTab = switchTab;
 switchTab = function(tabId) {
     originalSwitchTab(tabId);
     if (tabId === 'participants') loadParticipants();
+    if (tabId === 'users') loadUsers(); // <-- Add this line
+}
+// --- USER MANAGEMENT ---
+
+async function loadUsers() {
+    // Fetch all users except the master_admin to prevent accidental lockouts
+    const { data, error } = await supabase
+        .from('users')
+        .select('id, username, role')
+        .neq('role', 'master_admin')
+        .order('role');
+        
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    const tbody = document.getElementById('users-tbody');
+    tbody.innerHTML = '';
+    
+    data.forEach(u => {
+        // Format role for better readability
+        const roleDisplay = u.role.replace('_', ' ').toUpperCase();
+        
+        tbody.innerHTML += `
+            <tr>
+                <td style="font-weight: 600;">${u.username}</td>
+                <td><span class="badge" style="background: #EEF2FF; color: var(--primary); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">${roleDisplay}</span></td>
+                <td>
+                    <button class="btn btn-outline" style="padding:0.25rem 0.5rem; color: var(--danger); border-color: var(--danger);" onclick="deleteUser('${u.id}', '${u.username}')">Delete</button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+function openUserModal() {
+    document.getElementById('modalTitle').innerText = 'Create New User';
+    document.getElementById('modalBody').innerHTML = `
+        <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="newUsername" placeholder="e.g., judge_smith" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="text" id="newPassword" placeholder="Enter secure password" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label>System Role</label>
+            <select id="newUserRole">
+                <option value="judge">Judge</option>
+                <option value="stage_controller">Stage Controller</option>
+                <option value="fest_manager">Fest Manager</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+    `;
+    document.getElementById('modalSaveBtn').onclick = saveUser;
+    document.getElementById('formModal').style.display = 'flex';
+}
+
+async function saveUser() {
+    const username = document.getElementById('newUsername').value.trim();
+    const password_hash = document.getElementById('newPassword').value.trim();
+    const role = document.getElementById('newUserRole').value;
+    
+    if (!username || !password_hash) {
+        return alert('Username and Password are required.');
+    }
+
+    const btn = document.getElementById('modalSaveBtn');
+    btn.innerText = "Saving...";
+    btn.disabled = true;
+
+    const { error } = await supabase.from('users').insert([{ 
+        username, 
+        password_hash, 
+        role 
+    }]);
+    
+    btn.innerText = "Save Changes";
+    btn.disabled = false;
+
+    if (error) {
+        // Supabase returns code 23505 for unique constraint violations (duplicate username)
+        if (error.code === '23505') {
+            alert('This username is already taken. Please choose another.');
+        } else {
+            alert('Error creating user: ' + error.message);
+        }
+    } else {
+        closeModal();
+        loadUsers();
+    }
+}
+
+async function deleteUser(id, username) {
+    if (confirm(`Are you absolutely sure you want to delete the user "${username}"? This cannot be undone.`)) {
+        const { error } = await supabase.from('users').delete().eq('id', id);
+        
+        if (error) {
+            // Handle foreign key constraint errors (e.g., if a judge already submitted marks)
+            if (error.code === '23503') {
+                alert(`Cannot delete ${username} because they are already linked to competition judgements. You must remove their assigned judgements first.`);
+            } else {
+                alert('Error deleting user: ' + error.message);
+            }
+        } else {
+            loadUsers();
+        }
+    }
 }
