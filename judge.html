@@ -3,70 +3,204 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FestOS | Judge Dashboard</title>
+    <title>FestOS | Premium Judge Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:,">
     <style>
         :root {
             --primary: #4F46E5;
             --primary-hover: #4338CA;
-            --success: #10B981;
-            --bg-color: #F3F4F6;
+            --success: #059669;
+            --success-hover: #047857;
+            --bg-color: #F8FAFC;
             --surface: #FFFFFF;
-            --text-main: #111827;
-            --border: #E5E7EB;
+            --text-main: #0F172A;
+            --text-muted: #64748B;
+            --border: #E2E8F0;
+            --radius: 16px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
         }
+        
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background: var(--bg-color); padding: 1rem; color: var(--text-main); }
         
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-        .header h1 { font-size: 1.5rem; }
-        .logout-btn { padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; background: white; }
+        body { 
+            background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
 
-        .card { background: var(--surface); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        /* Navbar */
+        .navbar { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 1.5rem 0;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .navbar h1 { font-size: 1.75rem; font-weight: 700; color: var(--text-main); letter-spacing: -0.025em; }
+        .user-info { display: flex; flex-direction: column; }
         
-        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; color: white; width: 100%; transition: 0.2s; }
-        .btn-primary { background: var(--primary); }
-        .btn-success { background: var(--success); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn { 
+            padding: 0.6rem 1.25rem; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.2s ease; 
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+        .btn-outline:hover { background: var(--bg-color); border-color: #CBD5E1; }
+        .btn-primary { background: var(--primary); color: white; box-shadow: var(--shadow-sm); }
+        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .btn-success { background: var(--success); color: white; width: 100%; padding: 1rem; font-size: 1.1rem; box-shadow: var(--shadow-md); }
+        .btn-success:hover { background: var(--success-hover); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
 
-        /* Evaluation Table UI */
-        .eval-container { display: none; margin-top: 1.5rem; }
-        .eval-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+        /* Cards */
+        .card { 
+            background: var(--surface); 
+            border-radius: var(--radius); 
+            padding: 1.5rem; 
+            margin-bottom: 1.5rem; 
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(255,255,255,0.5);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .comp-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
         
-        .participant-row { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px dashed var(--border); }
-        .code-letter { font-size: 1.5rem; font-weight: 700; color: var(--primary); width: 60px; text-align: center; background: #EEF2FF; border-radius: 8px; padding: 0.5rem; }
+        .section-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: var(--text-main); }
+
+        /* Evaluation UI */
+        .eval-container { display: none; }
+        .eval-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 1.5rem; 
+            padding-bottom: 1.5rem; 
+            border-bottom: 1px solid var(--border); 
+        }
+        .eval-header h2 { font-size: 1.5rem; font-weight: 700; }
         
-        .mark-input { width: 100px; padding: 0.75rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1.25rem; text-align: center; outline: none; }
+        .participant-list { display: flex; flex-direction: column; gap: 1rem; }
+        
+        .participant-row { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 1.25rem; 
+            background: #F8FAFC;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            transition: border-color 0.2s ease;
+        }
+        .participant-row:focus-within { border-color: var(--primary); background: #FFFFFF; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+        
+        .participant-info { display: flex; align-items: center; gap: 1.25rem; }
+        .code-letter { 
+            font-size: 1.75rem; 
+            font-weight: 800; 
+            color: var(--primary); 
+            width: 64px; 
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #EEF2FF; 
+            border-radius: 12px; 
+        }
+        
+        .mark-wrapper { display: flex; align-items: center; gap: 0.75rem; }
+        .mark-input { 
+            width: 90px; 
+            padding: 0.75rem; 
+            border: 2px solid var(--border); 
+            border-radius: 8px; 
+            font-size: 1.25rem; 
+            font-weight: 600;
+            text-align: center; 
+            outline: none; 
+            transition: all 0.2s ease;
+            color: var(--text-main);
+        }
         .mark-input:focus { border-color: var(--primary); }
-        .max-mark-label { font-size: 0.875rem; color: #6B7280; margin-left: 0.5rem; }
+        .max-mark-label { font-size: 1rem; font-weight: 500; color: var(--text-muted); }
+
+        .sticky-footer {
+            position: sticky;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            padding: 1.5rem 0;
+            margin-top: 2rem;
+            border-top: 1px solid var(--border);
+            z-index: 10;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 600px) {
+            .participant-row { flex-direction: column; align-items: stretch; gap: 1rem; }
+            .participant-info { justify-content: flex-start; }
+            .mark-wrapper { justify-content: space-between; background: white; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); }
+            .mark-input { width: 100%; max-width: 150px; }
+            .comp-card-inner { flex-direction: column; align-items: flex-start !important; gap: 1rem; }
+            .comp-card-inner .btn { width: 100%; }
+        }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <div>
-            <h1>Judge Portal</h1>
-            <p id="judge-name" style="color: #6B7280; font-size: 0.875rem;">Loading profile...</p>
-        </div>
-        <button class="logout-btn" onclick="logout()">Logout</button>
-    </div>
+    <div class="container">
+        <nav class="navbar">
+            <div class="user-info">
+                <h1>Judge Portal</h1>
+                <p id="judge-name" style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">Loading profile...</p>
+            </div>
+            <button class="btn btn-outline" onclick="logout()">Logout</button>
+        </nav>
 
-    <div id="dashboard-view">
-        <h2 style="font-size: 1.1rem; margin-bottom: 1rem;">Ongoing Competitions</h2>
-        <div id="competitions-container">
-            <!-- Competitions injected here -->
-        </div>
-    </div>
+        <main id="dashboard-view">
+            <h2 class="section-title">Assigned Competitions</h2>
+            <div id="competitions-container">
+                <!-- Competitions injected here -->
+            </div>
+        </main>
 
-    <div id="evaluation-view" class="card eval-container">
-        <div class="eval-header">
-            <h2 id="eval-comp-name">Competition Name</h2>
-            <button class="logout-btn" onclick="closeEvaluation()">Back</button>
-        </div>
-        <div id="participants-container">
-            <!-- Participants list injected here -->
-        </div>
-        <button class="btn btn-success" style="margin-top: 1.5rem;" onclick="submitJudgement()" id="submit-btn">Submit All Marks</button>
+        <main id="evaluation-view" class="card eval-container">
+            <div class="eval-header">
+                <div>
+                    <h2 id="eval-comp-name">Competition Name</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">Enter marks carefully. Max mark: <span id="eval-max-mark" style="font-weight: 600;">0</span></p>
+                </div>
+                <button class="btn btn-outline" onclick="closeEvaluation()">← Back</button>
+            </div>
+            
+            <div id="participants-container" class="participant-list">
+                <!-- Participants list injected here -->
+            </div>
+            
+            <div class="sticky-footer">
+                <button class="btn btn-success" onclick="submitJudgement()" id="submit-btn">Submit All Marks</button>
+            </div>
+        </main>
     </div>
 
     <script src="judge.js"></script>

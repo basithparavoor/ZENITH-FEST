@@ -11,127 +11,174 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, sans-serif; }
 
         body {
-            /* Premium animated gradient background */
-            background: linear-gradient(-45deg, #0f172a, #1e1b4b, #312e81, #1e1b4b);
-            background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
+            /* Premium clean light background */
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             padding: 1rem;
-            color: #ffffff;
+            color: #0f172a;
         }
 
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        /* Glassmorphism Card */
+        /* Clean, Standard Card */
         .login-container {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 3.5rem 2.5rem;
-            border-radius: 24px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            padding: 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
             width: 100%;
-            max-width: 420px;
-            transform: translateY(20px);
+            max-width: 400px;
+            transform: translateY(10px);
             opacity: 0;
-            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            /* Faster initial animation */
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
         @keyframes slideUp {
             to { transform: translateY(0); opacity: 1; }
         }
 
-        .header { text-align: center; margin-bottom: 3rem; }
-        .header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.025em; }
-        .header p { color: #94a3b8; font-size: 0.95rem; font-weight: 400; }
+        .header { text-align: center; margin-bottom: 2rem; }
+        .header h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.025em; color: #0f172a; }
+        .header p { color: #64748b; font-size: 0.95rem; font-weight: 400; }
 
-        .input-group { margin-bottom: 1.5rem; position: relative; }
+        .input-group { margin-bottom: 1.25rem; }
         .input-group label {
             display: block;
-            margin-bottom: 0.5rem;
-            color: #e2e8f0;
+            margin-bottom: 0.35rem;
+            color: #334155;
             font-size: 0.875rem;
             font-weight: 500;
         }
         
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
         .input-group input {
             width: 100%;
-            padding: 1rem 1.25rem;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            font-size: 1rem;
-            color: #ffffff;
-            transition: all 0.3s ease;
+            padding: 0.75rem 1rem;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            color: #0f172a;
+            transition: all 0.2s ease;
             outline: none;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
         }
         
-        .input-group input::placeholder { color: #64748b; }
+        .input-group input[type="password"],
+        .input-group input[type="text"].password-visible {
+            padding-right: 2.5rem; /* Space for the show/hide icon */
+        }
+
+        .input-group input::placeholder { color: #94a3b8; }
         .input-group input:focus {
             border-color: #6366f1;
-            background: rgba(0, 0, 0, 0.4);
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        /* Show/Hide Password Toggle */
+        .toggle-password {
+            position: absolute;
+            right: 0.75rem;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s ease;
+        }
+        .toggle-password:hover { color: #475569; }
+
+        /* Save Login Checkbox */
+        .options-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+        }
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #475569;
+            cursor: pointer;
+            user-select: none;
+        }
+        .remember-me input {
+            accent-color: #4f46e5;
+            width: 1rem;
+            height: 1rem;
+            cursor: pointer;
         }
 
         .btn-primary {
             width: 100%;
-            padding: 1rem;
-            background: #4f46e5;
+            padding: 0.75rem;
+            background: #0f172a;
             color: white;
             border: none;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 600;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 1rem;
-            box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.39);
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
         .btn-primary:hover { 
-            background: #4338ca; 
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.23);
+            background: #1e293b; 
+            transform: translateY(-1px);
+            box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.06);
         }
-        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:active { 
+            transform: translateY(0); 
+            box-shadow: none; 
+        }
 
         .public-links {
-            margin-top: 2.5rem;
+            margin-top: 2rem;
             text-align: center;
             display: flex;
             justify-content: center;
-            gap: 1.5rem;
+            gap: 1rem;
         }
         
         .public-links a {
-            color: #94a3b8;
+            color: #64748b;
             text-decoration: none;
             font-size: 0.875rem;
             font-weight: 500;
             transition: color 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
         }
-        .public-links a:hover { color: #ffffff; }
+        .public-links a:hover { color: #0f172a; }
+        .public-links span { color: #cbd5e1; }
 
         #error-message {
             display: none;
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
+            background: #fef2f2;
+            border: 1px solid #fee2e2;
+            color: #ef4444;
             padding: 0.75rem;
             border-radius: 8px;
             font-size: 0.875rem;
             margin-bottom: 1.5rem;
             text-align: center;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
     </style>
 </head>
@@ -148,12 +195,30 @@
         <form id="loginForm">
             <div class="input-group">
                 <label for="username">Username</label>
-                <input type="text" id="username" placeholder="admin, judge1, etc." required autocomplete="off">
+                <div class="input-wrapper">
+                    <input type="text" id="username" placeholder="admin, judge1, etc." required autocomplete="off">
+                </div>
             </div>
 
             <div class="input-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" placeholder="••••••••" required>
+                <div class="input-wrapper">
+                    <input type="password" id="password" placeholder="••••••••" required>
+                    <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility">
+                        <!-- Default Eye Icon -->
+                        <svg id="eyeIcon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.543 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="options-row">
+                <label class="remember-me">
+                    <input type="checkbox" id="rememberMe">
+                    Remember me
+                </label>
             </div>
 
             <button type="submit" class="btn-primary" id="submitBtn">Authenticate</button>
@@ -161,7 +226,7 @@
 
         <div class="public-links">
             <a href="results.html">Live Results</a>
-            <span style="color: rgba(255,255,255,0.1)">|</span>
+            <span>|</span>
             <a href="announcements.html">Announcements</a>
         </div>
     </div>

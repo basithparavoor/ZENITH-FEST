@@ -88,6 +88,7 @@ function switchTab(tabId) {
         else if (tabId === 'participants') loadParticipants();
         else if (tabId === 'stages') loadStagesAndTeams();
         else if (tabId === 'users') loadUsers();
+        else if (tabId === 'assignments') initAssignWorkspace();
     } catch (e) {
         showToast("Failed to fetch dashboard data.", "error");
     }
@@ -246,52 +247,180 @@ async function deleteCategory(id) {
     }
 }
 
-// --- COMPETITIONS MANAGEMENT (SAFE VERSION) ---
+// --- COMPETITIONS MANAGEMENT (PAGINATED) ---
+
+// Global states for pagination
+let compCurrentPage = 1;
+const compRowsPerPage = 10;
+let filteredCompetitionsList = []; 
+
 async function loadCompetitions() {
     try {
         if (stagesList.length === 0) { const { data } = await supabaseClient.from('stages').select('*'); stagesList = data || []; }
         if (categoriesList.length === 0) await loadCategories();
 
-        // Removed participant_competitions(count) to prevent the Schema Cache error
         const { data, error } = await supabaseClient
             .from('competitions')
             .select(`*, categories(name), stages(name)`)
             .order('name');
             
         if(error) throw error;
+        
         competitionsList = data || [];
-
-        const tbody = document.getElementById('competitions-tbody');
-        tbody.innerHTML = '';
+        filteredCompetitionsList = [...competitionsList]; // Initialize filtered list
         
         const filterCat = document.getElementById('filterCompCategory');
         if(filterCat && filterCat.options.length === 1) {
             categoriesList.forEach(c => filterCat.innerHTML += `<option value="${c.name}">${c.name}</option>`);
         }
 
-        (data || []).forEach(comp => {
-            // Replaced the database count with a placeholder until Foreign Keys are fixed
-            const studentCount = "?"; 
-            
-            tbody.innerHTML += `
-                <tr>
-                    <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${comp.id}"></td>
-                    <td>${comp.name}</td>
-                    <td><span class="badge badge-primary">${comp.categories?.name || 'N/A'}</span></td>
-                    <td>${comp.stages?.name || 'Unassigned'}</td>
-                    <td>
-                        <span class="badge-count" onclick="viewCompParticipants('${comp.id}')">
-                            ${studentCount} / ${comp.max_participants} Limit
-                        </span>
-                    </td>
-                    <td>
+        compCurrentPage = 1; // Reset to page 1 on load
+        renderCompetitionsTable();
+    } catch(e) { showToast(e.message, 'error'); }
+}
+
+// Custom filter that supports pagination instead of native DOM hiding
+function filterCompetitions() {
+    const query = document.getElementById('searchCompInput').value.toLowerCase();
+    const catFilter = document.getElementById('filterCompCategory').value;
+    
+    filteredCompetitionsList = competitionsList.filter(comp => {
+        const matchName = comp.name.toLowerCase().includes(query);
+        const compCatName = comp.categories?.name || '';
+        const matchCat = catFilter === "" || compCatName === catFilter;
+        return matchName && matchCat;
+    });
+    
+    compCurrentPage = 1; // Return to page 1 on search
+    renderCompetitionsTable();
+}
+
+function renderCompetitionsTable() {
+    const tbody = document.getElementById('competitions-tbody');
+    tbody.innerHTML = '';
+    
+    // Calculate page slices
+    const start = (compCurrentPage - 1) * compRowsPerPage;
+    const end = start + compRowsPerPage;
+    const pageData = filteredCompetitionsList.slice(start, end);
+
+    if (pageData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">No competitions found.</td></tr>`;
+    }
+
+    pageData.forEach(comp => {
+        const studentCount = "?"; // Placeholder for foreign key count
+        
+        tbody.innerHTML += `
+            <tr>
+                <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${comp.id}"></td>
+                <td>${comp.name}</td>
+                <td><span class="badge badge-primary">${comp.categories?.name || 'N/A'}</span></td>
+                <td>${comp.stages?.name || 'Unassigned'}</td>
+                
+                <!-- FIX: Added the missing Max Marks column data -->
+                <td style="font-weight: 700; color: var(--text-main);">${comp.max_mark || '0'}</td>
+                
+                <td>
+                    <span class="badge-count" onclick="viewCompParticipants('${comp.id}')">
+                        ${studentCount} / ${comp.max_participants} Limit
+                    </span>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem;">
                         <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openCompModal(${JSON.stringify(comp).replace(/'/g, "&apos;")})'><i class="fa-solid fa-pen"></i></button>
                         <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteCompetition('${comp.id}')"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>
-            `;
-        });
-    } catch(e) { showToast(e.message, 'error'); }
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    renderCompPagination();
+}
+
+function renderCompPagination() {
+    const totalPages = Math.ceil(filteredCompetitionsList.length / compRowsPerPage) || 1;
+    const paginationContainer = document.getElementById('comp-pagination');
+    
+    const startNum = filteredCompetitionsList.length === 0 ? 0 : ((compCurrentPage - 1) * compRowsPerPage) + 1;
+    const endNum = Math.min(compCurrentPage * compRowsPerPage, filteredCompetitionsList.length);
+
+    paginationContainer.innerHTML = `
+        <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">
+            Showing ${startNum} to ${endNum} of ${filteredCompetitionsList.length} entries
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-outline" style="padding: 0.4rem 0.8rem;" onclick="changeCompPage(-1)" ${compCurrentPage === 1 ? 'disabled' : ''}>Previous</button>
+            <span style="display: flex; align-items: center; padding: 0 0.75rem; font-weight: 600; font-size: 0.9rem; color: var(--primary);">Page ${compCurrentPage} of ${totalPages}</span>
+            <button class="btn btn-outline" style="padding: 0.4rem 0.8rem;" onclick="changeCompPage(1)" ${compCurrentPage === totalPages ? 'disabled' : ''}>Next</button>
+        </div>
+    `;
+}
+
+function changeCompPage(direction) {
+    const totalPages = Math.ceil(filteredCompetitionsList.length / compRowsPerPage);
+    compCurrentPage += direction;
+    if (compCurrentPage < 1) compCurrentPage = 1;
+    if (compCurrentPage > totalPages) compCurrentPage = totalPages;
+    renderCompetitionsTable();
+}
+
+// Generates a Premium PDF Directory for Competitions
+async function exportCompetitionsPDF() {
+    showToast('Generating Competitions PDF...', 'success');
+    try {
+        const container = document.createElement('div');
+        container.style.padding = '40px';
+        container.style.fontFamily = 'Inter, sans-serif';
+        container.innerHTML = `
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 28px;">FEST 2026</h1>
+                <h2 style="color: #1E293B; font-size: 18px; margin-top:0;">COMPETITIONS DIRECTORY</h2>
+                <p style="color: #64748B; font-size: 12px;">Generated on: ${new Date().toLocaleString()}</p>
+            </div>
+        `;
+
+        // Map over the filtered list to respect any current search criteria
+        let tableRows = filteredCompetitionsList.map((comp, index) => `
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${index + 1}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${comp.name}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${comp.categories?.name || 'N/A'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${comp.stages?.name || 'Unassigned'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${comp.max_mark || '0'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${comp.max_participants || '0'}</td>
+            </tr>
+        `).join('');
+
+        container.innerHTML += `
+            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
+                <thead>
+                    <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;">
+                        <th style="padding: 10px;">#</th>
+                        <th style="padding: 10px;">COMPETITION</th>
+                        <th style="padding: 10px;">CATEGORY</th>
+                        <th style="padding: 10px;">STAGE</th>
+                        <th style="padding: 10px;">MAX MARKS</th>
+                        <th style="padding: 10px;">LIMIT</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size: 12px; color: #334155;">
+                    ${tableRows}
+                </tbody>
+            </table>
+        `;
+
+        const opt = { 
+            margin: 10, 
+            filename: `Fest_Competitions.pdf`, 
+            image: { type: 'jpeg', quality: 0.98 }, 
+            html2canvas: { scale: 2, useCORS: true }, 
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+        };
+        
+        html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+    } catch (e) { showToast(e.message, 'error'); }
 }
 // Special function to view participants linked to a competition (Many-to-Many)
 async function viewCompParticipants(compId) {
@@ -380,6 +509,23 @@ async function deleteCompetition(id) {
 }
 
 // --- STAGES & TEAMS MANAGEMENT ---
+// --- NEW FRONTEND CONFIRMATION LOGIC ---
+function openConfirmModal(title, text, confirmCallback) {
+    document.getElementById('confirmModalTitle').innerText = title;
+    document.getElementById('confirmModalText').innerText = text;
+    
+    const confirmBtn = document.getElementById('confirmModalBtn');
+    
+    // Assign the execution function to the button
+    confirmBtn.onclick = () => {
+        document.getElementById('confirmModal').classList.remove('show');
+        if (confirmCallback) confirmCallback();
+    };
+    
+    document.getElementById('confirmModal').classList.add('show');
+}
+
+// --- STAGES & TEAMS MANAGEMENT ---
 async function loadStagesAndTeams() {
     try {
         // Load Stages with Competition Counts
@@ -404,7 +550,11 @@ async function loadStagesAndTeams() {
                     <td>STAGE ${s.stage_no}</td>
                     <td><span class="badge-count" onclick="viewRelationalData('competitions', 'stage_id', '${s.id}')">${compCount} COMPS</span></td>
                     <td>
-                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openStageModal(${JSON.stringify(s).replace(/'/g, "&apos;")})'><i class="fa-solid fa-pen"></i></button>
+                        <!-- Structural Button Layout for Stages -->
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openStageModal(${JSON.stringify(s).replace(/'/g, "&apos;")})' title="Edit Stage"><i class="fa-solid fa-pen"></i></button>
+                            <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteStage('${s.id}', '${s.name}')" title="Delete Stage"><i class="fa-solid fa-trash"></i></button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -431,12 +581,51 @@ async function loadStagesAndTeams() {
                     </td>
                     <td><span class="badge-count" onclick="viewRelationalData('participants', 'team_id', '${t.id}')">${memberCount} MEMBERS</span></td>
                     <td>
-                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openTeamModal(${JSON.stringify(t).replace(/'/g, "&apos;")})'><i class="fa-solid fa-pen"></i></button>
+                        <!-- Structural Button Layout for Teams -->
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openTeamModal(${JSON.stringify(t).replace(/'/g, "&apos;")})' title="Edit Team"><i class="fa-solid fa-pen"></i></button>
+                            <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteTeam('${t.id}', '${t.name}')" title="Delete Team"><i class="fa-solid fa-trash"></i></button>
+                        </div>
                     </td>
                 </tr>
             `;
         });
     } catch(e) { showToast(e.message, 'error'); }
+}
+
+// Updated Deletion Methods utilizing the custom frontend modal
+function deleteStage(id, name) { 
+    openConfirmModal(
+        'Delete Stage?', 
+        `Are you sure you want to delete "${name}"? This action cannot be undone.`, 
+        async () => {
+            try {
+                const { error } = await supabaseClient.from('stages').delete().eq('id', id); 
+                if (error) throw error;
+                showToast('Stage deleted successfully.');
+                loadStagesAndTeams(); 
+            } catch(e) { 
+                showToast(e.message, 'error'); 
+            }
+        }
+    );
+}
+
+function deleteTeam(id, name) { 
+    openConfirmModal(
+        'Delete Team?', 
+        `Are you sure you want to delete "${name}"? This action cannot be undone.`, 
+        async () => {
+            try {
+                const { error } = await supabaseClient.from('teams').delete().eq('id', id); 
+                if (error) throw error;
+                showToast('Team deleted successfully.');
+                loadStagesAndTeams(); 
+            } catch(e) { 
+                showToast(e.message, 'error'); 
+            }
+        }
+    );
 }
 
 async function openStageModal(editData = null) {
@@ -512,26 +701,15 @@ function openTeamModal(editData = null) {
         else { showToast(id ? 'Team updated!' : 'Team added!'); closeModal(); loadStagesAndTeams(); }
     });
 }
-async function deleteStage(id) { 
-    if(confirm("Delete stage?")) { 
-        try {
-            await supabaseClient.from('stages').delete().eq('id', id); 
-            showToast('Stage deleted.');
-            loadStagesAndTeams(); 
-        } catch(e) { showToast(e.message, 'error'); }
-    } 
-}
-async function deleteTeam(id) { 
-    if(confirm("Delete team?")) { 
-        try {
-            await supabaseClient.from('teams').delete().eq('id', id); 
-            showToast('Team deleted.');
-            loadStagesAndTeams(); 
-        } catch(e) { showToast(e.message, 'error'); }
-    } 
-}
 
-// --- PARTICIPANTS MANAGEMENT ---
+
+// --- PARTICIPANTS MANAGEMENT (PAGINATED) ---
+
+// Global states for pagination
+let partCurrentPage = 1;
+const partRowsPerPage = 10;
+let filteredParticipantsList = [];
+
 async function loadParticipants() {
     try {
         if (categoriesList.length === 0) await loadCategories();
@@ -541,36 +719,180 @@ async function loadParticipants() {
         if(error) throw error;
         
         participantsList = data || []; 
-        
-        const tbody = document.getElementById('participants-tbody');
-        tbody.innerHTML = '';
+        filteredParticipantsList = [...participantsList];
         
         const catFilter = document.getElementById('filterCategory');
         if(catFilter && catFilter.options.length === 1) {
             categoriesList.forEach(c => catFilter.innerHTML += `<option value="${c.name}">${c.name}</option>`);
         }
 
-        participantsList.forEach(p => {
-            // Safely stringify data to pass into our button functions
-            const safeData = JSON.stringify(p).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
-            
-            tbody.innerHTML += `
-                <tr>
-                    <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}"></td>
-                    <td style="font-family: monospace; font-weight: 600; color: var(--primary);">${p.unique_id}</td>
-                    <td>${p.name}</td>
-                    <td><span class="badge" style="background:#F1F5F9; color:#475569;">${p.teams?.name || 'UNASSIGNED'}</span></td>
-                    <td>${p.categories?.name || 'N/A'}</td>
-                    <td>
-                        <button class="btn btn-outline" style="padding:0.4rem; font-size:0.75rem;" title="View Details" onclick='viewParticipantCard(${safeData})'><i class="fa-solid fa-eye"></i></button>
-                        <button class="btn btn-outline" style="padding:0.4rem; font-size:0.75rem;" title="Edit" onclick='openParticipantModal(${safeData})'><i class="fa-solid fa-pen"></i></button>
-                        <button class="btn btn-outline" style="padding:0.4rem; font-size:0.75rem;" title="Download ID" onclick="generateSingleCard('${p.id}')"><i class="fa-solid fa-download"></i></button>
-                        <button class="btn btn-danger" style="padding:0.4rem; font-size:0.75rem;" title="Delete" onclick="deleteParticipant('${p.id}')"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>
-            `;
-        });
+        partCurrentPage = 1; // Reset to page 1 on load
+        renderParticipantsTable();
     } catch(e) { showToast(e.message, 'error'); }
+}
+
+// Custom filter that supports pagination
+function filterParticipants() {
+    const query = document.getElementById('searchPartInput').value.toLowerCase();
+    const catFilter = document.getElementById('filterCategory').value;
+    
+    filteredParticipantsList = participantsList.filter(p => {
+        const matchName = p.name.toLowerCase().includes(query) || (p.unique_id && p.unique_id.toLowerCase().includes(query));
+        const partCatName = p.categories?.name || '';
+        const matchCat = catFilter === "" || partCatName === catFilter;
+        return matchName && matchCat;
+    });
+    
+    partCurrentPage = 1; // Return to page 1 on search
+    renderParticipantsTable();
+}
+
+function renderParticipantsTable() {
+    const tbody = document.getElementById('participants-tbody');
+    tbody.innerHTML = '';
+    
+    // Calculate page slices
+    const start = (partCurrentPage - 1) * partRowsPerPage;
+    const end = start + partRowsPerPage;
+    const pageData = filteredParticipantsList.slice(start, end);
+
+    if (pageData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">No participants found.</td></tr>`;
+    }
+
+    pageData.forEach(p => {
+        const safeData = JSON.stringify(p).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+        
+        tbody.innerHTML += `
+            <tr>
+                <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}"></td>
+                <td style="font-family: monospace; font-weight: 600; color: var(--primary);">${p.unique_id}</td>
+                <td>${p.name}</td>
+                <td><span class="badge" style="background:#F1F5F9; color:#475569;">${p.teams?.name || 'UNASSIGNED'}</span></td>
+                <td>${p.categories?.name || 'N/A'}</td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" title="View Details" onclick='viewParticipantCard(${safeData})'><i class="fa-solid fa-eye"></i></button>
+                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" title="Edit" onclick='openParticipantModal(${safeData})'><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" title="Download ID" onclick="generateSingleCard('${p.id}')"><i class="fa-solid fa-download"></i></button>
+                        <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" title="Delete" onclick="deleteParticipant('${p.id}')"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    renderPartPagination();
+}
+
+function renderPartPagination() {
+    const totalPages = Math.ceil(filteredParticipantsList.length / partRowsPerPage) || 1;
+    const paginationContainer = document.getElementById('part-pagination');
+    
+    const startNum = filteredParticipantsList.length === 0 ? 0 : ((partCurrentPage - 1) * partRowsPerPage) + 1;
+    const endNum = Math.min(partCurrentPage * partRowsPerPage, filteredParticipantsList.length);
+
+    paginationContainer.innerHTML = `
+        <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">
+            Showing ${startNum} to ${endNum} of ${filteredParticipantsList.length} entries
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-outline" style="padding: 0.4rem 0.8rem;" onclick="changePartPage(-1)" ${partCurrentPage === 1 ? 'disabled' : ''}>Previous</button>
+            <span style="display: flex; align-items: center; padding: 0 0.75rem; font-weight: 600; font-size: 0.9rem; color: var(--primary);">Page ${partCurrentPage} of ${totalPages}</span>
+            <button class="btn btn-outline" style="padding: 0.4rem 0.8rem;" onclick="changePartPage(1)" ${partCurrentPage === totalPages ? 'disabled' : ''}>Next</button>
+        </div>
+    `;
+}
+
+function changePartPage(direction) {
+    const totalPages = Math.ceil(filteredParticipantsList.length / partRowsPerPage);
+    partCurrentPage += direction;
+    if (partCurrentPage < 1) partCurrentPage = 1;
+    if (partCurrentPage > totalPages) partCurrentPage = totalPages;
+    renderParticipantsTable();
+}
+
+// --- PARTICIPANT EXPORT FUNCTIONS ---
+
+// Generates a Premium PDF Directory for Participants
+async function exportParticipantsPDF() {
+    showToast('Generating Participants PDF...', 'success');
+    try {
+        const container = document.createElement('div');
+        container.style.padding = '40px';
+        container.style.fontFamily = 'Inter, sans-serif';
+        container.innerHTML = `
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 28px;">FEST 2026</h1>
+                <h2 style="color: #1E293B; font-size: 18px; margin-top:0;">PARTICIPANTS DIRECTORY</h2>
+                <p style="color: #64748B; font-size: 12px;">Generated on: ${new Date().toLocaleString()}</p>
+            </div>
+        `;
+
+        // Map over the filtered list to respect any active search criteria
+        let tableRows = filteredParticipantsList.map((p, index) => `
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${index + 1}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-family: monospace; font-weight: 600;">${p.unique_id}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${p.name}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${p.teams?.name || 'UNASSIGNED'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${p.categories?.name || 'N/A'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${p.batch_no || '1'}</td>
+            </tr>
+        `).join('');
+
+        container.innerHTML += `
+            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
+                <thead>
+                    <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;">
+                        <th style="padding: 10px;">#</th>
+                        <th style="padding: 10px;">UNIQUE ID</th>
+                        <th style="padding: 10px;">NAME</th>
+                        <th style="padding: 10px;">TEAM</th>
+                        <th style="padding: 10px;">CATEGORY</th>
+                        <th style="padding: 10px;">BATCH</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size: 12px; color: #334155;">
+                    ${tableRows}
+                </tbody>
+            </table>
+        `;
+
+        const opt = { 
+            margin: 10, 
+            filename: `Fest_Participants.pdf`, 
+            image: { type: 'jpeg', quality: 0.98 }, 
+            html2canvas: { scale: 2, useCORS: true }, 
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+        };
+        
+        html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
+// Custom CSV Export that resolves Category and Team IDs to real names
+async function exportParticipantsCSV() {
+    try {
+        if(filteredParticipantsList.length === 0) return showToast("No participants to export.", "error");
+
+        const flatData = filteredParticipantsList.map(p => ({
+            "UNIQUE ID": p.unique_id || 'N/A',
+            "NAME": p.name || 'N/A',
+            "TEAM": p.teams?.name || 'UNASSIGNED',
+            "CATEGORY": p.categories?.name || 'N/A',
+            "BATCH NO": p.batch_no || '1'
+        }));
+
+        const blob = new Blob([Papa.unparse(flatData)], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a"); 
+        link.href = URL.createObjectURL(blob); 
+        link.setAttribute("download", `Fest_Participants_Data.csv`);
+        document.body.appendChild(link); 
+        link.click(); 
+        document.body.removeChild(link);
+        showToast('CSV Exported Successfully!');
+    } catch (e) { showToast(e.message, 'error'); }
 }
 
 function viewParticipantCard(p) {
@@ -578,7 +900,6 @@ function viewParticipantCard(p) {
     const catName = p.categories ? p.categories.name : 'GENERAL';
     const photoSrc = p.photo_url ? p.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=NO+PHOTO';
     
-    // We are reusing the listModal to display this beautiful card
     document.getElementById('listModalTitle').innerText = 'Participant Profile';
     document.getElementById('listModalTable').innerHTML = `
         <div style="display: flex; gap: 1.5rem; align-items: flex-start; text-transform: uppercase; padding: 1rem;">
@@ -593,8 +914,8 @@ function viewParticipantCard(p) {
                     <div><strong style="font-size: 0.75rem; color: var(--text-muted);">BATCH NO</strong><br><span style="font-weight:600;">${p.batch_no || '1'}</span></div>
                     <div>
                         <strong style="font-size: 0.75rem; color: var(--text-muted);">COMPETITIONS</strong><br>
-                        <!-- Clicking this button triggers your existing viewRelationalData function -->
-                        <button class="badge-count" style="margin-top:0.35rem; border:none;" onclick="viewRelationalData('participant_competitions', 'participant_id', '${p.id}', 'competition_id')">VIEW ENROLLMENTS</button>
+                        <!-- Updated to use the new join function -->
+                        <button class="badge-count" style="margin-top:0.35rem; border:none;" onclick="viewParticipantEnrollments('${p.id}')">VIEW ENROLLMENTS</button>
                     </div>
                 </div>
             </div>
@@ -602,7 +923,49 @@ function viewParticipantCard(p) {
     `;
     document.getElementById('listModal').classList.add('show');
 }
-// --- PARTICIPANT EDIT & CROPPER ---
+
+// NEW FUNCTION: specifically joins competitions and categories to the participant
+async function viewParticipantEnrollments(participantId) {
+    try {
+        const { data, error } = await supabaseClient
+            .from('participant_competitions')
+            .select(`
+                competitions(
+                    name, 
+                    categories(name)
+                )
+            `)
+            .eq('participant_id', participantId);
+            
+        if (error) throw error;
+        
+        const tbody = document.getElementById('listModalTable');
+        // Added Category column header
+        tbody.innerHTML = `<tr><th>COMPETITION</th><th>CATEGORY</th></tr>`; 
+        
+        if (!data || data.length === 0) {
+            tbody.innerHTML += `<tr><td colspan="2" style="color:var(--text-muted); text-align:center;">No enrollments found.</td></tr>`;
+        } else {
+            data.forEach(item => {
+                const compName = item.competitions?.name || 'Unknown Competition';
+                const catName = item.competitions?.categories?.name || 'General';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-weight: 600;">${compName}</td>
+                        <td><span class="badge" style="background:var(--primary-light); color:var(--primary); font-size:0.7rem;">${catName}</span></td>
+                    </tr>
+                `;
+            });
+        }
+        
+        document.getElementById('listModalTitle').innerText = `Enrolled Competitions`;
+        document.getElementById('listModal').classList.add('show');
+    } catch (e) { 
+        showToast(e.message, 'error'); 
+    }
+}
+
 function openParticipantModal(editData = null) {
     let catOpts = categoriesList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     let teamOpts = teamsList.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
@@ -611,44 +974,76 @@ function openParticipantModal(editData = null) {
     const pId = isEdit ? editData.id : '';
     const pName = isEdit ? editData.name : '';
     const pBatch = isEdit ? editData.batch_no : '1';
-    const pPhoto = isEdit && editData.photo_url ? `<p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">Current photo saved. Uploading a new one will replace it.</p>` : '';
+    
+    // Default placeholder if no photo exists
+    const pPhoto = isEdit && editData.photo_url ? editData.photo_url : 'https://via.placeholder.com/150/EEF2FF/6366F1?text=PHOTO';
 
-    openModal(isEdit ? 'Edit Participant' : 'Register Participant', `
-        <input type="hidden" id="partId" value="${pId}">
-        <div class="form-group">
-            <label>Full Name</label>
-            <input type="text" id="partName" placeholder="PARTICIPANT NAME" value="${pName}">
-        </div>
+    // Premium CSS Grid injected for this specific modal
+    const modalHtml = `
+        <style>
+            .part-modal-grid { display: grid; grid-template-columns: 150px 1fr; gap: 2rem; align-items: start; }
+            @media (max-width: 600px) { .part-modal-grid { grid-template-columns: 1fr; gap: 1rem; text-align: center; } }
+            
+            .photo-preview-container img { 
+                width: 100%; max-width: 150px; aspect-ratio: 2/3; object-fit: cover; 
+                border-radius: 12px; border: 2.5px solid var(--border); padding: 4px; 
+                box-shadow: var(--shadow-sm); background: white;
+            }
+            
+            .photo-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; justify-content: center; }
+            .photo-actions .btn { padding: 0.4rem; font-size: 0.75rem; flex: 1; }
+        </style>
         
-        <div class="form-group">
-            <label>Participant Photo (Will crop to 2:3 ratio)</label>
-            ${pPhoto}
-            <input type="file" id="partPhoto" accept="image/png, image/jpeg, image/webp" onchange="initCropper(this)" style="padding: 0.6rem; background: white;">
-            <div class="img-container" id="cropContainer" style="display:none; margin-top:10px;">
-                <img id="cropImage" src="" style="max-width: 100%;">
+        <div class="part-modal-grid">
+            <!-- Left Column: Photo Preview & Actions -->
+            <div class="photo-preview-container">
+                <img id="partPhotoPreview" src="${pPhoto}" alt="Participant Photo">
+                <input type="file" id="partPhoto" accept="image/png, image/jpeg, image/webp" onchange="triggerCropper(this)" style="display: none;">
+                
+                <div class="photo-actions">
+                    <button type="button" class="btn btn-primary" onclick="document.getElementById('partPhoto').click()" title="Upload New Photo">
+                        <i class="fa-solid fa-upload"></i> New
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="editExistingCrop()" title="Adjust Current Crop">
+                        <i class="fa-solid fa-crop-simple"></i> Crop
+                    </button>
+                </div>
             </div>
-        </div>
 
-        <div class="form-group">
-            <label>Team</label>
-            <select id="partTeam">
-                <option value="">-- SELECT TEAM --</option>
-                ${teamOpts}
-            </select>
-        </div>
-        <div style="display:flex; gap:1rem;">
-            <div class="form-group" style="flex:1;">
-                <label>Category</label>
-                <select id="partCategory">${catOpts}</select>
+            <!-- Right Column: Form Details -->
+            <div class="form-fields" style="text-align: left;">
+                <input type="hidden" id="partId" value="${pId}">
+                
+                <div class="form-group">
+                    <label>Full Name <span style="color: var(--danger);">*</span></label>
+                    <input type="text" id="partName" placeholder="E.G. JOHN DOE" value="${pName}">
+                </div>
+                
+                <div class="form-group">
+                    <label>Team Assignment</label>
+                    <select id="partTeam">
+                        <option value="">-- INDEPENDENT (NO TEAM) --</option>
+                        ${teamOpts}
+                    </select>
+                </div>
+                
+                <div style="display:flex; gap:1rem; flex-wrap: wrap;">
+                    <div class="form-group" style="flex: 2; min-width: 150px;">
+                        <label>Category <span style="color: var(--danger);">*</span></label>
+                        <select id="partCategory">${catOpts}</select>
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 100px;">
+                        <label>Batch No</label>
+                        <input type="number" id="partBatch" min="1" max="7" value="${pBatch}">
+                    </div>
+                </div>
             </div>
-            <div class="form-group" style="flex:1;">
-                <label>Batch No</label>
-                <input type="number" id="partBatch" min="1" max="7" value="${pBatch}">
-            </div>
         </div>
-    `, saveParticipant);
+    `;
 
-    // If editing, pre-select dropdowns
+    openModal(isEdit ? 'Edit Participant' : 'Register Participant', modalHtml, saveParticipant);
+
+    // Pre-select dropdowns if editing
     if (isEdit) {
         if(editData.team_id) document.getElementById('partTeam').value = editData.team_id;
         if(editData.category_id) document.getElementById('partCategory').value = editData.category_id;
@@ -825,58 +1220,104 @@ async function generateBulkCards() {
 // --- USER MANAGEMENT ---
 async function loadUsers() {
     try {
-        const { data, error } = await supabaseClient.from('users').select('id, username, role').neq('role', 'master_admin').order('role');
+        // Updated to fetch 'password_hash' from the database
+        const { data, error } = await supabaseClient.from('users').select('id, username, role, password_hash').neq('role', 'master_admin').order('role');
         if(error) throw error;
         
         const tbody = document.getElementById('users-tbody');
         tbody.innerHTML = '';
         (data || []).forEach(u => {
             const roleDisplay = u.role.replace('_', ' ').toUpperCase();
+            
+            // Safely stringify the user data to pass into the edit modal
+            const safeData = JSON.stringify(u).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+
             tbody.innerHTML += `
                 <tr>
                     <td>${u.username}</td>
                     <td><span class="badge badge-primary">${roleDisplay}</span></td>
-                    <td><button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteUser('${u.id}', '${u.username}')"><i class="fa-solid fa-trash"></i></button></td>
+                    <td>
+                        <!-- Password field with toggle visibility -->
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="password" id="pwd-${u.id}" value="${u.password_hash || ''}" readonly style="border: none; background: transparent; width: 120px; font-weight: 600; color: var(--text-muted); outline: none; pointer-events: none;">
+                            <button class="btn btn-outline" style="padding:0.2rem 0.5rem; font-size:0.75rem;" onclick="togglePassword('${u.id}')" title="Reveal Password"><i class="fa-solid fa-eye" id="eye-${u.id}"></i></button>
+                        </div>
+                    </td>
+                    <td>
+                        <!-- Added the Edit button -->
+                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openUserModal(${safeData})' title="Edit User"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteUser('${u.id}', '${u.username}')" title="Delete User"><i class="fa-solid fa-trash"></i></button>
+                    </td>
                 </tr>
             `;
         });
     } catch(e) { showToast(e.message, 'error'); }
 }
 
-function openUserModal() {
-    openModal('Create Staff Account', `
-        <div class="form-group"><label>Username</label><input type="text" id="newUsername" autocomplete="off"></div>
-        <div class="form-group"><label>Password</label><input type="text" id="newPassword" autocomplete="off"></div>
+// New helper function to toggle password visibility
+function togglePassword(id) {
+    const pwdInput = document.getElementById(`pwd-${id}`);
+    const eyeIcon = document.getElementById(`eye-${id}`);
+    
+    if (pwdInput.type === "password") {
+        pwdInput.type = "text";
+        eyeIcon.classList.replace("fa-eye", "fa-eye-slash");
+    } else {
+        pwdInput.type = "password";
+        eyeIcon.classList.replace("fa-eye-slash", "fa-eye");
+    }
+}
+
+// Updated User Modal to handle both Creating and Editing
+function openUserModal(editData = null) {
+    const isEdit = !!editData;
+    const uId = isEdit ? editData.id : '';
+    const uName = isEdit ? editData.username : '';
+    const uPass = isEdit ? editData.password_hash : '';
+    const uRole = isEdit ? editData.role : 'judge';
+
+    openModal(isEdit ? 'Edit Staff Account' : 'Create Staff Account', `
+        <input type="hidden" id="editUserId" value="${uId}">
+        <div class="form-group"><label>Username</label><input type="text" id="newUsername" value="${uName}" autocomplete="off"></div>
+        <div class="form-group"><label>Password</label><input type="text" id="newPassword" value="${uPass}" autocomplete="off"></div>
         <div class="form-group">
             <label>Role</label>
             <select id="newUserRole">
-                <option value="judge">Judge</option>
-                <option value="stage_controller">Stage Controller</option>
-                <option value="fest_manager">Fest Manager</option>
-                <option value="admin">Admin</option>
+                <option value="judge" ${uRole === 'judge' ? 'selected' : ''}>Judge</option>
+                <option value="stage_controller" ${uRole === 'stage_controller' ? 'selected' : ''}>Stage Controller</option>
+                <option value="fest_manager" ${uRole === 'fest_manager' ? 'selected' : ''}>Fest Manager</option>
+                <option value="admin" ${uRole === 'admin' ? 'selected' : ''}>Admin</option>
             </select>
         </div>
     `, async () => {
+        const id = document.getElementById('editUserId').value;
         const username = document.getElementById('newUsername').value.trim();
         const password_hash = document.getElementById('newPassword').value.trim();
         const role = document.getElementById('newUserRole').value;
+        
         if (!username || !password_hash) return showToast('Username and Password required.', 'error');
         
         setLoading('modalSaveBtn', true);
-        const { error } = await supabaseClient.from('users').insert([{ username, password_hash, role }]);
+        
+        // Setup payload. If an ID exists, we append it so Supabase performs an UPDATE instead of an INSERT.
+        const payload = { username, password_hash, role };
+        if (id) payload.id = id;
+        
+        // Switched from .insert() to .upsert() to handle both creation and editing
+        const { error } = await supabaseClient.from('users').upsert([payload]);
+        
         setLoading('modalSaveBtn', false);
         
         if (error) {
             if (error.code === '23505') showToast('Username already taken.', 'error'); 
             else showToast(error.message, 'error');
         } else { 
-            showToast('Account created successfully!');
+            showToast(id ? 'Account updated successfully!' : 'Account created successfully!');
             closeModal(); 
             loadUsers(); 
         }
     });
 }
-
 async function deleteUser(id, username) {
     if (confirm(`Delete the user "${username}"? This cannot be undone.`)) {
         try {
@@ -960,19 +1401,86 @@ document.addEventListener("DOMContentLoaded", () => {
     loadCategories();
 });
 
-// --- IMAGE CROPPER INITIALIZATION ---
-function initCropper(input) {
-    const container = document.getElementById('cropContainer');
-    const image = document.getElementById('cropImage');
+// --- NEW CROPPER LIFECYCLE ---
+
+function triggerCropper(input) {
     if (input.files && input.files[0]) {
-        container.style.display = 'block';
-        image.src = URL.createObjectURL(input.files[0]);
-        if (currentCropper) currentCropper.destroy();
-        currentCropper = new Cropper(image, {
-            aspectRatio: 2 / 3,
-            viewMode: 1
-        });
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const cropperModal = document.getElementById('cropperModal');
+            const image = document.getElementById('cropperImage');
+            
+            // Load image into the cropper modal
+            image.src = e.target.result;
+            cropperModal.classList.add('show');
+            
+            // Initialize Cropper.js
+            if (currentCropper) currentCropper.destroy();
+            currentCropper = new Cropper(image, {
+                aspectRatio: 2 / 3,
+                viewMode: 2, // Restricts crop box to not exceed canvas size
+                background: false,
+                autoCropArea: 0.9
+            });
+        };
+        reader.readAsDataURL(input.files[0]);
     }
+}
+
+// Linked to the "Cancel" button on the Cropper Modal
+function cancelCropper() {
+    document.getElementById('cropperModal').classList.remove('show');
+    if (currentCropper) {
+        currentCropper.destroy();
+        currentCropper = null;
+    }
+    document.getElementById('partPhoto').value = ''; // Reset file input
+}
+
+// Linked to the "Apply Crop" button on the Cropper Modal
+function confirmCrop() {
+    if (!currentCropper) return;
+    
+    // Get cropped canvas
+    const canvas = currentCropper.getCroppedCanvas({
+        width: 400,
+        height: 600
+    });
+    
+    // Instantly update the thumbnail in the main form
+    document.getElementById('partPhotoPreview').src = canvas.toDataURL('image/jpeg', 0.8);
+    
+    // Close the cropper modal, returning to the form
+    document.getElementById('cropperModal').classList.remove('show');
+    
+    // Note: currentCropper remains in memory so saveParticipant() can upload it to Supabase!
+}
+
+// Function to re-crop the currently loaded image without re-uploading
+function editExistingCrop() {
+    const currentSrc = document.getElementById('partPhotoPreview').src;
+    
+    // Prevent cropping the placeholder image
+    if (currentSrc.includes('via.placeholder.com')) {
+        showToast('Please upload a photo first before attempting to crop.', 'error');
+        return;
+    }
+    
+    const cropperModal = document.getElementById('cropperModal');
+    const image = document.getElementById('cropperImage');
+    
+    // Load the current preview image into the cropper
+    image.src = currentSrc;
+    cropperModal.classList.add('show');
+    
+    // Initialize Cropper.js
+    if (currentCropper) currentCropper.destroy();
+    currentCropper = new Cropper(image, {
+        aspectRatio: 2 / 3,
+        viewMode: 2, 
+        background: false,
+        autoCropArea: 0.9
+    });
 }
 
 // --- ASSIGNMENTS MANAGEMENT ---
@@ -1213,4 +1721,309 @@ async function openBulkAssignModal() {
             setLoading('modalSaveBtn', false);
         }
     });
+}
+
+// --- NEW ASSIGNMENT WORKSPACE LOGIC ---
+let currentAssignCompLimit = 0;
+let currentAssignEnrolled = 0;
+let currentEnrolledStudentIds = []; // Tracks who is already assigned
+
+async function initAssignWorkspace() {
+    // 1. Load baseline data
+    if (categoriesList.length === 0) { const { data } = await supabaseClient.from('categories').select('*').order('name'); categoriesList = data || []; }
+    if (teamsList.length === 0) { const { data } = await supabaseClient.from('teams').select('*').order('name'); teamsList = data || []; }
+
+    // 2. Populate Category Dropdown
+    const catSelect = document.getElementById('assignWorkCategory');
+    catSelect.innerHTML = '<option value="">-- CHOOSE CATEGORY --</option>';
+    categoriesList.forEach(c => {
+        catSelect.innerHTML += `<option value="${c.id}" data-general="${c.is_general}">${c.name} ${c.is_general ? '(GENERAL)' : ''}</option>`;
+    });
+
+    // 3. Populate Team Filter
+    const teamFilter = document.getElementById('assignFilterTeam');
+    teamFilter.innerHTML = '<option value="">All Teams</option>';
+    teamsList.forEach(t => teamFilter.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+
+    // Reset Workspace
+    document.getElementById('assignStudentWorkspace').style.display = 'none';
+    document.getElementById('assignWorkComp').innerHTML = '<option value="">-- CHOOSE COMPETITION FIRST --</option>';
+    document.getElementById('assignWorkComp').disabled = true;
+}
+
+async function loadAssignWorkspaceCompetitions() {
+    const categoryId = document.getElementById('assignWorkCategory').value;
+    const compSelect = document.getElementById('assignWorkComp');
+    document.getElementById('assignStudentWorkspace').style.display = 'none';
+    
+    if (!categoryId) {
+        compSelect.innerHTML = '<option value="">-- CHOOSE COMPETITION FIRST --</option>';
+        compSelect.disabled = true;
+        return;
+    }
+
+    try {
+        compSelect.innerHTML = '<option value="">Loading...</option>';
+        const { data, error } = await supabaseClient.from('competitions').select('*').eq('category_id', categoryId).order('name');
+        if (error) throw error;
+
+        compSelect.innerHTML = '<option value="">-- SELECT COMPETITION TO MANAGE --</option>';
+        (data || []).forEach(c => {
+            compSelect.innerHTML += `<option value="${c.id}" data-limit="${c.max_participants}">${c.name}</option>`;
+        });
+        compSelect.disabled = false;
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+}
+
+async function loadAssignWorkspaceStudents() {
+    const catSelect = document.getElementById('assignWorkCategory');
+    const compSelect = document.getElementById('assignWorkComp');
+    const workspace = document.getElementById('assignStudentWorkspace');
+    const tbody = document.getElementById('assign-workspace-tbody');
+    
+    const categoryId = catSelect.value;
+    const isGeneral = catSelect.options[catSelect.selectedIndex].getAttribute('data-general') === 'true';
+    const compId = compSelect.value;
+
+    if (!compId) {
+        workspace.style.display = 'none';
+        return;
+    }
+
+    currentAssignCompLimit = parseInt(compSelect.options[compSelect.selectedIndex].getAttribute('data-limit')) || 0;
+    workspace.style.display = 'block';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading students...</td></tr>';
+
+    try {
+        // Fetch Students: If General, get everyone. If Standard, filter by category_id.
+        let studentQuery = supabaseClient.from('participants').select('*, teams(name)');
+        if (!isGeneral) {
+            studentQuery = studentQuery.eq('category_id', categoryId);
+        }
+        const { data: students, error: studentError } = await studentQuery.order('name');
+        if (studentError) throw studentError;
+
+        // Fetch Existing Assignments for this competition
+        const { data: enrollments, error: enrollError } = await supabaseClient
+            .from('participant_competitions')
+            .select('participant_id')
+            .eq('competition_id', compId);
+        if (enrollError) throw enrollError;
+
+        currentEnrolledStudentIds = (enrollments || []).map(e => e.participant_id);
+        currentAssignEnrolled = currentEnrolledStudentIds.length;
+
+        // Update Limit UI
+        const limitDisplay = document.getElementById('assignLimitIndicator');
+        limitDisplay.innerHTML = `<i class="fa-solid fa-users"></i> Enrollment: <span style="color:${currentAssignEnrolled >= currentAssignCompLimit ? 'var(--danger)' : 'var(--success)'}">${currentAssignEnrolled}</span> / ${currentAssignCompLimit} Limit`;
+
+        // Render Table
+        tbody.innerHTML = '';
+        (students || []).forEach(s => {
+            const isAssigned = currentEnrolledStudentIds.includes(s.id);
+            const statusBadge = isAssigned 
+                ? '<span class="badge" style="background:var(--success); color:white;">ASSIGNED</span>'
+                : '<span class="badge" style="background:#E2E8F0; color:#475569;">UNASSIGNED</span>';
+                
+            tbody.innerHTML += `
+                <tr data-team="${s.team_id || ''}" data-batch="${s.batch_no || ''}">
+                    <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${s.id}"></td>
+                    <td style="font-family: monospace; font-weight: 600;">${s.unique_id}</td>
+                    <td class="searchable-name">${s.name}</td>
+                    <td>${s.teams?.name || 'INDEPENDENT'}</td>
+                    <td>BATCH ${s.batch_no || '1'}</td>
+                    <td>${statusBadge}</td>
+                </tr>
+            `;
+        });
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+}
+// Local Table Filter (Search, Team, Batch)
+function filterAssignTable() {
+    const searchVal = document.getElementById('assignSearch').value.toLowerCase();
+    const teamVal = document.getElementById('assignFilterTeam').value;
+    const batchVal = document.getElementById('assignFilterBatch').value;
+    const rows = document.querySelectorAll('#assign-workspace-tbody tr');
+
+    rows.forEach(row => {
+        if(row.children.length === 1) return; // Skip "Loading..." row
+        const text = row.querySelector('.searchable-name').innerText.toLowerCase() + " " + row.cells[1].innerText.toLowerCase();
+        const rowTeam = row.getAttribute('data-team');
+        const rowBatch = row.getAttribute('data-batch');
+
+        const matchSearch = text.includes(searchVal);
+        const matchTeam = teamVal === "" || rowTeam === teamVal;
+        const matchBatch = batchVal === "" || rowBatch === batchVal;
+
+        row.style.display = (matchSearch && matchTeam && matchBatch) ? '' : 'none';
+    });
+}
+
+// Execute Bulk Assignment with Limit Checks
+async function executeWorkspaceAssign() {
+    const compId = document.getElementById('assignWorkComp').value;
+    const ids = getSelectedIds('assign-workspace-tbody');
+    
+    if (ids.length === 0) return showToast('Select at least one student.', 'error');
+    
+    // Filter out students already assigned
+    const newIds = ids.filter(id => !currentEnrolledStudentIds.includes(id));
+    
+    if (newIds.length === 0) return showToast('Selected students are already assigned.', 'error');
+    if ((currentAssignEnrolled + newIds.length) > currentAssignCompLimit) {
+        return showToast(`Limit Exceeded! You are trying to assign ${newIds.length} new students, but only ${currentAssignCompLimit - currentAssignEnrolled} slots remain.`, 'error');
+    }
+
+    const btn = document.getElementById('btnWorkspaceAssign');
+    setLoading('btnWorkspaceAssign', true);
+
+    try {
+        const inserts = newIds.map(participant_id => ({ participant_id, competition_id: compId }));
+        const { error } = await supabaseClient.from('participant_competitions').insert(inserts);
+        if (error) throw error;
+        
+        showToast(`Successfully assigned ${newIds.length} students!`);
+        document.querySelector('#assign-workspace-tbody').previousElementSibling.querySelector('input[type="checkbox"]').checked = false;
+        loadAssignWorkspaceStudents(); // Refresh Data
+    } catch (e) {
+        showToast(e.message, 'error');
+    } finally {
+        setLoading('btnWorkspaceAssign', false);
+    }
+}
+
+// Execute Bulk Removal (Edit capability)
+async function executeWorkspaceRemove() {
+    const compId = document.getElementById('assignWorkComp').value;
+    const ids = getSelectedIds('assign-workspace-tbody');
+    
+    if (ids.length === 0) return showToast('Select at least one student.', 'error');
+    
+    const assignedIds = ids.filter(id => currentEnrolledStudentIds.includes(id));
+    if (assignedIds.length === 0) return showToast('None of the selected students are currently assigned.', 'error');
+
+    if(confirm(`Remove ${assignedIds.length} students from this competition?`)) {
+        setLoading('btnWorkspaceRemove', true);
+        try {
+            const { error } = await supabaseClient.from('participant_competitions')
+                .delete()
+                .eq('competition_id', compId)
+                .in('participant_id', assignedIds);
+            
+            if (error) throw error;
+            showToast(`Removed ${assignedIds.length} students.`);
+            document.querySelector('#assign-workspace-tbody').previousElementSibling.querySelector('input[type="checkbox"]').checked = false;
+            loadAssignWorkspaceStudents(); // Refresh Data
+        } catch (e) {
+            showToast(e.message, 'error');
+        } finally {
+            setLoading('btnWorkspaceRemove', false);
+        }
+    }
+}
+// Export Full Assignment Data to CSV
+async function exportAssignmentsCSV() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('participant_competitions')
+            .select(`participants(name, unique_id, teams(name), categories(name)), competitions(name)`);
+            
+        if(error) throw error;
+        
+        // Flatten the nested JSON for CSV format
+        const flatData = (data || []).map(row => ({
+            "UNIQUE ID": row.participants?.unique_id || 'N/A',
+            "STUDENT NAME": row.participants?.name || 'N/A',
+            "TEAM": row.participants?.teams?.name || 'INDEPENDENT',
+            "CATEGORY": row.participants?.categories?.name || 'N/A',
+            "COMPETITION": row.competitions?.name || 'N/A'
+        }));
+
+        const blob = new Blob([Papa.unparse(flatData)], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a"); 
+        link.href = URL.createObjectURL(blob); 
+        link.setAttribute("download", `Fest_Assignments_Data.csv`);
+        document.body.appendChild(link); 
+        link.click(); 
+        document.body.removeChild(link);
+        showToast('CSV Exported Successfully!');
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
+// Generate a Branded Premium PDF Document
+async function exportAssignmentsPDF() {
+    showToast('Generating Premium PDF...', 'success');
+    try {
+        const { data, error } = await supabaseClient
+            .from('participant_competitions')
+            .select(`participants(name, unique_id, teams(name)), competitions(name, categories(name))`)
+            .order('competition_id');
+            
+        if(error) throw error;
+
+        // Group data by Competition for a clean layout
+        const grouped = {};
+        (data || []).forEach(row => {
+            const compName = row.competitions?.name || 'Unknown';
+            if(!grouped[compName]) grouped[compName] = [];
+            grouped[compName].push(row.participants);
+        });
+
+        const container = document.createElement('div');
+        container.style.padding = '40px';
+        container.style.fontFamily = 'Inter, sans-serif';
+        container.innerHTML = `
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 28px;">FEST 2026</h1>
+                <h2 style="color: #1E293B; font-size: 18px; margin-top:0;">MASTER ASSIGNMENT LEDGER</h2>
+                <p style="color: #64748B; font-size: 12px;">Generated on: ${new Date().toLocaleString()}</p>
+            </div>
+        `;
+
+        for (const [comp, students] of Object.entries(grouped)) {
+            let tableRows = students.map((s, index) => `
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${index + 1}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-family: monospace;">${s?.unique_id}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${s?.name}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${s?.teams?.name || 'INDEPENDENT'}</td>
+                </tr>
+            `).join('');
+
+            container.innerHTML += `
+                <div style="margin-bottom: 30px; page-break-inside: avoid;">
+                    <h3 style="background: #1E293B; color: white; padding: 12px; border-radius: 8px 8px 0 0; margin: 0; font-size: 14px; text-transform: uppercase;">
+                        ${comp} <span style="float:right; font-weight: normal; font-size: 12px;">${students.length} ENROLLED</span>
+                    </h3>
+                    <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; border-top: none;">
+                        <thead>
+                            <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;">
+                                <th style="padding: 10px;">#</th>
+                                <th style="padding: 10px;">ID</th>
+                                <th style="padding: 10px;">NAME</th>
+                                <th style="padding: 10px;">TEAM</th>
+                            </tr>
+                        </thead>
+                        <tbody style="font-size: 12px; color: #334155;">
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        const opt = { 
+            margin: 10, 
+            filename: `Fest_Assignments_Ledger.pdf`, 
+            image: { type: 'jpeg', quality: 0.98 }, 
+            html2canvas: { scale: 2, useCORS: true }, 
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+        };
+        
+        html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+    } catch (e) { showToast(e.message, 'error'); }
 }
