@@ -3,137 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FestOS | Centralized Login</title>
+    <title>FestOS | Secure Login</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root {
-            --primary: #4F46E5;
-            --primary-hover: #4338CA;
-            --bg-color: #F3F4F6;
-            --surface: #FFFFFF;
-            --text-main: #111827;
-            --text-muted: #6B7280;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, sans-serif; }
 
         body {
-            background: var(--bg-color);
+            /* Premium animated gradient background */
+            background: linear-gradient(-45deg, #0f172a, #1e1b4b, #312e81, #1e1b4b);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             padding: 1rem;
+            color: #ffffff;
         }
 
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Glassmorphism Card */
         .login-container {
-            background: var(--surface);
-            padding: 3rem 2rem;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 3.5rem 2.5rem;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
             width: 100%;
             max-width: 420px;
             transform: translateY(20px);
             opacity: 0;
-            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
         @keyframes slideUp {
             to { transform: translateY(0); opacity: 1; }
         }
 
-        .header { text-align: center; margin-bottom: 2.5rem; }
-        .header h1 { color: var(--text-main); font-size: 1.75rem; margin-bottom: 0.5rem; }
-        .header p { color: var(--text-muted); font-size: 0.95rem; }
+        .header { text-align: center; margin-bottom: 3rem; }
+        .header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.025em; }
+        .header p { color: #94a3b8; font-size: 0.95rem; font-weight: 400; }
 
         .input-group { margin-bottom: 1.5rem; position: relative; }
         .input-group label {
             display: block;
             margin-bottom: 0.5rem;
-            color: var(--text-main);
+            color: #e2e8f0;
             font-size: 0.875rem;
             font-weight: 500;
         }
-        .input-group input, .input-group select {
+        
+        .input-group input {
             width: 100%;
-            padding: 0.75rem 1rem;
-            border: 1px solid #D1D5DB;
-            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
             font-size: 1rem;
-            transition: all 0.2s ease;
+            color: #ffffff;
+            transition: all 0.3s ease;
             outline: none;
         }
-        .input-group input:focus, .input-group select:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        
+        .input-group input::placeholder { color: #64748b; }
+        .input-group input:focus {
+            border-color: #6366f1;
+            background: rgba(0, 0, 0, 0.4);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
         }
 
         .btn-primary {
             width: 100%;
-            padding: 0.875rem;
-            background: var(--primary);
+            padding: 1rem;
+            background: #4f46e5;
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s ease;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.39);
         }
-        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-primary:hover { 
+            background: #4338ca; 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.23);
+        }
+        .btn-primary:active { transform: translateY(0); }
 
         .public-links {
-            margin-top: 2rem;
+            margin-top: 2.5rem;
             text-align: center;
-            padding-top: 1.5rem;
-            border-top: 1px solid #E5E7EB;
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
         }
+        
         .public-links a {
-            color: var(--primary);
+            color: #94a3b8;
             text-decoration: none;
             font-size: 0.875rem;
             font-weight: 500;
-            margin: 0 10px;
+            transition: color 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
         }
-        .public-links a:hover { text-decoration: underline; }
+        .public-links a:hover { color: #ffffff; }
+
+        #error-message {
+            display: none;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
 
     <div class="login-container">
         <div class="header">
-            <h1>Welcome to FestOS</h1>
-            <p>Sign in to access your portal</p>
+            <h1>FestOS</h1>
+            <p>Enter your credentials to continue</p>
         </div>
+
+        <div id="error-message"></div>
 
         <form id="loginForm">
             <div class="input-group">
-                <label for="role">Portal Access Level</label>
-                <select id="role" required>
-                    <option value="" disabled selected>Select your role...</option>
-                    <option value="master_admin">Master Admin</option>
-                    <option value="admin">Admin</option>
-                    <option value="fest_manager">Fest Manager</option>
-                    <option value="stage_controller">Stage Controller</option>
-                    <option value="judge">Judge</option>
-                </select>
-            </div>
-            
-            <div class="input-group">
                 <label for="username">Username</label>
-                <input type="text" id="username" placeholder="Enter username" required>
+                <input type="text" id="username" placeholder="admin, judge1, etc." required autocomplete="off">
             </div>
 
             <div class="input-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" placeholder="Enter password" required>
+                <input type="password" id="password" placeholder="••••••••" required>
             </div>
 
-            <button type="submit" class="btn-primary">Sign In</button>
+            <button type="submit" class="btn-primary" id="submitBtn">Authenticate</button>
         </form>
 
         <div class="public-links">
-            <a href="public-results.html">Live Results Portal</a>
+            <a href="results.html">Live Results</a>
+            <span style="color: rgba(255,255,255,0.1)">|</span>
             <a href="announcements.html">Announcements</a>
         </div>
     </div>
