@@ -133,13 +133,14 @@ async function loadCategories() {
         const tbody = document.getElementById('categories-tbody');
         tbody.innerHTML = '';
         
-        categoriesList.forEach(cat => {
+       categoriesList.forEach(cat => {
             const partCount = cat.participants[0]?.count || 0;
             const compCount = cat.competitions[0]?.count || 0;
-            
             tbody.innerHTML += `
                 <tr>
+                    <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${cat.id}"></td>
                     <td>${cat.name}</td>
+                    <td>${cat.is_general ? '<span class="badge badge-primary">General</span>' : 'Standard'}</td>
                     <td><span class="badge-count" onclick="viewRelationalData('participants', 'category_id', '${cat.id}')">${partCount} Students</span></td>
                     <td><span class="badge-count" onclick="viewRelationalData('competitions', 'category_id', '${cat.id}')">${compCount} Competitions</span></td>
                     <td>
@@ -149,8 +150,6 @@ async function loadCategories() {
                 </tr>
             `;
         });
-    } catch(e) { showToast(e.message, 'error'); }
-}
 
 // Function to handle viewing counts in a popup
 async function viewRelationalData(table, filterColumn, filterId) {
@@ -228,17 +227,25 @@ async function loadCompetitions() {
         if (stagesList.length === 0) { const { data } = await supabaseClient.from('stages').select('*'); stagesList = data || []; }
         if (categoriesList.length === 0) await loadCategories();
 
-       const { data, error } = await supabaseClient.from('competitions').select(`*, categories(name), stages(name)`).order('name');
+        const { data, error } = await supabaseClient.from('competitions').select(`*, categories(name), stages(name)`).order('name');
         if(error) throw error;
         
-        competitionsList = data || []; // <--- ADD THIS LINE
+        competitionsList = data || [];
 
         const tbody = document.getElementById('competitions-tbody');
         tbody.innerHTML = '';
         
+        // 1. Populate Filter Dropdown
+        const filterCat = document.getElementById('filterCompCategory');
+        if(filterCat && filterCat.options.length === 1) {
+            categoriesList.forEach(c => filterCat.innerHTML += `<option value="${c.name}">${c.name}</option>`);
+        }
+
+        // 2. Generate Rows with Checkboxes
         (data || []).forEach(comp => {
             tbody.innerHTML += `
                 <tr>
+                    <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${comp.id}"></td>
                     <td>${comp.name}</td>
                     <td><span class="badge badge-primary">${comp.categories?.name || 'N/A'}</span></td>
                     <td>${comp.stages?.name || 'Unassigned'}</td>
@@ -409,14 +416,22 @@ async function loadParticipants() {
         const { data, error } = await supabaseClient.from('participants').select(`*, categories(name), teams(name)`).order('name');
         if(error) throw error;
         
-        participantsList = data || []; // <--- ADD THIS LINE
+        participantsList = data || []; 
         
         const tbody = document.getElementById('participants-tbody');
         tbody.innerHTML = '';
         
-        (data || []).forEach(p => {
+        // 1. Populate the Filter Dropdown
+        const catFilter = document.getElementById('filterCategory');
+        if(catFilter && catFilter.options.length === 1) {
+            categoriesList.forEach(c => catFilter.innerHTML += `<option value="${c.name}">${c.name}</option>`);
+        }
+
+        // 2. Generate the Rows with Checkboxes
+        participantsList.forEach(p => {
             tbody.innerHTML += `
                 <tr>
+                    <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}"></td>
                     <td style="font-family: monospace; font-weight: 600; color: var(--primary);">${p.unique_id}</td>
                     <td>${p.name}</td>
                     <td><span class="badge" style="background:#F1F5F9; color:#475569;">${p.teams?.name || 'Unassigned'}</span></td>
@@ -430,7 +445,6 @@ async function loadParticipants() {
         });
     } catch(e) { showToast(e.message, 'error'); }
 }
-
 function openParticipantModal(editData = null) {
     let catOpts = categoriesList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     let teamOpts = teamsList.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
@@ -782,11 +796,19 @@ async function loadAssignments() {
         const tbody = document.getElementById('assignments-tbody');
         tbody.innerHTML = '';
         
+        // 1. Populate Filter Dropdown
+        const filterComp = document.getElementById('filterAssignComp');
+        if(filterComp && filterComp.options.length === 1) {
+            competitionsList.forEach(c => filterComp.innerHTML += `<option value="${c.name}">${c.name}</option>`);
+        }
+
+        // 2. Generate Rows with Checkboxes
         (data || []).forEach(row => {
             tbody.innerHTML += `
                 <tr>
+                    <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${row.id}"></td>
                     <td>${row.participants?.name}</td>
-                    <td>${row.participants?.teams?.name}</td>
+                    <td>${row.participants?.teams?.name || 'Unassigned'}</td>
                     <td>${row.competitions?.name}</td>
                     <td>${row.participants?.categories?.name}</td>
                     <td>
@@ -812,5 +834,190 @@ function openAssignModal() {
         const { error } = await supabaseClient.from('participant_competitions').insert([{ participant_id, competition_id }]);
         if (error) showToast(error.message, 'error');
         else { showToast('Assigned!'); closeModal(); loadAssignments(); }
+    });
+}
+// --- UNIVERSAL TABLE CONTROLS ---
+
+// 1. Live Text Search
+function filterTable(tbodyId, query) {
+    const rows = document.querySelectorAll(`#${tbodyId} tr`);
+    query = query.toLowerCase();
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+}
+
+// 2. Dropdown Filtering (Targeting a specific column)
+function filterTableByColumn(tbodyId, colIndex, value) {
+    const rows = document.querySelectorAll(`#${tbodyId} tr`);
+    value = value.toLowerCase();
+    rows.forEach(row => {
+        const cellText = row.cells[colIndex].innerText.toLowerCase();
+        // If value is empty (All), show it. Otherwise, match the text.
+        if (value === "" || cellText.includes(value)) row.style.display = '';
+        else row.style.display = 'none';
+    });
+}
+
+// 3. Select All Checkboxes
+function toggleSelectAll(tbodyId, masterCheckbox) {
+    const checkboxes = document.querySelectorAll(`#${tbodyId} input[type="checkbox"].row-cb`);
+    checkboxes.forEach(cb => {
+        // Only select visible rows (respects active search/filters)
+        if (cb.closest('tr').style.display !== 'none') {
+            cb.checked = masterCheckbox.checked;
+        }
+    });
+}
+
+// 4. Get Selected IDs for Bulk Actions
+function getSelectedIds(tbodyId) {
+    const checkboxes = document.querySelectorAll(`#${tbodyId} input[type="checkbox"].row-cb:checked`);
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+// --- UNIVERSAL TABLE CONTROLS ---
+function filterTable(tbodyId, query) {
+    const rows = document.querySelectorAll(`#${tbodyId} tr`);
+    query = query.toLowerCase();
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+}
+
+function filterTableByColumn(tbodyId, colIndex, value) {
+    const rows = document.querySelectorAll(`#${tbodyId} tr`);
+    value = value.toLowerCase();
+    rows.forEach(row => {
+        const cellText = row.cells[colIndex].innerText.toLowerCase();
+        if (value === "" || cellText.includes(value)) row.style.display = '';
+        else row.style.display = 'none';
+    });
+}
+
+function toggleSelectAll(tbodyId, masterCheckbox) {
+    const checkboxes = document.querySelectorAll(`#${tbodyId} input[type="checkbox"].row-cb`);
+    checkboxes.forEach(cb => {
+        if (cb.closest('tr').style.display !== 'none') cb.checked = masterCheckbox.checked;
+    });
+}
+
+function getSelectedIds(tbodyId) {
+    const checkboxes = document.querySelectorAll(`#${tbodyId} input[type="checkbox"].row-cb:checked`);
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+// --- BULK ACTION LOGIC ---
+
+// 1. Bulk Delete (Universal)
+async function bulkDelete(tableName, tbodyId) {
+    const ids = getSelectedIds(tbodyId);
+    if(ids.length === 0) return showToast('No rows selected', 'error');
+    
+    if(confirm(`Are you sure you want to permanently delete ${ids.length} selected items?`)) {
+        try {
+            const { error } = await supabaseClient.from(tableName).delete().in('id', ids);
+            if (error) throw error;
+            
+            showToast(`Successfully deleted ${ids.length} items`);
+            
+            // Uncheck the master checkbox
+            const masterCb = document.querySelector(`#${tbodyId}`).previousElementSibling.querySelector('input[type="checkbox"]');
+            if(masterCb) masterCb.checked = false;
+            
+            // Reload the respective tab
+            if(tableName === 'categories') loadCategories();
+            if(tableName === 'competitions') loadCompetitions();
+            if(tableName === 'participants') loadParticipants();
+            if(tableName === 'participant_competitions') loadAssignments();
+        } catch (e) { showToast(e.message, 'error'); }
+    }
+}
+
+// 2. Bulk Print Selected ID Cards
+async function bulkPrintSelected() {
+    const ids = getSelectedIds('participants-tbody');
+    if(ids.length === 0) return showToast('No participants selected', 'error');
+
+    const btn = event.currentTarget;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...'; 
+    btn.disabled = true;
+
+    try {
+        const { data: participants, error } = await supabaseClient
+            .from('participants')
+            .select('*, categories(name), teams(name)')
+            .in('id', ids)
+            .order('name');
+            
+        if (error) throw error;
+        
+        const container = document.getElementById('print-container');
+        container.innerHTML = '';
+
+        participants.forEach(p => {
+            const cardElement = buildCardElement(p);
+            container.appendChild(cardElement);
+            new QRCode(document.getElementById(`qr-${p.id}`), { text: p.unique_id, width: 65, height: 65, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+        });
+
+        const opt = { margin: 0, filename: `Selected_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 4, useCORS: true }, jsPDF: { unit: 'mm', format: 'a7', orientation: 'portrait' } };
+        html2pdf().set(opt).from(container).save().then(() => { 
+            showToast('Selected PDFs Generated Successfully!');
+            container.innerHTML = ''; 
+        });
+    } catch(e) { 
+        showToast(e.message, 'error'); 
+    } finally { 
+        btn.innerHTML = originalText; 
+        btn.disabled = false; 
+    }
+}
+
+// 3. Bulk Assign to Competition
+function openBulkAssignModal() {
+    const ids = getSelectedIds('participants-tbody');
+    if(ids.length === 0) return showToast('Select participants to assign', 'error');
+
+    let compOpts = competitionsList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    
+    openModal('Bulk Assign to Competition', `
+        <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--primary-light); border-radius: 8px; color: var(--primary); font-weight: 600;">
+            <i class="fa-solid fa-users"></i> You are assigning ${ids.length} selected participant(s).
+        </div>
+        <div class="form-group">
+            <label>Select Competition</label>
+            <select id="bulkAssignComp">${compOpts}</select>
+        </div>
+    `, async () => {
+        const competition_id = document.getElementById('bulkAssignComp').value;
+        const inserts = ids.map(participant_id => ({ participant_id, competition_id }));
+        
+        setLoading('modalSaveBtn', true);
+        
+        try {
+            const { error } = await supabaseClient.from('participant_competitions').insert(inserts);
+            if (error) {
+                // Handle duplicate assignments gracefully
+                if (error.code === '23505') throw new Error('One or more selected participants are already assigned to this competition.');
+                throw error;
+            }
+            
+            showToast(`Successfully assigned ${ids.length} participants!`); 
+            closeModal(); 
+            
+            // Clear selections
+            document.querySelectorAll('#participants-tbody input[type="checkbox"]').forEach(cb => cb.checked = false);
+            
+            // Optionally auto-switch to assignments tab to see results
+            switchTab('assignments');
+        } catch (e) { 
+            showToast(e.message, 'error'); 
+        } finally {
+            setLoading('modalSaveBtn', false);
+        }
     });
 }

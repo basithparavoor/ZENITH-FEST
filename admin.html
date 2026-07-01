@@ -238,6 +238,28 @@
 
         /* Cropper Container */
         .img-container { max-height: 400px; width: 100%; margin-bottom: 1rem; background: #f0f0f0; display: none; }
+        /* --- DATA CONTROLS (SEARCH, FILTER, SELECT) --- */
+.controls-bar {
+    display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+    background: white; padding: 1rem; border-radius: 12px;
+    box-shadow: var(--shadow-sm); border: 1px solid var(--border);
+}
+.search-box { flex: 1; min-width: 250px; position: relative; }
+.search-box input {
+    width: 100%; padding: 0.75rem 1rem 0.75rem 2.5rem; 
+    border-radius: 8px; border: 1.5px solid var(--border);
+    text-transform: none; /* Keep search text normal */
+}
+.search-box i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+
+.filter-box select {
+    padding: 0.75rem 1rem; border-radius: 8px; border: 1.5px solid var(--border);
+    background: var(--bg-main); font-weight: 500; min-width: 150px;
+}
+.checkbox-cell { width: 40px; text-align: center; }
+.checkbox-cell input[type="checkbox"] {
+    width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary);
+}
     </style>
 </head>
 <body>
@@ -265,58 +287,133 @@
         </div>
 
         <!-- 1. CATEGORIES -->
-        <div id="categories" class="content-section active">
-            <div class="action-bar">
-                <button class="btn btn-primary" onclick="openCategoryModal()"><i class="fa-solid fa-plus"></i> Create Category</button>
-                <div class="bulk-actions">
-                    <button class="btn btn-outline" onclick="downloadTemplate('categories')"><i class="fa-solid fa-download"></i> Template</button>
-                    <input type="file" id="csvUploadCategories" class="file-input" accept=".csv">
-                    <button class="btn btn-outline" onclick="handleBulkUpload('categories', 'csvUploadCategories')"><i class="fa-solid fa-upload"></i> Import</button>
-                </div>
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>Category Name</th><th>Type</th><th>Actions</th></tr></thead>
-                    <tbody id="categories-tbody"></tbody>
-                </table>
-            </div>
+<div id="categories" class="content-section active">
+    <div class="action-bar">
+        <button class="btn btn-primary" onclick="openCategoryModal()"><i class="fa-solid fa-plus"></i> Create Category</button>
+        <div class="bulk-actions">
+            <button class="btn btn-outline" onclick="downloadTemplate('categories')"><i class="fa-solid fa-download"></i> Template</button>
+            <input type="file" id="csvUploadCategories" class="file-input" accept=".csv">
+            <button class="btn btn-outline" onclick="handleBulkUpload('categories', 'csvUploadCategories')"><i class="fa-solid fa-upload"></i> Import</button>
         </div>
+    </div>
+    
+    <div class="controls-bar">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" placeholder="Search categories..." onkeyup="filterTable('categories-tbody', this.value)">
+        </div>
+        <div class="filter-box">
+            <select onchange="filterTableByColumn('categories-tbody', 2, this.value)">
+                <option value="">All Types</option>
+                <option value="Standard">Standard</option>
+                <option value="General">General</option>
+            </select>
+        </div>
+        <button class="btn btn-danger" onclick="bulkDelete('categories', 'categories-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
+    </div>
 
-        <!-- 2. COMPETITIONS -->
-        <div id="competitions" class="content-section">
-            <div class="action-bar">
-                <button class="btn btn-primary" onclick="openCompModal()"><i class="fa-solid fa-plus"></i> New Competition</button>
-                <div class="bulk-actions">
-                    <button class="btn btn-outline" onclick="downloadTemplate('competitions')"><i class="fa-solid fa-download"></i> Template</button>
-                    <input type="file" id="csvUploadCompetitions" class="file-input" accept=".csv">
-                    <button class="btn btn-outline" onclick="handleBulkUpload('competitions', 'csvUploadCompetitions')"><i class="fa-solid fa-upload"></i> Import</button>
-                </div>
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>Competition</th><th>Category</th><th>Stage</th><th>Max Marks</th><th>Limit</th><th>Actions</th></tr></thead>
-                    <tbody id="competitions-tbody"></tbody>
-                </table>
-            </div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAll('categories-tbody', this)"></th>
+                    <th>Category Name</th>
+                    <th>Type</th>
+                    <th>Students</th>
+                    <th>Competitions</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="categories-tbody"></tbody>
+        </table>
+    </div>
+</div>
+       <!-- 2. COMPETITIONS -->
+<div id="competitions" class="content-section">
+    <div class="action-bar">
+        <button class="btn btn-primary" onclick="openCompModal()"><i class="fa-solid fa-plus"></i> New Competition</button>
+        <div class="bulk-actions">
+            <button class="btn btn-outline" onclick="downloadTemplate('competitions')"><i class="fa-solid fa-download"></i> Template</button>
+            <input type="file" id="csvUploadCompetitions" class="file-input" accept=".csv">
+            <button class="btn btn-outline" onclick="handleBulkUpload('competitions', 'csvUploadCompetitions')"><i class="fa-solid fa-upload"></i> Import</button>
         </div>
+    </div>
+    
+    <div class="controls-bar">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" placeholder="Search competitions..." onkeyup="filterTable('competitions-tbody', this.value)">
+        </div>
+        <div class="filter-box">
+            <select id="filterCompCategory" onchange="filterTableByColumn('competitions-tbody', 2, this.value)">
+                <option value="">All Categories</option>
+                <!-- Populated via JS -->
+            </select>
+        </div>
+        <button class="btn btn-danger" onclick="bulkDelete('competitions', 'competitions-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAll('competitions-tbody', this)"></th>
+                    <th>Competition</th>
+                    <th>Category</th>
+                    <th>Stage</th>
+                    <th>Max Marks</th>
+                    <th>Limit</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="competitions-tbody"></tbody>
+        </table>
+    </div>
+</div>
         
-        <!-- 3. PARTICIPANTS -->
-        <div id="participants" class="content-section">
-            <div class="action-bar">
-                <button class="btn btn-primary" onclick="openParticipantModal()"><i class="fa-solid fa-plus"></i> Register</button>
-                <div class="bulk-actions">
-                    <input type="file" id="csvUploadParticipants" class="file-input" accept=".csv">
-                    <button class="btn btn-outline" onclick="handleBulkUpload('participants', 'csvUploadParticipants')"><i class="fa-solid fa-upload"></i> Bulk Import</button>
-                    <button class="btn btn-success" onclick="generateBulkCards()"><i class="fa-solid fa-print"></i> Print IDs</button>
-                </div>
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>Unique ID</th><th>Name</th><th>Team</th><th>Category</th><th>Actions</th></tr></thead>
-                    <tbody id="participants-tbody"></tbody>
-                </table>
-            </div>
+     <!-- 3. PARTICIPANTS -->
+<div id="participants" class="content-section">
+    <div class="action-bar">
+        <button class="btn btn-primary" onclick="openParticipantModal()"><i class="fa-solid fa-plus"></i> Register</button>
+        <div class="bulk-actions">
+            <input type="file" id="csvUploadParticipants" class="file-input" accept=".csv">
+            <button class="btn btn-outline" onclick="handleBulkUpload('participants', 'csvUploadParticipants')"><i class="fa-solid fa-upload"></i> Import</button>
         </div>
+    </div>
+
+    <!-- NEW CONTROLS BAR -->
+    <div class="controls-bar">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" placeholder="Search participants..." onkeyup="filterTable('participants-tbody', this.value)">
+        </div>
+        <div class="filter-box">
+            <!-- Filter by Column 3 (Category in this example table) -->
+            <select id="filterCategory" onchange="filterTableByColumn('participants-tbody', 4, this.value)">
+                <option value="">All Categories</option>
+                <!-- Populated dynamically via JS -->
+            </select>
+        </div>
+        <button class="btn btn-success" onclick="bulkPrintSelected()"><i class="fa-solid fa-print"></i> Print Selected</button>
+        <button class="btn btn-danger" onclick="bulkDelete('participants', 'participants-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAll('participants-tbody', this)"></th>
+                    <th>Unique ID</th>
+                    <th>Name</th>
+                    <th>Team</th>
+                    <th>Category</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="participants-tbody"></tbody>
+        </table>
+    </div>
+</div>
         
         <!-- 4. STAGES & TEAMS -->
         <div id="stages" class="content-section">
@@ -368,15 +465,41 @@
         <div id="print-container"></div>
     </div>
 
-    <!-- 6. ASSIGNMENTS -->
+   <!-- 6. ASSIGNMENTS -->
 <div id="assignments" class="content-section">
     <div class="action-bar">
         <button class="btn btn-primary" onclick="openAssignModal()"><i class="fa-solid fa-plus"></i> Assign Student</button>
-        <button class="btn btn-outline" onclick="downloadCSV('participant_competitions')"><i class="fa-solid fa-download"></i> Download Data</button>
+        <div class="bulk-actions">
+            <button class="btn btn-outline" onclick="downloadCSV('participant_competitions')"><i class="fa-solid fa-download"></i> Download Data</button>
+        </div>
     </div>
+    
+    <div class="controls-bar">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" placeholder="Search assignments..." onkeyup="filterTable('assignments-tbody', this.value)">
+        </div>
+        <div class="filter-box">
+            <select id="filterAssignComp" onchange="filterTableByColumn('assignments-tbody', 3, this.value)">
+                <option value="">All Competitions</option>
+                <!-- Populated via JS -->
+            </select>
+        </div>
+        <button class="btn btn-danger" onclick="bulkDelete('participant_competitions', 'assignments-tbody')"><i class="fa-solid fa-trash"></i> Remove Selected</button>
+    </div>
+
     <div class="table-container">
         <table>
-            <thead><tr><th>Participant</th><th>Team</th><th>Competition</th><th>Category</th><th>Actions</th></tr></thead>
+            <thead>
+                <tr>
+                    <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAll('assignments-tbody', this)"></th>
+                    <th>Participant</th>
+                    <th>Team</th>
+                    <th>Competition</th>
+                    <th>Category</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
             <tbody id="assignments-tbody"></tbody>
         </table>
     </div>
