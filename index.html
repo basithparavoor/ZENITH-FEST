@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FestOS | Centralized Login</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --bg-color: #F3F4F6;
+            --surface: #FFFFFF;
+            --text-main: #111827;
+            --text-muted: #6B7280;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, sans-serif; }
+
+        body {
+            background: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        .login-container {
+            background: var(--surface);
+            padding: 3rem 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 420px;
+            transform: translateY(20px);
+            opacity: 0;
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideUp {
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .header { text-align: center; margin-bottom: 2.5rem; }
+        .header h1 { color: var(--text-main); font-size: 1.75rem; margin-bottom: 0.5rem; }
+        .header p { color: var(--text-muted); font-size: 0.95rem; }
+
+        .input-group { margin-bottom: 1.5rem; position: relative; }
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #D1D5DB;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+        .input-group input:focus, .input-group select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 0.875rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .public-links {
+            margin-top: 2rem;
+            text-align: center;
+            padding-top: 1.5rem;
+            border-top: 1px solid #E5E7EB;
+        }
+        .public-links a {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin: 0 10px;
+        }
+        .public-links a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+    <div class="login-container">
+        <div class="header">
+            <h1>Welcome to FestOS</h1>
+            <p>Sign in to access your portal</p>
+        </div>
+
+        <form id="loginForm">
+            <div class="input-group">
+                <label for="role">Portal Access Level</label>
+                <select id="role" required>
+                    <option value="" disabled selected>Select your role...</option>
+                    <option value="master_admin">Master Admin</option>
+                    <option value="admin">Admin</option>
+                    <option value="fest_manager">Fest Manager</option>
+                    <option value="stage_controller">Stage Controller</option>
+                    <option value="judge">Judge</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" placeholder="Enter username" required>
+            </div>
+
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Enter password" required>
+            </div>
+
+            <button type="submit" class="btn-primary">Sign In</button>
+        </form>
+
+        <div class="public-links">
+            <a href="public-results.html">Live Results Portal</a>
+            <a href="announcements.html">Announcements</a>
+        </div>
+    </div>
+
+    <script src="login.js"></script>
+</body>
+</html>

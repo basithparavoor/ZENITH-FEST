@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FestOS | Announcement Portal</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+        :root {
+            --primary: #4F46E5;
+            --bg-main: #111827; /* Dark mode for announcer screens */
+            --surface: #1F2937;
+            --text-main: #F9FAFB;
+            --text-muted: #9CA3AF;
+            --border: #374151;
+            --highlight: #10B981;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+        body { background: var(--bg-main); color: var(--text-main); min-height: 100vh; padding: 2rem; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem; border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; }
+        .header h1 { font-size: 2.5rem; font-weight: 800; display: flex; align-items: center; gap: 1rem; }
+        .header h1 span { color: var(--highlight); animation: pulse 2s infinite; }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        .live-clock { font-size: 1.5rem; font-weight: 600; color: var(--text-muted); font-family: monospace; }
+
+        .announcement-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+        
+        .announcement-card {
+            background: var(--surface); border-radius: 16px; padding: 2rem;
+            display: flex; justify-content: space-between; align-items: center;
+            border-left: 6px solid var(--primary);
+            transition: 0.3s ease;
+        }
+        
+        .announcement-card.announced {
+            opacity: 0.5;
+            border-left-color: var(--border);
+            filter: grayscale(100%);
+        }
+
+        .comp-details { flex: 1; }
+        .comp-status { font-size: 1rem; font-weight: 700; text-transform: uppercase; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 2px; }
+        .comp-name { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; line-height: 1.2; }
+        .comp-stage { font-size: 1.5rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; }
+
+        .btn { padding: 1rem 2rem; border-radius: 12px; font-weight: 700; font-size: 1.25rem; cursor: pointer; border: none; transition: 0.2s; }
+        .btn-announce { background: var(--highlight); color: #064E3B; }
+        .btn-announce:hover { background: #059669; color: white; }
+        .btn-undo { background: transparent; border: 2px solid var(--border); color: var(--text-muted); }
+        .btn-undo:hover { background: var(--border); color: white; }
+
+        .empty-state { text-align: center; padding: 4rem; color: var(--text-muted); font-size: 1.5rem; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1><span>●</span> LIVE ANNOUNCEMENTS</h1>
+        <div class="live-clock" id="clock">00:00:00</div>
+    </div>
+
+    <div class="announcement-grid" id="announcement-container">
+        <!-- Announcements injected by JS -->
+        <div class="empty-state">Fetching live competitions...</div>
+    </div>
+
+    <script src="announcements.js"></script>
+</body>
+</html>

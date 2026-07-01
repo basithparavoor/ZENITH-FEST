@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FestOS | Stage Controller Dashboard</title>
+    <!-- QR Code Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --bg-color: #F3F4F6;
+            --surface: #FFFFFF;
+            --text-main: #111827;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg-color); padding: 1rem; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .header h1 { font-size: 1.5rem; color: var(--text-main); }
+        .logout-btn { padding: 0.5rem 1rem; border: 1px solid #D1D5DB; border-radius: 6px; cursor: pointer; background: white; }
+
+        .card { background: var(--surface); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E5E7EB; padding-bottom: 1rem; margin-bottom: 1rem; }
+        
+        .badge { padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+        .badge.pending { background: #FEF3C7; color: #92400E; }
+        .badge.registration { background: #DBEAFE; color: #1E40AF; }
+        .badge.ongoing { background: #D1FAE5; color: #065F46; }
+
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; color: white; width: 100%; margin-top: 0.5rem; transition: 0.2s; }
+        .btn-primary { background: var(--primary); }
+        .btn-success { background: var(--success); }
+        .btn-warning { background: var(--warning); color: black; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Scanner Modal UI */
+        #scanner-section { display: none; margin-top: 1.5rem; }
+        #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 1rem; }
+        
+        .participant-list { margin-top: 1rem; }
+        .participant-item { display: flex; justify-content: space-between; padding: 0.75rem; background: #F9FAFB; border-radius: 6px; margin-bottom: 0.5rem; }
+        .code-letter { font-weight: bold; color: var(--primary); font-size: 1.25rem; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <h1>Stage Controller</h1>
+            <p id="stage-name" style="color: #6B7280; font-size: 0.875rem;">Loading stage...</p>
+        </div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <div id="competitions-container">
+        <!-- Competitions will be injected here by JS -->
+    </div>
+
+    <script src="stage-controller.js"></script>
+</body>
+</html>

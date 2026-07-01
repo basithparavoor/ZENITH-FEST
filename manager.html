@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FestOS | Fest Manager</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --primary: #4F46E5;
+            --success: #10B981;
+            --bg-main: #F3F4F6;
+            --bg-surface: #FFFFFF;
+            --text-main: #111827;
+            --border: #E5E7EB;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+        body { display: flex; height: 100vh; background-color: var(--bg-main); color: var(--text-main); overflow: hidden; }
+
+        .sidebar { width: 250px; background: var(--bg-surface); border-right: 1px solid var(--border); padding: 1.5rem 1rem; }
+        .brand { font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-bottom: 2rem; text-align: center; }
+        
+        .nav-item { padding: 0.75rem 1rem; margin-bottom: 0.5rem; border-radius: 8px; cursor: pointer; color: #6B7280; font-weight: 500; }
+        .nav-item:hover, .nav-item.active { background: #EEF2FF; color: var(--primary); }
+
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+        .header { background: var(--bg-surface); padding: 1.25rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+
+        .content-section { display: none; padding: 2rem; animation: fadeIn 0.3s ease; }
+        .content-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .btn { padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; border: none; cursor: pointer; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+        .card { background: var(--bg-surface); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+        .card-title { font-weight: 600; font-size: 1.125rem; margin-bottom: 0.25rem; }
+        .badge { padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+        
+        .form-group { margin-top: 1rem; }
+        .form-group select { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; outline: none; margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="brand">Fest Manager</div>
+        <div class="nav-item active" onclick="switchTab('assignments')">Assign Judges</div>
+        <div class="nav-item" onclick="switchTab('publish')">Publish Results</div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h1 style="font-size: 1.25rem;">Manager Dashboard</h1>
+            <button class="btn btn-outline" onclick="logout()">Logout</button>
+        </div>
+
+        <!-- 1. ASSIGN JUDGES TAB -->
+        <div id="assignments" class="content-section active">
+            <h2 style="margin-bottom: 1.5rem;">Competition Assignments</h2>
+            <div class="card-grid" id="comps-grid">
+                <!-- Injected via JS -->
+                <p>Loading competitions...</p>
+            </div>
+        </div>
+
+        <!-- 2. PUBLISH RESULTS TAB -->
+        <div id="publish" class="content-section">
+            <h2 style="margin-bottom: 1.5rem;">Pending Publications</h2>
+            <p style="color: #6B7280; margin-bottom: 1.5rem;">Competitions below have been marked as 'Judgement Complete' by the Stage Controller. Review and publish them to the live portal.</p>
+            
+            <div class="card-grid" id="publish-grid">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <script src="manager.js"></script>
+</body>
+</html>

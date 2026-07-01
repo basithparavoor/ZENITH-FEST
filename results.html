@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FestOS | Live Results</title>
+    
+    <!-- Supabase & HTML2Canvas for JPEG Export -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+
+        :root {
+            --primary: #4F46E5;
+            --bg-main: #F3F4F6;
+            --surface: #FFFFFF;
+            --text-main: #111827;
+            --gold: #F59E0B;
+            --silver: #94A3B8;
+            --bronze: #B45309;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+        body { background: var(--bg-main); color: var(--text-main); }
+
+        .navbar {
+            background: var(--surface); padding: 1.25rem 2rem;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 50;
+        }
+        .navbar h1 { font-weight: 800; color: var(--primary); font-size: 1.5rem; letter-spacing: -0.5px; }
+
+        .container { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
+
+        .tabs { display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 2px solid #E5E7EB; padding-bottom: 1rem; }
+        .tab { padding: 0.5rem 1rem; cursor: pointer; font-weight: 600; color: #6B7280; border-radius: 8px; transition: 0.2s; }
+        .tab.active { background: var(--primary); color: white; }
+
+        .view-section { display: none; animation: fadeIn 0.4s ease; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Leaderboard Styles */
+        .leaderboard-card {
+            background: var(--surface); border-radius: 12px; padding: 1.5rem;
+            display: flex; align-items: center; margin-bottom: 1rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid #E5E7EB;
+        }
+        .rank { font-size: 1.5rem; font-weight: 800; width: 50px; color: #9CA3AF; }
+        .rank-1 { color: var(--gold); } .rank-2 { color: var(--silver); } .rank-3 { color: var(--bronze); }
+        .team-info { flex: 1; }
+        .team-name { font-size: 1.25rem; font-weight: 700; }
+        .team-score { font-size: 1.5rem; font-weight: 800; color: var(--primary); }
+
+        /* Individual Results Styles */
+        .filters { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+        .filters select { flex: 1; padding: 0.75rem; border-radius: 8px; border: 1px solid #D1D5DB; outline: none; }
+        
+        .winners-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+        .winner-card {
+            background: var(--surface); border-radius: 12px; padding: 1.5rem; text-align: center;
+            border-top: 5px solid #E5E7EB; box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+        .winner-card.gold { border-top-color: var(--gold); }
+        .winner-card.silver { border-top-color: var(--silver); }
+        .winner-card.bronze { border-top-color: var(--bronze); }
+        
+        .winner-position { font-size: 0.875rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; }
+        .winner-name { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem; }
+        .winner-team { font-size: 0.875rem; color: #6B7280; }
+
+        /* Poster Generation Tools */
+        .poster-controls { background: var(--surface); padding: 1.5rem; border-radius: 12px; text-align: center; margin-bottom: 2rem; }
+        .btn { padding: 0.75rem 1.5rem; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        
+        /* High-Res Poster Template (Hidden from normal flow) */
+        #poster-export-area {
+            position: absolute; left: -9999px;
+            width: 1080px; height: 1080px; /* Instagram/Social Media Square */
+            background: linear-gradient(135deg, #1E1B4B, #4338CA);
+            color: white; padding: 4rem; display: flex; flex-direction: column;
+        }
+        .poster-header { text-align: center; margin-bottom: 3rem; }
+        .poster-header h1 { font-size: 4rem; font-weight: 800; letter-spacing: -2px; margin-bottom: 1rem; }
+        .poster-header h2 { font-size: 2rem; color: #818CF8; }
+        
+        .poster-leaderboard { flex: 1; display: flex; flex-direction: column; gap: 1.5rem; }
+        .poster-row { background: rgba(255,255,255,0.1); padding: 1.5rem 2rem; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(10px); }
+        .poster-row-rank { font-size: 2.5rem; font-weight: 800; width: 80px; }
+        .poster-row-name { font-size: 2.5rem; font-weight: 700; flex: 1; }
+        .poster-row-score { font-size: 3rem; font-weight: 800; color: #FCA5A5; }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <h1>FestOS Live</h1>
+        <div>Public Results Portal</div>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('standings')">🏆 Team Standings</div>
+            <div class="tab" onclick="switchTab('individual')">👤 Individual Results</div>
+            <div class="tab" onclick="switchTab('posters')">📸 Get Posters</div>
+        </div>
+
+        <!-- 1. Live Team Standings -->
+        <div id="standings" class="view-section active">
+            <div id="leaderboard-container">
+                <!-- Injected via JS -->
+                <p style="text-align:center; color:gray;">Loading live standings...</p>
+            </div>
+        </div>
+
+        <!-- 2. Individual Results -->
+        <div id="individual" class="view-section">
+            <div class="filters">
+                <select id="comp-filter" onchange="renderIndividualResults()">
+                    <option value="">-- Select Competition --</option>
+                </select>
+            </div>
+            <div class="winners-grid" id="winners-container">
+                <p style="text-align:center; color:gray; grid-column: 1/-1;">Select a competition to view the top 3 winners.</p>
+            </div>
+        </div>
+
+        <!-- 3. Poster Export -->
+        <div id="posters" class="view-section">
+            <div class="poster-controls">
+                <h2 style="margin-bottom: 1rem;">Generate Result Poster</h2>
+                <p style="margin-bottom: 1.5rem; color: #6B7280;">Posters can be generated for the overall team standings. The design is optimized for social media (1080x1080 JPEG).</p>
+                <p id="publish-status" style="font-weight: 600; color: var(--primary); margin-bottom: 1.5rem;"></p>
+                <button class="btn" onclick="downloadPoster()">Download JPEG Poster</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Template for html2canvas -->
+    <div id="poster-export-area">
+        <div class="poster-header">
+            <h1>FEST 2026 RESULTS</h1>
+            <h2 id="poster-subtitle">Live Standings</h2>
+        </div>
+        <div class="poster-leaderboard" id="poster-leaderboard-container">
+            <!-- Injected via JS -->
+        </div>
+        <div style="text-align: center; margin-top: auto; font-size: 1.5rem; color: #A5B4FC;">
+            Official Automated Result | FestOS
+        </div>
+    </div>
+
+    <script src="results.js"></script>
+</body>
+</html>
