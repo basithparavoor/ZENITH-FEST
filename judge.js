@@ -4,40 +4,31 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentCompId = null;
 let currentMaxMark = 0;
-let user = null; // Declare user globally so other functions can use it
+let user = null; 
 
-// 1. Wrap your startup logic in an async function
+// 1. Initialize App and Auth
 async function initializeApp() {
-    
-    // IF YOU ARE USING LOCAL STORAGE (Like your original code):
     user = JSON.parse(localStorage.getItem('festUser'));
-    
-    // OR, IF YOU SWITCHED TO SUPABASE AUTH (Which is likely what caused the line 6 error):
-    // const { data } = await supabaseClient.auth.getUser();
-    // user = data.user;
 
     // Security Check
     if (!user || user.role !== 'judge') {
         window.location.href = 'index.html';
-        return; // Stop running code if they aren't a judge
+        return; 
     }
 
     // Update UI
     document.getElementById('judge-name').innerText = `Welcome, ${user.username || user.email}`;
 
-    // Now that auth is verified, load the dashboard!
+    // Load the dashboard
     loadDashboard(); 
 }
 
-// 2. Call the function to boot up the app
-initializeApp();
 // 2. Load Assigned Ongoing Competitions
-async function loadDashboard() { 
-    const { data } = await supabaseClient.from('judgements')... // Works!
-}
+async function loadDashboard() {
+    const container = document.getElementById('competitions-container');
     container.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading assignments...</p>`;
 
-    const { data: assignments, error } = await supabase
+    const { data: assignments, error } = await supabaseClient
         .from('judgements')
         .select('competition_id, competitions(id, name, max_mark, status)')
         .eq('judge_id', user.id)
@@ -53,7 +44,7 @@ async function loadDashboard() {
 
     const ongoingComps = assignments
         .map(a => a.competitions)
-        .filter(c => c.status === 'ongoing');
+        .filter(c => c && c.status === 'ongoing'); // Added safety check for 'c'
 
     if (ongoingComps.length === 0) {
         container.innerHTML = `
@@ -100,7 +91,7 @@ async function openEvaluation(compId, compName, maxMark) {
     const container = document.getElementById('participants-container');
     container.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading participants...</p>`;
 
-    const { data: registrations } = await supabase
+    const { data: registrations, error } = await supabaseClient
         .from('competition_registrations')
         .select('participant_id, code_letter')
         .eq('competition_id', compId)
@@ -108,6 +99,12 @@ async function openEvaluation(compId, compName, maxMark) {
         .order('code_letter', { ascending: true });
 
     container.innerHTML = '';
+
+    if (error) {
+        console.error(error);
+        container.innerHTML = `<p style="color: #EF4444; text-align: center;">Error loading participants.</p>`;
+        return;
+    }
 
     if (!registrations || registrations.length === 0) {
         container.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No participants have been marked present yet.</p>`;
@@ -157,7 +154,7 @@ async function submitJudgement() {
         
         if (markInput === '') {
             isValid = false;
-            row.style.borderColor = '#EF4444'; // Highlight missing input in red
+            row.style.borderColor = '#EF4444'; 
         } else {
             row.style.borderColor = 'var(--border)';
         }
@@ -185,7 +182,7 @@ async function submitJudgement() {
         Submitting...
     `;
 
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('judgements')
         .upsert(marksData, { onConflict: 'competition_id,judge_id,participant_id' });
 
@@ -219,4 +216,4 @@ style.innerHTML = `@keyframes spin { 100% { transform: rotate(360deg); } }`;
 document.head.appendChild(style);
 
 // Boot up
-loadDashboard();
+initializeApp();
