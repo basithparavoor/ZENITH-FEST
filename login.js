@@ -1,7 +1,9 @@
 // Connects securely to your specific Supabase instance
-const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co'; //[cite: 2]
-const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA'; //[cite: 2]
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
+
+// FIXED: Renamed to 'supabaseClient' to prevent conflict with the CDN's global 'supabase' variable
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -18,8 +20,8 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     errorBox.style.display = 'none';
 
     try {
-        // Query the database by username only
-        const { data, error } = await supabase
+        // Query the database using the renamed client
+        const { data, error } = await supabaseClient
             .from('users')
             .select('*')
             .eq('username', username)
@@ -40,7 +42,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         
         // Auto-detect role and define routing
         const routes = {
-            'master_admin': 'admin.html', // Master admins share the admin portal
+            'master_admin': 'admin.html',
             'admin': 'admin.html',
             'fest_manager': 'manager.html',
             'stage_controller': 'stage-controller.html',
