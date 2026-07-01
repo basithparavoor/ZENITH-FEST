@@ -390,33 +390,92 @@ function openParticipantModal() {
     let teamOpts = teamsList.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
     openModal('Register Participant', `
-        <div class="form-group"><label>Full Name</label><input type="text" id="partName" placeholder="Participant Name"></div>
-        <div class="form-group"><label>Team</label><select id="partTeam"><option value="">-- Select Team --</option>${teamOpts}</select></div>
+        <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="partName" placeholder="Participant Name">
+        </div>
+        <div class="form-group">
+            <label>Participant Photo (For ID Card)</label>
+            <input type="file" id="partPhoto" accept="image/png, image/jpeg, image/webp" style="padding: 0.6rem; background: white;">
+        </div>
+        <div class="form-group">
+            <label>Team</label>
+            <select id="partTeam">
+                <option value="">-- Select Team --</option>
+                ${teamOpts}
+            </select>
+        </div>
         <div style="display:flex; gap:1rem;">
-            <div class="form-group" style="flex:1;"><label>Category</label><select id="partCategory">${catOpts}</select></div>
-            <div class="form-group" style="flex:1;"><label>Batch No</label><input type="number" id="partBatch" min="1" max="7" value="1"></div>
+            <div class="form-group" style="flex:1;">
+                <label>Category</label>
+                <select id="partCategory">${catOpts}</select>
+            </div>
+            <div class="form-group" style="flex:1;">
+                <label>Batch No</label>
+                <input type="number" id="partBatch" min="1" max="7" value="1">
+            </div>
         </div>
     `, saveParticipant);
 }
-
 async function saveParticipant() {
     const name = document.getElementById('partName').value;
     const team_id = document.getElementById('partTeam').value || null;
     const category_id = document.getElementById('partCategory').value;
     const batch_no = document.getElementById('partBatch').value;
+    const photoInput = document.getElementById('partPhoto');
     const unique_id = `FEST-2026-${Math.floor(100000 + Math.random() * 900000)}`;
     
     if(!name) return showToast('Name is required', 'error');
     
     setLoading('modalSaveBtn', true);
+    
     try {
-        const { error } = await supabaseClient.from('participants').insert([{ unique_id, name, team_id, category_id, batch_no }]);
+        let photo_url = null;
+
+        // Handle Photo Upload if a file is selected
+        if (photoInput.files.length > 0) {
+            const file = photoInput.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${unique_id}.${fileExt}`; // Name the file after their Unique ID
+            
+            showToast('Uploading photo...', 'success');
+            
+            // Upload to Supabase Storage
+            const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                .from('photos')
+                .upload(fileName, file);
+                
+            if (uploadError) throw uploadError;
+
+            // Retrieve the public URL for the ID card
+            const { data: publicUrlData } = supabaseClient.storage
+                .from('photos')
+                .getPublicUrl(fileName);
+                
+            photo_url = publicUrlData.publicUrl;
+        }
+
+        // Save to Database
+        const { error } = await supabaseClient.from('participants').insert([{ 
+            unique_id, 
+            name, 
+            team_id, 
+            category_id, 
+            batch_no, 
+            photo_url 
+        }]);
+        
         if (error) throw error;
-        showToast('Participant registered!');
+        
+        showToast('Participant registered successfully!');
         closeModal(); 
         loadParticipants();
-    } catch(e) { showToast(e.message, 'error'); }
-    finally { setLoading('modalSaveBtn', false); }
+        
+    } catch(e) { 
+        showToast(e.message, 'error'); 
+    } finally { 
+        setLoading('modalSaveBtn', false); 
+    }
 }
 
 async function deleteParticipant(id) {
