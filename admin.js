@@ -12,7 +12,10 @@ if (!user || (user.role !== 'admin' && user.role !== 'master_admin')) {
 let categoriesList = [];
 let stagesList = [];
 let teamsList = [];
+let participantsList = [];
+let competitionsList = [];
 let availableControllers = [];
+let currentCropper = null; // Added for image cropping
 
 // --- UI UTILITIES (PREMIUM UPGRADES) ---
 function toggleSidebar() {
@@ -115,26 +118,65 @@ function openModal(title, bodyHTML, saveFunction) {
     document.getElementById('formModal').classList.add('show');
 }
 
-// --- CATEGORIES MANAGEMENT ---
+// Example: Upgraded Load Categories with Edit and Counts
 async function loadCategories() {
     try {
-        const { data, error } = await supabaseClient.from('categories').select('*').order('name');
+        // Assuming your DB relations allow counting
+        const { data, error } = await supabaseClient
+            .from('categories')
+            .select('*, participants(count), competitions(count)')
+            .order('name');
+            
         if(error) throw error;
-        
         categoriesList = data || [];
+        
         const tbody = document.getElementById('categories-tbody');
         tbody.innerHTML = '';
         
         categoriesList.forEach(cat => {
+            const partCount = cat.participants[0]?.count || 0;
+            const compCount = cat.competitions[0]?.count || 0;
+            
             tbody.innerHTML += `
                 <tr>
                     <td>${cat.name}</td>
-                    <td>${cat.is_general ? '<span class="badge badge-primary">General (No Limits)</span>' : 'Standard'}</td>
-                    <td><button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteCategory('${cat.id}')"><i class="fa-solid fa-trash"></i></button></td>
+                    <td><span class="badge-count" onclick="viewRelationalData('participants', 'category_id', '${cat.id}')">${partCount} Students</span></td>
+                    <td><span class="badge-count" onclick="viewRelationalData('competitions', 'category_id', '${cat.id}')">${compCount} Competitions</span></td>
+                    <td>
+                        <button class="btn btn-outline" onclick='openCategoryModal(${JSON.stringify(cat)})'><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn btn-danger" onclick="deleteCategory('${cat.id}')"><i class="fa-solid fa-trash"></i></button>
+                    </td>
                 </tr>
             `;
         });
     } catch(e) { showToast(e.message, 'error'); }
+}
+
+// Function to handle viewing counts in a popup
+async function viewRelationalData(table, filterColumn, filterId) {
+    try {
+        const { data, error } = await supabaseClient.from(table).select('*').eq(filterColumn, filterId);
+        if (error) throw error;
+        
+        const tbody = document.getElementById('listModalTable');
+        tbody.innerHTML = `<tr><th>Name / Identifier</th></tr>`; // Header
+        
+        if (data.length === 0) tbody.innerHTML += `<tr><td>No records found.</td></tr>`;
+        
+        data.forEach(item => {
+            tbody.innerHTML += `<tr><td style="text-transform: uppercase;">${item.name || item.username || item.unique_id}</td></tr>`;
+        });
+        
+        document.getElementById('listModalTitle').innerText = `View ${table.toUpperCase()}`;
+        document.getElementById('listModal').classList.add('show');
+    } catch (e) { showToast("Error loading data: " + e.message, 'error'); }
+}
+
+// Custom Logout Logic
+function logout() { document.getElementById('logoutModal').classList.add('show'); }
+function confirmLogout() {
+    localStorage.removeItem('festUser');[cite: 2]
+    window.location.href = 'index.html';[cite: 2]
 }
 
 function openCategoryModal() {
@@ -186,8 +228,10 @@ async function loadCompetitions() {
         if (stagesList.length === 0) { const { data } = await supabaseClient.from('stages').select('*'); stagesList = data || []; }
         if (categoriesList.length === 0) await loadCategories();
 
-        const { data, error } = await supabaseClient.from('competitions').select(`*, categories(name), stages(name)`).order('name');
+       const { data, error } = await supabaseClient.from('competitions').select(`*, categories(name), stages(name)`).order('name');
         if(error) throw error;
+        
+        competitionsList = data || []; // <--- ADD THIS LINE
 
         const tbody = document.getElementById('competitions-tbody');
         tbody.innerHTML = '';
@@ -365,6 +409,8 @@ async function loadParticipants() {
         const { data, error } = await supabaseClient.from('participants').select(`*, categories(name), teams(name)`).order('name');
         if(error) throw error;
         
+        participantsList = data || []; // <--- ADD THIS LINE
+        
         const tbody = document.getElementById('participants-tbody');
         tbody.innerHTML = '';
         
@@ -385,18 +431,20 @@ async function loadParticipants() {
     } catch(e) { showToast(e.message, 'error'); }
 }
 
-function openParticipantModal() {
+function openParticipantModal(editData = null) {
     let catOpts = categoriesList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     let teamOpts = teamsList.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
-    openModal('Register Participant', `
+    openModal(editData ? 'Edit Participant' : 'Register Participant', `
+        <input type="hidden" id="partId" value="${editData ? editData.id : ''}">
         <div class="form-group">
             <label>Full Name</label>
-            <input type="text" id="partName" placeholder="Participant Name">
+            <input type="text" id="partName" placeholder="Participant Name" value="${editData ? editData.name : ''}">
         </div>
         <div class="form-group">
-            <label>Participant Photo (For ID Card)</label>
-            <input type="file" id="partPhoto" accept="image/png, image/jpeg, image/webp" style="padding: 0.6rem; background: white;">
+            <label>Participant Photo (Will crop to 2:3 ratio)</label>
+            <input type="file" id="partPhoto" accept="image/png, image/jpeg, image/webp" onchange="initCropper(this)" style="padding: 0.6rem; background: white;">
+            <div class="img-container" id="cropContainer"><img id="cropImage" src=""></div>
         </div>
         <div class="form-group">
             <label>Team</label>
@@ -493,13 +541,23 @@ async function deleteParticipant(id) {
 function buildCardElement(participant) {
     const card = document.createElement('div');
     card.className = 'id-card';
+    
+    // Generate a hash-based color for consistent team coloring
+    const stringToColour = (str) => {
+        let hash = 0; for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        let colour = '#'; for (let i = 0; i < 3; i++) colour += ('00' + ((hash >> (i * 8)) & 0xFF).toString(16)).substr(-2);
+        return colour;
+    };
+    
+    const teamColor = participant.teams ? stringToColour(participant.teams.name) : 'var(--primary)';
     const photoSrc = participant.photo_url ? participant.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=Photo';
+    
     card.innerHTML = `
-        <div class="id-header"><h2>FEST 2026</h2><p>Official Participant Pass</p></div>
-        <img src="${photoSrc}" class="id-photo" alt="Participant">
+        <div class="id-header" style="background: ${teamColor};"><h2>FEST 2026</h2><p>Official Pass</p></div>
+        <img src="${photoSrc}" class="id-photo" style="border-color: ${teamColor}" alt="Participant">
         <div class="id-details">
-            <div class="id-name">${participant.name}</div>
-            <div class="id-team">${participant.teams?.name || 'Independent'}</div>
+            <div class="id-name" style="text-transform: uppercase;">${participant.name}</div>
+            <div class="id-team" style="color: ${teamColor}; text-transform: uppercase;">${participant.teams?.name || 'Independent'}</div>
             <div class="id-cat">${participant.categories?.name || 'General'}</div>
             <div class="id-uid">${participant.unique_id}</div>
         </div>
@@ -507,7 +565,6 @@ function buildCardElement(participant) {
     `;
     return card;
 }
-
 async function generateSingleCard(participantId) {
     showToast('Generating PDF...', 'success');
     const { data: p, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').eq('id', participantId).single();
@@ -693,7 +750,67 @@ async function handleBulkUpload(tableName, fileInputId) {
     });
 }
 
-// Initialize Default Tab
+// --- INITIALIZE DASHBOARD ---
 document.addEventListener("DOMContentLoaded", () => {
     loadCategories();
 });
+
+// --- IMAGE CROPPER INITIALIZATION ---
+function initCropper(input) {
+    const container = document.getElementById('cropContainer');
+    const image = document.getElementById('cropImage');
+    if (input.files && input.files[0]) {
+        container.style.display = 'block';
+        image.src = URL.createObjectURL(input.files[0]);
+        if (currentCropper) currentCropper.destroy();
+        currentCropper = new Cropper(image, {
+            aspectRatio: 2 / 3,
+            viewMode: 1
+        });
+    }
+}
+
+// --- ASSIGNMENTS MANAGEMENT ---
+async function loadAssignments() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('participant_competitions')
+            .select(`id, participants(name, teams(name), categories(name)), competitions(name)`);
+            
+        if(error) throw error;
+        
+        const tbody = document.getElementById('assignments-tbody');
+        tbody.innerHTML = '';
+        
+        (data || []).forEach(row => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${row.participants?.name}</td>
+                    <td>${row.participants?.teams?.name}</td>
+                    <td>${row.competitions?.name}</td>
+                    <td>${row.participants?.categories?.name}</td>
+                    <td>
+                        <button class="btn btn-danger" onclick="deleteAssignment('${row.id}')"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
+function openAssignModal() {
+    let partOpts = participantsList.map(p => `<option value="${p.id}">${p.name} (${p.unique_id})</option>`).join('');
+    let compOpts = competitionsList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+    openModal('Assign Student to Competition', `
+        <div class="form-group"><label>Select Participant</label><select id="assignPart">${partOpts}</select></div>
+        <div class="form-group"><label>Select Competition</label><select id="assignComp">${compOpts}</select></div>
+    `, async () => {
+        const participant_id = document.getElementById('assignPart').value;
+        const competition_id = document.getElementById('assignComp').value;
+        
+        const { error } = await supabaseClient.from('participant_competitions').insert([{ participant_id, competition_id }]);
+        if (error) showToast(error.message, 'error');
+        else { showToast('Assigned!'); closeModal(); loadAssignments(); }
+    });
+}
