@@ -292,7 +292,6 @@ function exportToPDF() {
     });
 }
 
-// --- PUBLISH RESULTS (Unchanged) ---
 async function loadPublishableComps() {
     const grid = document.getElementById('publish-grid');
     grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1;"><i class="ph ph-spinner-gap" style="font-size:2rem; animation: spin 1s linear infinite;"></i></div>`;
@@ -313,12 +312,18 @@ async function loadPublishableComps() {
                     <span class="badge badge-ready">Ready</span>
                 </div>
                 <div class="card-meta" style="margin-bottom: 1.5rem;"><i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}</div>
-                <button class="btn btn-success" style="width: 100%;" onclick="publishCompetition('${comp.id}', this)"><i class="ph ph-megaphone-simple"></i> Publish Live</button>
+                <div style="display: flex; gap: 0.5rem; width: 100%;">
+                    <button class="btn btn-outline" style="flex: 1;" onclick="redoJudgement('${comp.id}', this)">
+                        <i class="ph ph-arrow-u-up-left"></i> Redo
+                    </button>
+                    <button class="btn btn-success" style="flex: 2;" onclick="publishCompetition('${comp.id}', this)">
+                        <i class="ph ph-megaphone-simple"></i> Publish Live
+                    </button>
+                </div>
             </div>
         `;
     });
 }
-
 async function publishCompetition(compId, btnElement) {
     if(!confirm("⚠️ Push final standings to Live Portal immediately?")) return;
     btnElement.disabled = true;
@@ -326,6 +331,28 @@ async function publishCompetition(compId, btnElement) {
     await window.db.from('competitions').update({ status: 'published' }).eq('id', compId);
     showToast("Results published!");
     loadPublishableComps(); 
+}
+async function redoJudgement(compId, btnElement) {
+    if(!confirm("⚠️ Send this competition back for re-judging? The status will revert to 'ongoing'.")) return;
+    
+    // Set loading state
+    btnElement.disabled = true;
+    btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Reverting...';
+
+    // Update status in the database back to ongoing
+    const { error } = await window.db.from('competitions')
+        .update({ status: 'ongoing' })
+        .eq('id', compId);
+
+    if (error) {
+        console.error("REDO ERROR:", error);
+        showToast("Failed to revert: " + error.message, 'error');
+        btnElement.innerHTML = '<i class="ph ph-arrow-u-up-left"></i> Redo';
+        btnElement.disabled = false;
+    } else {
+        showToast("Sent back for re-judging!", "success");
+        loadPublishableComps(); // Refresh the publish grid to remove the card
+    }
 }
 
 // Boot up
