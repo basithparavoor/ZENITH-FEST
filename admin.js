@@ -1126,14 +1126,14 @@ async function deleteParticipant(id) {
     }
 }
 
-// --- PREMIUM ID CARD GENERATOR ---
+// --- PREMIUM ID CARD GENERATOR (LANDSCAPE) ---
 
 function buildCardElement(participant) {
     const card = document.createElement('div');
     
-    // Exact Dimensions: 7cm x 10cm
-    card.style.width = '70mm';
-    card.style.height = '100mm';
+    // Exact Dimensions: 10cm Width x 7cm Height (Landscape)
+    card.style.width = '100mm';
+    card.style.height = '70mm';
     card.style.position = 'relative';
     card.style.overflow = 'hidden';
     card.style.backgroundColor = '#ffffff';
@@ -1144,21 +1144,19 @@ function buildCardElement(participant) {
     const catName = participant.categories ? participant.categories.name.toUpperCase() : 'GENERAL';
     const photoSrc = participant.photo_url ? participant.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=PHOTO';
     
-    // Functional Action URL for the QR Code
-    // When scanned, this URL should point to your frontend scanner page.
-    // The scanner page will read the ID, check the user's role (Controller vs Public), and execute the correct logic.
     const actionUrl = `https://your-fest-app.com/scan?id=${participant.unique_id}`;
 
-    // --- ALIGNMENT CONFIGURATION ---
-    // Adjust these 'top' and 'left' values (in millimeters) to perfectly align elements over your background image.
+    // --- LANDSCAPE ALIGNMENT CONFIGURATION ---
+    // Top and Left values are updated for a wider card. 
+    // You can change 'align: left' to 'align: center' if your background requires it.
     const layout = {
-        photo:    { top: '15mm', left: '26.25mm', width: '17.5mm', height: '24.478mm' },
-        name:     { top: '45mm', left: '0', width: '100%', fontSize: '9pt', fontWeight: '600' },
-        team:     { top: '51mm', left: '0', width: '100%', fontSize: '10pt', fontWeight: '600' },
-        batch:    { top: '58mm', left: '0', width: '100%', fontSize: '9pt', fontWeight: '400' },
-        category: { top: '63mm', left: '0', width: '100%', fontSize: '9pt', fontWeight: '400' },
-        id:       { top: '68mm', left: '0', width: '100%', fontSize: '9pt', fontWeight: '400' },
-        qr:       { top: '75mm', left: '27.92mm', width: '14.143mm', height: '14.143mm' }
+        photo:    { top: '20mm', left: '10mm', width: '17.5mm', height: '24.478mm' },
+        name:     { top: '20mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '600', align: 'left' },
+        team:     { top: '26mm', left: '32mm', width: '50mm', fontSize: '10pt', fontWeight: '600', align: 'left' },
+        batch:    { top: '32mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
+        category: { top: '38mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
+        id:       { top: '44mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
+        qr:       { top: '40mm', left: '75mm', width: '14.143mm', height: '14.143mm' }
     };
 
     card.innerHTML = `
@@ -1166,42 +1164,39 @@ function buildCardElement(participant) {
         
         <img src="${photoSrc}" style="position: absolute; top: ${layout.photo.top}; left: ${layout.photo.left}; width: ${layout.photo.width}; height: ${layout.photo.height}; z-index: 2; object-fit: cover; border-radius: 4px; border: 1px solid #fff;">
         
-        <div style="position: absolute; top: ${layout.name.top}; left: ${layout.name.left}; width: ${layout.name.width}; text-align: center; z-index: 2; font-size: ${layout.name.fontSize}; font-weight: ${layout.name.fontWeight}; color: #000; text-transform: uppercase;">
+        <div style="position: absolute; top: ${layout.name.top}; left: ${layout.name.left}; width: ${layout.name.width}; text-align: ${layout.name.align}; z-index: 2; font-size: ${layout.name.fontSize}; font-weight: ${layout.name.fontWeight}; color: #000; text-transform: uppercase;">
             ${participant.name}
         </div>
         
-        <div style="position: absolute; top: ${layout.team.top}; left: ${layout.team.left}; width: ${layout.team.width}; text-align: center; z-index: 2; font-size: ${layout.team.fontSize}; font-weight: ${layout.team.fontWeight}; color: #000; text-transform: uppercase;">
+        <div style="position: absolute; top: ${layout.team.top}; left: ${layout.team.left}; width: ${layout.team.width}; text-align: ${layout.team.align}; z-index: 2; font-size: ${layout.team.fontSize}; font-weight: ${layout.team.fontWeight}; color: #000; text-transform: uppercase;">
             TEAM ${teamName}
         </div>
         
-        <div style="position: absolute; top: ${layout.batch.top}; left: ${layout.batch.left}; width: ${layout.batch.width}; text-align: center; z-index: 2; font-size: ${layout.batch.fontSize}; font-weight: ${layout.batch.fontWeight}; color: #000;">
+        <div style="position: absolute; top: ${layout.batch.top}; left: ${layout.batch.left}; width: ${layout.batch.width}; text-align: ${layout.batch.align}; z-index: 2; font-size: ${layout.batch.fontSize}; font-weight: ${layout.batch.fontWeight}; color: #000;">
             BATCH NO ${participant.batch_no || '1'}
         </div>
         
-        <div style="position: absolute; top: ${layout.category.top}; left: ${layout.category.left}; width: ${layout.category.width}; text-align: center; z-index: 2; font-size: ${layout.category.fontSize}; font-weight: ${layout.category.fontWeight}; color: #000; text-transform: uppercase;">
+        <div style="position: absolute; top: ${layout.category.top}; left: ${layout.category.left}; width: ${layout.category.width}; text-align: ${layout.category.align}; z-index: 2; font-size: ${layout.category.fontSize}; font-weight: ${layout.category.fontWeight}; color: #000; text-transform: uppercase;">
             ${catName} CATEGORY
         </div>
         
-        <div style="position: absolute; top: ${layout.id.top}; left: ${layout.id.left}; width: ${layout.id.width}; text-align: center; z-index: 2; font-size: ${layout.id.fontSize}; font-weight: ${layout.id.fontWeight}; color: #000;">
+        <div style="position: absolute; top: ${layout.id.top}; left: ${layout.id.left}; width: ${layout.id.width}; text-align: ${layout.id.align}; z-index: 2; font-size: ${layout.id.fontSize}; font-weight: ${layout.id.fontWeight}; color: #000;">
             ${participant.unique_id}
         </div>
         
         <div id="qr-${participant.id}" style="position: absolute; top: ${layout.qr.top}; left: ${layout.qr.left}; width: ${layout.qr.width}; height: ${layout.qr.height}; z-index: 2; background: white; padding: 1mm; box-sizing: border-box;"></div>
     `;
 
-    // Wait for the DOM element to be ready, then render a massive QR code and scale it down via CSS.
-    // This entirely eliminates blur/clarity issues in the final PDF export.
     setTimeout(() => {
         new QRCode(document.getElementById(`qr-${participant.id}`), { 
             text: actionUrl, 
-            width: 400, // Render huge for maximum clarity
+            width: 400, 
             height: 400,
             colorDark: "#000000", 
             colorLight: "#ffffff", 
             correctLevel: QRCode.CorrectLevel.H 
         });
         
-        // Target the generated canvas/img inside the div and shrink it to fit the 14.143mm box
         const qrElement = document.getElementById(`qr-${participant.id}`).children[0];
         if(qrElement) {
             qrElement.style.width = '100%';
@@ -1237,17 +1232,22 @@ async function generateSingleCard(participantId) {
         const cardElement = buildCardElement(p);
         container.appendChild(cardElement);
         
-        // Give the DOM 500ms to fetch the background image and render the QR canvas before snapshotting
+       // Inside your timeout blocks...
         setTimeout(() => {
             const opt = { 
                 margin: 0, 
-                filename: `${p.name}_ID_Card.pdf`, 
+                filename: `ID_Cards.pdf`, 
                 image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                jsPDF: { unit: 'mm', format: [70, 100], orientation: 'portrait' } 
+                
+                // UPDATED FOR LANDSCAPE
+                jsPDF: { unit: 'mm', format: [100, 70], orientation: 'landscape' } 
             };
-            html2pdf().set(opt).from(cardElement).save().then(() => showToast('PDF Downloaded!'));
-        }, 500);
+            
+            html2pdf().set(opt).from(container).save().then(() => { 
+                // success code ...
+            });
+        }, 800); // (or 500ms / 1500ms depending on the function)
         
     } catch (e) {
         showToast(e.message, 'error');
@@ -1283,25 +1283,22 @@ async function generateBulkCards() {
             container.appendChild(cardElement);
         });
 
-        // Use a longer timeout (1500ms) for bulk to ensure all images and QR canvas elements 
-        // across all cards have fully rendered in the DOM before snapping the PDF.
+       // Inside your timeout blocks...
         setTimeout(() => {
             const opt = { 
                 margin: 0, 
-                filename: `Fest_2026_All_ID_Cards.pdf`, 
+                filename: `ID_Cards.pdf`, 
                 image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                jsPDF: { unit: 'mm', format: [70, 100], orientation: 'portrait' } 
+                
+                // UPDATED FOR LANDSCAPE
+                jsPDF: { unit: 'mm', format: [100, 70], orientation: 'landscape' } 
             };
             
             html2pdf().set(opt).from(container).save().then(() => { 
-                showToast('Bulk PDF Generated Successfully!');
-                container.innerHTML = ''; 
-                // Reset button state only AFTER the PDF has finished generating
-                btn.innerHTML = originalText; 
-                btn.disabled = false;
+                // success code ...
             });
-        }, 1500); 
+        }, 800); // (or 500ms / 1500ms depending on the function)
 
     } catch(e) { 
         showToast(e.message, 'error'); 
@@ -1759,22 +1756,22 @@ async function bulkPrintSelected() {
             container.appendChild(cardElement);
         });
 
-        // Wait 800ms for bulk images/QRs to load
+      // Inside your timeout blocks...
         setTimeout(() => {
             const opt = { 
                 margin: 0, 
-                filename: `Selected_ID_Cards.pdf`, 
+                filename: `ID_Cards.pdf`, 
                 image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                jsPDF: { unit: 'mm', format: [70, 100], orientation: 'portrait' } 
+                
+                // UPDATED FOR LANDSCAPE
+                jsPDF: { unit: 'mm', format: [100, 70], orientation: 'landscape' } 
             };
+            
             html2pdf().set(opt).from(container).save().then(() => { 
-                showToast('Selected PDFs Generated Successfully!');
-                container.innerHTML = ''; 
-                btn.innerHTML = originalText; 
-                btn.disabled = false; 
+                // success code ...
             });
-        }, 800);
+        }, 800); // (or 500ms / 1500ms depending on the function)
         
     } catch (e) { 
         showToast(e.message, 'error'); 
