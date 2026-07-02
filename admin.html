@@ -661,6 +661,14 @@ tr:hover td { background: var(--bg-main); }
                     <option value="7">Batch 7</option>
                 </select>
             </div>
+
+            <div class="filter-box">
+    <select id="assignFilterStatus" onchange="filterAssignTable()">
+        <option value="">All Statuses</option>
+        <option value="assigned">Assigned</option>
+        <option value="unassigned">Unassigned</option>
+    </select>
+</div>
             
             <!-- Assure Action Buttons Wrap on Mobile -->
             <div style="display: flex; gap: 0.5rem; flex: 1; min-width: 250px; justify-content: flex-end; flex-wrap: wrap;">

@@ -1727,12 +1727,10 @@ async function loadAssignWorkspaceStudents() {
             .eq('competition_id', compId);
         if (enrollError) throw enrollError;
 
-        currentEnrolledStudentIds = (enrollments || []).map(e => e.participant_id);
-        currentAssignEnrolled = currentEnrolledStudentIds.length;
+       currentEnrolledStudentIds = (enrollments || []).map(e => e.participant_id);
 
-        const limitDisplay = document.getElementById('assignLimitIndicator');
-        limitDisplay.innerHTML = `<i class="fa-solid fa-users"></i> Enrollment: <span style="color:${currentAssignEnrolled >= currentAssignCompLimit ? 'var(--danger)' : 'var(--success)'}">${currentAssignEnrolled}</span> / ${currentAssignCompLimit} Limit`;
-
+const limitDisplay = document.getElementById('assignLimitIndicator');
+limitDisplay.innerHTML = `<i class="fa-solid fa-users"></i> Max Enrollment: ${currentAssignCompLimit} Participants Per Team`;
         tbody.innerHTML = '';
         (students || []).forEach(s => {
             const isAssigned = currentEnrolledStudentIds.includes(s.id);
@@ -1741,7 +1739,7 @@ async function loadAssignWorkspaceStudents() {
                 : '<span class="badge" style="background:#E2E8F0; color:#475569;">UNASSIGNED</span>';
                 
             tbody.innerHTML += `
-                <tr data-team="${s.team_id || ''}" data-batch="${s.batch_no || ''}">
+                <tr data-team="${s.team_id || ''}" data-batch="${s.batch_no || ''}" data-status="${isAssigned ? 'assigned' : 'unassigned'}">
                     <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${s.id}"></td>
                     <td style="font-family: monospace; font-weight: 600;">${s.unique_id}</td>
                     <td class="searchable-name">${s.name}</td>
@@ -1759,28 +1757,33 @@ async function loadAssignWorkspaceStudents() {
     }
 }
 
-// Local Table Filter (Search, Team, Batch)
+// Local Table Filter (Search, Team, Batch, Status)
 function filterAssignTable() {
     const searchVal = document.getElementById('assignSearch').value.toLowerCase();
     const teamVal = document.getElementById('assignFilterTeam').value;
     const batchVal = document.getElementById('assignFilterBatch').value;
+    const statusVal = document.getElementById('assignFilterStatus').value; // NEW
     const rows = document.querySelectorAll('#assign-workspace-tbody tr');
 
     rows.forEach(row => {
         if(row.children.length === 1) return; // Skip "Loading..." row
+        
         const text = row.querySelector('.searchable-name').innerText.toLowerCase() + " " + row.cells[1].innerText.toLowerCase();
         const rowTeam = row.getAttribute('data-team');
         const rowBatch = row.getAttribute('data-batch');
+        const rowStatus = row.getAttribute('data-status'); // NEW
 
         const matchSearch = text.includes(searchVal);
         const matchTeam = teamVal === "" || rowTeam === teamVal;
         const matchBatch = batchVal === "" || rowBatch === batchVal;
+        const matchStatus = statusVal === "" || rowStatus === statusVal; // NEW
 
-        row.style.display = (matchSearch && matchTeam && matchBatch) ? '' : 'none';
+        // Hide or show row based on ALL conditions matching
+        row.style.display = (matchSearch && matchTeam && matchBatch && matchStatus) ? '' : 'none';
     });
 }
 
-// Execute Bulk Assignment with Limit Checks
+// Execute Bulk Assignment with Per-Team Limit Checks
 async function executeWorkspaceAssign() {
     const compId = document.getElementById('assignWorkComp').value;
     const ids = getSelectedIds('assign-workspace-tbody');
@@ -1791,14 +1794,46 @@ async function executeWorkspaceAssign() {
     const newIds = ids.filter(id => !currentEnrolledStudentIds.includes(id));
     
     if (newIds.length === 0) return showToast('Selected students are already assigned.', 'error');
-    if ((currentAssignEnrolled + newIds.length) > currentAssignCompLimit) {
-        return showToast(`Limit Exceeded! You are trying to assign ${newIds.length} new students, but only ${currentAssignCompLimit - currentAssignEnrolled} slots remain.`, 'error');
-    }
 
     const btn = document.getElementById('btnWorkspaceAssign');
     setLoading('btnWorkspaceAssign', true);
 
     try {
+        // 1. Fetch current enrollments WITH their team IDs
+        const { data: currentEnrollments, error: enrollError } = await supabaseClient
+            .from('participant_competitions')
+            .select('participant_id, participants(team_id)')
+            .eq('competition_id', compId);
+
+        if (enrollError) throw enrollError;
+
+        // 2. Count current enrollments per team
+        const teamCounts = {};
+        (currentEnrollments || []).forEach(enrollment => {
+            const teamId = enrollment.participants?.team_id || 'INDEPENDENT';
+            teamCounts[teamId] = (teamCounts[teamId] || 0) + 1;
+        });
+
+        // 3. Fetch team IDs for the newly selected students
+        const { data: newStudents, error: studentError } = await supabaseClient
+            .from('participants')
+            .select('id, team_id')
+            .in('id', newIds);
+
+        if (studentError) throw studentError;
+
+        // 4. Validate the capacity per team dynamically
+        for (const student of newStudents) {
+            const teamId = student.team_id || 'INDEPENDENT';
+            teamCounts[teamId] = (teamCounts[teamId] || 0) + 1;
+
+            if (teamCounts[teamId] > currentAssignCompLimit) {
+                setLoading('btnWorkspaceAssign', false);
+                return showToast(`Limit Exceeded! Cannot assign. A team has exceeded the limit of ${currentAssignCompLimit} participants.`, 'error');
+            }
+        }
+
+        // 5. Proceed with assignment if all team limits are valid
         const inserts = newIds.map(participant_id => ({ participant_id, competition_id: compId }));
         const { error } = await supabaseClient.from('participant_competitions').insert(inserts);
         if (error) throw error;
@@ -1806,6 +1841,7 @@ async function executeWorkspaceAssign() {
         showToast(`Successfully assigned ${newIds.length} students!`);
         document.querySelector('#assign-workspace-tbody').previousElementSibling.querySelector('input[type="checkbox"]').checked = false;
         loadAssignWorkspaceStudents(); // Refresh Data
+
     } catch (e) {
         showToast(e.message, 'error');
     } finally {
