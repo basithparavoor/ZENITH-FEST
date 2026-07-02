@@ -1132,7 +1132,7 @@ function buildCardElement(participant) {
     
     // Exact Dimensions: 10cm Width x 7cm Height (Landscape)
     card.style.width = '100mm';
-    card.style.height = '70mm';
+    card.style.height = '63.08mm';
     card.style.position = 'relative';
     card.style.overflow = 'hidden';
     card.style.backgroundColor = '#ffffff';
