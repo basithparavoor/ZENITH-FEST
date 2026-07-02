@@ -152,9 +152,9 @@ async function openScannerModal(compId, compName) {
     document.getElementById('modal-comp-name').innerText = `Scanning: ${compName}`;
     document.getElementById('scanner-modal').style.display = 'flex';
 
-    // Get accurate count of already registered participants for THIS competition to assign the right letter
+    // CHANGED: Now looking at participant_competitions
     const { count } = await supabaseClient
-        .from('competition_registrations')
+        .from('participant_competitions') 
         .select('*', { count: 'exact', head: true })
         .eq('competition_id', compId)
         .eq('is_present', true);
@@ -190,12 +190,15 @@ async function onScanSuccess(decodedText) {
     isProcessingScan = true;
     html5QrcodeScanner.pause();
 
-    // 1. Clean the text to prevent invisible space errors
-    const qrId = decodedText.trim();
+    // Clean the text and extract the ID if it's a URL
+    let qrId = decodedText.trim();
+    if (qrId.includes('?id=')) {
+        qrId = qrId.split('?id=')[1];
+    }
     console.log("Scanned QR Data:", qrId);
 
     try {
-        // 2. Fetch the participant first to isolate the issue
+        // Fetch the participant
         const { data: participant, error: pError } = await supabaseClient
             .from('participants')
             .select('id, name')
@@ -203,28 +206,25 @@ async function onScanSuccess(decodedText) {
             .single();
 
         if (pError || !participant) {
-            console.error("Participant Lookup Error:", pError);
             showToast("Invalid QR: Participant not found in system.", "error");
             resetScanner();
             return;
         }
 
-        // 3. Check if they are registered for this specific competition
+        // CHANGED: Now looking at participant_competitions
         const { data: registration, error: rError } = await supabaseClient
-            .from('competition_registrations')
+            .from('participant_competitions')
             .select('*')
             .eq('competition_id', activeScanCompId)
             .eq('participant_id', participant.id)
             .single();
 
         if (rError || !registration) {
-            console.error("Registration Lookup Error:", rError);
             showToast(`${participant.name} is not registered for this competition.`, "error");
             resetScanner();
             return;
         }
 
-        // 4. Proceed with checking them in
         if (registration.is_present) {
             showToast(`${participant.name} is already checked in.`, "warning");
             resetScanner();
@@ -232,21 +232,21 @@ async function onScanSuccess(decodedText) {
         } 
 
         const codeLetter = generateCodeLetter(currentPresentCount);
+        
+        // CHANGED: Now updating participant_competitions
         const { error: updateErr } = await supabaseClient
-            .from('competition_registrations')
+            .from('participant_competitions')
             .update({ is_present: true, code_letter: codeLetter })
             .eq('id', registration.id);
 
         if(!updateErr) {
             currentPresentCount++;
             showToast(`Success! ${participant.name} assigned: ${codeLetter}`);
-            loadCheckedInList(activeScanCompId); // Refresh list on the card
+            loadCheckedInList(activeScanCompId); 
         } else {
-            console.error("Update Error:", updateErr);
             showToast("Database error saving check-in.", "error");
         }
     } catch (err) {
-        console.error("Unexpected Error:", err);
         showToast("System error during scan.", "error");
     }
 
@@ -266,13 +266,13 @@ function resetScanner() {
 
 function onScanFailure(error) { /* Ignore routine frame failures */ }
 
-// Load the list directly on the card
 async function loadCheckedInList(compId) {
     const list = document.getElementById(`list-${compId}`);
     if (!list) return;
 
+    // CHANGED: Now querying participant_competitions
     const { data } = await supabaseClient
-        .from('competition_registrations')
+        .from('participant_competitions')
         .select('code_letter, participants(name)')
         .eq('competition_id', compId)
         .eq('is_present', true)
@@ -311,11 +311,10 @@ async function updateStatus(compId, status) {
     await supabaseClient.from('competitions').update({ status }).eq('id', compId);
     loadDashboard(); 
 }
-// --- NEW: Cancel Registration (Only if empty) ---
 async function cancelRegistration(compId, btn) {
-    // 1. Check if anyone is already registered
+    // CHANGED: Now checking participant_competitions
     const { count, error } = await supabaseClient
-        .from('competition_registrations')
+        .from('participant_competitions')
         .select('*', { count: 'exact', head: true })
         .eq('competition_id', compId)
         .eq('is_present', true);
@@ -329,6 +328,7 @@ async function cancelRegistration(compId, btn) {
     
     btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i>';
     btn.disabled = true;
+    
     await updateStatus(compId, 'pending');
     showToast("Registration cancelled.");
 }
