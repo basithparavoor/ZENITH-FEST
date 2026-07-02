@@ -25,6 +25,7 @@ if (user.role === 'master_admin') {
 let availableJudges = [];
 let allCompetitions = [];
 let allAssignments = [];
+let allStages = []; // <-- NEW VARIABLE
 
 // --- UTILITIES ---
 function switchTab(tabId) {
@@ -52,7 +53,6 @@ function showToast(message, type = 'success') {
     setTimeout(() => { toast.style.animation = 'slideOut 0.3s ease forwards'; setTimeout(() => toast.remove(), 300); }, 3000);
 }
 
-// --- JUDGE ASSIGNMENTS & FILTERING ---
 async function loadAssignments() {
     const grid = document.getElementById('comps-grid');
     grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1; color: var(--text-muted);"><i class="ph ph-spinner-gap" style="font-size:2rem; animation: spin 1s linear infinite;"></i><p>Loading records...</p></div>`;
@@ -63,16 +63,25 @@ async function loadAssignments() {
             availableJudges = judges || [];
         }
 
-        const { data: comps } = await window.db.from('competitions').select('*, categories(name)').in('status', ['pending', 'registration', 'ongoing']).order('name');
+        // NEW: Fetch all official stages created by Admin
+        if (allStages.length === 0) {
+            const { data: stages } = await window.db.from('stages').select('id, name, stage_no').order('stage_no');
+            allStages = stages || [];
+        }
+
+        // UPDATED: Added 'stages(name)' to the select query to get the stage name for each competition
+        const { data: comps } = await window.db.from('competitions')
+            .select('*, categories(name), stages(name)') 
+            .in('status', ['pending', 'registration', 'ongoing'])
+            .order('name');
         allCompetitions = comps || [];
 
         const { data: assignments } = await window.db.from('judgements').select('competition_id, judge_id, users(username)').is('awarded_mark', null);
         allAssignments = assignments || [];
 
-        // Populate dynamic category dropdown based on available data
         populateCategoryFilter();
+        populateStageFilter();
         
-        // Initial Render
         filterCompetitions();
     } catch (error) {
         console.error("SUPABASE ERROR:", error);
@@ -90,15 +99,31 @@ function populateCategoryFilter() {
     });
 }
 
-// The core logic for Search + Category Filter + Assigned Status Filter
+function populateStageFilter() {
+    const filter = document.getElementById('stageFilter');
+    
+    filter.innerHTML = `<option value="all">All Stages</option>`;
+    filter.innerHTML += `<option value="Unstaged">Unstaged (No Stage)</option>`;
+    
+    // Populate using the official stages fetched from the database
+    allStages.forEach(stage => {
+        filter.innerHTML += `<option value="${stage.name}">${stage.name}</option>`;
+    });
+}
+
 function filterCompetitions() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     const catFilter = document.getElementById('categoryFilter').value;
+    const stageFilter = document.getElementById('stageFilter').value;
     const statusFilter = document.getElementById('statusFilter').value;
 
     const filteredComps = allCompetitions.filter(comp => {
         const compNameMatch = comp.name.toLowerCase().includes(searchTerm);
         const catMatch = catFilter === 'all' || (comp.categories?.name || 'Uncategorized') === catFilter;
+        
+        // UPDATED: correctly reference the stage name from the database relation
+        const compStage = comp.stages?.name || 'Unstaged';
+        const stageMatch = stageFilter === 'all' || compStage === stageFilter;
         
         const assignedJudges = allAssignments.filter(a => a.competition_id === comp.id);
         const isAssigned = assignedJudges.length > 0;
@@ -107,7 +132,7 @@ function filterCompetitions() {
         if (statusFilter === 'unassigned') statusMatch = !isAssigned;
         if (statusFilter === 'assigned') statusMatch = isAssigned;
 
-        return compNameMatch && catMatch && statusMatch;
+        return compNameMatch && catMatch && stageMatch && statusMatch;
     });
 
     renderGrid(filteredComps);
@@ -124,6 +149,7 @@ function renderGrid(competitions) {
 
     let judgeOptions = availableJudges.map(j => `<option value="${j.id}">${j.username}</option>`).join('');
 
+    // THIS is the loop where 'comp' is defined. Everything referencing 'comp' MUST stay inside here.
     competitions.forEach(comp => {
         const compAssignments = allAssignments.filter(a => a.competition_id === comp.id);
         const badgeClass = comp.status === 'pending' ? 'badge-pending' : 'badge-ongoing';
@@ -143,10 +169,14 @@ function renderGrid(competitions) {
                 `).join('') + `</div>`;
         }
 
+        // Card HTML rendering (now with the bulk action checkbox safely inside the loop)
         grid.innerHTML += `
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">${comp.name}</div>
+                    <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+                        <input type="checkbox" class="comp-checkbox" value="${comp.id}" onchange="toggleBulkActions()" style="width: 18px; height: 18px; cursor: pointer; margin-top: 3px;">
+                        <div class="card-title">${comp.name}</div>
+                    </div>
                     <span class="badge ${badgeClass}">${comp.status}</span>
                 </div>
                 <div class="card-meta"><i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}</div>
@@ -164,7 +194,6 @@ function renderGrid(competitions) {
         `;
     });
 }
-
 async function assignJudge(compId, btnElement) {
     const judgeId = document.getElementById(`judge-select-${compId}`).value;
     if (!judgeId) return showToast('Please select a judge.', 'error');
@@ -224,8 +253,12 @@ function exportToCSV() {
     
     // Quick re-filter to get active data
     const visibleData = allCompetitions.filter(comp => {
+        const stageFilter = document.getElementById('stageFilter').value;
+        const compStage = comp.stage || 'Unstaged';
+        
         return comp.name.toLowerCase().includes(searchTerm) && 
-               (catFilter === 'all' || (comp.categories?.name === catFilter));
+               (catFilter === 'all' || (comp.categories?.name === catFilter)) &&
+               (stageFilter === 'all' || compStage === stageFilter);
     });
 
     let csvContent = "Competition Name,Category,Status,Assigned Judges\n";
@@ -369,6 +402,76 @@ async function redoJudgement(compId, btnElement) {
     } else {
         showToast("Sent back for re-judging! Marks erased.", "success");
         loadPublishableComps(); 
+    }
+}
+
+// --- BULK ACTION LOGIC ---
+
+function toggleBulkActions() {
+    const checkboxes = document.querySelectorAll('.comp-checkbox:checked');
+    const bulkToolbar = document.getElementById('bulk-actions');
+    const countText = document.getElementById('selected-count');
+    
+    if (checkboxes.length > 0) {
+        bulkToolbar.style.display = 'flex';
+        countText.innerText = `${checkboxes.length} Selected`;
+        
+        // Populate bulk judge dropdown if empty
+        const bulkSelect = document.getElementById('bulk-judge-select');
+        if (bulkSelect.options.length <= 1) {
+            bulkSelect.innerHTML = '<option value="">Select Judge...</option>' + 
+                availableJudges.map(j => `<option value="${j.id}">${j.username}</option>`).join('');
+        }
+    } else {
+        bulkToolbar.style.display = 'none';
+    }
+}
+
+async function bulkAssignJudges() {
+    const judgeId = document.getElementById('bulk-judge-select').value;
+    const checkboxes = document.querySelectorAll('.comp-checkbox:checked');
+    
+    if (!judgeId) return showToast('Please select a judge for bulk assignment.', 'error');
+    if (checkboxes.length === 0) return;
+    
+    if(!confirm(`Assign this judge to ${checkboxes.length} competitions?`)) return;
+
+    const insertPayload = Array.from(checkboxes).map(cb => ({
+        competition_id: cb.value,
+        judge_id: judgeId
+    }));
+
+    // In a real scenario, you'd want to check for duplicates first, 
+    // or handle unique constraint errors gracefully.
+    const { error } = await window.db.from('judgements').insert(insertPayload);
+
+    if (error) {
+        showToast("Bulk Assign Error: " + error.message, 'error');
+    } else {
+        showToast(`Successfully assigned judge to ${checkboxes.length} competitions!`);
+        document.getElementById('bulk-actions').style.display = 'none';
+        loadAssignments();
+    }
+}
+
+async function bulkRevokeJudges() {
+    const checkboxes = document.querySelectorAll('.comp-checkbox:checked');
+    if (checkboxes.length === 0) return;
+    
+    if(!confirm(`WARNING: Remove ALL judges from the ${checkboxes.length} selected competitions?`)) return;
+
+    const compIds = Array.from(checkboxes).map(cb => cb.value);
+
+    const { error } = await window.db.from('judgements')
+        .delete()
+        .in('competition_id', compIds);
+
+    if (error) {
+        showToast("Bulk Revoke Error: " + error.message, 'error');
+    } else {
+        showToast(`Cleared judges from ${checkboxes.length} competitions!`);
+        document.getElementById('bulk-actions').style.display = 'none';
+        loadAssignments();
     }
 }
 

@@ -354,19 +354,33 @@ select.control-input {
 
             <div class="toolbar">
                 <div class="toolbar-group">
-                    <div class="search-wrapper">
-                        <i class="ph ph-magnifying-glass"></i>
-                        <input type="text" id="searchInput" class="control-input" placeholder="Search competitions..." oninput="filterCompetitions()">
-                    </div>
-                    <select id="categoryFilter" class="control-input" onchange="filterCompetitions()">
-                        <option value="all">All Categories</option>
-                        </select>
-                    <select id="statusFilter" class="control-input" onchange="filterCompetitions()">
-                        <option value="all">Assignment Status (All)</option>
-                        <option value="unassigned">Needs Judges</option>
-                        <option value="assigned">Judges Assigned</option>
-                    </select>
-                </div>
+    <div class="search-wrapper">
+        <i class="ph ph-magnifying-glass"></i>
+        <input type="text" id="searchInput" class="control-input" placeholder="Search competitions..." oninput="filterCompetitions()">
+    </div>
+    <select id="categoryFilter" class="control-input" onchange="filterCompetitions()">
+        <option value="all">All Categories</option>
+    </select>
+    
+    <!-- NEW: Stage Filter -->
+    <select id="stageFilter" class="control-input" onchange="filterCompetitions()">
+        <option value="all">All Stages</option>
+    </select>
+
+    <select id="statusFilter" class="control-input" onchange="filterCompetitions()">
+        <option value="all">Assignment Status (All)</option>
+        <option value="unassigned">Needs Judges</option>
+        <option value="assigned">Judges Assigned</option>
+    </select>
+</div>
+                <div class="toolbar-group" id="bulk-actions" style="display: none; background: var(--primary-light); padding: 0.5rem; border-radius: var(--radius-md);">
+    <span style="font-weight: 600; font-size: 0.9rem; color: var(--primary); padding-left: 0.5rem;" id="selected-count">0 Selected</span>
+    <select id="bulk-judge-select" class="control-input" style="min-width: 150px;">
+        <option value="">Select Judge...</option>
+        </select>
+    <button class="btn btn-primary" onclick="bulkAssignJudges()">Bulk Assign</button>
+    <button class="btn btn-outline" style="color: var(--danger); border-color: var(--danger);" onclick="bulkRevokeJudges()">Bulk Revoke</button>
+</div>
                 <div class="toolbar-actions">
     <button class="btn btn-outline" onclick="loadAssignments()">
         <i class="ph ph-arrows-clockwise"></i> Refresh
