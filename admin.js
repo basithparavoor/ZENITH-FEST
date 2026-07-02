@@ -975,10 +975,11 @@ function openParticipantModal(editData = null) {
     const pName = isEdit ? editData.name : '';
     const pBatch = isEdit ? editData.batch_no : '1';
     
-    // Default placeholder if no photo exists
+    // NEW: Capture the existing unique_id
+    const pUniqueId = isEdit ? editData.unique_id : '';
+    
     const pPhoto = isEdit && editData.photo_url ? editData.photo_url : 'https://via.placeholder.com/150/EEF2FF/6366F1?text=PHOTO';
 
-    // Premium CSS Grid injected for this specific modal
     const modalHtml = `
         <style>
             .part-modal-grid { display: grid; grid-template-columns: 150px 1fr; gap: 2rem; align-items: start; }
@@ -995,7 +996,6 @@ function openParticipantModal(editData = null) {
         </style>
         
         <div class="part-modal-grid">
-            <!-- Left Column: Photo Preview & Actions -->
             <div class="photo-preview-container">
                 <img id="partPhotoPreview" src="${pPhoto}" alt="Participant Photo">
                 <input type="file" id="partPhoto" accept="image/png, image/jpeg, image/webp" onchange="triggerCropper(this)" style="display: none;">
@@ -1010,9 +1010,9 @@ function openParticipantModal(editData = null) {
                 </div>
             </div>
 
-            <!-- Right Column: Form Details -->
             <div class="form-fields" style="text-align: left;">
                 <input type="hidden" id="partId" value="${pId}">
+                <input type="hidden" id="partUniqueId" value="${pUniqueId}">
                 
                 <div class="form-group">
                     <label>Full Name <span style="color: var(--danger);">*</span></label>
@@ -1043,13 +1043,11 @@ function openParticipantModal(editData = null) {
 
     openModal(isEdit ? 'Edit Participant' : 'Register Participant', modalHtml, saveParticipant);
 
-    // Pre-select dropdowns if editing
     if (isEdit) {
         if(editData.team_id) document.getElementById('partTeam').value = editData.team_id;
         if(editData.category_id) document.getElementById('partCategory').value = editData.category_id;
     }
 }
-
 async function saveParticipant() {
     const id = document.getElementById('partId').value;
     const name = document.getElementById('partName').value;
@@ -1057,38 +1055,36 @@ async function saveParticipant() {
     const category_id = document.getElementById('partCategory').value;
     const batch_no = document.getElementById('partBatch').value;
     
-    // If it's a new user, generate a new ID. If editing, we leave unique_id alone (handled by DB).
-    const unique_id = id ? undefined : `FEST-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+    // Grab the existing unique_id if editing, otherwise generate a new one
+    let unique_id = document.getElementById('partUniqueId').value;
+    if (!id || !unique_id) {
+        unique_id = `FEST-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+    }
     
     if(!name) return showToast('Name is required', 'error');
     
     setLoading('modalSaveBtn', true);
     
     try {
-        let photo_url = undefined; // Undefined means it won't overwrite existing data if left blank
+        let photo_url = undefined; 
 
-        // Handle the cropped photo!
         if (currentCropper) {
             showToast('Processing image...', 'success');
             
-            // Get the cropped canvas data
             const canvas = currentCropper.getCroppedCanvas({
-                width: 400, // Enforce a standard width for the 2:3 ratio
+                width: 400, 
                 height: 600
             });
             
-            // Convert canvas to a blob (file)
             const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
             const fileName = `profile_${Date.now()}.jpg`; 
             
-            // Upload to Supabase Storage
             const { data: uploadData, error: uploadError } = await supabaseClient.storage
                 .from('photos')
                 .upload(fileName, blob, { contentType: 'image/jpeg' });
                 
             if (uploadError) throw uploadError;
 
-            // Retrieve the public URL
             const { data: publicUrlData } = supabaseClient.storage
                 .from('photos')
                 .getPublicUrl(fileName);
@@ -1096,22 +1092,21 @@ async function saveParticipant() {
             photo_url = publicUrlData.publicUrl;
         }
 
-        // Build the payload
-        const payload = { name, team_id, category_id, batch_no };
-        if (id) payload.id = id; // Editing
-        if (unique_id) payload.unique_id = unique_id; // New Registration
-        if (photo_url) payload.photo_url = photo_url; // Only update photo if a new one was uploaded
+        // Build the payload (unique_id is now ALWAYS included)
+        const payload = { name, team_id, category_id, batch_no, unique_id };
+        if (id) payload.id = id; 
+        if (photo_url) payload.photo_url = photo_url; 
 
-        // Upsert to Database
         const { error } = await supabaseClient.from('participants').upsert([payload]);
         if (error) throw error;
         
         showToast(id ? 'Participant updated!' : 'Participant registered successfully!');
         
-        // Cleanup Cropper
         if(currentCropper) { currentCropper.destroy(); currentCropper = null; }
         
         closeModal(); 
+        
+        // Use the paginated render function to refresh the view correctly
         loadParticipants();
         
     } catch(e) { 
