@@ -4,18 +4,20 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let html5QrcodeScanner = null;
 let currentPresentCount = 0; 
+let activeScanCompId = null; // Tracks which competition the popup is scanning for
 let user = null;
+let isProcessingScan = false;
 
 // UI Utilities
 function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast`;
-    toast.style.borderLeftColor = type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--danger)' : 'var(--primary)';
+    toast.style.borderLeftColor = type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--danger)' : 'var(--warning)';
     
     const icon = type === 'success' ? '<i class="ph-fill ph-check-circle" style="color: var(--success); font-size: 1.25rem;"></i>' 
                : type === 'error' ? '<i class="ph-fill ph-x-circle" style="color: var(--danger); font-size: 1.25rem;"></i>'
-               : '<i class="ph-fill ph-info" style="color: var(--primary); font-size: 1.25rem;"></i>';
+               : '<i class="ph-fill ph-warning" style="color: var(--warning); font-size: 1.25rem;"></i>';
                
     toast.innerHTML = `${icon} <span style="font-weight: 500; font-size: 0.9rem;">${message}</span>`;
     container.appendChild(toast);
@@ -45,7 +47,7 @@ async function loadDashboard() {
 
     if (stageError || !stage) {
         document.getElementById('stage-name').innerText = "Unassigned / Error";
-        container.innerHTML = `<p style="color: var(--danger); text-align:center;">Failed to load stage data. Please contact Admin.</p>`;
+        container.innerHTML = `<p style="color: var(--danger); text-align:center;">Failed to load stage data.</p>`;
         return;
     }
 
@@ -65,12 +67,11 @@ async function loadCompetitions(stageId) {
     container.innerHTML = '';
 
     if (error || !competitions || competitions.length === 0) {
-        container.innerHTML = `<div class="card" style="text-align:center; padding:3rem;"><i class="ph ph-calendar-blank" style="font-size: 3rem; color: var(--text-muted);"></i><p style="margin-top:1rem; color: var(--text-muted);">No competitions assigned to this stage yet.</p></div>`;
+        container.innerHTML = `<div class="card" style="text-align:center; padding:3rem;"><p style="color: var(--text-muted);">No competitions assigned to this stage yet.</p></div>`;
         return;
     }
 
     competitions.forEach(comp => {
-        // Skip published comps to keep dashboard clean
         if (comp.status === 'published') return;
 
         let badgeClass = 'badge-pending';
@@ -92,64 +93,81 @@ async function loadCompetitions(stageId) {
                 <span class="badge ${badgeClass}">${statusText}</span>
             </div>
             
-            <div id="controls-${comp.id}" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
+            <div id="controls-${comp.id}" style="display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap;">
                 ${getButtonsForStatus(comp)}
             </div>
 
-            <div id="scanner-section-${comp.id}" class="scanner-section">
-                <div class="reader-container"><div id="reader-${comp.id}"></div></div>
-                <h3 style="font-size: 1rem; margin-top: 1rem;">Checked-In Participants</h3>
+            <div class="card-list-section" ${comp.status === 'pending' ? 'style="display:none;"' : ''}>
+                <h3 style="font-size: 1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="ph ph-users" style="color: var(--primary);"></i> Checked-In Participants
+                </h3>
                 <div class="participant-list" id="list-${comp.id}">
-                    <p style="color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 1rem;">Waiting for scans...</p>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; grid-column: 1/-1;">Loading participants...</p>
                 </div>
             </div>
         `;
         container.appendChild(card);
+        
+        // Load the list if we are past the pending phase
+        if (comp.status !== 'pending') {
+            loadCheckedInList(comp.id);
+        }
     });
 }
 
 function getButtonsForStatus(comp) {
     if (comp.status === 'pending') {
-        return `<button class="btn btn-primary" onclick="startRegistration('${comp.id}', this)"><i class="ph ph-qr-code"></i> Start Registration</button>`;
+        return `<button class="btn btn-primary" onclick="startRegistration('${comp.id}', '${comp.name}', this)"><i class="ph ph-qr-code"></i> Start Registration</button>`;
     }
     if (comp.status === 'registration') {
         return `
-            <button class="btn btn-success" onclick="submitRegistration('${comp.id}', this)"><i class="ph ph-check-circle"></i> Complete Registration (Start Event)</button>
-            <button class="btn btn-danger" onclick="stopScannerOnly('${comp.id}')"><i class="ph ph-x"></i> Close Camera</button>
+            <button class="btn btn-outline" style="flex:1;" onclick="openScannerModal('${comp.id}', '${comp.name}')"><i class="ph ph-scan"></i> Open Scanner</button>
+            <button class="btn btn-success" style="flex:1;" onclick="submitRegistration('${comp.id}', this)"><i class="ph ph-play"></i> Start Event</button>
         `;
     }
     if (comp.status === 'ongoing') {
         return `<button class="btn btn-warning" onclick="finishCompetition('${comp.id}', this)"><i class="ph ph-flag-checkered"></i> End Competition</button>`;
     }
-    return `<p style="color: var(--text-muted); font-size: 0.95rem; text-align: center; background: #F8FAFC; padding: 1rem; border-radius: 8px;">Action completed. Waiting for Manager to publish.</p>`;
+    return `<p style="color: var(--text-muted); font-size: 0.95rem; width: 100%; text-align: center; background: #F8FAFC; padding: 1rem; border-radius: 8px;">Action completed. Waiting for Manager to publish.</p>`;
 }
 
-// 4. Registration Logic
-async function startRegistration(compId, btn) {
+// 4. Modal & Scanning Logic
+async function startRegistration(compId, compName, btn) {
     btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Starting...';
     btn.disabled = true;
+    await updateStatus(compId, 'registration');
+    openScannerModal(compId, compName);
+}
 
-    // FIX: Get accurate count of already registered participants for THIS competition
-    const { count, error } = await supabaseClient
+async function openScannerModal(compId, compName) {
+    activeScanCompId = compId;
+    document.getElementById('modal-comp-name').innerText = `Scanning: ${compName}`;
+    document.getElementById('scanner-modal').style.display = 'flex';
+
+    // Get accurate count of already registered participants for THIS competition to assign the right letter
+    const { count } = await supabaseClient
         .from('competition_registrations')
         .select('*', { count: 'exact', head: true })
         .eq('competition_id', compId)
         .eq('is_present', true);
     
-    currentPresentCount = error ? 0 : count;
+    currentPresentCount = count || 0;
 
-    await updateStatus(compId, 'registration');
-    document.getElementById(`scanner-section-${compId}`).style.display = 'block';
-    
-    // Init Scanner
-    html5QrcodeScanner = new Html5QrcodeScanner(`reader-${compId}`, { fps: 10, qrbox: {width: 250, height: 250} }, false);
-    html5QrcodeScanner.render((decodedText) => onScanSuccess(decodedText, compId), onScanFailure);
-    
-    // Pre-load list if participants already exist
-    loadCheckedInList(compId);
+    // Start Camera
+    html5QrcodeScanner = new Html5QrcodeScanner("global-reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
 }
 
-// Auto-generate code letters
+function closeScannerModal() {
+    if (html5QrcodeScanner) {
+        html5QrcodeScanner.clear().catch(e => console.error(e));
+    }
+    document.getElementById('scanner-modal').style.display = 'none';
+    activeScanCompId = null;
+    loadDashboard(); // Refresh cards to show newly scanned students
+}
+
+// Auto-generate code letters (A, B... Z, AA...)
 function generateCodeLetter(index) {
     let letter = '';
     while (index >= 0) {
@@ -159,23 +177,21 @@ function generateCodeLetter(index) {
     return letter;
 }
 
-let isProcessingScan = false;
-
-async function onScanSuccess(decodedText, compId) {
-    if (isProcessingScan) return; // Prevent double-scans
+async function onScanSuccess(decodedText) {
+    if (isProcessingScan || !activeScanCompId) return; 
     isProcessingScan = true;
     html5QrcodeScanner.pause();
-    showToast("QR Detected. Verifying...", "info");
 
     const { data: registration, error } = await supabaseClient
         .from('competition_registrations')
         .select('*, participants!inner(unique_id, name)')
-        .eq('competition_id', compId)
+        .eq('competition_id', activeScanCompId)
         .eq('participants.unique_id', decodedText)
         .single();
 
     if (error || !registration) {
-        showToast("Invalid QR! Not registered for this event.", "error");
+        // EXACT ERROR MESSAGE REQUESTED
+        showToast("Not a participant in this competition.", "error");
     } 
     else if (registration.is_present) {
         showToast(`${registration.participants.name} is already checked in.`, "warning");
@@ -190,7 +206,7 @@ async function onScanSuccess(decodedText, compId) {
         if(!updateErr) {
             currentPresentCount++;
             showToast(`Success! ${registration.participants.name} assigned: ${codeLetter}`);
-            loadCheckedInList(compId); // Refresh list
+            loadCheckedInList(activeScanCompId); // Refresh list on the card in the background
         }
     }
     
@@ -202,8 +218,11 @@ async function onScanSuccess(decodedText, compId) {
 
 function onScanFailure(error) { /* Ignore routine frame failures */ }
 
-// Load the mini-list below the scanner
+// Load the list directly on the card
 async function loadCheckedInList(compId) {
+    const list = document.getElementById(`list-${compId}`);
+    if (!list) return;
+
     const { data } = await supabaseClient
         .from('competition_registrations')
         .select('code_letter, participants(name)')
@@ -211,34 +230,23 @@ async function loadCheckedInList(compId) {
         .eq('is_present', true)
         .order('code_letter', { ascending: false });
 
-    const list = document.getElementById(`list-${compId}`);
     if (data && data.length > 0) {
         list.innerHTML = data.map(reg => `
             <div class="participant-item">
-                <span style="font-weight: 500;">${reg.participants.name}</span>
+                <span style="font-weight: 500; font-size: 0.9rem;">${reg.participants.name}</span>
                 <span class="code-letter">${reg.code_letter}</span>
             </div>
         `).join('');
+    } else {
+        list.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem; grid-column: 1/-1;">No one checked in yet.</p>`;
     }
 }
 
 // 5. State Transitions
-function stopScannerOnly(compId) {
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.clear().catch(e => console.error(e));
-    }
-    document.getElementById(`scanner-section-${compId}`).style.display = 'none';
-    showToast("Camera Closed.");
-}
-
 async function submitRegistration(compId, btn) {
     if(!confirm("Are you sure? This will lock registration and judges can begin grading.")) return;
-    
-    if(html5QrcodeScanner) html5QrcodeScanner.clear().catch(e => console.error(e));
-    
     btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Starting...';
     btn.disabled = true;
-    
     await updateStatus(compId, 'ongoing');
     showToast("Event Started!");
 }
