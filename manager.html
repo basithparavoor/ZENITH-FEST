@@ -191,9 +191,17 @@
                     </select>
                 </div>
                 <div class="toolbar-actions">
-                    <button class="btn btn-outline" onclick="exportToCSV()"><i class="ph ph-file-csv"></i> Export CSV</button>
-                    <button class="btn btn-dark" onclick="exportToPDF()"><i class="ph ph-file-pdf"></i> Download PDF</button>
-                </div>
+    <button class="btn btn-outline" onclick="loadAssignments()">
+        <i class="ph ph-arrows-clockwise"></i> Refresh
+    </button>
+    
+    <button class="btn btn-outline" onclick="exportToCSV()">
+        <i class="ph ph-file-csv"></i> Export CSV
+    </button>
+    <button class="btn btn-dark" onclick="exportToPDF()">
+        <i class="ph ph-file-pdf"></i> Download PDF
+    </button>
+</div>
             </div>
 
             <div class="card-grid" id="comps-grid">

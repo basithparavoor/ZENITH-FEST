@@ -23,16 +23,16 @@ async function initializeApp() {
     loadDashboard(); 
 }
 
-// 2. Load Assigned Ongoing Competitions
+// 2. Load Assigned Competitions (Updated Logic)
 async function loadDashboard() {
     const container = document.getElementById('competitions-container');
     container.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading assignments...</p>`;
 
-    const { data: assignments, error } = await supabaseClient
+    // 1. Fetch ALL records linked to this judge in the judgements table
+    const { data: allJudgeRecords, error } = await supabaseClient
         .from('judgements')
-        .select('competition_id, competitions(id, name, max_mark, status)')
-        .eq('judge_id', user.id)
-        .is('awarded_mark', null); 
+        .select('competition_id, awarded_mark, competitions(id, name, max_mark, status)')
+        .eq('judge_id', user.id); 
 
     if (error) {
         console.error(error);
@@ -40,24 +40,40 @@ async function loadDashboard() {
         return;
     }
 
+    // 2. Figure out which competitions are assigned, and which are already graded
+    const compStatusMap = new Map();
+    
+    allJudgeRecords.forEach(row => {
+        if (!row.competitions) return; 
+        const cId = row.competition_id;
+        
+        if (!compStatusMap.has(cId)) {
+            compStatusMap.set(cId, { comp: row.competitions, hasGraded: false });
+        }
+        
+        // If any record for this competition has a mark, the judge has completed their evaluation
+        if (row.awarded_mark !== null) {
+            compStatusMap.get(cId).hasGraded = true;
+        }
+    });
+
     container.innerHTML = '';
+    let displayCount = 0;
 
-    const ongoingComps = assignments
-        .map(a => a.competitions)
-        .filter(c => c && c.status === 'ongoing'); // Added safety check for 'c'
+    // 3. Render the UI
+    compStatusMap.forEach(({ comp, hasGraded }) => {
+        // Hide if already graded, published, or completed
+        if (hasGraded || comp.status === 'judgement_complete' || comp.status === 'published') return;
 
-    if (ongoingComps.length === 0) {
-        container.innerHTML = `
-            <div style="text-align: center; padding: 3rem 1rem; background: var(--surface); border-radius: var(--radius); border: 1px dashed var(--border);">
-                <p style="color: var(--text-muted); font-size: 1.1rem;">You have no pending evaluations for ongoing competitions.</p>
-            </div>`;
-        return;
-    }
-
-    const uniqueComps = Array.from(new Set(ongoingComps.map(c => c.id)))
-        .map(id => ongoingComps.find(c => c.id === id));
-
-    uniqueComps.forEach(comp => {
+        displayCount++;
+        
+        // Determine UI state based on competition status
+        const isOngoing = comp.status === 'ongoing';
+        const badgeColor = isOngoing ? 'var(--success)' : '#D97706';
+        const statusText = isOngoing ? 'Ready to Evaluate' : 'Starts Soon';
+        const btnState = isOngoing ? '' : 'disabled';
+        const btnText = isOngoing ? 'Evaluate Now' : 'Waiting to start...';
+        
         const card = document.createElement('div');
         card.className = 'card comp-card';
         card.innerHTML = `
@@ -65,19 +81,26 @@ async function loadDashboard() {
                 <div>
                     <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem; font-weight: 600;">${comp.name}</h3>
                     <p style="color: var(--text-muted); font-size: 0.95rem;">
-                        <span style="display: inline-block; width: 8px; height: 8px; background: var(--success); border-radius: 50%; margin-right: 6px;"></span>
-                        Max Mark: <strong>${comp.max_mark}</strong>
+                        <span style="display: inline-block; width: 8px; height: 8px; background: ${badgeColor}; border-radius: 50%; margin-right: 6px;"></span>
+                        <strong>${statusText}</strong> | Max Mark: ${comp.max_mark}
                     </p>
                 </div>
-                <button class="btn btn-primary" onclick="openEvaluation('${comp.id}', '${comp.name}', ${comp.max_mark})">
-                    Evaluate Now
+                <button class="btn ${isOngoing ? 'btn-primary' : 'btn-outline'}" ${btnState} onclick="openEvaluation('${comp.id}', '${comp.name}', ${comp.max_mark})">
+                    ${btnText}
                 </button>
             </div>
         `;
         container.appendChild(card);
     });
-}
 
+    // 4. Empty State
+    if (displayCount === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 3rem 1rem; background: var(--surface); border-radius: var(--radius); border: 1px dashed var(--border);">
+                <p style="color: var(--text-muted); font-size: 1.1rem;">You have no pending assignments at the moment.</p>
+            </div>`;
+    }
+}
 // 3. Open Evaluation Interface
 async function openEvaluation(compId, compName, maxMark) {
     currentCompId = compId;

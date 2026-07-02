@@ -1234,7 +1234,7 @@ async function loadUsers() {
                     <td>
                         <!-- Password field with toggle visibility -->
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <input type="password" id="pwd-${u.id}" value="${u.password_hash || ''}" readonly style="border: none; background: transparent; width: 120px; font-weight: 600; color: var(--text-muted); outline: none; pointer-events: none;">
+                           <input type="password" id="pwd-${u.id}" value="${u.password_hash || ''}" readonly style="border: none; background: transparent; width: 120px; font-weight: 600; color: var(--text-muted); outline: none; pointer-events: none; text-transform: none !important;">
                             <button class="btn btn-outline" style="padding:0.2rem 0.5rem; font-size:0.75rem;" onclick="togglePassword('${u.id}')" title="Reveal Password"><i class="fa-solid fa-eye" id="eye-${u.id}"></i></button>
                         </div>
                     </td>
@@ -1274,8 +1274,10 @@ function openUserModal(editData = null) {
     openModal(isEdit ? 'Edit Staff Account' : 'Create Staff Account', `
         <input type="hidden" id="editUserId" value="${uId}">
         <div class="form-group"><label>Username</label><input type="text" id="newUsername" value="${uName}" autocomplete="off"></div>
-        <div class="form-group"><label>Password</label><input type="text" id="newPassword" value="${uPass}" autocomplete="off"></div>
-        <div class="form-group">
+<div class="form-group">
+    <label>Password</label>
+    <input type="text" id="newPassword" value="${uPass}" autocomplete="off" style="text-transform: none !important;">
+</div>        <div class="form-group">
             <label>Role</label>
             <select id="newUserRole">
                 <option value="judge" ${uRole === 'judge' ? 'selected' : ''}>Judge</option>
