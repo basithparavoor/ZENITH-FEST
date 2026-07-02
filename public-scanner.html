@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FestOS | ID Scanner</title>
+    
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-light: #EEF2FF;
+            --bg-main: #0F172A; /* Dark mode for camera background */
+            --bg-surface: #FFFFFF;
+            --text-main: #0F172A;
+            --text-muted: #64748B;
+            --border: #E2E8F0;
+            --radius-xl: 24px;
+        }
+
+        * { 
+            margin: 0; padding: 0; box-sizing: border-box; 
+            font-family: 'Inter', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body { 
+            background-color: var(--bg-main); 
+            height: 100vh; width: 100vw; 
+            overflow: hidden; display: flex; flex-direction: column;
+        }
+
+        /* --- UI OVERLAYS --- */
+        .header {
+            position: absolute; top: 0; left: 0; right: 0;
+            padding: 1.5rem; z-index: 10;
+            background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+            color: white; text-align: center;
+        }
+        
+        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+
+        /* --- SCANNER VIEWPORT --- */
+        #reader-container { flex: 1; position: relative; overflow: hidden; background: #000; }
+        #reader { width: 100%; height: 100%; }
+        #reader video { object-fit: cover !important; width: 100% !important; height: 100% !important; }
+        
+        /* Hide the ugly default HTML5-QR-Code UI elements if they render */
+        #reader__dashboard_section_csr span, 
+        #reader__dashboard_section_swaplink { display: none !important; }
+
+        /* Custom Scanner Reticle */
+        .scan-overlay {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 250px; height: 250px; border: 2px solid rgba(255,255,255,0.5);
+            border-radius: 24px; box-shadow: 0 0 0 4000px rgba(0,0,0,0.6);
+            z-index: 5; pointer-events: none;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .scan-overlay::before {
+            content: ''; position: absolute; width: 100%; height: 2px;
+            background: #10B981; box-shadow: 0 0 10px #10B981;
+            animation: scanline 2s linear infinite;
+        }
+        @keyframes scanline {
+            0% { top: 0; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        /* --- BOTTOM SHEET MODAL --- */
+        .bottom-sheet {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--bg-surface); border-radius: 32px 32px 0 0;
+            padding: 2rem 1.5rem; z-index: 100;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
+            max-height: 85vh; display: flex; flex-direction: column;
+        }
+        .bottom-sheet.open { transform: translateY(0); }
+        
+        /* Drag Handle */
+        .sheet-handle {
+            width: 40px; height: 5px; background: #CBD5E1;
+            border-radius: 10px; margin: -10px auto 1.5rem auto;
+        }
+
+        .profile-header { display: flex; gap: 1.25rem; margin-bottom: 1.5rem; }
+        .profile-photo {
+            width: 90px; height: 120px; object-fit: cover;
+            border-radius: 16px; border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(15,23,42,0.08); flex-shrink: 0;
+        }
+        .profile-info h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.5rem; color: var(--text-main); line-height: 1.2; margin-bottom: 0.25rem; }
+        .profile-info .id-badge { font-family: monospace; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.75rem; }
+        
+        .tag { padding: 0.35rem 0.75rem; border-radius: 8px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-block; margin-right: 0.5rem; margin-bottom: 0.5rem; }
+        .tag-team { background: var(--primary-light); color: var(--primary); }
+        .tag-category { background: #F1F5F9; color: var(--text-muted); }
+
+        .comps-container { flex: 1; overflow-y: auto; padding-right: 0.5rem; margin-bottom: 1.5rem; }
+        .comps-title { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        
+        .comp-card {
+            background: #F8FAFC; border: 1px solid var(--border);
+            border-radius: 12px; padding: 1rem; margin-bottom: 0.75rem;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .comp-card strong { color: var(--text-main); font-size: 0.95rem; }
+        .comp-status { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; padding: 0.25rem 0.5rem; border-radius: 6px; }
+        
+        .status-pending { background: #F1F5F9; color: #64748B; }
+        .status-registration { background: #DBEAFE; color: #1D4ED8; }
+        .status-ongoing { background: #D1FAE5; color: #059669; }
+        .status-judgement_complete { background: #F3E8FF; color: #7E22CE; }
+
+        .btn {
+            width: 100%; padding: 1rem; border-radius: 16px; border: none;
+            background: var(--primary); color: white; font-size: 1rem; font-weight: 700;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); transition: transform 0.1s;
+        }
+        .btn:active { transform: scale(0.98); }
+
+        /* Loader Overlay */
+        #loader {
+            position: absolute; inset: 0; background: rgba(15,23,42,0.9);
+            z-index: 200; display: none; flex-direction: column; align-items: center; justify-content: center; color: white;
+        }
+        
+        /* Toast */
+        #toast {
+            position: fixed; top: 2rem; left: 50%; transform: translateX(-50%) translateY(-100px);
+            background: #E11D48; color: white; padding: 1rem 1.5rem; border-radius: 50px;
+            font-weight: 600; z-index: 300; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3); display: flex; align-items: center; gap: 0.5rem;
+        }
+        #toast.show { transform: translateX(-50%) translateY(0); }
+
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1><i class="ph-fill ph-scan"></i> FestOS Identifier</h1>
+        <p style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.25rem;">Align QR code within frame</p>
+    </div>
+
+    <div id="reader-container">
+        <div class="scan-overlay"></div>
+        <div id="reader"></div>
+    </div>
+
+    <div id="loader">
+        <i class="ph ph-spinner-gap" style="font-size: 3rem; animation: spin 1s linear infinite;"></i>
+        <p style="margin-top: 1rem; font-weight: 500;">Fetching Profile...</p>
+    </div>
+    
+    <div id="toast"><i class="ph-fill ph-warning-circle"></i> <span id="toast-msg">Error</span></div>
+
+    <div id="profile-sheet" class="bottom-sheet">
+        <div class="sheet-handle"></div>
+        
+        <div class="profile-header">
+            <img id="p-photo" class="profile-photo" src="" alt="Profile">
+            <div class="profile-info">
+                <h2 id="p-name">Loading...</h2>
+                <span id="p-id" class="id-badge">ID: ---</span>
+                <span id="p-team" class="tag tag-team">TEAM</span>
+                <span id="p-category" class="tag tag-category">CATEGORY</span>
+            </div>
+        </div>
+
+        <div class="comps-container">
+            <div class="comps-title"><i class="ph-fill ph-trophy"></i> Enrolled Events</div>
+            <div id="p-comps">
+                </div>
+        </div>
+
+        <button class="btn" onclick="resumeScanning()">
+            <i class="ph ph-qr-code"></i> Scan Another ID
+        </button>
+    </div>
+
+    <script>
+        // Supabase Initialization
+        const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let html5QrCode;
+        let isProcessing = false;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            startCamera();
+        });
+
+        function startCamera() {
+            html5QrCode = new Html5Qrcode("reader");
+            
+            // Start camera using the back camera natively
+            html5QrCode.start(
+                { facingMode: "environment" },
+                {
+                    fps: 10, 
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: window.innerWidth / window.innerHeight
+                },
+                onScanSuccess,
+                (errorMessage) => { /* Ignore background scan errors */ }
+            ).catch(err => {
+                showToast("Camera access denied or unavailable.");
+            });
+        }
+
+        async function onScanSuccess(decodedText) {
+            if (isProcessing) return;
+            isProcessing = true;
+            
+            // Pause the scanner to prevent double-scans
+            html5QrCode.pause(true);
+            document.getElementById('loader').style.display = 'flex';
+
+            // Clean text if it's a URL (Extracts ID from ?id=FEST-...)
+            let uniqueId = decodedText.trim();
+            if (uniqueId.includes('?id=')) {
+                uniqueId = uniqueId.split('?id=')[1];
+            }
+
+            try {
+                // Fetch Participant, Relations, and Competitions
+                const { data, error } = await supabaseClient
+                    .from('participants')
+                    .select(`
+                        *, 
+                        teams(name), 
+                        categories(name),
+                        participant_competitions(
+                            competitions(name, status)
+                        )
+                    `)
+                    .eq('unique_id', uniqueId)
+                    .single();
+
+                if (error || !data) throw new Error("Participant not found in database.");
+
+                populateSheet(data);
+                
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('profile-sheet').classList.add('open');
+
+            } catch (err) {
+                document.getElementById('loader').style.display = 'none';
+                showToast(err.message);
+                
+                // If error, wait 2 seconds then resume scanning
+                setTimeout(() => {
+                    isProcessing = false;
+                    html5QrCode.resume();
+                }, 2000);
+            }
+        }
+
+        function populateSheet(p) {
+            // Populate Details
+            document.getElementById('p-name').innerText = p.name;
+            document.getElementById('p-id').innerText = p.unique_id;
+            document.getElementById('p-team').innerText = p.teams?.name || 'INDEPENDENT';
+            document.getElementById('p-category').innerText = p.categories?.name || 'GENERAL';
+            document.getElementById('p-photo').src = p.photo_url || 'https://via.placeholder.com/150/E5E7EB/6B7280?text=NO+PHOTO';
+
+            // Populate Competitions
+            const compContainer = document.getElementById('p-comps');
+            
+            if (p.participant_competitions && p.participant_competitions.length > 0) {
+                compContainer.innerHTML = p.participant_competitions.map(pc => {
+                    const comp = pc.competitions;
+                    if(!comp) return '';
+                    
+                    let statusLabel = comp.status;
+                    if(comp.status === 'judgement_complete') statusLabel = 'Completed';
+                    
+                    return `
+                        <div class="comp-card">
+                            <strong>${comp.name}</strong>
+                            <span class="comp-status status-${comp.status}">${statusLabel}</span>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                compContainer.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 1rem;">No competitions assigned.</p>`;
+            }
+        }
+
+        function resumeScanning() {
+            document.getElementById('profile-sheet').classList.remove('open');
+            setTimeout(() => {
+                isProcessing = false;
+                html5QrCode.resume();
+            }, 300); // Wait for sheet to slide down before activating camera
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Add CSS Spinner Keyframes
+        const style = document.createElement('style');
+        style.innerHTML = `@keyframes spin { 100% { transform: rotate(360deg); } }`;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
