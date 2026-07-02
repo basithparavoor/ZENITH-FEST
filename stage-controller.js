@@ -121,12 +121,20 @@ function getButtonsForStatus(comp) {
     }
     if (comp.status === 'registration') {
         return `
-            <button class="btn btn-outline" style="flex:1;" onclick="openScannerModal('${comp.id}', '${comp.name}')"><i class="ph ph-scan"></i> Open Scanner</button>
-            <button class="btn btn-success" style="flex:1;" onclick="submitRegistration('${comp.id}', this)"><i class="ph ph-play"></i> Start Event</button>
+            <div style="display: flex; gap: 0.5rem; width: 100%;">
+                <button class="btn btn-outline" style="flex:1; padding: 0.5rem;" onclick="openScannerModal('${comp.id}', '${comp.name}')" title="Scan QR"><i class="ph ph-scan"></i> Scan</button>
+                <button class="btn btn-success" style="flex:1; padding: 0.5rem;" onclick="submitRegistration('${comp.id}', this)"><i class="ph ph-play"></i> Start</button>
+                <button class="btn" style="flex:1; padding: 0.5rem; background: var(--danger); color: white;" onclick="cancelRegistration('${comp.id}', this)"><i class="ph ph-x"></i> Cancel</button>
+            </div>
         `;
     }
     if (comp.status === 'ongoing') {
-        return `<button class="btn btn-warning" onclick="finishCompetition('${comp.id}', this)"><i class="ph ph-flag-checkered"></i> End Competition</button>`;
+        return `
+            <div style="display: flex; gap: 0.5rem; width: 100%;">
+                <button class="btn btn-outline" style="flex:1;" onclick="backToRegistration('${comp.id}', this)"><i class="ph ph-arrow-u-up-left"></i> Back to Reg</button>
+                <button class="btn btn-warning" style="flex:2;" onclick="finishCompetition('${comp.id}', this)"><i class="ph ph-flag-checkered"></i> End Competition</button>
+            </div>
+        `;
     }
     return `<p style="color: var(--text-muted); font-size: 0.95rem; width: 100%; text-align: center; background: #F8FAFC; padding: 1rem; border-radius: 8px;">Action completed. Waiting for Manager to publish.</p>`;
 }
@@ -182,21 +190,47 @@ async function onScanSuccess(decodedText) {
     isProcessingScan = true;
     html5QrcodeScanner.pause();
 
-    const { data: registration, error } = await supabaseClient
-        .from('competition_registrations')
-        .select('*, participants!inner(unique_id, name)')
-        .eq('competition_id', activeScanCompId)
-        .eq('participants.unique_id', decodedText)
-        .single();
+    // 1. Clean the text to prevent invisible space errors
+    const qrId = decodedText.trim();
+    console.log("Scanned QR Data:", qrId);
 
-    if (error || !registration) {
-        // EXACT ERROR MESSAGE REQUESTED
-        showToast("Not a participant in this competition.", "error");
-    } 
-    else if (registration.is_present) {
-        showToast(`${registration.participants.name} is already checked in.`, "warning");
-    } 
-    else {
+    try {
+        // 2. Fetch the participant first to isolate the issue
+        const { data: participant, error: pError } = await supabaseClient
+            .from('participants')
+            .select('id, name')
+            .eq('unique_id', qrId)
+            .single();
+
+        if (pError || !participant) {
+            console.error("Participant Lookup Error:", pError);
+            showToast("Invalid QR: Participant not found in system.", "error");
+            resetScanner();
+            return;
+        }
+
+        // 3. Check if they are registered for this specific competition
+        const { data: registration, error: rError } = await supabaseClient
+            .from('competition_registrations')
+            .select('*')
+            .eq('competition_id', activeScanCompId)
+            .eq('participant_id', participant.id)
+            .single();
+
+        if (rError || !registration) {
+            console.error("Registration Lookup Error:", rError);
+            showToast(`${participant.name} is not registered for this competition.`, "error");
+            resetScanner();
+            return;
+        }
+
+        // 4. Proceed with checking them in
+        if (registration.is_present) {
+            showToast(`${participant.name} is already checked in.`, "warning");
+            resetScanner();
+            return;
+        } 
+
         const codeLetter = generateCodeLetter(currentPresentCount);
         const { error: updateErr } = await supabaseClient
             .from('competition_registrations')
@@ -205,14 +239,28 @@ async function onScanSuccess(decodedText) {
 
         if(!updateErr) {
             currentPresentCount++;
-            showToast(`Success! ${registration.participants.name} assigned: ${codeLetter}`);
-            loadCheckedInList(activeScanCompId); // Refresh list on the card in the background
+            showToast(`Success! ${participant.name} assigned: ${codeLetter}`);
+            loadCheckedInList(activeScanCompId); // Refresh list on the card
+        } else {
+            console.error("Update Error:", updateErr);
+            showToast("Database error saving check-in.", "error");
         }
+    } catch (err) {
+        console.error("Unexpected Error:", err);
+        showToast("System error during scan.", "error");
     }
-    
+
+    resetScanner();
+}
+
+// Helper function to handle the 2-second timeout cleanly
+function resetScanner() {
     setTimeout(() => {
         isProcessingScan = false;
-        html5QrcodeScanner.resume();
+        // Only resume if scanner modal is still active
+        if (document.getElementById('scanner-modal').style.display === 'flex') {
+            html5QrcodeScanner.resume();
+        }
     }, 2000); 
 }
 
@@ -262,6 +310,71 @@ async function finishCompetition(compId, btn) {
 async function updateStatus(compId, status) {
     await supabaseClient.from('competitions').update({ status }).eq('id', compId);
     loadDashboard(); 
+}
+// --- NEW: Cancel Registration (Only if empty) ---
+async function cancelRegistration(compId, btn) {
+    // 1. Check if anyone is already registered
+    const { count, error } = await supabaseClient
+        .from('competition_registrations')
+        .select('*', { count: 'exact', head: true })
+        .eq('competition_id', compId)
+        .eq('is_present', true);
+        
+    if (count > 0) {
+        showToast("Cannot cancel. Participants are already checked in.", "error");
+        return;
+    }
+    
+    if(!confirm("Cancel registration and return to pending state?")) return;
+    
+    btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i>';
+    btn.disabled = true;
+    await updateStatus(compId, 'pending');
+    showToast("Registration cancelled.");
+}
+
+// --- NEW: Go back to Registration from Ongoing ---
+async function backToRegistration(compId, btn) {
+    if(!confirm("Re-open the scanning phase?")) return;
+    
+    btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i>';
+    btn.disabled = true;
+    await updateStatus(compId, 'registration');
+    showToast("Scanner re-opened!");
+}
+
+// --- Cancel Registration (Only if empty) ---
+async function cancelRegistration(compId, btn) {
+    // 1. Check if anyone is already registered/checked-in
+    const { count, error } = await supabaseClient
+        .from('competition_registrations')
+        .select('*', { count: 'exact', head: true })
+        .eq('competition_id', compId)
+        .eq('is_present', true);
+        
+    if (count > 0) {
+        showToast("Cannot cancel. Participants are already checked in.", "error");
+        return;
+    }
+    
+    if(!confirm("Cancel registration and return to pending state?")) return;
+    
+    btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i>';
+    btn.disabled = true;
+    
+    // 2. Revert back to pending
+    await updateStatus(compId, 'pending');
+    showToast("Registration cancelled.");
+}
+
+// --- Go back to Registration from Ongoing ---
+async function backToRegistration(compId, btn) {
+    if(!confirm("Re-open the scanning phase?")) return;
+    
+    btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i>';
+    btn.disabled = true;
+    await updateStatus(compId, 'registration');
+    showToast("Scanner re-opened!");
 }
 
 function logout() {
