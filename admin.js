@@ -1130,22 +1130,20 @@ async function deleteParticipant(id) {
 function buildCardElement(participant) {
     const card = document.createElement('div');
     
-    // Updated Exact Dimensions: 100mm Width x 63.08mm Height
     card.style.width = '100mm';
     card.style.height = '63.08mm';
     card.style.position = 'relative';
     card.style.overflow = 'hidden';
     card.style.backgroundColor = '#ffffff';
-    
-    // FIX 1: Removed pageBreakAfter: 'always' to prevent the blank second page
     card.style.fontFamily = "'Poppins', sans-serif"; 
     
     const teamName = participant.teams ? participant.teams.name.toUpperCase() : 'INDEPENDENT';
     const catName = participant.categories ? participant.categories.name.toUpperCase() : 'GENERAL';
     const photoSrc = participant.photo_url ? participant.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=PHOTO';
-    const actionUrl = `https://your-fest-app.com/scan?id=${participant.unique_id}`;
+    
+    // UPDATED: Now points to your live domain
+    const actionUrl = `https://zenith-fest.clubad.space/scan?id=${participant.unique_id}`;
 
-    // Layout config (using your coordinates)
     const layout = {
         photo:    { top: '13mm', left: '78mm', width: '17.5mm', height: '24.478mm' },
         name:     { top: '16mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '600', align: 'left' },
@@ -1153,55 +1151,32 @@ function buildCardElement(participant) {
         batch:    { top: '28mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
         category: { top: '34mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
         id:       { top: '40mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        // Slightly adjusted QR left position so it aligns directly under the photo
         qr:       { top: '40mm', left: '79mm', width: '14.143mm', height: '14.143mm' } 
     };
 
     card.innerHTML = `
         <style>
             #qr-${participant.id} canvas, #qr-${participant.id} img {
-                width: 100% !important;
-                height: 100% !important;
-                object-fit: contain;
-                display: block !important;
+                width: 100% !important; height: 100% !important; object-fit: contain; display: block !important;
             }
         </style>
         
         <img src="card.png" crossorigin="anonymous" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; object-fit: cover;">
-        
         <img src="${photoSrc}" crossorigin="anonymous" style="position: absolute; top: ${layout.photo.top}; left: ${layout.photo.left}; width: ${layout.photo.width}; height: ${layout.photo.height}; z-index: 2; object-fit: cover; border-radius: 4px; border: 1px solid #fff;">
         
-        <div style="position: absolute; top: ${layout.name.top}; left: ${layout.name.left}; width: ${layout.name.width}; text-align: ${layout.name.align}; z-index: 2; font-size: ${layout.name.fontSize}; font-weight: ${layout.name.fontWeight}; color: #000; text-transform: uppercase;">
-            ${participant.name}
-        </div>
-        
-        <div style="position: absolute; top: ${layout.team.top}; left: ${layout.team.left}; width: ${layout.team.width}; text-align: ${layout.team.align}; z-index: 2; font-size: ${layout.team.fontSize}; font-weight: ${layout.team.fontWeight}; color: #000; text-transform: uppercase;">
-            TEAM ${teamName}
-        </div>
-        
-        <div style="position: absolute; top: ${layout.batch.top}; left: ${layout.batch.left}; width: ${layout.batch.width}; text-align: ${layout.batch.align}; z-index: 2; font-size: ${layout.batch.fontSize}; font-weight: ${layout.batch.fontWeight}; color: #000;">
-            BATCH NO ${participant.batch_no || '1'}
-        </div>
-        
-        <div style="position: absolute; top: ${layout.category.top}; left: ${layout.category.left}; width: ${layout.category.width}; text-align: ${layout.category.align}; z-index: 2; font-size: ${layout.category.fontSize}; font-weight: ${layout.category.fontWeight}; color: #000; text-transform: uppercase;">
-            ${catName} CATEGORY
-        </div>
-        
-        <div style="position: absolute; top: ${layout.id.top}; left: ${layout.id.left}; width: ${layout.id.width}; text-align: ${layout.id.align}; z-index: 2; font-size: ${layout.id.fontSize}; font-weight: ${layout.id.fontWeight}; color: #000;">
-            ${participant.unique_id}
-        </div>
+        <div style="position: absolute; top: ${layout.name.top}; left: ${layout.name.left}; width: ${layout.name.width}; text-align: ${layout.name.align}; z-index: 2; font-size: ${layout.name.fontSize}; font-weight: ${layout.name.fontWeight}; color: #000; text-transform: uppercase;">${participant.name}</div>
+        <div style="position: absolute; top: ${layout.team.top}; left: ${layout.team.left}; width: ${layout.team.width}; text-align: ${layout.team.align}; z-index: 2; font-size: ${layout.team.fontSize}; font-weight: ${layout.team.fontWeight}; color: #000; text-transform: uppercase;">TEAM ${teamName}</div>
+        <div style="position: absolute; top: ${layout.batch.top}; left: ${layout.batch.left}; width: ${layout.batch.width}; text-align: ${layout.batch.align}; z-index: 2; font-size: ${layout.batch.fontSize}; font-weight: ${layout.batch.fontWeight}; color: #000;">BATCH NO ${participant.batch_no || '1'}</div>
+        <div style="position: absolute; top: ${layout.category.top}; left: ${layout.category.left}; width: ${layout.category.width}; text-align: ${layout.category.align}; z-index: 2; font-size: ${layout.category.fontSize}; font-weight: ${layout.category.fontWeight}; color: #000; text-transform: uppercase;">${catName} CATEGORY</div>
+        <div style="position: absolute; top: ${layout.id.top}; left: ${layout.id.left}; width: ${layout.id.width}; text-align: ${layout.id.align}; z-index: 2; font-size: ${layout.id.fontSize}; font-weight: ${layout.id.fontWeight}; color: #000;">${participant.unique_id}</div>
         
         <div id="qr-${participant.id}" style="position: absolute; top: ${layout.qr.top}; left: ${layout.qr.left}; width: ${layout.qr.width}; height: ${layout.qr.height}; z-index: 2; background: white; padding: 1mm; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 4px;"></div>
     `;
 
     setTimeout(() => {
         new QRCode(document.getElementById(`qr-${participant.id}`), { 
-            text: actionUrl, 
-            width: 256, // Reduced from 400 to optimize performance; 256 is perfectly sharp for this size
-            height: 256,
-            colorDark: "#000000", 
-            colorLight: "#ffffff", 
-            correctLevel: QRCode.CorrectLevel.H 
+            text: actionUrl, width: 256, height: 256,
+            colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H 
         });
     }, 10);
 
@@ -1227,16 +1202,12 @@ async function generateSingleCard(participantId) {
         const cardElement = buildCardElement(p);
         container.appendChild(cardElement);
         
-        // Give the QR code 150ms to spawn in the DOM, then wait for images
         setTimeout(async () => {
-            await waitForImagesToLoad(container);
+            if (typeof waitForImagesToLoad === "function") await waitForImagesToLoad(container);
             
-           const opt = { 
-                margin: 0, 
-                filename: `ID_Card.pdf`, 
-                image: { type: 'jpeg', quality: 1 }, 
+            const opt = { 
+                margin: 0, filename: `${p.name}_ID_Card.pdf`, image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                // UPDATED PDF FORMAT ARRAY
                 jsPDF: { unit: 'mm', format: [100, 63.08], orientation: 'landscape' } 
             };
             html2pdf().set(opt).from(cardElement).save().then(() => showToast('PDF Downloaded!'));
@@ -1271,14 +1242,11 @@ async function generateBulkCards() {
         });
 
         setTimeout(async () => {
-            await waitForImagesToLoad(container);
+            if (typeof waitForImagesToLoad === "function") await waitForImagesToLoad(container);
             
-           const opt = { 
-                margin: 0, 
-                filename: `ID_Card.pdf`, 
-                image: { type: 'jpeg', quality: 1 }, 
+            const opt = { 
+                margin: 0, filename: `Fest_2026_All_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                // UPDATED PDF FORMAT ARRAY
                 jsPDF: { unit: 'mm', format: [100, 63.08], orientation: 'landscape' } 
             };
             
@@ -1735,14 +1703,11 @@ async function bulkPrintSelected() {
         });
 
         setTimeout(async () => {
-            await waitForImagesToLoad(container);
+            if (typeof waitForImagesToLoad === "function") await waitForImagesToLoad(container);
             
-           const opt = { 
-                margin: 0, 
-                filename: `ID_Card.pdf`, 
-                image: { type: 'jpeg', quality: 1 }, 
+            const opt = { 
+                margin: 0, filename: `Selected_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                // UPDATED PDF FORMAT ARRAY
                 jsPDF: { unit: 'mm', format: [100, 63.08], orientation: 'landscape' } 
             };
             html2pdf().set(opt).from(container).save().then(() => { 
