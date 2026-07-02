@@ -1934,12 +1934,12 @@ function buildCardElement(participant) {
     const actionUrl = `https://zenith-fest.clubad.space/scan?id=${participant.unique_id}`;
 
     const layout = {
-        photo:    { top: '13mm', left: '78mm', width: '17.5mm', height: '24.478mm' },
-        name:     { top: '16mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '600', align: 'left' },
-        team:     { top: '22mm', left: '32mm', width: '50mm', fontSize: '10pt', fontWeight: '600', align: 'left' },
-        batch:    { top: '28mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        category: { top: '34mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        id:       { top: '40mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
+        photo:    { top: '13mm', left: '75mm', width: '17.5mm', height: '24.478mm' },
+        name:     { top: '24mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '600', align: 'left' },
+        team:     { top: '5mm', left: '45mm', width: '50mm', fontSize: '10pt', fontWeight: '600', align: 'left' },
+        batch:    { top: '26mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
+        category: { top: '30mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
+        id:       { top: '20mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
         qr:       { top: '40mm', left: '79mm', width: '14.143mm', height: '14.143mm' } 
     };
 
