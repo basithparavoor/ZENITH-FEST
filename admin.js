@@ -1968,9 +1968,10 @@ function buildCardElement(participant) {
         <div id="qr-${participant.id}" style="position: absolute; top: ${layout.qr.top}; left: ${layout.qr.left}; width: ${layout.qr.width}; height: ${layout.qr.height}; z-index: 2; background: white; padding: 1mm; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 4px;"></div>
     `;
 
-    setTimeout(() => {
+   setTimeout(() => {
         new QRCode(document.getElementById(`qr-${participant.id}`), { 
-            text: actionUrl, width: 256, height: 256,
+            text: participant.unique_id, // Encode ONLY the raw ID
+            width: 256, height: 256,
             colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H 
         });
     }, 10);
