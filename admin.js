@@ -1935,11 +1935,11 @@ function buildCardElement(participant) {
 
     const layout = {
         photo:    { top: '13.1mm', left: '74.9mm', width: '17.5mm', height: '24.478mm' },
-        name:     { top: '22.5mm', left: '11mm', width: '50mm', fontSize: '9pt', fontWeight: '600', align: 'left' },
+        name:     { top: '22.5mm', left: '14mm', width: '50mm', fontSize: '9pt', fontWeight: '600', align: 'left' },
         team:     { top: '3.8mm', left: '52mm', width: '50mm', fontSize: '10pt', fontWeight: '600', align: 'left' },
-        batch:    { top: '27mm', left: '11mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        category: { top: '31.5mm', left: '11mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        id:       { top: '17.5mm', left: '11mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
+        batch:    { top: '27mm', left: '14mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
+        category: { top: '31.5mm', left: '14mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
+        id:       { top: '17.5mm', left: '14mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
         qr:       { top: '40mm', left: '79mm', width: '14.143mm', height: '14.143mm' } 
     };
 
