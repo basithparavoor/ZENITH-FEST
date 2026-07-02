@@ -114,8 +114,9 @@ async function openEvaluation(compId, compName, maxMark) {
     const container = document.getElementById('participants-container');
     container.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading participants...</p>`;
 
+    // THE FIX: Changed from competition_registrations to participant_competitions
     const { data: registrations, error } = await supabaseClient
-        .from('competition_registrations')
+        .from('participant_competitions')
         .select('participant_id, code_letter')
         .eq('competition_id', compId)
         .eq('is_present', true)
@@ -138,24 +139,26 @@ async function openEvaluation(compId, compName, maxMark) {
         container.innerHTML += `
             <div class="participant-row" data-pid="${reg.participant_id}">
                 <div class="participant-info">
-                    <div class="code-letter">${reg.code_letter}</div>
-                    <span style="color: var(--text-muted); font-size: 0.95rem; font-weight: 500;">Participant<br>Code</span>
+                    <div class="code-letter" style="background: var(--primary); color: white; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-weight: 800; font-size: 1.25rem;">
+                        ${reg.code_letter || '?'}
+                    </div>
+                    <span style="color: var(--text-muted); font-size: 0.95rem; font-weight: 500; margin-left: 10px;">Participant<br>Code</span>
                 </div>
-                <div class="mark-wrapper">
+                <div class="mark-wrapper" style="display: flex; align-items: center; gap: 0.5rem;">
                     <input type="number" 
                            class="mark-input" 
                            placeholder="0" 
                            min="0" 
                            max="${maxMark}" 
                            step="0.5" 
+                           style="width: 80px; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px;"
                            oninput="validateMark(this, ${maxMark})">
-                    <span class="max-mark-label">/ ${maxMark}</span>
+                    <span class="max-mark-label" style="font-weight: 600; color: var(--text-muted);">/ ${maxMark}</span>
                 </div>
             </div>
         `;
     });
 }
-
 // 4. Validate Input Live
 function validateMark(input, max) {
     let val = parseFloat(input.value);
@@ -226,65 +229,6 @@ function closeEvaluation() {
     currentCompId = null;
     document.getElementById('submit-btn').disabled = false;
     document.getElementById('submit-btn').innerText = 'Submit All Marks';
-}
-
-// Inside your judge.js file
-
-async function loadParticipantsForJudging(compId) {
-    const container = document.getElementById('judging-list');
-    container.innerHTML = 'Loading participants...';
-
-    try {
-        // THE TRICK: Only select the code_letter and the ID for saving marks. 
-        // Notice we do NOT include 'participants(name)'.
-        const { data: participants, error } = await supabaseClient
-            .from('participant_competitions')
-            .select('id, participant_id, code_letter') 
-            .eq('competition_id', compId)
-            .eq('is_present', true)
-            .order('code_letter', { ascending: true });
-
-        if (error) throw error;
-
-        if (!participants || participants.length === 0) {
-            container.innerHTML = '<p>No participants checked in yet.</p>';
-            return;
-        }
-
-        renderJudgingUI(participants);
-
-    } catch (err) {
-        console.error("Error loading participants:", err);
-        showToast("Failed to load participants.", "error");
-    }
-}
-
-function renderJudgingUI(participants) {
-    const container = document.getElementById('judging-list');
-    container.innerHTML = '';
-
-    participants.forEach(p => {
-        // Fallback in case a code_letter wasn't generated properly
-        const displayName = p.code_letter ? `Participant ${p.code_letter}` : 'Unknown Participant';
-
-        container.innerHTML += `
-            <div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: 8px;">
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <div style="background: var(--primary); color: white; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-weight: 800; font-size: 1.25rem;">
-                        ${p.code_letter || '?'}
-                    </div>
-                    <span style="font-weight: 600; font-size: 1.1rem;">${displayName}</span>
-                </div>
-                
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <input type="number" id="mark-${p.id}" placeholder="Score" style="width: 80px; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px;">
-                    <button class="btn btn-primary" onclick="submitMark('${p.id}', '${p.participant_id}')">
-                        Save
-                    </button>
-                </div>
-            </div>
-        `;
-    });
 }
 
 function logout() {
