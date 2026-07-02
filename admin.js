@@ -1146,13 +1146,13 @@ function buildCardElement(participant) {
 
     // Nudged 'top' coordinates up slightly to fit the new 63.08mm height constraints
     const layout = {
-        photo:    { top: '18mm', left: '10mm', width: '17.5mm', height: '24.478mm' },
+        photo:    { top: '13mm', left: '65mm', width: '17.5mm', height: '24.478mm' },
         name:     { top: '16mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '600', align: 'left' },
         team:     { top: '22mm', left: '32mm', width: '50mm', fontSize: '10pt', fontWeight: '600', align: 'left' },
         batch:    { top: '28mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
         category: { top: '34mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
         id:       { top: '40mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        qr:       { top: '36mm', left: '75mm', width: '14.143mm', height: '14.143mm' }
+        qr:       { top: '36mm', left: '75mm', width: '10mm', height: '10mm' }
     };
 
     card.innerHTML = `
