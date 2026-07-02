@@ -3,83 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FestOS | Live Results</title>
+    <title>FestOS | Premium Live Results</title>
     
     <!-- Supabase & HTML2Canvas for JPEG Export -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
         :root {
             --primary: #4F46E5;
-            --bg-main: #F3F4F6;
-            --surface: #FFFFFF;
+            --primary-hover: #4338CA;
+            --bg-gradient: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%);
+            --surface: rgba(255, 255, 255, 0.85);
             --text-main: #111827;
+            --text-muted: #6B7280;
             --gold: #F59E0B;
             --silver: #94A3B8;
             --bronze: #B45309;
+            --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.6);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
 
-        body { background: var(--bg-main); color: var(--text-main); }
-
-        .navbar {
-            background: var(--surface); padding: 1.25rem 2rem;
-            display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 50;
+        body { 
+            background: var(--bg-gradient); 
+            color: var(--text-main); 
+            min-height: 100vh;
+            background-attachment: fixed;
         }
-        .navbar h1 { font-weight: 800; color: var(--primary); font-size: 1.5rem; letter-spacing: -0.5px; }
 
-        .container { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
+        /* --- Animations --- */
+        @keyframes slideUpFade {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
 
-        .tabs { display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 2px solid #E5E7EB; padding-bottom: 1rem; }
-        .tab { padding: 0.5rem 1rem; cursor: pointer; font-weight: 600; color: #6B7280; border-radius: 8px; transition: 0.2s; }
-        .tab.active { background: var(--primary); color: white; }
+        /* --- Navbar --- */
+        .navbar {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 1.25rem 5%;
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03); 
+            position: sticky; 
+            top: 0; 
+            z-index: 50;
+            border-bottom: var(--glass-border);
+        }
+        .navbar h1 { font-weight: 800; color: var(--primary); font-size: 1.75rem; letter-spacing: -0.5px; }
+        .navbar .badge {
+            background: #EEF2FF; color: var(--primary); padding: 0.4rem 1rem;
+            border-radius: 20px; font-weight: 600; font-size: 0.875rem;
+        }
+
+        /* --- Main Layout --- */
+        .container { max-width: 900px; margin: 2.5rem auto; padding: 0 1.5rem; }
+
+        /* --- Tabs --- */
+        .tabs { 
+            display: flex; gap: 0.5rem; margin-bottom: 2.5rem; 
+            background: rgba(255, 255, 255, 0.5);
+            padding: 0.5rem; border-radius: 16px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+            overflow-x: auto;
+            white-space: nowrap;
+            scrollbar-width: none; /* Firefox */
+        }
+        .tabs::-webkit-scrollbar { display: none; } /* Chrome */
+        
+        .tab { 
+            flex: 1; text-align: center; padding: 0.75rem 1rem; 
+            cursor: pointer; font-weight: 600; color: var(--text-muted); 
+            border-radius: 12px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+        .tab:hover { color: var(--text-main); }
+        .tab.active { 
+            background: var(--surface); color: var(--primary); 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+        }
 
         .view-section { display: none; animation: fadeIn 0.4s ease; }
         .view-section.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Leaderboard Styles */
+        /* --- Leaderboard Styles --- */
         .leaderboard-card {
-            background: var(--surface); border-radius: 12px; padding: 1.5rem;
+            background: var(--surface); backdrop-filter: blur(16px);
+            border-radius: 16px; padding: 1.5rem 2rem;
             display: flex; align-items: center; margin-bottom: 1rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid #E5E7EB;
+            box-shadow: var(--glass-shadow); border: var(--glass-border);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            animation: slideUpFade 0.5s ease backwards;
         }
-        .rank { font-size: 1.5rem; font-weight: 800; width: 50px; color: #9CA3AF; }
-        .rank-1 { color: var(--gold); } .rank-2 { color: var(--silver); } .rank-3 { color: var(--bronze); }
-        .team-info { flex: 1; }
-        .team-name { font-size: 1.25rem; font-weight: 700; }
-        .team-score { font-size: 1.5rem; font-weight: 800; color: var(--primary); }
-
-        /* Individual Results Styles */
-        .filters { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
-        .filters select { flex: 1; padding: 0.75rem; border-radius: 8px; border: 1px solid #D1D5DB; outline: none; }
+        .leaderboard-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.08);
+        }
         
-        .winners-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
-        .winner-card {
-            background: var(--surface); border-radius: 12px; padding: 1.5rem; text-align: center;
-            border-top: 5px solid #E5E7EB; box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        .rank { font-size: 1.75rem; font-weight: 800; width: 60px; color: #D1D5DB; }
+        .rank-1 { color: var(--gold); font-size: 2rem; } 
+        .rank-2 { color: var(--silver); font-size: 2rem; } 
+        .rank-3 { color: var(--bronze); font-size: 2rem; }
+        
+        .team-info { flex: 1; }
+        .team-name { font-size: 1.25rem; font-weight: 700; color: var(--text-main); }
+        .team-score { font-size: 1.75rem; font-weight: 800; color: var(--primary); }
+
+        /* --- Individual Results Styles --- */
+        .filters { margin-bottom: 2rem; }
+        .filters select { 
+            width: 100%; padding: 1rem 1.25rem; border-radius: 12px; 
+            border: var(--glass-border); outline: none; background: var(--surface);
+            font-size: 1rem; font-weight: 500; color: var(--text-main);
+            box-shadow: var(--glass-shadow); appearance: none; cursor: pointer;
+            transition: all 0.2s ease;
         }
+        .filters select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2); }
+        
+        .winners-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; }
+        .winner-card {
+            background: var(--surface); border-radius: 16px; padding: 2rem 1.5rem; text-align: center;
+            border-top: 6px solid #E5E7EB; box-shadow: var(--glass-shadow);
+            backdrop-filter: blur(16px);
+            transition: transform 0.2s ease;
+            animation: slideUpFade 0.5s ease backwards;
+        }
+        .winner-card:hover { transform: translateY(-5px); }
         .winner-card.gold { border-top-color: var(--gold); }
         .winner-card.silver { border-top-color: var(--silver); }
         .winner-card.bronze { border-top-color: var(--bronze); }
         
-        .winner-position { font-size: 0.875rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; }
-        .winner-name { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem; }
-        .winner-team { font-size: 0.875rem; color: #6B7280; }
+        .winner-position { font-size: 0.875rem; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 1px; }
+        .winner-name { font-size: 1.35rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-main); }
+        .winner-team { font-size: 0.95rem; font-weight: 500; color: var(--text-muted); }
 
-        /* Poster Generation Tools */
-        .poster-controls { background: var(--surface); padding: 1.5rem; border-radius: 12px; text-align: center; margin-bottom: 2rem; }
-        .btn { padding: 0.75rem 1.5rem; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        /* --- Poster Generation Tools --- */
+        .poster-controls { 
+            background: var(--surface); padding: 3rem 2rem; border-radius: 16px; 
+            text-align: center; box-shadow: var(--glass-shadow); border: var(--glass-border);
+            animation: slideUpFade 0.5s ease backwards;
+        }
+        .poster-controls h2 { font-size: 1.75rem; margin-bottom: 1rem; color: var(--text-main); font-weight: 800;}
+        .btn { 
+            padding: 1rem 2rem; background: var(--primary); color: white; 
+            border: none; border-radius: 12px; font-size: 1.1rem; font-weight: 600; 
+            cursor: pointer; transition: background 0.2s ease, transform 0.1s ease; 
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+        }
+        .btn:hover { background: var(--primary-hover); }
+        .btn:active { transform: scale(0.98); }
         
         /* High-Res Poster Template (Hidden from normal flow) */
         #poster-export-area {
             position: absolute; left: -9999px;
-            width: 1080px; height: 1080px; /* Instagram/Social Media Square */
+            width: 1080px; height: 1080px;
             background: linear-gradient(135deg, #1E1B4B, #4338CA);
             color: white; padding: 4rem; display: flex; flex-direction: column;
         }
@@ -88,31 +174,46 @@
         .poster-header h2 { font-size: 2rem; color: #818CF8; }
         
         .poster-leaderboard { flex: 1; display: flex; flex-direction: column; gap: 1.5rem; }
-        .poster-row { background: rgba(255,255,255,0.1); padding: 1.5rem 2rem; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(10px); }
+        .poster-row { 
+            background: rgba(255,255,255,0.1); padding: 1.5rem 2rem; border-radius: 16px; 
+            display: flex; justify-content: space-between; align-items: center; 
+            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);
+        }
         .poster-row-rank { font-size: 2.5rem; font-weight: 800; width: 80px; }
         .poster-row-name { font-size: 2.5rem; font-weight: 700; flex: 1; }
         .poster-row-score { font-size: 3rem; font-weight: 800; color: #FCA5A5; }
+
+        /* --- Mobile Responsiveness --- */
+        @media (max-width: 640px) {
+            .navbar { padding: 1rem 1.25rem; }
+            .navbar h1 { font-size: 1.4rem; }
+            .leaderboard-card { padding: 1.25rem; }
+            .rank { font-size: 1.5rem; width: 45px; }
+            .team-score { font-size: 1.5rem; }
+            .tabs { margin-bottom: 1.5rem; }
+            .tab { padding: 0.6rem; font-size: 0.9rem; }
+            .poster-controls { padding: 2rem 1.5rem; }
+        }
     </style>
 </head>
 <body>
 
     <div class="navbar">
         <h1>FestOS Live</h1>
-        <div>Public Results Portal</div>
+        <div class="badge">Public Results</div>
     </div>
 
     <div class="container">
         <div class="tabs">
-            <div class="tab active" onclick="switchTab('standings')">🏆 Team Standings</div>
-            <div class="tab" onclick="switchTab('individual')">👤 Individual Results</div>
-            <div class="tab" onclick="switchTab('posters')">📸 Get Posters</div>
+            <div class="tab active" onclick="switchTab('standings', this)">🏆 Standings</div>
+            <div class="tab" onclick="switchTab('individual', this)">👤 Individual</div>
+            <div class="tab" onclick="switchTab('posters', this)">📸 Posters</div>
         </div>
 
         <!-- 1. Live Team Standings -->
         <div id="standings" class="view-section active">
             <div id="leaderboard-container">
-                <!-- Injected via JS -->
-                <p style="text-align:center; color:gray;">Loading live standings...</p>
+                <p style="text-align:center; color:gray; padding: 2rem;">Loading live standings...</p>
             </div>
         </div>
 
@@ -124,16 +225,18 @@
                 </select>
             </div>
             <div class="winners-grid" id="winners-container">
-                <p style="text-align:center; color:gray; grid-column: 1/-1;">Select a competition to view the top 3 winners.</p>
+                <p style="text-align:center; color:gray; grid-column: 1/-1; padding: 2rem;">Select a competition to view the top 3 winners.</p>
             </div>
         </div>
 
         <!-- 3. Poster Export -->
         <div id="posters" class="view-section">
             <div class="poster-controls">
-                <h2 style="margin-bottom: 1rem;">Generate Result Poster</h2>
-                <p style="margin-bottom: 1.5rem; color: #6B7280;">Posters can be generated for the overall team standings. The design is optimized for social media (1080x1080 JPEG).</p>
-                <p id="publish-status" style="font-weight: 600; color: var(--primary); margin-bottom: 1.5rem;"></p>
+                <h2>Generate Result Poster</h2>
+                <p style="margin-bottom: 1.5rem; color: var(--text-muted); line-height: 1.6;">
+                    Generate high-resolution (1080x1080) JPEG posters of the current standings, fully optimized for Instagram and social media sharing.
+                </p>
+                <p id="publish-status" style="font-weight: 600; color: var(--primary); margin-bottom: 2rem;"></p>
                 <button class="btn" onclick="downloadPoster()">Download JPEG Poster</button>
             </div>
         </div>

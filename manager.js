@@ -332,26 +332,31 @@ async function publishCompetition(compId, btnElement) {
     showToast("Results published!");
     loadPublishableComps(); 
 }
+// --- MANAGER.JS UPDATE ---
 async function redoJudgement(compId, btnElement) {
-    if(!confirm("⚠️ Send this competition back for re-judging? The status will revert to 'ongoing'.")) return;
+    if(!confirm("⚠️ Send this competition back for re-judging? This will ERASE all current marks!")) return;
     
-    // Set loading state
     btnElement.disabled = true;
     btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Reverting...';
 
-    // Update status in the database back to ongoing
+    // 1. DELETE ONLY THE MARKS (Keep the base judge assignments intact)
+    await window.db.from('judgements')
+        .delete()
+        .eq('competition_id', compId)
+        .not('participant_id', 'is', null);
+
+    // 2. Revert the status
     const { error } = await window.db.from('competitions')
         .update({ status: 'ongoing' })
         .eq('id', compId);
 
     if (error) {
-        console.error("REDO ERROR:", error);
         showToast("Failed to revert: " + error.message, 'error');
         btnElement.innerHTML = '<i class="ph ph-arrow-u-up-left"></i> Redo';
         btnElement.disabled = false;
     } else {
-        showToast("Sent back for re-judging!", "success");
-        loadPublishableComps(); // Refresh the publish grid to remove the card
+        showToast("Sent back for re-judging! Marks erased.", "success");
+        loadPublishableComps(); 
     }
 }
 

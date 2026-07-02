@@ -7,14 +7,21 @@ const POINTS = { 1: 10, 2: 7, 3: 5 };
 
 let publishedCompetitions = [];
 let allTeams = [];
-let calculatedTeamScores = {}; // Format: { team_id: total_score }
-let competitionResults = {}; // Format: { comp_id: [ {participant}, {participant}, {participant} ] }
+let calculatedTeamScores = {}; 
+let competitionResults = {}; 
 
-function switchTab(tabId) {
+function switchTab(tabId, element) {
     document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    
     document.getElementById(tabId).classList.add('active');
-    event.currentTarget.classList.add('active');
+    
+    // Fallback if event target isn't passed properly
+    if(element) {
+        element.classList.add('active');
+    } else if (event) {
+        event.currentTarget.classList.add('active');
+    }
 }
 
 // 1. Fetch & Calculate Everything
@@ -56,7 +63,6 @@ async function fetchAndCalculateResults() {
 
 // 2. Process Raw Marks into Rankings and Team Points
 function processJudgements(judgements) {
-    // Group marks by participant per competition (in case of multiple judges, we average or sum. Assuming sum for now)
     const compGroups = {};
     
     judgements.forEach(j => {
@@ -72,18 +78,13 @@ function processJudgements(judgements) {
         compGroups[j.competition_id][pId].total_mark += parseFloat(j.awarded_mark);
     });
 
-    // Calculate Top 3 per competition
     for (const [compId, participantsMap] of Object.entries(compGroups)) {
-        // Sort participants by total_mark DESC
         const sorted = Object.values(participantsMap).sort((a, b) => b.total_mark - a.total_mark);
-        
-        // Take Top 3
         const top3 = sorted.slice(0, 3);
         competitionResults[compId] = top3;
 
-        // Award Team Points
         top3.forEach((entry, index) => {
-            const position = index + 1; // 1, 2, or 3
+            const position = index + 1; 
             const pointsAwarded = POINTS[position] || 0;
             const teamId = entry.participant.team_id;
             
@@ -94,16 +95,15 @@ function processJudgements(judgements) {
     }
 }
 
-// 3. Render Team Leaderboard UI
+// 3. Render Team Leaderboard UI (With stagger animation)
 function renderLeaderboard() {
     const container = document.getElementById('leaderboard-container');
     container.innerHTML = '';
 
-    // Convert to array and sort by score DESC
     const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score);
 
     if(sortedTeams.length === 0) {
-        container.innerHTML = `<p style="text-align:center;">No results published yet.</p>`;
+        container.innerHTML = `<p style="text-align:center; padding: 2rem; font-weight: 500;">No results published yet.</p>`;
         return;
     }
 
@@ -112,19 +112,20 @@ function renderLeaderboard() {
         let rankClass = rank <= 3 ? `rank-${rank}` : '';
         let rankDisplay = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
 
+        // Added animation delay for fluid rendering
         container.innerHTML += `
-            <div class="leaderboard-card">
+            <div class="leaderboard-card" style="animation-delay: ${index * 0.05}s">
                 <div class="rank ${rankClass}">${rankDisplay}</div>
                 <div class="team-info">
                     <div class="team-name">${team.name}</div>
                 </div>
-                <div class="team-score">${team.score} pts</div>
+                <div class="team-score">${team.score} <span style="font-size:1rem; color: #9CA3AF">pts</span></div>
             </div>
         `;
     });
 }
 
-// 4. Render Individual Top 3 Winners UI
+// 4. Render Individual Top 3 Winners UI (With stagger animation)
 function populateCompetitionDropdown() {
     const select = document.getElementById('comp-filter');
     publishedCompetitions.forEach(c => {
@@ -138,7 +139,7 @@ function renderIndividualResults() {
     container.innerHTML = '';
 
     if (!compId || !competitionResults[compId]) {
-        container.innerHTML = `<p style="text-align:center; grid-column: 1/-1;">No results available for this selection.</p>`;
+        container.innerHTML = `<p style="text-align:center; grid-column: 1/-1; padding: 2rem;">No results available for this selection.</p>`;
         return;
     }
 
@@ -151,11 +152,11 @@ function renderIndividualResults() {
         const teamName = allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent';
         
         container.innerHTML += `
-            <div class="winner-card ${classes[index]}">
+            <div class="winner-card ${classes[index]}" style="animation-delay: ${index * 0.1}s">
                 <div class="winner-position" style="color: ${colors[index]}">${labels[index]}</div>
                 <div class="winner-name">${entry.participant.name}</div>
                 <div class="winner-team">${teamName}</div>
-                <div style="margin-top: 1rem; font-size: 0.875rem; color: #9CA3AF;">Score: ${entry.total_mark}</div>
+                <div style="margin-top: 1.5rem; font-size: 0.95rem; font-weight: 600; color: var(--text-muted);">Score: ${entry.total_mark}</div>
             </div>
         `;
     });
@@ -167,8 +168,7 @@ async function downloadPoster() {
     btn.innerText = "Generating Poster...";
     btn.disabled = true;
 
-    // Build the poster DOM
-    const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5); // Show top 5 on poster
+    const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5); 
     const posterContainer = document.getElementById('poster-leaderboard-container');
     posterContainer.innerHTML = '';
 
@@ -186,7 +186,6 @@ async function downloadPoster() {
 
     const exportArea = document.getElementById('poster-export-area');
 
-    // Render to Canvas
     html2canvas(exportArea, { scale: 2, useCORS: true }).then(canvas => {
         const link = document.createElement('a');
         link.download = `Fest_Results_Poster_${publishedCompetitions.length}_Comps.jpeg`;

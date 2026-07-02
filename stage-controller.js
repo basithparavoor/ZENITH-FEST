@@ -57,9 +57,11 @@ async function loadDashboard() {
 
 // 3. Load Competitions
 async function loadCompetitions(stageId) {
+    // Inside stage-controller.js -> loadCompetitions()
     const { data: competitions, error } = await supabaseClient
         .from('competitions')
-        .select('*, judges:judgements(judge_id)')
+        // UPDATED: Now we fetch awarded marks so we know if the judge is done
+        .select('*, judgements(judge_id, awarded_mark)') 
         .eq('stage_id', stageId)
         .order('name');
 
@@ -117,25 +119,36 @@ async function loadCompetitions(stageId) {
 
 function getButtonsForStatus(comp) {
     if (comp.status === 'pending') {
-        return `<button class="btn btn-primary" onclick="startRegistration('${comp.id}', '${comp.name}', this)"><i class="ph ph-qr-code"></i> Start Registration</button>`;
+        return `<button class="btn btn-primary" onclick="changeCompetitionState('${comp.id}', 'registration', this, 'Starting')"><i class="ph ph-qr-code"></i> Start Registration</button>`;
     }
+    
     if (comp.status === 'registration') {
         return `
             <div style="display: flex; gap: 0.5rem; width: 100%;">
                 <button class="btn btn-outline" style="flex:1; padding: 0.5rem;" onclick="openScannerModal('${comp.id}', '${comp.name}')" title="Scan QR"><i class="ph ph-scan"></i> Scan</button>
-                <button class="btn btn-success" style="flex:1; padding: 0.5rem;" onclick="submitRegistration('${comp.id}', this)"><i class="ph ph-play"></i> Start</button>
+                <button class="btn btn-success" style="flex:1; padding: 0.5rem;" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'Starting')"><i class="ph ph-play"></i> Start</button>
                 <button class="btn" style="flex:1; padding: 0.5rem; background: var(--danger); color: white;" onclick="cancelRegistration('${comp.id}', this)"><i class="ph ph-x"></i> Cancel</button>
             </div>
         `;
     }
+    
     if (comp.status === 'ongoing') {
+        // CHECK FOR MARKS: Do any rows have a valid awarded_mark?
+        const hasMarks = comp.judgements && comp.judgements.some(j => j.awarded_mark !== null);
+
+        // Conditional Button Rendering
+        const endBtn = hasMarks 
+            ? `<button class="btn btn-warning" style="flex:2;" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'Ending')"><i class="ph ph-flag-checkered"></i> End Competition</button>`
+            : `<button class="btn btn-outline" style="flex:2; opacity: 0.6; cursor: not-allowed;" title="Waiting for judges to submit marks..." disabled><i class="ph ph-hourglass"></i> Awaiting Judges...</button>`;
+
         return `
             <div style="display: flex; gap: 0.5rem; width: 100%;">
-                <button class="btn btn-outline" style="flex:1;" onclick="backToRegistration('${comp.id}', this)"><i class="ph ph-arrow-u-up-left"></i> Back to Reg</button>
-                <button class="btn btn-warning" style="flex:2;" onclick="finishCompetition('${comp.id}', this)"><i class="ph ph-flag-checkered"></i> End Competition</button>
+                <button class="btn btn-outline" style="flex:1;" onclick="backToRegistration('${comp.id}', this)"><i class="ph ph-arrow-u-up-left"></i> Back</button>
+                ${endBtn}
             </div>
         `;
     }
+    
     return `<p style="color: var(--text-muted); font-size: 0.95rem; width: 100%; text-align: center; background: #F8FAFC; padding: 1rem; border-radius: 8px;">Action completed. Waiting for Manager to publish.</p>`;
 }
 
@@ -290,57 +303,61 @@ async function loadCheckedInList(compId) {
     }
 }
 
-// 5. State Transitions
-async function submitRegistration(compId, btn) {
-    if(!confirm("Are you sure? This will lock registration and judges can begin grading.")) return;
-    btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Starting...';
-    btn.disabled = true;
-    await updateStatus(compId, 'ongoing');
-    showToast("Event Started!");
-}
+// --- NEW MASTER STATE TRANSITION FUNCTION ---
+async function changeCompetitionState(compId, newStatus, btnElement, loadingText) {
+    // 1. Confirmations
+    if (newStatus === 'ongoing' && !confirm("Lock registration and start the event?")) return;
+    if (newStatus === 'judgement_complete' && !confirm("End competition? This locks marks and notifies the Manager.")) return;
 
-async function finishCompetition(compId, btn) {
-    if(!confirm("End competition? This will lock judge marks and notify the Manager.")) return;
-    btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Ending...';
-    btn.disabled = true;
-    await updateStatus(compId, 'judgement_complete');
-    showToast("Competition Finished!");
-}
+    // 2. Set UI Loading State
+    const originalHTML = btnElement.innerHTML;
+    btnElement.innerHTML = `<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> ${loadingText}...`;
+    btnElement.disabled = true;
 
-async function updateStatus(compId, status) {
-    await supabaseClient.from('competitions').update({ status }).eq('id', compId);
-    loadDashboard(); 
+    try {
+        // 3. SIDE EFFECTS: If moving BACKWARDS to pending or registration, wipe any rogue marks!
+        if (newStatus === 'registration' || newStatus === 'pending') {
+            await supabaseClient.from('judgements')
+                .delete()
+                .eq('competition_id', compId)
+                .not('participant_id', 'is', null);
+        }
+
+        // 4. UPDATE DB STATUS
+        const { error } = await supabaseClient
+            .from('competitions')
+            .update({ status: newStatus })
+            .eq('id', compId);
+
+        if (error) throw error;
+        
+        showToast(`Status updated successfully!`);
+        loadDashboard(); // Refresh UI
+        
+    } catch (err) {
+        showToast("Error updating status: " + err.message, "error");
+        btnElement.innerHTML = originalHTML;
+        btnElement.disabled = false;
+    }
 }
+// --- Cancel Registration (Only if empty) ---
 async function cancelRegistration(compId, btn) {
-    // CHANGED: Now checking participant_competitions
-    const { count, error } = await supabaseClient
+    const { count } = await supabaseClient
         .from('participant_competitions')
         .select('*', { count: 'exact', head: true })
         .eq('competition_id', compId)
         .eq('is_present', true);
         
-    if (count > 0) {
-        showToast("Cannot cancel. Participants are already checked in.", "error");
-        return;
-    }
+    if (count > 0) return showToast("Cannot cancel. Participants are already checked in.", "error");
+    if (!confirm("Cancel registration and return to pending state?")) return;
     
-    if(!confirm("Cancel registration and return to pending state?")) return;
-    
-    btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i>';
-    btn.disabled = true;
-    
-    await updateStatus(compId, 'pending');
-    showToast("Registration cancelled.");
+    changeCompetitionState(compId, 'pending', btn, 'Cancelling');
 }
 
-// --- NEW: Go back to Registration from Ongoing ---
+// --- Go back to Registration from Ongoing ---
 async function backToRegistration(compId, btn) {
-    if(!confirm("Re-open the scanning phase?")) return;
-    
-    btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i>';
-    btn.disabled = true;
-    await updateStatus(compId, 'registration');
-    showToast("Scanner re-opened!");
+    if(!confirm("⚠️ Re-open the scanner? This will ERASE any submitted marks!")) return;
+    changeCompetitionState(compId, 'registration', btn, 'Reverting');
 }
 
 // --- Cancel Registration (Only if empty) ---
