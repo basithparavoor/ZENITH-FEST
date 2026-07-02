@@ -27,10 +27,16 @@ function showToast(message, type = 'success') {
 // 1. Initialize App
 async function initializeApp() {
     user = JSON.parse(localStorage.getItem('festUser'));
-    if (!user || user.role !== 'stage_controller') {
+    if (!user || (user.role !== 'stage_controller' && user.role !== 'master_admin')) {
         window.location.href = 'index.html';
         return;
     }
+    
+    if (user.role === 'master_admin') {
+        const navActions = document.querySelector('.nav-actions');
+        navActions.insertAdjacentHTML('afterbegin', `<button class="btn btn-primary" onclick="window.location.href='admin.html'"><i class="ph ph-shield-check"></i> Admin Hub</button>`);
+    }
+    
     loadDashboard();
 }
 
@@ -39,11 +45,14 @@ async function loadDashboard() {
     const container = document.getElementById('competitions-container');
     container.innerHTML = `<div style="text-align:center; padding: 3rem;"><i class="ph ph-spinner-gap" style="font-size: 2rem; animation: spin 1s linear infinite; color: var(--text-muted);"></i><p style="margin-top: 1rem; color: var(--text-muted);">Loading Stage Data...</p></div>`;
 
+    if (user.role === 'master_admin') {
+        document.getElementById('stage-name').innerText = "Master Override (All Stages)";
+        loadCompetitions('ALL');
+        return;
+    }
+
     const { data: stage, error: stageError } = await supabaseClient
-        .from('stages')
-        .select('*')
-        .eq('controller_id', user.id)
-        .single();
+        .from('stages').select('*').eq('controller_id', user.id).single();
 
     if (stageError || !stage) {
         document.getElementById('stage-name').innerText = "Unassigned / Error";
@@ -57,14 +66,10 @@ async function loadDashboard() {
 
 // 3. Load Competitions
 async function loadCompetitions(stageId) {
-    // Inside stage-controller.js -> loadCompetitions()
-    const { data: competitions, error } = await supabaseClient
-        .from('competitions')
-        // UPDATED: Now we fetch awarded marks so we know if the judge is done
-        .select('*, judgements(judge_id, awarded_mark)') 
-        .eq('stage_id', stageId)
-        .order('name');
+    let query = supabaseClient.from('competitions').select('*, judgements(judge_id, awarded_mark)').order('name');
+    if (stageId !== 'ALL') query = query.eq('stage_id', stageId);
 
+    const { data: competitions, error } = await query;
     const container = document.getElementById('competitions-container');
     container.innerHTML = '';
 

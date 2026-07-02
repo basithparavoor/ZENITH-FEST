@@ -1306,8 +1306,16 @@ async function handleBulkUpload(tableName, fileInputId) {
 
 // --- INITIALIZE DASHBOARD ---
 document.addEventListener("DOMContentLoaded", () => {
+    // Unhide Master Admin navigation if applicable
+    if (user && user.role === 'master_admin') {
+        const portalMenu = document.getElementById('master-admin-portals');
+        if (portalMenu) portalMenu.style.display = 'block';
+    }
+    
+    // Load default tab data
     loadCategories();
 });
+
 
 // --- NEW CROPPER LIFECYCLE ---
 

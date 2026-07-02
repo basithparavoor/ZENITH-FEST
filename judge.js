@@ -11,15 +11,20 @@ async function initializeApp() {
     user = JSON.parse(localStorage.getItem('festUser'));
 
     // Security Check
-    if (!user || user.role !== 'judge') {
+    if (!user || (user.role !== 'judge' && user.role !== 'master_admin')) {
         window.location.href = 'index.html';
         return; 
     }
 
     // Update UI
-    document.getElementById('judge-name').innerText = `Welcome, ${user.username || user.email}`;
+    let roleDisplay = user.role === 'master_admin' ? '(Master Override)' : '';
+    document.getElementById('judge-name').innerText = `Welcome, ${user.username || user.email} ${roleDisplay}`;
 
-    // Load the dashboard
+    if (user.role === 'master_admin') {
+        const nav = document.querySelector('.navbar > div:last-child');
+        nav.insertAdjacentHTML('afterbegin', `<button class="btn btn-primary" onclick="window.location.href='admin.html'">Admin Hub</button>`);
+    }
+
     loadDashboard(); 
 }
 
@@ -28,34 +33,43 @@ async function loadDashboard() {
     const container = document.getElementById('competitions-container');
     container.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading assignments...</p>`;
 
-    // 1. Fetch ALL records linked to this judge in the judgements table
-    const { data: allJudgeRecords, error } = await supabaseClient
-        .from('judgements')
-        .select('competition_id, awarded_mark, competitions(id, name, max_mark, status)')
-        .eq('judge_id', user.id); 
+    const compStatusMap = new Map();
 
-    if (error) {
-        console.error(error);
-        container.innerHTML = `<p style="color: #EF4444;">Failed to load competitions. Please refresh.</p>`;
-        return;
+    if (user.role === 'master_admin') {
+        // Master Admin sees ALL ongoing or registration competitions
+        const { data: allComps, error } = await supabaseClient
+            .from('competitions')
+            .select('*')
+            .in('status', ['registration', 'ongoing']);
+            
+        if (error) return container.innerHTML = `<p style="color: #EF4444;">Failed to load competitions.</p>`;
+        
+        allComps.forEach(comp => {
+            compStatusMap.set(comp.id, { comp: comp, hasGraded: false });
+        });
+    } else {
+        // Standard Judge logic
+        const { data: allJudgeRecords, error } = await supabaseClient
+            .from('judgements')
+            .select('competition_id, awarded_mark, competitions(id, name, max_mark, status)')
+            .eq('judge_id', user.id); 
+
+        if (error) return container.innerHTML = `<p style="color: #EF4444;">Failed to load competitions.</p>`;
+        
+        allJudgeRecords.forEach(row => {
+            if (!row.competitions) return; 
+            const cId = row.competition_id;
+            
+            if (!compStatusMap.has(cId)) {
+                compStatusMap.set(cId, { comp: row.competitions, hasGraded: false });
+            }
+            if (row.awarded_mark !== null) {
+                compStatusMap.get(cId).hasGraded = true;
+            }
+        });
     }
 
-    // 2. Figure out which competitions are assigned, and which are already graded
-    const compStatusMap = new Map();
-    
-    allJudgeRecords.forEach(row => {
-        if (!row.competitions) return; 
-        const cId = row.competition_id;
-        
-        if (!compStatusMap.has(cId)) {
-            compStatusMap.set(cId, { comp: row.competitions, hasGraded: false });
-        }
-        
-        // If any record for this competition has a mark, the judge has completed their evaluation
-        if (row.awarded_mark !== null) {
-            compStatusMap.get(cId).hasGraded = true;
-        }
-    });
+    // ... rest of the existing loadDashboard rendering logic remains identical
 
     container.innerHTML = '';
     let displayCount = 0;

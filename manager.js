@@ -5,10 +5,22 @@ window.db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Auth check
 const user = JSON.parse(localStorage.getItem('festUser'));
-if (!user || user.role !== 'fest_manager') {
+if (!user || (user.role !== 'fest_manager' && user.role !== 'master_admin')) {
     window.location.href = 'index.html';
 }
 
+// Inject Return Button for Master Admin
+if (user.role === 'master_admin') {
+    document.addEventListener("DOMContentLoaded", () => {
+        const header = document.querySelector('.header');
+        const returnBtn = document.createElement('button');
+        returnBtn.className = 'btn btn-primary';
+        returnBtn.style.marginRight = '1rem';
+        returnBtn.innerHTML = '<i class="ph ph-shield-check"></i> Admin Hub';
+        returnBtn.onclick = () => window.location.href = 'admin.html';
+        header.insertBefore(returnBtn, header.children[1]);
+    });
+}
 // --- GLOBAL STATE (For fast searching & filtering) ---
 let availableJudges = [];
 let allCompetitions = [];
