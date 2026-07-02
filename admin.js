@@ -1941,7 +1941,7 @@ function buildCardElement(participant) {
         batch:    { top: '27mm', left: '14mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
         category: { top: '31.5mm', left: '14mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
         id:       { top: '17.5mm', left: '14mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        qr:       { top: '40mm', left: '79mm', width: '14.143mm', height: '14.143mm' } 
+        qr:       { top: '38mm', left: '75.2mm', width: '16mm', height: '16mm' } 
     };
 
     card.innerHTML = `
