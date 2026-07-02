@@ -1126,139 +1126,6 @@ async function deleteParticipant(id) {
     }
 }
 
-// --- PREMIUM ID CARD GENERATOR (LANDSCAPE - 100x63.08) ---
-function buildCardElement(participant) {
-    const card = document.createElement('div');
-    
-    card.style.width = '100mm';
-    card.style.height = '63.08mm';
-    card.style.position = 'relative';
-    card.style.overflow = 'hidden';
-    card.style.backgroundColor = '#ffffff';
-    card.style.fontFamily = "'Poppins', sans-serif"; 
-    
-    const teamName = participant.teams ? participant.teams.name.toUpperCase() : 'INDEPENDENT';
-    const catName = participant.categories ? participant.categories.name.toUpperCase() : 'GENERAL';
-    const photoSrc = participant.photo_url ? participant.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=PHOTO';
-    
-    // UPDATED: Now points to your live domain
-    const actionUrl = `https://zenith-fest.clubad.space/scan?id=${participant.unique_id}`;
-
-    const layout = {
-        photo:    { top: '13mm', left: '78mm', width: '17.5mm', height: '24.478mm' },
-        name:     { top: '16mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '600', align: 'left' },
-        team:     { top: '22mm', left: '32mm', width: '50mm', fontSize: '10pt', fontWeight: '600', align: 'left' },
-        batch:    { top: '28mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        category: { top: '34mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        id:       { top: '40mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        qr:       { top: '40mm', left: '79mm', width: '14.143mm', height: '14.143mm' } 
-    };
-
-    card.innerHTML = `
-        <style>
-            #qr-${participant.id} canvas, #qr-${participant.id} img {
-                width: 100% !important; height: 100% !important; object-fit: contain; display: block !important;
-            }
-        </style>
-        
-        <img src="card.png" crossorigin="anonymous" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; object-fit: cover;">
-        <img src="${photoSrc}" crossorigin="anonymous" style="position: absolute; top: ${layout.photo.top}; left: ${layout.photo.left}; width: ${layout.photo.width}; height: ${layout.photo.height}; z-index: 2; object-fit: cover; border-radius: 4px; border: 1px solid #fff;">
-        
-        <div style="position: absolute; top: ${layout.name.top}; left: ${layout.name.left}; width: ${layout.name.width}; text-align: ${layout.name.align}; z-index: 2; font-size: ${layout.name.fontSize}; font-weight: ${layout.name.fontWeight}; color: #000; text-transform: uppercase;">${participant.name}</div>
-        <div style="position: absolute; top: ${layout.team.top}; left: ${layout.team.left}; width: ${layout.team.width}; text-align: ${layout.team.align}; z-index: 2; font-size: ${layout.team.fontSize}; font-weight: ${layout.team.fontWeight}; color: #000; text-transform: uppercase;">TEAM ${teamName}</div>
-        <div style="position: absolute; top: ${layout.batch.top}; left: ${layout.batch.left}; width: ${layout.batch.width}; text-align: ${layout.batch.align}; z-index: 2; font-size: ${layout.batch.fontSize}; font-weight: ${layout.batch.fontWeight}; color: #000;">BATCH NO ${participant.batch_no || '1'}</div>
-        <div style="position: absolute; top: ${layout.category.top}; left: ${layout.category.left}; width: ${layout.category.width}; text-align: ${layout.category.align}; z-index: 2; font-size: ${layout.category.fontSize}; font-weight: ${layout.category.fontWeight}; color: #000; text-transform: uppercase;">${catName} CATEGORY</div>
-        <div style="position: absolute; top: ${layout.id.top}; left: ${layout.id.left}; width: ${layout.id.width}; text-align: ${layout.id.align}; z-index: 2; font-size: ${layout.id.fontSize}; font-weight: ${layout.id.fontWeight}; color: #000;">${participant.unique_id}</div>
-        
-        <div id="qr-${participant.id}" style="position: absolute; top: ${layout.qr.top}; left: ${layout.qr.left}; width: ${layout.qr.width}; height: ${layout.qr.height}; z-index: 2; background: white; padding: 1mm; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 4px;"></div>
-    `;
-
-    setTimeout(() => {
-        new QRCode(document.getElementById(`qr-${participant.id}`), { 
-            text: actionUrl, width: 256, height: 256,
-            colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H 
-        });
-    }, 10);
-
-    return card;
-}
-// --- 1. SINGLE CARD GENERATOR ---
-async function generateSingleCard(participantId) {
-    showToast('Generating PDF...', 'success');
-    try {
-        const { data: p, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').eq('id', participantId).single();
-        if (error || !p) return showToast("Could not fetch participant data.", 'error');
-        
-        let container = document.getElementById('print-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'print-container';
-            container.style.position = 'absolute';
-            container.style.left = '-9999px';
-            document.body.appendChild(container);
-        }
-        container.innerHTML = ''; 
-        
-        const cardElement = buildCardElement(p);
-        container.appendChild(cardElement);
-        
-        setTimeout(async () => {
-            if (typeof waitForImagesToLoad === "function") await waitForImagesToLoad(container);
-            
-            const opt = { 
-                margin: 0, filename: `${p.name}_ID_Card.pdf`, image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                jsPDF: { unit: 'mm', format: [100, 63.08], orientation: 'landscape' } 
-            };
-            html2pdf().set(opt).from(cardElement).save().then(() => showToast('PDF Downloaded!'));
-        }, 150);
-        
-    } catch (e) { showToast(e.message, 'error'); }
-}
-
-// --- 3. GENERATE ALL BULK CARDS ---
-async function generateBulkCards() {
-    const btn = event.currentTarget;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...'; 
-    btn.disabled = true;
-
-    try {
-        const { data: participants, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').order('name');
-        if (error) throw error;
-        if (!participants || !participants.length) { showToast("No participants found.", 'error'); btn.innerHTML = originalText; btn.disabled = false; return; }
-
-        let container = document.getElementById('print-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'print-container'; container.style.position = 'absolute'; container.style.left = '-9999px';
-            document.body.appendChild(container);
-        }
-        container.innerHTML = '';
-
-        participants.forEach(p => {
-            const cardElement = buildCardElement(p);
-            container.appendChild(cardElement);
-        });
-
-        setTimeout(async () => {
-            if (typeof waitForImagesToLoad === "function") await waitForImagesToLoad(container);
-            
-            const opt = { 
-                margin: 0, filename: `Fest_2026_All_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                jsPDF: { unit: 'mm', format: [100, 63.08], orientation: 'landscape' } 
-            };
-            
-            html2pdf().set(opt).from(container).save().then(() => { 
-                showToast('Bulk PDF Generated Successfully!');
-                container.innerHTML = ''; 
-                btn.innerHTML = originalText; btn.disabled = false;
-            });
-        }, 150); 
-
-    } catch(e) { showToast(e.message, 'error'); btn.innerHTML = originalText; btn.disabled = false; }
-}
 // --- USER MANAGEMENT ---
 async function loadUsers() {
     try {
@@ -1675,51 +1542,6 @@ async function bulkDelete(tableName, tbodyId) {
     }
 }
 
-// --- 2. BULK PRINT SELECTED ---
-async function bulkPrintSelected() {
-    const ids = getSelectedIds('participants-tbody');
-    if (ids.length === 0) return showToast('No participants selected', 'error');
-
-    const btn = event.currentTarget;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...'; 
-    btn.disabled = true;
-
-    try {
-        const { data: participants, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').in('id', ids).order('name');
-        if (error) throw error;
-        
-        let container = document.getElementById('print-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'print-container'; container.style.position = 'absolute'; container.style.left = '-9999px';
-            document.body.appendChild(container);
-        }
-        container.innerHTML = ''; 
-
-        participants.forEach(p => {
-            const cardElement = buildCardElement(p);
-            container.appendChild(cardElement);
-        });
-
-        setTimeout(async () => {
-            if (typeof waitForImagesToLoad === "function") await waitForImagesToLoad(container);
-            
-            const opt = { 
-                margin: 0, filename: `Selected_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                jsPDF: { unit: 'mm', format: [100, 63.08], orientation: 'landscape' } 
-            };
-            html2pdf().set(opt).from(container).save().then(() => { 
-                showToast('Selected PDFs Generated Successfully!');
-                container.innerHTML = ''; 
-                btn.innerHTML = originalText; btn.disabled = false; 
-            });
-        }, 150);
-        
-    } catch (e) { showToast(e.message, 'error'); btn.innerHTML = originalText; btn.disabled = false; }
-}
-
 async function openBulkAssignModal() {
     const ids = getSelectedIds('participants-tbody');
     if(ids.length === 0) return showToast('Select participants to assign first.', 'error');
@@ -2075,16 +1897,198 @@ async function exportAssignmentsPDF() {
         html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
     } catch (e) { showToast(e.message, 'error'); }
 }
+// ============================================================================
+// PDF ID CARD GENERATION ENGINE
+// ============================================================================
+
 // --- SMART IMAGE LOADER ---
-// Ensures all images are 100% downloaded before taking the PDF snapshot
+// Forces the PDF generator to wait until all photos and backgrounds are 100% loaded
 async function waitForImagesToLoad(container) {
     const images = container.querySelectorAll('img');
     const promises = Array.from(images).map(img => {
         if (img.complete) return Promise.resolve();
         return new Promise(resolve => {
             img.onload = resolve;
-            img.onerror = resolve; // Proceed even if an image fails to prevent freezing
+            img.onerror = resolve; // Continue even if an image fails so it doesn't freeze
         });
     });
     return Promise.all(promises);
+}
+
+// --- PREMIUM ID CARD GENERATOR (LANDSCAPE - 100x63.08) ---
+function buildCardElement(participant) {
+    const card = document.createElement('div');
+    
+    card.style.width = '100mm';
+    card.style.height = '63.08mm';
+    card.style.position = 'relative';
+    card.style.overflow = 'hidden';
+    card.style.backgroundColor = '#ffffff';
+    card.style.fontFamily = "'Poppins', sans-serif"; 
+    
+    const teamName = participant.teams ? participant.teams.name.toUpperCase() : 'INDEPENDENT';
+    const catName = participant.categories ? participant.categories.name.toUpperCase() : 'GENERAL';
+    const photoSrc = participant.photo_url ? participant.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=PHOTO';
+    
+    // The functional URL for your scanning system
+    const actionUrl = `https://zenith-fest.clubad.space/scan?id=${participant.unique_id}`;
+
+    const layout = {
+        photo:    { top: '13mm', left: '78mm', width: '17.5mm', height: '24.478mm' },
+        name:     { top: '16mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '600', align: 'left' },
+        team:     { top: '22mm', left: '32mm', width: '50mm', fontSize: '10pt', fontWeight: '600', align: 'left' },
+        batch:    { top: '28mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
+        category: { top: '34mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
+        id:       { top: '40mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
+        qr:       { top: '40mm', left: '79mm', width: '14.143mm', height: '14.143mm' } 
+    };
+
+    card.innerHTML = `
+        <style>
+            #qr-${participant.id} canvas, #qr-${participant.id} img {
+                width: 100% !important; height: 100% !important; object-fit: contain; display: block !important;
+            }
+        </style>
+        
+        <img src="card.png" crossorigin="anonymous" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; object-fit: cover;">
+        <img src="${photoSrc}" crossorigin="anonymous" style="position: absolute; top: ${layout.photo.top}; left: ${layout.photo.left}; width: ${layout.photo.width}; height: ${layout.photo.height}; z-index: 2; object-fit: cover; border-radius: 4px; border: 1px solid #fff;">
+        
+        <div style="position: absolute; top: ${layout.name.top}; left: ${layout.name.left}; width: ${layout.name.width}; text-align: ${layout.name.align}; z-index: 2; font-size: ${layout.name.fontSize}; font-weight: ${layout.name.fontWeight}; color: #000; text-transform: uppercase;">${participant.name}</div>
+        <div style="position: absolute; top: ${layout.team.top}; left: ${layout.team.left}; width: ${layout.team.width}; text-align: ${layout.team.align}; z-index: 2; font-size: ${layout.team.fontSize}; font-weight: ${layout.team.fontWeight}; color: #000; text-transform: uppercase;">TEAM ${teamName}</div>
+        <div style="position: absolute; top: ${layout.batch.top}; left: ${layout.batch.left}; width: ${layout.batch.width}; text-align: ${layout.batch.align}; z-index: 2; font-size: ${layout.batch.fontSize}; font-weight: ${layout.batch.fontWeight}; color: #000;">BATCH NO ${participant.batch_no || '1'}</div>
+        <div style="position: absolute; top: ${layout.category.top}; left: ${layout.category.left}; width: ${layout.category.width}; text-align: ${layout.category.align}; z-index: 2; font-size: ${layout.category.fontSize}; font-weight: ${layout.category.fontWeight}; color: #000; text-transform: uppercase;">${catName} CATEGORY</div>
+        <div style="position: absolute; top: ${layout.id.top}; left: ${layout.id.left}; width: ${layout.id.width}; text-align: ${layout.id.align}; z-index: 2; font-size: ${layout.id.fontSize}; font-weight: ${layout.id.fontWeight}; color: #000;">${participant.unique_id}</div>
+        
+        <div id="qr-${participant.id}" style="position: absolute; top: ${layout.qr.top}; left: ${layout.qr.left}; width: ${layout.qr.width}; height: ${layout.qr.height}; z-index: 2; background: white; padding: 1mm; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 4px;"></div>
+    `;
+
+    setTimeout(() => {
+        new QRCode(document.getElementById(`qr-${participant.id}`), { 
+            text: actionUrl, width: 256, height: 256,
+            colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H 
+        });
+    }, 10);
+
+    return card;
+}
+
+// --- SECURE CONTAINER SETUP ---
+// This ensures the container is technically visible to the browser engine to load images, but invisible to the user.
+function getSafePrintContainer() {
+    let container = document.getElementById('print-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'print-container';
+        document.body.appendChild(container);
+    }
+    container.style.position = 'fixed';
+    container.style.top = '0';
+    container.style.left = '0';
+    container.style.opacity = '0.01'; // Prevents the browser from discarding it for PDF generation
+    container.style.zIndex = '-9999';
+    container.style.pointerEvents = 'none';
+    container.innerHTML = ''; 
+    return container;
+}
+
+// --- 1. SINGLE CARD GENERATOR ---
+async function generateSingleCard(participantId) {
+    showToast('Generating PDF...', 'success');
+    try {
+        const { data: p, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').eq('id', participantId).single();
+        if (error || !p) return showToast("Could not fetch participant data.", 'error');
+        
+        const container = getSafePrintContainer();
+        const cardElement = buildCardElement(p);
+        container.appendChild(cardElement);
+        
+        setTimeout(async () => {
+            await waitForImagesToLoad(container);
+            
+            const opt = { 
+                margin: 0, filename: `${p.name}_ID_Card.pdf`, image: { type: 'jpeg', quality: 1 }, 
+                html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
+                jsPDF: { unit: 'mm', format: [100, 63.08], orientation: 'landscape' } 
+            };
+            html2pdf().set(opt).from(cardElement).save().then(() => showToast('PDF Downloaded!'));
+        }, 150);
+        
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
+// --- 2. BULK PRINT SELECTED ---
+async function bulkPrintSelected() {
+    const ids = getSelectedIds('participants-tbody');
+    if (ids.length === 0) return showToast('No participants selected', 'error');
+
+    const btn = event.currentTarget;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...'; 
+    btn.disabled = true;
+
+    try {
+        const { data: participants, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').in('id', ids).order('name');
+        if (error) throw error;
+        
+        const container = getSafePrintContainer();
+
+        participants.forEach(p => {
+            const cardElement = buildCardElement(p);
+            container.appendChild(cardElement);
+        });
+
+        setTimeout(async () => {
+            await waitForImagesToLoad(container);
+            
+            const opt = { 
+                margin: 0, filename: `Selected_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, 
+                html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
+                jsPDF: { unit: 'mm', format: [100, 63.08], orientation: 'landscape' } 
+            };
+            html2pdf().set(opt).from(container).save().then(() => { 
+                showToast('Selected PDFs Generated Successfully!');
+                container.innerHTML = ''; 
+                btn.innerHTML = originalText; btn.disabled = false; 
+            });
+        }, 200);
+        
+    } catch (e) { showToast(e.message, 'error'); btn.innerHTML = originalText; btn.disabled = false; }
+}
+
+// --- 3. GENERATE ALL BULK CARDS ---
+async function generateBulkCards() {
+    const btn = event.currentTarget;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...'; 
+    btn.disabled = true;
+
+    try {
+        const { data: participants, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').order('name');
+        if (error) throw error;
+        if (!participants || !participants.length) { showToast("No participants found.", 'error'); btn.innerHTML = originalText; btn.disabled = false; return; }
+
+        const container = getSafePrintContainer();
+
+        participants.forEach(p => {
+            const cardElement = buildCardElement(p);
+            container.appendChild(cardElement);
+        });
+
+        setTimeout(async () => {
+            await waitForImagesToLoad(container);
+            
+            const opt = { 
+                margin: 0, filename: `Fest_2026_All_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, 
+                html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
+                jsPDF: { unit: 'mm', format: [100, 63.08], orientation: 'landscape' } 
+            };
+            
+            html2pdf().set(opt).from(container).save().then(() => { 
+                showToast('Bulk PDF Generated Successfully!');
+                container.innerHTML = ''; 
+                btn.innerHTML = originalText; btn.disabled = false;
+            });
+        }, 500); 
+
+    } catch(e) { showToast(e.message, 'error'); btn.innerHTML = originalText; btn.disabled = false; }
 }
