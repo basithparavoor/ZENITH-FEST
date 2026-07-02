@@ -249,6 +249,22 @@ async function deleteCategory(id) {
     }
 }
 
+// --- NEW: Missing Categories Filter Function ---
+function filterCategoriesTable() {
+    const searchVal = document.querySelector('#categories .search-box input').value.toLowerCase();
+    const typeVal = document.querySelector('#categories .filter-box select').value;
+    const rows = document.querySelectorAll('#categories-tbody tr');
+
+    rows.forEach(row => {
+        const name = row.cells[1].innerText.toLowerCase();
+        const typeBadge = row.cells[2].innerText; // Extracts "General" or "Standard"
+
+        const matchSearch = name.includes(searchVal);
+        const matchType = typeVal === "" || typeBadge === typeVal;
+
+        row.style.display = (matchSearch && matchType) ? '' : 'none';
+    });
+}
 // --- COMPETITIONS MANAGEMENT (PAGINATED) ---
 let compCurrentPage = 1;
 const compRowsPerPage = 10;
@@ -273,7 +289,12 @@ async function loadCompetitions() {
             categoriesList.forEach(c => filterCat.innerHTML += `<option value="${c.name}">${c.name}</option>`);
         }
 
-        // Apply filter without resetting page to keep persistence after edits/deletes
+        // Populate new Stage Filter
+        const filterStage = document.getElementById('filterCompStage');
+        if(filterStage && filterStage.options.length === 1) {
+            stagesList.forEach(s => filterStage.innerHTML += `<option value="${s.name}">${s.name}</option>`);
+        }
+
         filterCompetitions(false); 
     } catch(e) { showToast(e.message, 'error'); }
 }
@@ -281,15 +302,20 @@ async function loadCompetitions() {
 function filterCompetitions(resetPage = true) {
     const query = document.getElementById('searchCompInput').value.toLowerCase();
     const catFilter = document.getElementById('filterCompCategory').value;
+    const stageFilter = document.getElementById('filterCompStage') ? document.getElementById('filterCompStage').value : "";
     
     filteredCompetitionsList = competitionsList.filter(comp => {
         const matchName = comp.name.toLowerCase().includes(query);
         const compCatName = comp.categories?.name || '';
         const matchCat = catFilter === "" || compCatName === catFilter;
-        return matchName && matchCat;
+        
+        const compStageName = comp.stages?.name || '';
+        const matchStage = stageFilter === "" || compStageName === stageFilter;
+        
+        return matchName && matchCat && matchStage;
     });
     
-    if (resetPage) compCurrentPage = 1; // Only reset page on direct user search/filter
+    if (resetPage) compCurrentPage = 1;
     renderCompetitionsTable();
 }
 
@@ -708,6 +734,7 @@ let partCurrentPage = 1;
 const partRowsPerPage = 10;
 let filteredParticipantsList = [];
 
+// --- UPDATED: Participants Load & Filter logic ---
 async function loadParticipants() {
     try {
         if (categoriesList.length === 0) await loadCategories();
@@ -724,20 +751,35 @@ async function loadParticipants() {
             categoriesList.forEach(c => catFilter.innerHTML += `<option value="${c.name}">${c.name}</option>`);
         }
 
-        partCurrentPage = 1; // Reset to page 1 on load
+        // Populate new Team Filter
+        const teamFilter = document.getElementById('filterPartTeam');
+        if(teamFilter && teamFilter.options.length === 1) {
+            teamsList.forEach(t => teamFilter.innerHTML += `<option value="${t.name}">${t.name}</option>`);
+        }
+
+        partCurrentPage = 1;
         renderParticipantsTable();
     } catch(e) { showToast(e.message, 'error'); }
 }
-
 function filterParticipants(resetPage = true) {
     const query = document.getElementById('searchPartInput').value.toLowerCase();
     const catFilter = document.getElementById('filterCategory').value;
     
+    const teamFilter = document.getElementById('filterPartTeam') ? document.getElementById('filterPartTeam').value : "";
+    const batchFilter = document.getElementById('filterPartBatch') ? document.getElementById('filterPartBatch').value : "";
+    
     filteredParticipantsList = participantsList.filter(p => {
         const matchName = p.name.toLowerCase().includes(query) || (p.unique_id && p.unique_id.toLowerCase().includes(query));
+        
         const partCatName = p.categories?.name || '';
         const matchCat = catFilter === "" || partCatName === catFilter;
-        return matchName && matchCat;
+        
+        const partTeamName = p.teams?.name || '';
+        const matchTeam = teamFilter === "" || partTeamName === teamFilter;
+        
+        const matchBatch = batchFilter === "" || (p.batch_no && p.batch_no.toString() === batchFilter);
+        
+        return matchName && matchCat && matchTeam && matchBatch;
     });
     
     if (resetPage) partCurrentPage = 1; 

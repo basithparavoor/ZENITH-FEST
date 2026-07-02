@@ -403,11 +403,6 @@ tr:hover td { background: var(--bg-main); }
 <div id="categories" class="content-section active">
     <div class="action-bar">
         <button class="btn btn-primary" onclick="openCategoryModal()"><i class="fa-solid fa-plus"></i> Create Category</button>
-        <div class="bulk-actions">
-            <button class="btn btn-outline" onclick="downloadTemplate('categories')"><i class="fa-solid fa-download"></i> Template</button>
-            <input type="file" id="csvUploadCategories" class="file-input" accept=".csv">
-            <button class="btn btn-outline" onclick="handleBulkUpload('categories', 'csvUploadCategories')"><i class="fa-solid fa-upload"></i> Import</button>
-        </div>
     </div>
     
     <div class="controls-bar">
@@ -450,28 +445,30 @@ tr:hover td { background: var(--bg-main); }
                     <button class="btn btn-primary" onclick="exportCompetitionsPDF()"><i class="fa-solid fa-file-pdf"></i> Premium PDF</button>
                     <button class="btn btn-outline" onclick="downloadCSV('competitions')"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
                     
-                    <div style="width: 1px; height: 24px; background: var(--border); margin: 0 0.5rem;"></div>
-                    
-                    <!-- Existing Import Controls -->
-                    <button class="btn btn-outline" onclick="downloadTemplate('competitions')"><i class="fa-solid fa-download"></i> Template</button>
-                    <input type="file" id="csvUploadCompetitions" class="file-input" accept=".csv" style="width: 190px;">
-                    <button class="btn btn-outline" onclick="handleBulkUpload('competitions', 'csvUploadCompetitions')"><i class="fa-solid fa-upload"></i> Import</button>
+            
                 </div>
             </div>
             
-            <div class="controls-bar">
-               <div class="search-box">
-    <i class="fa-solid fa-magnifying-glass"></i>
-    <input type="text" id="searchCompInput" placeholder="Search competitions..." onkeyup="filterCompetitions(true)">
+           <div class="controls-bar">
+    <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="searchCompInput" placeholder="Search competitions..." onkeyup="filterCompetitions(true)">
+    </div>
+    <div class="filter-box">
+        <select id="filterCompCategory" onchange="filterCompetitions(true)">
+            <option value="">All Categories</option>
+            <!-- Populated via JS -->
+        </select>
+    </div>
+    <!-- NEW: Stage Filter -->
+    <div class="filter-box">
+        <select id="filterCompStage" onchange="filterCompetitions(true)">
+            <option value="">All Stages</option>
+            <!-- Populated via JS -->
+        </select>
+    </div>
+    <button class="btn btn-danger" onclick="bulkDelete('competitions', 'competitions-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
 </div>
-<div class="filter-box">
-    <select id="filterCompCategory" onchange="filterCompetitions(true)">
-        <option value="">All Categories</option>
-        <!-- Populated via JS -->
-    </select>
-</div>
-                <button class="btn btn-danger" onclick="bulkDelete('competitions', 'competitions-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
-            </div>
 
             <div class="table-container">
                 <table>
@@ -502,31 +499,47 @@ tr:hover td { background: var(--bg-main); }
             <button class="btn btn-primary" onclick="exportParticipantsPDF()"><i class="fa-solid fa-file-pdf"></i> Premium PDF</button>
             <button class="btn btn-outline" onclick="exportParticipantsCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
             
-            <div style="width: 1px; height: 24px; background: var(--border); margin: 0 0.5rem;"></div>
-            
-            <!-- Existing Import Controls -->
-            <input type="file" id="csvUploadParticipants" class="file-input" accept=".csv" style="width: 190px;">
-            <button class="btn btn-outline" onclick="handleBulkUpload('participants', 'csvUploadParticipants')"><i class="fa-solid fa-upload"></i> Import</button>
+        
         </div>
     </div>
 
     <!-- NEW CONTROLS BAR -->
-    <div class="controls-bar">
-       <div class="search-box">
-    <i class="fa-solid fa-magnifying-glass"></i>
-    <input type="text" id="searchPartInput" placeholder="Search name or ID..." onkeyup="filterParticipants(true)">
-</div>
-<div class="filter-box">
-    <select id="filterCategory" onchange="filterParticipants(true)">
-        <option value="">All Categories</option>
-        <!-- Populated dynamically via JS -->
-    </select>
-</div>
-        <div style="display: flex; gap: 0.5rem; flex: 1; justify-content: flex-end;">
-            <button class="btn btn-success" onclick="bulkPrintSelected()"><i class="fa-solid fa-print"></i> Print Selected</button>
-            <button class="btn btn-danger" onclick="bulkDelete('participants', 'participants-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
-        </div>
+   <div class="controls-bar">
+    <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="searchPartInput" placeholder="Search name or ID..." onkeyup="filterParticipants(true)">
     </div>
+    <div class="filter-box">
+        <select id="filterCategory" onchange="filterParticipants(true)">
+            <option value="">All Categories</option>
+            <!-- Populated dynamically via JS -->
+        </select>
+    </div>
+    <!-- NEW: Team Filter -->
+    <div class="filter-box">
+        <select id="filterPartTeam" onchange="filterParticipants(true)">
+            <option value="">All Teams</option>
+            <!-- Populated dynamically via JS -->
+        </select>
+    </div>
+    <!-- NEW: Batch Filter -->
+    <div class="filter-box">
+        <select id="filterPartBatch" onchange="filterParticipants(true)">
+            <option value="">All Batches</option>
+            <option value="1">Batch 1</option>
+            <option value="2">Batch 2</option>
+            <option value="3">Batch 3</option>
+            <option value="4">Batch 4</option>
+            <option value="5">Batch 5</option>
+            <option value="6">Batch 6</option>
+            <option value="7">Batch 7</option>
+        </select>
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex: 1; justify-content: flex-end;">
+        <button class="btn btn-success" onclick="bulkPrintSelected()"><i class="fa-solid fa-print"></i> Print Selected</button>
+        <button class="btn btn-danger" onclick="bulkDelete('participants', 'participants-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
+    </div>
+</div>
 
     <div class="table-container">
         <table>
