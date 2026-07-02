@@ -1126,11 +1126,11 @@ async function deleteParticipant(id) {
     }
 }
 
-// --- PREMIUM ID CARD GENERATOR (LANDSCAPE) ---
+// --- PREMIUM ID CARD GENERATOR (LANDSCAPE - 100x63.08) ---
 function buildCardElement(participant) {
     const card = document.createElement('div');
     
-    // Exact Dimensions: 10cm Width x 7cm Height (Landscape)
+    // Updated Exact Dimensions: 100mm Width x 63.08mm Height
     card.style.width = '100mm';
     card.style.height = '63.08mm';
     card.style.position = 'relative';
@@ -1144,14 +1144,15 @@ function buildCardElement(participant) {
     const photoSrc = participant.photo_url ? participant.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=PHOTO';
     const actionUrl = `https://your-fest-app.com/scan?id=${participant.unique_id}`;
 
+    // Nudged 'top' coordinates up slightly to fit the new 63.08mm height constraints
     const layout = {
-        photo:    { top: '20mm', left: '10mm', width: '17.5mm', height: '24.478mm' },
-        name:     { top: '20mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '600', align: 'left' },
-        team:     { top: '26mm', left: '32mm', width: '50mm', fontSize: '10pt', fontWeight: '600', align: 'left' },
-        batch:    { top: '32mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        category: { top: '38mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        id:       { top: '44mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        qr:       { top: '40mm', left: '75mm', width: '14.143mm', height: '14.143mm' }
+        photo:    { top: '18mm', left: '10mm', width: '17.5mm', height: '24.478mm' },
+        name:     { top: '16mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '600', align: 'left' },
+        team:     { top: '22mm', left: '32mm', width: '50mm', fontSize: '10pt', fontWeight: '600', align: 'left' },
+        batch:    { top: '28mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
+        category: { top: '34mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
+        id:       { top: '40mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
+        qr:       { top: '36mm', left: '75mm', width: '14.143mm', height: '14.143mm' }
     };
 
     card.innerHTML = `
@@ -1217,10 +1218,13 @@ async function generateSingleCard(participantId) {
         setTimeout(async () => {
             await waitForImagesToLoad(container);
             
-            const opt = { 
-                margin: 0, filename: `${p.name}_ID_Card.pdf`, image: { type: 'jpeg', quality: 1 }, 
+           const opt = { 
+                margin: 0, 
+                filename: `ID_Card.pdf`, 
+                image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                jsPDF: { unit: 'mm', format: [100, 70], orientation: 'landscape' } 
+                // UPDATED PDF FORMAT ARRAY
+                jsPDF: { unit: 'mm', format: [100, 63.08], orientation: 'landscape' } 
             };
             html2pdf().set(opt).from(cardElement).save().then(() => showToast('PDF Downloaded!'));
         }, 150);
@@ -1256,10 +1260,13 @@ async function generateBulkCards() {
         setTimeout(async () => {
             await waitForImagesToLoad(container);
             
-            const opt = { 
-                margin: 0, filename: `Fest_2026_All_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, 
+           const opt = { 
+                margin: 0, 
+                filename: `ID_Card.pdf`, 
+                image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                jsPDF: { unit: 'mm', format: [100, 70], orientation: 'landscape' } 
+                // UPDATED PDF FORMAT ARRAY
+                jsPDF: { unit: 'mm', format: [100, 63.08], orientation: 'landscape' } 
             };
             
             html2pdf().set(opt).from(container).save().then(() => { 
@@ -1717,10 +1724,13 @@ async function bulkPrintSelected() {
         setTimeout(async () => {
             await waitForImagesToLoad(container);
             
-            const opt = { 
-                margin: 0, filename: `Selected_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, 
+           const opt = { 
+                margin: 0, 
+                filename: `ID_Card.pdf`, 
+                image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                jsPDF: { unit: 'mm', format: [100, 70], orientation: 'landscape' } 
+                // UPDATED PDF FORMAT ARRAY
+                jsPDF: { unit: 'mm', format: [100, 63.08], orientation: 'landscape' } 
             };
             html2pdf().set(opt).from(container).save().then(() => { 
                 showToast('Selected PDFs Generated Successfully!');
