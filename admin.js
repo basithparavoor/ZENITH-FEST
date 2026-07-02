@@ -1213,26 +1213,45 @@ function buildCardElement(participant) {
 }
 async function generateSingleCard(participantId) {
     showToast('Generating PDF...', 'success');
-    const { data: p, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').eq('id', participantId).single();
-    if (error || !p) return showToast("Could not fetch participant data.", 'error');
     
-    const container = document.getElementById('print-container');
-    container.innerHTML = '';
-    
-    const cardElement = buildCardElement(p);
-    container.appendChild(cardElement);
-    
-    // Give the DOM 500ms to fetch the background image and render the QR canvas before snapshotting
-    setTimeout(() => {
-        const opt = { 
-            margin: 0, 
-            filename: `${p.name}_ID_Card.pdf`, 
-            image: { type: 'jpeg', quality: 1 }, 
-            html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-            jsPDF: { unit: 'mm', format: [70, 100], orientation: 'portrait' } 
-        };
-        html2pdf().set(opt).from(cardElement).save().then(() => showToast('PDF Downloaded!'));
-    }, 500);
+    try {
+        const { data: p, error } = await supabaseClient
+            .from('participants')
+            .select('*, categories(name), teams(name)')
+            .eq('id', participantId)
+            .single();
+            
+        if (error || !p) return showToast("Could not fetch participant data.", 'error');
+        
+        // Bulletproof Container Check
+        let container = document.getElementById('print-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'print-container';
+            container.style.position = 'absolute';
+            container.style.left = '-9999px';
+            document.body.appendChild(container);
+        }
+        container.innerHTML = ''; // Safely clear it now
+        
+        const cardElement = buildCardElement(p);
+        container.appendChild(cardElement);
+        
+        // Give the DOM 500ms to fetch the background image and render the QR canvas before snapshotting
+        setTimeout(() => {
+            const opt = { 
+                margin: 0, 
+                filename: `${p.name}_ID_Card.pdf`, 
+                image: { type: 'jpeg', quality: 1 }, 
+                html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
+                jsPDF: { unit: 'mm', format: [70, 100], orientation: 'portrait' } 
+            };
+            html2pdf().set(opt).from(cardElement).save().then(() => showToast('PDF Downloaded!'));
+        }, 500);
+        
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
 }
 
 async function generateBulkCards() {
@@ -1706,10 +1725,9 @@ async function bulkDelete(tableName, tbodyId) {
     }
 }
 
-// 2. Bulk Print Selected ID Cards
 async function bulkPrintSelected() {
     const ids = getSelectedIds('participants-tbody');
-    if(ids.length === 0) return showToast('No participants selected', 'error');
+    if (ids.length === 0) return showToast('No participants selected', 'error');
 
     const btn = event.currentTarget;
     const originalText = btn.innerHTML;
@@ -1725,23 +1743,41 @@ async function bulkPrintSelected() {
             
         if (error) throw error;
         
-        const container = document.getElementById('print-container');
-        container.innerHTML = '';
+        // Bulletproof Container Check
+        let container = document.getElementById('print-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'print-container';
+            container.style.position = 'absolute';
+            container.style.left = '-9999px';
+            document.body.appendChild(container);
+        }
+        container.innerHTML = ''; // Safely clear it now
 
         participants.forEach(p => {
             const cardElement = buildCardElement(p);
             container.appendChild(cardElement);
-            new QRCode(document.getElementById(`qr-${p.id}`), { text: p.unique_id, width: 65, height: 65, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
         });
 
-        const opt = { margin: 0, filename: `Selected_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 4, useCORS: true }, jsPDF: { unit: 'mm', format: 'a7', orientation: 'portrait' } };
-        html2pdf().set(opt).from(container).save().then(() => { 
-            showToast('Selected PDFs Generated Successfully!');
-            container.innerHTML = ''; 
-        });
-    } catch(e) { 
+        // Wait 800ms for bulk images/QRs to load
+        setTimeout(() => {
+            const opt = { 
+                margin: 0, 
+                filename: `Selected_ID_Cards.pdf`, 
+                image: { type: 'jpeg', quality: 1 }, 
+                html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
+                jsPDF: { unit: 'mm', format: [70, 100], orientation: 'portrait' } 
+            };
+            html2pdf().set(opt).from(container).save().then(() => { 
+                showToast('Selected PDFs Generated Successfully!');
+                container.innerHTML = ''; 
+                btn.innerHTML = originalText; 
+                btn.disabled = false; 
+            });
+        }, 800);
+        
+    } catch (e) { 
         showToast(e.message, 'error'); 
-    } finally { 
         btn.innerHTML = originalText; 
         btn.disabled = false; 
     }
