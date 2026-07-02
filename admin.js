@@ -1916,6 +1916,7 @@ async function waitForImagesToLoad(container) {
 }
 
 // --- PREMIUM ID CARD GENERATOR (LANDSCAPE - 100x63.08) ---
+// --- PREMIUM ID CARD GENERATOR (LANDSCAPE - 100x63.08) ---
 function buildCardElement(participant) {
     const card = document.createElement('div');
     
@@ -1945,8 +1946,13 @@ function buildCardElement(participant) {
 
     card.innerHTML = `
         <style>
-            #qr-${participant.id} canvas, #qr-${participant.id} img {
-                width: 100% !important; height: 100% !important; object-fit: contain; display: block !important;
+            /* FIX: Hide the raw canvas, only show the final processed image */
+            #qr-${participant.id} canvas { 
+                display: none !important; 
+            }
+            #qr-${participant.id} img {
+                width: 100% !important; height: 100% !important; 
+                object-fit: contain; display: block !important;
             }
         </style>
         
