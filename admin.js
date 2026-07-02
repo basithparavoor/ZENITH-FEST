@@ -1934,9 +1934,9 @@ function buildCardElement(participant) {
     const actionUrl = `https://zenith-fest.clubad.space/scan?id=${participant.unique_id}`;
 
     const layout = {
-        photo:    { top: '12.5mm', left: '75mm', width: '17.5mm', height: '24.478mm' },
+        photo:    { top: '12.9mm', left: '75mm', width: '17.5mm', height: '24.478mm' },
         name:     { top: '22.5mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '600', align: 'left' },
-        team:     { top: '5mm', left: '55mm', width: '50mm', fontSize: '10pt', fontWeight: '600', align: 'left' },
+        team:     { top: '5mm', left: '52mm', width: '50mm', fontSize: '10pt', fontWeight: '600', align: 'left' },
         batch:    { top: '27mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
         category: { top: '31.5mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
         id:       { top: '17.5mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
