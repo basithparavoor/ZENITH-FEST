@@ -1126,38 +1126,89 @@ async function deleteParticipant(id) {
     }
 }
 
-// PDF GENERATION LOGIC
+// --- PREMIUM ID CARD GENERATOR ---
+
 function buildCardElement(participant) {
     const card = document.createElement('div');
-    card.className = 'id-card';
     
-    // Define premium hex colors for your specific teams
-    const teamColors = {
-        'GRYFFINDOR': '#991B1B', // Deep Red
-        'SLYTHERIN': '#166534',  // Deep Green
-        'RAVENCLAW': '#1E3A8A',  // Deep Blue
-        'HUFFLEPUFF': '#CA8A04'  // Gold/Yellow
-    };
+    // Exact Dimensions: 7cm x 10cm
+    card.style.width = '70mm';
+    card.style.height = '100mm';
+    card.style.position = 'relative';
+    card.style.overflow = 'hidden';
+    card.style.backgroundColor = '#ffffff';
+    card.style.pageBreakAfter = 'always';
+    card.style.fontFamily = "'Poppins', sans-serif"; 
     
     const teamName = participant.teams ? participant.teams.name.toUpperCase() : 'INDEPENDENT';
-    // Fallback to a premium dark gray if the team isn't in the list above
-    const teamColor = teamColors[teamName] || '#374151'; 
+    const catName = participant.categories ? participant.categories.name.toUpperCase() : 'GENERAL';
     const photoSrc = participant.photo_url ? participant.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=PHOTO';
     
+    // Functional Action URL for the QR Code
+    // When scanned, this URL should point to your frontend scanner page.
+    // The scanner page will read the ID, check the user's role (Controller vs Public), and execute the correct logic.
+    const actionUrl = `https://your-fest-app.com/scan?id=${participant.unique_id}`;
+
+    // --- ALIGNMENT CONFIGURATION ---
+    // Adjust these 'top' and 'left' values (in millimeters) to perfectly align elements over your background image.
+    const layout = {
+        photo:    { top: '15mm', left: '26.25mm', width: '17.5mm', height: '24.478mm' },
+        name:     { top: '45mm', left: '0', width: '100%', fontSize: '9pt', fontWeight: '600' },
+        team:     { top: '51mm', left: '0', width: '100%', fontSize: '10pt', fontWeight: '600' },
+        batch:    { top: '58mm', left: '0', width: '100%', fontSize: '9pt', fontWeight: '400' },
+        category: { top: '63mm', left: '0', width: '100%', fontSize: '9pt', fontWeight: '400' },
+        id:       { top: '68mm', left: '0', width: '100%', fontSize: '9pt', fontWeight: '400' },
+        qr:       { top: '75mm', left: '27.92mm', width: '14.143mm', height: '14.143mm' }
+    };
+
     card.innerHTML = `
-        <div class="id-header" style="background: ${teamColor};">
-            <h2>FEST 2026</h2>
-            <p style="font-size: 8px; opacity: 0.8; letter-spacing: 1px;">OFFICIAL PASS</p>
+        <img src="card.png" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; object-fit: cover;">
+        
+        <img src="${photoSrc}" style="position: absolute; top: ${layout.photo.top}; left: ${layout.photo.left}; width: ${layout.photo.width}; height: ${layout.photo.height}; z-index: 2; object-fit: cover; border-radius: 4px; border: 1px solid #fff;">
+        
+        <div style="position: absolute; top: ${layout.name.top}; left: ${layout.name.left}; width: ${layout.name.width}; text-align: center; z-index: 2; font-size: ${layout.name.fontSize}; font-weight: ${layout.name.fontWeight}; color: #000; text-transform: uppercase;">
+            ${participant.name}
         </div>
-        <img src="${photoSrc}" class="id-photo" style="border-color: ${teamColor}; border-width: 4px;" alt="Participant">
-        <div class="id-details">
-            <div class="id-name" style="text-transform: uppercase; font-size: 18px; margin-bottom: 4px;">${participant.name}</div>
-            <div class="id-team" style="color: white; background: ${teamColor}; padding: 3px 8px; border-radius: 12px; display: inline-block; font-size: 10px; margin-bottom: 8px;">${teamName}</div>
-            <div class="id-cat" style="font-weight: 600; color: #475569;">${participant.categories?.name || 'GENERAL'}</div>
-            <div class="id-uid" style="font-size: 11px; margin-top: 8px; font-weight: bold;">${participant.unique_id}</div>
+        
+        <div style="position: absolute; top: ${layout.team.top}; left: ${layout.team.left}; width: ${layout.team.width}; text-align: center; z-index: 2; font-size: ${layout.team.fontSize}; font-weight: ${layout.team.fontWeight}; color: #000; text-transform: uppercase;">
+            TEAM ${teamName}
         </div>
-        <div class="id-qr" id="qr-${participant.id}"></div>
+        
+        <div style="position: absolute; top: ${layout.batch.top}; left: ${layout.batch.left}; width: ${layout.batch.width}; text-align: center; z-index: 2; font-size: ${layout.batch.fontSize}; font-weight: ${layout.batch.fontWeight}; color: #000;">
+            BATCH NO ${participant.batch_no || '1'}
+        </div>
+        
+        <div style="position: absolute; top: ${layout.category.top}; left: ${layout.category.left}; width: ${layout.category.width}; text-align: center; z-index: 2; font-size: ${layout.category.fontSize}; font-weight: ${layout.category.fontWeight}; color: #000; text-transform: uppercase;">
+            ${catName} CATEGORY
+        </div>
+        
+        <div style="position: absolute; top: ${layout.id.top}; left: ${layout.id.left}; width: ${layout.id.width}; text-align: center; z-index: 2; font-size: ${layout.id.fontSize}; font-weight: ${layout.id.fontWeight}; color: #000;">
+            ${participant.unique_id}
+        </div>
+        
+        <div id="qr-${participant.id}" style="position: absolute; top: ${layout.qr.top}; left: ${layout.qr.left}; width: ${layout.qr.width}; height: ${layout.qr.height}; z-index: 2; background: white; padding: 1mm; box-sizing: border-box;"></div>
     `;
+
+    // Wait for the DOM element to be ready, then render a massive QR code and scale it down via CSS.
+    // This entirely eliminates blur/clarity issues in the final PDF export.
+    setTimeout(() => {
+        new QRCode(document.getElementById(`qr-${participant.id}`), { 
+            text: actionUrl, 
+            width: 400, // Render huge for maximum clarity
+            height: 400,
+            colorDark: "#000000", 
+            colorLight: "#ffffff", 
+            correctLevel: QRCode.CorrectLevel.H 
+        });
+        
+        // Target the generated canvas/img inside the div and shrink it to fit the 14.143mm box
+        const qrElement = document.getElementById(`qr-${participant.id}`).children[0];
+        if(qrElement) {
+            qrElement.style.width = '100%';
+            qrElement.style.height = '100%';
+        }
+    }, 10);
+
     return card;
 }
 async function generateSingleCard(participantId) {
@@ -1167,13 +1218,21 @@ async function generateSingleCard(participantId) {
     
     const container = document.getElementById('print-container');
     container.innerHTML = '';
+    
     const cardElement = buildCardElement(p);
     container.appendChild(cardElement);
     
-    new QRCode(document.getElementById(`qr-${p.id}`), { text: p.unique_id, width: 65, height: 65, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
-    
-    const opt = { margin: 0, filename: `${p.name}_ID_Card.pdf`, image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 4, useCORS: true }, jsPDF: { unit: 'mm', format: 'a7', orientation: 'portrait' } };
-    html2pdf().set(opt).from(cardElement).save().then(() => showToast('PDF Downloaded!'));
+    // Give the DOM 500ms to fetch the background image and render the QR canvas before snapshotting
+    setTimeout(() => {
+        const opt = { 
+            margin: 0, 
+            filename: `${p.name}_ID_Card.pdf`, 
+            image: { type: 'jpeg', quality: 1 }, 
+            html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
+            jsPDF: { unit: 'mm', format: [70, 100], orientation: 'portrait' } 
+        };
+        html2pdf().set(opt).from(cardElement).save().then(() => showToast('PDF Downloaded!'));
+    }, 500);
 }
 
 async function generateBulkCards() {
@@ -1183,35 +1242,54 @@ async function generateBulkCards() {
     btn.disabled = true;
 
     try {
-        const { data: participants, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').order('name');
+        const { data: participants, error } = await supabaseClient
+            .from('participants')
+            .select('*, categories(name), teams(name)')
+            .order('name');
+            
         if (error) throw error;
         if (!participants || !participants.length) { 
             showToast("No participants found to print.", 'error'); 
+            btn.innerHTML = originalText; 
+            btn.disabled = false;
             return; 
         }
 
         const container = document.getElementById('print-container');
         container.innerHTML = '';
 
+        // Generate card elements. (The new buildCardElement handles QR generation internally)
         participants.forEach(p => {
             const cardElement = buildCardElement(p);
             container.appendChild(cardElement);
-            new QRCode(document.getElementById(`qr-${p.id}`), { text: p.unique_id, width: 65, height: 65, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
         });
 
-        const opt = { margin: 0, filename: `Fest_2026_All_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 4, useCORS: true }, jsPDF: { unit: 'mm', format: 'a7', orientation: 'portrait' } };
-        html2pdf().set(opt).from(container).save().then(() => { 
-            showToast('Bulk PDF Generated Successfully!');
-            container.innerHTML = ''; 
-        });
+        // Use a longer timeout (1500ms) for bulk to ensure all images and QR canvas elements 
+        // across all cards have fully rendered in the DOM before snapping the PDF.
+        setTimeout(() => {
+            const opt = { 
+                margin: 0, 
+                filename: `Fest_2026_All_ID_Cards.pdf`, 
+                image: { type: 'jpeg', quality: 1 }, 
+                html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
+                jsPDF: { unit: 'mm', format: [70, 100], orientation: 'portrait' } 
+            };
+            
+            html2pdf().set(opt).from(container).save().then(() => { 
+                showToast('Bulk PDF Generated Successfully!');
+                container.innerHTML = ''; 
+                // Reset button state only AFTER the PDF has finished generating
+                btn.innerHTML = originalText; 
+                btn.disabled = false;
+            });
+        }, 1500); 
+
     } catch(e) { 
         showToast(e.message, 'error'); 
-    } finally {
         btn.innerHTML = originalText; 
         btn.disabled = false;
     }
 }
-
 // --- USER MANAGEMENT ---
 async function loadUsers() {
     try {
