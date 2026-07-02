@@ -1127,7 +1127,6 @@ async function deleteParticipant(id) {
 }
 
 // --- PREMIUM ID CARD GENERATOR (LANDSCAPE) ---
-
 function buildCardElement(participant) {
     const card = document.createElement('div');
     
@@ -1143,12 +1142,8 @@ function buildCardElement(participant) {
     const teamName = participant.teams ? participant.teams.name.toUpperCase() : 'INDEPENDENT';
     const catName = participant.categories ? participant.categories.name.toUpperCase() : 'GENERAL';
     const photoSrc = participant.photo_url ? participant.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=PHOTO';
-    
     const actionUrl = `https://your-fest-app.com/scan?id=${participant.unique_id}`;
 
-    // --- LANDSCAPE ALIGNMENT CONFIGURATION ---
-    // Top and Left values are updated for a wider card. 
-    // You can change 'align: left' to 'align: center' if your background requires it.
     const layout = {
         photo:    { top: '20mm', left: '10mm', width: '17.5mm', height: '24.478mm' },
         name:     { top: '20mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '600', align: 'left' },
@@ -1160,9 +1155,9 @@ function buildCardElement(participant) {
     };
 
     card.innerHTML = `
-        <img src="card.png" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; object-fit: cover;">
+        <img src="card.png" crossorigin="anonymous" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; object-fit: cover;">
         
-        <img src="${photoSrc}" style="position: absolute; top: ${layout.photo.top}; left: ${layout.photo.left}; width: ${layout.photo.width}; height: ${layout.photo.height}; z-index: 2; object-fit: cover; border-radius: 4px; border: 1px solid #fff;">
+        <img src="${photoSrc}" crossorigin="anonymous" style="position: absolute; top: ${layout.photo.top}; left: ${layout.photo.left}; width: ${layout.photo.width}; height: ${layout.photo.height}; z-index: 2; object-fit: cover; border-radius: 4px; border: 1px solid #fff;">
         
         <div style="position: absolute; top: ${layout.name.top}; left: ${layout.name.left}; width: ${layout.name.width}; text-align: ${layout.name.align}; z-index: 2; font-size: ${layout.name.fontSize}; font-weight: ${layout.name.fontWeight}; color: #000; text-transform: uppercase;">
             ${participant.name}
@@ -1189,36 +1184,22 @@ function buildCardElement(participant) {
 
     setTimeout(() => {
         new QRCode(document.getElementById(`qr-${participant.id}`), { 
-            text: actionUrl, 
-            width: 400, 
-            height: 400,
-            colorDark: "#000000", 
-            colorLight: "#ffffff", 
-            correctLevel: QRCode.CorrectLevel.H 
+            text: actionUrl, width: 400, height: 400,
+            colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H 
         });
-        
         const qrElement = document.getElementById(`qr-${participant.id}`).children[0];
-        if(qrElement) {
-            qrElement.style.width = '100%';
-            qrElement.style.height = '100%';
-        }
+        if(qrElement) { qrElement.style.width = '100%'; qrElement.style.height = '100%'; }
     }, 10);
 
     return card;
 }
+// --- 1. SINGLE CARD GENERATOR ---
 async function generateSingleCard(participantId) {
     showToast('Generating PDF...', 'success');
-    
     try {
-        const { data: p, error } = await supabaseClient
-            .from('participants')
-            .select('*, categories(name), teams(name)')
-            .eq('id', participantId)
-            .single();
-            
+        const { data: p, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').eq('id', participantId).single();
         if (error || !p) return showToast("Could not fetch participant data.", 'error');
         
-        // Bulletproof Container Check
         let container = document.getElementById('print-container');
         if (!container) {
             container = document.createElement('div');
@@ -1227,33 +1208,27 @@ async function generateSingleCard(participantId) {
             container.style.left = '-9999px';
             document.body.appendChild(container);
         }
-        container.innerHTML = ''; // Safely clear it now
+        container.innerHTML = ''; 
         
         const cardElement = buildCardElement(p);
         container.appendChild(cardElement);
         
-       // Inside your timeout blocks...
-        setTimeout(() => {
+        // Give the QR code 150ms to spawn in the DOM, then wait for images
+        setTimeout(async () => {
+            await waitForImagesToLoad(container);
+            
             const opt = { 
-                margin: 0, 
-                filename: `ID_Cards.pdf`, 
-                image: { type: 'jpeg', quality: 1 }, 
+                margin: 0, filename: `${p.name}_ID_Card.pdf`, image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                
-                // UPDATED FOR LANDSCAPE
                 jsPDF: { unit: 'mm', format: [100, 70], orientation: 'landscape' } 
             };
-            
-            html2pdf().set(opt).from(container).save().then(() => { 
-                // success code ...
-            });
-        }, 800); // (or 500ms / 1500ms depending on the function)
+            html2pdf().set(opt).from(cardElement).save().then(() => showToast('PDF Downloaded!'));
+        }, 150);
         
-    } catch (e) {
-        showToast(e.message, 'error');
-    }
+    } catch (e) { showToast(e.message, 'error'); }
 }
 
+// --- 3. GENERATE ALL BULK CARDS ---
 async function generateBulkCards() {
     const btn = event.currentTarget;
     const originalText = btn.innerHTML;
@@ -1261,50 +1236,40 @@ async function generateBulkCards() {
     btn.disabled = true;
 
     try {
-        const { data: participants, error } = await supabaseClient
-            .from('participants')
-            .select('*, categories(name), teams(name)')
-            .order('name');
-            
+        const { data: participants, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').order('name');
         if (error) throw error;
-        if (!participants || !participants.length) { 
-            showToast("No participants found to print.", 'error'); 
-            btn.innerHTML = originalText; 
-            btn.disabled = false;
-            return; 
-        }
+        if (!participants || !participants.length) { showToast("No participants found.", 'error'); btn.innerHTML = originalText; btn.disabled = false; return; }
 
-        const container = document.getElementById('print-container');
+        let container = document.getElementById('print-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'print-container'; container.style.position = 'absolute'; container.style.left = '-9999px';
+            document.body.appendChild(container);
+        }
         container.innerHTML = '';
 
-        // Generate card elements. (The new buildCardElement handles QR generation internally)
         participants.forEach(p => {
             const cardElement = buildCardElement(p);
             container.appendChild(cardElement);
         });
 
-       // Inside your timeout blocks...
-        setTimeout(() => {
+        setTimeout(async () => {
+            await waitForImagesToLoad(container);
+            
             const opt = { 
-                margin: 0, 
-                filename: `ID_Cards.pdf`, 
-                image: { type: 'jpeg', quality: 1 }, 
+                margin: 0, filename: `Fest_2026_All_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                
-                // UPDATED FOR LANDSCAPE
                 jsPDF: { unit: 'mm', format: [100, 70], orientation: 'landscape' } 
             };
             
             html2pdf().set(opt).from(container).save().then(() => { 
-                // success code ...
+                showToast('Bulk PDF Generated Successfully!');
+                container.innerHTML = ''; 
+                btn.innerHTML = originalText; btn.disabled = false;
             });
-        }, 800); // (or 500ms / 1500ms depending on the function)
+        }, 150); 
 
-    } catch(e) { 
-        showToast(e.message, 'error'); 
-        btn.innerHTML = originalText; 
-        btn.disabled = false;
-    }
+    } catch(e) { showToast(e.message, 'error'); btn.innerHTML = originalText; btn.disabled = false; }
 }
 // --- USER MANAGEMENT ---
 async function loadUsers() {
@@ -1722,6 +1687,7 @@ async function bulkDelete(tableName, tbodyId) {
     }
 }
 
+// --- 2. BULK PRINT SELECTED ---
 async function bulkPrintSelected() {
     const ids = getSelectedIds('participants-tbody');
     if (ids.length === 0) return showToast('No participants selected', 'error');
@@ -1732,52 +1698,38 @@ async function bulkPrintSelected() {
     btn.disabled = true;
 
     try {
-        const { data: participants, error } = await supabaseClient
-            .from('participants')
-            .select('*, categories(name), teams(name)')
-            .in('id', ids)
-            .order('name');
-            
+        const { data: participants, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').in('id', ids).order('name');
         if (error) throw error;
         
-        // Bulletproof Container Check
         let container = document.getElementById('print-container');
         if (!container) {
             container = document.createElement('div');
-            container.id = 'print-container';
-            container.style.position = 'absolute';
-            container.style.left = '-9999px';
+            container.id = 'print-container'; container.style.position = 'absolute'; container.style.left = '-9999px';
             document.body.appendChild(container);
         }
-        container.innerHTML = ''; // Safely clear it now
+        container.innerHTML = ''; 
 
         participants.forEach(p => {
             const cardElement = buildCardElement(p);
             container.appendChild(cardElement);
         });
 
-      // Inside your timeout blocks...
-        setTimeout(() => {
+        setTimeout(async () => {
+            await waitForImagesToLoad(container);
+            
             const opt = { 
-                margin: 0, 
-                filename: `ID_Cards.pdf`, 
-                image: { type: 'jpeg', quality: 1 }, 
+                margin: 0, filename: `Selected_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                
-                // UPDATED FOR LANDSCAPE
                 jsPDF: { unit: 'mm', format: [100, 70], orientation: 'landscape' } 
             };
-            
             html2pdf().set(opt).from(container).save().then(() => { 
-                // success code ...
+                showToast('Selected PDFs Generated Successfully!');
+                container.innerHTML = ''; 
+                btn.innerHTML = originalText; btn.disabled = false; 
             });
-        }, 800); // (or 500ms / 1500ms depending on the function)
+        }, 150);
         
-    } catch (e) { 
-        showToast(e.message, 'error'); 
-        btn.innerHTML = originalText; 
-        btn.disabled = false; 
-    }
+    } catch (e) { showToast(e.message, 'error'); btn.innerHTML = originalText; btn.disabled = false; }
 }
 
 async function openBulkAssignModal() {
@@ -2134,4 +2086,17 @@ async function exportAssignmentsPDF() {
         
         html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
     } catch (e) { showToast(e.message, 'error'); }
+}
+// --- SMART IMAGE LOADER ---
+// Ensures all images are 100% downloaded before taking the PDF snapshot
+async function waitForImagesToLoad(container) {
+    const images = container.querySelectorAll('img');
+    const promises = Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => {
+            img.onload = resolve;
+            img.onerror = resolve; // Proceed even if an image fails to prevent freezing
+        });
+    });
+    return Promise.all(promises);
 }
