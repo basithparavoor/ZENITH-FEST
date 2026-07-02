@@ -120,10 +120,9 @@ function openModal(title, bodyHTML, saveFunction) {
     document.getElementById('formModal').classList.add('show');
 }
 
-// Example: Upgraded Load Categories with Edit and Counts
+// --- CATEGORIES ---
 async function loadCategories() {
     try {
-        // Assuming your DB relations allow counting
         const { data, error } = await supabaseClient
             .from('categories')
             .select('*, participants(count), competitions(count)')
@@ -152,6 +151,9 @@ async function loadCategories() {
                 </tr>
             `;
         });
+        
+        // Persist filter state after reload
+        if (typeof filterCategoriesTable === 'function') filterCategoriesTable();
     } catch(e) { showToast(e.message, 'error'); }
 }
 
@@ -248,8 +250,6 @@ async function deleteCategory(id) {
 }
 
 // --- COMPETITIONS MANAGEMENT (PAGINATED) ---
-
-// Global states for pagination
 let compCurrentPage = 1;
 const compRowsPerPage = 10;
 let filteredCompetitionsList = []; 
@@ -267,20 +267,18 @@ async function loadCompetitions() {
         if(error) throw error;
         
         competitionsList = data || [];
-        filteredCompetitionsList = [...competitionsList]; // Initialize filtered list
         
         const filterCat = document.getElementById('filterCompCategory');
         if(filterCat && filterCat.options.length === 1) {
             categoriesList.forEach(c => filterCat.innerHTML += `<option value="${c.name}">${c.name}</option>`);
         }
 
-        compCurrentPage = 1; // Reset to page 1 on load
-        renderCompetitionsTable();
+        // Apply filter without resetting page to keep persistence after edits/deletes
+        filterCompetitions(false); 
     } catch(e) { showToast(e.message, 'error'); }
 }
 
-// Custom filter that supports pagination instead of native DOM hiding
-function filterCompetitions() {
+function filterCompetitions(resetPage = true) {
     const query = document.getElementById('searchCompInput').value.toLowerCase();
     const catFilter = document.getElementById('filterCompCategory').value;
     
@@ -291,7 +289,7 @@ function filterCompetitions() {
         return matchName && matchCat;
     });
     
-    compCurrentPage = 1; // Return to page 1 on search
+    if (resetPage) compCurrentPage = 1; // Only reset page on direct user search/filter
     renderCompetitionsTable();
 }
 
@@ -731,8 +729,7 @@ async function loadParticipants() {
     } catch(e) { showToast(e.message, 'error'); }
 }
 
-// Custom filter that supports pagination
-function filterParticipants() {
+function filterParticipants(resetPage = true) {
     const query = document.getElementById('searchPartInput').value.toLowerCase();
     const catFilter = document.getElementById('filterCategory').value;
     
@@ -743,7 +740,7 @@ function filterParticipants() {
         return matchName && matchCat;
     });
     
-    partCurrentPage = 1; // Return to page 1 on search
+    if (resetPage) partCurrentPage = 1; 
     renderParticipantsTable();
 }
 
@@ -751,7 +748,6 @@ function renderParticipantsTable() {
     const tbody = document.getElementById('participants-tbody');
     tbody.innerHTML = '';
     
-    // Calculate page slices
     const start = (partCurrentPage - 1) * partRowsPerPage;
     const end = start + partRowsPerPage;
     const pageData = filteredParticipantsList.slice(start, end);
@@ -762,12 +758,18 @@ function renderParticipantsTable() {
 
     pageData.forEach(p => {
         const safeData = JSON.stringify(p).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+        const photoSrc = p.photo_url ? p.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=NO+PHOTO';
         
         tbody.innerHTML += `
             <tr>
                 <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}"></td>
                 <td style="font-family: monospace; font-weight: 600; color: var(--primary);">${p.unique_id}</td>
-                <td>${p.name}</td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <img src="${photoSrc}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0;">
+                        <span>${p.name}</span>
+                    </div>
+                </td>
                 <td><span class="badge" style="background:#F1F5F9; color:#475569;">${p.teams?.name || 'UNASSIGNED'}</span></td>
                 <td>${p.categories?.name || 'N/A'}</td>
                 <td>
@@ -1129,7 +1131,6 @@ async function deleteParticipant(id) {
 // --- USER MANAGEMENT ---
 async function loadUsers() {
     try {
-        // Updated to fetch 'password_hash' from the database
         const { data, error } = await supabaseClient.from('users').select('id, username, role, password_hash').neq('role', 'master_admin').order('role');
         if(error) throw error;
         
@@ -1138,22 +1139,18 @@ async function loadUsers() {
         (data || []).forEach(u => {
             const roleDisplay = u.role.replace('_', ' ').toUpperCase();
             
-            // Safely stringify the user data to pass into the edit modal
             const safeData = JSON.stringify(u).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
 
             tbody.innerHTML += `
                 <tr>
-                    <td>${u.username}</td>
-                    <td><span class="badge badge-primary">${roleDisplay}</span></td>
+                    <td>${u.username}</td> <td><span class="badge badge-primary">${roleDisplay}</span></td>
                     <td>
-                        <!-- Password field with toggle visibility -->
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                            <input type="password" id="pwd-${u.id}" value="${u.password_hash || ''}" readonly style="border: none; background: transparent; width: 120px; font-weight: 600; color: var(--text-muted); outline: none; pointer-events: none; text-transform: none !important;">
                             <button class="btn btn-outline" style="padding:0.2rem 0.5rem; font-size:0.75rem;" onclick="togglePassword('${u.id}')" title="Reveal Password"><i class="fa-solid fa-eye" id="eye-${u.id}"></i></button>
                         </div>
                     </td>
                     <td>
-                        <!-- Added the Edit button -->
                         <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openUserModal(${safeData})' title="Edit User"><i class="fa-solid fa-pen"></i></button>
                         <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteUser('${u.id}', '${u.username}')" title="Delete User"><i class="fa-solid fa-trash"></i></button>
                     </td>
@@ -1162,7 +1159,6 @@ async function loadUsers() {
         });
     } catch(e) { showToast(e.message, 'error'); }
 }
-
 // New helper function to toggle password visibility
 function togglePassword(id) {
     const pwdInput = document.getElementById(`pwd-${id}`);
@@ -1177,7 +1173,6 @@ function togglePassword(id) {
     }
 }
 
-// Updated User Modal to handle both Creating and Editing
 function openUserModal(editData = null) {
     const isEdit = !!editData;
     const uId = isEdit ? editData.id : '';
@@ -1187,11 +1182,15 @@ function openUserModal(editData = null) {
 
     openModal(isEdit ? 'Edit Staff Account' : 'Create Staff Account', `
         <input type="hidden" id="editUserId" value="${uId}">
+        
         <div class="form-group"><label>Username</label><input type="text" id="newUsername" value="${uName}" autocomplete="off"></div>
-<div class="form-group">
-    <label>Password</label>
-    <input type="text" id="newPassword" value="${uPass}" autocomplete="off" style="text-transform: none !important;">
-</div>        <div class="form-group">
+        
+        <div class="form-group">
+            <label>Password</label>
+            <input type="text" id="newPassword" value="${uPass}" autocomplete="off" style="text-transform: none !important;">
+        </div>
+        
+        <div class="form-group">
             <label>Role</label>
             <select id="newUserRole">
                 <option value="judge" ${uRole === 'judge' ? 'selected' : ''}>Judge</option>
@@ -1210,11 +1209,9 @@ function openUserModal(editData = null) {
         
         setLoading('modalSaveBtn', true);
         
-        // Setup payload. If an ID exists, we append it so Supabase performs an UPDATE instead of an INSERT.
         const payload = { username, password_hash, role };
         if (id) payload.id = id;
         
-        // Switched from .insert() to .upsert() to handle both creation and editing
         const { error } = await supabaseClient.from('users').upsert([payload]);
         
         setLoading('modalSaveBtn', false);
@@ -1667,7 +1664,6 @@ async function loadAssignWorkspaceStudents() {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading students...</td></tr>';
 
     try {
-        // Fetch Students: If General, get everyone. If Standard, filter by category_id.
         let studentQuery = supabaseClient.from('participants').select('*, teams(name)');
         if (!isGeneral) {
             studentQuery = studentQuery.eq('category_id', categoryId);
@@ -1675,7 +1671,6 @@ async function loadAssignWorkspaceStudents() {
         const { data: students, error: studentError } = await studentQuery.order('name');
         if (studentError) throw studentError;
 
-        // Fetch Existing Assignments for this competition
         const { data: enrollments, error: enrollError } = await supabaseClient
             .from('participant_competitions')
             .select('participant_id')
@@ -1685,11 +1680,9 @@ async function loadAssignWorkspaceStudents() {
         currentEnrolledStudentIds = (enrollments || []).map(e => e.participant_id);
         currentAssignEnrolled = currentEnrolledStudentIds.length;
 
-        // Update Limit UI
         const limitDisplay = document.getElementById('assignLimitIndicator');
         limitDisplay.innerHTML = `<i class="fa-solid fa-users"></i> Enrollment: <span style="color:${currentAssignEnrolled >= currentAssignCompLimit ? 'var(--danger)' : 'var(--success)'}">${currentAssignEnrolled}</span> / ${currentAssignCompLimit} Limit`;
 
-        // Render Table
         tbody.innerHTML = '';
         (students || []).forEach(s => {
             const isAssigned = currentEnrolledStudentIds.includes(s.id);
@@ -1708,10 +1701,14 @@ async function loadAssignWorkspaceStudents() {
                 </tr>
             `;
         });
+        
+        // Re-apply any active search/filter rules
+        if (typeof filterAssignTable === 'function') filterAssignTable();
     } catch (e) {
         showToast(e.message, 'error');
     }
 }
+
 // Local Table Filter (Search, Team, Batch)
 function filterAssignTable() {
     const searchVal = document.getElementById('assignSearch').value.toLowerCase();
