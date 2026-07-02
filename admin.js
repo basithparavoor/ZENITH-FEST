@@ -1136,7 +1136,8 @@ function buildCardElement(participant) {
     card.style.position = 'relative';
     card.style.overflow = 'hidden';
     card.style.backgroundColor = '#ffffff';
-    card.style.pageBreakAfter = 'always';
+    
+    // FIX 1: Removed pageBreakAfter: 'always' to prevent the blank second page
     card.style.fontFamily = "'Poppins', sans-serif"; 
     
     const teamName = participant.teams ? participant.teams.name.toUpperCase() : 'INDEPENDENT';
@@ -1144,18 +1145,28 @@ function buildCardElement(participant) {
     const photoSrc = participant.photo_url ? participant.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=PHOTO';
     const actionUrl = `https://your-fest-app.com/scan?id=${participant.unique_id}`;
 
-    // Nudged 'top' coordinates up slightly to fit the new 63.08mm height constraints
+    // Layout config (using your coordinates)
     const layout = {
-        photo:    { top: '13mm', left: '65mm', width: '17.5mm', height: '24.478mm' },
+        photo:    { top: '13mm', left: '78mm', width: '17.5mm', height: '24.478mm' },
         name:     { top: '16mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '600', align: 'left' },
         team:     { top: '22mm', left: '32mm', width: '50mm', fontSize: '10pt', fontWeight: '600', align: 'left' },
         batch:    { top: '28mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
         category: { top: '34mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
         id:       { top: '40mm', left: '32mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        qr:       { top: '36mm', left: '75mm', width: '10mm', height: '10mm' }
+        // Slightly adjusted QR left position so it aligns directly under the photo
+        qr:       { top: '40mm', left: '79mm', width: '14.143mm', height: '14.143mm' } 
     };
 
     card.innerHTML = `
+        <style>
+            #qr-${participant.id} canvas, #qr-${participant.id} img {
+                width: 100% !important;
+                height: 100% !important;
+                object-fit: contain;
+                display: block !important;
+            }
+        </style>
+        
         <img src="card.png" crossorigin="anonymous" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; object-fit: cover;">
         
         <img src="${photoSrc}" crossorigin="anonymous" style="position: absolute; top: ${layout.photo.top}; left: ${layout.photo.left}; width: ${layout.photo.width}; height: ${layout.photo.height}; z-index: 2; object-fit: cover; border-radius: 4px; border: 1px solid #fff;">
@@ -1180,16 +1191,18 @@ function buildCardElement(participant) {
             ${participant.unique_id}
         </div>
         
-        <div id="qr-${participant.id}" style="position: absolute; top: ${layout.qr.top}; left: ${layout.qr.left}; width: ${layout.qr.width}; height: ${layout.qr.height}; z-index: 2; background: white; padding: 1mm; box-sizing: border-box;"></div>
+        <div id="qr-${participant.id}" style="position: absolute; top: ${layout.qr.top}; left: ${layout.qr.left}; width: ${layout.qr.width}; height: ${layout.qr.height}; z-index: 2; background: white; padding: 1mm; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 4px;"></div>
     `;
 
     setTimeout(() => {
         new QRCode(document.getElementById(`qr-${participant.id}`), { 
-            text: actionUrl, width: 400, height: 400,
-            colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H 
+            text: actionUrl, 
+            width: 256, // Reduced from 400 to optimize performance; 256 is perfectly sharp for this size
+            height: 256,
+            colorDark: "#000000", 
+            colorLight: "#ffffff", 
+            correctLevel: QRCode.CorrectLevel.H 
         });
-        const qrElement = document.getElementById(`qr-${participant.id}`).children[0];
-        if(qrElement) { qrElement.style.width = '100%'; qrElement.style.height = '100%'; }
     }, 10);
 
     return card;
