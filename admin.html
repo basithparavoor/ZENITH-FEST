@@ -386,7 +386,7 @@ tr:hover td { background: var(--bg-main); }
             <a href="manager.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-briefcase"></i> Manager Hub</a>
             <a href="stage-controller.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-microphone"></i> Stage Controller</a>
             <a href="judge.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-gavel"></i> Judge Portal</a>
-            <a href="announcements.html" class="nav-item" style="text-decoration: none;" target="_blank"><i class="fa-solid fa-tv"></i> Live Screen</a>
+            <div class="nav-item" onclick="switchTab('direct-valuation')"><i class="fa-solid fa-bolt"></i> Direct Valuation</div>
             <div class="nav-item" onclick="switchTab('poster-templates')"><i class="fa-solid fa-image"></i> Poster Templates</div>
         </div>
     </div>
@@ -714,7 +714,73 @@ tr:hover td { background: var(--bg-main); }
             </div>
         </div>
    
+<!-- =========================================================================
+     DIRECT VALUATION (BYPASS WORKFLOW)
+     ========================================================================= -->
+<div id="direct-valuation" class="content-section">
+    <div class="action-bar" style="margin-bottom: 1rem;">
+        <div>
+            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Direct Valuation</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Bypass the judging process. Directly enter final marks to push to the Publisher.</p>
+        </div>
+    </div>
 
+    <!-- Step 1 & 2: Selection -->
+    <div class="controls-bar" style="background: var(--primary-light); border: 1.5px solid var(--primary); padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.5rem;">
+        
+        <div class="filter-box" style="flex: 1; min-width: 200px;">
+            <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">1. FILTER BY CATEGORY</label>
+            <select id="dvCategory" onchange="loadDVCompetitions()" style="width: 100%; border-color: var(--primary);">
+                <option value="">-- ALL CATEGORIES --</option>
+            </select>
+        </div>
+
+        <div class="filter-box" style="flex: 1; min-width: 200px;">
+            <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">2. FILTER BY STAGE</label>
+            <select id="dvStage" onchange="loadDVCompetitions()" style="width: 100%; border-color: var(--primary);">
+                <option value="">-- ALL STAGES --</option>
+            </select>
+        </div>
+
+        <div class="filter-box" style="flex: 2; min-width: 250px;">
+            <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">3. SELECT COMPETITION</label>
+            <select id="dvComp" onchange="loadDVParticipants()" style="width: 100%; border-color: var(--primary);">
+                <option value="">-- SELECT COMPETITION --</option>
+            </select>
+        </div>
+        
+    </div>
+
+    <!-- Step 3: Valuation Workspace (Keep exactly as you have it) -->
+    <div id="dvWorkspace" style="display: none; animation: fadeUp 0.4s ease;">
+        <div class="table-container" style="margin-bottom: 1.5rem;">
+            <div style="padding: 1rem 1.5rem; background: #F8FAFC; border-bottom: 2px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">
+                    <i class="fa-solid fa-list-check"></i> Enrolled Participants
+                </span>
+                <span id="dvMaxMarks" style="font-weight: 800; font-size: 0.9rem; color: var(--danger);">
+                    Max Marks: 100
+                </span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="checkbox-cell" title="Toggle Attendance"><input type="checkbox" checked onchange="toggleDVSelectAll(this)"></th>
+                        <th>Participant</th>
+                        <th>Team</th>
+                        <th>Awarded Mark</th>
+                    </tr>
+                </thead>
+                <tbody id="dv-participants-tbody"></tbody>
+            </table>
+        </div>
+        <div style="display: flex; justify-content: flex-end;">
+            <button class="btn btn-success" id="btnSubmitDV" onclick="submitDirectValuation()" style="padding: 1rem 2rem; font-size: 1rem;">
+                <i class="fa-solid fa-paper-plane"></i> Submit & Push to Fest Manager
+            </button>
+        </div>
+    </div>
+</div>
 <!-- 6. ASSIGNMENTS WORKSPACE -->
 <div id="assignments" class="content-section">
     
