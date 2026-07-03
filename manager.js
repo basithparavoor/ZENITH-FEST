@@ -496,32 +496,52 @@ async function bulkRevokeJudges() {
 }
 // Normalization Logic for Previewing Points
 async function previewConvertedPoints(compId, maxMark, isGeneral) {
-    const { data: judgements } = await window.db
-        .from('judgements')
-        .select('participant_id, awarded_mark, participants(name)')
-        .eq('competition_id', compId);
+    try {
+        // FIX 1: Filter out the placeholder rows that don't have participants or marks yet
+        const { data: judgements, error } = await window.db
+            .from('judgements')
+            .select('participant_id, awarded_mark, participants(name)')
+            .eq('competition_id', compId)
+            .not('participant_id', 'is', null) // Only get actual judged rows
+            .not('awarded_mark', 'is', null);
 
-    const basePoints = isGeneral ? 20 : 10;
-    const participantMarks = {};
+        if (error) throw error;
 
-    // Average the marks if multiple judges exist
-    judgements.forEach(j => {
-        if (!participantMarks[j.participant_id]) {
-            participantMarks[j.participant_id] = { name: j.participants.name, total: 0, count: 0 };
+        if (!judgements || judgements.length === 0) {
+            return showToast("No scores available to preview yet.", "error");
         }
-        participantMarks[j.participant_id].total += parseFloat(j.awarded_mark);
-        participantMarks[j.participant_id].count += 1;
-    });
 
-    let previewHTML = `<div style="text-align: left;">`;
-    for (const [pId, data] of Object.entries(participantMarks)) {
-        const averageMark = data.total / data.count;
-        const convertedPoint = ((averageMark / maxMark) * basePoints).toFixed(2);
-        previewHTML += `<p><strong>${data.name}:</strong> ${convertedPoint} / ${basePoints} pts</p>`;
+        const basePoints = isGeneral ? 20 : 10;
+        const participantMarks = {};
+
+        // Average the marks if multiple judges exist
+        judgements.forEach(j => {
+            if (!participantMarks[j.participant_id]) {
+                // FIX 2: Safely fallback just in case participants object is ever missing
+                participantMarks[j.participant_id] = { 
+                    name: j.participants?.name || 'Unknown Participant', 
+                    total: 0, 
+                    count: 0 
+                };
+            }
+            participantMarks[j.participant_id].total += parseFloat(j.awarded_mark);
+            participantMarks[j.participant_id].count += 1;
+        });
+
+        let previewHTML = `<div style="text-align: left; margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.5); border-radius: 8px;">`;
+        for (const [pId, data] of Object.entries(participantMarks)) {
+            const averageMark = data.total / data.count;
+            const convertedPoint = ((averageMark / maxMark) * basePoints).toFixed(2);
+            previewHTML += `<div style="margin-bottom: 6px;"><strong>${data.name}:</strong> ${convertedPoint} / ${basePoints} pts</div>`;
+        }
+        previewHTML += `</div>`;
+
+        showToast(`Converted Points Preview: ${previewHTML}`, 'success');
+        
+    } catch (err) {
+        console.error("Preview Generation Error:", err);
+        showToast("An error occurred while generating the preview.", "error");
     }
-    previewHTML += `</div>`;
-
-    showToast(`Converted Points Preview: <br>${previewHTML}`, 'success');
 }
 
 // Revert Published Results back to Pending
