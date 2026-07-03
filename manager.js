@@ -140,11 +140,20 @@ function filterCompetitions() {
 
 function renderGrid(competitions) {
     const grid = document.getElementById('comps-grid');
+    const selectAllContainer = document.getElementById('select-all-container');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
     grid.innerHTML = '';
 
     if (competitions.length === 0) {
+        if (selectAllContainer) selectAllContainer.style.display = 'none'; // Hide Select All
         grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1; color: var(--text-muted);"><i class="ph ph-magnifying-glass" style="font-size:2rem; margin-bottom:1rem;"></i><p>No competitions match your filters.</p></div>`;
         return;
+    }
+
+    // Reset and show Select All when rendering new data
+    if (selectAllContainer) {
+        selectAllContainer.style.display = 'flex';
+        selectAllCheckbox.checked = false; 
     }
 
     let judgeOptions = availableJudges.map(j => `<option value="${j.id}">${j.username}</option>`).join('');
@@ -412,13 +421,20 @@ async function redoJudgement(compId, btnElement) {
 // --- BULK ACTION LOGIC ---
 
 function toggleBulkActions() {
-    const checkboxes = document.querySelectorAll('.comp-checkbox:checked');
+    const allCheckboxes = document.querySelectorAll('.comp-checkbox');
+    const checkedCheckboxes = document.querySelectorAll('.comp-checkbox:checked');
     const bulkToolbar = document.getElementById('bulk-actions');
     const countText = document.getElementById('selected-count');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
     
-    if (checkboxes.length > 0) {
+    // Sync the Select All checkbox with manual selections
+    if (selectAllCheckbox && allCheckboxes.length > 0) {
+        selectAllCheckbox.checked = (allCheckboxes.length === checkedCheckboxes.length);
+    }
+    
+    if (checkedCheckboxes.length > 0) {
         bulkToolbar.style.display = 'flex';
-        countText.innerText = `${checkboxes.length} Selected`;
+        countText.innerText = `${checkedCheckboxes.length} Selected`;
         
         // Populate bulk judge dropdown if empty
         const bulkSelect = document.getElementById('bulk-judge-select');
@@ -525,6 +541,14 @@ async function revertPublishedResult(compId, btnElement) {
         showToast("Moved back to pending queue!", "success");
         loadPublishableComps(); // Refresh the list
     }
+}
+// --- NEW: Select All Logic ---
+function toggleSelectAll(selectAllCheckbox) {
+    const checkboxes = document.querySelectorAll('.comp-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = selectAllCheckbox.checked;
+    });
+    toggleBulkActions(); // Update the toolbar UI
 }
 
 // Boot up
