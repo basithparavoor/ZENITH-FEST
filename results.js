@@ -211,7 +211,7 @@ function renderIndividualResults() {
     }
 }
 
-// --- UPDATE IN RESULTS.JS ---
+// --- REPLACE THIS FUNCTION IN RESULTS.JS ---
 
 async function downloadAdvancedPosters(type, specificData = null) {
     showToast("Fetching official template from server...");
@@ -238,12 +238,12 @@ async function downloadAdvancedPosters(type, specificData = null) {
     templateImage.crossOrigin = "Anonymous";
     
     templateImage.onload = () => {
+        // NO MORE STRETCHING: Dynamically set canvas to the exact resolution of the uploaded template
         canvas.width = templateImage.naturalWidth;
         canvas.height = templateImage.naturalHeight;
         ctx.drawImage(templateImage, 0, 0);
 
-        // 4. Map Dynamic Data based on Template Type
-        // We structure a dictionary mapping the Field Keys to the Actual Data
+        // 4. Map Dynamic Data
         const mappedData = {};
 
         if (type === 'individual') {
@@ -260,7 +260,6 @@ async function downloadAdvancedPosters(type, specificData = null) {
             mappedData['ResultsCountText'] = `AFTER ${publishedCompetitions.length} EVENTS`;
             mappedData['TotalCompetitionsCount'] = `FINAL STANDINGS`;
             
-            // Assuming sortedTeams is available globally in results.js
             const top5 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5);
             
             for(let i=0; i<5; i++) {
@@ -282,10 +281,10 @@ async function downloadAdvancedPosters(type, specificData = null) {
             ctx.fillText(textToDraw, fieldConfig.x, fieldConfig.y);
         }
 
-        // 6. Export and Download
+        // 6. Export and Download High-Res Output
         const link = document.createElement('a');
         link.download = `FestOS_${type}_Poster.jpeg`;
-        link.href = canvas.toDataURL("image/jpeg", 0.95); 
+        link.href = canvas.toDataURL("image/jpeg", 1.0); // Max Quality
         link.click();
         showToast("Poster Generated Successfully!", "success");
     };

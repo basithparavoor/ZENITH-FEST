@@ -2071,24 +2071,34 @@ async function generateParticipantIDCanvas(participant, template) {
     return canvas;
 }
 
+// Helper function to dynamically calculate PDF size to prevent stretching
+function getDynamicPdfConfig(canvas, baseWidthMm = 63.5) {
+    // Calculates perfect height based on the uploaded template's aspect ratio
+    const calculatedHeightMm = (canvas.height * baseWidthMm) / canvas.width;
+    return {
+        width: baseWidthMm,
+        height: calculatedHeightMm,
+        orientation: baseWidthMm > calculatedHeightMm ? 'landscape' : 'portrait'
+    };
+}
 // --- 1. SINGLE CARD GENERATOR ---
 async function generateSingleCard(participantId) {
     showToast('Fetching template and generating PDF...', 'success');
     try {
-        // Fetch Template
         const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', 'id_card').limit(1);
         if (!templates || templates.length === 0) return showToast("No ID Card template found! Create one in the Studio first.", "error");
         
-        // Fetch Participant
         const { data: p, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').eq('id', participantId).single();
         if (error || !p) return showToast("Could not fetch participant data.", 'error');
         
         const cardCanvas = await generateParticipantIDCanvas(p, templates[0]);
-        const imgData = cardCanvas.toDataURL('image/jpeg', 0.98);
+        const imgData = cardCanvas.toDataURL('image/jpeg', 1.0);
         
-        // CR80 Standard ID Card size: 63.5mm x 100mm (Vertical)
-        const pdf = new jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: [63.5, 100] });
-        pdf.addImage(imgData, 'JPEG', 0, 0, 63.5, 100);
+        // Dynamically calculate size to prevent stretching!
+        const pdfConfig = getDynamicPdfConfig(cardCanvas);
+        const pdf = new jspdf.jsPDF({ orientation: pdfConfig.orientation, unit: 'mm', format: [pdfConfig.width, pdfConfig.height] });
+        
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfConfig.width, pdfConfig.height);
         pdf.save(`${p.name}_ID_Card.pdf`);
         
         showToast('PDF Downloaded!', 'success');
@@ -2113,13 +2123,20 @@ async function bulkPrintSelected() {
         const { data: participants, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').in('id', ids).order('name');
         if (error) throw error;
         
-        const pdf = new jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: [63.5, 100] });
+        let pdf = null;
+        let pdfConfig = null;
 
         for (let i = 0; i < participants.length; i++) {
             const cardCanvas = await generateParticipantIDCanvas(participants[i], template);
             const imgData = cardCanvas.toDataURL('image/jpeg', 0.95);
             
-            pdf.addImage(imgData, 'JPEG', 0, 0, 63.5, 100);
+            // Initialize PDF config only on the first iteration to get the exact ratio
+            if (!pdfConfig) {
+                pdfConfig = getDynamicPdfConfig(cardCanvas);
+                pdf = new jspdf.jsPDF({ orientation: pdfConfig.orientation, unit: 'mm', format: [pdfConfig.width, pdfConfig.height] });
+            }
+            
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfConfig.width, pdfConfig.height);
             if (i < participants.length - 1) pdf.addPage();
         }
 
@@ -2133,7 +2150,6 @@ async function bulkPrintSelected() {
         btn.disabled = false;
     }
 }
-
 // --- 3. GENERATE ALL BULK CARDS ---
 async function generateBulkCards() {
     const btn = event.currentTarget;
@@ -2152,13 +2168,20 @@ async function generateBulkCards() {
 
         showToast(`Rendering ${participants.length} cards. This may take a minute...`, 'success');
 
-        const pdf = new jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: [63.5, 100] });
+        let pdf = null;
+        let pdfConfig = null;
 
         for (let i = 0; i < participants.length; i++) {
             const cardCanvas = await generateParticipantIDCanvas(participants[i], template);
-            const imgData = cardCanvas.toDataURL('image/jpeg', 0.90); // Slightly lower quality to save bulk PDF file size
+            const imgData = cardCanvas.toDataURL('image/jpeg', 0.85); // Slightly compressed for massive bulk exports
             
-            pdf.addImage(imgData, 'JPEG', 0, 0, 63.5, 100);
+            // Initialize PDF config based on actual image ratio
+            if (!pdfConfig) {
+                pdfConfig = getDynamicPdfConfig(cardCanvas);
+                pdf = new jspdf.jsPDF({ orientation: pdfConfig.orientation, unit: 'mm', format: [pdfConfig.width, pdfConfig.height] });
+            }
+            
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfConfig.width, pdfConfig.height);
             if (i < participants.length - 1) pdf.addPage();
         }
 
