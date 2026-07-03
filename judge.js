@@ -37,9 +37,10 @@ async function loadDashboard() {
 
     if (user.role === 'master_admin') {
         // Master Admin sees ALL ongoing or registration competitions
+        // FIX: Added categories(name) to the select query
         const { data: allComps, error } = await supabaseClient
             .from('competitions')
-            .select('*')
+            .select('*, categories(name)')
             .in('status', ['registration', 'ongoing']);
             
         if (error) return container.innerHTML = `<p style="color: #EF4444;">Failed to load competitions.</p>`;
@@ -49,9 +50,10 @@ async function loadDashboard() {
         });
     } else {
         // Standard Judge logic
+        // FIX: Added categories(name) to the nested competitions select query
         const { data: allJudgeRecords, error } = await supabaseClient
             .from('judgements')
-            .select('competition_id, awarded_mark, competitions(id, name, max_mark, status)')
+            .select('competition_id, awarded_mark, competitions(id, name, max_mark, status, categories(name))')
             .eq('judge_id', user.id); 
 
         if (error) return container.innerHTML = `<p style="color: #EF4444;">Failed to load competitions.</p>`;
@@ -68,8 +70,6 @@ async function loadDashboard() {
             }
         });
     }
-
-    // ... rest of the existing loadDashboard rendering logic remains identical
 
     container.innerHTML = '';
     let displayCount = 0;
@@ -88,11 +88,16 @@ async function loadDashboard() {
         const btnState = isOngoing ? '' : 'disabled';
         const btnText = isOngoing ? 'Evaluate Now' : 'Waiting to start...';
         
+        // Extract Category Name safely
+        const categoryName = comp.categories?.name || 'UNCATEGORIZED';
+        
         const card = document.createElement('div');
         card.className = 'card comp-card';
         card.innerHTML = `
             <div class="comp-card-inner" style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
+                    <!-- FIX: Injected the Category Label right above the title -->
+                    <div style="font-size: 0.75rem; font-weight: 800; color: var(--primary); letter-spacing: 0.05em; margin-bottom: 0.25rem;">${categoryName}</div>
                     <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem; font-weight: 600;">${comp.name}</h3>
                     <p style="color: var(--text-muted); font-size: 0.95rem;">
                         <span style="display: inline-block; width: 8px; height: 8px; background: ${badgeColor}; border-radius: 50%; margin-right: 6px;"></span>

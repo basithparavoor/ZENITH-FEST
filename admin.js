@@ -89,6 +89,7 @@ function switchTab(tabId) {
         else if (tabId === 'stages') loadStagesAndTeams();
         else if (tabId === 'users') loadUsers();
         else if (tabId === 'assignments') initAssignWorkspace();
+        else if (tabId === 'direct-valuation') initDirectValuation();
     } catch (e) {
         showToast("Failed to fetch dashboard data.", "error");
     }
@@ -2848,3 +2849,200 @@ window.switchTab = function(tabId) {
         filterTemplateLibrary('all');
     }
 };
+
+// ============================================================================
+// DIRECT VALUATION ENGINE (BYPASS WORKFLOW)
+// ============================================================================
+
+let currentDVMaxMark = 100;
+
+// --- REPLACE THESE FUNCTIONS IN ADMIN.JS ---
+
+async function initDirectValuation() {
+    // 1. Ensure Categories are loaded
+    if (categoriesList.length === 0) { 
+        const { data } = await supabaseClient.from('categories').select('*').order('name'); 
+        categoriesList = data || []; 
+    }
+    const catSelect = document.getElementById('dvCategory');
+    catSelect.innerHTML = '<option value="">-- ALL CATEGORIES --</option>';
+    categoriesList.forEach(c => catSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+
+    // 2. Ensure Stages are loaded
+    if (stagesList.length === 0) {
+        const { data } = await supabaseClient.from('stages').select('*').order('stage_no');
+        stagesList = data || [];
+    }
+    const stageSelect = document.getElementById('dvStage');
+    stageSelect.innerHTML = '<option value="">-- ALL STAGES --</option>';
+    stagesList.forEach(s => stageSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+    
+    // 3. Reset defaults and load all pending competitions immediately
+    document.getElementById('dvComp').innerHTML = '<option value="">-- SELECT COMPETITION --</option>';
+    document.getElementById('dvWorkspace').style.display = 'none';
+    
+    loadDVCompetitions();
+}
+
+async function loadDVCompetitions() {
+    const categoryId = document.getElementById('dvCategory').value;
+    const stageId = document.getElementById('dvStage').value;
+    const compSelect = document.getElementById('dvComp');
+    
+    document.getElementById('dvWorkspace').style.display = 'none';
+    compSelect.innerHTML = '<option value="">Loading...</option>';
+    compSelect.disabled = true;
+    
+    // Build dynamic query based on filters
+    let query = supabaseClient
+        .from('competitions')
+        .select('*')
+        .neq('status', 'published') // Only fetch competitions that are NOT published
+        .order('name');
+        
+    // Apply optional filters
+    if (categoryId) query = query.eq('category_id', categoryId);
+    if (stageId) query = query.eq('stage_id', stageId);
+        
+    const { data, error } = await query;
+        
+    if (error) return showToast(error.message, 'error');
+    
+    compSelect.innerHTML = '<option value="">-- SELECT COMPETITION TO EVALUATE --</option>';
+    
+    if (!data || data.length === 0) {
+        compSelect.innerHTML = '<option value="">-- NO PENDING COMPS FOUND --</option>';
+        return;
+    }
+    
+    (data || []).forEach(c => compSelect.innerHTML += `<option value="${c.id}" data-max="${c.max_mark}">${c.name}</option>`);
+    compSelect.disabled = false;
+}
+
+async function loadDVParticipants() {
+    const compSelect = document.getElementById('dvComp');
+    const compId = compSelect.value;
+    const workspace = document.getElementById('dvWorkspace');
+    const tbody = document.getElementById('dv-participants-tbody');
+    
+    if (!compId) { 
+        workspace.style.display = 'none'; 
+        return; 
+    }
+    
+    currentDVMaxMark = parseFloat(compSelect.options[compSelect.selectedIndex].getAttribute('data-max')) || 100;
+    document.getElementById('dvMaxMarks').innerText = `Max Marks: ${currentDVMaxMark}`;
+    
+    workspace.style.display = 'block';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Fetching enrolled participants...</td></tr>';
+    
+    // Fetch enrollments
+    const { data, error } = await supabaseClient
+        .from('participant_competitions')
+        .select(`participant_id, participants(name, unique_id, teams(name))`)
+        .eq('competition_id', compId);
+        
+    if (error) return showToast(error.message, 'error');
+    
+    tbody.innerHTML = '';
+    
+    if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:2rem;">No participants are enrolled in this competition.</td></tr>';
+        return;
+    }
+    
+    data.forEach(row => {
+        const p = row.participants;
+        tbody.innerHTML += `
+            <tr>
+                <td class="checkbox-cell" style="vertical-align: middle;">
+                    <input type="checkbox" class="dv-row-cb" value="${row.participant_id}" checked onchange="toggleDVRow(this, '${row.participant_id}')">
+                </td>
+                <td>
+                    <strong style="font-size: 1.05rem;">${p.name}</strong><br>
+                    <small style="font-family: monospace; color: var(--text-muted);">${p.unique_id}</small>
+                </td>
+                <td style="font-weight: 600; color: var(--text-muted);">${p.teams?.name || 'INDEPENDENT'}</td>
+                <td>
+                    <input type="number" id="dv-mark-${row.participant_id}" placeholder="0 - ${currentDVMaxMark}" min="0" max="${currentDVMaxMark}" style="width: 120px; padding: 0.6rem 0.8rem; border: 2px solid var(--border); border-radius: 6px; outline: none; font-size: 1.1rem; font-weight: 700; color: var(--primary);">
+                </td>
+            </tr>
+        `;
+    });
+}
+
+function toggleDVSelectAll(masterCb) {
+    document.querySelectorAll('.dv-row-cb').forEach(cb => {
+        cb.checked = masterCb.checked;
+        toggleDVRow(cb, cb.value);
+    });
+}
+
+function toggleDVRow(cb, pId) {
+    const markInput = document.getElementById(`dv-mark-${pId}`);
+    if (markInput) {
+        markInput.disabled = !cb.checked;
+        if (!cb.checked) markInput.value = '';
+        markInput.style.opacity = cb.checked ? '1' : '0.4';
+    }
+}
+
+async function submitDirectValuation() {
+    const compId = document.getElementById('dvComp').value;
+    if (!compId) return showToast('Select a competition first', 'error');
+    
+    const checkboxes = document.querySelectorAll('.dv-row-cb:checked');
+    if (checkboxes.length === 0) return showToast('Select at least one participant who participated.', 'error');
+    
+    const marksData = [];
+    
+    // Validation Loop
+    for (let cb of checkboxes) {
+        const pId = cb.value;
+        const markVal = document.getElementById(`dv-mark-${pId}`).value;
+        
+        if (markVal === '' || isNaN(markVal)) {
+            return showToast('Please enter marks for all attended participants.', 'error');
+        }
+        
+        const mark = parseFloat(markVal);
+        if (mark < 0 || mark > currentDVMaxMark) {
+            return showToast(`Marks must be between 0 and ${currentDVMaxMark}.`, 'error');
+        }
+        
+        marksData.push({
+            competition_id: compId,
+            participant_id: pId,
+            judge_id: user.id, // Auth Admin ID logs the action
+            awarded_mark: mark
+        });
+    }
+    
+    if(!confirm(`Submit these marks directly and push the competition to the Fest Manager for publishing?`)) return;
+    
+    setLoading('btnSubmitDV', true);
+    
+    try {
+        // 1. Purge any existing marks to avoid duplication logic
+        await supabaseClient.from('judgements').delete().eq('competition_id', compId);
+        
+        // 2. Insert Final Marks
+        const { error: insertError } = await supabaseClient.from('judgements').insert(marksData);
+        if (insertError) throw insertError;
+        
+        // 3. Force Status to Judgement Complete so it appears in Fest Manager's "Publish Queue"
+        const { error: compError } = await supabaseClient.from('competitions').update({ status: 'judgement_complete' }).eq('id', compId);
+        if (compError) throw compError;
+        
+        showToast('Direct Valuation successfully submitted!', 'success');
+        
+        // Reset Workspace UI
+        document.getElementById('dvWorkspace').style.display = 'none';
+        document.getElementById('dvComp').value = '';
+        
+    } catch (e) {
+        showToast(e.message, 'error');
+    } finally {
+        setLoading('btnSubmitDV', false);
+    }
+}

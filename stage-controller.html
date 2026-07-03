@@ -237,15 +237,26 @@ body, input, button, select, .toast, .card-title {
 
     <div class="container">
         <nav class="navbar">
-    <div>
-        <h1><i class="ph-fill ph-microphone-stage" style="color: var(--primary);"></i> Stage Controller</h1>
-        <p id="stage-name" style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem;">Authenticating...</p>
-        <div id="welcome-msg" style="color: var(--primary); font-weight: 800; font-size: 0.85rem; letter-spacing: 0.05em; margin-top: 0.25rem;"></div>
-    </div>
-    </nav>
+            <div style="width: 100%;">
+                <h1><i class="ph-fill ph-microphone-stage" style="color: var(--primary);"></i> Stage Controller</h1>
+                <p id="stage-name" style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem;">Authenticating...</p>
+                <div id="welcome-msg" style="color: var(--primary); font-weight: 800; font-size: 0.85rem; letter-spacing: 0.05em; margin-top: 0.25rem;"></div>
+                
+                <!-- NEW: Master Admin Stage Filter -->
+                <div id="master-filter-container" style="display: none; margin-top: 1rem; width: 100%;">
+                    <select id="master-stage-filter" onchange="loadCompetitions(this.value)" style="width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); outline: none; font-weight: 600; color: var(--primary); background: var(--bg-surface);">
+                        <option value="ALL">-- ALL STAGES (MASTER VIEW) --</option>
+                    </select>
+                </div>
+            </div>
+        </nav>
 
         <main id="competitions-container">
             </main>
+    </div>
+    
+<div class="nav-actions">
+        <button class="btn btn-outline" onclick="logout()"><i class="ph ph-sign-out"></i> Sign Out</button>
     </div>
 
     <div id="scanner-modal" class="modal-overlay">

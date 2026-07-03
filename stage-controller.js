@@ -34,10 +34,18 @@ async function initializeApp() {
     
     if (user.role === 'master_admin') {
         const navActions = document.querySelector('.nav-actions');
-        navActions.insertAdjacentHTML('afterbegin', `<button class="btn btn-primary" onclick="window.location.href='admin.html'"><i class="ph ph-shield-check"></i> Admin Hub</button>`);
+        // SAFETY CHECK: Only inject if the element actually exists in the DOM
+        if (navActions) {
+            navActions.insertAdjacentHTML('afterbegin', `<button class="btn btn-primary" onclick="window.location.href='admin.html'"><i class="ph ph-shield-check"></i> Admin Hub</button>`);
+        }
     }
-    // Add this to inject the username!
-document.getElementById('welcome-msg').innerText = `WELCOME, ${user.username}`;
+    
+    // Inject the username
+    const welcomeMsg = document.getElementById('welcome-msg');
+    if (welcomeMsg) {
+        welcomeMsg.innerText = `WELCOME, ${user.username}`;
+    }
+    
     loadDashboard();
 }
 
@@ -47,17 +55,33 @@ async function loadDashboard() {
     container.innerHTML = `<div style="text-align:center; padding: 3rem;"><i class="ph ph-spinner-gap" style="font-size: 2rem; animation: spin 1s linear infinite; color: var(--text-muted);"></i><p style="margin-top: 1rem; color: var(--text-muted);">Loading Stage Data...</p></div>`;
 
     if (user.role === 'master_admin') {
-        document.getElementById('stage-name').innerText = "Master Override (All Stages)";
+        document.getElementById('stage-name').innerText = "Master Override";
+        document.getElementById('master-filter-container').style.display = 'block';
+        
+        // FIX: Increase body padding dynamically so the taller Master Admin header doesn't cover content
+        document.body.style.paddingTop = '160px'; 
+        
+        // Fetch all stages to populate the Master Admin dropdown
+        const { data: stages } = await supabaseClient.from('stages').select('id, name').order('stage_no');
+        const filterDropdown = document.getElementById('master-stage-filter');
+        filterDropdown.innerHTML = '<option value="ALL">-- ALL STAGES (MASTER VIEW) --</option>';
+        
+        if (stages) {
+            stages.forEach(s => {
+                filterDropdown.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+            });
+        }
+
         loadCompetitions('ALL');
         return;
     }
 
     const { data: stage, error: stageError } = await supabaseClient
-    .from('stages').select('*').eq('controller_id', user.id).maybeSingle();
+        .from('stages').select('*').eq('controller_id', user.id).maybeSingle();
 
     if (stageError || !stage) {
         document.getElementById('stage-name').innerText = "Unassigned / Error";
-        container.innerHTML = `<p style="color: var(--danger); text-align:center;">Failed to load stage data.</p>`;
+        container.innerHTML = `<p style="color: var(--danger); text-align:center; background: white; padding: 2rem; border-radius: 12px;">Failed to load stage data. Ask the Master Admin to assign you to a stage.</p>`;
         return;
     }
 
@@ -67,7 +91,16 @@ async function loadDashboard() {
 
 // 3. Load Competitions
 async function loadCompetitions(stageId) {
-let query = supabaseClient.from('competitions').select('*, judgements(judge_id, awarded_mark)').order('name');
+    // FIX: Added categories(name) and participant_competitions to get total enrolled count
+    let query = supabaseClient.from('competitions')
+        .select('*, categories(name), judgements(judge_id, awarded_mark), participant_competitions(participant_id)')
+        .order('name');
+    
+    // APPLY STAGE FILTER
+    if (stageId && stageId !== 'ALL') {
+        query = query.eq('stage_id', stageId);
+    }
+    
     const { data: competitions, error } = await query;
     const container = document.getElementById('competitions-container');
     container.innerHTML = '';
@@ -86,18 +119,35 @@ let query = supabaseClient.from('competitions').select('*, judgements(judge_id, 
         if (comp.status === 'ongoing') { badgeClass = 'badge-ongoing'; statusText = 'Ongoing'; }
         if (comp.status === 'judgement_complete') { badgeClass = 'badge-complete'; statusText = 'Awaiting Results'; }
 
+        // Calculate enrolled students
+        const enrolledCount = comp.participant_competitions ? comp.participant_competitions.length : 0;
+
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
-          <div class="card-header">
-    <div>
-        <h2 class="card-title">${comp.name}</h2>
-        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">
-            <i class="ph ph-gavel"></i> Marks Submitted: <strong>${comp.judgements ? comp.judgements.length : 0}</strong>
-        </p>
-    </div>
-    <span class="badge ${badgeClass}">${statusText}</span>
-</div>
+            <div class="card-header">
+                <div style="width: 100%;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; gap: 1rem;">
+                        <h2 class="card-title">${comp.name}</h2>
+                        <span class="badge ${badgeClass}" style="white-space: nowrap;">${statusText}</span>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.75rem;">
+                        <span style="color: var(--primary); font-size: 0.85rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem;">
+                            <i class="ph-fill ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}
+                        </span>
+                        
+                        <div style="display: flex; gap: 1rem; color: var(--text-muted); font-size: 0.85rem;">
+                            <span style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                                <i class="ph-fill ph-users"></i> Enrolled: <strong>${enrolledCount}</strong>
+                            </span>
+                            <span style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                                <i class="ph-fill ph-gavel"></i> Marks: <strong>${comp.judgements ? comp.judgements.length : 0}</strong>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
             <div id="controls-${comp.id}" style="display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap;">
                 ${getButtonsForStatus(comp)}
@@ -105,7 +155,7 @@ let query = supabaseClient.from('competitions').select('*, judgements(judge_id, 
 
             <div class="card-list-section" ${comp.status === 'pending' ? 'style="display:none;"' : ''}>
                 <h3 style="font-size: 1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="ph ph-users" style="color: var(--primary);"></i> Checked-In Participants
+                    <i class="ph-fill ph-users" style="color: var(--primary);"></i> Participant Status
                 </h3>
                 <div class="participant-list" id="list-${comp.id}">
                     <p style="color: var(--text-muted); font-size: 0.9rem; grid-column: 1/-1;">Loading participants...</p>
@@ -114,7 +164,6 @@ let query = supabaseClient.from('competitions').select('*, judgements(judge_id, 
         `;
         container.appendChild(card);
         
-        // Load the list if we are past the pending phase
         if (comp.status !== 'pending') {
             loadCheckedInList(comp.id);
         }
@@ -283,28 +332,79 @@ function resetScanner() {
 
 function onScanFailure(error) { /* Ignore routine frame failures */ }
 
+// --- REPLACE THIS FUNCTION IN STAGE-CONTROLLER.JS ---
+
 async function loadCheckedInList(compId) {
-    const list = document.getElementById(`list-${compId}`);
-    if (!list) return;
+    const listContainer = document.getElementById(`list-${compId}`);
+    if (!listContainer) return;
 
-    // CHANGED: Now querying participant_competitions
-    const { data } = await supabaseClient
+    // Fetch ALL participants registered for this specific competition
+    const { data, error } = await supabaseClient
         .from('participant_competitions')
-        .select('code_letter, participants(name)')
-        .eq('competition_id', compId)
-        .eq('is_present', true)
-        .order('code_letter', { ascending: false });
+        .select('code_letter, is_present, participants(name, unique_id)')
+        .eq('competition_id', compId);
 
-    if (data && data.length > 0) {
-        list.innerHTML = data.map(reg => `
-            <div class="participant-item">
-                <span style="font-weight: 500; font-size: 0.9rem;">${reg.participants.name}</span>
+    if (error) {
+        listContainer.innerHTML = `<p style="color: var(--danger); font-size: 0.9rem;">Failed to load participants.</p>`;
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        listContainer.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem; grid-column: 1/-1;">No participants are enrolled in this competition.</p>`;
+        return;
+    }
+
+    // Split data into Checked-In vs Pending
+    const checkedIn = data.filter(d => d.is_present).sort((a, b) => {
+        if(a.code_letter < b.code_letter) return 1;
+        if(a.code_letter > b.code_letter) return -1;
+        return 0;
+    });
+    
+    // Sort pending alphabetically by name
+    const pending = data.filter(d => !d.is_present).sort((a, b) => a.participants.name.localeCompare(b.participants.name));
+
+    let html = '';
+
+    // --- 1. RENDER CHECKED-IN STUDENTS ---
+    if (checkedIn.length > 0) {
+        html += checkedIn.map(reg => `
+            <div class="participant-item" style="border-left: 4px solid var(--success);">
+                <div>
+                    <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-main); display: block;">${reg.participants.name}</span>
+                    <span style="font-size: 0.75rem; font-weight: 600; color: var(--success); display: flex; align-items: center; gap: 0.2rem;">
+                        <i class="ph-fill ph-check-circle"></i> Checked In
+                    </span>
+                </div>
                 <span class="code-letter">${reg.code_letter}</span>
             </div>
         `).join('');
     } else {
-        list.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem; grid-column: 1/-1;">No one checked in yet.</p>`;
+        html += `<p style="color: var(--text-muted); font-size: 0.9rem; grid-column: 1/-1; margin-bottom: 0.5rem;">No one has checked in yet.</p>`;
     }
+
+    // --- 2. RENDER PENDING STUDENTS ---
+    if (pending.length > 0) {
+        html += `
+            <div style="grid-column: 1/-1; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--border);">
+                <h4 style="font-size: 0.8rem; font-weight: 800; color: var(--warning); margin-bottom: 0.75rem; letter-spacing: 0.05em;">
+                    <i class="ph-fill ph-clock"></i> PENDING ARRIVAL (${pending.length})
+                </h4>
+            </div>
+        `;
+        
+        html += pending.map(reg => `
+            <div class="participant-item" style="opacity: 0.75; background: transparent; border-left: 4px solid var(--warning);">
+                <div>
+                    <span style="font-weight: 600; font-size: 0.9rem; color: var(--text-main); display: block;">${reg.participants.name}</span>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">${reg.participants.unique_id}</span>
+                </div>
+                <span style="font-size: 0.7rem; font-weight: 800; color: var(--warning); background: var(--warning-light); padding: 0.25rem 0.6rem; border-radius: 4px;">ABSENT</span>
+            </div>
+        `).join('');
+    }
+
+    listContainer.innerHTML = html;
 }
 
 // --- NEW MASTER STATE TRANSITION FUNCTION ---
