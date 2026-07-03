@@ -67,9 +67,7 @@ async function loadDashboard() {
 
 // 3. Load Competitions
 async function loadCompetitions(stageId) {
-    let query = supabaseClient.from('competitions').select('*, judgements(judge_id, awarded_mark)').order('name');
-    if (stageId !== 'ALL') query = query.eq('stage_id', stageId);
-
+let query = supabaseClient.from('competitions').select('*, judgements(judge_id, awarded_mark)').order('name');
     const { data: competitions, error } = await query;
     const container = document.getElementById('competitions-container');
     container.innerHTML = '';
@@ -125,15 +123,23 @@ async function loadCompetitions(stageId) {
 
 function getButtonsForStatus(comp) {
     if (comp.status === 'pending') {
-        return `<button class="btn btn-primary" onclick="changeCompetitionState('${comp.id}', 'registration', this, 'Starting')"><i class="ph ph-qr-code"></i> Start Registration</button>`;
+        // SMART FIX: Check the judgements array instead of the judges array
+        // If there are judgement rows, it means judges have been assigned!
+        const hasJudges = comp.judgements && comp.judgements.length > 0;
+        
+        if (!hasJudges) {
+            return `<button class="btn btn-outline" style="opacity: 0.6; cursor: not-allowed;" title="ASSIGN JUDGES FIRST" disabled><i class="ph ph-warning"></i> NO JUDGES ASSIGNED</button>`;
+        }
+        
+        return `<button class="btn btn-primary" onclick="changeCompetitionState('${comp.id}', 'registration', this, 'STARTING')"><i class="ph ph-qr-code"></i> START REGISTRATION</button>`;
     }
     
     if (comp.status === 'registration') {
         return `
             <div style="display: flex; gap: 0.5rem; width: 100%;">
-                <button class="btn btn-outline" style="flex:1; padding: 0.5rem;" onclick="openScannerModal('${comp.id}', '${comp.name}')" title="Scan QR"><i class="ph ph-scan"></i> Scan</button>
-                <button class="btn btn-success" style="flex:1; padding: 0.5rem;" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'Starting')"><i class="ph ph-play"></i> Start</button>
-                <button class="btn" style="flex:1; padding: 0.5rem; background: var(--danger); color: white;" onclick="cancelRegistration('${comp.id}', this)"><i class="ph ph-x"></i> Cancel</button>
+                <button class="btn btn-outline" style="flex:1; padding: 0.5rem;" onclick="openScannerModal('${comp.id}', '${comp.name}')" title="SCAN QR"><i class="ph ph-scan"></i> SCAN</button>
+                <button class="btn btn-success" style="flex:1; padding: 0.5rem;" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'STARTING')"><i class="ph ph-play"></i> START</button>
+                <button class="btn" style="flex:1; padding: 0.5rem; background: var(--danger); color: white;" onclick="cancelRegistration('${comp.id}', this)"><i class="ph ph-x"></i> CANCEL</button>
             </div>
         `;
     }
@@ -144,20 +150,19 @@ function getButtonsForStatus(comp) {
 
         // Conditional Button Rendering
         const endBtn = hasMarks 
-            ? `<button class="btn btn-warning" style="flex:2;" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'Ending')"><i class="ph ph-flag-checkered"></i> End Competition</button>`
-            : `<button class="btn btn-outline" style="flex:2; opacity: 0.6; cursor: not-allowed;" title="Waiting for judges to submit marks..." disabled><i class="ph ph-hourglass"></i> Awaiting Judges...</button>`;
+            ? `<button class="btn btn-warning" style="flex:2;" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'ENDING')"><i class="ph ph-flag-checkered"></i> END COMPETITION</button>`
+            : `<button class="btn btn-outline" style="flex:2; opacity: 0.6; cursor: not-allowed;" title="WAITING FOR JUDGES TO SUBMIT MARKS..." disabled><i class="ph ph-hourglass"></i> AWAITING JUDGES...</button>`;
 
         return `
             <div style="display: flex; gap: 0.5rem; width: 100%;">
-                <button class="btn btn-outline" style="flex:1;" onclick="backToRegistration('${comp.id}', this)"><i class="ph ph-arrow-u-up-left"></i> Back</button>
+                <button class="btn btn-outline" style="flex:1;" onclick="backToRegistration('${comp.id}', this)"><i class="ph ph-arrow-u-up-left"></i> BACK</button>
                 ${endBtn}
             </div>
         `;
     }
     
-    return `<p style="color: var(--text-muted); font-size: 0.95rem; width: 100%; text-align: center; background: #F8FAFC; padding: 1rem; border-radius: 8px;">Action completed. Waiting for Manager to publish.</p>`;
+    return `<p style="color: var(--text-muted); font-size: 0.95rem; width: 100%; text-align: center; background: #F8FAFC; padding: 1rem; border-radius: 8px;">ACTION COMPLETED. WAITING FOR MANAGER TO PUBLISH.</p>`;
 }
-
 
 
 async function openScannerModal(compId, compName) {
@@ -340,23 +345,30 @@ async function changeCompetitionState(compId, newStatus, btnElement, loadingText
     }
 }
 
-// --- Cancel Registration (Only if empty) ---
+// --- Cancel Registration (Even if participants are scanned) ---
 async function cancelRegistration(compId, btn) {
     try {
-        const { count, error } = await supabaseClient
-            .from('participant_competitions')
-            .select('*', { count: 'exact', head: true })
-            .eq('competition_id', compId)
-            .eq('is_present', true);
-            
-        if (error) throw error;
-            
-        if (count > 0) return showToast("CANNOT CANCEL. PARTICIPANTS ARE ALREADY CHECKED IN.", "error");
-        if (!confirm("CANCEL REGISTRATION AND RETURN TO PENDING STATE?")) return;
+        if (!confirm("WARNING: THIS WILL CANCEL REGISTRATION AND REMOVE ANY SCANNED PARTICIPANTS. PROCEED?")) return;
         
+        // Set the button to loading
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> CANCELLING...';
+        btn.disabled = true;
+
+        // Reset all scanned participants for this competition back to 'not present'
+        const { error: resetError } = await supabaseClient
+            .from('participant_competitions')
+            .update({ is_present: false, code_letter: null })
+            .eq('competition_id', compId);
+            
+        if (resetError) throw resetError;
+        
+        // Change state back to pending
         await changeCompetitionState(compId, 'pending', btn, 'CANCELLING');
     } catch (err) {
         showToast("ERROR CANCELLING: " + err.message, "error");
+        btn.innerHTML = '<i class="ph ph-x"></i> CANCEL';
+        btn.disabled = false;
     }
 }
 
