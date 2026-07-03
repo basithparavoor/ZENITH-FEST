@@ -181,7 +181,16 @@ body {
 }
 .eval-header .btn { min-height: 44px; width: 100%; }
 
-.participant-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.participant-list { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 0.75rem; 
+    padding-bottom: 120px; /* ADD THIS LINE TO PREVENT FOOTER OVERLAP */
+}
+
+input, .mark-input {
+    text-transform: uppercase;
+}
 
 .participant-row { 
     display: flex; 
@@ -276,7 +285,13 @@ body {
 </head>
 <body>
 
-    <div class="container">
+   <div class="container">
+        <style>
+            input, .mark-input {
+                text-transform: uppercase !important;
+            }
+        </style>
+
         <nav class="navbar">
     <div class="user-info">
         <h1>Judge Portal</h1>
@@ -292,8 +307,7 @@ body {
         <main id="dashboard-view">
             <h2 class="section-title">Assigned Competitions</h2>
             <div id="competitions-container">
-                <!-- Competitions injected here -->
-            </div>
+                </div>
         </main>
 
         <main id="evaluation-view" class="card eval-container">
@@ -305,9 +319,8 @@ body {
                 <button class="btn btn-outline" onclick="closeEvaluation()">← Back</button>
             </div>
             
-            <div id="participants-container" class="participant-list">
-                <!-- Participants list injected here -->
-            </div>
+            <div id="participants-container" class="participant-list" style="padding-bottom: 120px;">
+                </div>
             
             <div class="sticky-footer">
                 <button class="btn btn-success" onclick="submitJudgement()" id="submit-btn">Submit All Marks</button>
