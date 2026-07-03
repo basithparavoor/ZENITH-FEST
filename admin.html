@@ -401,45 +401,92 @@ tr:hover td { background: var(--bg-main); }
         </div>
 
 <div id="poster-templates" class="content-section">
-    <div class="action-bar">
-        <div>
-            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Poster Engine Studio</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Upload base designs and map coordinate alignments for live generation.</p>
-        </div>
-        <div class="bulk-actions">
-            <button class="btn btn-primary" onclick="saveTemplateConfig()"><i class="fa-solid fa-floppy-disk"></i> Save Layout</button>
-        </div>
-    </div>
     
-    <div class="controls-bar" style="display: flex; gap: 1rem; align-items: center; background: white; padding: 1rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border); margin-bottom: 1.5rem;">
-        <select id="template-type-select" onchange="loadTemplateConfig()" style="flex: 1; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); outline: none; font-weight: 600;">
-            <option value="individual">Individual Poster (Event Winners)</option>
-            <option value="team">Team Standings Poster (Multiples of 10)</option>
-            <option value="final">Final Results Poster</option>
-        </select>
-        
-        <input type="file" id="template-bg-upload" accept="image/jpeg, image/png" style="display: none;" onchange="handleTemplateUpload(event)">
-        <button class="btn btn-outline" onclick="document.getElementById('template-bg-upload').click()"><i class="fa-solid fa-upload"></i> Upload Base Image</button>
-    </div>
-    
-    <div class="grid-2" style="grid-template-columns: 1fr 1.2fr; gap: 2rem;">
-        <div class="table-container" style="padding: 1.5rem; max-height: 600px; overflow-y: auto;">
-            <div style="background: var(--primary-light); color: var(--primary); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; font-size: 0.85rem; font-weight: 600;">
-                <i class="fa-solid fa-lightbulb"></i> TIP: Click on an input field below to activate it, then click anywhere on the image preview to instantly set the coordinates!
+    <div id="template-library-view">
+        <div class="action-bar" style="margin-bottom: 1rem;">
+            <div>
+                <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Poster Templates</h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Manage, organize, and edit your dynamic graphics templates.</p>
             </div>
-            
-            <div id="alignment-fields" style="display: flex; flex-direction: column; gap: 1rem;">
-                </div>
+            <div class="bulk-actions">
+                <button class="btn btn-primary" onclick="openTemplateStudio()"><i class="fa-solid fa-plus"></i> Create New Template</button>
+            </div>
+        </div>
+
+        <div class="controls-bar" style="display: flex; gap: 0.5rem; background: transparent; padding: 0; box-shadow: none; border: none; margin-bottom: 1.5rem;">
+            <button class="btn btn-outline active-filter-btn" id="filter-all" onclick="filterTemplateLibrary('all')" style="border-radius: 50px;">All Templates</button>
+            <button class="btn btn-outline" id="filter-individual" onclick="filterTemplateLibrary('individual')" style="border-radius: 50px;">Individual Events</button>
+            <button class="btn btn-outline" id="filter-team" onclick="filterTemplateLibrary('team')" style="border-radius: 50px;">Team Standings</button>
+            <button class="btn btn-outline" id="filter-final" onclick="filterTemplateLibrary('final')" style="border-radius: 50px;">Final Results</button>
         </div>
         
-        <div class="table-container" style="padding: 1.5rem; background: #F8FAFC; display: flex; align-items: center; justify-content: center; flex-direction: column; border: 1px dashed var(--border-hover);">
-            <div style="position: relative; width: 100%; max-width: 450px; aspect-ratio: 1/1; box-shadow: var(--shadow-lg); border-radius: 4px; overflow: hidden; background: white;">
-                <canvas id="template-canvas" width="1080" height="1080" style="width: 100%; height: 100%; cursor: crosshair; display: block;"></canvas>
+        <div class="card-grid" id="saved-templates-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+            <p style="color: var(--text-muted);">Loading templates...</p>
+        </div>
+    </div>
+
+    <div id="template-studio-view" style="display: none; animation: fadeUp 0.3s ease forwards;">
+        <div class="action-bar" style="background: white; padding: 1rem 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border); margin-bottom: 1.5rem;">
+            <div style="display: flex; gap: 1rem; align-items: center; flex: 1; flex-wrap: wrap;">
+                <button class="btn btn-outline" onclick="closeTemplateStudio()" style="padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px;"><i class="fa-solid fa-arrow-left"></i></button>
+                <div style="display: flex; flex-direction: column; flex: 1; min-width: 200px;">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">TEMPLATE NAME</label>
+                    <input type="text" id="studio-template-name" placeholder="e.g. Dark Theme Individual Winner" style="border: none; border-bottom: 2px solid var(--border); font-size: 1.1rem; font-weight: 700; outline: none; padding: 0.25rem 0; background: transparent;">
+                </div>
+                <div style="display: flex; flex-direction: column; flex: 1; min-width: 200px;">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">TEMPLATE SECTOR</label>
+                    <select id="studio-template-type" onchange="initializeStudioFields()" style="border: none; border-bottom: 2px solid var(--border); font-size: 1rem; font-weight: 600; outline: none; padding: 0.25rem 0; background: transparent; cursor: pointer;">
+                        <option value="individual">Individual Event Winner</option>
+                        <option value="team">Team Standings</option>
+                        <option value="final">Final Overall Results</option>
+                    </select>
+                </div>
+            </div>
+            <div class="bulk-actions" style="margin-top: 0.5rem;">
+                <input type="file" id="studio-bg-upload" accept="image/jpeg, image/png" style="display: none;" onchange="handleStudioUpload(event)">
+                <button class="btn btn-outline" onclick="document.getElementById('studio-bg-upload').click()"><i class="fa-solid fa-image"></i> Upload Background</button>
+                <button class="btn btn-success" onclick="saveActiveTemplate()"><i class="fa-solid fa-floppy-disk"></i> Save Template</button>
+            </div>
+        </div>
+
+        <div class="grid-2" style="grid-template-columns: 1fr 1.2fr; gap: 2rem;">
+            <div class="table-container" style="padding: 1.5rem; max-height: 65vh; overflow-y: auto; background: white; border: 1px solid var(--border);">
+                <div style="background: var(--primary-light); color: var(--primary); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; font-size: 0.85rem; font-weight: 600; display: flex; gap: 0.75rem; align-items: flex-start;">
+                    <i class="fa-solid fa-wand-magic-sparkles" style="margin-top: 0.2rem;"></i>
+                    <span><strong>Pro Tip:</strong> Click an X/Y field to select it, then click anywhere on your image to map coordinates instantly.</span>
+                </div>
+                <div id="studio-alignment-fields" style="display: flex; flex-direction: column; gap: 1rem;">
+                    </div>
+            </div>
+
+            <div class="table-container" style="padding: 1.5rem; background: #E2E8F0; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border); position: relative;">
+                
+                <button class="btn btn-dark" onclick="openFullViewModal()" style="position: absolute; top: 1rem; right: 1rem; z-index: 10; padding: 0.5rem 1rem; font-size: 0.8rem; opacity: 0.8;">
+                    <i class="fa-solid fa-expand"></i> Inspect Full Size
+                </button>
+
+                <div style="position: relative; width: 100%; max-height: 60vh; display: flex; justify-content: center; align-items: center;">
+                    <canvas id="studio-canvas" style="max-width: 100%; max-height: 100%; object-fit: contain; cursor: crosshair; background: white; box-shadow: var(--shadow-lg);"></canvas>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<div id="fullViewModal" class="modal-overlay" style="z-index: 1050; padding: 2rem; background: rgba(15, 23, 42, 0.9);">
+    <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        
+        <div style="width: 100%; display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+            <button class="btn btn-outline" style="background: white; color: black; border: none;" onclick="document.getElementById('fullViewModal').classList.remove('show')">
+                <i class="fa-solid fa-xmark"></i> Close Full View
+            </button>
+        </div>
+
+        <div style="width: 100%; flex: 1; overflow: auto; display: flex; justify-content: center; align-items: flex-start; background: transparent;">
+            <img id="fullViewImage" src="" style="box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); max-width: none;">
+        </div>
+    </div>
+</div>
         <!-- 1. CATEGORIES -->
 <div id="categories" class="content-section active">
     <div class="action-bar">
