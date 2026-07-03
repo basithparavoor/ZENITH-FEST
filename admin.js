@@ -1981,128 +1981,117 @@ async function exportAssignmentsPDF() {
     } catch (e) { showToast(e.message, 'error'); }
 }
 // ============================================================================
-// PDF ID CARD GENERATION ENGINE
+// PDF ID CARD GENERATION ENGINE (TEMPLATE BASED)
 // ============================================================================
 
-// --- SMART IMAGE LOADER ---
-// Forces the PDF generator to wait until all photos and backgrounds are 100% loaded
-async function waitForImagesToLoad(container) {
-    const images = container.querySelectorAll('img');
-    const promises = Array.from(images).map(img => {
-        if (img.complete) return Promise.resolve();
-        return new Promise(resolve => {
-            img.onload = resolve;
-            img.onerror = resolve; // Continue even if an image fails so it doesn't freeze
-        });
+// --- HELPER: Promise-based image loader ---
+function loadImagePromise(src) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(img); // Resolve anyway to avoid freezing if an image fails
+        img.src = src;
     });
-    return Promise.all(promises);
 }
 
-// --- PREMIUM ID CARD GENERATOR (LANDSCAPE - 100x63.08) ---
-// --- PREMIUM ID CARD GENERATOR (LANDSCAPE - 100x63.08) ---
-function buildCardElement(participant) {
-    const card = document.createElement('div');
+// --- CORE GENERATOR: Draws the participant data onto the Cloud Template ---
+async function generateParticipantIDCanvas(participant, template) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
     
-    card.style.width = '100mm';
-    card.style.height = '63.08mm';
-    card.style.position = 'relative';
-    card.style.overflow = 'hidden';
-    card.style.backgroundColor = '#ffffff';
-    card.style.fontFamily = "'Poppins', sans-serif"; 
-    
-    const teamName = participant.teams ? participant.teams.name.toUpperCase() : 'INDEPENDENT';
-    const catName = participant.categories ? participant.categories.name.toUpperCase() : 'GENERAL';
-    const photoSrc = participant.photo_url ? participant.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=PHOTO';
-    
-    // The functional URL for your scanning system
-    const actionUrl = `https://zenith-fest.clubad.space/scan?id=${participant.unique_id}`;
+    // Load Background
+    const bgImg = await loadImagePromise(template.bg_base64);
+    canvas.width = bgImg.naturalWidth;
+    canvas.height = bgImg.naturalHeight;
+    ctx.drawImage(bgImg, 0, 0);
 
-    const layout = {
-        photo:    { top: '13.1mm', left: '74.9mm', width: '17.5mm', height: '24.478mm' },
-        name:     { top: '22.5mm', left: '14mm', width: '50mm', fontSize: '9pt', fontWeight: '600', align: 'left' },
-        team:     { top: '3.8mm', left: '52mm', width: '50mm', fontSize: '10pt', fontWeight: '600', align: 'left' },
-        batch:    { top: '27mm', left: '14mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        category: { top: '31.5mm', left: '14mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        id:       { top: '17.5mm', left: '14mm', width: '50mm', fontSize: '9pt', fontWeight: '400', align: 'left' },
-        qr:       { top: '40mm', left: '76mm', width: '16mm', height: '16mm' } 
+    // Map Participant Data to the specific fields you defined in the Studio
+    const mappedData = {
+        'ParticipantName': participant.name.toUpperCase(),
+        'UniqueID': participant.unique_id || `FEST-${participant.id.substring(0,6)}`.toUpperCase(),
+        'TeamName': participant.teams?.name?.toUpperCase() || 'INDEPENDENT',
+        'Category': participant.categories?.name?.toUpperCase() || '',
+        'BatchNo': `BATCH ${participant.batch_no || '1'}`
     };
 
-    card.innerHTML = `
-        <style>
-            /* FIX: Hide the raw canvas, only show the final processed image */
-            #qr-${participant.id} canvas { 
-                display: none !important; 
+    for (const [key, field] of Object.entries(template.fields)) {
+        if (!field.enabled) continue;
+
+        if (field.isImage) {
+            // Render Participant Photo
+            if (key === 'Photo') {
+                const photoSrc = participant.photo_url || 'https://via.placeholder.com/400x600/E5E7EB/6B7280?text=NO+PHOTO';
+                const pPhoto = await loadImagePromise(photoSrc);
+                
+                ctx.save();
+                ctx.beginPath();
+                if(ctx.roundRect) ctx.roundRect(field.x, field.y, field.w, field.h, field.radius || 0);
+                else ctx.rect(field.x, field.y, field.w, field.h);
+                ctx.clip();
+                
+                // Draw Image filling the bounds
+                ctx.drawImage(pPhoto, field.x, field.y, field.w, field.h);
+                ctx.restore();
             }
-            #qr-${participant.id} img {
-                width: 100% !important; height: 100% !important; 
-                object-fit: contain; display: block !important;
+            
+            // Render QR Code
+            if (key === 'QRCode') {
+                const qrContainer = document.createElement('div');
+                // Create QR with the unique ID
+                new QRCode(qrContainer, { 
+                    text: participant.unique_id, 
+                    width: field.w, 
+                    height: field.h,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H 
+                });
+                
+                // Give QRCode.js a tiny fraction of a second to render to its internal canvas
+                await new Promise(r => setTimeout(r, 50)); 
+                const qrCanvas = qrContainer.querySelector('canvas');
+                if(qrCanvas) {
+                    ctx.drawImage(qrCanvas, field.x, field.y, field.w, field.h);
+                }
             }
-        </style>
-        
-        <img src="card.png" crossorigin="anonymous" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; object-fit: cover;">
-        <img src="${photoSrc}" crossorigin="anonymous" style="position: absolute; top: ${layout.photo.top}; left: ${layout.photo.left}; width: ${layout.photo.width}; height: ${layout.photo.height}; z-index: 2; object-fit: cover; border-radius: 4px; border: 1px solid #fff;">
-        
-        <div style="position: absolute; top: ${layout.name.top}; left: ${layout.name.left}; width: ${layout.name.width}; text-align: ${layout.name.align}; z-index: 2; font-size: ${layout.name.fontSize}; font-weight: ${layout.name.fontWeight}; color: #000; text-transform: uppercase;">${participant.name}</div>
-        <div style="position: absolute; top: ${layout.team.top}; left: ${layout.team.left}; width: ${layout.team.width}; text-align: ${layout.team.align}; z-index: 2; font-size: ${layout.team.fontSize}; font-weight: ${layout.team.fontWeight}; color: #000; text-transform: uppercase;">TEAM ${teamName}</div>
-        <div style="position: absolute; top: ${layout.batch.top}; left: ${layout.batch.left}; width: ${layout.batch.width}; text-align: ${layout.batch.align}; z-index: 2; font-size: ${layout.batch.fontSize}; font-weight: ${layout.batch.fontWeight}; color: #000;">BATCH NO ${participant.batch_no || '1'}</div>
-        <div style="position: absolute; top: ${layout.category.top}; left: ${layout.category.left}; width: ${layout.category.width}; text-align: ${layout.category.align}; z-index: 2; font-size: ${layout.category.fontSize}; font-weight: ${layout.category.fontWeight}; color: #000; text-transform: uppercase;">${catName} CATEGORY</div>
-        <div style="position: absolute; top: ${layout.id.top}; left: ${layout.id.left}; width: ${layout.id.width}; text-align: ${layout.id.align}; z-index: 2; font-size: ${layout.id.fontSize}; font-weight: ${layout.id.fontWeight}; color: #000;">${participant.unique_id}</div>
-        
-        <div id="qr-${participant.id}" style="position: absolute; top: ${layout.qr.top}; left: ${layout.qr.left}; width: ${layout.qr.width}; height: ${layout.qr.height}; z-index: 2; background: white; padding: 1mm; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 4px;"></div>
-    `;
+        } 
+        else {
+            // Render Typography
+            const textToDraw = mappedData[key] || "";
+            if (!textToDraw) continue;
 
-   setTimeout(() => {
-        new QRCode(document.getElementById(`qr-${participant.id}`), { 
-            text: participant.unique_id, // Encode ONLY the raw ID
-            width: 256, height: 256,
-            colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H 
-        });
-    }, 10);
-
-    return card;
-}
-
-// --- SECURE CONTAINER SETUP ---
-// This ensures the container is technically visible to the browser engine to load images, but invisible to the user.
-function getSafePrintContainer() {
-    let container = document.getElementById('print-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'print-container';
-        document.body.appendChild(container);
+            ctx.textAlign = field.align;
+            ctx.fillStyle = field.color;
+            ctx.font = `${field.weight || 'bold'} ${field.size}px ${field.font}`;
+            ctx.fillText(textToDraw, field.x, field.y);
+        }
     }
-    container.style.position = 'fixed';
-    container.style.top = '0';
-    container.style.left = '0';
-    container.style.opacity = '0.01'; // Prevents the browser from discarding it for PDF generation
-    container.style.zIndex = '-9999';
-    container.style.pointerEvents = 'none';
-    container.innerHTML = ''; 
-    return container;
+
+    return canvas;
 }
 
 // --- 1. SINGLE CARD GENERATOR ---
 async function generateSingleCard(participantId) {
-    showToast('Generating PDF...', 'success');
+    showToast('Fetching template and generating PDF...', 'success');
     try {
+        // Fetch Template
+        const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', 'id_card').limit(1);
+        if (!templates || templates.length === 0) return showToast("No ID Card template found! Create one in the Studio first.", "error");
+        
+        // Fetch Participant
         const { data: p, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').eq('id', participantId).single();
         if (error || !p) return showToast("Could not fetch participant data.", 'error');
         
-        const container = getSafePrintContainer();
-        const cardElement = buildCardElement(p);
-        container.appendChild(cardElement);
+        const cardCanvas = await generateParticipantIDCanvas(p, templates[0]);
+        const imgData = cardCanvas.toDataURL('image/jpeg', 0.98);
         
-        setTimeout(async () => {
-            await waitForImagesToLoad(container);
-            
-            const opt = { 
-                margin: 0, filename: `${p.name}_ID_Card.pdf`, image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                jsPDF: { unit: 'mm', format: [100, 63.08], orientation: 'landscape' } 
-            };
-            html2pdf().set(opt).from(cardElement).save().then(() => showToast('PDF Downloaded!'));
-        }, 150);
+        // CR80 Standard ID Card size: 63.5mm x 100mm (Vertical)
+        const pdf = new jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: [63.5, 100] });
+        pdf.addImage(imgData, 'JPEG', 0, 0, 63.5, 100);
+        pdf.save(`${p.name}_ID_Card.pdf`);
         
+        showToast('PDF Downloaded!', 'success');
     } catch (e) { showToast(e.message, 'error'); }
 }
 
@@ -2117,32 +2106,32 @@ async function bulkPrintSelected() {
     btn.disabled = true;
 
     try {
+        const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', 'id_card').limit(1);
+        if (!templates || templates.length === 0) throw new Error("No ID Card template found! Create one in the Studio first.");
+        const template = templates[0];
+
         const { data: participants, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').in('id', ids).order('name');
         if (error) throw error;
         
-        const container = getSafePrintContainer();
+        const pdf = new jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: [63.5, 100] });
 
-        participants.forEach(p => {
-            const cardElement = buildCardElement(p);
-            container.appendChild(cardElement);
-        });
-
-        setTimeout(async () => {
-            await waitForImagesToLoad(container);
+        for (let i = 0; i < participants.length; i++) {
+            const cardCanvas = await generateParticipantIDCanvas(participants[i], template);
+            const imgData = cardCanvas.toDataURL('image/jpeg', 0.95);
             
-            const opt = { 
-                margin: 0, filename: `Selected_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                jsPDF: { unit: 'mm', format: [100, 63.08], orientation: 'landscape' } 
-            };
-            html2pdf().set(opt).from(container).save().then(() => { 
-                showToast('Selected PDFs Generated Successfully!');
-                container.innerHTML = ''; 
-                btn.innerHTML = originalText; btn.disabled = false; 
-            });
-        }, 200);
+            pdf.addImage(imgData, 'JPEG', 0, 0, 63.5, 100);
+            if (i < participants.length - 1) pdf.addPage();
+        }
+
+        pdf.save("Selected_ID_Cards.pdf");
+        showToast('Selected PDFs Generated Successfully!');
         
-    } catch (e) { showToast(e.message, 'error'); btn.innerHTML = originalText; btn.disabled = false; }
+    } catch (e) { 
+        showToast(e.message, 'error'); 
+    } finally {
+        btn.innerHTML = originalText; 
+        btn.disabled = false;
+    }
 }
 
 // --- 3. GENERATE ALL BULK CARDS ---
@@ -2153,71 +2142,36 @@ async function generateBulkCards() {
     btn.disabled = true;
 
     try {
+        const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', 'id_card').limit(1);
+        if (!templates || templates.length === 0) throw new Error("No ID Card template found! Create one in the Studio first.");
+        const template = templates[0];
+
         const { data: participants, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').order('name');
         if (error) throw error;
-        if (!participants || !participants.length) { showToast("No participants found.", 'error'); btn.innerHTML = originalText; btn.disabled = false; return; }
+        if (!participants || !participants.length) throw new Error("No participants found.");
 
-        const container = getSafePrintContainer();
+        showToast(`Rendering ${participants.length} cards. This may take a minute...`, 'success');
 
-        participants.forEach(p => {
-            const cardElement = buildCardElement(p);
-            container.appendChild(cardElement);
-        });
+        const pdf = new jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: [63.5, 100] });
 
-        setTimeout(async () => {
-            await waitForImagesToLoad(container);
+        for (let i = 0; i < participants.length; i++) {
+            const cardCanvas = await generateParticipantIDCanvas(participants[i], template);
+            const imgData = cardCanvas.toDataURL('image/jpeg', 0.90); // Slightly lower quality to save bulk PDF file size
             
-            const opt = { 
-                margin: 0, filename: `Fest_2026_All_ID_Cards.pdf`, image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 4, useCORS: true, letterRendering: true }, 
-                jsPDF: { unit: 'mm', format: [100, 63.08], orientation: 'landscape' } 
-            };
-            
-            html2pdf().set(opt).from(container).save().then(() => { 
-                showToast('Bulk PDF Generated Successfully!');
-                container.innerHTML = ''; 
-                btn.innerHTML = originalText; btn.disabled = false;
-            });
-        }, 500); 
+            pdf.addImage(imgData, 'JPEG', 0, 0, 63.5, 100);
+            if (i < participants.length - 1) pdf.addPage();
+        }
 
-    } catch(e) { showToast(e.message, 'error'); btn.innerHTML = originalText; btn.disabled = false; }
-}
+        pdf.save("FestOS_All_ID_Cards.pdf");
+        showToast('Bulk PDF Generated Successfully!');
 
-let currentTemplateConfig = {};
-
-function loadTemplateConfig() {
-    const type = document.getElementById('template-type-select').value;
-    const fieldsContainer = document.getElementById('alignment-fields');
-    fieldsContainer.innerHTML = '';
-    
-    // Define required fields based on the requested poster type
-    let fields = [];
-    if(type === 'individual') {
-        fields = ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 2 Name', 'Position 3 Name', 'Team Name'];
-    } else if (type === 'team') {
-        fields = ['Results Count Text', 'Team 1 Name', 'Team 1 Points', 'Team 2 Name', 'Team 2 Points'];
-    } else if (type === 'final') {
-        fields = ['Total Competitions Count', 'Final Champion Team', 'Champion Points'];
+    } catch(e) { 
+        showToast(e.message, 'error'); 
+    } finally {
+        btn.innerHTML = originalText; 
+        btn.disabled = false; 
     }
-
-    fields.forEach(field => {
-        fieldsContainer.innerHTML += `
-            <div style="background: var(--bg-main); padding: 1rem; border-radius: var(--radius-md);">
-                <label style="font-weight: 700; display: block; margin-bottom: 0.5rem;">${field}</label>
-                <div style="display: flex; gap: 1rem;">
-                    <input type="number" id="x-${field.replace(/\s+/g, '')}" placeholder="X Coordinate" class="form-control" style="width: 100%;">
-                    <input type="number" id="y-${field.replace(/\s+/g, '')}" placeholder="Y Coordinate" class="form-control" style="width: 100%;">
-                </div>
-            </div>
-        `;
-    });
 }
-
-async function saveTemplateConfig() {
-    // In production, save this JSON object to a 'settings' table in Supabase
-    showToast("Template Coordinates Saved Successfully!");
-}
-
 // --- PREMIUM POSTER TEMPLATE ENGINE ---
 
 let activeTemplateType = 'individual';
@@ -2444,8 +2398,21 @@ const AVAILABLE_FONTS = [
 
 // --- 1. LIBRARY INIT ---
 async function loadTemplatesList() {
-    const localData = localStorage.getItem('festOS_templates');
-    savedTemplates = localData ? JSON.parse(localData) : [];
+    showToast("Syncing templates from cloud...", "success");
+    // Fetch directly from Supabase
+    const { data: templates, error } = await supabaseClient
+        .from('templates')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Template Sync Error:", error);
+        showToast("Failed to load templates", "error");
+        savedTemplates = [];
+    } else {
+        savedTemplates = templates || [];
+    }
+    
     renderTemplateLibrary();
 }
 
@@ -2497,11 +2464,18 @@ function renderTemplateLibrary() {
     });
 }
 
-function deleteTemplate(index) {
-    if(confirm("Permanently delete this template?")) {
-        savedTemplates.splice(index, 1);
-        localStorage.setItem('festOS_templates', JSON.stringify(savedTemplates));
-        loadTemplatesList();
+async function deleteTemplate(index) {
+    if(!confirm("Permanently delete this template from the cloud?")) return;
+    
+    const templateId = savedTemplates[index].id;
+    
+    const { error } = await supabaseClient.from('templates').delete().eq('id', templateId);
+    
+    if (error) {
+        showToast("Error deleting template", "error");
+    } else {
+        showToast("Template Deleted.");
+        loadTemplatesList(); // Refresh from DB
     }
 }
 
@@ -2804,16 +2778,36 @@ async function saveActiveTemplate() {
     if (!studioActiveData.bg_base64) return showToast("Please upload a background image.", "error");
 
     studioActiveData.name = name;
-    const savePayload = { ...studioActiveData };
-    delete savePayload.imgObj;
+    
+    // Create safe payload for DB
+    const savePayload = { 
+        id: studioActiveData.id,
+        name: studioActiveData.name,
+        type: studioActiveData.type,
+        bg_base64: studioActiveData.bg_base64,
+        fields: studioActiveData.fields
+    };
 
-    const existingIndex = savedTemplates.findIndex(t => t.id === savePayload.id);
-    if (existingIndex >= 0) savedTemplates[existingIndex] = savePayload;
-    else savedTemplates.push(savePayload);
+    // Show loading state
+    const saveBtn = document.querySelector('.btn-success');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving to Cloud...';
+    saveBtn.disabled = true;
 
-    localStorage.setItem('festOS_templates', JSON.stringify(savedTemplates));
-    showToast("Template Saved Successfully!", "success");
-    closeTemplateStudio();
+    try {
+        // Upsert to Supabase
+        const { error } = await supabaseClient.from('templates').upsert(savePayload);
+        if (error) throw error;
+        
+        showToast("Template Saved to Cloud Successfully!", "success");
+        closeTemplateStudio();
+    } catch (err) {
+        console.error(err);
+        showToast("Error saving template to cloud.", "error");
+    } finally {
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+    }
 }
 
 function openFullViewModal() {

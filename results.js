@@ -195,56 +195,86 @@ function renderIndividualResults() {
     }
 }
 
+// --- UPDATE IN RESULTS.JS ---
+
 async function downloadAdvancedPosters(type, specificData = null) {
+    showToast("Fetching official template from server...");
+
+    // 1. Fetch the active template for this type from Supabase
+    const { data: templates, error } = await supabase
+        .from('templates')
+        .select('*')
+        .eq('type', type)
+        .limit(1);
+
+    if (error || !templates || templates.length === 0) {
+        return showToast(`No template found for ${type}. Ask Master Admin to create one.`, "error");
+    }
+
+    const template = templates[0];
+
+    // 2. Setup Canvas
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
-    // Standard template size
-    canvas.width = 1080; 
-    canvas.height = 1080;
-    
-    // Simulated fetch of coordinates saved from Master Admin
-    const coordinates = await fetchTemplateCoordinatesFromDB(type); 
-
-    // Draw background template image
+    // 3. Load Background Image
     const templateImage = new Image();
-    templateImage.src = `/templates/${type}_template.jpg`; // Load master admin template
+    templateImage.crossOrigin = "Anonymous";
     
     templateImage.onload = () => {
-        ctx.drawImage(templateImage, 0, 0, canvas.width, canvas.height);
-        ctx.font = "bold 40px Inter";
-        ctx.fillStyle = "#ffffff";
-        
+        canvas.width = templateImage.naturalWidth;
+        canvas.height = templateImage.naturalHeight;
+        ctx.drawImage(templateImage, 0, 0);
+
+        // 4. Map Dynamic Data based on Template Type
+        // We structure a dictionary mapping the Field Keys to the Actual Data
+        const mappedData = {};
+
         if (type === 'individual') {
-            ctx.fillText(`Result #${publishedCompetitions.length}`, coordinates.resultNoX, coordinates.resultNoY);
-            ctx.fillText(specificData.category, coordinates.categoryX, coordinates.categoryY);
-            ctx.fillText(specificData.competition, coordinates.compX, coordinates.compY);
+            mappedData['ResultNumber'] = `#${publishedCompetitions.length}`;
+            mappedData['Category'] = specificData.category || "";
+            mappedData['Competition'] = specificData.competition || "";
             
-            // Loop through top 3 or print 'Available'
             for(let i=0; i<3; i++) {
-                let nameText = specificData.winners[i] ? specificData.winners[i].name : "AVAILABLE";
-                ctx.fillText(nameText, coordinates[`pos${i+1}X`], coordinates[`pos${i+1}Y`]);
+                mappedData[`Position${i+1}Name`] = specificData.winners[i] ? specificData.winners[i].name : "AVAILABLE";
+                mappedData[`Position${i+1}Team`] = specificData.winners[i] ? specificData.winners[i].team : "";
             }
         } 
-        else if (type === 'team') {
-            if (publishedCompetitions.length % 10 !== 0) {
-                showToast("Team posters only generate at multiples of 10 results.", "error");
-                return;
+        else if (type === 'team' || type === 'final') {
+            mappedData['ResultsCountText'] = `AFTER ${publishedCompetitions.length} EVENTS`;
+            mappedData['TotalCompetitionsCount'] = `FINAL STANDINGS`;
+            
+            // Assuming sortedTeams is available globally in results.js
+            const top5 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5);
+            
+            for(let i=0; i<5; i++) {
+                mappedData[`Rank${i+1}Team`] = top5[i] ? top5[i].name : "";
+                mappedData[`Rank${i+1}Points`] = top5[i] ? `${top5[i].score} PTS` : "";
             }
-            ctx.fillText(`Results after ${publishedCompetitions.length} Events`, coordinates.countTextX, coordinates.countTextY);
-            // Draw Team Standings loop...
-        } 
-        else if (type === 'final') {
-            ctx.fillText(`Final Result - ${publishedCompetitions.length} Competitions`, coordinates.finalTextX, coordinates.finalTextY);
-            // Draw Final Standings loop...
         }
 
-        // Export
+        // 5. Render Text Fields onto Canvas
+        for (const [key, fieldConfig] of Object.entries(template.fields)) {
+            if (!fieldConfig.enabled || fieldConfig.isImage) continue;
+
+            const textToDraw = mappedData[key] || "";
+            if (!textToDraw) continue;
+
+            ctx.textAlign = fieldConfig.align;
+            ctx.fillStyle = fieldConfig.color;
+            ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size}px ${fieldConfig.font}`;
+            ctx.fillText(textToDraw, fieldConfig.x, fieldConfig.y);
+        }
+
+        // 6. Export and Download
         const link = document.createElement('a');
         link.download = `FestOS_${type}_Poster.jpeg`;
         link.href = canvas.toDataURL("image/jpeg", 0.95); 
         link.click();
+        showToast("Poster Generated Successfully!", "success");
     };
+
+    templateImage.src = template.bg_base64;
 }
 async function fetchTemplateCoordinatesFromDB(type) {
     // Note: Replace this with an actual Supabase fetch later
