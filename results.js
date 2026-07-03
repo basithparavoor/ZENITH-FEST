@@ -23,40 +23,56 @@ function switchTab(tabId, element) {
 }
 
 async function fetchAndCalculateResults() {
-    const { data: teams } = await supabase.from('teams').select('*');
-    allTeams = teams || [];
-    
-    allTeams.forEach(t => calculatedTeamScores[t.id] = { name: t.name, score: 0 });
+    try {
+        const { data: teams } = await supabase.from('teams').select('*');
+        allTeams = teams || [];
+        
+        allTeams.forEach(t => calculatedTeamScores[t.id] = { name: t.name, score: 0 });
 
-    const { data: comps } = await supabase.from('competitions')
-        .select('*')
-        .eq('status', 'published');
-    publishedCompetitions = comps || [];
+        const { data: comps } = await supabase.from('competitions')
+            .select('*, categories(name, is_general)') // Ensure category data is fetched
+            .eq('status', 'published');
+            
+        publishedCompetitions = comps || [];
 
-    document.getElementById('publish-status').innerText = `Data indexed from ${publishedCompetitions.length} active events.`;
+        document.getElementById('publish-status').innerText = `Data indexed from ${publishedCompetitions.length} active events.`;
 
-    const compIds = publishedCompetitions.map(c => c.id);
-    if (compIds.length > 0) {
-        const { data: judgements } = await supabase
-            .from('judgements')
-            .select(`
-                competition_id, 
-                awarded_mark, 
-                participants(id, name, team_id)
-            `)
-            .in('competition_id', compIds);
+        const compIds = publishedCompetitions.map(c => c.id);
+        if (compIds.length > 0) {
+            // FIX 1: Filter out empty judge assignments
+            // FIX 2: Added batch_no to the participants select string
+            const { data: judgements, error } = await supabase
+                .from('judgements')
+                .select(`
+                    competition_id, 
+                    awarded_mark, 
+                    participants(id, name, team_id, batch_no) 
+                `)
+                .in('competition_id', compIds)
+                .not('participant_id', 'is', null)
+                .not('awarded_mark', 'is', null);
 
-        processJudgements(judgements || []);
+            if (error) throw error;
+
+            processJudgements(judgements || []);
+        }
+
+        renderLeaderboard();
+        populateCompetitionDropdown();
+        
+    } catch (err) {
+        console.error("Results Fetch Error:", err);
+        document.getElementById('leaderboard-container').innerHTML = 
+            `<p style="text-align:center; color: #EF4444; padding: 3rem; font-weight: 500;">Failed to load results. Check console for details.</p>`;
     }
-
-    renderLeaderboard();
-    populateCompetitionDropdown();
 }
-
 function processJudgements(judgements) {
     const compGroups = {};
     
     judgements.forEach(j => {
+        // FIX: Safety check to skip rows where participant data hasn't been assigned yet
+        if (!j.participants || !j.participants.id) return; 
+
         const comp = publishedCompetitions.find(c => c.id === j.competition_id);
         if(!compGroups[j.competition_id]) {
             compGroups[j.competition_id] = {

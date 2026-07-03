@@ -36,8 +36,9 @@ function switchTab(tabId) {
 
     if (tabId === 'assignments') loadAssignments();
     if (tabId === 'publish') loadPublishableComps();
+    // NEW ROUTE
+    if (tabId === 'published-results') loadPublishedResults(); 
 }
-
 function logout() {
     localStorage.removeItem('festUser');
     window.location.href = 'index.html';
@@ -557,9 +558,11 @@ async function revertPublishedResult(compId, btnElement) {
 
     if (error) {
         showToast("Failed to revert: " + error.message, 'error');
+        btnElement.disabled = false;
+        btnElement.innerHTML = '<i class="ph ph-arrow-u-up-left"></i> Revert to Pending';
     } else {
         showToast("Moved back to pending queue!", "success");
-        loadPublishableComps(); // Refresh the list
+        loadPublishedResults(); // FIX: Now refreshes the Published tab!
     }
 }
 // --- NEW: Select All Logic ---
@@ -569,6 +572,52 @@ function toggleSelectAll(selectAllCheckbox) {
         cb.checked = selectAllCheckbox.checked;
     });
     toggleBulkActions(); // Update the toolbar UI
+}
+
+async function loadPublishedResults() {
+    const grid = document.getElementById('published-grid');
+    grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1;"><i class="ph ph-spinner-gap" style="font-size:2rem; animation: spin 1s linear infinite;"></i><p>Loading live results...</p></div>`;
+
+    const { data: comps, error } = await window.db
+        .from('competitions')
+        .select('*, categories(name)')
+        .eq('status', 'published')
+        .order('name');
+
+    if (error) {
+        showToast("Error loading published results.", "error");
+        return;
+    }
+
+    grid.innerHTML = '';
+
+    if (!comps || comps.length === 0) {
+        grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1; color: var(--text-muted);"><i class="ph ph-globe" style="font-size:2rem; margin-bottom:1rem;"></i><p>No results are currently published live.</p></div>`;
+        return;
+    }
+
+    comps.forEach(comp => {
+        grid.innerHTML += `
+            <div class="card" style="border: 1px solid var(--primary);">
+                <div class="card-header">
+                    <div class="card-title">${comp.name}</div>
+                    <span class="badge" style="background: var(--primary-light); color: var(--primary);">Live</span>
+                </div>
+                <div class="card-meta" style="margin-bottom: 1.5rem;">
+                    <i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}
+                </div>
+                
+                <div style="display: flex; gap: 0.75rem; width: 100%; flex-wrap: wrap; margin-top: auto;">
+                    <button class="btn btn-outline" style="flex: 1; min-width: 120px;" onclick="previewConvertedPoints('${comp.id}', ${comp.max_mark || 100}, ${comp.categories?.is_general || false})">
+                        <i class="ph ph-eye"></i> View Scores
+                    </button>
+                    <button class="btn btn-outline" style="flex: 1; min-width: 120px; color: var(--danger); border-color: var(--danger);" onclick="revertPublishedResult('${comp.id}', this)">
+                        <i class="ph ph-arrow-u-up-left"></i> Revert to Pending
+                    </button>
+                </div>
+            </div>
+        `;
+    });
 }
 
 // Boot up

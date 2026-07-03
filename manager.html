@@ -333,12 +333,14 @@ select.control-input {
 <body>
 
     <div class="sidebar">
-        <div class="brand"><i class="ph-fill ph-crown"></i> FestOS</div>
-        <div class="nav-items">
-            <div class="nav-item active" onclick="switchTab('assignments')"><i class="ph ph-users-three"></i> Assign Judges</div>
-            <div class="nav-item" onclick="switchTab('publish')"><i class="ph ph-megaphone"></i> Publish Results</div>
-        </div>
+    <div class="brand"><i class="ph-fill ph-crown"></i> FestOS</div>
+    <div class="nav-items">
+        <div class="nav-item active" onclick="switchTab('assignments')"><i class="ph ph-users-three"></i> Assign Judges</div>
+        <div class="nav-item" onclick="switchTab('publish')"><i class="ph ph-megaphone"></i> Publish Results</div>
+        <!-- NEW TAB LINK -->
+        <div class="nav-item" onclick="switchTab('published-results')"><i class="ph ph-check-square-offset"></i> Published</div>
     </div>
+</div>
 
     <div class="main-content">
         <div class="header">
@@ -412,6 +414,15 @@ select.control-input {
             <div class="card-grid" id="publish-grid">
                 </div>
         </div>
+        <div id="published-results" class="content-section">
+    <div class="section-header">
+        <h2>Published Results</h2>
+        <p>Competitions below are currently visible on the Live Portal. You can preview scores or revert them back to pending.</p>
+    </div>
+    <div class="card-grid" id="published-grid">
+        <!-- JS will populate this -->
+    </div>
+</div>
     </div>
 
     <div id="pdf-export-container" style="display: none; padding: 40px; background: white; color: black; font-family: sans-serif;"></div>
