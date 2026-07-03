@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FestOS | Team Manager Portal</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="admin_style.css"> 
+    <style>
+        /* Include the same CSS block from your admin.html here if you aren't using an external stylesheet */
+    </style>
+</head>
+<body>
+    <div class="mobile-overlay" onclick="toggleSidebar()"></div>
+
+    <div class="sidebar" id="sidebar">
+        <div class="brand"><i class="fa-solid fa-briefcase"></i> Manager Hub</div>
+        <div class="nav-item active" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i> Dashboard</div>
+        <div class="nav-item" onclick="switchTab('my-team')"><i class="fa-solid fa-users"></i> My Members</div>
+        <div class="nav-item" onclick="switchTab('assignments')"><i class="fa-solid fa-clipboard-check"></i> Assign to Comps</div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button class="menu-toggle" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+                <h1 id="page-title">Team Dashboard</h1>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span id="manager-team-name" class="badge badge-primary">Loading Team...</span>
+                <button class="btn btn-outline" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+            </div>
+        </div>
+
+        <div id="dashboard" class="content-section active">
+            <div class="grid-2">
+                <div class="controls-bar" style="text-align: center; padding: 2rem;">
+                    <i class="fa-solid fa-users" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem;"></i>
+                    <h3 style="font-size: 2rem; font-weight: 800;" id="stat-members">0</h3>
+                    <p style="color: var(--text-muted); font-weight: 600;">Total Team Members</p>
+                </div>
+                <div class="controls-bar" style="text-align: center; padding: 2rem;">
+                    <i class="fa-solid fa-trophy" style="font-size: 2.5rem; color: var(--success); margin-bottom: 1rem;"></i>
+                    <h3 style="font-size: 2rem; font-weight: 800;" id="stat-enrollments">0</h3>
+                    <p style="color: var(--text-muted); font-weight: 600;">Total Enrollments</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="my-team" class="content-section">
+            <div class="action-bar">
+                <h2 style="font-size: 1.5rem; font-weight: 700;">My Team Roster</h2>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Unique ID</th>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Batch</th>
+                        </tr>
+                    </thead>
+                    <tbody id="roster-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="assignments" class="content-section">
+            <div class="action-bar" style="margin-bottom: 1rem;">
+                <h2 style="font-size: 1.5rem; font-weight: 700;">Assign Members to Competitions</h2>
+                <button class="btn btn-primary" onclick="openAssignModal()"><i class="fa-solid fa-plus"></i> New Assignment</button>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Competition Enrolled</th>
+                            <th>Category</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="assignments-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="formModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle">Modal</h2>
+                <button class="close-btn" onclick="document.getElementById('formModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="modalBody"></div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="document.getElementById('formModal').classList.remove('show')">Cancel</button>
+                <button class="btn btn-primary" id="modalSaveBtn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+    <script src="team-manager.js"></script>
+</body>
+</html>

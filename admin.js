@@ -575,7 +575,6 @@ async function loadStagesAndTeams() {
                     <td>STAGE ${s.stage_no}</td>
                     <td><span class="badge-count" onclick="viewRelationalData('competitions', 'stage_id', '${s.id}')">${compCount} COMPS</span></td>
                     <td>
-                        <!-- Structural Button Layout for Stages -->
                         <div style="display: flex; gap: 0.5rem;">
                             <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openStageModal(${JSON.stringify(s).replace(/'/g, "&apos;")})' title="Edit Stage"><i class="fa-solid fa-pen"></i></button>
                             <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteStage('${s.id}', '${s.name}')" title="Delete Stage"><i class="fa-solid fa-trash"></i></button>
@@ -585,10 +584,10 @@ async function loadStagesAndTeams() {
             `;
         });
 
-        // Load Teams with Participant Counts
+        // Load Teams WITH Participant Counts AND User Portal Details
         const { data: teams, error: teamError } = await supabaseClient
             .from('teams')
-            .select('*, participants(count)')
+            .select('*, participants(count), users(username, password_hash)')
             .order('name');
         if(teamError) throw teamError;
         
@@ -598,15 +597,22 @@ async function loadStagesAndTeams() {
         
         teamsList.forEach(t => {
             const memberCount = t.participants[0]?.count || 0;
+            
+            // Check if there is a team manager account linked to this team
+            const mgrAccount = t.users && t.users.length > 0 ? t.users[0] : null;
+            const accountInfo = mgrAccount 
+                ? `<br><span style="display:inline-block; margin-top:6px; padding: 4px 8px; background: var(--primary-light); border-radius: 4px; font-size: 0.75rem; font-weight: 700; color: var(--primary);">PORTAL: ${mgrAccount.username} / ${mgrAccount.password_hash}</span>` 
+                : '';
+
             ttbody.innerHTML += `
                 <tr>
                     <td>
-                        <strong>${t.name}</strong><br>
+                        <strong style="font-size:1.05rem;">${t.name}</strong><br>
                         <small style="color:var(--text-muted)">MGR: ${t.manager_name || 'N/A'} | ASST: ${t.assistant_manager_name || 'N/A'}</small>
+                        ${accountInfo}
                     </td>
                     <td><span class="badge-count" onclick="viewRelationalData('participants', 'team_id', '${t.id}')">${memberCount} MEMBERS</span></td>
                     <td>
-                        <!-- Structural Button Layout for Teams -->
                         <div style="display: flex; gap: 0.5rem;">
                             <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openTeamModal(${JSON.stringify(t).replace(/'/g, "&apos;")})' title="Edit Team"><i class="fa-solid fa-pen"></i></button>
                             <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteTeam('${t.id}', '${t.name}')" title="Delete Team"><i class="fa-solid fa-trash"></i></button>
@@ -719,14 +725,35 @@ function openTeamModal(editData = null) {
         const payload = { name, manager_name, assistant_manager_name };
         if (id) payload.id = id;
 
-        const { error } = await supabaseClient.from('teams').upsert([payload]);
+        // Added .select() to retrieve the ID of the newly created team
+        const { data: savedTeam, error } = await supabaseClient.from('teams').upsert([payload]).select();
         setLoading('modalSaveBtn', false);
         
-        if(error) showToast(error.message, 'error'); 
-        else { showToast(id ? 'Team updated!' : 'Team added!'); closeModal(); loadStagesAndTeams(); }
+        if(error) {
+            showToast(error.message, 'error'); 
+        } else { 
+            // AUTO-CREATE MANAGER USER IF THIS IS A NEW TEAM
+            if (!id && savedTeam && savedTeam.length > 0) {
+                const teamId = savedTeam[0].id;
+                // Generates a username like "falcons_mgr"
+                const autoUsername = name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_mgr';
+                
+                await supabaseClient.from('users').insert([{
+                    username: autoUsername,
+                    password_hash: 'fest2026', // Default password
+                    role: 'team_manager',
+                    team_id: teamId // Make sure 'team_id' column exists in your users table!
+                }]);
+                showToast(`Team added & User created: ${autoUsername}`, 'success');
+            } else {
+                showToast('Team updated!', 'success'); 
+            }
+            
+            closeModal(); 
+            loadStagesAndTeams(); 
+        }
     });
 }
-
 
 // --- PARTICIPANTS MANAGEMENT (PAGINATED) ---
 
@@ -1174,19 +1201,33 @@ async function deleteParticipant(id) {
 // --- USER MANAGEMENT ---
 async function loadUsers() {
     try {
-        const { data, error } = await supabaseClient.from('users').select('id, username, role, password_hash').neq('role', 'master_admin').order('role');
+        // Updated query to fetch the associated team name
+        const { data, error } = await supabaseClient
+            .from('users')
+            .select('id, username, role, password_hash, teams(name)')
+            .neq('role', 'master_admin')
+            .order('role');
+            
         if(error) throw error;
         
         const tbody = document.getElementById('users-tbody');
         tbody.innerHTML = '';
+        
         (data || []).forEach(u => {
             const roleDisplay = u.role.replace('_', ' ').toUpperCase();
+            
+            // Generate a small team tag if the user belongs to a team
+            const teamTag = u.teams?.name ? `<br><span style="font-size: 0.75rem; color: var(--primary); font-weight: 800; letter-spacing: 0.05em;">TEAM: ${u.teams.name.toUpperCase()}</span>` : '';
             
             const safeData = JSON.stringify(u).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
 
             tbody.innerHTML += `
                 <tr>
-                    <td>${u.username}</td> <td><span class="badge badge-primary">${roleDisplay}</span></td>
+                    <td>
+                        <strong style="font-size:1.05rem;">${u.username}</strong>
+                        ${teamTag}
+                    </td> 
+                    <td><span class="badge badge-primary">${roleDisplay}</span></td>
                     <td>
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                            <input type="password" id="pwd-${u.id}" value="${u.password_hash || ''}" readonly style="border: none; background: transparent; width: 120px; font-weight: 600; color: var(--text-muted); outline: none; pointer-events: none; text-transform: none !important;">
@@ -2502,7 +2543,6 @@ async function deleteTemplate(index) {
     }
 }
 
-// --- 2. STUDIO ENGINE (UI) ---
 function openTemplateStudio(template = null) {
     document.getElementById('template-library-view').style.display = 'none';
     document.getElementById('template-studio-view').style.display = 'block';
@@ -2512,10 +2552,18 @@ function openTemplateStudio(template = null) {
         document.getElementById('studio-template-name').value = studioActiveData.name;
         document.getElementById('studio-template-type').value = studioActiveData.type;
         studioActiveData.imgObj = new Image();
+        
+        // ADD THIS LINE:
+        studioActiveData.imgObj.crossOrigin = "Anonymous"; 
+        
         studioActiveData.imgObj.onload = () => drawStudioCanvas();
         if (studioActiveData.bg_base64) studioActiveData.imgObj.src = studioActiveData.bg_base64;
     } else {
         studioActiveData = { id: 'TPL_' + Date.now(), name: '', type: 'individual', bg_base64: null, imgObj: new Image(), fields: {} };
+        
+        // ADD THIS LINE:
+        studioActiveData.imgObj.crossOrigin = "Anonymous";
+        
         document.getElementById('studio-template-name').value = '';
         document.getElementById('studio-template-type').value = 'individual';
     }
@@ -2656,14 +2704,16 @@ function handleStudioUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     
-    // Save the raw file for uploading to Supabase later
     studioActiveData.pendingFile = file;
 
-    // Generate a quick local preview for the Canvas
     const reader = new FileReader();
     reader.onload = function(e) {
-        studioActiveData.bg_base64 = e.target.result; // Temporary local preview
+        studioActiveData.bg_base64 = e.target.result; 
         studioActiveData.imgObj = new Image();
+        
+        // ADD THIS LINE:
+        studioActiveData.imgObj.crossOrigin = "Anonymous";
+        
         studioActiveData.imgObj.onload = () => drawStudioCanvas();
         studioActiveData.imgObj.src = e.target.result;
     };

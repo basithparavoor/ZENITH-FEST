@@ -82,7 +82,6 @@ input, select, textarea, table td:not(.checkbox-cell) { text-transform: uppercas
 input[type="password"], input[type="file"], .file-input, textarea[style*="text-transform: none"] { text-transform: none !important; }
 ::placeholder { text-transform: uppercase; opacity: 0.4; font-size: 0.85rem; font-weight: 500; }
 
-/* --- SIDEBAR --- */
 .sidebar {
     width: 280px; 
     background: var(--bg-surface); 
@@ -92,6 +91,9 @@ input[type="password"], input[type="file"], .file-input, textarea[style*="text-t
     padding: 2rem 1.25rem; 
     z-index: 40;
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    
+    /* Add this line: */
+    overflow-y: auto; 
 }
 
 .brand {
