@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FestOS | Premium Live Results</title>
     
-    <!-- Supabase & HTML2Canvas for JPEG Export -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -22,12 +20,9 @@
             --text-muted: #64748b;
             --border: rgba(15, 23, 42, 0.06);
             
-            --gold: #d97706; /* Darkened slightly for contrast on light */
-            --gold-glow: rgba(245, 158, 11, 0.15);
+            --gold: #d97706;
             --silver: #64748b;
-            --silver-glow: rgba(148, 163, 184, 0.1);
             --bronze: #b45309;
-            --bronze-glow: rgba(180, 83, 9, 0.1);
             
             --glass-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
         }
@@ -45,50 +40,29 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* --- Animations --- */
         @keyframes slideUpFade {
             0% { opacity: 0; transform: translateY(30px) scale(0.98); }
             100% { opacity: 1; transform: translateY(0) scale(1); }
         }
-        @keyframes pulseGlow {
-            0%, 100% { box-shadow: 0 0 15px var(--primary-glow); }
-            50% { box-shadow: 0 0 25px var(--primary-glow); }
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
         }
 
         /* --- Navbar --- */
         .navbar {
             background: rgba(255, 255, 255, 0.8);
             backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
             padding: 1.25rem 5%;
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center;
-            position: sticky; 
-            top: 0; 
-            z-index: 50;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 40;
             border-bottom: 1px solid var(--border);
             box-shadow: 0 4px 20px -10px rgba(0,0,0,0.05);
         }
         .navbar h1 { 
-            font-weight: 800; 
-            font-size: 1.5rem; 
-            letter-spacing: -0.05em; 
+            font-weight: 800; font-size: 1.5rem; letter-spacing: -0.05em; 
             background: linear-gradient(to right, #0f172a, #475569);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .navbar .badge {
-            background: rgba(79, 70, 229, 0.08); 
-            color: var(--primary); 
-            padding: 0.5rem 1.25rem;
-            border-radius: 999px; 
-            font-weight: 700; 
-            font-size: 0.75rem;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            border: 1px solid rgba(79, 70, 229, 0.15);
-            animation: pulseGlow 4s infinite;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
 
         /* --- Main Layout --- */
@@ -100,236 +74,579 @@
             background: rgba(241, 245, 249, 0.6);
             padding: 0.35rem; border-radius: 20px;
             border: 1px solid var(--border);
-            position: relative;
         }
         .tab { 
             flex: 1; text-align: center; padding: 0.875rem 1rem; 
             cursor: pointer; font-weight: 600; color: var(--text-muted); 
-            border-radius: 16px; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 16px; transition: all 0.4s ease;
             font-size: 0.95rem;
         }
         .tab:hover { color: var(--text-main); }
         .tab.active { 
-            background: #ffffff; 
-            color: var(--primary); 
+            background: #ffffff; color: var(--primary); 
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
             border: 1px solid rgba(0,0,0,0.02);
         }
 
         .view-section { display: none; }
-        .view-section.active { display: block; }
+        .view-section.active { display: block; animation: fadeIn 0.4s ease; }
 
         /* --- Leaderboard Styles --- */
         .leaderboard-card {
-            background: var(--surface); 
-            backdrop-filter: blur(24px);
+            background: var(--surface); backdrop-filter: blur(24px);
             border-radius: 20px; padding: 1.5rem 2rem;
             display: flex; align-items: center; margin-bottom: 1rem;
-            border: 1px solid var(--border);
-            box-shadow: var(--glass-shadow);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-            position: relative;
-            overflow: hidden;
+            border: 1px solid var(--border); box-shadow: var(--glass-shadow);
+            transition: all 0.3s ease; animation: slideUpFade 0.6s ease backwards;
         }
-        .leaderboard-card:hover {
-            transform: translateY(-4px) scale(1.01);
-            background: var(--surface-hover);
-            box-shadow: 0 15px 45px -10px rgba(0, 0, 0, 0.1);
-        }
-        
-        .rank { 
-            font-size: 1.25rem; font-weight: 800; width: 60px; 
-            color: var(--text-muted); display: flex; align-items: center; justify-content: center;
-        }
-        
-        /* Premium Badges for Top 3 */
+        .leaderboard-card:hover { transform: translateY(-4px); background: var(--surface-hover); }
+        .rank { font-size: 1.25rem; font-weight: 800; width: 60px; color: var(--text-muted); }
         .rank-1, .rank-2, .rank-3 { font-size: 2rem; width: 70px; }
-        .leaderboard-card.gold-card { background: linear-gradient(145deg, var(--surface), rgba(245, 158, 11, 0.05)); border-color: rgba(245, 158, 11, 0.2); }
-        .leaderboard-card.silver-card { background: linear-gradient(145deg, var(--surface), rgba(148, 163, 184, 0.05)); border-color: rgba(148, 163, 184, 0.2); }
-        .leaderboard-card.bronze-card { background: linear-gradient(145deg, var(--surface), rgba(180, 83, 9, 0.05)); border-color: rgba(180, 83, 9, 0.2); }
-        
+        .gold-card { background: linear-gradient(145deg, var(--surface), rgba(245, 158, 11, 0.05)); border-color: rgba(245, 158, 11, 0.2); }
+        .silver-card { background: linear-gradient(145deg, var(--surface), rgba(148, 163, 184, 0.05)); border-color: rgba(148, 163, 184, 0.2); }
+        .bronze-card { background: linear-gradient(145deg, var(--surface), rgba(180, 83, 9, 0.05)); border-color: rgba(180, 83, 9, 0.2); }
         .team-info { flex: 1; padding-left: 1rem; }
-        .team-name { font-size: 1.25rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em; }
-        .team-score { 
-            font-size: 2rem; font-weight: 800; 
-            background: linear-gradient(to bottom, var(--primary), #818cf8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            display: flex; flex-direction: column; align-items: flex-end;
-        }
-        .score-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 0.2rem; -webkit-text-fill-color: var(--text-muted);}
+        .team-name { font-size: 1.25rem; font-weight: 800; color: var(--text-main); }
+        .team-score { font-size: 2rem; font-weight: 800; color: var(--primary); text-align: right; }
+        .score-label { display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
 
-        /* --- Individual Results Styles --- */
-        .filters { margin-bottom: 2.5rem; position: relative; }
-        .filters select { 
-            width: 100%; padding: 1.25rem 1.5rem; border-radius: 16px; 
-            border: 1px solid var(--border); outline: none; 
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(10px);
-            font-size: 1rem; font-weight: 600; color: var(--text-main);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-            appearance: none; cursor: pointer;
-            transition: all 0.3s ease;
+        /* --- Event Tiles Grid --- */
+        .competitions-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;
         }
-        .filters select:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-glow); }
-        .filters::after {
-            content: '▼'; position: absolute; right: 1.5rem; top: 50%; transform: translateY(-50%);
-            color: var(--text-muted); pointer-events: none; font-size: 0.8rem;
+        .comp-tile {
+            background: var(--surface); border-radius: 20px; padding: 1.75rem;
+            border: 1px solid var(--border); box-shadow: var(--glass-shadow);
+            backdrop-filter: blur(24px); transition: all 0.3s ease;
+            display: flex; flex-direction: column; justify-content: space-between;
+            animation: slideUpFade 0.5s ease backwards;
         }
+        .comp-tile:hover { transform: translateY(-5px); background: var(--surface-hover); box-shadow: 0 15px 35px -10px rgba(0,0,0,0.1); }
+        .tile-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+        .tile-number { font-size: 0.85rem; font-weight: 700; color: var(--primary); background: rgba(79, 70, 229, 0.1); padding: 0.25rem 0.75rem; border-radius: 999px; }
+        .tile-category { font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: var(--text-muted); letter-spacing: 0.1em; }
+        .tile-title { font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 1.5rem; line-height: 1.3; }
         
-        .winners-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
-        .winner-card {
-            background: var(--surface); border-radius: 24px; padding: 2.5rem 2rem; text-align: center;
-            border: 1px solid var(--border);
-            box-shadow: var(--glass-shadow);
-            backdrop-filter: blur(24px);
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-            position: relative; overflow: hidden;
-        }
-        .winner-card::before {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px;
-        }
-        .winner-card.gold::before { background: var(--gold); }
-        .winner-card.silver::before { background: var(--silver); }
-        .winner-card.bronze::before { background: var(--bronze); }
-        
-        .winner-card:hover { transform: translateY(-8px); background: var(--surface-hover); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1); }
-        
-        .winner-position { font-size: 0.85rem; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem; letter-spacing: 0.15em; }
-        .winner-position.gold-text { color: var(--gold); }
-        .winner-position.silver-text { color: var(--silver); }
-        .winner-position.bronze-text { color: var(--bronze); }
-        
-        .winner-name { font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
-        .winner-team { font-size: 1rem; font-weight: 600; color: var(--text-muted); }
-        .winner-score-badge {
-            display: inline-block; margin-top: 2rem; padding: 0.5rem 1.25rem;
-            background: rgba(79, 70, 229, 0.05); border-radius: 999px;
-            font-size: 0.875rem; font-weight: 700; color: var(--primary);
-            border: 1px solid rgba(79, 70, 229, 0.15);
-        }
-
-        /* --- Poster Generation Tools --- */
-        .poster-controls { 
-            background: var(--surface); padding: 4rem 3rem; border-radius: 24px; 
-            text-align: center; border: 1px solid var(--border); box-shadow: var(--glass-shadow);
-            animation: slideUpFade 0.6s ease backwards;
-            backdrop-filter: blur(24px);
-        }
-        .poster-controls h2 { font-size: 2rem; margin-bottom: 1rem; font-weight: 800; letter-spacing: -0.03em;}
         .btn { 
-            padding: 1.25rem 2.5rem; background: var(--primary); color: white; 
-            border: none; border-radius: 16px; font-size: 1.1rem; font-weight: 600; 
-            cursor: pointer; transition: all 0.3s ease; 
-            box-shadow: 0 10px 25px var(--primary-glow);
+            width: 100%; padding: 1rem; background: var(--primary); color: white; 
+            border: none; border-radius: 12px; font-size: 0.95rem; font-weight: 600; 
+            cursor: pointer; transition: all 0.2s ease; 
         }
-        .btn:hover { background: #4338ca; transform: translateY(-2px); box-shadow: 0 15px 35px rgba(79, 70, 229, 0.3); }
-        .btn:active { transform: translateY(1px); }
-        
-        /* High-Res Poster Template - Now optimized for Light Mode aesthetics */
-        #poster-export-area {
-            position: absolute; left: -9999px;
-            width: 1080px; height: 1080px;
-            background: #ffffff;
-            background-image: 
-                radial-gradient(circle at 10% 20%, rgba(79, 70, 229, 0.05) 0%, transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 40%);
-            color: #0f172a; padding: 5rem; display: flex; flex-direction: column;
-        }
-        .poster-header { text-align: center; margin-bottom: 4rem; }
-        .poster-header h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: -0.05em; margin-bottom: 1rem; text-transform: uppercase; color: #0f172a; }
-        .poster-header h2 { font-size: 2.25rem; color: #64748b; font-weight: 600; }
-        
-        .poster-leaderboard { flex: 1; display: flex; flex-direction: column; gap: 1.75rem; }
-        .poster-row { 
-            background: #f8fafc; padding: 2rem 3rem; border-radius: 24px; 
-            display: flex; justify-content: space-between; align-items: center; 
-            border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.02);
-        }
-        .poster-row-rank { font-size: 3rem; font-weight: 800; width: 100px; color: #4f46e5; }
-        .poster-row-name { font-size: 3rem; font-weight: 800; flex: 1; color: #0f172a; }
-        .poster-row-score { font-size: 3.5rem; font-weight: 900; color: #4f46e5;}
+        .btn:hover:not(:disabled) { background: #4338ca; transform: translateY(-2px); }
+        .btn:disabled { opacity: 0.7; cursor: not-allowed; }
+        .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text-main); }
+        .btn-outline:hover:not(:disabled) { background: var(--border); }
 
-        @media (max-width: 640px) {
-            .navbar { padding: 1rem; }
-            .navbar h1 { font-size: 1.25rem; }
-            .leaderboard-card { padding: 1.25rem; flex-direction: row; flex-wrap: wrap; }
-            .rank { font-size: 1.2rem; width: 45px; }
-            .team-score { font-size: 1.5rem; }
-            .tabs { margin-bottom: 2rem; flex-direction: column; }
-            .tab { padding: 0.75rem; }
-            .poster-controls { padding: 2rem 1.5rem; }
+        /* --- Modal Styles --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px);
+            z-index: 100; display: none; justify-content: center; align-items: center;
+            opacity: 0; transition: opacity 0.3s ease; padding: 1rem;
         }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        
+        .modal-content {
+            background: #ffffff; width: 100%; max-width: 800px; max-height: 90vh;
+            border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            overflow-y: auto; position: relative;
+            transform: scale(0.95); transition: transform 0.3s ease;
+            display: flex; flex-direction: column;
+        }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+        
+        .modal-header {
+            padding: 2rem 2rem 1.5rem; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); z-index: 10;
+        }
+        .modal-close {
+            background: var(--bg-base); border: none; width: 40px; height: 40px; border-radius: 50%;
+            font-size: 1.25rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            color: var(--text-muted); transition: all 0.2s ease;
+        }
+        .modal-close:hover { background: #fee2e2; color: #ef4444; }
+        
+        .modal-body { padding: 2rem; display: grid; grid-template-columns: 1fr; gap: 3rem; }
+        @media(min-width: 768px) { .modal-body { grid-template-columns: 1fr 1fr; } }
+        
+        /* Winners List in Modal */
+        .winner-list-item {
+            display: flex; align-items: center; padding: 1rem; margin-bottom: 1rem;
+            background: var(--bg-base); border-radius: 16px; border: 1px solid var(--border);
+        }
+        .w-rank { font-size: 1.5rem; margin-right: 1rem; width: 35px; text-align: center; }
+        .w-details h4 { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.2rem; }
+        .w-details p { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+        .w-score { margin-left: auto; font-weight: 800; color: var(--primary); background: var(--primary-glow); padding: 0.4rem 0.8rem; border-radius: 8px; }
+
+        /* Poster Preview in Modal */
+        .poster-section { display: flex; flex-direction: column; gap: 1rem; }
+        .template-tabs { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; }
+        .template-btn { 
+            padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid var(--border);
+            background: var(--bg-base); color: var(--text-muted); font-size: 0.85rem; font-weight: 600; cursor: pointer;
+            white-space: nowrap; transition: all 0.2s ease;
+        }
+        .template-btn.active { background: var(--text-main); color: white; border-color: var(--text-main); }
+        
+        .preview-wrapper {
+            width: 100%; aspect-ratio: 1/1; background: #e2e8f0; border-radius: 16px;
+            overflow: hidden; position: relative; border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+        }
+        #poster-canvas { width: 100%; height: 100%; object-fit: contain; }
+        
+        .loading-overlay {
+            position: absolute; inset: 0; background: rgba(255,255,255,0.8);
+            display: none; align-items: center; justify-content: center; font-weight: 600; color: var(--primary);
+        }
+
     </style>
 </head>
 <body>
 
     <div class="navbar">
         <h1>FestOS</h1>
-        <div class="badge">● Live Results</div>
+        <div class="badge" style="background: rgba(79, 70, 229, 0.08); color: var(--primary); padding: 0.5rem 1.25rem; border-radius: 999px; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">● Live Results</div>
     </div>
 
     <div class="container">
         <div class="tabs">
             <div class="tab active" onclick="switchTab('standings', this)">Overall Standings</div>
-            <div class="tab" onclick="switchTab('individual', this)">Event Winners</div>
+            <div class="tab" onclick="switchTab('individual', this)">Event Results & Graphics</div>
         </div>
 
+        <!-- Leaderboard -->
         <div id="standings" class="view-section active">
+            <!-- Team Poster Downloads -->
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; background: var(--surface); padding: 1.5rem; border-radius: 20px; border: 1px solid var(--border); box-shadow: var(--glass-shadow); backdrop-filter: blur(10px);">
+                <div>
+                    <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);">Team Standings</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">Download official graphics for current or final team rankings.</p>
+                </div>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button class="btn btn-outline" style="padding: 0.75rem 1.5rem; font-size: 0.95rem; width: auto;" onclick="downloadTeamPoster('team', this)">Current Standings</button>
+                    <button class="btn" style="padding: 0.75rem 1.5rem; font-size: 0.95rem; width: auto; box-shadow: 0 4px 15px var(--primary-glow);" onclick="downloadTeamPoster('final', this)">Final Standings</button>
+                </div>
+            </div>
+
             <div id="leaderboard-container">
                 <p style="text-align:center; color:var(--text-muted); padding: 3rem; font-weight: 500;">Syncing live metrics...</p>
             </div>
         </div>
 
+        <!-- Competitions Grid -->
         <div id="individual" class="view-section">
+            <div class="filters" style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+                <input type="text" id="search-comp" placeholder="Search Competitions..." onkeyup="renderCompetitionsGrid()" style="flex: 1; padding: 1.25rem; border-radius: 16px; border: 1px solid var(--border); outline: none; font-size: 1rem;">
+            </div>
+            <div class="competitions-grid" id="competitions-container">
+                <p style="text-align:center; color:var(--text-muted); grid-column: 1/-1; padding: 3rem;">Loading events...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results & Poster Modal -->
+    <div class="modal-overlay" id="result-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <span id="modal-cat-name" style="font-size: 0.8rem; text-transform: uppercase; font-weight: 800; color: var(--primary); letter-spacing: 0.1em;">Category</span>
+                    <h2 id="modal-comp-name" style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-top: 0.25rem;">Competition Name</h2>
+                </div>
+                <button class="modal-close" onclick="closeModal()">✕</button>
+            </div>
             
-            <div class="filters" style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem;">
-                <input type="text" id="search-participant" placeholder="Search Participant or Competition..." onkeyup="renderIndividualResults()" style="flex: 1; padding: 1.25rem 1.5rem; border-radius: 16px; border: 1px solid var(--border); outline: none;">
-                <select id="comp-filter" onchange="renderIndividualResults()" style="flex: 1;">
-                    <option value="">All Competitions</option>
-                </select>
-                <select id="category-filter" onchange="renderIndividualResults()" style="flex: 1;">
-                    <option value="">All Categories</option>
-                </select>
-                <select id="batch-filter" onchange="renderIndividualResults()" style="flex: 1;">
-                    <option value="">All Batches</option>
-                    <option value="1">Batch 1</option>
-                    <option value="2">Batch 2</option>
-                    <option value="3">Batch 3</option>
-                </select>
-            </div>
-            <div class="winners-grid" id="winners-container">
-                <p style="text-align:center; color:var(--text-muted); grid-column: 1/-1; padding: 3rem; font-weight: 500;">Select an event to load official results.</p>
-            </div>
-        </div>
-    </div>
-        <!-- 3. Poster Export -->
-        <div id="posters" class="view-section">
-            <div class="poster-controls">
-                <h2>Export Official Graphic</h2>
-                <p style="margin-bottom: 2rem; color: var(--text-muted); line-height: 1.6; font-size: 1.1rem; max-width: 600px; margin-inline: auto;">
-                    Generate a studio-quality, ultra-high resolution graphic of the current leaderboards formatted for Instagram and external media channels.
-                </p>
-                <p id="publish-status" style="font-weight: 700; color: var(--primary); margin-bottom: 2rem;"></p>
-                <button class="btn" onclick="downloadPoster()">Generate Graphic</button>
+            <div class="modal-body">
+                <!-- Left Side: Results -->
+                <div>
+                    <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem; color: var(--text-main);">Top Standings</h3>
+                    <div id="modal-winners-list">
+                        <!-- Winners populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Right Side: Poster Preview -->
+                <div class="poster-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main);">Export Graphic</h3>
+                    </div>
+                    
+                    <div class="template-tabs" id="template-selector">
+                        <p style="font-size: 0.85rem; color: var(--text-muted);">Loading templates...</p>
+                    </div>
+
+                    <div class="preview-wrapper">
+                        <canvas id="poster-canvas" width="1080" height="1080"></canvas>
+                        <div class="loading-overlay" id="preview-loader">Rendering...</div>
+                    </div>
+
+                    <button class="btn" style="margin-top: 0.5rem;" onclick="downloadCurrentPoster()">Download High-Res Graphic</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Hidden Template -->
-    <div id="poster-export-area">
-        <div class="poster-header">
-            <h1>Official Standings</h1>
-            <h2 id="poster-subtitle">Live Updates</h2>
-        </div>
-        <div class="poster-leaderboard" id="poster-leaderboard-container"></div>
-        <div style="text-align: center; margin-top: auto; font-size: 1.75rem; color: #4f46e5; font-weight: 700;">
-            Powered by FestOS Data Infrastructure
-        </div>
-    </div>
+    <script>
+        const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    <script src="results.js"></script>
+        const POINTS = { 1: 10, 2: 7, 3: 5 };
+
+        let publishedCompetitions = [];
+        let allTeams = [];
+        let calculatedTeamScores = {}; 
+        let competitionResults = {}; 
+        let cachedTemplates = [];
+        let activeCompId = null;
+        let activeTemplateIndex = 0;
+
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            if(element) element.classList.add('active');
+        }
+
+        async function init() {
+            try {
+                // Fetch Teams
+                const { data: teams } = await supabaseClient.from('teams').select('*');
+                allTeams = teams || [];
+                allTeams.forEach(t => calculatedTeamScores[t.id] = { name: t.name, score: 0 });
+
+                // Fetch published comps
+                const { data: comps, error: compError } = await supabaseClient.from('competitions')
+                    .select('*, categories(name, is_general)') 
+                    .eq('status', 'published');
+                
+                if (compError) throw compError;
+                publishedCompetitions = comps || [];
+
+                // Fetch Templates (Do this once)
+                const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', 'individual');
+                cachedTemplates = templates || [];
+
+                // Calculate Results
+                if (publishedCompetitions.length > 0) {
+                    const compIds = publishedCompetitions.map(c => c.id);
+                    const { data: judgements } = await supabaseClient
+                        .from('judgements')
+                        .select(`competition_id, awarded_mark, participants(id, name, team_id, batch_no)`)
+                        .in('competition_id', compIds)
+                        .not('participant_id', 'is', null)
+                        .not('awarded_mark', 'is', null);
+
+                    processJudgements(judgements || []);
+                }
+
+                renderLeaderboard();
+                renderCompetitionsGrid();
+                
+            } catch (err) {
+                console.error("Init Error:", err);
+                document.getElementById('competitions-container').innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #ef4444;">Failed to load events. Check console for details.</p>`;
+            }
+        }
+
+        function processJudgements(judgements) {
+            const compGroups = {};
+            judgements.forEach(j => {
+                if (!j.participants || !j.participants.id) return; 
+                const comp = publishedCompetitions.find(c => c.id === j.competition_id);
+                if(!compGroups[j.competition_id]) {
+                    compGroups[j.competition_id] = {
+                        participants: {}, is_general: comp?.categories?.is_general || false,
+                        max_mark: comp?.max_mark || 100, comp_data: comp
+                    };
+                }
+                
+                const pId = j.participants.id;
+                if(!compGroups[j.competition_id].participants[pId]) {
+                    compGroups[j.competition_id].participants[pId] = {
+                        participant: j.participants, competition: comp, total_mark: 0, judge_count: 0
+                    };
+                }
+                compGroups[j.competition_id].participants[pId].total_mark += parseFloat(j.awarded_mark);
+                compGroups[j.competition_id].participants[pId].judge_count += 1;
+            });
+
+            for (const [compId, compData] of Object.entries(compGroups)) {
+                const basePoints = compData.is_general ? 20 : 10;
+                const participantsArr = Object.values(compData.participants).map(p => {
+                    const averageMark = p.total_mark / p.judge_count;
+                    p.normalized_points = parseFloat(((averageMark / compData.max_mark) * basePoints).toFixed(2));
+                    return p;
+                });
+
+                const sorted = participantsArr.sort((a, b) => b.normalized_points - a.normalized_points);
+                const top3 = sorted.slice(0, 3);
+                competitionResults[compId] = top3;
+
+                top3.forEach((entry, index) => {
+                    const pointsAwarded = POINTS[index + 1] || 0;
+                    const teamId = entry.participant.team_id;
+                    if (teamId && calculatedTeamScores[teamId]) calculatedTeamScores[teamId].score += pointsAwarded;
+                });
+            }
+        }
+
+        function renderLeaderboard() {
+            const container = document.getElementById('leaderboard-container');
+            container.innerHTML = '';
+            const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score);
+
+            if(sortedTeams.length === 0) {
+                container.innerHTML = `<p style="text-align:center; padding: 3rem; color: var(--text-muted);">Awaiting official results...</p>`;
+                return;
+            }
+
+            sortedTeams.forEach((team, index) => {
+                const rank = index + 1;
+                let rankClass = rank <= 3 ? `rank-${rank}` : '';
+                let cardClass = rank === 1 ? 'gold-card' : rank === 2 ? 'silver-card' : rank === 3 ? 'bronze-card' : '';
+                let rankDisplay = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+
+                container.innerHTML += `
+                    <div class="leaderboard-card ${cardClass}" style="animation-delay: ${index * 0.08}s">
+                        <div class="rank ${rankClass}">${rankDisplay}</div>
+                        <div class="team-info"><div class="team-name">${team.name}</div></div>
+                        <div class="team-score">${team.score} <span class="score-label">Points</span></div>
+                    </div>`;
+            });
+        }
+
+        function renderCompetitionsGrid() {
+            const search = document.getElementById('search-comp').value.toLowerCase();
+            const container = document.getElementById('competitions-container');
+            container.innerHTML = '';
+
+            let count = 0;
+            publishedCompetitions.forEach((comp, index) => {
+                const catName = comp.categories?.name || 'Uncategorized';
+                if(search && !comp.name.toLowerCase().includes(search) && !catName.toLowerCase().includes(search)) return;
+                
+                count++;
+                container.innerHTML += `
+                    <div class="comp-tile" style="animation-delay: ${count * 0.05}s">
+                        <div>
+                            <div class="tile-header">
+                                <span class="tile-category">${catName}</span>
+                                <span class="tile-number">#${index + 1}</span>
+                            </div>
+                            <h3 class="tile-title">${comp.name}</h3>
+                        </div>
+                        <button class="btn btn-outline" onclick="openResultModal('${comp.id}')">View Results & Poster</button>
+                    </div>`;
+            });
+
+            if(count === 0) container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-muted);">No matching events found.</p>`;
+        }
+
+        // --- TEAM POSTER DOWNLOAD LOGIC ---
+
+        async function downloadTeamPoster(type, btnElement) {
+            const originalText = btnElement.innerText;
+            btnElement.innerText = "Generating...";
+            btnElement.disabled = true;
+
+            try {
+                const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', type).limit(1);
+
+                if (!templates || templates.length === 0) {
+                    alert(`No template found for ${type}. Ask admin to create one.`);
+                    btnElement.innerText = originalText;
+                    btnElement.disabled = false;
+                    return;
+                }
+
+                const template = templates[0];
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                
+                img.onload = () => {
+                    canvas.width = img.naturalWidth || 1080;
+                    canvas.height = img.naturalHeight || 1080;
+                    ctx.drawImage(img, 0, 0);
+
+                    const mappedData = {};
+                    mappedData['ResultsCountText'] = `AFTER ${publishedCompetitions.length} EVENTS`;
+                    mappedData['TotalCompetitionsCount'] = `FINAL STANDINGS`;
+                    
+                    const top5 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5);
+                    
+                    for(let i=0; i<5; i++) {
+                        mappedData[`Rank${i+1}Team`] = top5[i] ? top5[i].name : "";
+                        mappedData[`Rank${i+1}Points`] = top5[i] ? `${top5[i].score} PTS` : "";
+                    }
+
+                    if(template.fields) {
+                        for (const [key, fieldConfig] of Object.entries(template.fields)) {
+                            if (!fieldConfig.enabled || fieldConfig.isImage) continue;
+
+                            const text = mappedData[key] || "";
+                            if (!text) continue;
+
+                            ctx.textAlign = fieldConfig.align || 'left';
+                            ctx.fillStyle = fieldConfig.color || '#000000';
+                            ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
+                            ctx.fillText(text, fieldConfig.x, fieldConfig.y);
+                        }
+                    }
+
+                    const link = document.createElement('a');
+                    link.download = `FestOS_${type}_Standings.jpg`;
+                    link.href = canvas.toDataURL("image/jpeg", 1.0); 
+                    link.click();
+                    
+                    btnElement.innerText = originalText;
+                    btnElement.disabled = false;
+                };
+
+                img.src = template.bg_base64;
+            } catch (err) {
+                console.error("Poster Generation Error:", err);
+                alert("An error occurred while generating the poster.");
+                btnElement.innerText = originalText;
+                btnElement.disabled = false;
+            }
+        }
+
+        // --- MODAL & PREVIEW LOGIC ---
+
+        function openResultModal(compId) {
+            activeCompId = compId;
+            const comp = publishedCompetitions.find(c => c.id === compId);
+            
+            document.getElementById('modal-cat-name').innerText = comp.categories?.name || 'Event';
+            document.getElementById('modal-comp-name').innerText = comp.name;
+
+            // Render Winners
+            const winnersList = document.getElementById('modal-winners-list');
+            winnersList.innerHTML = '';
+            
+            const results = competitionResults[compId] || [];
+            if(results.length === 0) {
+                winnersList.innerHTML = `<p style="color: var(--text-muted);">Results are still being calculated for this event.</p>`;
+            } else {
+                const medals = ['🥇', '🥈', '🥉'];
+                results.forEach((entry, idx) => {
+                    const teamName = allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent';
+                    winnersList.innerHTML += `
+                        <div class="winner-list-item">
+                            <div class="w-rank">${medals[idx]}</div>
+                            <div class="w-details">
+                                <h4>${entry.participant.name}</h4>
+                                <p>${teamName} | Batch ${entry.participant.batch_no || 'N/A'}</p>
+                            </div>
+                            <div class="w-score">${entry.normalized_points} pts</div>
+                        </div>`;
+                });
+            }
+
+            // Setup Template Selector
+            const selector = document.getElementById('template-selector');
+            selector.innerHTML = '';
+            
+            if(cachedTemplates.length === 0) {
+                selector.innerHTML = `<span style="font-size: 0.85rem; color: #ef4444;">No templates configured by admin.</span>`;
+            } else {
+                cachedTemplates.forEach((tpl, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = `template-btn ${idx === 0 ? 'active' : ''}`;
+                    btn.innerText = tpl.name || `Template ${idx + 1}`;
+                    btn.onclick = () => {
+                        document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        activeTemplateIndex = idx;
+                        renderPreviewCanvas();
+                    };
+                    selector.appendChild(btn);
+                });
+                activeTemplateIndex = 0;
+                renderPreviewCanvas();
+            }
+
+            // Show Modal
+            document.getElementById('result-modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('result-modal').classList.remove('active');
+            activeCompId = null;
+        }
+
+        function renderPreviewCanvas() {
+            if(!activeCompId || cachedTemplates.length === 0) return;
+            
+            const loader = document.getElementById('preview-loader');
+            loader.style.display = 'flex';
+
+            const template = cachedTemplates[activeTemplateIndex];
+            const canvas = document.getElementById('poster-canvas');
+            const ctx = canvas.getContext('2d');
+
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            
+            img.onload = () => {
+                canvas.width = img.naturalWidth || 1080;
+                canvas.height = img.naturalHeight || 1080;
+                ctx.drawImage(img, 0, 0);
+
+                const comp = publishedCompetitions.find(c => c.id === activeCompId);
+                const results = competitionResults[activeCompId] || [];
+                
+                const mappedData = {
+                    'ResultNumber': `#${publishedCompetitions.findIndex(c => c.id === activeCompId) + 1}`,
+                    'Category': comp.categories?.name || "",
+                    'Competition': comp.name || ""
+                };
+
+                for(let i=0; i<3; i++) {
+                    const entry = results[i];
+                    mappedData[`Position${i+1}Name`] = entry ? entry.participant.name : "AVAILABLE";
+                    mappedData[`Position${i+1}Team`] = entry ? (allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent') : "";
+                }
+
+                if(template.fields) {
+                    for (const [key, fieldConfig] of Object.entries(template.fields)) {
+                        if (!fieldConfig.enabled || fieldConfig.isImage) continue;
+                        
+                        const text = mappedData[key] || "";
+                        if (!text) continue;
+
+                        ctx.textAlign = fieldConfig.align || 'left';
+                        ctx.fillStyle = fieldConfig.color || '#000000';
+                        ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
+                        ctx.fillText(text, fieldConfig.x, fieldConfig.y);
+                    }
+                }
+                
+                loader.style.display = 'none';
+            };
+            
+            img.src = template.bg_base64;
+        }
+
+        function downloadCurrentPoster() {
+            const canvas = document.getElementById('poster-canvas');
+            const comp = publishedCompetitions.find(c => c.id === activeCompId);
+            const safeName = comp ? comp.name.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'event';
+            
+            const link = document.createElement('a');
+            link.download = `FestOS_${safeName}_results.jpg`;
+            link.href = canvas.toDataURL("image/jpeg", 1.0); 
+            link.click();
+        }
+
+        // Boot
+        init();
+    </script>
 </body>
 </html>

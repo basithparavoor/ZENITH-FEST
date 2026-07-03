@@ -2472,8 +2472,7 @@ function renderTemplateLibrary() {
         grid.innerHTML += `
             <div style="background: white; border-radius: var(--radius-lg); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
                 <div style="height: 180px; background: #E2E8F0; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative;">
-                    ${tpl.bg_base64 ? `<img src="${tpl.bg_base64}" style="width: 100%; height: 100%; object-fit: cover;">` : `<i class="fa-solid fa-image" style="font-size: 3rem; color: #CBD5E1;"></i>`}
-                    <div style="position: absolute; top: 10px; right: 10px; background: rgba(79, 70, 229, 0.9); color: white; padding: 0.3rem 0.75rem; border-radius: 50px; font-size: 0.7rem; font-weight: 700;">${tag}</div>
+${tpl.bg_base64 ? `<img src="${tpl.bg_base64}" loading="lazy" decoding="async" style="width: 100%; height: 100%; object-fit: cover;">` : `<i class="fa-solid fa-image" style="font-size: 3rem; color: #CBD5E1;"></i>`}                    <div style="position: absolute; top: 10px; right: 10px; background: rgba(79, 70, 229, 0.9); color: white; padding: 0.3rem 0.75rem; border-radius: 50px; font-size: 0.7rem; font-weight: 700;">${tag}</div>
                 </div>
                 <div style="padding: 1.5rem;">
                     <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.25rem;">${tpl.name}</h3>
@@ -2656,9 +2655,14 @@ function updateActiveProperty(prop, value) {
 function handleStudioUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
+    
+    // Save the raw file for uploading to Supabase later
+    studioActiveData.pendingFile = file;
+
+    // Generate a quick local preview for the Canvas
     const reader = new FileReader();
     reader.onload = function(e) {
-        studioActiveData.bg_base64 = e.target.result;
+        studioActiveData.bg_base64 = e.target.result; // Temporary local preview
         studioActiveData.imgObj = new Image();
         studioActiveData.imgObj.onload = () => drawStudioCanvas();
         studioActiveData.imgObj.src = e.target.result;
@@ -2799,35 +2803,66 @@ document.addEventListener("DOMContentLoaded", () => {
 async function saveActiveTemplate() {
     const name = document.getElementById('studio-template-name').value;
     if (!name) return showToast("Please enter a Template Name.", "error");
-    if (!studioActiveData.bg_base64) return showToast("Please upload a background image.", "error");
+    
+    // Ensure they have either uploaded a new file or already have an image loaded
+    if (!studioActiveData.bg_base64 && !studioActiveData.pendingFile) {
+        return showToast("Please upload a background image.", "error");
+    }
 
     studioActiveData.name = name;
-    
-    // Create safe payload for DB
-    const savePayload = { 
-        id: studioActiveData.id,
-        name: studioActiveData.name,
-        type: studioActiveData.type,
-        bg_base64: studioActiveData.bg_base64,
-        fields: studioActiveData.fields
-    };
 
     // Show loading state
-    const saveBtn = document.querySelector('.btn-success');
+    const saveBtn = document.querySelector('#template-studio-view .btn-success');
     const originalText = saveBtn.innerHTML;
     saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving to Cloud...';
     saveBtn.disabled = true;
 
     try {
-        // Upsert to Supabase
+        // 1. If there's a new file, upload it to Supabase Storage first
+        if (studioActiveData.pendingFile) {
+            showToast("Uploading background image...", "success");
+            const file = studioActiveData.pendingFile;
+            const fileExt = file.name.split('.').pop();
+            const fileName = `bg_${Date.now()}.${fileExt}`;
+
+            // Upload to the 'templates' bucket
+            const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                .from('templates')
+                .upload(fileName, file, { contentType: file.type });
+
+            if (uploadError) throw uploadError;
+
+            // Get the Public URL
+            const { data: publicUrlData } = supabaseClient.storage
+                .from('templates')
+                .getPublicUrl(fileName);
+
+            // Swap out the local Base64 string for the permanent Cloud URL
+            studioActiveData.bg_base64 = publicUrlData.publicUrl;
+            
+            // Clear pending file so we don't re-upload if they click save again
+            studioActiveData.pendingFile = null; 
+        }
+
+        // 2. Create the payload for the Database (now containing a lightweight URL!)
+        const savePayload = { 
+            id: studioActiveData.id,
+            name: studioActiveData.name,
+            type: studioActiveData.type,
+            bg_base64: studioActiveData.bg_base64, // This is now a URL!
+            fields: studioActiveData.fields
+        };
+
+        // 3. Save to Database
         const { error } = await supabaseClient.from('templates').upsert(savePayload);
         if (error) throw error;
         
         showToast("Template Saved to Cloud Successfully!", "success");
         closeTemplateStudio();
+        
     } catch (err) {
         console.error(err);
-        showToast("Error saving template to cloud.", "error");
+        showToast(err.message || "Error saving template to cloud.", "error");
     } finally {
         saveBtn.innerHTML = originalText;
         saveBtn.disabled = false;
@@ -3044,5 +3079,14 @@ async function submitDirectValuation() {
         showToast(e.message, 'error');
     } finally {
         setLoading('btnSubmitDV', false);
+    }
+}
+// --- MISSING EDIT FUNCTION FIX ---
+function editTemplate(index) {
+    const templateToEdit = savedTemplates[index];
+    if (templateToEdit) {
+        openTemplateStudio(templateToEdit);
+    } else {
+        showToast("Error: Could not load template data.", "error");
     }
 }
