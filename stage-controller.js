@@ -90,15 +90,15 @@ async function loadCompetitions(stageId) {
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
-            <div class="card-header">
-                <div>
-                    <h2 class="card-title">${comp.name}</h2>
-                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">
-                        <i class="ph ph-gavel"></i> Judges Assigned: <strong>${comp.judges.length}</strong>
-                    </p>
-                </div>
-                <span class="badge ${badgeClass}">${statusText}</span>
-            </div>
+          <div class="card-header">
+    <div>
+        <h2 class="card-title">${comp.name}</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">
+            <i class="ph ph-gavel"></i> Marks Submitted: <strong>${comp.judgements ? comp.judgements.length : 0}</strong>
+        </p>
+    </div>
+    <span class="badge ${badgeClass}">${statusText}</span>
+</div>
             
             <div id="controls-${comp.id}" style="display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap;">
                 ${getButtonsForStatus(comp)}
@@ -157,13 +157,7 @@ function getButtonsForStatus(comp) {
     return `<p style="color: var(--text-muted); font-size: 0.95rem; width: 100%; text-align: center; background: #F8FAFC; padding: 1rem; border-radius: 8px;">Action completed. Waiting for Manager to publish.</p>`;
 }
 
-// 4. Modal & Scanning Logic
-async function startRegistration(compId, compName, btn) {
-    btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Starting...';
-    btn.disabled = true;
-    await updateStatus(compId, 'registration');
-    openScannerModal(compId, compName);
-}
+
 
 async function openScannerModal(compId, compName) {
     activeScanCompId = compId;
@@ -344,25 +338,6 @@ async function changeCompetitionState(compId, newStatus, btnElement, loadingText
         btnElement.innerHTML = originalHTML;
         btnElement.disabled = false;
     }
-}
-// --- Cancel Registration (Only if empty) ---
-async function cancelRegistration(compId, btn) {
-    const { count } = await supabaseClient
-        .from('participant_competitions')
-        .select('*', { count: 'exact', head: true })
-        .eq('competition_id', compId)
-        .eq('is_present', true);
-        
-    if (count > 0) return showToast("Cannot cancel. Participants are already checked in.", "error");
-    if (!confirm("Cancel registration and return to pending state?")) return;
-    
-    changeCompetitionState(compId, 'pending', btn, 'Cancelling');
-}
-
-// --- Go back to Registration from Ongoing ---
-async function backToRegistration(compId, btn) {
-    if(!confirm("⚠️ Re-open the scanner? This will ERASE any submitted marks!")) return;
-    changeCompetitionState(compId, 'registration', btn, 'Reverting');
 }
 
 // --- Cancel Registration (Only if empty) ---
