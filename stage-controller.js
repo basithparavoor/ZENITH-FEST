@@ -52,7 +52,7 @@ async function loadDashboard() {
     }
 
     const { data: stage, error: stageError } = await supabaseClient
-        .from('stages').select('*').eq('controller_id', user.id).single();
+    .from('stages').select('*').eq('controller_id', user.id).maybeSingle();
 
     if (stageError || !stage) {
         document.getElementById('stage-name').innerText = "Unassigned / Error";
@@ -391,12 +391,8 @@ async function cancelRegistration(compId, btn) {
 
 // --- Go back to Registration from Ongoing ---
 async function backToRegistration(compId, btn) {
-    if(!confirm("Re-open the scanning phase?")) return;
-    
-    btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i>';
-    btn.disabled = true;
-    await updateStatus(compId, 'registration');
-    showToast("Scanner re-opened!");
+    if(!confirm("⚠️ Re-open the scanner? This will ERASE any submitted marks!")) return;
+    changeCompetitionState(compId, 'registration', btn, 'Reverting');
 }
 
 function logout() {

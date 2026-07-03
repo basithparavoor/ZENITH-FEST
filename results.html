@@ -275,28 +275,36 @@
         <div class="tabs">
             <div class="tab active" onclick="switchTab('standings', this)">Overall Standings</div>
             <div class="tab" onclick="switchTab('individual', this)">Event Winners</div>
-            <div class="tab" onclick="switchTab('posters', this)">Media Export</div>
         </div>
 
-        <!-- 1. Live Team Standings -->
         <div id="standings" class="view-section active">
             <div id="leaderboard-container">
                 <p style="text-align:center; color:var(--text-muted); padding: 3rem; font-weight: 500;">Syncing live metrics...</p>
             </div>
         </div>
 
-        <!-- 2. Individual Results -->
         <div id="individual" class="view-section">
-            <div class="filters">
-                <select id="comp-filter" onchange="renderIndividualResults()">
-                    <option value="">Select a competition...</option>
+            
+            <div class="filters" style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem;">
+                <input type="text" id="search-participant" placeholder="Search Participant or Competition..." onkeyup="renderIndividualResults()" style="flex: 1; padding: 1.25rem 1.5rem; border-radius: 16px; border: 1px solid var(--border); outline: none;">
+                <select id="comp-filter" onchange="renderIndividualResults()" style="flex: 1;">
+                    <option value="">All Competitions</option>
+                </select>
+                <select id="category-filter" onchange="renderIndividualResults()" style="flex: 1;">
+                    <option value="">All Categories</option>
+                </select>
+                <select id="batch-filter" onchange="renderIndividualResults()" style="flex: 1;">
+                    <option value="">All Batches</option>
+                    <option value="1">Batch 1</option>
+                    <option value="2">Batch 2</option>
+                    <option value="3">Batch 3</option>
                 </select>
             </div>
             <div class="winners-grid" id="winners-container">
                 <p style="text-align:center; color:var(--text-muted); grid-column: 1/-1; padding: 3rem; font-weight: 500;">Select an event to load official results.</p>
             </div>
         </div>
-
+    </div>
         <!-- 3. Poster Export -->
         <div id="posters" class="view-section">
             <div class="poster-controls">

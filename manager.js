@@ -357,14 +357,18 @@ async function loadPublishableComps() {
                     <span class="badge badge-ready">Ready</span>
                 </div>
                 <div class="card-meta" style="margin-bottom: 1.5rem;"><i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}</div>
-                <div style="display: flex; gap: 0.5rem; width: 100%;">
-                    <button class="btn btn-outline" style="flex: 1;" onclick="redoJudgement('${comp.id}', this)">
-                        <i class="ph ph-arrow-u-up-left"></i> Redo
-                    </button>
-                    <button class="btn btn-success" style="flex: 2;" onclick="publishCompetition('${comp.id}', this)">
-                        <i class="ph ph-megaphone-simple"></i> Publish Live
-                    </button>
-                </div>
+                // Inside loadPublishableComps() in manager.js
+<div style="display: flex; gap: 0.5rem; width: 100%; flex-wrap: wrap;">
+    <button class="btn btn-outline" style="flex: 1; min-width: 100px;" onclick="previewConvertedPoints('${comp.id}', ${comp.max_mark || 100}, ${comp.categories?.is_general || false})">
+        <i class="ph ph-eye"></i> Preview
+    </button>
+    <button class="btn btn-outline" style="flex: 1; min-width: 100px;" onclick="redoJudgement('${comp.id}', this)">
+        <i class="ph ph-arrow-u-up-left"></i> Redo
+    </button>
+    <button class="btn btn-success" style="flex: 2; min-width: 140px;" onclick="publishCompetition('${comp.id}', this)">
+        <i class="ph ph-megaphone-simple"></i> Publish Live
+    </button>
+</div>
             </div>
         `;
     });
@@ -472,6 +476,54 @@ async function bulkRevokeJudges() {
         showToast(`Cleared judges from ${checkboxes.length} competitions!`);
         document.getElementById('bulk-actions').style.display = 'none';
         loadAssignments();
+    }
+}
+// Normalization Logic for Previewing Points
+async function previewConvertedPoints(compId, maxMark, isGeneral) {
+    const { data: judgements } = await window.db
+        .from('judgements')
+        .select('participant_id, awarded_mark, participants(name)')
+        .eq('competition_id', compId);
+
+    const basePoints = isGeneral ? 20 : 10;
+    const participantMarks = {};
+
+    // Average the marks if multiple judges exist
+    judgements.forEach(j => {
+        if (!participantMarks[j.participant_id]) {
+            participantMarks[j.participant_id] = { name: j.participants.name, total: 0, count: 0 };
+        }
+        participantMarks[j.participant_id].total += parseFloat(j.awarded_mark);
+        participantMarks[j.participant_id].count += 1;
+    });
+
+    let previewHTML = `<div style="text-align: left;">`;
+    for (const [pId, data] of Object.entries(participantMarks)) {
+        const averageMark = data.total / data.count;
+        const convertedPoint = ((averageMark / maxMark) * basePoints).toFixed(2);
+        previewHTML += `<p><strong>${data.name}:</strong> ${convertedPoint} / ${basePoints} pts</p>`;
+    }
+    previewHTML += `</div>`;
+
+    showToast(`Converted Points Preview: <br>${previewHTML}`, 'success');
+}
+
+// Revert Published Results back to Pending
+async function revertPublishedResult(compId, btnElement) {
+    if(!confirm("⚠️ Move this published result back to pending? It will be removed from Live Results!")) return;
+    
+    btnElement.disabled = true;
+    btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Reverting...';
+
+    const { error } = await window.db.from('competitions')
+        .update({ status: 'judgement_complete' }) // Moves it back to the publish queue
+        .eq('id', compId);
+
+    if (error) {
+        showToast("Failed to revert: " + error.message, 'error');
+    } else {
+        showToast("Moved back to pending queue!", "success");
+        loadPublishableComps(); // Refresh the list
     }
 }
 

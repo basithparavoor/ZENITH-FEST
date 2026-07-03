@@ -2182,3 +2182,221 @@ async function generateBulkCards() {
 
     } catch(e) { showToast(e.message, 'error'); btn.innerHTML = originalText; btn.disabled = false; }
 }
+
+let currentTemplateConfig = {};
+
+function loadTemplateConfig() {
+    const type = document.getElementById('template-type-select').value;
+    const fieldsContainer = document.getElementById('alignment-fields');
+    fieldsContainer.innerHTML = '';
+    
+    // Define required fields based on the requested poster type
+    let fields = [];
+    if(type === 'individual') {
+        fields = ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 2 Name', 'Position 3 Name', 'Team Name'];
+    } else if (type === 'team') {
+        fields = ['Results Count Text', 'Team 1 Name', 'Team 1 Points', 'Team 2 Name', 'Team 2 Points'];
+    } else if (type === 'final') {
+        fields = ['Total Competitions Count', 'Final Champion Team', 'Champion Points'];
+    }
+
+    fields.forEach(field => {
+        fieldsContainer.innerHTML += `
+            <div style="background: var(--bg-main); padding: 1rem; border-radius: var(--radius-md);">
+                <label style="font-weight: 700; display: block; margin-bottom: 0.5rem;">${field}</label>
+                <div style="display: flex; gap: 1rem;">
+                    <input type="number" id="x-${field.replace(/\s+/g, '')}" placeholder="X Coordinate" class="form-control" style="width: 100%;">
+                    <input type="number" id="y-${field.replace(/\s+/g, '')}" placeholder="Y Coordinate" class="form-control" style="width: 100%;">
+                </div>
+            </div>
+        `;
+    });
+}
+
+async function saveTemplateConfig() {
+    // In production, save this JSON object to a 'settings' table in Supabase
+    showToast("Template Coordinates Saved Successfully!");
+}
+
+// --- PREMIUM POSTER TEMPLATE ENGINE ---
+
+let activeTemplateType = 'individual';
+let activeInputField = null; // Tracks which input the user is currently targeting
+
+// Global State to hold images and coordinates in memory
+let templateData = {
+    individual: { bgImage: new Image(), fields: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 2 Name', 'Position 3 Name', 'Team Name'], coords: {} },
+    team: { bgImage: new Image(), fields: ['Results Count Text', 'Team 1 Name', 'Team 1 Points', 'Team 2 Name', 'Team 2 Points'], coords: {} },
+    final: { bgImage: new Image(), fields: ['Total Competitions Count', 'Final Champion Team', 'Champion Points'], coords: {} }
+};
+
+// Simulated mock data to render on the preview canvas
+const previewMockData = {
+    'ResultNumber': '#42', 'Category': 'GENERAL', 'Competition': 'DANCE OFF',
+    'Position1Name': 'JOHN DOE', 'Position2Name': 'JANE SMITH', 'Position3Name': 'MIKE TYSON',
+    'TeamName': 'FALCONS', 'ResultsCountText': 'RESULTS AFTER 40 EVENTS',
+    'Team1Name': 'FALCONS', 'Team1Points': '450 PTS', 'Team2Name': 'EAGLES', 'Team2Points': '380 PTS',
+    'TotalCompetitionsCount': 'FINAL RESULTS - 120 EVENTS', 'FinalChampionTeam': 'FALCONS', 'ChampionPoints': '1250 PTS'
+};
+
+function loadTemplateConfig() {
+    activeTemplateType = document.getElementById('template-type-select').value;
+    const fieldsContainer = document.getElementById('alignment-fields');
+    fieldsContainer.innerHTML = '';
+    
+    const config = templateData[activeTemplateType];
+
+    config.fields.forEach(field => {
+        const fieldKey = field.replace(/\s+/g, ''); // e.g., 'Position1Name'
+        
+        // Initialize defaults if empty
+        if (!config.coords[fieldKey]) config.coords[fieldKey] = { x: 100, y: 150 };
+
+        fieldsContainer.innerHTML += `
+            <div style="background: white; padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
+                <label style="font-weight: 700; display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">${field}</label>
+                <div style="display: flex; gap: 0.75rem;">
+                    <div style="flex: 1; position: relative;">
+                        <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem; font-weight: 700;">X</span>
+                        <input type="number" id="x-${fieldKey}" value="${config.coords[fieldKey].x}" onfocus="setActiveField('${fieldKey}')" oninput="updateCoordsFromInput('${fieldKey}')" style="width: 100%; padding: 0.65rem 0.65rem 0.65rem 1.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border); outline: none;">
+                    </div>
+                    <div style="flex: 1; position: relative;">
+                        <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem; font-weight: 700;">Y</span>
+                        <input type="number" id="y-${fieldKey}" value="${config.coords[fieldKey].y}" onfocus="setActiveField('${fieldKey}')" oninput="updateCoordsFromInput('${fieldKey}')" style="width: 100%; padding: 0.65rem 0.65rem 0.65rem 1.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border); outline: none;">
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    renderTemplatePreview();
+}
+
+function setActiveField(fieldKey) {
+    activeInputField = fieldKey;
+}
+
+function updateCoordsFromInput(fieldKey) {
+    const x = parseInt(document.getElementById(`x-${fieldKey}`).value) || 0;
+    const y = parseInt(document.getElementById(`y-${fieldKey}`).value) || 0;
+    templateData[activeTemplateType].coords[fieldKey] = { x, y };
+    renderTemplatePreview();
+}
+
+// Handle Image Upload and load it into the canvas memory
+function handleTemplateUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        templateData[activeTemplateType].bgImage.onload = () => {
+            renderTemplatePreview();
+        };
+        templateData[activeTemplateType].bgImage.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+// The core rendering engine for the preview
+function renderTemplatePreview() {
+    const canvas = document.getElementById('template-canvas');
+    const ctx = canvas.getContext('2d');
+    const config = templateData[activeTemplateType];
+
+    // Clear Canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 1. Draw Background Image (if uploaded)
+    if (config.bgImage.src) {
+        ctx.drawImage(config.bgImage, 0, 0, canvas.width, canvas.height);
+    } else {
+        // Fallback placeholder pattern
+        ctx.fillStyle = "#E2E8F0";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#94A3B8";
+        ctx.font = "bold 40px Inter";
+        ctx.textAlign = "center";
+        ctx.fillText("NO BACKGROUND UPLOADED", canvas.width / 2, canvas.height / 2);
+    }
+
+    // 2. Draw Text Overlays based on coords
+    ctx.textAlign = "left";
+    
+    for (const [fieldKey, coords] of Object.entries(config.coords)) {
+        // Highlight the text if it is the actively selected field
+        if (activeInputField === fieldKey) {
+            ctx.fillStyle = "#E11D48"; // Danger Red to show it's active
+            ctx.font = "bold 48px Inter";
+        } else {
+            ctx.fillStyle = "#0F172A"; // Default dark
+            ctx.font = "bold 40px Inter";
+        }
+
+        const mockText = previewMockData[fieldKey] || fieldKey;
+        ctx.fillText(mockText, coords.x, coords.y);
+    }
+}
+
+// Magical Click-to-Position Logic
+document.addEventListener("DOMContentLoaded", () => {
+    const canvas = document.getElementById('template-canvas');
+    if (!canvas) return;
+
+    canvas.addEventListener('mousedown', function(e) {
+        if (!activeInputField) {
+            showToast("Click an input field on the left first to map coordinates!", "error");
+            return;
+        }
+
+        // Calculate accurate X/Y scaled from the visual CSS size to the internal 1080x1080 size
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        const actualX = Math.round((e.clientX - rect.left) * scaleX);
+        const actualY = Math.round((e.clientY - rect.top) * scaleY);
+
+        // Update Inputs
+        document.getElementById(`x-${activeInputField}`).value = actualX;
+        document.getElementById(`y-${activeInputField}`).value = actualY;
+
+        // Update State
+        templateData[activeTemplateType].coords[activeInputField] = { x: actualX, y: actualY };
+        
+        // Re-render
+        renderTemplatePreview();
+    });
+});
+
+async function saveTemplateConfig() {
+    setLoading('template-type-select', true); // generic loading indicator
+    showToast("Saving template parameters...", "success");
+    
+    // Structure the payload
+    const payload = {
+        type: activeTemplateType,
+        coordinates: templateData[activeTemplateType].coords
+    };
+
+    try {
+        /*
+         * SUPABASE INTEGRATION:
+         * To make this fully functional on Live Results, save it to a Supabase table named 'settings'
+         * with columns: id (string, PK), value (jsonb)
+         */
+         
+         const { error } = await supabaseClient.from('settings')
+            .upsert({ id: `template_${activeTemplateType}`, value: payload });
+            
+         if (error) throw error;
+         
+         showToast("Template Coordinates Saved Successfully!");
+    } catch(e) {
+        // Fallback for if table doesn't exist yet
+        console.warn("Table 'settings' might not exist yet. Payload:", payload);
+        showToast("Configurations mapped locally! (Set up Supabase 'settings' table to persist)", "success");
+    } finally {
+        setLoading('template-type-select', false);
+    }
+}
