@@ -418,6 +418,7 @@ tr:hover td { background: var(--bg-main); }
             <button class="btn btn-outline" id="filter-individual" onclick="filterTemplateLibrary('individual')" style="border-radius: 50px;">Individual Events</button>
             <button class="btn btn-outline" id="filter-team" onclick="filterTemplateLibrary('team')" style="border-radius: 50px;">Team Standings</button>
             <button class="btn btn-outline" id="filter-final" onclick="filterTemplateLibrary('final')" style="border-radius: 50px;">Final Results</button>
+            <button class="btn btn-outline" id="filter-id_card" onclick="filterTemplateLibrary('id_card')" style="border-radius: 50px;">ID Cards</button>
         </div>
         
         <div class="card-grid" id="saved-templates-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
@@ -439,6 +440,7 @@ tr:hover td { background: var(--bg-main); }
                         <option value="individual">Individual Event Winner</option>
                         <option value="team">Team Standings</option>
                         <option value="final">Final Overall Results</option>
+                        <option value="id_card">Participant ID Card</option>
                     </select>
                 </div>
             </div>
@@ -449,24 +451,40 @@ tr:hover td { background: var(--bg-main); }
             </div>
         </div>
 
-        <div class="grid-2" style="grid-template-columns: 1fr 1.2fr; gap: 2rem;">
-            <div class="table-container" style="padding: 1.5rem; max-height: 65vh; overflow-y: auto; background: white; border: 1px solid var(--border);">
-                <div style="background: var(--primary-light); color: var(--primary); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; font-size: 0.85rem; font-weight: 600; display: flex; gap: 0.75rem; align-items: flex-start;">
-                    <i class="fa-solid fa-wand-magic-sparkles" style="margin-top: 0.2rem;"></i>
-                    <span><strong>Pro Tip:</strong> Click an X/Y field to select it, then click anywhere on your image to map coordinates instantly.</span>
-                </div>
-                <div id="studio-alignment-fields" style="display: flex; flex-direction: column; gap: 1rem;">
+       <div class="grid-2" style="grid-template-columns: 350px 1fr; gap: 2rem;">
+            <div style="display: flex; flex-direction: column; gap: 1rem; max-height: 70vh;">
+                
+                <div class="table-container" style="background: white; border: 1px solid var(--border); display: flex; flex-direction: column; max-height: 40%;">
+                    <div style="padding: 0.75rem 1rem; background: var(--bg-main); border-bottom: 1px solid var(--border); font-weight: 800; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;">
+                        <span><i class="fa-solid fa-layer-group" style="margin-right: 5px; color: var(--primary);"></i> Active Layers</span>
                     </div>
+                    <div id="studio-layers-panel" style="overflow-y: auto; padding: 0.5rem; flex: 1; display: flex; flex-direction: column; gap: 0.25rem;">
+                        </div>
+                </div>
+
+                <div class="table-container" style="background: white; border: 1px solid var(--border); flex: 1; display: flex; flex-direction: column; overflow-y: auto;">
+                    <div style="padding: 0.75rem 1rem; background: var(--bg-main); border-bottom: 1px solid var(--border); font-weight: 800; font-size: 0.9rem;">
+                        <i class="fa-solid fa-sliders" style="margin-right: 5px; color: var(--primary);"></i> Layer Properties
+                    </div>
+                    <div id="studio-properties-panel" style="padding: 1rem;">
+                        <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">Select a layer above or click on the canvas to edit properties.</p>
+                    </div>
+                </div>
+
             </div>
 
             <div class="table-container" style="padding: 1.5rem; background: #E2E8F0; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border); position: relative;">
                 
+                <div style="position: absolute; top: 1rem; left: 1rem; background: rgba(0,0,0,0.6); color: white; padding: 0.5rem 1rem; border-radius: 50px; font-size: 0.8rem; font-weight: 600; pointer-events: none; z-index: 10;">
+                    <i class="fa-solid fa-hand-pointer"></i> Drag elements to position
+                </div>
+
                 <button class="btn btn-dark" onclick="openFullViewModal()" style="position: absolute; top: 1rem; right: 1rem; z-index: 10; padding: 0.5rem 1rem; font-size: 0.8rem; opacity: 0.8;">
-                    <i class="fa-solid fa-expand"></i> Inspect Full Size
+                    <i class="fa-solid fa-expand"></i> Full Size
                 </button>
 
-                <div style="position: relative; width: 100%; max-height: 60vh; display: flex; justify-content: center; align-items: center;">
-                    <canvas id="studio-canvas" style="max-width: 100%; max-height: 100%; object-fit: contain; cursor: crosshair; background: white; box-shadow: var(--shadow-lg);"></canvas>
+                <div style="position: relative; width: 100%; max-height: 65vh; display: flex; justify-content: center; align-items: center;">
+                    <canvas id="studio-canvas" style="max-width: 100%; max-height: 100%; object-fit: contain; cursor: move; background: white; box-shadow: var(--shadow-lg);"></canvas>
                 </div>
             </div>
         </div>

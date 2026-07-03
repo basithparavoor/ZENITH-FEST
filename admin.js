@@ -2400,3 +2400,434 @@ async function saveTemplateConfig() {
         setLoading('template-type-select', false);
     }
 }
+
+// ============================================================================
+// POSTER TEMPLATE ENGINE V6 (Layers Panel, Drag-and-Drop, Corner Radius)
+// ============================================================================
+
+let savedTemplates = []; 
+let studioActiveData = null; 
+let studioActiveField = null; 
+let currentLibraryFilter = 'all';
+
+// DRAG STATE
+let isDraggingLayer = false;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+
+const TEMPLATE_SCHEMAS = {
+    individual: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 1 Team', 'Position 2 Name', 'Position 2 Team', 'Position 3 Name', 'Position 3 Team'],
+    team: ['Results Count Text', 'Rank 1 Team', 'Rank 1 Points', 'Rank 2 Team', 'Rank 2 Points', 'Rank 3 Team', 'Rank 3 Points', 'Rank 4 Team', 'Rank 4 Points', 'Rank 5 Team', 'Rank 5 Points'],
+    final: ['Total Competitions Count', 'Rank 1 Team', 'Rank 1 Points', 'Rank 2 Team', 'Rank 2 Points', 'Rank 3 Team', 'Rank 3 Points', 'Rank 4 Team', 'Rank 4 Points', 'Rank 5 Team', 'Rank 5 Points'],
+    id_card: ['Participant Name', 'Unique ID', 'Team Name', 'Category', 'Batch No', 'Photo', 'QR Code']
+};
+
+const STUDIO_MOCK_DATA = {
+    'ResultNumber': '#42', 'Category': 'GENERAL', 'Competition': 'DANCE OFF',
+    'Position1Name': 'JOHN DOE', 'Position1Team': 'FALCONS', 
+    'Position2Name': 'JANE SMITH', 'Position2Team': 'EAGLES',
+    'Position3Name': 'MIKE TYSON', 'Position3Team': 'HAWKS',
+    'ResultsCountText': 'RESULTS AFTER 40 EVENTS',
+    'TotalCompetitionsCount': 'FINAL OVERALL RESULTS', 
+    'Rank1Team': 'FALCONS', 'Rank1Points': '450 PTS',
+    'Rank2Team': 'EAGLES', 'Rank2Points': '380 PTS',
+    'ParticipantName': 'JOHN DOE', 'UniqueID': 'FEST-26-987654', 'BatchNo': 'BATCH 1'
+};
+
+const AVAILABLE_FONTS = [
+    { name: 'Inter', value: 'Inter, sans-serif' },
+    { name: 'Plus Jakarta Sans', value: "'Plus Jakarta Sans', sans-serif" },
+    { name: 'Roboto', value: 'Roboto, sans-serif' },
+    { name: 'Bebas Neue', value: "'Bebas Neue', cursive" },
+    { name: 'Serif', value: "'Times New Roman', Times, serif" }
+];
+
+// --- 1. LIBRARY INIT ---
+async function loadTemplatesList() {
+    const localData = localStorage.getItem('festOS_templates');
+    savedTemplates = localData ? JSON.parse(localData) : [];
+    renderTemplateLibrary();
+}
+
+function filterTemplateLibrary(type) {
+    currentLibraryFilter = type;
+    document.querySelectorAll('#template-library-view .controls-bar button').forEach(btn => {
+        btn.classList.remove('active-filter-btn');
+        btn.style.background = 'transparent'; btn.style.color = 'var(--text-main)'; btn.style.borderColor = 'var(--border)';
+    });
+    
+    const activeBtn = document.getElementById(`filter-${type}`);
+    if (activeBtn) {
+        activeBtn.classList.add('active-filter-btn');
+        activeBtn.style.background = 'var(--primary)'; activeBtn.style.color = 'white'; activeBtn.style.borderColor = 'var(--primary)';
+    }
+    renderTemplateLibrary();
+}
+
+function renderTemplateLibrary() {
+    const grid = document.getElementById('saved-templates-grid');
+    grid.innerHTML = '';
+    const filtered = currentLibraryFilter === 'all' ? savedTemplates : savedTemplates.filter(t => t.type === currentLibraryFilter);
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1/-1; padding: 3rem; text-align: center; color: var(--text-muted); background: white; border-radius: var(--radius-lg); border: 1px dashed var(--border);">No templates found.</div>`;
+        return;
+    }
+
+    filtered.forEach((tpl) => {
+        const trueIndex = savedTemplates.findIndex(t => t.id === tpl.id);
+        let tag = tpl.type === 'id_card' ? 'ID Card' : tpl.type === 'team' ? 'Team' : tpl.type === 'final' ? 'Final' : 'Individual';
+
+        grid.innerHTML += `
+            <div style="background: white; border-radius: var(--radius-lg); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
+                <div style="height: 180px; background: #E2E8F0; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative;">
+                    ${tpl.bg_base64 ? `<img src="${tpl.bg_base64}" style="width: 100%; height: 100%; object-fit: cover;">` : `<i class="fa-solid fa-image" style="font-size: 3rem; color: #CBD5E1;"></i>`}
+                    <div style="position: absolute; top: 10px; right: 10px; background: rgba(79, 70, 229, 0.9); color: white; padding: 0.3rem 0.75rem; border-radius: 50px; font-size: 0.7rem; font-weight: 700;">${tag}</div>
+                </div>
+                <div style="padding: 1.5rem;">
+                    <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.25rem;">${tpl.name}</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">${Object.keys(tpl.fields).filter(k => tpl.fields[k].enabled).length} Active Fields</p>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-outline" style="flex: 1;" onclick="editTemplate(${trueIndex})">Edit</button>
+                        <button class="btn btn-outline" style="padding: 0.5rem 1rem; color: var(--danger); border-color: var(--danger);" onclick="deleteTemplate(${trueIndex})"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+}
+
+function deleteTemplate(index) {
+    if(confirm("Permanently delete this template?")) {
+        savedTemplates.splice(index, 1);
+        localStorage.setItem('festOS_templates', JSON.stringify(savedTemplates));
+        loadTemplatesList();
+    }
+}
+
+// --- 2. STUDIO ENGINE (UI) ---
+function openTemplateStudio(template = null) {
+    document.getElementById('template-library-view').style.display = 'none';
+    document.getElementById('template-studio-view').style.display = 'block';
+
+    if (template) {
+        studioActiveData = JSON.parse(JSON.stringify(template)); 
+        document.getElementById('studio-template-name').value = studioActiveData.name;
+        document.getElementById('studio-template-type').value = studioActiveData.type;
+        studioActiveData.imgObj = new Image();
+        studioActiveData.imgObj.onload = () => drawStudioCanvas();
+        if (studioActiveData.bg_base64) studioActiveData.imgObj.src = studioActiveData.bg_base64;
+    } else {
+        studioActiveData = { id: 'TPL_' + Date.now(), name: '', type: 'individual', bg_base64: null, imgObj: new Image(), fields: {} };
+        document.getElementById('studio-template-name').value = '';
+        document.getElementById('studio-template-type').value = 'individual';
+    }
+    
+    studioActiveField = null;
+    initializeStudioFields();
+}
+
+function closeTemplateStudio() {
+    document.getElementById('template-studio-view').style.display = 'none';
+    document.getElementById('template-library-view').style.display = 'block';
+    loadTemplatesList(); 
+}
+
+function initializeStudioFields() {
+    const type = document.getElementById('studio-template-type').value;
+    studioActiveData.type = type;
+    const requiredFields = TEMPLATE_SCHEMAS[type];
+
+    // Build Data Defaults
+    requiredFields.forEach(field => {
+        const key = field.replace(/\s+/g, '');
+        const isImage = (key === 'Photo' || key === 'QRCode');
+        if (!studioActiveData.fields[key]) {
+            if (isImage) studioActiveData.fields[key] = { enabled: false, x: 100, y: 150, w: 250, h: 300, radius: 20, isImage: true };
+            else studioActiveData.fields[key] = { enabled: false, x: 100, y: 150, size: 40, color: '#0F172A', align: 'left', font: 'Inter, sans-serif', weight: 'bold', isImage: false };
+        }
+        studioActiveData.fields[key].displayName = field;
+    });
+
+    renderLayersPanel();
+    renderPropertiesPanel();
+    drawStudioCanvas();
+}
+
+function renderLayersPanel() {
+    const container = document.getElementById('studio-layers-panel');
+    container.innerHTML = '';
+
+    Object.keys(studioActiveData.fields).forEach(key => {
+        const data = studioActiveData.fields[key];
+        const isActiveLayer = (studioActiveField === key);
+        
+        container.innerHTML += `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.75rem; border-radius: 6px; cursor: pointer; transition: 0.2s; background: ${isActiveLayer ? 'var(--primary-light)' : 'transparent'}; border: 1px solid ${isActiveLayer ? 'rgba(79,70,229,0.3)' : 'transparent'};" onclick="selectStudioLayer('${key}')">
+                
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <button style="background:none; border:none; color: ${data.enabled ? 'var(--text-main)' : '#CBD5E1'}; cursor:pointer; font-size:1.1rem;" onclick="toggleLayerVisibility(event, '${key}')">
+                        <i class="fa-solid ${data.enabled ? 'fa-eye' : 'fa-eye-slash'}"></i>
+                    </button>
+                    <span style="font-weight: 700; font-size: 0.85rem; color: ${data.enabled ? 'var(--text-main)' : 'var(--text-muted)'};">${data.displayName}</span>
+                </div>
+                
+                <div style="color: var(--text-muted); font-size: 0.8rem;">
+                    ${data.isImage ? '<i class="fa-regular fa-image"></i>' : '<i class="fa-solid fa-t"></i>'}
+                </div>
+            </div>
+        `;
+    });
+}
+
+function selectStudioLayer(key) {
+    studioActiveField = key;
+    renderLayersPanel(); // Update Highlights
+    renderPropertiesPanel(); // Show Controls
+    drawStudioCanvas(); // Highlight on canvas
+}
+
+function toggleLayerVisibility(event, key) {
+    event.stopPropagation(); // Prevent layer selection click
+    studioActiveData.fields[key].enabled = !studioActiveData.fields[key].enabled;
+    if (!studioActiveData.fields[key].enabled && studioActiveField === key) {
+        studioActiveField = null;
+        renderPropertiesPanel();
+    }
+    renderLayersPanel();
+    drawStudioCanvas();
+}
+
+function renderPropertiesPanel() {
+    const container = document.getElementById('studio-properties-panel');
+    if (!studioActiveField || !studioActiveData.fields[studioActiveField]) {
+        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">Select a layer to edit.</p>`;
+        return;
+    }
+
+    const key = studioActiveField;
+    const data = studioActiveData.fields[key];
+    const fonts = AVAILABLE_FONTS.map(f => `<option value="${f.value}" ${data.font === f.value ? 'selected' : ''}>${f.name}</option>`).join('');
+
+    let specificHTML = '';
+    if (data.isImage) {
+        specificHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem;">
+                <div><label style="font-size: 0.75rem; font-weight:700;">WIDTH (px)</label><input type="number" id="prop-w" value="${data.w}" oninput="updateActiveProperty('w', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">HEIGHT (px)</label><input type="number" id="prop-h" value="${data.h}" oninput="updateActiveProperty('h', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+                <div style="grid-column: span 2;"><label style="font-size: 0.75rem; font-weight:700;">CORNER RADIUS (px)</label><input type="number" id="prop-rad" value="${data.radius || 0}" oninput="updateActiveProperty('radius', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+            </div>
+        `;
+    } else {
+        specificHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem;">
+                <div><label style="font-size: 0.75rem; font-weight:700;">FONT SIZE</label><input type="number" id="prop-sz" value="${data.size}" oninput="updateActiveProperty('size', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">COLOR</label><input type="color" id="prop-cl" value="${data.color}" oninput="updateActiveProperty('color', this.value)" style="width: 100%; height: 35px; border: 1px solid var(--border); border-radius: 4px; padding:0;"></div>
+                <div style="grid-column: span 2;"><label style="font-size: 0.75rem; font-weight:700;">FONT FAMILY</label><select onchange="updateActiveProperty('font', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">${fonts}</select></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">WEIGHT</label><select onchange="updateActiveProperty('weight', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                    <option value="normal" ${data.weight==='normal'?'selected':''}>Normal</option>
+                    <option value="bold" ${data.weight==='bold'?'selected':''}>Bold</option>
+                    <option value="900" ${data.weight==='900'?'selected':''}>Black</option>
+                </select></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">ALIGN</label><select onchange="updateActiveProperty('align', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                    <option value="left" ${data.align==='left'?'selected':''}>Left</option>
+                    <option value="center" ${data.align==='center'?'selected':''}>Center</option>
+                    <option value="right" ${data.align==='right'?'selected':''}>Right</option>
+                </select></div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = `
+        <h4 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 1rem; color: var(--primary);">${data.displayName}</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <div><label style="font-size: 0.75rem; font-weight:700;">X POS</label><input type="number" id="prop-x" value="${data.x}" oninput="updateActiveProperty('x', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+            <div><label style="font-size: 0.75rem; font-weight:700;">Y POS</label><input type="number" id="prop-y" value="${data.y}" oninput="updateActiveProperty('y', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+        </div>
+        ${specificHTML}
+    `;
+}
+
+function updateActiveProperty(prop, value) {
+    if (!studioActiveField) return;
+    const isNum = ['x','y','w','h','size','radius'].includes(prop);
+    studioActiveData.fields[studioActiveField][prop] = isNum ? (parseInt(value) || 0) : value;
+    drawStudioCanvas();
+}
+
+function handleStudioUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        studioActiveData.bg_base64 = e.target.result;
+        studioActiveData.imgObj = new Image();
+        studioActiveData.imgObj.onload = () => drawStudioCanvas();
+        studioActiveData.imgObj.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+// --- 3. CANVAS ENGINE & DRAWING ---
+function drawStudioCanvas() {
+    const canvas = document.getElementById('studio-canvas');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    if (studioActiveData.imgObj && studioActiveData.imgObj.src && studioActiveData.imgObj.naturalWidth > 0) {
+        canvas.width = studioActiveData.imgObj.naturalWidth; canvas.height = studioActiveData.imgObj.naturalHeight;
+        ctx.drawImage(studioActiveData.imgObj, 0, 0);
+    } else {
+        canvas.width = 1080; canvas.height = 1080;
+        ctx.fillStyle = "#F1F5F9"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#94A3B8"; ctx.font = "bold 40px Inter"; ctx.textAlign = "center";
+        ctx.fillText("UPLOAD A BACKGROUND IMAGE", canvas.width / 2, canvas.height / 2);
+    }
+
+    for (const [key, data] of Object.entries(studioActiveData.fields)) {
+        if (!data.enabled) continue; 
+
+        if (data.isImage) {
+            // Draw Rounded Rectangle
+            ctx.beginPath();
+            if(ctx.roundRect) {
+                ctx.roundRect(data.x, data.y, data.w, data.h, data.radius || 0);
+            } else {
+                ctx.rect(data.x, data.y, data.w, data.h); // Fallback
+            }
+            
+            ctx.fillStyle = key === 'Photo' ? 'rgba(79, 70, 229, 0.2)' : 'rgba(15, 23, 42, 0.1)';
+            ctx.fill();
+
+            if (studioActiveField === key) {
+                ctx.strokeStyle = '#4F46E5'; ctx.lineWidth = 6; ctx.setLineDash([15, 10]);
+                ctx.stroke(); ctx.setLineDash([]);
+            }
+
+            ctx.fillStyle = '#0F172A'; ctx.font = "bold 28px Inter"; ctx.textAlign = "center";
+            ctx.fillText(data.displayName, data.x + (data.w / 2), data.y + (data.h / 2) + 10);
+            
+        } else {
+            ctx.textAlign = data.align; ctx.fillStyle = data.color;
+            ctx.font = `${data.weight || 'bold'} ${data.size}px ${data.font}`;
+            const mockText = STUDIO_MOCK_DATA[key] || data.displayName.toUpperCase();
+            
+            if (studioActiveField === key) {
+                ctx.shadowColor = 'rgba(79, 70, 229, 0.8)'; ctx.shadowBlur = 15;
+                ctx.fillText(mockText, data.x, data.y);
+                ctx.shadowBlur = 0; // Reset
+            } else {
+                ctx.fillText(mockText, data.x, data.y);
+            }
+        }
+    }
+}
+
+// --- 4. DRAG & DROP INTERACTION ---
+document.addEventListener("DOMContentLoaded", () => {
+    const canvas = document.getElementById('studio-canvas');
+    if (!canvas) return;
+
+    // Mouse Down (Hit Test)
+    canvas.addEventListener('mousedown', function(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
+        const mouseX = (e.clientX - rect.left) * scaleX; const mouseY = (e.clientY - rect.top) * scaleY;
+
+        let hit = null;
+        // Loop in reverse to hit topmost items first
+        const keys = Object.keys(studioActiveData.fields).reverse();
+        
+        for(let key of keys) {
+            const data = studioActiveData.fields[key];
+            if(!data.enabled) continue;
+
+            if(data.isImage) {
+                if(mouseX >= data.x && mouseX <= data.x + data.w && mouseY >= data.y && mouseY <= data.y + data.h) {
+                    hit = key; break;
+                }
+            } else {
+                // Approximate Text Hitbox
+                const ctx = canvas.getContext('2d');
+                ctx.font = `${data.weight || 'bold'} ${data.size}px ${data.font}`;
+                const w = ctx.measureText(STUDIO_MOCK_DATA[key] || data.displayName).width;
+                const h = data.size; 
+                let startX = data.x;
+                if(data.align === 'center') startX -= w/2;
+                if(data.align === 'right') startX -= w;
+
+                if(mouseX >= startX && mouseX <= startX + w && mouseY >= data.y - h && mouseY <= data.y + (h * 0.2)) {
+                    hit = key; break;
+                }
+            }
+        }
+
+        if(hit) {
+            selectStudioLayer(hit);
+            isDraggingLayer = true;
+            dragOffsetX = mouseX - studioActiveData.fields[hit].x;
+            dragOffsetY = mouseY - studioActiveData.fields[hit].y;
+        } else {
+            studioActiveField = null; // Deselect
+            renderLayersPanel(); renderPropertiesPanel(); drawStudioCanvas();
+        }
+    });
+
+    // Mouse Move (Dragging)
+    canvas.addEventListener('mousemove', function(e) {
+        if(!isDraggingLayer || !studioActiveField) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
+        const mouseX = (e.clientX - rect.left) * scaleX; const mouseY = (e.clientY - rect.top) * scaleY;
+
+        studioActiveData.fields[studioActiveField].x = Math.round(mouseX - dragOffsetX);
+        studioActiveData.fields[studioActiveField].y = Math.round(mouseY - dragOffsetY);
+
+        // Live update input fields if Properties panel is showing
+        const propX = document.getElementById('prop-x');
+        const propY = document.getElementById('prop-y');
+        if(propX) propX.value = studioActiveData.fields[studioActiveField].x;
+        if(propY) propY.value = studioActiveData.fields[studioActiveField].y;
+
+        drawStudioCanvas();
+    });
+
+    // Mouse Up (Stop Drag)
+    window.addEventListener('mouseup', () => { isDraggingLayer = false; });
+});
+
+// --- 5. SAVING ---
+async function saveActiveTemplate() {
+    const name = document.getElementById('studio-template-name').value;
+    if (!name) return showToast("Please enter a Template Name.", "error");
+    if (!studioActiveData.bg_base64) return showToast("Please upload a background image.", "error");
+
+    studioActiveData.name = name;
+    const savePayload = { ...studioActiveData };
+    delete savePayload.imgObj;
+
+    const existingIndex = savedTemplates.findIndex(t => t.id === savePayload.id);
+    if (existingIndex >= 0) savedTemplates[existingIndex] = savePayload;
+    else savedTemplates.push(savePayload);
+
+    localStorage.setItem('festOS_templates', JSON.stringify(savedTemplates));
+    showToast("Template Saved Successfully!", "success");
+    closeTemplateStudio();
+}
+
+function openFullViewModal() {
+    const canvas = document.getElementById('studio-canvas');
+    document.getElementById('fullViewImage').src = canvas.toDataURL("image/png");
+    document.getElementById('fullViewModal').classList.add('show');
+}
+
+const originalSwitchTab = window.switchTab;
+window.switchTab = function(tabId) {
+    if(originalSwitchTab) originalSwitchTab(tabId);
+    if(tabId === 'poster-templates') {
+        document.getElementById('template-library-view').style.display = 'block';
+        document.getElementById('template-studio-view').style.display = 'none';
+        filterTemplateLibrary('all');
+    }
+};
