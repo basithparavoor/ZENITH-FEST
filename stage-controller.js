@@ -36,7 +36,8 @@ async function initializeApp() {
         const navActions = document.querySelector('.nav-actions');
         navActions.insertAdjacentHTML('afterbegin', `<button class="btn btn-primary" onclick="window.location.href='admin.html'"><i class="ph ph-shield-check"></i> Admin Hub</button>`);
     }
-    
+    // Add this to inject the username!
+document.getElementById('welcome-msg').innerText = `WELCOME, ${user.username}`;
     loadDashboard();
 }
 
@@ -265,7 +266,6 @@ async function onScanSuccess(decodedText) {
     resetScanner();
 }
 
-// Helper function to handle the 2-second timeout cleanly
 function resetScanner() {
     setTimeout(() => {
         isProcessingScan = false;
@@ -273,7 +273,7 @@ function resetScanner() {
         if (document.getElementById('scanner-modal').style.display === 'flex') {
             html5QrcodeScanner.resume();
         }
-    }, 2000); 
+    }, 800); // Changed from 2000 to 800 for rapid scanning!
 }
 
 function onScanFailure(error) { /* Ignore routine frame failures */ }
@@ -342,26 +342,22 @@ async function changeCompetitionState(compId, newStatus, btnElement, loadingText
 
 // --- Cancel Registration (Only if empty) ---
 async function cancelRegistration(compId, btn) {
-    // 1. Check if anyone is already registered/checked-in
-    const { count, error } = await supabaseClient
-        .from('competition_registrations')
-        .select('*', { count: 'exact', head: true })
-        .eq('competition_id', compId)
-        .eq('is_present', true);
+    try {
+        const { count, error } = await supabaseClient
+            .from('participant_competitions')
+            .select('*', { count: 'exact', head: true })
+            .eq('competition_id', compId)
+            .eq('is_present', true);
+            
+        if (error) throw error;
+            
+        if (count > 0) return showToast("CANNOT CANCEL. PARTICIPANTS ARE ALREADY CHECKED IN.", "error");
+        if (!confirm("CANCEL REGISTRATION AND RETURN TO PENDING STATE?")) return;
         
-    if (count > 0) {
-        showToast("Cannot cancel. Participants are already checked in.", "error");
-        return;
+        await changeCompetitionState(compId, 'pending', btn, 'CANCELLING');
+    } catch (err) {
+        showToast("ERROR CANCELLING: " + err.message, "error");
     }
-    
-    if(!confirm("Cancel registration and return to pending state?")) return;
-    
-    btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i>';
-    btn.disabled = true;
-    
-    // 2. Revert back to pending
-    await updateStatus(compId, 'pending');
-    showToast("Registration cancelled.");
 }
 
 // --- Go back to Registration from Ongoing ---

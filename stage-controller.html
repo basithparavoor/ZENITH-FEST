@@ -67,6 +67,14 @@ body {
     padding-bottom: calc(90px + env(safe-area-inset-bottom)); 
 }
 
+/* Force Uppercase Globally */
+body, input, button, select, .toast, .card-title { 
+    text-transform: uppercase !important; 
+}
+.ph, .ph-fill, .ph-bold { 
+    text-transform: none !important; /* Prevents icon fonts from breaking */
+}
+
 /* --- MOBILE APP SHELL (NAVBARS) --- */
 .navbar { 
     display: block; /* Overriding previous flex layout */
@@ -229,15 +237,12 @@ body {
 
     <div class="container">
         <nav class="navbar">
-            <div>
-                <h1><i class="ph-fill ph-microphone-stage" style="color: var(--primary);"></i> Stage Controller</h1>
-                <p id="stage-name" style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem;">Authenticating...</p>
-            </div>
-            <div class="nav-actions" style="display: flex; gap: 0.75rem;">
-                <button class="btn btn-outline" onclick="loadDashboard()"><i class="ph ph-arrows-clockwise"></i> Refresh</button>
-                <button class="btn btn-outline" onclick="logout()"><i class="ph ph-sign-out"></i> Logout</button>
-            </div>
-        </nav>
+    <div>
+        <h1><i class="ph-fill ph-microphone-stage" style="color: var(--primary);"></i> Stage Controller</h1>
+        <p id="stage-name" style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem;">Authenticating...</p>
+        <div id="welcome-msg" style="color: var(--primary); font-weight: 800; font-size: 0.85rem; letter-spacing: 0.05em; margin-top: 0.25rem;"></div>
+    </div>
+    </nav>
 
         <main id="competitions-container">
             </main>
