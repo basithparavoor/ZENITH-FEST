@@ -73,15 +73,15 @@ loginForm.addEventListener('submit', async (e) => {
         // Store active session
         localStorage.setItem('festUser', JSON.stringify(data));
         
-        // --- ADDED TEAM MANAGER ROUTE HERE ---
-        const routes = {
-            'master_admin': 'admin.html',
-            'admin': 'admin.html',
-            'fest_manager': 'manager.html', // Note: If this was meant to be the master Fest Manager, leave it.
-            'team_manager': 'manager.html', // <-- This routes the new role!
-            'stage_controller': 'stage-controller.html',
-            'judge': 'judge.html'
-        };
+       // Change this section in login.js:
+const routes = {
+    'master_admin': 'admin.html',
+    'admin': 'admin.html',
+    'fest_manager': 'manager.html', 
+    'team_manager': 'team-manager.html', // <-- Update this line right here!
+    'stage_controller': 'stage-controller.html',
+    'judge': 'judge.html'
+};
 
         const targetPage = routes[data.role];
 
