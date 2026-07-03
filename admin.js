@@ -2881,7 +2881,9 @@ window.switchTab = function(tabId) {
     if(tabId === 'poster-templates') {
         document.getElementById('template-library-view').style.display = 'block';
         document.getElementById('template-studio-view').style.display = 'none';
-        filterTemplateLibrary('all');
+        
+        // FIX: Actively fetch the templates from Supabase instead of filtering an empty array
+        loadTemplatesList(); 
     }
 };
 
