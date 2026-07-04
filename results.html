@@ -226,9 +226,9 @@
                     <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">Download official graphics for current or final team rankings.</p>
                 </div>
                 <div style="display: flex; gap: 0.75rem;">
-                    <button class="btn btn-outline" style="padding: 0.75rem 1.5rem; font-size: 0.95rem; width: auto;" onclick="downloadTeamPoster('team', this)">Current Standings</button>
-                    <button class="btn" style="padding: 0.75rem 1.5rem; font-size: 0.95rem; width: auto; box-shadow: 0 4px 15px var(--primary-glow);" onclick="downloadTeamPoster('final', this)">Final Standings</button>
-                </div>
+    <button class="btn btn-outline" style="padding: 0.75rem 1.5rem; font-size: 0.95rem; width: auto;" onclick="previewTeamPoster('team', this)"><i class="fa-solid fa-eye"></i> Preview Current</button>
+    <button class="btn" style="padding: 0.75rem 1.5rem; font-size: 0.95rem; width: auto; box-shadow: 0 4px 15px var(--primary-glow);" onclick="previewTeamPoster('final', this)"><i class="fa-solid fa-eye"></i> Preview Final</button>
+</div>
             </div>
 
             <div id="leaderboard-container">
@@ -284,6 +284,27 @@
 
                     <button class="btn" style="margin-top: 0.5rem;" onclick="downloadCurrentPoster()">Download High-Res Graphic</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="team-preview-modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <div>
+                    <span style="font-size: 0.8rem; text-transform: uppercase; font-weight: 800; color: var(--primary); letter-spacing: 0.1em;">Team Standings</span>
+                    <h2 id="team-modal-title" style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-top: 0.25rem;">Preview</h2>
+                </div>
+                <button class="modal-close" onclick="closeTeamModal()">✕</button>
+            </div>
+            
+            <div class="modal-body" style="grid-template-columns: 1fr; gap: 1rem;">
+                <div class="preview-wrapper" style="max-height: 50vh; background: transparent; border: none;">
+                    <img id="team-poster-preview-img" src="" style="width: 100%; height: 100%; object-fit: contain; border-radius: 12px; box-shadow: var(--glass-shadow); border: 1px solid var(--border);" />
+                </div>
+                <button class="btn" id="btn-download-team" style="margin-top: 1rem; font-size: 1.05rem;">
+                    Download High-Res Graphic
+                </button>
             </div>
         </div>
     </div>
@@ -450,18 +471,22 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, 
             if(count === 0) container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-muted);">No matching events found.</p>`;
         }
 
-        async function downloadTeamPoster(type, btnElement) {
-    const originalText = btnElement.innerText;
-    btnElement.innerText = "Generating...";
+let currentTeamPosterDataUrl = null;
+let currentTeamPosterFilename = "";
+
+async function previewTeamPoster(type, btnElement) {
+    const originalText = btnElement.innerHTML;
+    btnElement.innerHTML = "Generating...";
     btnElement.disabled = true;
 
     // 1. Block Final Standings if the fest hasn't ended.
-    // (You can change this variable to 'true' when the fest is actually over)
+    // (Change this variable to 'true' when the fest is actually over)
     const isFestEnded = false; 
     
     if (type === 'final' && !isFestEnded) {
-        alert("No template found for final. Ask admin to create one.");
-        btnElement.innerText = originalText;
+        // Updated message for ongoing fests
+        alert("Fest Not Completed - Come Back After End");
+        btnElement.innerHTML = originalText;
         btnElement.disabled = false;
         return;
     }
@@ -469,13 +494,15 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, 
     try {
         const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', type).limit(1);
 
+        // 2. Error out if fest is completed (or it's 'team' type) but no template exists
         if (!templates || templates.length === 0) {
             alert(`No template found for ${type}. Ask admin to create one.`);
-            btnElement.innerText = originalText;
+            btnElement.innerHTML = originalText;
             btnElement.disabled = false;
             return;
         }
 
+        // 3. If template exists (and fest is completed if 'final'), generate the poster
         const template = templates[0];
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -490,21 +517,21 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, 
 
             const mappedData = {};
 
-// Only apply the multiple of 10 logic to current standings
-if (type === 'team') {
-    const roundedCount = Math.floor(publishedCompetitions.length / 10) * 10;
-    mappedData['ResultsCountText'] = `AFTER ${roundedCount} EVENTS`;
-    mappedData['TotalCompetitionsCount'] = `CURRENT STANDINGS`;
-} else if (type === 'final') {
-    mappedData['ResultsCountText'] = `AFTER ALL EVENTS`; // Or whatever text you prefer for the final
-    mappedData['TotalCompetitionsCount'] = `FINAL STANDINGS`;
-}
+            // Apply formatting without "PTS" or "EVENTS"
+            if (type === 'team') {
+                const roundedCount = Math.floor(publishedCompetitions.length / 10) * 10;
+                mappedData['ResultsCountText'] = `AFTER ${roundedCount}`;
+                mappedData['TotalCompetitionsCount'] = `CURRENT STANDINGS`;
+            } else if (type === 'final') {
+                mappedData['ResultsCountText'] = `AFTER ALL`;
+                mappedData['TotalCompetitionsCount'] = `FINAL STANDINGS`;
+            }
 
-const top5 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5);
-// ... (rest of the loop remains the same)
+            const top5 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5);
+            
             for(let i = 0; i < 5; i++) {
                 mappedData[`Rank${i+1}Team`] = top5[i] ? top5[i].name : "";
-                mappedData[`Rank${i+1}Points`] = top5[i] ? `${top5[i].score} PTS` : "";
+                mappedData[`Rank${i+1}Points`] = top5[i] ? `${top5[i].score}` : "";
             }
 
             if(template.fields) {
@@ -521,12 +548,26 @@ const top5 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.scor
                 }
             }
 
-            const link = document.createElement('a');
-            link.download = `FestOS_${type}_Standings.jpg`;
-            link.href = canvas.toDataURL("image/jpeg", 1.0); 
-            link.click();
+            // Generate Preview Data
+            currentTeamPosterDataUrl = canvas.toDataURL("image/jpeg", 1.0);
+            currentTeamPosterFilename = `FestOS_${type}_Standings.jpg`;
             
-            btnElement.innerText = originalText;
+            // Populate and Show Modal
+            document.getElementById('team-poster-preview-img').src = currentTeamPosterDataUrl;
+            document.getElementById('team-modal-title').innerText = type === 'final' ? 'Final Standings' : 'Current Standings';
+            
+            // Attach Download Event
+            document.getElementById('btn-download-team').onclick = () => {
+                const link = document.createElement('a');
+                link.download = currentTeamPosterFilename;
+                link.href = currentTeamPosterDataUrl;
+                link.click();
+            };
+
+            // Show the modal
+            document.getElementById('team-preview-modal').classList.add('active');
+            
+            btnElement.innerHTML = originalText;
             btnElement.disabled = false;
         };
 
@@ -534,9 +575,14 @@ const top5 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.scor
     } catch (err) {
         console.error("Poster Generation Error:", err);
         alert("An error occurred while generating the poster.");
-        btnElement.innerText = originalText;
+        btnElement.innerHTML = originalText;
         btnElement.disabled = false;
     }
+}
+
+// Helper to close the new modal
+function closeTeamModal() {
+    document.getElementById('team-preview-modal').classList.remove('active');
 }
         // --- MODAL & PREVIEW LOGIC ---
 

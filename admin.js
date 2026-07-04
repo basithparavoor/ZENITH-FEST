@@ -2291,9 +2291,9 @@ let templateData = {
 const previewMockData = {
     'ResultNumber': '#42', 'Category': 'GENERAL', 'Competition': 'DANCE OFF',
     'Position1Name': 'JOHN DOE', 'Position2Name': 'JANE SMITH', 'Position3Name': 'MIKE TYSON',
-    'TeamName': 'FALCONS', 'ResultsCountText': 'RESULTS AFTER 40 EVENTS',
-    'Team1Name': 'FALCONS', 'Team1Points': '450 PTS', 'Team2Name': 'EAGLES', 'Team2Points': '380 PTS',
-    'TotalCompetitionsCount': 'FINAL RESULTS - 120 EVENTS', 'FinalChampionTeam': 'FALCONS', 'ChampionPoints': '1250 PTS'
+    'TeamName': 'FALCONS', 'ResultsCountText': 'RESULTS AFTER 40',
+    'Team1Name': 'FALCONS', 'Team1Points': '450', 'Team2Name': 'EAGLES', 'Team2Points': '380',
+    'TotalCompetitionsCount': 'FINAL RESULTS - 120', 'FinalChampionTeam': 'FALCONS', 'ChampionPoints': '1250'
 };
 
 function loadTemplateConfig() {
