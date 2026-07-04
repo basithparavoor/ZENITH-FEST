@@ -6,330 +6,338 @@
     <title>FestOS | Premium Announcement Portal</title>
     
     <link rel="icon" href="data:,"> 
-    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+        :root {
+            --primary: #4F46E5;
+            --primary-gradient: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+            --danger: #E11D48;
+            --success: #10B981;
+            --bg-main: #F1F5F9; 
+            --bg-surface: #FFFFFF;
+            --text-main: #0F172A;
+            --text-muted: #64748B;
+            --border: #E2E8F0;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --shadow-card: 0 2px 10px rgba(15, 23, 42, 0.04);
+        }
 
-:root {
-    /* Premium Palette Architecture */
-    --primary: #4F46E5;
-    --primary-gradient: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
-    
-    --danger: #E11D48;
-    --success-hover: #059669;
-    --success-light: #ECFDF5;
-    --warning-hover: #D97706;
-    --warning-light: #FEF3C7;
-    
-    /* Neutrals & Surfaces */
-    --bg-main: #F1F5F9; 
-    --bg-surface: #FFFFFF;
-    --text-main: #0F172A;
-    --text-muted: #64748B;
-    --border: #E2E8F0;
-    
-    /* Mobile Elevations */
-    --shadow-nav: 0 1px 3px rgba(0,0,0,0.05);
-    --shadow-card: 0 2px 10px rgba(15, 23, 42, 0.04);
-    
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
-    
-    --transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
+        /* FORCE ALL TEXT TO UPPERCASE */
+        * { 
+            margin: 0; padding: 0; box-sizing: border-box; 
+            font-family: 'Inter', sans-serif; 
+            text-transform: uppercase !important; 
+        }
+        
+        body { background-color: var(--bg-main); color: var(--text-main); min-height: 100vh; padding-bottom: 80px; }
 
-/* --- SYSTEM RESET --- */
-* { 
-    margin: 0; 
-    padding: 0; 
-    box-sizing: border-box; 
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
-    -webkit-tap-highlight-color: transparent; 
-}
+        /* App Shell */
+        .header {
+            position: sticky; top: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px);
+            padding: 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between;
+            align-items: center; z-index: 100;
+        }
+        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; color: var(--primary); }
 
-body {
-    background-color: var(--bg-main);
-    color: var(--text-main);
-    min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
-    /* Safe padding so content slides under the fixed header */
-    padding-top: 85px;
-    padding-bottom: calc(2rem + env(safe-area-inset-bottom));
-}
+        .container { padding: 1.5rem 1rem; max-width: 800px; margin: 0 auto; }
+        
+        /* Filters */
+        .filter-bar { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .filter-bar select {
+            flex: 1; min-width: 150px; padding: 0.75rem 1rem; border-radius: var(--radius-md);
+            border: 1px solid var(--border); background: white; font-weight: 600; color: var(--text-main);
+            outline: none; font-size: 0.9rem;
+        }
+        
+        /* Tabs */
+        .tab-nav {
+            display: flex; gap: 0.5rem; background: white; padding: 0.5rem; border-radius: var(--radius-lg);
+            margin-bottom: 1.5rem; box-shadow: var(--shadow-card); overflow-x: auto;
+        }
+        .tab-btn {
+            flex: 1; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--text-muted);
+            font-weight: 600; font-size: 0.9rem; border-radius: 8px; cursor: pointer; white-space: nowrap;
+        }
+        .tab-btn.active { background: var(--primary-light, #EEF2FF); color: var(--primary); }
 
-.container { 
-    width: 100%; 
-    padding: 1rem; 
-    margin: 0 auto; 
-}
+        /* Cards */
+        .card {
+            background: white; border-radius: var(--radius-lg); padding: 1.5rem;
+            margin-bottom: 1rem; box-shadow: var(--shadow-card); border: 1px solid var(--border);
+        }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+        .card-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.2rem; font-weight: 700; }
+        
+        .badge { padding: 0.35rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 700; }
+        .badge-reg { background: #DBEAFE; color: #1D4ED8; }
+        .badge-live { background: #D1FAE5; color: #059669; }
+        .badge-results { background: #FEF3C7; color: #D97706; }
+        
+        .metric { font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;}
+        
+        /* Calling List Table */
+        .calling-list {
+            margin-top: 1.25rem; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden;
+        }
+        .calling-list-header {
+            background: var(--bg-main); padding: 0.5rem 1rem; font-size: 0.75rem; font-weight: 800;
+            color: var(--text-muted); text-transform: uppercase;
+        }
+        .calling-item {
+            display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem;
+            border-top: 1px solid var(--border); font-size: 0.9rem;
+        }
+        
+        .btn-tick {
+            width: 100%; padding: 1rem; background: var(--success); color: white; border: none;
+            border-radius: var(--radius-md); font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 1rem;
+        }
 
-/* --- MOBILE APP SHELL (NAVBAR) --- */
-.header { 
-    position: fixed; 
-    top: 0; left: 0; right: 0; 
-    background: rgba(255, 255, 255, 0.95); 
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    z-index: 100;
-    padding: 1.25rem;
-    box-shadow: var(--shadow-nav);
-    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.brand { display: flex; align-items: center; gap: 0.6rem; }
-
-.live-indicator { 
-    width: 10px; height: 10px; 
-    background-color: var(--danger); 
-    border-radius: 50%; 
-    animation: pulse 2s infinite; 
-}
-@keyframes pulse { 
-    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.4); } 
-    70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(225, 29, 72, 0); } 
-    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); } 
-}
-
-.header h1 { 
-    font-family: 'Plus Jakarta Sans', sans-serif; 
-    font-size: 1.35rem; font-weight: 800; 
-    color: transparent;
-    background: var(--primary-gradient);
-    -webkit-background-clip: text;
-    letter-spacing: -0.5px;
-    text-transform: uppercase;
-}
-
-.live-clock { 
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 0.9rem; font-weight: 700; 
-    color: var(--text-main); 
-    background: var(--bg-main); 
-    padding: 0.4rem 0.75rem; 
-    border-radius: var(--radius-md); 
-    border: 1px solid var(--border); 
-}
-
-/* --- MOBILE CARDS --- */
-.announcement-grid { display: flex; flex-direction: column; gap: 1rem; }
-
-.announcement-card { 
-    background: var(--bg-surface); 
-    border-radius: var(--radius-xl); 
-    padding: 1.5rem 1.25rem; 
-    box-shadow: var(--shadow-card); 
-    border: 1px solid var(--border);
-    display: flex; flex-direction: column; gap: 1.25rem;
-    animation: fadeUp 0.3s ease forwards;
-    transition: var(--transition);
-}
-@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-
-/* Strikethrough Announced State */
-.announcement-card.announced { 
-    background: var(--bg-main); 
-    border-color: var(--border); 
-    opacity: 0.8;
-}
-.announcement-card.announced .comp-name { 
-    text-decoration: line-through; 
-    color: var(--text-muted); 
-}
-
-.comp-details { display: flex; flex-direction: column; gap: 0.6rem; }
-
-.comp-name { 
-    font-family: 'Plus Jakarta Sans', sans-serif; 
-    font-size: 1.35rem; font-weight: 700; 
-    color: var(--text-main); 
-    line-height: 1.2;
-}
-
-.comp-stage { 
-    font-size: 0.9rem; font-weight: 600; 
-    color: var(--text-muted); 
-    display: flex; align-items: center; gap: 0.5rem; 
-}
-
-/* --- UNIVERSAL TYPOGRAPHY BADGES --- */
-.comp-status { 
-    padding: 0.35rem 0.75rem; 
-    border-radius: 50px; 
-    font-size: 0.75rem; font-weight: 700; 
-    text-transform: uppercase; 
-    letter-spacing: 0.05em; 
-    width: fit-content; 
-    border: 1px solid transparent; 
-}
-.status-registration { background: #DBEAFE; color: #1D4ED8; border-color: rgba(29, 78, 216, 0.2); }
-.status-ongoing { background: var(--success-light); color: var(--success-hover); border-color: rgba(16, 185, 129, 0.2); }
-.announced .comp-status { background: var(--border); color: var(--text-muted); }
-
-/* --- TOUCH-FRIENDLY BUTTONS --- */
-.actions-wrapper { width: 100%; }
-
-.btn { 
-    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; 
-    width: 100%; min-height: 52px; /* Strict minimum for mobile tapping */
-    border-radius: var(--radius-md); 
-    font-weight: 600; font-size: 0.95rem; 
-    cursor: pointer; border: none; transition: var(--transition); 
-}
-.btn:active { transform: scale(0.97); }
-
-.btn-announce { 
-    background: var(--primary-gradient); color: white; 
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); 
-}
-.btn-undo { 
-    background: var(--bg-surface); border: 1px solid var(--border); 
-    color: var(--text-main); box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
-}
-
-/* --- SKELETON & EMPTY STATES --- */
-.empty-state { 
-    text-align: center; padding: 4rem 1.5rem; 
-    color: var(--text-muted); font-size: 1rem; font-weight: 500; 
-    background: var(--bg-surface); border-radius: var(--radius-xl); 
-    border: 1px dashed var(--border); 
-}
-
-.skeleton-card { 
-    background: var(--bg-surface); border-radius: var(--radius-xl); 
-    height: 160px; padding: 1.5rem 1.25rem; 
-    display: flex; flex-direction: column; gap: 1rem; 
-    border: 1px solid var(--border); 
-}
-
-.skeleton-line { 
-    background: linear-gradient(90deg, var(--bg-main) 25%, var(--border) 50%, var(--bg-main) 75%); 
-    background-size: 200% 100%; 
-    animation: loading-shimmer 1.5s infinite; 
-    border-radius: 4px; 
-}
-@keyframes loading-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
-/* Strict Mobile UI Overrides */
-@media (min-width: 768px) {
-    /* If opened on a tablet, it mimics a slightly wider card layout natively */
-    .container { max-width: 600px; padding: 2rem; }
-}
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-    <div class="container">
+    <div id="app-screen">
         <div class="header">
-            <div class="brand">
-                <div class="live-indicator"></div>
-                <h1>Live Announcements</h1>
-            </div>
-            <div class="live-clock" id="clock">--:--:--</div>
+            <h1><i class="fa-solid fa-microphone-lines"></i> Live Desk</h1>
+            <button onclick="logout()" style="background: none; border: none; color: var(--danger); font-weight: 600; cursor: pointer;">Sign Out</button>
         </div>
 
-        <div class="announcement-grid" id="announcement-container">
-            <div class="skeleton-card">
-                <div class="skeleton-line" style="width: 120px; height: 16px;"></div>
-                <div class="skeleton-line" style="width: 60%; height: 32px;"></div>
-                <div class="skeleton-line" style="width: 200px; height: 16px;"></div>
+        <div class="container">
+            
+            <div class="filter-bar">
+                <select id="filter-stage" onchange="applyFilters()">
+                    <option value="all">All Stages</option>
+                </select>
+                <select id="filter-category" onchange="applyFilters()">
+                    <option value="all">All Categories</option>
+                </select>
             </div>
+
+            <div class="tab-nav">
+                <button class="tab-btn active" onclick="switchTab('reg')">Registrations</button>
+                <button class="tab-btn" onclick="switchTab('ongoing')">Ongoing</button>
+                <button class="tab-btn" onclick="switchTab('results')">Results</button>
+            </div>
+
+            <div id="view-reg" class="tab-content"></div>
+            <div id="view-ongoing" class="tab-content hidden"></div>
+            <div id="view-results" class="tab-content hidden"></div>
         </div>
     </div>
 
     <script>
-        (() => {
-            const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
-            const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
-            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            setInterval(() => {
-                document.getElementById('clock').innerText = new Date().toLocaleTimeString();
-            }, 1000);
+        // --- AUTH CHECK ---
+        // Fetch the global user token set by your main index.html login page
+        const user = JSON.parse(localStorage.getItem('festUser'));
+        
+        if (!user || user.role !== 'announcer') {
+            // Kick them back to the main login page if they bypass it
+            window.location.href = 'index.html'; 
+        } else {
+            // User is valid, start the app
+            initializePortal();
+        }
 
-            let announcedList = JSON.parse(localStorage.getItem('announcedComps')) || [];
+        function logout() {
+            localStorage.removeItem('festUser');
+            window.location.href = 'index.html';
+        }
 
-            async function fetchLiveCompetitions() {
-                try {
-                    const { data: comps, error } = await supabase
-                        .from('competitions')
-                        .select('id, name, status, stages(name)')
-                        .in('status', ['registration', 'ongoing'])
-                        .order('status', { ascending: true });
+        // Global Data State
+        let rawRegData = [];
+        let rawOngoingData = [];
+        let rawResultsData = [];
 
-                    if (error) throw error;
-                    renderAnnouncements(comps || []);
-                } catch (error) {
-                    console.error('Error fetching data:', error);
-                    document.getElementById('announcement-container').innerHTML = `
-                        <div class="empty-state" style="border-color: rgba(239,68,68,0.2)">
-                            <span style="color: #ef4444; font-weight: 600;">System Connection Failed</span><br/>
-                            <span style="font-size: 0.9rem; margin-top: 0.5rem; display: block;">Make sure you are connected to the internet. Retrying...</span>
-                        </div>`;
-                }
+        // --- INITIALIZATION & FETCHING ---
+        async function initializePortal() {
+            // Load filter options
+            const { data: stages } = await supabaseClient.from('stages').select('id, name');
+            const { data: categories } = await supabaseClient.from('categories').select('id, name');
+            
+            const stageFilter = document.getElementById('filter-stage');
+            const catFilter = document.getElementById('filter-category');
+            
+            (stages || []).forEach(s => stageFilter.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+            (categories || []).forEach(c => catFilter.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+
+            fetchData();
+            setInterval(fetchData, 15000); // Auto-refresh data every 15s
+        }
+
+        async function fetchData() {
+            try {
+                // Fetch Registrations (WITH the enrolled participants to call)
+                const { data: regData } = await supabaseClient
+                    .from('competitions')
+                    .select(`
+                        *, 
+                        categories(id, name), 
+                        stages(id, name),
+                        participant_competitions (
+                            participants ( name, unique_id, teams(name) )
+                        )
+                    `)
+                    .eq('status', 'registration');
+                
+                // Fetch Ongoing
+                const { data: ongoingData } = await supabaseClient
+                    .from('competitions')
+                    .select('*, stages(id, name), categories(id, name)')
+                    .eq('status', 'ongoing');
+
+                // Fetch ONLY Published Results
+                const { data: resultsData } = await supabaseClient
+                    .from('competitions')
+                    .select('*, stages(id, name), categories(id, name)')
+                    .eq('status', 'published'); 
+
+                rawRegData = regData || [];
+                rawOngoingData = ongoingData || [];
+                rawResultsData = resultsData || [];
+
+                applyFilters(); // Render with current filters
+            } catch (e) {
+                console.error("Data Sync Error:", e);
             }
+        }
 
-            function renderAnnouncements(comps) {
-                const container = document.getElementById('announcement-container');
-                container.innerHTML = '';
+        // --- FILTERING LOGIC ---
+        function applyFilters() {
+            const stageId = document.getElementById('filter-stage').value;
+            const catId = document.getElementById('filter-category').value;
 
-                if (comps.length === 0) {
-                    container.innerHTML = `<div class="empty-state">No real-time active competitions right now.</div>`;
-                    return;
-                }
+            const filterFn = (comp) => {
+                const matchStage = stageId === 'all' || comp.stage_id === stageId;
+                const matchCat = catId === 'all' || comp.category_id === catId;
+                return matchStage && matchCat;
+            };
 
-                comps.forEach(comp => {
-                    const isAnnounced = announcedList.includes(comp.id);
-                    
-                    let stageName = 'Global Stage';
-                    if (comp.stages) {
-                        if (Array.isArray(comp.stages)) stageName = comp.stages[0]?.name || stageName;
-                        else if (typeof comp.stages === 'object') stageName = comp.stages.name || stageName;
-                    }
-                    
-                    const isReg = comp.status === 'registration';
-                    const statusClass = isReg ? 'status-registration' : 'status-ongoing';
-                    const statusText = isReg ? 'Registration Open' : 'Ongoing Event';
-                        
-                    // Attach functions to window so the HTML buttons can still click them
-                    window.toggleAnnounced = function(compId, isMarkingAnnounced) {
-                        if (isMarkingAnnounced) {
-                            if (!announcedList.includes(compId)) announcedList.push(compId);
-                        } else {
-                            announcedList = announcedList.filter(id => id !== compId);
-                        }
-                        localStorage.setItem('announcedComps', JSON.stringify(announcedList));
-                        fetchLiveCompetitions();
-                    };
+            renderRegistrations(rawRegData.filter(filterFn));
+            renderOngoing(rawOngoingData.filter(filterFn));
+            renderResults(rawResultsData.filter(filterFn));
+        }
 
-                    const buttonHTML = isAnnounced 
-                        ? `<button class="btn btn-undo" onclick="window.toggleAnnounced('${comp.id}', false)">Undo Clearance</button>`
-                        : `<button class="btn btn-announce" onclick="window.toggleAnnounced('${comp.id}', true)">Mark Announced</button>`;
+        // --- TAB LOGIC ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            
+            event.currentTarget.classList.add('active');
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+        }
 
-                    container.innerHTML += `
-                        <div class="announcement-card ${isAnnounced ? 'announced' : ''}">
-                            <div class="comp-details">
-                                <div class="comp-status ${statusClass}">${statusText}</div>
-                                <div class="comp-name">${comp.name}</div>
-                                <div class="comp-stage">📍 ${stageName}</div>
+        // --- RENDERERS ---
+        function renderRegistrations(data) {
+            const container = document.getElementById('view-reg');
+            if (data.length === 0) return container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top: 2rem;">No open registrations for selected filters.</p>';
+            
+            container.innerHTML = data.map(comp => {
+                const enrollments = comp.participant_competitions || [];
+                
+                let participantsHtml = '';
+                if (enrollments.length > 0) {
+                    const rows = enrollments.map(e => {
+                        const p = e.participants;
+                        return `
+                            <div class="calling-item">
+                                <div>
+                                    <strong>${p.name}</strong><br>
+                                    <small style="color:var(--text-muted); font-family: monospace;">${p.unique_id}</small>
+                                </div>
+                                <span style="font-size:0.8rem; font-weight:600; color:var(--primary);">${p.teams?.name || 'IND'}</span>
                             </div>
-                            <div class="actions-wrapper">${buttonHTML}</div>
+                        `;
+                    }).join('');
+                    
+                    participantsHtml = `
+                        <div class="calling-list">
+                            <div class="calling-list-header">Calling List (${enrollments.length})</div>
+                            ${rows}
                         </div>
                     `;
-                });
-            }
+                } else {
+                    participantsHtml = `<div style="margin-top:1rem; font-size:0.85rem; color:var(--text-muted);">No participants registered yet.</div>`;
+                }
 
-            fetchLiveCompetitions();
-            setInterval(fetchLiveCompetitions, 10000);
-        })();
+                return `
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">${comp.name}</div>
+                            <span class="badge badge-reg">CALLING</span>
+                        </div>
+                        <div class="metric"><i class="fa-solid fa-layer-group"></i> ${comp.categories?.name || 'General'}</div>
+                        <div class="metric"><i class="fa-solid fa-location-dot"></i> ${comp.stages?.name || 'Global Stage'}</div>
+                        ${participantsHtml}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderOngoing(data) {
+            const container = document.getElementById('view-ongoing');
+            if (data.length === 0) return container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top: 2rem;">No ongoing events for selected filters.</p>';
+            
+            container.innerHTML = data.map(comp => `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">${comp.name}</div>
+                        <span class="badge badge-live">LIVE</span>
+                    </div>
+                    <div class="metric"><i class="fa-solid fa-layer-group"></i> Category: ${comp.categories?.name || 'General'}</div>
+                    <div class="metric"><i class="fa-solid fa-location-dot"></i> Location: ${comp.stages?.name || 'Global Stage'}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderResults(data) {
+            const container = document.getElementById('view-results');
+            
+            // Get hidden/announced results from local storage
+            const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
+            
+            // Filter out any results that have already been ticked off
+            const visibleData = data.filter(comp => !announcedComps.includes(comp.id));
+
+            if (visibleData.length === 0) return container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top: 2rem;">No new results pending announcement.</p>';
+            
+            container.innerHTML = visibleData.map(comp => `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">${comp.name}</div>
+                        <span class="badge badge-results">PUBLISHED</span>
+                    </div>
+                    <div class="metric"><i class="fa-solid fa-gavel"></i> Evaluation Completed & Published</div>
+                    <div class="metric"><i class="fa-solid fa-location-dot"></i> ${comp.stages?.name || 'Global Stage'}</div>
+                    
+                    <button class="btn-tick" onclick="markAnnounced('${comp.id}')">
+                        <i class="fa-solid fa-check"></i> Tick After Announcement
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // --- TICK LOGIC (HIDE PERMANENTLY) ---
+        function markAnnounced(compId) {
+            let announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
+            if (!announcedComps.includes(compId)) {
+                announcedComps.push(compId);
+                localStorage.setItem('announced_comps', JSON.stringify(announcedComps));
+            }
+            // Re-render the UI instantly to hide the card
+            applyFilters(); 
+        }
     </script>
 </body>
 </html>

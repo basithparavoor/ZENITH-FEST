@@ -1280,11 +1280,12 @@ function openUserModal(editData = null) {
                 <option value="judge" ${uRole === 'judge' ? 'selected' : ''}>Judge</option>
                 <option value="stage_controller" ${uRole === 'stage_controller' ? 'selected' : ''}>Stage Controller</option>
                 <option value="fest_manager" ${uRole === 'fest_manager' ? 'selected' : ''}>Fest Manager</option>
+                <option value="announcer" ${uRole === 'announcer' ? 'selected' : ''}>Announcer</option>
                 <option value="admin" ${uRole === 'admin' ? 'selected' : ''}>Admin</option>
             </select>
         </div>
     `, async () => {
-        const id = document.getElementById('editUserId').value;
+      const id = document.getElementById('editUserId').value;
         const username = document.getElementById('newUsername').value.trim();
         const password_hash = document.getElementById('newPassword').value.trim();
         const role = document.getElementById('newUserRole').value;

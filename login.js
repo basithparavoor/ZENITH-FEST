@@ -42,6 +42,7 @@ togglePasswordBtn.addEventListener('click', () => {
 });
 
 // Authentication Logic
+// Authentication Logic
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -73,15 +74,16 @@ loginForm.addEventListener('submit', async (e) => {
         // Store active session
         localStorage.setItem('festUser', JSON.stringify(data));
         
-       // Change this section in login.js:
-const routes = {
-    'master_admin': 'admin.html',
-    'admin': 'admin.html',
-    'fest_manager': 'manager.html', 
-    'team_manager': 'team-manager.html', // <-- Update this line right here!
-    'stage_controller': 'stage-controller.html',
-    'judge': 'judge.html'
-};
+        // Updated Routing Dictionary
+        const routes = {
+            'master_admin': 'admin.html',
+            'admin': 'admin.html',
+            'fest_manager': 'manager.html', 
+            'team_manager': 'team-manager.html', 
+            'stage_controller': 'stage-controller.html',
+            'judge': 'judge.html',
+            'announcer': 'announcements.html' // <-- Added Announcer Route
+        };
 
         const targetPage = routes[data.role];
 
