@@ -89,12 +89,18 @@ async function loadDashboard() {
     loadCompetitions(stage.id);
 }
 
+// Automatically adjusts page padding so the fixed header never hides content
+function adjustLayoutPadding() {
+    const navbar = document.querySelector('.navbar > div:first-child');
+    if (navbar) {
+        document.body.style.paddingTop = `${navbar.offsetHeight + 20}px`;
+    }
+}
+
 // 3. Load Competitions
 async function loadCompetitions(stageId) {
-    // FIX: Added categories(name) and participant_competitions to get total enrolled count
     let query = supabaseClient.from('competitions')
-        .select('*, categories(name), judgements(judge_id, awarded_mark), participant_competitions(participant_id)')
-        .order('name');
+        .select('*, categories(name), judgements(judge_id, awarded_mark), participant_competitions(participant_id)');
     
     // APPLY STAGE FILTER
     if (stageId && stageId !== 'ALL') {
@@ -107,23 +113,69 @@ async function loadCompetitions(stageId) {
 
     if (error || !competitions || competitions.length === 0) {
         container.innerHTML = `<div class="card" style="text-align:center; padding:3rem;"><p style="color: var(--text-muted);">No competitions assigned to this stage yet.</p></div>`;
+        adjustLayoutPadding(); // Run layout fix
         return;
     }
 
+    // --- NEW: POPULATE CATEGORY DROPDOWN ---
+    const uniqueCategories = [...new Set(competitions.map(c => c.categories?.name || 'Uncategorized'))].sort();
+    const catDropdown = document.getElementById('category-filter');
+    if (catDropdown) {
+        const currentSelection = catDropdown.value; // Remember what they had selected
+        
+        catDropdown.innerHTML = '<option value="ALL">All Categories</option>';
+        uniqueCategories.forEach(cat => {
+            catDropdown.innerHTML += `<option value="${cat}">${cat}</option>`;
+        });
+        // Restore selection if it still exists in the new list
+        if (uniqueCategories.includes(currentSelection)) {
+            catDropdown.value = currentSelection;
+        }
+    }
+
+    // --- SETUP DATA PREFERENCE (SORTING) ---
+    // Weights: Lower number = higher priority at the top of the list
+    const statusWeights = {
+        'ongoing': 1,
+        'registration': 2,
+        'pending': 3,
+        'judgement_complete': 4
+    };
+
+    competitions.sort((a, b) => {
+        const weightA = statusWeights[a.status] || 99;
+        const weightB = statusWeights[b.status] || 99;
+        
+        // Sort by status weight first
+        if (weightA !== weightB) {
+            return weightA - weightB;
+        }
+        // If statuses are the same, sort alphabetically by name
+        return a.name.localeCompare(b.name);
+    });
+
+    // Render Competitions
     competitions.forEach(comp => {
         if (comp.status === 'published') return;
 
+        // --- UPDATED STATUS TEXT LABELS ---
         let badgeClass = 'badge-pending';
-        let statusText = 'Pending';
-        if (comp.status === 'registration') { badgeClass = 'badge-registration'; statusText = 'Scanning QR...'; }
-        if (comp.status === 'ongoing') { badgeClass = 'badge-ongoing'; statusText = 'Ongoing'; }
-        if (comp.status === 'judgement_complete') { badgeClass = 'badge-complete'; statusText = 'Awaiting Results'; }
+        let statusText = 'AWAITING'; 
+        if (comp.status === 'registration') { badgeClass = 'badge-registration'; statusText = 'REGISTRATION'; }
+        if (comp.status === 'ongoing') { badgeClass = 'badge-ongoing'; statusText = 'ONGOING'; }
+        if (comp.status === 'judgement_complete') { badgeClass = 'badge-complete'; statusText = 'AWAITING RESULTS'; }
 
         // Calculate enrolled students
         const enrolledCount = comp.participant_competitions ? comp.participant_competitions.length : 0;
+        const categoryName = comp.categories?.name || 'Uncategorized';
 
         const card = document.createElement('div');
-        card.className = 'card';
+        card.className = 'card comp-card'; // Added 'comp-card' class for the search filter
+        // Store both name and category in data attributes for easier filtering
+        card.setAttribute('data-comp-name', comp.name.toLowerCase()); 
+        card.setAttribute('data-category', categoryName); 
+        card.setAttribute('data-status', comp.status); // <--- NEW LINE
+        
         card.innerHTML = `
             <div class="card-header">
                 <div style="width: 100%;">
@@ -134,7 +186,7 @@ async function loadCompetitions(stageId) {
                     
                     <div style="display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.75rem;">
                         <span style="color: var(--primary); font-size: 0.85rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem;">
-                            <i class="ph-fill ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}
+                            <i class="ph-fill ph-folders"></i> ${categoryName}
                         </span>
                         
                         <div style="display: flex; gap: 1rem; color: var(--text-muted); font-size: 0.85rem;">
@@ -168,6 +220,48 @@ async function loadCompetitions(stageId) {
             loadCheckedInList(comp.id);
         }
     });
+    
+    // Fix layout after rendering so the search bar doesn't overlap cards
+    setTimeout(adjustLayoutPadding, 50); 
+    
+    // Re-apply search/category filter if there's text/selection after a refresh
+    filterCompetitions();
+}
+
+// --- Search, Category & Status Filter Logic ---
+function filterCompetitions() {
+    const searchInput = document.getElementById('comp-search');
+    const categoryDropdown = document.getElementById('category-filter');
+    const statusDropdown = document.getElementById('status-filter');
+    
+    if (!searchInput) return;
+    
+    const textFilter = searchInput.value.toLowerCase();
+    const catFilter = categoryDropdown ? categoryDropdown.value : 'ALL';
+    const statusFilter = statusDropdown ? statusDropdown.value : 'ALL';
+    
+    const cards = document.querySelectorAll('.comp-card');
+    
+    cards.forEach(card => {
+        const compName = card.getAttribute('data-comp-name');
+        const compCat = card.getAttribute('data-category');
+        const compStatus = card.getAttribute('data-status');
+        
+        // Check all three conditions
+        const matchesText = compName.includes(textFilter);
+        const matchesCategory = (catFilter === 'ALL' || compCat === catFilter);
+        const matchesStatus = (statusFilter === 'ALL' || compStatus === statusFilter);
+        
+        // Only show if it passes every active filter
+        if (matchesText && matchesCategory && matchesStatus) {
+            card.style.display = 'block'; 
+        } else {
+            card.style.display = 'none'; 
+        }
+    });
+    
+    // Fix layout spacing in case filters caused a scrollbar to appear/disappear
+    adjustLayoutPadding();
 }
 
 function getButtonsForStatus(comp) {
@@ -484,9 +578,19 @@ function logout() {
     window.location.href = 'index.html';
 }
 
+// Automatically adjusts page padding so the fixed header never hides content
+function adjustLayoutPadding() {
+    const navbar = document.querySelector('.navbar > div:first-child');
+    if (navbar) {
+        document.body.style.paddingTop = `${navbar.offsetHeight + 20}px`;
+    }
+}
+
 // Dynamic CSS for spinner
 const style = document.createElement('style');
 style.innerHTML = `@keyframes spin { 100% { transform: rotate(360deg); } }`;
 document.head.appendChild(style);
 
+
 initializeApp();
+
