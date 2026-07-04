@@ -29,7 +29,7 @@ async function initializeApp() {
     loadDashboard(); 
 }
 
-// 2. Load Assigned Competitions (Updated Logic for Search/Filter)
+// 2. Load Assigned Competitions (Updated Logic for Search/Filter & Sorting)
 async function loadDashboard() {
     const container = document.getElementById('competitions-container');
     container.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading assignments...</p>`;
@@ -76,6 +76,19 @@ async function loadDashboard() {
         }
     });
 
+    // --- NEW: Sort by status preference and registration order ---
+    globalJudgeComps.sort((a, b) => {
+        // 1. Primary Sort: 'ongoing' competitions take preference over 'registration'
+        if (a.status === 'ongoing' && b.status !== 'ongoing') return -1;
+        if (a.status !== 'ongoing' && b.status === 'ongoing') return 1;
+        
+        // 2. Secondary Sort: Order of registration started (earliest/oldest first)
+        // Falls back to created_at or id if registration_start isn't explicitly defined
+        const startA = new Date(a.registration_start || a.created_at || a.id);
+        const startB = new Date(b.registration_start || b.created_at || b.id);
+        return startA - startB;
+    });
+
     // Populate Category Dropdown Dynamically
     const catFilter = document.getElementById('judgeCategoryFilter');
     if (catFilter) {
@@ -89,7 +102,6 @@ async function loadDashboard() {
     // Run initial filter (renders everything initially)
     filterJudgeCompetitions();
 }
-
 // 2.1 Search and Filter Logic
 function filterJudgeCompetitions() {
     const searchVal = document.getElementById('judgeSearch') ? document.getElementById('judgeSearch').value.toLowerCase() : '';
