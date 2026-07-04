@@ -2473,7 +2473,7 @@ let dragOffsetX = 0;
 let dragOffsetY = 0;
 
 const TEMPLATE_SCHEMAS = {
-    individual: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 1 Team', 'Position 2 Name', 'Position 2 Team', 'Position 3 Name', 'Position 3 Team'],
+    individual: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 1 Team', 'Position 1 Photo', 'Position 2 Name', 'Position 2 Team', 'Position 2 Photo', 'Position 3 Name', 'Position 3 Team', 'Position 3 Photo'],
     team: ['Results Count Text', 'Rank 1 Team', 'Rank 1 Points', 'Rank 2 Team', 'Rank 2 Points', 'Rank 3 Team', 'Rank 3 Points', 'Rank 4 Team', 'Rank 4 Points', 'Rank 5 Team', 'Rank 5 Points'],
     final: ['Total Competitions Count', 'Rank 1 Team', 'Rank 1 Points', 'Rank 2 Team', 'Rank 2 Points', 'Rank 3 Team', 'Rank 3 Points', 'Rank 4 Team', 'Rank 4 Points', 'Rank 5 Team', 'Rank 5 Points'],
     id_card: ['Participant Name', 'Unique ID', 'Team Name', 'Category', 'Batch No', 'Photo', 'QR Code']
@@ -2484,10 +2484,10 @@ const STUDIO_MOCK_DATA = {
     'Position1Name': 'JOHN DOE', 'Position1Team': 'FALCONS', 
     'Position2Name': 'JANE SMITH', 'Position2Team': 'EAGLES',
     'Position3Name': 'MIKE TYSON', 'Position3Team': 'HAWKS',
-    'ResultsCountText': 'RESULTS AFTER 40 EVENTS',
-    'TotalCompetitionsCount': 'FINAL OVERALL RESULTS', 
-    'Rank1Team': 'FALCONS', 'Rank1Points': '450 PTS',
-    'Rank2Team': 'EAGLES', 'Rank2Points': '380 PTS',
+    'ResultsCountText': 'AFTER 40',
+    'TotalCompetitionsCount': 'FINAL OVERALL', 
+    'Rank1Team': 'FALCONS', 'Rank1Points': '450',
+    'Rank2Team': 'EAGLES', 'Rank2Points': '380',
     'ParticipantName': 'JOHN DOE', 'UniqueID': 'FEST-26-987654', 'BatchNo': 'BATCH 1'
 };
 
@@ -2624,8 +2624,7 @@ function initializeStudioFields() {
     // Build Data Defaults
     requiredFields.forEach(field => {
         const key = field.replace(/\s+/g, '');
-        const isImage = (key === 'Photo' || key === 'QRCode');
-        if (!studioActiveData.fields[key]) {
+const isImage = (key.includes('Photo') || key === 'QRCode');        if (!studioActiveData.fields[key]) {
             if (isImage) studioActiveData.fields[key] = { enabled: false, x: 100, y: 150, w: 250, h: 300, radius: 20, isImage: true };
             else studioActiveData.fields[key] = { enabled: false, x: 100, y: 150, size: 40, color: '#0F172A', align: 'left', font: 'Inter, sans-serif', weight: 'bold', isImage: false };
         }
@@ -2786,8 +2785,7 @@ function drawStudioCanvas() {
                 ctx.rect(data.x, data.y, data.w, data.h); // Fallback
             }
             
-            ctx.fillStyle = key === 'Photo' ? 'rgba(79, 70, 229, 0.2)' : 'rgba(15, 23, 42, 0.1)';
-            ctx.fill();
+ctx.fillStyle = key.includes('Photo') ? 'rgba(79, 70, 229, 0.2)' : 'rgba(15, 23, 42, 0.1)';            ctx.fill();
 
             if (studioActiveField === key) {
                 ctx.strokeStyle = '#4F46E5'; ctx.lineWidth = 6; ctx.setLineDash([15, 10]);
