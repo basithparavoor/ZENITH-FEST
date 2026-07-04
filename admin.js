@@ -770,7 +770,6 @@ let partCurrentPage = 1;
 const partRowsPerPage = 10;
 let filteredParticipantsList = [];
 
-// --- UPDATED: Participants Load & Filter logic ---
 async function loadParticipants() {
     try {
         if (categoriesList.length === 0) await loadCategories();
@@ -792,6 +791,10 @@ async function loadParticipants() {
         if(teamFilter && teamFilter.options.length === 1) {
             teamsList.forEach(t => teamFilter.innerHTML += `<option value="${t.name}">${t.name}</option>`);
         }
+
+        // --- ADD THIS LINE HERE ---
+        initBulkTeamControls();
+        // --------------------------
 
         partCurrentPage = 1;
         renderParticipantsTable();
@@ -3177,3 +3180,60 @@ function editTemplate(index) {
         showToast("Error: Could not load template data.", "error");
     }
 }
+
+// Populate the Team dropdown for bulk assignment
+async function initBulkTeamControls() {
+    const select = document.getElementById('bulkTeamSelect');
+    if (!select) return;
+    
+    // Ensure teamsList is loaded
+    if (teamsList.length === 0) {
+        const { data } = await supabaseClient.from('teams').select('id, name');
+        teamsList = data || [];
+    }
+    
+    select.innerHTML = '<option value="">-- SELECT TEAM --</option>';
+    teamsList.forEach(t => select.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+}
+
+// Bulk Assign Team
+async function bulkAssignTeam() {
+    const teamId = document.getElementById('bulkTeamSelect').value;
+    const participantIds = getSelectedIds('participants-tbody');
+    
+    if (!teamId) return showToast('Please select a team first.', 'error');
+    if (participantIds.length === 0) return showToast('Select at least one participant.', 'error');
+    
+    try {
+        const { error } = await supabaseClient
+            .from('participants')
+            .update({ team_id: teamId })
+            .in('id', participantIds);
+            
+        if (error) throw error;
+        showToast(`Successfully assigned ${participantIds.length} participants to team.`);
+        loadParticipants();
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
+// Revoke (Set team_id to NULL)
+async function bulkRevokeTeam() {
+    const participantIds = getSelectedIds('participants-tbody');
+    if (participantIds.length === 0) return showToast('Select at least one participant.', 'error');
+    
+    if (!confirm(`Are you sure you want to remove ${participantIds.length} participants from their teams?`)) return;
+    
+    try {
+        const { error } = await supabaseClient
+            .from('participants')
+            .update({ team_id: null })
+            .in('id', participantIds);
+            
+        if (error) throw error;
+        showToast('Teams revoked successfully.');
+        loadParticipants();
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
+// Call initBulkTeamControls inside loadParticipants() 
+// or at the end of the DOMContentLoaded event

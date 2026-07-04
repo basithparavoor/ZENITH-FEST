@@ -649,6 +649,20 @@ tr:hover td { background: var(--bg-main); }
         <button class="btn btn-danger" onclick="bulkDelete('participants', 'participants-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
     </div>
 </div>
+<div class="controls-bar" style="background: var(--primary-light); border: 1.5px solid var(--primary);">
+    <div style="flex: 1; font-weight: 800; color: var(--primary); display: flex; align-items: center;">
+        <i class="fa-solid fa-users-gear" style="margin-right: 8px;"></i> TEAM MANAGEMENT
+    </div>
+    <div class="filter-box">
+        <select id="bulkTeamSelect">
+            <option value="">-- SELECT TEAM TO ASSIGN --</option>
+            </select>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <button class="btn btn-primary" onclick="bulkAssignTeam()">Assign</button>
+        <button class="btn btn-outline" onclick="bulkRevokeTeam()" style="border-color: var(--danger); color: var(--danger);">Revoke</button>
+    </div>
+</div>
 
     <div class="table-container">
         <table>
