@@ -304,12 +304,23 @@ input, .mark-input {
     </div>
 </nav>
 
-        <main id="dashboard-view">
+    <main id="dashboard-view">
             <h2 class="section-title">Assigned Competitions</h2>
+            
+            <div style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                <div style="flex: 2; min-width: 200px;">
+                    <input type="text" id="judgeSearch" placeholder="Search competitions..." onkeyup="filterJudgeCompetitions()" style="width: 100%; padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none; transition: var(--transition);">
+                </div>
+                <div style="flex: 1; min-width: 150px;">
+                    <select id="judgeCategoryFilter" onchange="filterJudgeCompetitions()" style="width: 100%; padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none; background: white; appearance: none; background-image: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 fill=%22%2364748b%22><path d=%22M4 6l4 4 4-4%22/></svg>'); background-repeat: no-repeat; background-position: right 1rem center;">
+                        <option value="">ALL CATEGORIES</option>
+                    </select>
+                </div>
+            </div>
+
             <div id="competitions-container">
                 </div>
         </main>
-
         <main id="evaluation-view" class="card eval-container">
             <div class="eval-header">
                 <div>

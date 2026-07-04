@@ -477,6 +477,7 @@ function openCompModal(editData = null) {
     const cName = isEdit ? editData.name : '';
     const cMarks = isEdit ? editData.max_mark : '100';
     const cLimit = isEdit ? editData.max_participants : '1';
+    const cIsGroup = isEdit ? editData.is_group : false; // NEW
 
     let catOpts = categoriesList.map(c => `<option value="${c.id}" ${isEdit && editData.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
     let stageOpts = stagesList.map(s => `<option value="${s.id}" ${isEdit && editData.stage_id === s.id ? 'selected' : ''}>${s.name}</option>`).join('');
@@ -484,6 +485,12 @@ function openCompModal(editData = null) {
     openModal(isEdit ? 'Edit Competition' : 'New Competition', `
         <input type="hidden" id="compId" value="${cId}">
         <div class="form-group"><label>Competition Name</label><input type="text" id="compName" value="${cName}"></div>
+        
+        <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; background: var(--primary-light); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.25rem;">
+            <input type="checkbox" id="compIsGroup" ${cIsGroup ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer;">
+            <label for="compIsGroup" style="margin: 0; color: var(--primary); font-weight: 700; cursor: pointer;">Group Competition</label>
+        </div>
+
         <div style="display:flex; gap:1rem;">
             <div class="form-group" style="flex:1;"><label>Category</label><select id="compCategory">${catOpts}</select></div>
             <div class="form-group" style="flex:1;"><label>Stage</label><select id="compStage"><option value="">-- NO STAGE YET --</option>${stageOpts}</select></div>
@@ -502,12 +509,13 @@ async function saveCompetition() {
     const stage_id = document.getElementById('compStage').value || null;
     const max_mark = document.getElementById('compMarks').value;
     const max_participants = document.getElementById('compParticipants').value;
+    const is_group = document.getElementById('compIsGroup').checked; // NEW
     
     if(!name) return showToast('Name is required', 'error');
     
     setLoading('modalSaveBtn', true);
     try {
-        const payload = { name, category_id, stage_id, max_mark, max_participants };
+        const payload = { name, category_id, stage_id, max_mark, max_participants, is_group }; // UPDATED
         if (id) payload.id = id;
 
         const { error } = await supabaseClient.from('competitions').upsert([payload]);
@@ -1729,7 +1737,8 @@ async function loadAssignWorkspaceCompetitions() {
 
         compSelect.innerHTML = '<option value="">-- SELECT COMPETITION TO MANAGE --</option>';
         (data || []).forEach(c => {
-            compSelect.innerHTML += `<option value="${c.id}" data-limit="${c.max_participants}">${c.name}</option>`;
+            // NEW: Added data-is-group to store the boolean flag
+            compSelect.innerHTML += `<option value="${c.id}" data-limit="${c.max_participants}" data-is-group="${c.is_group}">${c.name}</option>`;
         });
         compSelect.disabled = false;
     } catch (e) {
@@ -1753,6 +1762,10 @@ async function loadAssignWorkspaceStudents() {
     }
 
     currentAssignCompLimit = parseInt(compSelect.options[compSelect.selectedIndex].getAttribute('data-limit')) || 0;
+    
+    // NEW: Capture if the selected competition is a group event
+    const isGroupComp = compSelect.options[compSelect.selectedIndex].getAttribute('data-is-group') === 'true';
+
     workspace.style.display = 'block';
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading students...</td></tr>';
 
@@ -1764,22 +1777,50 @@ async function loadAssignWorkspaceStudents() {
         const { data: students, error: studentError } = await studentQuery.order('name');
         if (studentError) throw studentError;
 
+        // UPDATED: Now fetches is_leader as well
         const { data: enrollments, error: enrollError } = await supabaseClient
             .from('participant_competitions')
-            .select('participant_id')
+            .select('participant_id, is_leader')
             .eq('competition_id', compId);
         if (enrollError) throw enrollError;
 
-       currentEnrolledStudentIds = (enrollments || []).map(e => e.participant_id);
+        currentEnrolledStudentIds = (enrollments || []).map(e => e.participant_id);
 
-const limitDisplay = document.getElementById('assignLimitIndicator');
-limitDisplay.innerHTML = `<i class="fa-solid fa-users"></i> Max Enrollment: ${currentAssignCompLimit} Participants Per Team`;
+        const limitDisplay = document.getElementById('assignLimitIndicator');
+        limitDisplay.innerHTML = `<i class="fa-solid fa-users"></i> Max Enrollment: ${currentAssignCompLimit} Participants Per Team`;
+        
+        // NEW: Update table header dynamically based on competition type
+        document.querySelector('#assign-workspace-tbody').parentElement.querySelector('thead tr').innerHTML = `
+            <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAll('assign-workspace-tbody', this)"></th>
+            <th>Unique ID</th>
+            <th>Participant Name</th>
+            <th>Team</th>
+            <th>Batch</th>
+            <th>${isGroupComp ? 'Group Role' : 'Current Status'}</th>
+        `;
+
         tbody.innerHTML = '';
         (students || []).forEach(s => {
-            const isAssigned = currentEnrolledStudentIds.includes(s.id);
-            const statusBadge = isAssigned 
-                ? '<span class="badge" style="background:var(--success); color:white;">ASSIGNED</span>'
-                : '<span class="badge" style="background:#E2E8F0; color:#475569;">UNASSIGNED</span>';
+            const enrollmentRecord = (enrollments || []).find(e => e.participant_id === s.id);
+            const isAssigned = !!enrollmentRecord;
+            
+            let statusBadge = '';
+            
+            // NEW: Render UI based on group status and assignment
+            if (isGroupComp) {
+                if (isAssigned) {
+                    statusBadge = enrollmentRecord.is_leader 
+                        ? '<span class="badge" style="background:var(--primary); color:white;">LEADER</span>' 
+                        : '<span class="badge" style="background:#E2E8F0; color:#475569;">PARTY</span>';
+                } else {
+                    // Radio button allows picking one leader per team
+                    statusBadge = `<label style="cursor:pointer; font-size:0.8rem; font-weight:700; color:var(--text-muted); display:flex; align-items:center; gap:0.25rem;"><input type="radio" name="leader_${s.team_id}" value="${s.id}" class="leader-radio" style="width:14px; height:14px; accent-color: var(--primary);"> Set Leader</label>`;
+                }
+            } else {
+                statusBadge = isAssigned 
+                    ? '<span class="badge" style="background:var(--success); color:white;">ASSIGNED</span>'
+                    : '<span class="badge" style="background:#E2E8F0; color:#475569;">UNASSIGNED</span>';
+            }
                 
             tbody.innerHTML += `
                 <tr data-team="${s.team_id || ''}" data-batch="${s.batch_no || ''}" data-status="${isAssigned ? 'assigned' : 'unassigned'}">
@@ -1799,7 +1840,6 @@ limitDisplay.innerHTML = `<i class="fa-solid fa-users"></i> Max Enrollment: ${cu
         showToast(e.message, 'error');
     }
 }
-
 // Local Table Filter (Search, Team, Batch, Status)
 function filterAssignTable() {
     const searchVal = document.getElementById('assignSearch').value.toLowerCase();
@@ -1826,64 +1866,59 @@ function filterAssignTable() {
     });
 }
 
-// Execute Bulk Assignment with Per-Team Limit Checks
 async function executeWorkspaceAssign() {
-    const compId = document.getElementById('assignWorkComp').value;
+    const compSelect = document.getElementById('assignWorkComp');
+    const compId = compSelect.value;
+    const isGroupComp = compSelect.options[compSelect.selectedIndex].getAttribute('data-is-group') === 'true';
     const ids = getSelectedIds('assign-workspace-tbody');
     
     if (ids.length === 0) return showToast('Select at least one student.', 'error');
     
-    // Filter out students already assigned
     const newIds = ids.filter(id => !currentEnrolledStudentIds.includes(id));
-    
     if (newIds.length === 0) return showToast('Selected students are already assigned.', 'error');
 
-    const btn = document.getElementById('btnWorkspaceAssign');
     setLoading('btnWorkspaceAssign', true);
 
     try {
-        // 1. Fetch current enrollments WITH their team IDs
-        const { data: currentEnrollments, error: enrollError } = await supabaseClient
-            .from('participant_competitions')
-            .select('participant_id, participants(team_id)')
-            .eq('competition_id', compId);
-
-        if (enrollError) throw enrollError;
-
-        // 2. Count current enrollments per team
-        const teamCounts = {};
-        (currentEnrollments || []).forEach(enrollment => {
-            const teamId = enrollment.participants?.team_id || 'INDEPENDENT';
-            teamCounts[teamId] = (teamCounts[teamId] || 0) + 1;
-        });
-
-        // 3. Fetch team IDs for the newly selected students
-        const { data: newStudents, error: studentError } = await supabaseClient
-            .from('participants')
-            .select('id, team_id')
-            .in('id', newIds);
-
+        const { data: newStudents, error: studentError } = await supabaseClient.from('participants').select('id, team_id').in('id', newIds);
         if (studentError) throw studentError;
 
-        // 4. Validate the capacity per team dynamically
-        for (const student of newStudents) {
-            const teamId = student.team_id || 'INDEPENDENT';
-            teamCounts[teamId] = (teamCounts[teamId] || 0) + 1;
+        // Group the new students by team
+        const teamsGrouping = {};
+        newStudents.forEach(student => {
+             const tId = student.team_id || 'INDEPENDENT';
+             if(!teamsGrouping[tId]) teamsGrouping[tId] = [];
+             teamsGrouping[tId].push(student.id);
+        });
 
-            if (teamCounts[teamId] > currentAssignCompLimit) {
-                setLoading('btnWorkspaceAssign', false);
-                return showToast(`Limit Exceeded! Cannot assign. A team has exceeded the limit of ${currentAssignCompLimit} participants.`, 'error');
-            }
+        const inserts = [];
+        for (const [tId, studentIds] of Object.entries(teamsGrouping)) {
+             // Generate a unique Group ID based on the Team + Comp + Timestamp
+             const groupId = isGroupComp ? `GRP_${compId}_${tId}_${Date.now()}` : null;
+             
+             // Check if a leader was selected for this team's group
+             let leaderId = null;
+             if (isGroupComp) {
+                  const leaderRadio = document.querySelector(`input[name="leader_${tId}"]:checked`);
+                  if (leaderRadio) leaderId = leaderRadio.value;
+             }
+
+             studentIds.forEach(pId => {
+                 inserts.push({
+                     participant_id: pId,
+                     competition_id: compId,
+                     group_id: groupId,
+                     is_leader: isGroupComp ? (pId === leaderId) : false
+                 });
+             });
         }
 
-        // 5. Proceed with assignment if all team limits are valid
-        const inserts = newIds.map(participant_id => ({ participant_id, competition_id: compId }));
         const { error } = await supabaseClient.from('participant_competitions').insert(inserts);
         if (error) throw error;
         
         showToast(`Successfully assigned ${newIds.length} students!`);
         document.querySelector('#assign-workspace-tbody').previousElementSibling.querySelector('input[type="checkbox"]').checked = false;
-        loadAssignWorkspaceStudents(); // Refresh Data
+        loadAssignWorkspaceStudents(); 
 
     } catch (e) {
         showToast(e.message, 'error');
@@ -1891,7 +1926,6 @@ async function executeWorkspaceAssign() {
         setLoading('btnWorkspaceAssign', false);
     }
 }
-
 // Execute Bulk Removal (Edit capability)
 async function executeWorkspaceRemove() {
     const compId = document.getElementById('assignWorkComp').value;
