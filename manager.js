@@ -608,16 +608,118 @@ async function loadPublishedResults() {
                 </div>
                 
                 <div style="display: flex; gap: 0.75rem; width: 100%; flex-wrap: wrap; margin-top: auto;">
-                    <button class="btn btn-outline" style="flex: 1; min-width: 120px;" onclick="previewConvertedPoints('${comp.id}', ${comp.max_mark || 100}, ${comp.categories?.is_general || false})">
-                        <i class="ph ph-eye"></i> View Scores
-                    </button>
-                    <button class="btn btn-outline" style="flex: 1; min-width: 120px; color: var(--danger); border-color: var(--danger);" onclick="revertPublishedResult('${comp.id}', this)">
-                        <i class="ph ph-arrow-u-up-left"></i> Revert to Pending
-                    </button>
-                </div>
+    <button class="btn btn-outline" style="flex: 1; min-width: 100px;" onclick="previewConvertedPoints('${comp.id}', ${comp.max_mark || 100}, ${comp.categories?.is_general || false})">
+        <i class="ph ph-eye"></i> View
+    </button>
+    <button class="btn btn-outline" style="flex: 1; min-width: 100px; color: var(--primary); border-color: var(--primary);" onclick="openEditPointsModal('${comp.id}')">
+        <i class="ph ph-pencil-simple"></i> Edit
+    </button>
+    <button class="btn btn-outline" style="flex: 1; min-width: 100px; color: var(--danger); border-color: var(--danger);" onclick="revertPublishedResult('${comp.id}', this)">
+        <i class="ph ph-arrow-u-up-left"></i> Revert
+    </button>
+</div>
             </div>
         `;
     });
+}
+
+// --- EDIT PUBLISHED POINTS LOGIC ---
+
+let currentEditingCompId = null;
+
+async function openEditPointsModal(compId) {
+    currentEditingCompId = compId;
+    const modalBody = document.getElementById('edit-points-body');
+    const saveBtn = document.getElementById('save-points-btn');
+    
+    modalBody.innerHTML = `<div style="text-align:center; padding:2rem;"><i class="ph ph-spinner-gap" style="font-size:2rem; animation: spin 1s linear infinite;"></i><p>Loading marks...</p></div>`;
+    document.getElementById('edit-points-modal').classList.add('active');
+
+    try {
+        // Fetch all judgements for this competition that have actual marks
+        const { data: judgements, error } = await window.db
+            .from('judgements')
+            .select('id, participant_id, awarded_mark, participants(name), users(username)')
+            .eq('competition_id', compId)
+            .not('participant_id', 'is', null);
+
+        if (error) throw error;
+
+        if (!judgements || judgements.length === 0) {
+            modalBody.innerHTML = `<p style="text-align: center; color: var(--text-muted);">No marks found for this competition.</p>`;
+            saveBtn.style.display = 'none';
+            return;
+        }
+
+        saveBtn.style.display = 'block';
+        modalBody.innerHTML = '';
+
+        judgements.forEach(j => {
+            const participantName = j.participants?.name || 'Unknown Participant';
+            const judgeName = j.users?.username ? `(Judge: ${j.users.username})` : '';
+            
+            modalBody.innerHTML += `
+                <div class="edit-point-item">
+                    <label>${participantName} <span style="font-size: 0.75rem; color: var(--text-muted);">${judgeName}</span></label>
+                    <input type="number" class="edit-point-input" data-judgement-id="${j.id}" value="${j.awarded_mark || 0}" step="0.1" min="0">
+                </div>
+            `;
+        });
+
+        // Attach save event listener cleanly
+        saveBtn.onclick = () => saveEditedPoints();
+
+    } catch (err) {
+        console.error("Error loading marks for edit:", err);
+        modalBody.innerHTML = `<p style="color: var(--danger); text-align: center;">Failed to load data.</p>`;
+    }
+}
+
+function closeEditModal() {
+    document.getElementById('edit-points-modal').classList.remove('active');
+    currentEditingCompId = null;
+}
+
+async function saveEditedPoints() {
+    const inputs = document.querySelectorAll('.edit-point-input');
+    const saveBtn = document.getElementById('save-points-btn');
+    const updates = [];
+
+    inputs.forEach(input => {
+        updates.push({
+            id: input.getAttribute('data-judgement-id'),
+            awarded_mark: parseFloat(input.value)
+        });
+    });
+
+    if (updates.length === 0) return;
+
+    if (!confirm("Are you sure you want to update these scores? This will immediately affect live results.")) return;
+
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Saving...';
+
+    try {
+        // Update records in Supabase (upsert based on primary key 'id')
+        const { error } = await window.db
+            .from('judgements')
+            .upsert(updates, { onConflict: 'id' });
+
+        if (error) throw error;
+
+        showToast("Points successfully updated!", "success");
+        closeEditModal();
+        
+        // Refresh the published results to reflect potential point/status changes
+        loadPublishedResults();
+        
+    } catch (err) {
+        console.error("Error saving marks:", err);
+        showToast("Failed to save updates: " + err.message, "error");
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = 'Save Changes';
+    }
 }
 
 // Boot up
