@@ -289,10 +289,15 @@
     </div>
 
     <script>
-        const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
 
+// Add the configuration object as the third parameter
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: {
+        persistSession: false // This tells Supabase NOT to use localStorage
+    }
+});
         const POINTS = { 1: 10, 2: 7, 3: 5 };
 
         let publishedCompetitions = [];
@@ -445,78 +450,94 @@
             if(count === 0) container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-muted);">No matching events found.</p>`;
         }
 
-        // --- TEAM POSTER DOWNLOAD LOGIC ---
-
         async function downloadTeamPoster(type, btnElement) {
-            const originalText = btnElement.innerText;
-            btnElement.innerText = "Generating...";
-            btnElement.disabled = true;
+    const originalText = btnElement.innerText;
+    btnElement.innerText = "Generating...";
+    btnElement.disabled = true;
 
-            try {
-                const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', type).limit(1);
+    // 1. Block Final Standings if the fest hasn't ended.
+    // (You can change this variable to 'true' when the fest is actually over)
+    const isFestEnded = false; 
+    
+    if (type === 'final' && !isFestEnded) {
+        alert("No template found for final. Ask admin to create one.");
+        btnElement.innerText = originalText;
+        btnElement.disabled = false;
+        return;
+    }
 
-                if (!templates || templates.length === 0) {
-                    alert(`No template found for ${type}. Ask admin to create one.`);
-                    btnElement.innerText = originalText;
-                    btnElement.disabled = false;
-                    return;
-                }
+    try {
+        const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', type).limit(1);
 
-                const template = templates[0];
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                
-                const img = new Image();
-                img.crossOrigin = "Anonymous";
-                
-                img.onload = () => {
-                    canvas.width = img.naturalWidth || 1080;
-                    canvas.height = img.naturalHeight || 1080;
-                    ctx.drawImage(img, 0, 0);
-
-                    const mappedData = {};
-                    mappedData['ResultsCountText'] = `AFTER ${publishedCompetitions.length} EVENTS`;
-                    mappedData['TotalCompetitionsCount'] = `FINAL STANDINGS`;
-                    
-                    const top5 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5);
-                    
-                    for(let i=0; i<5; i++) {
-                        mappedData[`Rank${i+1}Team`] = top5[i] ? top5[i].name : "";
-                        mappedData[`Rank${i+1}Points`] = top5[i] ? `${top5[i].score} PTS` : "";
-                    }
-
-                    if(template.fields) {
-                        for (const [key, fieldConfig] of Object.entries(template.fields)) {
-                            if (!fieldConfig.enabled || fieldConfig.isImage) continue;
-
-                            const text = mappedData[key] || "";
-                            if (!text) continue;
-
-                            ctx.textAlign = fieldConfig.align || 'left';
-                            ctx.fillStyle = fieldConfig.color || '#000000';
-                            ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
-                            ctx.fillText(text, fieldConfig.x, fieldConfig.y);
-                        }
-                    }
-
-                    const link = document.createElement('a');
-                    link.download = `FestOS_${type}_Standings.jpg`;
-                    link.href = canvas.toDataURL("image/jpeg", 1.0); 
-                    link.click();
-                    
-                    btnElement.innerText = originalText;
-                    btnElement.disabled = false;
-                };
-
-                img.src = template.bg_base64;
-            } catch (err) {
-                console.error("Poster Generation Error:", err);
-                alert("An error occurred while generating the poster.");
-                btnElement.innerText = originalText;
-                btnElement.disabled = false;
-            }
+        if (!templates || templates.length === 0) {
+            alert(`No template found for ${type}. Ask admin to create one.`);
+            btnElement.innerText = originalText;
+            btnElement.disabled = false;
+            return;
         }
 
+        const template = templates[0];
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        
+        img.onload = () => {
+            canvas.width = img.naturalWidth || 1080;
+            canvas.height = img.naturalHeight || 1080;
+            ctx.drawImage(img, 0, 0);
+
+            const mappedData = {};
+
+// Only apply the multiple of 10 logic to current standings
+if (type === 'team') {
+    const roundedCount = Math.floor(publishedCompetitions.length / 10) * 10;
+    mappedData['ResultsCountText'] = `AFTER ${roundedCount} EVENTS`;
+    mappedData['TotalCompetitionsCount'] = `CURRENT STANDINGS`;
+} else if (type === 'final') {
+    mappedData['ResultsCountText'] = `AFTER ALL EVENTS`; // Or whatever text you prefer for the final
+    mappedData['TotalCompetitionsCount'] = `FINAL STANDINGS`;
+}
+
+const top5 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5);
+// ... (rest of the loop remains the same)
+            for(let i = 0; i < 5; i++) {
+                mappedData[`Rank${i+1}Team`] = top5[i] ? top5[i].name : "";
+                mappedData[`Rank${i+1}Points`] = top5[i] ? `${top5[i].score} PTS` : "";
+            }
+
+            if(template.fields) {
+                for (const [key, fieldConfig] of Object.entries(template.fields)) {
+                    if (!fieldConfig.enabled || fieldConfig.isImage) continue;
+
+                    const text = mappedData[key] || "";
+                    if (!text) continue;
+
+                    ctx.textAlign = fieldConfig.align || 'left';
+                    ctx.fillStyle = fieldConfig.color || '#000000';
+                    ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
+                    ctx.fillText(text, fieldConfig.x, fieldConfig.y);
+                }
+            }
+
+            const link = document.createElement('a');
+            link.download = `FestOS_${type}_Standings.jpg`;
+            link.href = canvas.toDataURL("image/jpeg", 1.0); 
+            link.click();
+            
+            btnElement.innerText = originalText;
+            btnElement.disabled = false;
+        };
+
+        img.src = template.bg_base64;
+    } catch (err) {
+        console.error("Poster Generation Error:", err);
+        alert("An error occurred while generating the poster.");
+        btnElement.innerText = originalText;
+        btnElement.disabled = false;
+    }
+}
         // --- MODAL & PREVIEW LOGIC ---
 
         function openResultModal(compId) {
