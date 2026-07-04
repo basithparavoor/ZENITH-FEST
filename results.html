@@ -313,21 +313,26 @@
       const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
 
-// Add the configuration object as the third parameter
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: {
-        persistSession: false // This tells Supabase NOT to use localStorage
-    }
+    auth: { persistSession: false }
 });
-        const POINTS = { 1: 10, 2: 7, 3: 5 };
 
-        let publishedCompetitions = [];
-        let allTeams = [];
-        let calculatedTeamScores = {}; 
-        let competitionResults = {}; 
-        let cachedTemplates = [];
-        let activeCompId = null;
-        let activeTemplateIndex = 0;
+// DECLARE IT ONLY ONCE HERE
+let SYSTEM_SETTINGS = {
+    ratio_standard: 10,
+    ratio_general: 20
+};
+
+let publishedCompetitions = [];
+// ...
+let allTeams = [];
+let calculatedTeamScores = {}; 
+let competitionResults = {}; 
+let cachedTemplates = [];
+let activeCompId = null;
+let activeTemplateIndex = 0;
+
+// ... then your switchTab and init() functions start here ...
 
         function switchTab(tabId, element) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
@@ -336,88 +341,145 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, 
             if(element) element.classList.add('active');
         }
 
-        async function init() {
-            try {
-                // Fetch Teams
-                const { data: teams } = await supabaseClient.from('teams').select('*');
-                allTeams = teams || [];
-                allTeams.forEach(t => calculatedTeamScores[t.id] = { name: t.name, score: 0 });
+ 
 
-                // Fetch published comps
-                const { data: comps, error: compError } = await supabaseClient.from('competitions')
-                    .select('*, categories(name, is_general)') 
-                    .eq('status', 'published');
-                
-                if (compError) throw compError;
-                publishedCompetitions = comps || [];
-
-                // Fetch Templates (Do this once)
-                const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', 'individual');
-                cachedTemplates = templates || [];
-
-                // Calculate Results
-                if (publishedCompetitions.length > 0) {
-                    const compIds = publishedCompetitions.map(c => c.id);
-                    const { data: judgements } = await supabaseClient
-                        .from('judgements')
-                        .select(`competition_id, awarded_mark, participants(id, name, team_id, batch_no)`)
-                        .in('competition_id', compIds)
-                        .not('participant_id', 'is', null)
-                        .not('awarded_mark', 'is', null);
-
-                    processJudgements(judgements || []);
-                }
-
-                renderLeaderboard();
-                renderCompetitionsGrid();
-                
-            } catch (err) {
-                console.error("Init Error:", err);
-                document.getElementById('competitions-container').innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #ef4444;">Failed to load events. Check console for details.</p>`;
-            }
+async function init() {
+    try {
+        // --- NEW: Fetch Point Settings from Database ---
+const { data: settingsData } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        if (settingsData && settingsData.value) {
+            SYSTEM_SETTINGS = settingsData.value;
         }
 
-        function processJudgements(judgements) {
-            const compGroups = {};
-            judgements.forEach(j => {
-                if (!j.participants || !j.participants.id) return; 
-                const comp = publishedCompetitions.find(c => c.id === j.competition_id);
-                if(!compGroups[j.competition_id]) {
-                    compGroups[j.competition_id] = {
-                        participants: {}, is_general: comp?.categories?.is_general || false,
-                        max_mark: comp?.max_mark || 100, comp_data: comp
-                    };
-                }
+        // Fetch Teams
+        const { data: teams } = await supabaseClient.from('teams').select('*');
+        allTeams = teams || [];
+        allTeams.forEach(t => calculatedTeamScores[t.id] = { name: t.name, score: 0 });
+
+        // Fetch published comps
+        const { data: comps, error: compError } = await supabaseClient.from('competitions')
+            .select('*, categories(name, is_general)') 
+            .eq('status', 'published');
+        
+        if (compError) throw compError;
+        publishedCompetitions = comps || [];
+
+        // Fetch Templates
+        const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', 'individual');
+        cachedTemplates = templates || [];
+
+        // Calculate Results
+        if (publishedCompetitions.length > 0) {
+            const compIds = publishedCompetitions.map(c => c.id);
+            const { data: judgements } = await supabaseClient
+                .from('judgements')
+                .select(`competition_id, awarded_mark, participants(id, name, team_id, batch_no)`)
+                .in('competition_id', compIds)
+                .not('participant_id', 'is', null)
+                .not('awarded_mark', 'is', null);
+
+            processJudgements(judgements || []);
+        }
+
+        renderLeaderboard();
+        renderCompetitionsGrid();
+        
+    } catch (err) {
+        console.error("Init Error:", err);
+        document.getElementById('competitions-container').innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #ef4444;">Failed to load events. Check console for details.</p>`;
+    }
+}
+function processJudgements(judgements) {
+    const compGroups = {};
+    
+    // 1. Group all judgements by competition
+    judgements.forEach(j => {
+        if (!j.participants || !j.participants.id) return; 
+        const comp = publishedCompetitions.find(c => c.id === j.competition_id);
+        
+        if(!compGroups[j.competition_id]) {
+            compGroups[j.competition_id] = {
+                participants: {}, 
+                is_general: comp?.categories?.is_general || false,
+                is_group: comp?.is_group || false, // Check if it's a group event
+                max_mark: comp?.max_mark || 100, 
+                comp_data: comp
+            };
+        }
+        
+        const pId = j.participants.id;
+        if(!compGroups[j.competition_id].participants[pId]) {
+            compGroups[j.competition_id].participants[pId] = {
+                participant: j.participants, 
+                total_mark: 0, 
+                judge_count: 0
+            };
+        }
+        compGroups[j.competition_id].participants[pId].total_mark += parseFloat(j.awarded_mark);
+        compGroups[j.competition_id].participants[pId].judge_count += 1;
+    });
+
+    // 2. Process and Award Points
+    for (const [compId, compData] of Object.entries(compGroups)) {
+        // Fetch the correct ratio from SYSTEM_SETTINGS based on Category Type
+        const baseRatio = compData.is_general ? SYSTEM_SETTINGS.ratio_general : SYSTEM_SETTINGS.ratio_standard;
+
+        if (compData.is_group) {
+            // --- GROUP EVENT LOGIC ---
+            const teamAverages = {};
+            
+            Object.values(compData.participants).forEach(p => {
+                const tId = p.participant.team_id;
+                if (!tId) return; 
                 
-                const pId = j.participants.id;
-                if(!compGroups[j.competition_id].participants[pId]) {
-                    compGroups[j.competition_id].participants[pId] = {
-                        participant: j.participants, competition: comp, total_mark: 0, judge_count: 0
-                    };
+                if (!teamAverages[tId]) {
+                    teamAverages[tId] = { total: 0, count: 0, team_id: tId, participant: p.participant };
                 }
-                compGroups[j.competition_id].participants[pId].total_mark += parseFloat(j.awarded_mark);
-                compGroups[j.competition_id].participants[pId].judge_count += 1;
+                teamAverages[tId].total += (p.total_mark / p.judge_count);
+                teamAverages[tId].count += 1;
             });
 
-            for (const [compId, compData] of Object.entries(compGroups)) {
-                const basePoints = compData.is_general ? 20 : 10;
-                const participantsArr = Object.values(compData.participants).map(p => {
-                    const averageMark = p.total_mark / p.judge_count;
-                    p.normalized_points = parseFloat(((averageMark / compData.max_mark) * basePoints).toFixed(2));
-                    return p;
-                });
+            const teamScores = Object.values(teamAverages).map(t => {
+                const teamAvgMark = t.total / t.count;
+                t.normalized_points = parseFloat(((teamAvgMark / compData.max_mark) * baseRatio).toFixed(2));
+                t.participant.name = `${allTeams.find(tm => tm.id === t.team_id)?.name || 'Team'} (Group)`;
+                return t;
+            });
 
-                const sorted = participantsArr.sort((a, b) => b.normalized_points - a.normalized_points);
-                const top3 = sorted.slice(0, 3);
-                competitionResults[compId] = top3;
+            // Sort and grab top 3
+            const sorted = teamScores.sort((a, b) => b.normalized_points - a.normalized_points);
+            const top3 = sorted.slice(0, 3);
+            competitionResults[compId] = top3; 
 
-                top3.forEach((entry, index) => {
-                    const pointsAwarded = POINTS[index + 1] || 0;
-                    const teamId = entry.participant.team_id;
-                    if (teamId && calculatedTeamScores[teamId]) calculatedTeamScores[teamId].score += pointsAwarded;
-                });
-            }
+            // Add the converted points directly to the Team Record
+            top3.forEach((entry) => {
+                if (entry.team_id && calculatedTeamScores[entry.team_id]) {
+                    calculatedTeamScores[entry.team_id].score += entry.normalized_points;
+                }
+            });
+
+        } else {
+            // --- INDIVIDUAL EVENT LOGIC ---
+            const participantsArr = Object.values(compData.participants).map(p => {
+                const averageMark = p.total_mark / p.judge_count;
+                p.normalized_points = parseFloat(((averageMark / compData.max_mark) * baseRatio).toFixed(2));
+                return p;
+            });
+
+            // Sort and grab top 3
+            const sorted = participantsArr.sort((a, b) => b.normalized_points - a.normalized_points);
+            const top3 = sorted.slice(0, 3);
+            competitionResults[compId] = top3;
+
+            // Add the converted points directly to the Team Record
+            top3.forEach((entry) => {
+                const teamId = entry.participant.team_id;
+                if (teamId && calculatedTeamScores[teamId]) {
+                    calculatedTeamScores[teamId].score += entry.normalized_points;
+                }
+            });
         }
+    }
+}
 
         function renderLeaderboard() {
             const container = document.getElementById('leaderboard-container');

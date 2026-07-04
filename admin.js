@@ -90,6 +90,7 @@ function switchTab(tabId) {
         else if (tabId === 'users') loadUsers();
         else if (tabId === 'assignments') initAssignWorkspace();
         else if (tabId === 'direct-valuation') initDirectValuation();
+        else if (tabId === 'point-settings') loadPointSettings(); // ADD THIS LINE
     } catch (e) {
         showToast("Failed to fetch dashboard data.", "error");
     }
@@ -3235,3 +3236,30 @@ async function bulkRevokeTeam() {
 
 // Call initBulkTeamControls inside loadParticipants() 
 // or at the end of the DOMContentLoaded event
+
+async function loadPointSettings() {
+    try {
+const { data, error } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
+        if (data && data.value) {
+            document.getElementById('setting-ratio-standard').value = data.value.ratio_standard || 10;
+            document.getElementById('setting-ratio-general').value = data.value.ratio_general || 20;
+        }
+    } catch (e) {
+        console.warn("No custom point settings found, using defaults.");
+    }
+}
+
+async function savePointSettings() {
+    const payload = {
+        ratio_standard: parseFloat(document.getElementById('setting-ratio-standard').value) || 10,
+        ratio_general: parseFloat(document.getElementById('setting-ratio-general').value) || 20
+    };
+
+    try {
+        const { error } = await supabaseClient.from('settings').upsert({ id: 'point_system', value: payload });
+        if (error) throw error;
+        showToast("Point Settings Saved Successfully!");
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+}

@@ -495,15 +495,20 @@ async function bulkRevokeJudges() {
         loadAssignments();
     }
 }
-// Normalization Logic for Previewing Points
 async function previewConvertedPoints(compId, maxMark, isGeneral) {
     try {
-        // FIX 1: Filter out the placeholder rows that don't have participants or marks yet
+        // Fetch dynamic settings to ensure preview matches the real logic
+        let baseRatio = isGeneral ? 20 : 10;
+        const { data: settingsData } = await window.db.from('settings').select('value').eq('id', 'point_system').single();
+        if (settingsData && settingsData.value) {
+            baseRatio = isGeneral ? settingsData.value.ratio_general : settingsData.value.ratio_standard;
+        }
+
         const { data: judgements, error } = await window.db
             .from('judgements')
             .select('participant_id, awarded_mark, participants(name)')
             .eq('competition_id', compId)
-            .not('participant_id', 'is', null) // Only get actual judged rows
+            .not('participant_id', 'is', null) 
             .not('awarded_mark', 'is', null);
 
         if (error) throw error;
@@ -512,13 +517,11 @@ async function previewConvertedPoints(compId, maxMark, isGeneral) {
             return showToast("No scores available to preview yet.", "error");
         }
 
-        const basePoints = isGeneral ? 20 : 10;
         const participantMarks = {};
 
         // Average the marks if multiple judges exist
         judgements.forEach(j => {
             if (!participantMarks[j.participant_id]) {
-                // FIX 2: Safely fallback just in case participants object is ever missing
                 participantMarks[j.participant_id] = { 
                     name: j.participants?.name || 'Unknown Participant', 
                     total: 0, 
@@ -532,8 +535,9 @@ async function previewConvertedPoints(compId, maxMark, isGeneral) {
         let previewHTML = `<div style="text-align: left; margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.5); border-radius: 8px;">`;
         for (const [pId, data] of Object.entries(participantMarks)) {
             const averageMark = data.total / data.count;
-            const convertedPoint = ((averageMark / maxMark) * basePoints).toFixed(2);
-            previewHTML += `<div style="margin-bottom: 6px;"><strong>${data.name}:</strong> ${convertedPoint} / ${basePoints} pts</div>`;
+            // Uses the admin-configured dynamic base ratio
+            const convertedPoint = ((averageMark / maxMark) * baseRatio).toFixed(2);
+            previewHTML += `<div style="margin-bottom: 6px;"><strong>${data.name}:</strong> ${convertedPoint} / ${baseRatio} pts</div>`;
         }
         previewHTML += `</div>`;
 
@@ -544,7 +548,6 @@ async function previewConvertedPoints(compId, maxMark, isGeneral) {
         showToast("An error occurred while generating the preview.", "error");
     }
 }
-
 // Revert Published Results back to Pending
 async function revertPublishedResult(compId, btnElement) {
     if(!confirm("⚠️ Move this published result back to pending? It will be removed from Live Results!")) return;
