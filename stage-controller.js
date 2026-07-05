@@ -507,11 +507,11 @@ async function changeCompetitionState(compId, newStatus, btnElement, loadingText
     try {
         // 3. SIDE EFFECTS: If moving BACKWARDS to pending or registration, wipe any rogue marks!
         if (newStatus === 'registration' || newStatus === 'pending') {
-            await supabaseClient.from('judgements')
-                .delete()
-                .eq('competition_id', compId)
-                .not('participant_id', 'is', null);
-        }
+    await supabaseClient.from('judgements')
+        .delete()
+        .eq('competition_id', compId)
+        .not('participant_id', 'is', null);
+}
 
         // 4. UPDATE DB STATUS
         const { error } = await supabaseClient

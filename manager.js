@@ -406,16 +406,16 @@ async function redoJudgement(compId, btnElement) {
     btnElement.disabled = true;
     btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Reverting...';
 
-    // 1. DELETE ONLY THE MARKS (Keep the base judge assignments intact)
-    await window.db.from('judgements')
-        .delete()
-        .eq('competition_id', compId)
-        .not('participant_id', 'is', null);
+    // 1. DELETE ONLY THE MARKS
+await window.db.from('judgements')
+    .delete()
+    .eq('competition_id', compId)
+    .not('participant_id', 'is', null);
 
-    // 2. Revert the status
-    const { error } = await window.db.from('competitions')
-        .update({ status: 'ongoing' })
-        .eq('id', compId);
+// 2. Revert the status
+const { error } = await window.db.from('competitions')
+    .update({ status: 'ongoing' })
+    .eq('id', compId);
 
     if (error) {
         showToast("Failed to revert: " + error.message, 'error');
