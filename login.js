@@ -146,5 +146,6 @@ function applyGlobalBranding(brandingData) {
         container.innerHTML = html;
         container.style.display = 'flex';
         container.style.alignItems = 'center';
+        container.style.justifyContent = 'center'; // Add this line to center horizontally
     });
 }

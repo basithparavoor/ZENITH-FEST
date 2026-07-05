@@ -388,7 +388,7 @@ tr:hover td { background: var(--bg-main); }
             <a href="manager.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-briefcase"></i> Manager Hub</a>
             <a href="stage-controller.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-microphone"></i> Stage Controller</a>
             <a href="judge.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-gavel"></i> Judge Portal</a>
-            <div class="nav-item" onclick="switchTab('direct-valuation')"><i class="fa-solid fa-bolt"></i> Direct Valuation</div>
+<a href="announcements.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-microphone-lines"></i> Announcer Portal</a>            <div class="nav-item" onclick="switchTab('direct-valuation')"><i class="fa-solid fa-bolt"></i> Direct Valuation</div>
             <div class="nav-item" onclick="switchTab('poster-templates')"><i class="fa-solid fa-image"></i> Poster Templates</div>
             <div class="nav-item" onclick="switchTab('point-settings')"><i class="fa-solid fa-sliders"></i> Point System</div>
             <div class="nav-item" onclick="switchTab('branding-settings')"><i class="fa-solid fa-palette"></i> Branding & UI</div>
@@ -576,32 +576,40 @@ tr:hover td { background: var(--bg-main); }
     </div>
 
     <div class="grid-2" style="gap: 2rem;">
-        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;">
-                <i class="fa-solid fa-signature" style="color: var(--primary);"></i> Fest Details
-            </h3>
-            <div class="form-group">
-                <label>Global Fest Name</label>
-                <input type="text" id="setting-fest-name" placeholder="e.g. FESTOS 2026">
-            </div>
-        </div>
-
-        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;">
-                <i class="fa-solid fa-image" style="color: var(--primary);"></i> Fest Logo
-            </h3>
-            <div style="display: flex; gap: 1rem; align-items: center;">
-                <img id="branding-logo-preview" src="" style="width: 80px; height: 80px; object-fit: contain; border: 1px dashed var(--border); border-radius: 8px; background: #f8fafc; display: none;">
-                <div style="flex: 1;">
-                    <input type="file" id="setting-fest-logo" accept="image/png, image/jpeg, image/webp, image/svg+xml" style="display: none;" onchange="handleBrandingLogo(event)">
-                    <button class="btn btn-outline" onclick="document.getElementById('setting-fest-logo').click()">
-                        <i class="fa-solid fa-upload"></i> Upload New Logo
-                    </button>
-                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">Recommended: Square format with transparent background</p>
-                </div>
+    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+        <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;">
+            <i class="fa-solid fa-signature" style="color: var(--primary);"></i> Fest Details
+        </h3>
+        <div class="form-group">
+            <label>Global Fest Name</label>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <input type="text" id="setting-fest-name" placeholder="e.g. FESTOS 2026" style="flex: 1;">
+                <button class="btn btn-outline" onclick="document.getElementById('setting-fest-name').value = '';" style="color: var(--danger); border-color: var(--danger);" title="Clear Fest Name">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
             </div>
         </div>
     </div>
+
+    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+        <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;">
+            <i class="fa-solid fa-image" style="color: var(--primary);"></i> Fest Logo
+        </h3>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <img id="branding-logo-preview" src="" style="width: 80px; height: 80px; object-fit: contain; border: 1px dashed var(--border); border-radius: 8px; background: #f8fafc; display: none;">
+            <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                <input type="file" id="setting-fest-logo" accept="image/png, image/jpeg, image/webp, image/svg+xml" style="display: none;" onchange="handleBrandingLogo(event)">
+                <button class="btn btn-outline" onclick="document.getElementById('setting-fest-logo').click()">
+                    <i class="fa-solid fa-upload"></i> Upload New Logo
+                </button>
+                <button class="btn btn-outline" id="btnRemoveLogo" onclick="removeBrandingLogo()" style="color: var(--danger); border-color: var(--danger); display: none;">
+                    <i class="fa-solid fa-trash"></i> Remove Logo
+                </button>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; width: 100%;">Recommended: Square format with transparent background</p>
+            </div>
+        </div>
+    </div>
+</div>
 </div>
 
 <!-- ================= FULL VIEW MODAL ================= -->

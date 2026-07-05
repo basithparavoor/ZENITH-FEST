@@ -3331,8 +3331,27 @@ function handleBrandingLogo(event) {
         const preview = document.getElementById('branding-logo-preview');
         preview.src = e.target.result;
         preview.style.display = 'block';
+        
+        // Show the remove button once a logo is loaded
+        const btnRemove = document.getElementById('btnRemoveLogo');
+        if (btnRemove) btnRemove.style.display = 'inline-flex';
     };
     reader.readAsDataURL(file);
+}
+
+// NEW: Clear Logo Functionality
+function removeBrandingLogo() {
+    pendingBrandingLogoBase64 = null;
+    const preview = document.getElementById('branding-logo-preview');
+    preview.src = '';
+    preview.style.display = 'none';
+    
+    // Hide remove button and reset the file input
+    const btnRemove = document.getElementById('btnRemoveLogo');
+    if (btnRemove) btnRemove.style.display = 'none';
+    
+    const fileInput = document.getElementById('setting-fest-logo');
+    if (fileInput) fileInput.value = '';
 }
 
 async function loadBrandingSettings() {
@@ -3345,6 +3364,10 @@ async function loadBrandingSettings() {
                 preview.src = data.value.fest_logo;
                 preview.style.display = 'block';
                 pendingBrandingLogoBase64 = data.value.fest_logo; 
+                
+                // Show the remove button since an existing logo was loaded
+                const btnRemove = document.getElementById('btnRemoveLogo');
+                if(btnRemove) btnRemove.style.display = 'inline-flex';
             }
         }
     } catch (e) {
@@ -3358,7 +3381,7 @@ async function saveBrandingSettings() {
     
     const payload = {
         fest_name: festName,
-        fest_logo: pendingBrandingLogoBase64
+        fest_logo: pendingBrandingLogoBase64 // Will be null if the user clicked "Remove Logo"
     };
 
     try {

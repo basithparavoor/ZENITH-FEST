@@ -216,12 +216,43 @@
         let systemSettings = { ratio_standard: 10, ratio_general: 20 };
         let isInitialLoad = true;
 
-        // --- AUTH CHECK ---
+     // --- AUTH CHECK ---
         const user = JSON.parse(localStorage.getItem('festUser'));
-        if (!user || user.role !== 'announcer') {
+        if (!user || (user.role !== 'announcer' && user.role !== 'master_admin' && user.role !== 'admin')) {
             window.location.href = 'index.html'; 
         } else {
             initializePortal();
+        }
+
+        // --- INJECT ADMIN HUB RETURN BUTTON ---
+        if (user.role === 'master_admin' || user.role === 'admin') {
+            document.addEventListener("DOMContentLoaded", () => {
+                const header = document.querySelector('.header');
+                const signOutBtn = header.querySelector('button[onclick="logout()"]');
+                
+                // Wrap the right-side actions to keep flexbox 'space-between' clean
+                const btnGroup = document.createElement('div');
+                btnGroup.style.display = 'flex';
+                btnGroup.style.alignItems = 'center';
+                btnGroup.style.gap = '1.5rem';
+                
+                // Create the Return Button using existing portal color variables
+                const returnBtn = document.createElement('button');
+                returnBtn.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Admin Hub';
+                returnBtn.style.padding = '0.5rem 1rem';
+                returnBtn.style.background = 'var(--primary)';
+                returnBtn.style.color = 'white';
+                returnBtn.style.border = 'none';
+                returnBtn.style.borderRadius = '8px';
+                returnBtn.style.fontWeight = '600';
+                returnBtn.style.cursor = 'pointer';
+                returnBtn.onclick = () => window.location.href = 'admin.html';
+
+                // Append everything safely to the DOM
+                header.insertBefore(btnGroup, signOutBtn);
+                btnGroup.appendChild(returnBtn);
+                btnGroup.appendChild(signOutBtn); // Moves the sign out button into the new group
+            });
         }
 
         function logout() {
