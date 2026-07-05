@@ -503,7 +503,7 @@ tr:hover td { background: var(--bg-main); }
     <div class="action-bar" style="margin-bottom: 1.5rem;">
         <div>
             <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Point System Settings</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Configure the maximum base points available for each category.</p>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Configure the maximum base points and download intervals.</p>
         </div>
         <button class="btn btn-primary" onclick="savePointSettings()"><i class="fa-solid fa-floppy-disk"></i> Save Configuration</button>
     </div>
@@ -522,6 +522,15 @@ tr:hover td { background: var(--bg-main); }
             <div class="form-group">
                 <label>Maximum Points (Base Ratio)</label>
                 <input type="number" id="setting-ratio-general" value="20" placeholder="e.g. 20">
+            </div>
+        </div>
+        
+        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); grid-column: 1 / -1;">
+            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-images" style="color: var(--primary);"></i> Team Poster Downloads</h3>
+            <div class="form-group">
+                <label>Results Interval (Multiples)</label>
+                <input type="number" id="setting-poster-interval" value="10" placeholder="e.g. 10">
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Live results dropdown will show "After 10", "After 20", etc.</p>
             </div>
         </div>
     </div>

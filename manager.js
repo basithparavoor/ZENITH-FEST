@@ -725,5 +725,94 @@ async function saveEditedPoints() {
     }
 }
 
+let allPendingComps = [];
+let allPublishedComps = [];
+
+// Update your loadPublishableComps function to save to the global array:
+async function loadPublishableComps() {
+    const grid = document.getElementById('publish-grid');
+    grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1;"><i class="ph ph-spinner-gap" style="font-size:2rem; animation: spin 1s linear infinite;"></i></div>`;
+
+    const { data: comps } = await window.db.from('competitions').select('*, categories(name)').eq('status', 'judgement_complete').order('name');
+    allPendingComps = comps || [];
+    
+    // Update the live count badge
+    const { count } = await window.db.from('competitions').select('*', { count: 'exact', head: true }).eq('status', 'published');
+    const countBadge = document.getElementById('live-published-count');
+    if(countBadge) countBadge.innerText = `${count || 0} Published`;
+
+    filterPendingPublish();
+}
+
+function filterPendingPublish() {
+    const search = document.getElementById('searchPending').value.toLowerCase();
+    const grid = document.getElementById('publish-grid');
+    grid.innerHTML = '';
+
+    const filtered = allPendingComps.filter(c => c.name.toLowerCase().includes(search) || (c.categories?.name || '').toLowerCase().includes(search));
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1;"><p>No pending publications found.</p></div>`;
+        return;
+    }
+
+    filtered.forEach(comp => {
+        grid.innerHTML += `
+            <div class="card" style="border: 1px solid var(--success);">
+                <div class="card-header">
+                    <div class="card-title">${comp.name}</div>
+                    <span class="badge badge-ready">Ready</span>
+                </div>
+                <div class="card-meta" style="margin-bottom: 1.5rem;"><i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}</div>
+                <div style="display: flex; gap: 0.5rem; width: 100%; flex-wrap: wrap;">
+                    <button class="btn btn-outline" style="flex: 1; min-width: 100px;" onclick="previewConvertedPoints('${comp.id}', ${comp.max_mark || 100}, ${comp.categories?.is_general || false})"><i class="ph ph-eye"></i> Preview</button>
+                    <button class="btn btn-outline" style="flex: 1; min-width: 100px;" onclick="redoJudgement('${comp.id}', this)"><i class="ph ph-arrow-u-up-left"></i> Redo</button>
+                    <button class="btn btn-success" style="flex: 2; min-width: 140px;" onclick="publishCompetition('${comp.id}', this)"><i class="ph ph-megaphone-simple"></i> Publish</button>
+                </div>
+            </div>
+        `;
+    });
+}
+
+// Update loadPublishedResults similarly:
+async function loadPublishedResults() {
+    const grid = document.getElementById('published-grid');
+    grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1;"><i class="ph ph-spinner-gap" style="font-size:2rem; animation: spin 1s linear infinite;"></i><p>Loading live results...</p></div>`;
+
+    const { data: comps } = await window.db.from('competitions').select('*, categories(name)').eq('status', 'published').order('name');
+    allPublishedComps = comps || [];
+    filterPublished();
+}
+
+function filterPublished() {
+    const search = document.getElementById('searchPublished').value.toLowerCase();
+    const grid = document.getElementById('published-grid');
+    grid.innerHTML = '';
+
+    const filtered = allPublishedComps.filter(c => c.name.toLowerCase().includes(search) || (c.categories?.name || '').toLowerCase().includes(search));
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1; color: var(--text-muted);"><i class="ph ph-globe" style="font-size:2rem; margin-bottom:1rem;"></i><p>No results found.</p></div>`;
+        return;
+    }
+
+    filtered.forEach(comp => {
+        grid.innerHTML += `
+            <div class="card" style="border: 1px solid var(--primary);">
+                <div class="card-header">
+                    <div class="card-title">${comp.name}</div>
+                    <span class="badge" style="background: var(--primary-light); color: var(--primary);">Live</span>
+                </div>
+                <div class="card-meta" style="margin-bottom: 1.5rem;"><i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}</div>
+                <div style="display: flex; gap: 0.75rem; width: 100%; flex-wrap: wrap; margin-top: auto;">
+                    <button class="btn btn-outline" style="flex: 1; min-width: 100px;" onclick="previewConvertedPoints('${comp.id}', ${comp.max_mark || 100}, ${comp.categories?.is_general || false})"><i class="ph ph-eye"></i> View</button>
+                    <button class="btn btn-outline" style="flex: 1; min-width: 100px; color: var(--primary); border-color: var(--primary);" onclick="openEditPointsModal('${comp.id}')"><i class="ph ph-pencil-simple"></i> Edit</button>
+                    <button class="btn btn-outline" style="flex: 1; min-width: 100px; color: var(--danger); border-color: var(--danger);" onclick="revertPublishedResult('${comp.id}', this)"><i class="ph ph-arrow-u-up-left"></i> Revert</button>
+                </div>
+            </div>
+        `;
+    });
+}
+
 // Boot up
 loadAssignments();

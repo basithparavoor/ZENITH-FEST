@@ -509,22 +509,35 @@ select.control-input {
         </div>
 
         <div id="publish" class="content-section">
-            <div class="section-header">
-                <h2>Pending Publications</h2>
-                <p>Competitions below have been marked as <strong>'Judgement Complete'</strong>. Review and publish them to the Live Portal.</p>
-            </div>
-            <div class="card-grid" id="publish-grid">
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h2>Pending Publications</h2>
+                    <p>Review and publish completed judgements to the Live Portal.</p>
                 </div>
+                <div style="display: flex; gap: 1rem; align-items: center; width: 100%; max-width: 500px;">
+                    <div class="search-wrapper" style="flex: 1;">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <input type="text" id="searchPending" class="control-input" placeholder="Search pending results..." oninput="filterPendingPublish()">
+                    </div>
+                    <div id="live-published-count" style="background: var(--primary-light); color: var(--primary); padding: 0.85rem 1rem; border-radius: var(--radius-md); font-weight: 700; white-space: nowrap; border: 1px solid var(--primary-ring);">
+                        0 Published
+                    </div>
+                </div>
+            </div>
+            <div class="card-grid" id="publish-grid"></div>
         </div>
+
         <div id="published-results" class="content-section">
-    <div class="section-header">
-        <h2>Published Results</h2>
-        <p>Competitions below are currently visible on the Live Portal. You can preview scores or revert them back to pending.</p>
-    </div>
-    <div class="card-grid" id="published-grid">
-        <!-- JS will populate this -->
-    </div>
-</div>
+            <div class="section-header">
+                <h2>Published Results</h2>
+                <p>Competitions below are currently visible on the Live Portal.</p>
+                <div class="search-wrapper" style="margin-top: 1rem; max-width: 400px;">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="text" id="searchPublished" class="control-input" placeholder="Search live results..." oninput="filterPublished()">
+                </div>
+            </div>
+            <div class="card-grid" id="published-grid"></div>
+        </div>
     </div>
 
     <div id="pdf-export-container" style="display: none; padding: 40px; background: white; color: black; font-family: sans-serif;"></div>

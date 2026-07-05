@@ -202,6 +202,49 @@
             display: none; align-items: center; justify-content: center; font-weight: 600; color: var(--primary);
         }
 
+        /* --- Mobile Optimization --- */
+        @media (max-width: 768px) {
+            .container { margin: 1.5rem auto; padding: 0 1rem; }
+            .navbar { padding: 1rem 1.25rem; }
+            .navbar h1 { font-size: 1.25rem; }
+            
+            /* Tabs */
+            .tabs { padding: 0.25rem; border-radius: 14px; margin-bottom: 2rem; }
+            .tab { font-size: 0.85rem; padding: 0.65rem 0.5rem; }
+            
+            /* Leaderboard Cards */
+            .leaderboard-card { padding: 1rem; border-radius: 16px; margin-bottom: 0.75rem; }
+            .rank { width: 40px; font-size: 1.1rem; }
+            .rank-1, .rank-2, .rank-3 { width: 50px; font-size: 1.5rem; }
+            .team-info { padding-left: 0.5rem; }
+            .team-name { font-size: 1rem; }
+            .team-score { font-size: 1.35rem; }
+            
+            /* Standings Header & Timeline Filter */
+            #standings > div:first-child { flex-direction: column; align-items: flex-start; gap: 1.25rem !important; padding: 1.25rem !important; }
+            #standings > div:first-child > div:last-child { width: 100%; flex-direction: column; gap: 0.5rem !important; }
+            #event-timeline-filter { width: 100%; font-size: 0.95rem; }
+            #standings .btn { width: 100%; display: flex; justify-content: center; }
+
+            /* Grid & Filters */
+            .filters { flex-direction: column; gap: 0.75rem !important; margin-bottom: 1.5rem !important; }
+            .filters input, .filters select { width: 100%; padding: 1rem !important; font-size: 0.95rem !important; border-radius: 12px !important; }
+            .competitions-grid { grid-template-columns: 1fr; gap: 1rem; }
+            
+            /* Modals */
+            .modal-content { max-height: 95vh; border-radius: 20px 20px 0 0; position: absolute; bottom: 0; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+            .modal-overlay.active .modal-content { transform: translateY(0); }
+            .modal-header { padding: 1.5rem 1.25rem 1rem; }
+            .modal-body { padding: 1.25rem; gap: 2rem; }
+            
+            /* Winners List Mobile */
+            .winner-list-item { padding: 0.75rem; }
+            .w-rank { width: 25px; font-size: 1.25rem; margin-right: 0.5rem; }
+            .w-details h4 { font-size: 0.95rem; }
+            .w-details p { font-size: 0.75rem; }
+            .w-score { font-size: 0.85rem; padding: 0.3rem 0.6rem; }
+        }
+
     </style>
 </head>
 <body>
@@ -219,17 +262,21 @@
 
         <!-- Leaderboard -->
         <div id="standings" class="view-section active">
-            <!-- Team Poster Downloads -->
             <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; background: var(--surface); padding: 1.5rem; border-radius: 20px; border: 1px solid var(--border); box-shadow: var(--glass-shadow); backdrop-filter: blur(10px);">
                 <div>
                     <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);">Team Standings</h3>
                     <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">Download official graphics for current or final team rankings.</p>
                 </div>
-                <div style="display: flex; gap: 0.75rem;">
-    <button class="btn btn-outline" style="padding: 0.75rem 1.5rem; font-size: 0.95rem; width: auto;" onclick="previewTeamPoster('team', this)"><i class="fa-solid fa-eye"></i> Preview Current</button>
-    <button class="btn" style="padding: 0.75rem 1.5rem; font-size: 0.95rem; width: auto; box-shadow: 0 4px 15px var(--primary-glow);" onclick="previewTeamPoster('final', this)"><i class="fa-solid fa-eye"></i> Preview Final</button>
-</div>
+                
+                <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <select id="event-timeline-filter" onchange="applyTimelineFilter()" style="padding: 0.75rem 1rem; border-radius: 12px; border: 1px solid var(--border); font-weight: 600; outline: none; cursor: pointer; background: white;">
+    </select>
+                    <button class="btn btn-outline" style="padding: 0.75rem 1.5rem; font-size: 0.95rem; width: auto;" onclick="previewTeamPoster('team', this)"><i class="fa-solid fa-eye"></i> Preview Current</button>
+                    <button class="btn" style="padding: 0.75rem 1.5rem; font-size: 0.95rem; width: auto; box-shadow: 0 4px 15px var(--primary-glow);" onclick="previewTeamPoster('final', this)"><i class="fa-solid fa-eye"></i> Preview Final</button>
+                </div>
             </div>
+            <!-- Team Poster Downloads -->
+           
 
             <div id="leaderboard-container">
                 <p style="text-align:center; color:var(--text-muted); padding: 3rem; font-weight: 500;">Syncing live metrics...</p>
@@ -238,8 +285,12 @@
 
         <!-- Competitions Grid -->
         <div id="individual" class="view-section">
-            <div class="filters" style="display: flex; gap: 1rem; margin-bottom: 2rem;">
-                <input type="text" id="search-comp" placeholder="Search Competitions..." onkeyup="renderCompetitionsGrid()" style="flex: 1; padding: 1.25rem; border-radius: 16px; border: 1px solid var(--border); outline: none; font-size: 1rem;">
+           <div class="filters" style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
+                <input type="text" id="search-comp" placeholder="Search events..." onkeyup="renderCompetitionsGrid()" style="flex: 2; min-width: 200px; padding: 1.25rem; border-radius: 16px; border: 1px solid var(--border); outline: none; font-size: 1rem; background: var(--surface);">
+                
+                <select id="category-filter" onchange="renderCompetitionsGrid()" style="flex: 1; min-width: 160px; padding: 1.25rem; border-radius: 16px; border: 1px solid var(--border); outline: none; font-size: 1rem; background: var(--surface); cursor: pointer; color: var(--text-main); font-weight: 500;">
+                    <option value="all">All Categories</option>
+                </select>
             </div>
             <div class="competitions-grid" id="competitions-container">
                 <p style="text-align:center; color:var(--text-muted); grid-column: 1/-1; padding: 3rem;">Loading events...</p>
@@ -310,29 +361,29 @@
     </div>
 
     <script>
-      const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
+        const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
 
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: { persistSession: false }
-});
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+            auth: { persistSession: false }
+        });
 
-// DECLARE IT ONLY ONCE HERE
-let SYSTEM_SETTINGS = {
-    ratio_standard: 10,
-    ratio_general: 20
-};
+        let SYSTEM_SETTINGS = {
+            ratio_standard: 10,
+            ratio_general: 20,
+            poster_interval: 10
+        };
 
-let publishedCompetitions = [];
-// ...
-let allTeams = [];
-let calculatedTeamScores = {}; 
-let competitionResults = {}; 
-let cachedTemplates = [];
-let activeCompId = null;
-let activeTemplateIndex = 0;
-
-// ... then your switchTab and init() functions start here ...
+        let publishedCompetitions = [];
+        let allTeams = [];
+        let calculatedTeamScores = {}; 
+        let competitionResults = {}; 
+        let cachedTemplates = [];
+        let activeCompId = null;
+        let activeTemplateIndex = 0;
+        let globalJudgements = [];
+        let currentTeamPosterDataUrl = null;
+        let currentTeamPosterFilename = "";
 
         function switchTab(tabId, element) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
@@ -341,145 +392,166 @@ let activeTemplateIndex = 0;
             if(element) element.classList.add('active');
         }
 
- 
+        async function init() {
+            try {
+                const { data: settingsData } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
+                if (settingsData && settingsData.value) {
+                    SYSTEM_SETTINGS = settingsData.value;
+                    if(!SYSTEM_SETTINGS.poster_interval) SYSTEM_SETTINGS.poster_interval = 10;
+                }
 
-async function init() {
-    try {
-        // --- NEW: Fetch Point Settings from Database ---
-const { data: settingsData } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        if (settingsData && settingsData.value) {
-            SYSTEM_SETTINGS = settingsData.value;
-        }
-
-        // Fetch Teams
-        const { data: teams } = await supabaseClient.from('teams').select('*');
-        allTeams = teams || [];
-        allTeams.forEach(t => calculatedTeamScores[t.id] = { name: t.name, score: 0 });
-
-        // Fetch published comps
-        const { data: comps, error: compError } = await supabaseClient.from('competitions')
-            .select('*, categories(name, is_general)') 
-            .eq('status', 'published');
-        
-        if (compError) throw compError;
-        publishedCompetitions = comps || [];
-
-        // Fetch Templates
-        const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', 'individual');
-        cachedTemplates = templates || [];
-
-        // Calculate Results
-        if (publishedCompetitions.length > 0) {
-            const compIds = publishedCompetitions.map(c => c.id);
-            const { data: judgements } = await supabaseClient
-                .from('judgements')
-                .select(`competition_id, awarded_mark, participants(id, name, team_id, batch_no)`)
-                .in('competition_id', compIds)
-                .not('participant_id', 'is', null)
-                .not('awarded_mark', 'is', null);
-
-            processJudgements(judgements || []);
-        }
-
-        renderLeaderboard();
-        renderCompetitionsGrid();
-        
-    } catch (err) {
-        console.error("Init Error:", err);
-        document.getElementById('competitions-container').innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #ef4444;">Failed to load events. Check console for details.</p>`;
-    }
-}
-function processJudgements(judgements) {
-    const compGroups = {};
-    
-    // 1. Group all judgements by competition
-    judgements.forEach(j => {
-        if (!j.participants || !j.participants.id) return; 
-        const comp = publishedCompetitions.find(c => c.id === j.competition_id);
-        
-        if(!compGroups[j.competition_id]) {
-            compGroups[j.competition_id] = {
-                participants: {}, 
-                is_general: comp?.categories?.is_general || false,
-                is_group: comp?.is_group || false, // Check if it's a group event
-                max_mark: comp?.max_mark || 100, 
-                comp_data: comp
-            };
-        }
-        
-        const pId = j.participants.id;
-        if(!compGroups[j.competition_id].participants[pId]) {
-            compGroups[j.competition_id].participants[pId] = {
-                participant: j.participants, 
-                total_mark: 0, 
-                judge_count: 0
-            };
-        }
-        compGroups[j.competition_id].participants[pId].total_mark += parseFloat(j.awarded_mark);
-        compGroups[j.competition_id].participants[pId].judge_count += 1;
-    });
-
-    // 2. Process and Award Points
-    for (const [compId, compData] of Object.entries(compGroups)) {
-        // Fetch the correct ratio from SYSTEM_SETTINGS based on Category Type
-        const baseRatio = compData.is_general ? SYSTEM_SETTINGS.ratio_general : SYSTEM_SETTINGS.ratio_standard;
-
-        if (compData.is_group) {
-            // --- GROUP EVENT LOGIC ---
-            const teamAverages = {};
-            
-            Object.values(compData.participants).forEach(p => {
-                const tId = p.participant.team_id;
-                if (!tId) return; 
+                const { data: teams } = await supabaseClient.from('teams').select('*');
+                allTeams = teams || [];
                 
-                if (!teamAverages[tId]) {
-                    teamAverages[tId] = { total: 0, count: 0, team_id: tId, participant: p.participant };
+                // If you added updated_at to the DB in the earlier step, change this line to: 
+                // .eq('status', 'published').order('updated_at', { ascending: true });
+                const { data: comps, error: compError } = await supabaseClient.from('competitions')
+                    .select('*, categories(name, is_general)') 
+                    .eq('status', 'published');
+                
+                if (compError) throw compError;
+                publishedCompetitions = comps || [];
+
+                const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', 'individual');
+                cachedTemplates = templates || [];
+
+                if (publishedCompetitions.length > 0) {
+                    const compIds = publishedCompetitions.map(c => c.id);
+                    const { data: judgements } = await supabaseClient
+                        .from('judgements')
+                        .select(`competition_id, awarded_mark, participants(id, name, team_id, batch_no)`)
+                        .in('competition_id', compIds)
+                        .not('participant_id', 'is', null)
+                        .not('awarded_mark', 'is', null);
+
+                    globalJudgements = judgements || [];
+                    
+                    populateTimelineDropdown(); 
+                    applyTimelineFilter();
+                } else {
+                    renderLeaderboard();
                 }
-                teamAverages[tId].total += (p.total_mark / p.judge_count);
-                teamAverages[tId].count += 1;
-            });
 
-            const teamScores = Object.values(teamAverages).map(t => {
-                const teamAvgMark = t.total / t.count;
-                t.normalized_points = parseFloat(((teamAvgMark / compData.max_mark) * baseRatio).toFixed(2));
-                t.participant.name = `${allTeams.find(tm => tm.id === t.team_id)?.name || 'Team'} (Group)`;
-                return t;
-            });
-
-            // Sort and grab top 3
-            const sorted = teamScores.sort((a, b) => b.normalized_points - a.normalized_points);
-            const top3 = sorted.slice(0, 3);
-            competitionResults[compId] = top3; 
-
-            // Add the converted points directly to the Team Record
-            top3.forEach((entry) => {
-                if (entry.team_id && calculatedTeamScores[entry.team_id]) {
-                    calculatedTeamScores[entry.team_id].score += entry.normalized_points;
-                }
-            });
-
-        } else {
-            // --- INDIVIDUAL EVENT LOGIC ---
-            const participantsArr = Object.values(compData.participants).map(p => {
-                const averageMark = p.total_mark / p.judge_count;
-                p.normalized_points = parseFloat(((averageMark / compData.max_mark) * baseRatio).toFixed(2));
-                return p;
-            });
-
-            // Sort and grab top 3
-            const sorted = participantsArr.sort((a, b) => b.normalized_points - a.normalized_points);
-            const top3 = sorted.slice(0, 3);
-            competitionResults[compId] = top3;
-
-            // Add the converted points directly to the Team Record
-            top3.forEach((entry) => {
-                const teamId = entry.participant.team_id;
-                if (teamId && calculatedTeamScores[teamId]) {
-                    calculatedTeamScores[teamId].score += entry.normalized_points;
-                }
-            });
+                populateCategoryFilter();
+                renderCompetitionsGrid();
+                
+            } catch (err) {
+                console.error("Init Error:", err);
+                document.getElementById('competitions-container').innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #ef4444;">Failed to load events. Check console for details.</p>`;
+            }
         }
-    }
-}
+
+        function populateTimelineDropdown() {
+            const select = document.getElementById('event-timeline-filter');
+            if(!select) return;
+            select.innerHTML = '<option value="all">All Published Events</option>';
+
+            const totalComps = publishedCompetitions.length;
+            const interval = SYSTEM_SETTINGS.poster_interval || 10;
+
+            let currentCount = interval;
+            while (currentCount <= totalComps) {
+                select.innerHTML += `<option value="${currentCount}">After ${currentCount} Events</option>`;
+                currentCount += interval;
+            }
+        }
+
+        function applyTimelineFilter() {
+            const limitVal = document.getElementById('event-timeline-filter').value;
+            
+            allTeams.forEach(t => calculatedTeamScores[t.id] = { name: t.name, score: 0 });
+            competitionResults = {};
+            
+            let activeComps = publishedCompetitions;
+            if (limitVal !== 'all') {
+                activeComps = publishedCompetitions.slice(0, parseInt(limitVal));
+            }
+            
+            const activeCompIds = activeComps.map(c => c.id);
+            const filteredJudgements = globalJudgements.filter(j => activeCompIds.includes(j.competition_id));
+            
+            processJudgements(filteredJudgements);
+            renderLeaderboard();
+        }
+
+        function processJudgements(judgements) {
+            const compGroups = {};
+            
+            judgements.forEach(j => {
+                if (!j.participants || !j.participants.id) return; 
+                const comp = publishedCompetitions.find(c => c.id === j.competition_id);
+                
+                if(!compGroups[j.competition_id]) {
+                    compGroups[j.competition_id] = {
+                        participants: {}, 
+                        is_general: comp?.categories?.is_general || false,
+                        is_group: comp?.is_group || false,
+                        max_mark: comp?.max_mark || 100, 
+                        comp_data: comp
+                    };
+                }
+                
+                const pId = j.participants.id;
+                if(!compGroups[j.competition_id].participants[pId]) {
+                    compGroups[j.competition_id].participants[pId] = {
+                        participant: j.participants, 
+                        total_mark: 0, 
+                        judge_count: 0
+                    };
+                }
+                compGroups[j.competition_id].participants[pId].total_mark += parseFloat(j.awarded_mark);
+                compGroups[j.competition_id].participants[pId].judge_count += 1;
+            });
+
+            for (const [compId, compData] of Object.entries(compGroups)) {
+                const baseRatio = compData.is_general ? SYSTEM_SETTINGS.ratio_general : SYSTEM_SETTINGS.ratio_standard;
+
+                if (compData.is_group) {
+                    const teamAverages = {};
+                    Object.values(compData.participants).forEach(p => {
+                        const tId = p.participant.team_id;
+                        if (!tId) return; 
+                        if (!teamAverages[tId]) teamAverages[tId] = { total: 0, count: 0, team_id: tId, participant: p.participant };
+                        teamAverages[tId].total += (p.total_mark / p.judge_count);
+                        teamAverages[tId].count += 1;
+                    });
+
+                    const teamScores = Object.values(teamAverages).map(t => {
+                        const teamAvgMark = t.total / t.count;
+                        t.normalized_points = parseFloat(((teamAvgMark / compData.max_mark) * baseRatio).toFixed(2));
+                        t.participant.name = `${allTeams.find(tm => tm.id === t.team_id)?.name || 'Team'} (Group)`;
+                        return t;
+                    });
+
+                    const sorted = teamScores.sort((a, b) => b.normalized_points - a.normalized_points);
+                    const top3 = sorted.slice(0, 3);
+                    competitionResults[compId] = top3; 
+
+                    top3.forEach((entry) => {
+                        if (entry.team_id && calculatedTeamScores[entry.team_id]) {
+                            calculatedTeamScores[entry.team_id].score += entry.normalized_points;
+                        }
+                    });
+                } else {
+                    const participantsArr = Object.values(compData.participants).map(p => {
+                        const averageMark = p.total_mark / p.judge_count;
+                        p.normalized_points = parseFloat(((averageMark / compData.max_mark) * baseRatio).toFixed(2));
+                        return p;
+                    });
+
+                    const sorted = participantsArr.sort((a, b) => b.normalized_points - a.normalized_points);
+                    const top3 = sorted.slice(0, 3);
+                    competitionResults[compId] = top3;
+
+                    top3.forEach((entry) => {
+                        const teamId = entry.participant.team_id;
+                        if (teamId && calculatedTeamScores[teamId]) {
+                            calculatedTeamScores[teamId].score += entry.normalized_points;
+                        }
+                    });
+                }
+            }
+        }
 
         function renderLeaderboard() {
             const container = document.getElementById('leaderboard-container');
@@ -506,15 +578,37 @@ function processJudgements(judgements) {
             });
         }
 
+        function populateCategoryFilter() {
+            const filter = document.getElementById('category-filter');
+            if(!filter) return;
+            const categories = new Set();
+            
+            publishedCompetitions.forEach(c => {
+                if(c.categories && c.categories.name) categories.add(c.categories.name);
+            });
+            
+            filter.innerHTML = '<option value="all">All Categories</option>';
+            
+            Array.from(categories).sort().forEach(cat => {
+                filter.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+        }
+
         function renderCompetitionsGrid() {
-            const search = document.getElementById('search-comp').value.toLowerCase();
+            const searchInput = document.getElementById('search-comp');
+            const catFilterInput = document.getElementById('category-filter');
+            
+            const search = searchInput ? searchInput.value.toLowerCase() : '';
+            const catFilter = catFilterInput ? catFilterInput.value : 'all';
             const container = document.getElementById('competitions-container');
             container.innerHTML = '';
 
             let count = 0;
             publishedCompetitions.forEach((comp, index) => {
                 const catName = comp.categories?.name || 'Uncategorized';
-                if(search && !comp.name.toLowerCase().includes(search) && !catName.toLowerCase().includes(search)) return;
+                
+                if (catFilter !== 'all' && catName !== catFilter) return;
+                if (search && !comp.name.toLowerCase().includes(search) && !catName.toLowerCase().includes(search)) return;
                 
                 count++;
                 container.innerHTML += `
@@ -533,120 +627,110 @@ function processJudgements(judgements) {
             if(count === 0) container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-muted);">No matching events found.</p>`;
         }
 
-let currentTeamPosterDataUrl = null;
-let currentTeamPosterFilename = "";
+        async function previewTeamPoster(type, btnElement) {
+            const originalText = btnElement.innerHTML;
+            btnElement.innerHTML = "Generating...";
+            btnElement.disabled = true;
 
-async function previewTeamPoster(type, btnElement) {
-    const originalText = btnElement.innerHTML;
-    btnElement.innerHTML = "Generating...";
-    btnElement.disabled = true;
+            const isFestEnded = false; 
+            
+            if (type === 'final' && !isFestEnded) {
+                alert("Fest Not Completed - Come Back After End");
+                btnElement.innerHTML = originalText;
+                btnElement.disabled = false;
+                return;
+            }
 
-    // 1. Block Final Standings if the fest hasn't ended.
-    // (Change this variable to 'true' when the fest is actually over)
-    const isFestEnded = false; 
-    
-    if (type === 'final' && !isFestEnded) {
-        // Updated message for ongoing fests
-        alert("Fest Not Completed - Come Back After End");
-        btnElement.innerHTML = originalText;
-        btnElement.disabled = false;
-        return;
-    }
+            try {
+                const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', type).limit(1);
 
-    try {
-        const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', type).limit(1);
+                if (!templates || templates.length === 0) {
+                    alert(`No template found for ${type}. Ask admin to create one.`);
+                    btnElement.innerHTML = originalText;
+                    btnElement.disabled = false;
+                    return;
+                }
 
-        // 2. Error out if fest is completed (or it's 'team' type) but no template exists
-        if (!templates || templates.length === 0) {
-            alert(`No template found for ${type}. Ask admin to create one.`);
-            btnElement.innerHTML = originalText;
-            btnElement.disabled = false;
-            return;
+                const template = templates[0];
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                
+                img.onload = () => {
+                    canvas.width = img.naturalWidth || 1080;
+                    canvas.height = img.naturalHeight || 1080;
+                    ctx.drawImage(img, 0, 0);
+
+                    const mappedData = {};
+
+                    if (type === 'team') {
+                        const limitVal = document.getElementById('event-timeline-filter').value;
+                        const totalPublished = publishedCompetitions.length;
+                        const interval = SYSTEM_SETTINGS.poster_interval || 10;
+                        
+                        const displayCount = limitVal === 'all' ? (Math.floor(totalPublished / interval) * interval) : limitVal;
+                        
+                        mappedData['ResultsCountText'] = `AFTER ${displayCount}`;
+                        mappedData['TotalCompetitionsCount'] = `CURRENT STANDINGS`;
+                    } else if (type === 'final') {
+                        mappedData['ResultsCountText'] = `AFTER ALL`;
+                        mappedData['TotalCompetitionsCount'] = `FINAL STANDINGS`;
+                    }
+
+                    const top5 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5);
+                    
+                    for(let i = 0; i < 5; i++) {
+                        mappedData[`Rank${i+1}Team`] = top5[i] ? top5[i].name : "";
+                        mappedData[`Rank${i+1}Points`] = top5[i] ? `${top5[i].score}` : "";
+                    }
+
+                    if(template.fields) {
+                        for (const [key, fieldConfig] of Object.entries(template.fields)) {
+                            if (!fieldConfig.enabled || fieldConfig.isImage) continue;
+
+                            const text = mappedData[key] || "";
+                            if (!text) continue;
+
+                            ctx.textAlign = fieldConfig.align || 'left';
+                            ctx.fillStyle = fieldConfig.color || '#000000';
+                            ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
+                            ctx.fillText(text, fieldConfig.x, fieldConfig.y);
+                        }
+                    }
+
+                    currentTeamPosterDataUrl = canvas.toDataURL("image/jpeg", 1.0);
+                    currentTeamPosterFilename = `FestOS_${type}_Standings.jpg`;
+                    
+                    document.getElementById('team-poster-preview-img').src = currentTeamPosterDataUrl;
+                    document.getElementById('team-modal-title').innerText = type === 'final' ? 'Final Standings' : 'Current Standings';
+                    
+                    document.getElementById('btn-download-team').onclick = () => {
+                        const link = document.createElement('a');
+                        link.download = currentTeamPosterFilename;
+                        link.href = currentTeamPosterDataUrl;
+                        link.click();
+                    };
+
+                    document.getElementById('team-preview-modal').classList.add('active');
+                    
+                    btnElement.innerHTML = originalText;
+                    btnElement.disabled = false;
+                };
+
+                img.src = template.bg_base64;
+            } catch (err) {
+                console.error("Poster Generation Error:", err);
+                alert("An error occurred while generating the poster.");
+                btnElement.innerHTML = originalText;
+                btnElement.disabled = false;
+            }
         }
 
-        // 3. If template exists (and fest is completed if 'final'), generate the poster
-        const template = templates[0];
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        const img = new Image();
-        img.crossOrigin = "Anonymous";
-        
-        img.onload = () => {
-            canvas.width = img.naturalWidth || 1080;
-            canvas.height = img.naturalHeight || 1080;
-            ctx.drawImage(img, 0, 0);
-
-            const mappedData = {};
-
-            // Apply formatting without "PTS" or "EVENTS"
-            if (type === 'team') {
-                const roundedCount = Math.floor(publishedCompetitions.length / 10) * 10;
-                mappedData['ResultsCountText'] = `AFTER ${roundedCount}`;
-                mappedData['TotalCompetitionsCount'] = `CURRENT STANDINGS`;
-            } else if (type === 'final') {
-                mappedData['ResultsCountText'] = `AFTER ALL`;
-                mappedData['TotalCompetitionsCount'] = `FINAL STANDINGS`;
-            }
-
-            const top5 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5);
-            
-            for(let i = 0; i < 5; i++) {
-                mappedData[`Rank${i+1}Team`] = top5[i] ? top5[i].name : "";
-                mappedData[`Rank${i+1}Points`] = top5[i] ? `${top5[i].score}` : "";
-            }
-
-            if(template.fields) {
-                for (const [key, fieldConfig] of Object.entries(template.fields)) {
-                    if (!fieldConfig.enabled || fieldConfig.isImage) continue;
-
-                    const text = mappedData[key] || "";
-                    if (!text) continue;
-
-                    ctx.textAlign = fieldConfig.align || 'left';
-                    ctx.fillStyle = fieldConfig.color || '#000000';
-                    ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
-                    ctx.fillText(text, fieldConfig.x, fieldConfig.y);
-                }
-            }
-
-            // Generate Preview Data
-            currentTeamPosterDataUrl = canvas.toDataURL("image/jpeg", 1.0);
-            currentTeamPosterFilename = `FestOS_${type}_Standings.jpg`;
-            
-            // Populate and Show Modal
-            document.getElementById('team-poster-preview-img').src = currentTeamPosterDataUrl;
-            document.getElementById('team-modal-title').innerText = type === 'final' ? 'Final Standings' : 'Current Standings';
-            
-            // Attach Download Event
-            document.getElementById('btn-download-team').onclick = () => {
-                const link = document.createElement('a');
-                link.download = currentTeamPosterFilename;
-                link.href = currentTeamPosterDataUrl;
-                link.click();
-            };
-
-            // Show the modal
-            document.getElementById('team-preview-modal').classList.add('active');
-            
-            btnElement.innerHTML = originalText;
-            btnElement.disabled = false;
-        };
-
-        img.src = template.bg_base64;
-    } catch (err) {
-        console.error("Poster Generation Error:", err);
-        alert("An error occurred while generating the poster.");
-        btnElement.innerHTML = originalText;
-        btnElement.disabled = false;
-    }
-}
-
-// Helper to close the new modal
-function closeTeamModal() {
-    document.getElementById('team-preview-modal').classList.remove('active');
-}
-        // --- MODAL & PREVIEW LOGIC ---
+        function closeTeamModal() {
+            document.getElementById('team-preview-modal').classList.remove('active');
+        }
 
         function openResultModal(compId) {
             activeCompId = compId;
@@ -655,7 +739,6 @@ function closeTeamModal() {
             document.getElementById('modal-cat-name').innerText = comp.categories?.name || 'Event';
             document.getElementById('modal-comp-name').innerText = comp.name;
 
-            // Render Winners
             const winnersList = document.getElementById('modal-winners-list');
             winnersList.innerHTML = '';
             
@@ -678,7 +761,6 @@ function closeTeamModal() {
                 });
             }
 
-            // Setup Template Selector
             const selector = document.getElementById('template-selector');
             selector.innerHTML = '';
             
@@ -701,7 +783,6 @@ function closeTeamModal() {
                 renderPreviewCanvas();
             }
 
-            // Show Modal
             document.getElementById('result-modal').classList.add('active');
         }
 
@@ -774,7 +855,6 @@ function closeTeamModal() {
             link.click();
         }
 
-        // Boot
         init();
     </script>
 </body>

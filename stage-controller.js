@@ -265,22 +265,17 @@ function filterCompetitions() {
 }
 
 function getButtonsForStatus(comp) {
+    // 1. Escape quotes to prevent inline Javascript syntax errors
+    const safeName = comp.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+
     if (comp.status === 'pending') {
-        // SMART FIX: Check the judgements array instead of the judges array
-        // If there are judgement rows, it means judges have been assigned!
-        const hasJudges = comp.judgements && comp.judgements.length > 0;
-        
-        if (!hasJudges) {
-            return `<button class="btn btn-outline" style="opacity: 0.6; cursor: not-allowed;" title="ASSIGN JUDGES FIRST" disabled><i class="ph ph-warning"></i> NO JUDGES ASSIGNED</button>`;
-        }
-        
         return `<button class="btn btn-primary" onclick="changeCompetitionState('${comp.id}', 'registration', this, 'STARTING')"><i class="ph ph-qr-code"></i> START REGISTRATION</button>`;
     }
     
     if (comp.status === 'registration') {
         return `
             <div style="display: flex; gap: 0.5rem; width: 100%;">
-                <button class="btn btn-outline" style="flex:1; padding: 0.5rem;" onclick="openScannerModal('${comp.id}', '${comp.name}')" title="SCAN QR"><i class="ph ph-scan"></i> SCAN</button>
+                <button class="btn btn-outline" style="flex:1; padding: 0.5rem;" onclick="openScannerModal('${comp.id}', '${safeName}')" title="SCAN QR"><i class="ph ph-scan"></i> SCAN</button>
                 <button class="btn btn-success" style="flex:1; padding: 0.5rem;" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'STARTING')"><i class="ph ph-play"></i> START</button>
                 <button class="btn" style="flex:1; padding: 0.5rem; background: var(--danger); color: white;" onclick="cancelRegistration('${comp.id}', this)"><i class="ph ph-x"></i> CANCEL</button>
             </div>
@@ -288,10 +283,8 @@ function getButtonsForStatus(comp) {
     }
     
     if (comp.status === 'ongoing') {
-        // CHECK FOR MARKS: Do any rows have a valid awarded_mark?
         const hasMarks = comp.judgements && comp.judgements.some(j => j.awarded_mark !== null);
 
-        // Conditional Button Rendering
         const endBtn = hasMarks 
             ? `<button class="btn btn-warning" style="flex:2;" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'ENDING')"><i class="ph ph-flag-checkered"></i> END COMPETITION</button>`
             : `<button class="btn btn-outline" style="flex:2; opacity: 0.6; cursor: not-allowed;" title="WAITING FOR JUDGES TO SUBMIT MARKS..." disabled><i class="ph ph-hourglass"></i> AWAITING JUDGES...</button>`;
@@ -306,7 +299,6 @@ function getButtonsForStatus(comp) {
     
     return `<p style="color: var(--text-muted); font-size: 0.95rem; width: 100%; text-align: center; background: #F8FAFC; padding: 1rem; border-radius: 8px;">ACTION COMPLETED. WAITING FOR MANAGER TO PUBLISH.</p>`;
 }
-
 
 async function openScannerModal(compId, compName) {
     activeScanCompId = compId;

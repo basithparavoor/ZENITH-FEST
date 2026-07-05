@@ -3236,13 +3236,16 @@ async function bulkRevokeTeam() {
 
 // Call initBulkTeamControls inside loadParticipants() 
 // or at the end of the DOMContentLoaded event
-
 async function loadPointSettings() {
     try {
-const { data, error } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
+        const { data, error } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
         if (data && data.value) {
             document.getElementById('setting-ratio-standard').value = data.value.ratio_standard || 10;
             document.getElementById('setting-ratio-general').value = data.value.ratio_general || 20;
+            // Restore Poster Interval loader
+            if(document.getElementById('setting-poster-interval')) {
+                document.getElementById('setting-poster-interval').value = data.value.poster_interval || 10;
+            }
         }
     } catch (e) {
         console.warn("No custom point settings found, using defaults.");
@@ -3252,7 +3255,9 @@ const { data, error } = await supabaseClient.from('settings').select('value').eq
 async function savePointSettings() {
     const payload = {
         ratio_standard: parseFloat(document.getElementById('setting-ratio-standard').value) || 10,
-        ratio_general: parseFloat(document.getElementById('setting-ratio-general').value) || 20
+        ratio_general: parseFloat(document.getElementById('setting-ratio-general').value) || 20,
+        // Restore Poster Interval saver
+        poster_interval: parseInt(document.getElementById('setting-poster-interval').value) || 10
     };
 
     try {
