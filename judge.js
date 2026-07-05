@@ -45,8 +45,17 @@ async function loadDashboard() {
             
         if (error) return container.innerHTML = `<p style="color: #EF4444;">Failed to load competitions.</p>`;
         
+        // FIX: Fetch judgments made by the master admin to hide already graded ones
+        const { data: adminMarks } = await supabaseClient
+            .from('judgements')
+            .select('competition_id')
+            .eq('judge_id', user.id)
+            .not('awarded_mark', 'is', null);
+
+        const gradedIds = new Set(adminMarks?.map(m => m.competition_id) || []);
+
         allComps.forEach(comp => {
-            compStatusMap.set(comp.id, { comp: comp, hasGraded: false });
+            compStatusMap.set(comp.id, { comp: comp, hasGraded: gradedIds.has(comp.id) });
         });
     } else {
         const { data: allJudgeRecords, error } = await supabaseClient
@@ -151,27 +160,30 @@ function renderDashboard(data) {
                         <strong>${statusText}</strong> | Max Mark: ${comp.max_mark}
                     </p>
                 </div>
-                <button class="btn ${isOngoing ? 'btn-primary' : 'btn-outline'}" ${btnState} onclick="openEvaluation('${comp.id}', '${comp.name}', ${comp.max_mark})">
-                    ${btnText}
-                </button>
+               <button class="btn ${isOngoing ? 'btn-primary' : 'btn-outline'}" ${btnState} onclick="openEvaluation('${comp.id}')">
+    ${btnText}
+</button>
             </div>
         `;
         container.appendChild(card);
     });
 }
-async function openEvaluation(compId, compName, maxMark) {
-    currentCompId = compId;
-    currentMaxMark = maxMark;
+async function openEvaluation(compId) {
+    // FIX 1: Retrieve competition details securely to avoid HTML syntax breaks
+    const comp = globalJudgeComps.find(c => c.id === compId);
+    if (!comp) return;
+
+    currentCompId = comp.id;
+    currentMaxMark = comp.max_mark;
 
     document.getElementById('dashboard-view').style.display = 'none';
     document.getElementById('evaluation-view').style.display = 'block';
-    document.getElementById('eval-comp-name').innerText = compName;
-    document.getElementById('eval-max-mark').innerText = maxMark;
+    document.getElementById('eval-comp-name').innerText = comp.name;
+    document.getElementById('eval-max-mark').innerText = currentMaxMark;
 
     const container = document.getElementById('participants-container');
     container.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading participants...</p>`;
 
-    // NEW: Updated query to grab is_leader, group_id, and check the competition's is_group status
     const { data: registrations, error } = await supabaseClient
         .from('participant_competitions')
         .select('participant_id, code_letter, is_leader, group_id, competitions(is_group)')
@@ -193,7 +205,6 @@ async function openEvaluation(compId, compName, maxMark) {
     }
 
     registrations.forEach(reg => {
-        // NEW: Check if it is a group comp and show the role badge
         const isGroupEvent = reg.competitions?.is_group;
         let roleBadge = '';
         if (isGroupEvent) {
@@ -218,11 +229,11 @@ async function openEvaluation(compId, compName, maxMark) {
                            class="mark-input" 
                            placeholder="0" 
                            min="0" 
-                           max="${maxMark}" 
+                           max="${currentMaxMark}" 
                            step="0.5" 
                            style="width: 80px; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px;"
-                           oninput="validateMark(this, ${maxMark})">
-                    <span class="max-mark-label" style="font-weight: 600; color: var(--text-muted);">/ ${maxMark}</span>
+                           oninput="validateMark(this, ${currentMaxMark})">
+                    <span class="max-mark-label" style="font-weight: 600; color: var(--text-muted);">/ ${currentMaxMark}</span>
                 </div>
             </div>
         `;
