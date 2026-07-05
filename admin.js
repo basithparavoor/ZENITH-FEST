@@ -3242,9 +3242,20 @@ async function loadPointSettings() {
         if (data && data.value) {
             document.getElementById('setting-ratio-standard').value = data.value.ratio_standard || 10;
             document.getElementById('setting-ratio-general').value = data.value.ratio_general || 20;
+            
             // Restore Poster Interval loader
             if(document.getElementById('setting-poster-interval')) {
                 document.getElementById('setting-poster-interval').value = data.value.poster_interval || 10;
+            }
+
+            // NEW: Load Team Manager Access Control
+            if(document.getElementById('setting-tm-access')) {
+                // Default to true if the setting doesn't exist yet
+                const tmAccess = data.value.tm_access !== false; 
+                const checkbox = document.getElementById('setting-tm-access');
+                checkbox.checked = tmAccess;
+                // Trigger the visual animation for the toggle switch
+                checkbox.dispatchEvent(new Event('change')); 
             }
         }
     } catch (e) {
@@ -3257,7 +3268,9 @@ async function savePointSettings() {
         ratio_standard: parseFloat(document.getElementById('setting-ratio-standard').value) || 10,
         ratio_general: parseFloat(document.getElementById('setting-ratio-general').value) || 20,
         // Restore Poster Interval saver
-        poster_interval: parseInt(document.getElementById('setting-poster-interval').value) || 10
+        poster_interval: parseInt(document.getElementById('setting-poster-interval').value) || 10,
+        // NEW: Save Team Manager Access Control
+        tm_access: document.getElementById('setting-tm-access') ? document.getElementById('setting-tm-access').checked : true
     };
 
     try {
