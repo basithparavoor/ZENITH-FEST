@@ -267,14 +267,25 @@
             .modal-close { background: #f1f5f9; }
             
             .modal-body { 
-                padding: 1.5rem; 
+                /* 1. Switch to flexbox to prevent grid stretching */
+                display: flex;
+                flex-direction: column;
+                
+                padding: 1.25rem; /* Slightly reduced padding to maximize screen space */
                 gap: 1.5rem; 
                 overflow-y: auto;
                 overflow-x: hidden;
-                padding-bottom: 4rem; /* Adds safe padding at the very bottom */
+                padding-bottom: 4rem; 
                 -webkit-overflow-scrolling: touch;
                 width: 100%;
-                flex: 1; /* CRITICAL: Forces the content to scroll inside the viewable screen */
+                box-sizing: border-box; /* Ensures padding doesn't add to 100vw */
+                flex: 1; 
+            }
+            
+            /* 2. CRITICAL FIX: Forces all sections inside the modal to respect screen width */
+            .modal-body > div {
+                width: 100%;
+                min-width: 0; 
             }
             
             /* Compact Winners List */
@@ -286,6 +297,7 @@
                 display: flex;
                 align-items: center;
                 width: 100%;
+                box-sizing: border-box;
             }
             
             .w-rank { width: 30px; font-size: 1.25rem; margin-right: 0.75rem; flex-shrink: 0; }
@@ -309,7 +321,15 @@
             }
             
             /* Responsive Poster Section */
-            .poster-section { background: white; border-top: 1px dashed var(--border); padding-top: 1.5rem; width: 100%; }
+            .poster-section { 
+                background: white; 
+                border-top: 1px dashed var(--border); 
+                padding-top: 1.5rem; 
+                width: 100%; 
+                min-width: 0; /* CRITICAL FIX */
+                box-sizing: border-box;
+            }
+            
             .poster-section h3 { font-size: 1.05rem !important; margin-bottom: 1rem !important; }
             
             .template-tabs { 
@@ -319,17 +339,20 @@
                 padding-bottom: 0.75rem; 
                 -webkit-overflow-scrolling: touch; 
                 width: 100%; 
+                max-width: 100%; /* Ensures the scrollbar stays inside the screen */
             }
             
             .preview-wrapper { 
                 width: 100%;
-                aspect-ratio: 1 / 1; /* CRITICAL: Restores perfect square visibility */
+                max-width: 100%;
+                aspect-ratio: 1 / 1; 
                 border-radius: 16px;
                 background: #f1f5f9;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 overflow: hidden;
+                box-sizing: border-box;
             }
             
             .poster-section .btn { 
