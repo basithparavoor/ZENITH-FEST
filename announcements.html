@@ -10,7 +10,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- jsPDF & AutoTable for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
     <style>
         :root {
@@ -18,6 +24,7 @@
             --primary-gradient: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
             --danger: #E11D48;
             --success: #10B981;
+            --warning: #F59E0B;
             --bg-main: #F1F5F9; 
             --bg-surface: #FFFFFF;
             --text-main: #0F172A;
@@ -37,6 +44,19 @@
         
         body { background-color: var(--bg-main); color: var(--text-main); min-height: 100vh; padding-bottom: 80px; }
 
+        /* Loader */
+        .loader-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(241, 245, 249, 0.9); backdrop-filter: blur(4px);
+            z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 1rem;
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid var(--border);
+            border-top-color: var(--primary); border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
         /* App Shell */
         .header {
             position: sticky; top: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px);
@@ -45,17 +65,24 @@
         }
         .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; color: var(--primary); }
 
-        .container { padding: 1.5rem 1rem; max-width: 800px; margin: 0 auto; }
+        .container { padding: 1.5rem 1rem; width: 100%; max-width: 800px; margin: 0 auto; }
         
-        /* Filters */
-        .filter-bar { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        /* Desktop Responsiveness */
+        @media (min-width: 768px) {
+            .container { max-width: 1200px; padding: 2rem; }
+            .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5rem; }
+            .card { margin-bottom: 0 !important; height: 100%; display: flex; flex-direction: column; }
+            .btn-main, .btn-tick { margin-top: auto; }
+        }
+        
+        /* Filters & Tabs */
+        .filter-bar { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
         .filter-bar select {
             flex: 1; min-width: 150px; padding: 0.75rem 1rem; border-radius: var(--radius-md);
             border: 1px solid var(--border); background: white; font-weight: 600; color: var(--text-main);
             outline: none; font-size: 0.9rem;
         }
         
-        /* Tabs */
         .tab-nav {
             display: flex; gap: 0.5rem; background: white; padding: 0.5rem; border-radius: var(--radius-lg);
             margin-bottom: 1.5rem; box-shadow: var(--shadow-card); overflow-x: auto;
@@ -72,37 +99,61 @@
             margin-bottom: 1rem; box-shadow: var(--shadow-card); border: 1px solid var(--border);
         }
         .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
-        .card-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.2rem; font-weight: 700; }
+        .card-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.2rem; font-weight: 700; line-height: 1.3; }
         
-        .badge { padding: 0.35rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 700; }
+        .badge { padding: 0.35rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
         .badge-reg { background: #DBEAFE; color: #1D4ED8; }
         .badge-live { background: #D1FAE5; color: #059669; }
         .badge-results { background: #FEF3C7; color: #D97706; }
+        .badge-awards { background: #F3E8FF; color: #7E22CE; }
         
         .metric { font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;}
         
-        /* Calling List Table */
-        .calling-list {
-            margin-top: 1.25rem; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden;
+        /* Tables (Lists) */
+        .data-list {
+            margin-top: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden;
         }
-        .calling-list-header {
+        .data-list-header {
             background: var(--bg-main); padding: 0.5rem 1rem; font-size: 0.75rem; font-weight: 800;
-            color: var(--text-muted); text-transform: uppercase;
+            color: var(--text-muted); text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;
         }
-        .calling-item {
+        .data-item {
             display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem;
-            border-top: 1px solid var(--border); font-size: 0.9rem;
+            border-top: 1px solid var(--border); font-size: 0.9rem; background: white;
         }
         
-        .btn-tick {
+        /* Buttons */
+        .btn-main {
             width: 100%; padding: 1rem; background: var(--success); color: white; border: none;
             border-radius: var(--radius-md); font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 1rem;
         }
+        .btn-pdf-small {
+            padding: 0.35rem 0.75rem; background: white; color: var(--primary); border: 1px solid var(--primary);
+            border-radius: 6px; font-weight: 600; font-size: 0.75rem; cursor: pointer; display: flex; gap: 0.25rem; align-items: center;
+        }
+        
+        .btn-award {
+            padding: 0.5rem 1rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.75rem; cursor: pointer;
+            transition: all 0.2s; white-space: nowrap;
+        }
+        .btn-award.given { background: var(--success); color: white; }
+        .btn-award.pending { background: var(--warning); color: white; }
+        .btn-award:active { transform: scale(0.95); }
+
+        .pos-1 { color: #D4AF37; font-weight: 900; font-size: 1.2rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .pos-2 { color: #94A3B8; font-weight: 900; font-size: 1.2rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .pos-3 { color: #CD7F32; font-weight: 900; font-size: 1.2rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
 
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
+
+    <!-- Loading Screen -->
+    <div id="loader" class="loader-overlay">
+        <div class="spinner"></div>
+        <div style="font-weight: 700; color: var(--primary);">SYNCING LIVE DATA...</div>
+    </div>
 
     <div id="app-screen">
         <div class="header">
@@ -125,11 +176,34 @@
                 <button class="tab-btn active" onclick="switchTab('reg')">Registrations</button>
                 <button class="tab-btn" onclick="switchTab('ongoing')">Ongoing</button>
                 <button class="tab-btn" onclick="switchTab('results')">Results</button>
+                <button class="tab-btn" onclick="switchTab('awards')">Awards</button>
             </div>
 
-            <div id="view-reg" class="tab-content"></div>
-            <div id="view-ongoing" class="tab-content hidden"></div>
-            <div id="view-results" class="tab-content hidden"></div>
+            <!-- Tab Contents -->
+            <div id="view-reg" class="tab-content grid-layout"></div>
+            <div id="view-ongoing" class="tab-content grid-layout hidden"></div>
+            <div id="view-results" class="tab-content grid-layout hidden"></div>
+            
+            <!-- Awards View -->
+            <div id="view-awards" class="tab-content hidden">
+                <div class="filter-bar" style="margin-bottom: 1.5rem;">
+                    <select id="filter-award-status" onchange="applyFilters()">
+                        <option value="all">All Award Statuses</option>
+                        <option value="pending">Awards Pending</option>
+                        <option value="given">Awards Given</option>
+                    </select>
+                    <select id="filter-position" onchange="applyFilters()">
+                        <option value="all">All Positions</option>
+                        <option value="1">1st Place Only</option>
+                        <option value="2">2nd Place Only</option>
+                        <option value="3">3rd Place Only</option>
+                    </select>
+                    <button class="btn-pdf-small" onclick="downloadAllAwardsPDF()" style="flex: 1; justify-content: center; padding: 0.75rem 1rem; font-size: 0.9rem;">
+                        <i class="fa-solid fa-download"></i> Download Report
+                    </button>
+                </div>
+                <div id="awards-container" class="grid-layout"></div>
+            </div>
         </div>
     </div>
 
@@ -138,15 +212,15 @@
         const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        let systemBranding = { fest_name: 'FestOS' };
+        let systemSettings = { ratio_standard: 10, ratio_general: 20 };
+        let isInitialLoad = true;
+
         // --- AUTH CHECK ---
-        // Fetch the global user token set by your main index.html login page
         const user = JSON.parse(localStorage.getItem('festUser'));
-        
         if (!user || user.role !== 'announcer') {
-            // Kick them back to the main login page if they bypass it
             window.location.href = 'index.html'; 
         } else {
-            // User is valid, start the app
             initializePortal();
         }
 
@@ -158,13 +232,22 @@
         // Global Data State
         let rawRegData = [];
         let rawOngoingData = [];
-        let rawResultsData = [];
+        let allTeams = [];
+        let publishedComps = [];
+        let computedResults = {}; // { compId: [ { position, participant, award_given, ... } ] }
 
         // --- INITIALIZATION & FETCHING ---
         async function initializePortal() {
-            // Load filter options
+            await fetchAndApplyBranding();
+            
+            const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
+            if (set_data && set_data.value) systemSettings = set_data.value;
+
             const { data: stages } = await supabaseClient.from('stages').select('id, name');
             const { data: categories } = await supabaseClient.from('categories').select('id, name');
+            const { data: teamsData } = await supabaseClient.from('teams').select('*');
+            
+            allTeams = teamsData || [];
             
             const stageFilter = document.getElementById('filter-stage');
             const catFilter = document.getElementById('filter-category');
@@ -172,44 +255,138 @@
             (stages || []).forEach(s => stageFilter.innerHTML += `<option value="${s.id}">${s.name}</option>`);
             (categories || []).forEach(c => catFilter.innerHTML += `<option value="${c.id}">${c.name}</option>`);
 
-            fetchData();
-            setInterval(fetchData, 15000); // Auto-refresh data every 15s
+            await fetchData();
+            
+            if(isInitialLoad) {
+                document.getElementById('loader').classList.add('hidden');
+                isInitialLoad = false;
+            }
+
+            setInterval(fetchData, 15000); 
         }
 
         async function fetchData() {
             try {
-                // Fetch Registrations (WITH the enrolled participants to call)
+                // 1. Fetch Registrations & Ongoing
                 const { data: regData } = await supabaseClient
                     .from('competitions')
-                    .select(`
-                        *, 
-                        categories(id, name), 
-                        stages(id, name),
-                        participant_competitions (
-                            participants ( name, unique_id, teams(name) )
-                        )
-                    `)
+                    .select(`*, categories(id, name), stages(id, name),
+                        participant_competitions ( participants ( name, unique_id, teams(name) ) )`)
                     .eq('status', 'registration');
                 
-                // Fetch Ongoing
                 const { data: ongoingData } = await supabaseClient
                     .from('competitions')
                     .select('*, stages(id, name), categories(id, name)')
                     .eq('status', 'ongoing');
 
-                // Fetch ONLY Published Results
-                const { data: resultsData } = await supabaseClient
+                // 2. Fetch Published Competitions
+                const { data: pubData } = await supabaseClient
                     .from('competitions')
-                    .select('*, stages(id, name), categories(id, name)')
+                    .select('*, stages(id, name), categories(id, name, is_general)')
                     .eq('status', 'published'); 
+                
+                publishedComps = pubData || [];
+                
+                // 3. Fetch Judgements
+                let globalJudgements = [];
+                if (publishedComps.length > 0) {
+                    const compIds = publishedComps.map(c => c.id);
+                    const { data: judgements } = await supabaseClient
+                        .from('judgements')
+                        .select(`competition_id, awarded_mark, participants(id, name, team_id, unique_id)`)
+                        .in('competition_id', compIds)
+                        .not('participant_id', 'is', null)
+                        .not('awarded_mark', 'is', null);
+                    globalJudgements = judgements || [];
+                }
+
+                // 4. Fetch the existing Award tracking table
+                const { data: savedAwards } = await supabaseClient
+                    .from('results')
+                    .select('competition_id, participant_id, award_given');
 
                 rawRegData = regData || [];
                 rawOngoingData = ongoingData || [];
-                rawResultsData = resultsData || [];
+                
+                // 5. Calculate Results
+                calculateResults(globalJudgements, savedAwards || []);
 
-                applyFilters(); // Render with current filters
+                applyFilters(); 
             } catch (e) {
                 console.error("Data Sync Error:", e);
+            }
+        }
+
+        function calculateResults(judgements, savedAwards) {
+            computedResults = {};
+            const compGroups = {};
+            
+            judgements.forEach(j => {
+                if (!j.participants || !j.participants.id) return; 
+                const comp = publishedComps.find(c => c.id === j.competition_id);
+                
+                if(!compGroups[j.competition_id]) {
+                    compGroups[j.competition_id] = {
+                        participants: {}, 
+                        is_general: comp?.categories?.is_general || false,
+                        is_group: comp?.is_group || false,
+                        max_mark: comp?.max_mark || 100,
+                        comp_data: comp
+                    };
+                }
+                
+                const pId = j.participants.id;
+                if(!compGroups[j.competition_id].participants[pId]) {
+                    compGroups[j.competition_id].participants[pId] = {
+                        participant: j.participants, 
+                        total_mark: 0, 
+                        judge_count: 0
+                    };
+                }
+                compGroups[j.competition_id].participants[pId].total_mark += parseFloat(j.awarded_mark);
+                compGroups[j.competition_id].participants[pId].judge_count += 1;
+            });
+
+            for (const [compId, compData] of Object.entries(compGroups)) {
+                let top3 = [];
+
+                if (compData.is_group) {
+                    const teamAverages = {};
+                    Object.values(compData.participants).forEach(p => {
+                        const tId = p.participant.team_id;
+                        if (!tId) return; 
+                        if (!teamAverages[tId]) teamAverages[tId] = { total: 0, count: 0, participant: p.participant };
+                        teamAverages[tId].total += (p.total_mark / p.judge_count);
+                        teamAverages[tId].count += 1;
+                    });
+
+                    const teamScores = Object.values(teamAverages).map(t => {
+                        t.score = t.total / t.count;
+                        t.participant.name = `${allTeams.find(tm => tm.id === t.participant.team_id)?.name || 'Team'} (Group)`;
+                        return t;
+                    });
+
+                    top3 = teamScores.sort((a, b) => b.score - a.score).slice(0, 3);
+                } else {
+                    const participantsArr = Object.values(compData.participants).map(p => {
+                        p.score = p.total_mark / p.judge_count;
+                        return p;
+                    });
+                    top3 = participantsArr.sort((a, b) => b.score - a.score).slice(0, 3);
+                }
+
+                computedResults[compId] = top3.map((entry, idx) => {
+                    const teamName = allTeams.find(t => t.id === entry.participant.team_id)?.name || 'IND';
+                    entry.participant.teams = { name: teamName };
+                    
+                    const savedRecord = savedAwards.find(sa => sa.competition_id === compId && sa.participant_id === entry.participant.id);
+                    
+                    return {
+                        position: idx + 1,
+                        participant: entry.participant,
+                        award_given: savedRecord ? savedRecord.award_given : false
+                    };
+                });
             }
         }
 
@@ -217,6 +394,8 @@
         function applyFilters() {
             const stageId = document.getElementById('filter-stage').value;
             const catId = document.getElementById('filter-category').value;
+            const awardStatus = document.getElementById('filter-award-status')?.value || 'all';
+            const positionStatus = document.getElementById('filter-position')?.value || 'all';
 
             const filterFn = (comp) => {
                 const matchStage = stageId === 'all' || comp.stage_id === stageId;
@@ -226,155 +405,396 @@
 
             renderRegistrations(rawRegData.filter(filterFn));
             renderOngoing(rawOngoingData.filter(filterFn));
-            renderResults(rawResultsData.filter(filterFn));
+            renderResults(publishedComps.filter(filterFn));
+            renderAwards(publishedComps.filter(filterFn), awardStatus, positionStatus);
         }
 
-        // --- TAB LOGIC ---
         function switchTab(tabId) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            document.querySelectorAll('.tab-content').forEach(c => {
+                c.classList.add('hidden');
+                if(c.id === 'view-awards') { c.style.display = 'none'; } 
+            });
             
             event.currentTarget.classList.add('active');
-            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            const activeTab = document.getElementById(`view-${tabId}`);
+            activeTab.classList.remove('hidden');
+            if(tabId === 'awards') { activeTab.style.display = 'grid'; }
         }
 
         // --- RENDERERS ---
         function renderRegistrations(data) {
             const container = document.getElementById('view-reg');
-            if (data.length === 0) return container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top: 2rem;">No open registrations for selected filters.</p>';
-            
+            if (data.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No open registrations for selected filters.</div>';
+                return;
+            }
             container.innerHTML = data.map(comp => {
                 const enrollments = comp.participant_competitions || [];
+                let participantsHtml = enrollments.length > 0 ? `
+                    <div class="data-list">
+                        <div class="data-list-header">
+                            Calling List (${enrollments.length})
+                            <button class="btn-pdf-small" onclick="downloadCallListPDF('${comp.id}')"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        </div>
+                        ${enrollments.map(e => `
+                            <div class="data-item">
+                                <div><strong>${e.participants.name}</strong><br><small style="color:var(--text-muted); font-family: monospace;">${e.participants.unique_id}</small></div>
+                                <span style="font-size:0.8rem; font-weight:600; color:var(--primary);">${e.participants.teams?.name || 'IND'}</span>
+                            </div>`).join('')}
+                    </div>` : `<div style="margin-top:1rem; padding: 1rem; text-align:center; font-size:0.85rem; color:var(--text-muted); border: 1px dashed var(--border); border-radius: 8px;">No participants registered yet.</div>`;
                 
-                let participantsHtml = '';
-                if (enrollments.length > 0) {
-                    const rows = enrollments.map(e => {
-                        const p = e.participants;
-                        return `
-                            <div class="calling-item">
-                                <div>
-                                    <strong>${p.name}</strong><br>
-                                    <small style="color:var(--text-muted); font-family: monospace;">${p.unique_id}</small>
-                                </div>
-                                <span style="font-size:0.8rem; font-weight:600; color:var(--primary);">${p.teams?.name || 'IND'}</span>
-                            </div>
-                        `;
-                    }).join('');
-                    
-                    participantsHtml = `
-                        <div class="calling-list">
-                            <div class="calling-list-header">Calling List (${enrollments.length})</div>
-                            ${rows}
-                        </div>
-                    `;
-                } else {
-                    participantsHtml = `<div style="margin-top:1rem; font-size:0.85rem; color:var(--text-muted);">No participants registered yet.</div>`;
-                }
-
-                return `
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-title">${comp.name}</div>
-                            <span class="badge badge-reg">CALLING</span>
-                        </div>
-                        <div class="metric"><i class="fa-solid fa-layer-group"></i> ${comp.categories?.name || 'General'}</div>
-                        <div class="metric"><i class="fa-solid fa-location-dot"></i> ${comp.stages?.name || 'Global Stage'}</div>
-                        ${participantsHtml}
-                    </div>
-                `;
+                return `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><span class="badge badge-reg">CALLING</span></div><div class="metric"><i class="fa-solid fa-layer-group"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-location-dot"></i> ${comp.stages?.name || 'Global Stage'}</div>${participantsHtml}</div>`;
             }).join('');
         }
 
         function renderOngoing(data) {
             const container = document.getElementById('view-ongoing');
-            if (data.length === 0) return container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top: 2rem;">No ongoing events for selected filters.</p>';
-            
-            container.innerHTML = data.map(comp => `
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">${comp.name}</div>
-                        <span class="badge badge-live">LIVE</span>
-                    </div>
-                    <div class="metric"><i class="fa-solid fa-layer-group"></i> Category: ${comp.categories?.name || 'General'}</div>
-                    <div class="metric"><i class="fa-solid fa-location-dot"></i> Location: ${comp.stages?.name || 'Global Stage'}</div>
-                </div>
-            `).join('');
+            if (data.length === 0) return container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No ongoing events.</div>';
+            container.innerHTML = data.map(comp => `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><span class="badge badge-live">LIVE</span></div><div class="metric"><i class="fa-solid fa-layer-group"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-location-dot"></i> ${comp.stages?.name || 'Global Stage'}</div></div>`).join('');
         }
 
         function renderResults(data) {
             const container = document.getElementById('view-results');
-            
-            // Get hidden/announced results from local storage
             const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
-            
-            // Filter out any results that have already been ticked off
             const visibleData = data.filter(comp => !announcedComps.includes(comp.id));
 
-            if (visibleData.length === 0) return container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top: 2rem;">No new results pending announcement.</p>';
+            if (visibleData.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No new results pending announcement.</div>';
+                return;
+            }
             
-            container.innerHTML = visibleData.map(comp => `
+            container.innerHTML = visibleData.map(comp => {
+                const resultsList = computedResults[comp.id] || [];
+                let tableHtml = '';
+
+                if(resultsList.length > 0) {
+                    const rows = resultsList.map(r => `
+                        <div class="data-item">
+                            <div style="display:flex; gap: 1rem; align-items:center;">
+                                <span class="pos-${r.position}">#${r.position}</span>
+                                <div><strong>${r.participant.name}</strong><br><small style="color:var(--text-muted); font-family: monospace;">${r.participant.unique_id || 'Group/N/A'}</small></div>
+                            </div>
+                            <span style="font-size:0.8rem; font-weight:600; text-align:right;">${r.participant.teams?.name || 'IND'}</span>
+                        </div>`).join('');
+
+                    tableHtml = `
+                        <div class="data-list">
+                            <div class="data-list-header">
+                                Final Results (Top ${resultsList.length})
+                                <button class="btn-pdf-small" onclick="downloadResultsPDF('${comp.id}')"><i class="fa-solid fa-file-pdf"></i> Table PDF</button>
+                            </div>
+                            ${rows}
+                        </div>`;
+                } else {
+                    tableHtml = `<div style="margin-top:1rem; padding: 1rem; text-align:center; font-size:0.85rem; color:var(--warning); border: 1px dashed var(--warning); border-radius: 8px;">Awaiting Judging Marks...</div>`;
+                }
+
+                return `
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">${comp.name}</div>
                         <span class="badge badge-results">PUBLISHED</span>
                     </div>
-                    <div class="metric"><i class="fa-solid fa-gavel"></i> Evaluation Completed & Published</div>
-                    <div class="metric"><i class="fa-solid fa-location-dot"></i> ${comp.stages?.name || 'Global Stage'}</div>
-                    
-                    <button class="btn-tick" onclick="markAnnounced('${comp.id}')">
+                    <div class="metric"><i class="fa-solid fa-layer-group"></i> ${comp.categories?.name || 'General'}</div>
+                    <div class="metric"><i class="fa-solid fa-gavel"></i> Evaluation Completed</div>
+                    ${tableHtml}
+                    <button class="btn-main" onclick="markAnnounced('${comp.id}')">
                         <i class="fa-solid fa-check"></i> Tick After Announcement
                     </button>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
         }
 
-        // --- TICK LOGIC (HIDE PERMANENTLY) ---
+        function renderAwards(data, statusFilter, positionFilter) {
+            const container = document.getElementById('awards-container');
+            
+            // Filter Comps that have results matching the criteria
+            let filteredComps = data.filter(comp => {
+                let results = computedResults[comp.id] || [];
+                if(results.length === 0) return false;
+                
+                // Check if at least one result in this comp matches the filters
+                return results.some(r => {
+                    const matchStatus = statusFilter === 'all' || r.award_given === (statusFilter === 'given');
+                    const matchPos = positionFilter === 'all' || r.position.toString() === positionFilter;
+                    return matchStatus && matchPos;
+                });
+            });
+
+            if (filteredComps.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No awards matching criteria.</div>';
+                return;
+            }
+
+            container.innerHTML = filteredComps.map(comp => {
+                let results = computedResults[comp.id];
+                
+                // Filter the individual rows for display
+                if(statusFilter !== 'all') {
+                    const wantsGiven = statusFilter === 'given';
+                    results = results.filter(r => r.award_given === wantsGiven);
+                }
+                if(positionFilter !== 'all') {
+                    results = results.filter(r => r.position.toString() === positionFilter);
+                }
+
+                if(results.length === 0) return '';
+
+                const rows = results.map(r => {
+                    const p = r.participant;
+                    const btnClass = r.award_given ? 'given' : 'pending';
+                    const btnText = r.award_given ? '<i class="fa-solid fa-check-double"></i> Given' : 'Mark Given';
+                    
+                    return `
+                        <div class="data-item" style="flex-wrap: wrap; gap: 0.5rem;">
+                            <div style="display:flex; gap: 1rem; align-items:center; min-width: 200px;">
+                                <span class="pos-${r.position}">#${r.position}</span>
+                                <div><strong>${p.name}</strong><br><small style="color:var(--text-muted);">${p.unique_id || 'Group'} | ${p.teams?.name || 'IND'}</small></div>
+                            </div>
+                            <button class="btn-award ${btnClass}" onclick="toggleAward('${comp.id}', '${p.id}')">${btnText}</button>
+                        </div>`;
+                }).join('');
+
+                return `
+                    <div class="card">
+                        <div class="card-header" style="margin-bottom:0.5rem;">
+                            <div class="card-title">${comp.name}</div>
+                            <span class="badge badge-awards"><i class="fa-solid fa-trophy"></i> AWARDS</span>
+                        </div>
+                        <div class="metric" style="margin-bottom: 1rem;"><i class="fa-solid fa-layer-group"></i> ${comp.categories?.name || 'General'}</div>
+                        <div class="data-list" style="margin-top:0;">
+                            ${rows}
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        // --- INTERACTIONS ---
         function markAnnounced(compId) {
             let announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
             if (!announcedComps.includes(compId)) {
                 announcedComps.push(compId);
                 localStorage.setItem('announced_comps', JSON.stringify(announcedComps));
             }
-            // Re-render the UI instantly to hide the card
             applyFilters(); 
         }
 
+        async function toggleAward(compId, participantId) {
+            // Find the specific result object in our state
+            const compResults = computedResults[compId];
+            const resultObj = compResults.find(r => r.participant.id === participantId);
+            if (!resultObj) return;
+
+            const isNowGiven = !resultObj.award_given;
+
+            try {
+                // Optimistic Local Update (Instant UI change)
+                resultObj.award_given = isNowGiven;
+                applyFilters(); 
+
+                // Backend Update
+                const { data: existing } = await supabaseClient
+                    .from('results')
+                    .select('id')
+                    .eq('competition_id', compId)
+                    .eq('participant_id', participantId)
+                    .maybeSingle();
+
+                if (existing) {
+                    await supabaseClient.from('results').update({ award_given: isNowGiven }).eq('id', existing.id);
+                } else {
+                    await supabaseClient.from('results').insert({
+                        competition_id: compId,
+                        participant_id: participantId,
+                        position: resultObj.position,
+                        award_given: isNowGiven
+                    });
+                }
+            } catch (e) {
+                alert("Failed to update award status: " + e.message);
+                // Revert on failure
+                resultObj.award_given = !isNowGiven;
+                applyFilters(); 
+            }
+        }
+
+
         // ==========================================
-// GLOBAL BRANDING ENGINE
-// ==========================================
-document.addEventListener("DOMContentLoaded", () => {
-    fetchAndApplyBranding();
-});
+        // PDF GENERATION ENGINE
+        // ==========================================
 
-async function fetchAndApplyBranding() {
-    try {
-        const { data, error } = await supabaseClient
-            .from('settings')
-            .select('value')
-            .eq('id', 'system_branding')
-            .maybeSingle();
+        function setupPDFDoc(title, subtitle) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(22);
+            doc.setTextColor(79, 70, 229); 
+            doc.text(systemBranding.fest_name || 'FestOS', 14, 20);
+            
+            doc.setFontSize(14);
+            doc.setTextColor(15, 23, 42); 
+            doc.text(title, 14, 30);
+            
+            doc.setFontSize(10);
+            doc.setTextColor(100, 116, 139); 
+            doc.text(subtitle, 14, 36);
 
-        if (error) throw error;
-        if (data && data.value) applyGlobalBranding(data.value);
-    } catch (e) {
-        console.warn("Could not fetch global branding:", e.message);
-    }
-}
+            return doc;
+        }
 
-function applyGlobalBranding(brandingData) {
-    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
-    brandContainers.forEach(container => {
-        let html = brandingData.fest_logo 
-            ? `<img src="${brandingData.fest_logo}" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">` 
-            : `<i class="fa-solid fa-bolt" style="margin-right: 8px;"></i>`;
-        
-        html += `<span>${brandingData.fest_name || 'FestOS'}</span>`;
-        container.innerHTML = html;
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        container.style.justifyContent = 'center'; // Keeps the scan text centered
-    });
-}
+        function downloadCallListPDF(compId) {
+            const comp = rawRegData.find(c => c.id === compId);
+            if(!comp) return;
+
+            const doc = setupPDFDoc(
+                `Calling List: ${comp.name.toUpperCase()}`, 
+                `Category: ${comp.categories?.name || 'General'}  |  Stage: ${comp.stages?.name || 'Global'}`
+            );
+
+            const enrollments = comp.participant_competitions || [];
+            const tableData = enrollments.map((e, idx) => [
+                (idx + 1).toString(),
+                e.participants.unique_id,
+                e.participants.name.toUpperCase(),
+                (e.participants.teams?.name || 'IND').toUpperCase()
+            ]);
+
+            doc.autoTable({
+                startY: 45,
+                head: [['S.No', 'Chest/ID', 'Participant Name', 'Team']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [79, 70, 229] },
+                styles: { fontSize: 10, cellPadding: 3 }
+            });
+
+            doc.save(`${comp.name.replace(/\s+/g, '_')}_CallingList.pdf`);
+        }
+
+        function downloadResultsPDF(compId) {
+            const comp = publishedComps.find(c => c.id === compId);
+            const results = computedResults[compId] || [];
+            if(!comp || results.length === 0) return;
+
+            const doc = setupPDFDoc(
+                `Official Results: ${comp.name.toUpperCase()}`, 
+                `Category: ${comp.categories?.name || 'General'}  |  Generated: ${new Date().toLocaleString()}`
+            );
+
+            const tableData = results.map(r => [
+                r.position.toString(),
+                r.participant.unique_id || 'GROUP',
+                r.participant.name.toUpperCase(),
+                (r.participant.teams?.name || 'IND').toUpperCase()
+            ]);
+
+            doc.autoTable({
+                startY: 45,
+                head: [['Pos', 'Chest/ID', 'Participant/Group Name', 'Team']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [16, 185, 129] }, 
+                styles: { fontSize: 10, cellPadding: 3 }
+            });
+
+            doc.save(`${comp.name.replace(/\s+/g, '_')}_Results_Table.pdf`);
+        }
+
+        function downloadAllAwardsPDF() {
+            // Get all current active filters for WYSIWYG printing
+            const statusFilter = document.getElementById('filter-award-status').value;
+            const positionFilter = document.getElementById('filter-position').value;
+            const stageId = document.getElementById('filter-stage').value;
+            const catId = document.getElementById('filter-category').value;
+
+            // Prepare subtitle based on filters
+            let filterNames = [];
+            if (statusFilter !== 'all') filterNames.push(statusFilter === 'given' ? 'GIVEN' : 'PENDING');
+            if (positionFilter !== 'all') filterNames.push(`POSITION ${positionFilter}`);
+            const subtitleText = filterNames.length > 0 ? `Filters: ${filterNames.join(' | ')}` : `All Awards Generated: ${new Date().toLocaleString()}`;
+
+            const doc = setupPDFDoc(`Master Awards Report`, subtitleText);
+
+            let tableData = [];
+            
+            // Pre-filter the competitions to match the main stage/cat filters
+            const filteredComps = publishedComps.filter(comp => {
+                const matchStage = stageId === 'all' || comp.stage_id === stageId;
+                const matchCat = catId === 'all' || comp.category_id === catId;
+                return matchStage && matchCat;
+            });
+
+            filteredComps.forEach(comp => {
+                let results = computedResults[comp.id] || [];
+                
+                // Apply specific row filters matching the UI
+                if(statusFilter !== 'all') {
+                    const wantsGiven = statusFilter === 'given';
+                    results = results.filter(r => r.award_given === wantsGiven);
+                }
+                if(positionFilter !== 'all') {
+                    results = results.filter(r => r.position.toString() === positionFilter);
+                }
+
+                results.forEach(r => {
+                    tableData.push([
+                        comp.name.toUpperCase(),
+                        (comp.categories?.name || 'General').toUpperCase(),
+                        r.position.toString(),
+                        r.participant.unique_id || 'GROUP',
+                        r.participant.name.toUpperCase(),
+                        r.award_given ? 'GIVEN' : 'PENDING'
+                    ]);
+                });
+            });
+
+            if (tableData.length === 0) {
+                alert("No awards match the current filters to download.");
+                return;
+            }
+
+            doc.autoTable({
+                startY: 45,
+                head: [['Competition', 'Category', 'Pos', 'ID', 'Name', 'Status']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [126, 34, 206] }, 
+                styles: { fontSize: 8, cellPadding: 3 }
+            });
+
+            doc.save(`FestOS_Awards_Report.pdf`);
+        }
+
+
+        // ==========================================
+        // GLOBAL BRANDING ENGINE
+        // ==========================================
+        async function fetchAndApplyBranding() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('settings')
+                    .select('value')
+                    .eq('id', 'system_branding')
+                    .maybeSingle();
+
+                if (data && data.value) {
+                    systemBranding = data.value;
+                    const brandContainers = document.querySelectorAll('.brand');
+                    brandContainers.forEach(container => {
+                        let html = systemBranding.fest_logo 
+                            ? `<img src="${systemBranding.fest_logo}" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">` 
+                            : `<i class="fa-solid fa-bolt" style="margin-right: 8px;"></i>`;
+                        html += `<span>${systemBranding.fest_name || 'FestOS'}</span>`;
+                        container.innerHTML = html;
+                        container.style.display = 'flex';
+                        container.style.alignItems = 'center';
+                    });
+                }
+            } catch (e) {
+                console.warn("Could not fetch global branding:", e.message);
+            }
+        }
     </script>
 </body>
 </html>
