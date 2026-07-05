@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
+
     <style>
         :root {
             --primary: #4F46E5;
@@ -106,7 +106,7 @@
 
     <div id="app-screen">
         <div class="header">
-            <h1><i class="fa-solid fa-microphone-lines"></i> Live Desk</h1>
+            <h1 class="brand"><i class="fa-solid fa-microphone-lines"></i> Live Desk</h1>
             <button onclick="logout()" style="background: none; border: none; color: var(--danger); font-weight: 600; cursor: pointer;">Sign Out</button>
         </div>
 
@@ -338,6 +338,43 @@
             // Re-render the UI instantly to hide the card
             applyFilters(); 
         }
+
+        // ==========================================
+// GLOBAL BRANDING ENGINE
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+    fetchAndApplyBranding();
+});
+
+async function fetchAndApplyBranding() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('settings')
+            .select('value')
+            .eq('id', 'system_branding')
+            .maybeSingle();
+
+        if (error) throw error;
+        if (data && data.value) applyGlobalBranding(data.value);
+    } catch (e) {
+        console.warn("Could not fetch global branding:", e.message);
+    }
+}
+
+function applyGlobalBranding(brandingData) {
+    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
+    brandContainers.forEach(container => {
+        let html = brandingData.fest_logo 
+            ? `<img src="${brandingData.fest_logo}" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">` 
+            : `<i class="fa-solid fa-bolt" style="margin-right: 8px;"></i>`;
+        
+        html += `<span>${brandingData.fest_name || 'FestOS'}</span>`;
+        container.innerHTML = html;
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.justifyContent = 'center'; // Keeps the scan text centered
+    });
+}
     </script>
 </body>
 </html>

@@ -114,3 +114,37 @@ loginForm.addEventListener('submit', async (e) => {
         setTimeout(() => form.style.transform = 'translateX(0)', 120);
     }
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+    // Other init functions...
+    fetchAndApplyBranding();
+});
+
+async function fetchAndApplyBranding() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('settings')
+            .select('value')
+            .eq('id', 'system_branding')
+            .maybeSingle();
+
+        if (error) throw error;
+        if (data && data.value) applyGlobalBranding(data.value);
+    } catch (e) {
+        console.warn("Could not fetch global branding:", e.message);
+    }
+}
+
+function applyGlobalBranding(brandingData) {
+    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
+    brandContainers.forEach(container => {
+        let html = brandingData.fest_logo 
+            ? `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">` 
+            : `<i class="fa-solid fa-bolt" style="margin-right: 8px;"></i>`;
+        
+        html += `<span>${brandingData.fest_name || 'FestOS'}</span>`;
+        container.innerHTML = html;
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+    });
+}

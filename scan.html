@@ -6,10 +6,10 @@
     <title>FestOS | ID Scanner</title>
     
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
-    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
         :root {
             --primary: #4F46E5;
@@ -152,7 +152,7 @@
 <body>
 
     <div class="header">
-        <h1><i class="ph-fill ph-scan"></i> FestOS Identifier</h1>
+        <h1 class="brand"><i class="ph-fill ph-scan"></i> FestOS Identifier</h1>
         <p style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.25rem;">Align QR code within frame</p>
     </div>
 
@@ -362,6 +362,44 @@ function populateSheet(p) {
         const style = document.createElement('style');
         style.innerHTML = `@keyframes spin { 100% { transform: rotate(360deg); } }`;
         document.head.appendChild(style);
+
+        // ==========================================
+// GLOBAL BRANDING ENGINE
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+    fetchAndApplyBranding();
+});
+
+async function fetchAndApplyBranding() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('settings')
+            .select('value')
+            .eq('id', 'system_branding')
+            .maybeSingle();
+
+        if (error) throw error;
+        if (data && data.value) applyGlobalBranding(data.value);
+    } catch (e) {
+        console.warn("Could not fetch global branding:", e.message);
+    }
+}
+
+function applyGlobalBranding(brandingData) {
+    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
+    brandContainers.forEach(container => {
+        let html = brandingData.fest_logo 
+            ? `<img src="${brandingData.fest_logo}" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">` 
+            : `<i class="fa-solid fa-bolt" style="margin-right: 8px;"></i>`;
+        
+        html += `<span>${brandingData.fest_name || 'FestOS'}</span>`;
+        container.innerHTML = html;
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.justifyContent = 'center'; // Keeps the scan text centered
+    });
+}
+
     </script>
 </body>
 </html>

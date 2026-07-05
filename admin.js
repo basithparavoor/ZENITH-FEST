@@ -91,6 +91,7 @@ function switchTab(tabId) {
         else if (tabId === 'assignments') initAssignWorkspace();
         else if (tabId === 'direct-valuation') initDirectValuation();
         else if (tabId === 'point-settings') loadPointSettings(); // ADD THIS LINE
+        else if (tabId === 'branding-settings') loadBrandingSettings();
     } catch (e) {
         showToast("Failed to fetch dashboard data.", "error");
     }
@@ -1401,18 +1402,53 @@ async function handleBulkUpload(tableName, fileInputId) {
     });
 }
 
-// --- INITIALIZE DASHBOARD ---
 document.addEventListener("DOMContentLoaded", () => {
-    // Unhide Master Admin navigation if applicable
     if (user && user.role === 'master_admin') {
         const portalMenu = document.getElementById('master-admin-portals');
         if (portalMenu) portalMenu.style.display = 'block';
     }
     
-    // Load default tab data
     loadCategories();
+    
+    // Check for cached branding and apply it immediately
+    const cachedBranding = localStorage.getItem('festBranding');
+    if (cachedBranding) {
+        applyGlobalBranding(JSON.parse(cachedBranding));
+    }
+    
+    // Fetch latest branding from DB in the background
+    fetchAndSyncBranding(); 
 });
 
+async function fetchAndSyncBranding() {
+    try {
+        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
+        if(data && data.value) {
+            localStorage.setItem('festBranding', JSON.stringify(data.value));
+            applyGlobalBranding(data.value);
+        }
+    } catch(e) {
+        console.warn("Could not sync branding");
+    }
+}
+
+function applyGlobalBranding(brandingData) {
+    // Find all brand headers across the app (works in admin, manager, judge, etc.)
+    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
+    
+    brandContainers.forEach(container => {
+        let html = '';
+        if (brandingData.fest_logo) {
+            // Apply custom logo
+            html += `<img src="${brandingData.fest_logo}" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px;">`;
+        } else {
+            // Default icon
+            html += `<i class="fa-solid fa-bolt"></i>`;
+        }
+        html += ` <span style="margin-left: 8px;">${brandingData.fest_name || 'FestOS'}</span>`;
+        container.innerHTML = html;
+    });
+}
 
 // --- NEW CROPPER LIFECYCLE ---
 
@@ -3280,4 +3316,123 @@ async function savePointSettings() {
     } catch (e) {
         showToast(e.message, 'error');
     }
+}
+// --- BRANDING & UI ENGINE ---
+let pendingBrandingLogoBase64 = null;
+
+function handleBrandingLogo(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // We convert the logo to Base64 so it can be saved directly in the settings table
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        pendingBrandingLogoBase64 = e.target.result;
+        const preview = document.getElementById('branding-logo-preview');
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+}
+
+async function loadBrandingSettings() {
+    try {
+        const { data, error } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();        
+        if (data && data.value) {
+            document.getElementById('setting-fest-name').value = data.value.fest_name || '';
+            if (data.value.fest_logo) {
+                const preview = document.getElementById('branding-logo-preview');
+                preview.src = data.value.fest_logo;
+                preview.style.display = 'block';
+                pendingBrandingLogoBase64 = data.value.fest_logo; 
+            }
+        }
+    } catch (e) {
+        console.warn("No custom branding settings found, using defaults.");
+    }
+}
+
+async function saveBrandingSettings() {
+    const festName = document.getElementById('setting-fest-name').value.trim();
+    setLoading('btnSaveBranding', true);
+    
+    const payload = {
+        fest_name: festName,
+        fest_logo: pendingBrandingLogoBase64
+    };
+
+    try {
+        // Save directly to the cloud database
+        const { error } = await supabaseClient
+            .from('settings')
+            .upsert({ id: 'system_branding', value: payload });
+            
+        if (error) throw error;
+        
+        showToast("Branding Settings Saved to Database!");
+        
+        // Instantly apply it to the admin's current screen
+        applyGlobalBranding(payload);
+
+    } catch (e) {
+        showToast(e.message, 'error');
+    } finally {
+        setLoading('btnSaveBranding', false);
+    }
+}
+
+// ============================================================================
+// GLOBAL BRANDING ENGINE (DATABASE SYNC)
+// ============================================================================
+
+document.addEventListener("DOMContentLoaded", () => {
+    // Fire the cloud fetch as soon as the DOM is ready
+    fetchAndApplyBranding();
+});
+
+async function fetchAndApplyBranding() {
+    try {
+        // Query the database directly for the branding data
+        const { data, error } = await supabaseClient
+            .from('settings')
+            .select('value')
+            .eq('id', 'system_branding')
+            .maybeSingle();
+
+        if (error) throw error;
+
+        // If branding exists in the DB, apply it to the UI
+        if (data && data.value) {
+            applyGlobalBranding(data.value);
+        }
+    } catch (e) {
+        console.warn("Could not fetch global branding from database:", e.message);
+    }
+}
+
+function applyGlobalBranding(brandingData) {
+    // Find all branding containers across the different portals
+    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
+    
+    brandContainers.forEach(container => {
+        let html = '';
+        
+        // If a logo exists in the DB, render it
+        if (brandingData.fest_logo) {
+            html += `<img src="${brandingData.fest_logo}" alt="Fest Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
+        } else {
+            // Fallback icon if no logo is uploaded
+            html += `<i class="fa-solid fa-bolt" style="margin-right: 8px;"></i>`;
+        }
+        
+        // Append the Fest Name
+        html += `<span>${brandingData.fest_name || 'FestOS'}</span>`;
+        
+        // Update the DOM element
+        container.innerHTML = html;
+        
+        // Make sure it uses flexbox for alignment
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+    });
 }

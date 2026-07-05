@@ -1,7 +1,8 @@
 // --- DATABASE SETUP ---
+// Initialize Supabase Client
 const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
-window.db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Auth check
 const user = JSON.parse(localStorage.getItem('festUser'));
@@ -21,6 +22,7 @@ if (user.role === 'master_admin') {
         header.insertBefore(returnBtn, header.children[1]);
     });
 }
+
 // --- GLOBAL STATE (For fast searching & filtering) ---
 let availableJudges = [];
 let allCompetitions = [];
@@ -39,6 +41,7 @@ function switchTab(tabId) {
     // NEW ROUTE
     if (tabId === 'published-results') loadPublishedResults(); 
 }
+
 function logout() {
     localStorage.removeItem('festUser');
     window.location.href = 'index.html';
@@ -60,24 +63,28 @@ async function loadAssignments() {
 
     try {
         if (availableJudges.length === 0) {
-            const { data: judges } = await window.db.from('users').select('id, username').eq('role', 'judge');
+            // FIXED: Changed window.db to supabaseClient
+            const { data: judges } = await supabaseClient.from('users').select('id, username').eq('role', 'judge');
             availableJudges = judges || [];
         }
 
         // NEW: Fetch all official stages created by Admin
         if (allStages.length === 0) {
-            const { data: stages } = await window.db.from('stages').select('id, name, stage_no').order('stage_no');
+            // FIXED: Changed window.db to supabaseClient
+            const { data: stages } = await supabaseClient.from('stages').select('id, name, stage_no').order('stage_no');
             allStages = stages || [];
         }
 
         // UPDATED: Added 'stages(name)' to the select query to get the stage name for each competition
-        const { data: comps } = await window.db.from('competitions')
+        // FIXED: Changed window.db to supabaseClient
+        const { data: comps } = await supabaseClient.from('competitions')
             .select('*, categories(name), stages(name)') 
             .in('status', ['pending', 'registration', 'ongoing'])
             .order('name');
         allCompetitions = comps || [];
 
-        const { data: assignments } = await window.db.from('judgements').select('competition_id, judge_id, users(username)').is('awarded_mark', null);
+        // FIXED: Changed window.db to supabaseClient
+        const { data: assignments } = await supabaseClient.from('judgements').select('competition_id, judge_id, users(username)').is('awarded_mark', null);
         allAssignments = assignments || [];
 
         populateCategoryFilter();
@@ -89,7 +96,6 @@ async function loadAssignments() {
         showToast('Error loading data', 'error');
     }
 }
-
 function populateCategoryFilter() {
     const filter = document.getElementById('categoryFilter');
     const categories = new Set(allCompetitions.map(c => c.categories?.name || 'Uncategorized'));
@@ -811,6 +817,40 @@ function filterPublished() {
                 </div>
             </div>
         `;
+    });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    // Other init functions...
+    fetchAndApplyBranding();
+});
+
+async function fetchAndApplyBranding() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('settings')
+            .select('value')
+            .eq('id', 'system_branding')
+            .maybeSingle();
+
+        if (error) throw error;
+        if (data && data.value) applyGlobalBranding(data.value);
+    } catch (e) {
+        console.warn("Could not fetch global branding:", e.message);
+    }
+}
+
+function applyGlobalBranding(brandingData) {
+    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
+    brandContainers.forEach(container => {
+        let html = brandingData.fest_logo 
+            ? `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">` 
+            : `<i class="fa-solid fa-bolt" style="margin-right: 8px;"></i>`;
+        
+        html += `<span>${brandingData.fest_name || 'FestOS'}</span>`;
+        container.innerHTML = html;
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
     });
 }
 

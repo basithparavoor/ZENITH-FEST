@@ -370,7 +370,7 @@
 <body>
 
     <div class="navbar">
-        <h1>FestOS</h1>
+        <h1 class="brand">FestOS</h1>
         <div class="badge" style="background: rgba(79, 70, 229, 0.08); color: var(--primary); padding: 0.5rem 1.25rem; border-radius: 999px; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">● Live Results</div>
     </div>
 
@@ -986,6 +986,43 @@ function openResultModal(compId) {
             link.href = canvas.toDataURL("image/jpeg", 1.0); 
             link.click();
         }
+
+        // ==========================================
+// GLOBAL BRANDING ENGINE
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+    fetchAndApplyBranding();
+});
+
+async function fetchAndApplyBranding() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('settings')
+            .select('value')
+            .eq('id', 'system_branding')
+            .maybeSingle();
+
+        if (error) throw error;
+        if (data && data.value) applyGlobalBranding(data.value);
+    } catch (e) {
+        console.warn("Could not fetch global branding:", e.message);
+    }
+}
+
+function applyGlobalBranding(brandingData) {
+    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
+    brandContainers.forEach(container => {
+        let html = brandingData.fest_logo 
+            ? `<img src="${brandingData.fest_logo}" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">` 
+            : `<i class="fa-solid fa-bolt" style="margin-right: 8px;"></i>`;
+        
+        html += `<span>${brandingData.fest_name || 'FestOS'}</span>`;
+        container.innerHTML = html;
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.justifyContent = 'center'; // Keeps the scan text centered
+    });
+}
 
         init();
     </script>
