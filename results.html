@@ -731,8 +731,7 @@
         function closeTeamModal() {
             document.getElementById('team-preview-modal').classList.remove('active');
         }
-
-        function openResultModal(compId) {
+function openResultModal(compId) {
             activeCompId = compId;
             const comp = publishedCompetitions.find(c => c.id === compId);
             
@@ -749,6 +748,7 @@
                 const medals = ['🥇', '🥈', '🥉'];
                 results.forEach((entry, idx) => {
                     const teamName = allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent';
+                    
                     winnersList.innerHTML += `
                         <div class="winner-list-item">
                             <div class="w-rank">${medals[idx]}</div>
