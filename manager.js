@@ -856,5 +856,72 @@ function applyGlobalBranding(brandingData) {
     });
 }
 
+// --- SYSTEM PROGRESS / UNFINISHED STATS LOGIC ---
+
+async function openStatsModal() {
+    document.getElementById('stats-modal').classList.add('active');
+    const listContainer = document.getElementById('unfinished-list');
+    
+    // Show loading spinner
+    listContainer.innerHTML = `<div style="text-align:center; padding:2rem;"><i class="ph ph-spinner-gap" style="font-size:2rem; animation: spin 1s linear infinite; color: var(--text-muted);"></i></div>`;
+
+    try {
+        // Fetch all competitions to get the grand total and details
+        const { data: allComps, error } = await window.db
+            .from('competitions')
+            .select('id, name, status, categories(name)')
+            .order('name');
+
+        if (error) throw error;
+
+        // Calculate statistics based on statuses
+        const total = allComps.length;
+        const published = allComps.filter(c => c.status === 'published').length;
+        const pendingPublish = allComps.filter(c => c.status === 'judgement_complete').length;
+        
+        // Unfinished = Anything NOT in 'published' or 'judgement_complete' 
+        const unfinishedComps = allComps.filter(c => c.status !== 'published' && c.status !== 'judgement_complete');
+        const unfinishedCount = unfinishedComps.length;
+
+        // Update UI Stats
+        document.getElementById('stat-total').innerText = total;
+        document.getElementById('stat-published').innerText = published;
+        document.getElementById('stat-pending').innerText = pendingPublish;
+        document.getElementById('stat-unfinished').innerText = unfinishedCount;
+
+        // Populate the Detailed List
+        listContainer.innerHTML = '';
+        if (unfinishedComps.length === 0) {
+            listContainer.innerHTML = `<div style="text-align:center; padding:2rem; color: var(--success); font-weight: 600;"><i class="ph-fill ph-check-circle" style="font-size: 2rem; margin-bottom: 0.5rem;"></i><br>All competitions are fully processed!</div>`;
+        } else {
+            unfinishedComps.forEach(comp => {
+                // Determine styling based on specific unresolved status
+                let badgeStyle = "background: var(--bg-main); color: var(--text-muted);";
+                if(comp.status === 'ongoing') badgeStyle = "background: #DBEAFE; color: #1D4ED8; border: 1px solid rgba(29, 78, 216, 0.2);";
+                if(comp.status === 'pending') badgeStyle = "background: var(--warning-light); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.2);";
+
+                listContainer.innerHTML += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--bg-main); border-radius: var(--radius-md); border: 1px solid var(--border); transition: var(--transition);">
+                        <div>
+                            <div style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">${comp.name}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; display: flex; align-items: center; gap: 0.25rem;">
+                                <i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}
+                            </div>
+                        </div>
+                        <span class="badge" style="${badgeStyle} text-transform: uppercase; font-size: 0.7rem;">${comp.status.replace('_', ' ')}</span>
+                    </div>
+                `;
+            });
+        }
+    } catch (err) {
+        console.error("Error loading system stats:", err);
+        listContainer.innerHTML = `<p style="color: var(--danger); text-align: center; font-weight: 600;">Failed to load data. Check console for details.</p>`;
+    }
+}
+
+function closeStatsModal() {
+    document.getElementById('stats-modal').classList.remove('active');
+}
+
 // Boot up
 loadAssignments();

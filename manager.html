@@ -446,9 +446,15 @@ select.control-input {
 
     <div class="main-content">
         <div class="header">
-            <h1 style="font-size: 1.125rem; font-weight: 600;">Manager Dashboard</h1>
-            <button class="btn btn-outline" onclick="logout()"><i class="ph ph-sign-out"></i> Logout</button>
-        </div>
+    <h1 style="font-size: 1.125rem; font-weight: 600;">Manager Dashboard</h1>
+    <div>
+        <!-- NEW BUTTON ADDED HERE -->
+        <button class="btn btn-outline" style="margin-right: 0.75rem;" onclick="openStatsModal()">
+            <i class="ph ph-chart-pie-slice"></i> View Progress
+        </button>
+        <button class="btn btn-outline" onclick="logout()"><i class="ph ph-sign-out"></i> Logout</button>
+    </div>
+</div>
 
         <div id="assignments" class="content-section active">
             <div class="section-header">
@@ -556,6 +562,44 @@ select.control-input {
         <div style="display: flex; gap: 1rem; margin-top: auto;">
             <button class="btn btn-outline" style="flex: 1;" onclick="closeEditModal()">Cancel</button>
             <button class="btn btn-primary" style="flex: 1;" id="save-points-btn">Save Changes</button>
+        </div>
+    </div>
+</div>
+<!-- System Progress & Unfinished Stats Modal -->
+<div id="stats-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 700px; max-height: 90vh;">
+        <div class="modal-header">
+            <h3>System Progress Overview</h3>
+            <button class="modal-close" onclick="closeStatsModal()"><i class="ph ph-x"></i></button>
+        </div>
+        
+        <!-- Stats Summary Row -->
+        <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 120px; background: var(--bg-main); padding: 1rem; border-radius: var(--radius-md); text-align: center; border: 1px solid var(--border);">
+                <div style="font-size: 2rem; font-weight: 700; color: var(--text-main);" id="stat-total">0</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Total Comps</div>
+            </div>
+            <div style="flex: 1; min-width: 120px; background: var(--success-light); padding: 1rem; border-radius: var(--radius-md); text-align: center; border: 1px solid rgba(16, 185, 129, 0.2);">
+                <div style="font-size: 2rem; font-weight: 700; color: var(--success);" id="stat-published">0</div>
+                <div style="font-size: 0.85rem; color: var(--success); font-weight: 600;">Published</div>
+            </div>
+            <div style="flex: 1; min-width: 120px; background: var(--warning-light); padding: 1rem; border-radius: var(--radius-md); text-align: center; border: 1px solid rgba(245, 158, 11, 0.2);">
+                <div style="font-size: 2rem; font-weight: 700; color: var(--warning);" id="stat-pending">0</div>
+                <div style="font-size: 0.85rem; color: var(--warning); font-weight: 600;">Pending Publish</div>
+            </div>
+            <div style="flex: 1; min-width: 120px; background: var(--danger-light); padding: 1rem; border-radius: var(--radius-md); text-align: center; border: 1px solid rgba(225, 29, 72, 0.2);">
+                <div style="font-size: 2rem; font-weight: 700; color: var(--danger);" id="stat-unfinished">0</div>
+                <div style="font-size: 0.85rem; color: var(--danger); font-weight: 600;">Unfinished</div>
+            </div>
+        </div>
+
+        <div class="section-header" style="margin-bottom: 1rem;">
+            <h4 style="font-size: 1.1rem; color: var(--text-main);">Unfinished Details (Needs Action)</h4>
+        </div>
+        
+        <!-- Detailed List Container -->
+        <div id="unfinished-list" style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 0.75rem;">
+            <!-- Dynamic content populates here -->
         </div>
     </div>
 </div>
