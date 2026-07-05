@@ -29,12 +29,11 @@ async function initializeApp() {
     loadDashboard(); 
 }
 
-// 2. Load Assigned Competitions (Updated Logic for Search/Filter & Sorting)
+// 2. Load Assigned Competitions (Optimized Logic)
 async function loadDashboard() {
     const container = document.getElementById('competitions-container');
     container.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading assignments...</p>`;
 
-    const compStatusMap = new Map();
     globalJudgeComps = []; // Reset global state
 
     if (user.role === 'master_admin') {
@@ -45,7 +44,6 @@ async function loadDashboard() {
             
         if (error) return container.innerHTML = `<p style="color: #EF4444;">Failed to load competitions.</p>`;
         
-        // FIX: Fetch judgments made by the master admin to hide already graded ones
         const { data: adminMarks } = await supabaseClient
             .from('judgements')
             .select('competition_id')
@@ -55,44 +53,52 @@ async function loadDashboard() {
         const gradedIds = new Set(adminMarks?.map(m => m.competition_id) || []);
 
         allComps.forEach(comp => {
-            compStatusMap.set(comp.id, { comp: comp, hasGraded: gradedIds.has(comp.id) });
+            if (!gradedIds.has(comp.id)) globalJudgeComps.push(comp);
         });
-    } else {
-        const { data: allJudgeRecords, error } = await supabaseClient
-            .from('judgements')
-            .select('competition_id, awarded_mark, competitions(id, name, max_mark, status, categories(name))')
-            .eq('judge_id', user.id); 
 
-        if (error) return container.innerHTML = `<p style="color: #EF4444;">Failed to load competitions.</p>`;
+    } else {
+        // --- THE ULTIMATE FIX ---
+        // Step 1: Fetch ONLY base assignments for competitions that are currently active
+        const { data: assignments, error: assignError } = await supabaseClient
+            .from('judgements')
+            .select(`
+                competition_id, 
+                competitions!inner(id, name, max_mark, status, registration_start, created_at, categories(name))
+            `)
+            .eq('judge_id', user.id)
+            .is('participant_id', null)
+            .in('competitions.status', ['registration', 'ongoing']); // Filters out past/finished comps at the database level!
+
+        if (assignError) return container.innerHTML = `<p style="color: #EF4444;">Failed to load assignments.</p>`;
         
-        allJudgeRecords.forEach(row => {
-            if (!row.competitions) return; 
-            const cId = row.competition_id;
+        if (assignments && assignments.length > 0) {
+            // Step 2: Get the IDs of just the active competitions
+            const activeCompIds = assignments.map(a => a.competition_id);
+
+            // Step 3: Check for marks ONLY inside these specific active competitions
+            const { data: gradedRecords } = await supabaseClient
+                .from('judgements')
+                .select('competition_id')
+                .eq('judge_id', user.id)
+                .in('competition_id', activeCompIds) // GUARANTEES we never fetch historical marks!
+                .not('awarded_mark', 'is', null);
+
+            const gradedIds = new Set(gradedRecords?.map(m => m.competition_id) || []);
             
-            if (!compStatusMap.has(cId)) {
-                compStatusMap.set(cId, { comp: row.competitions, hasGraded: false });
-            }
-            if (row.awarded_mark !== null) {
-                compStatusMap.get(cId).hasGraded = true;
-            }
-        });
+            // Step 4: Populate the dashboard with un-graded active assignments
+            assignments.forEach(row => {
+                if (row.competitions && !gradedIds.has(row.competition_id)) {
+                    globalJudgeComps.push(row.competitions);
+                }
+            });
+        }
     }
 
-    // Filter out graded/completed comps and push to global array
-    compStatusMap.forEach(({ comp, hasGraded }) => {
-        if (!hasGraded && comp.status !== 'judgement_complete' && comp.status !== 'published') {
-            globalJudgeComps.push(comp);
-        }
-    });
-
-    // --- NEW: Sort by status preference and registration order ---
+    // Sort by status preference and registration order
     globalJudgeComps.sort((a, b) => {
-        // 1. Primary Sort: 'ongoing' competitions take preference over 'registration'
         if (a.status === 'ongoing' && b.status !== 'ongoing') return -1;
         if (a.status !== 'ongoing' && b.status === 'ongoing') return 1;
         
-        // 2. Secondary Sort: Order of registration started (earliest/oldest first)
-        // Falls back to created_at or id if registration_start isn't explicitly defined
         const startA = new Date(a.registration_start || a.created_at || a.id);
         const startB = new Date(b.registration_start || b.created_at || b.id);
         return startA - startB;
@@ -108,7 +114,7 @@ async function loadDashboard() {
         });
     }
 
-    // Run initial filter (renders everything initially)
+    // Render the UI
     filterJudgeCompetitions();
 }
 // 2.1 Search and Filter Logic
