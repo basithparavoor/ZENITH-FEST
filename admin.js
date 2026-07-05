@@ -92,6 +92,7 @@ function switchTab(tabId) {
         else if (tabId === 'direct-valuation') initDirectValuation();
         else if (tabId === 'point-settings') loadPointSettings(); // ADD THIS LINE
         else if (tabId === 'branding-settings') loadBrandingSettings();
+        else if (tabId === 'participant-points') loadParticipantPoints();
     } catch (e) {
         showToast("Failed to fetch dashboard data.", "error");
     }
@@ -3458,4 +3459,276 @@ function applyGlobalBranding(brandingData) {
         container.style.display = 'flex';
         container.style.alignItems = 'center';
     });
+}
+
+// ============================================================================
+// PARTICIPANT POINTS LEDGER ENGINE
+// ============================================================================
+let pointsDataList = [];
+let filteredPointsList = [];
+let pointsCurrentPage = 1;
+const pointsRowsPerPage = 10;
+let pointsAdminSettings = { ratio_standard: 10, ratio_general: 20 };
+
+async function loadParticipantPoints() {
+    try {
+        // 1. Fetch Point Ratios
+        const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
+        if (set_data && set_data.value) pointsAdminSettings = set_data.value;
+
+        // 2. Fetch baseline data needed for calculations
+        const { data: comps } = await supabaseClient.from('competitions').select('*, categories(name, is_general)');
+        const { data: participants, error: pErr } = await supabaseClient.from('participants').select('*, teams(name), categories(name)');
+        if (pErr) throw pErr;
+        const { data: judgements, error: jErr } = await supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark');
+        if (jErr) throw jErr;
+
+        // 3. Average out judgement marks in case of multiple judges
+        let compAverages = {}; 
+        judgements.forEach(j => {
+            const key = `${j.competition_id}_${j.participant_id}`;
+            if(!compAverages[key]) compAverages[key] = { total: 0, count: 0 };
+            compAverages[key].total += parseFloat(j.awarded_mark);
+            compAverages[key].count += 1;
+        });
+
+        // 4. Calculate total points and breakdowns per participant
+        pointsDataList = (participants || []).map(p => {
+            let totalPoints = 0;
+            let breakdown = [];
+
+            (comps || []).forEach(comp => {
+                const key = `${comp.id}_${p.id}`;
+                if(compAverages[key]) {
+                    const avgMark = compAverages[key].total / compAverages[key].count;
+                    const baseRatio = comp.categories?.is_general ? (pointsAdminSettings.ratio_general || 20) : (pointsAdminSettings.ratio_standard || 10);
+                    const maxMark = comp.max_mark || 100;
+                    
+                    // Normalize the point formula based on limits
+                    const normalized = parseFloat(((avgMark / maxMark) * baseRatio).toFixed(2));
+
+                    totalPoints += normalized;
+                    breakdown.push({
+                        compName: comp.name,
+                        compCat: comp.categories?.name || 'General',
+                        avgMark: avgMark.toFixed(2),
+                        maxMark: maxMark,
+                        pointsEarned: normalized
+                    });
+                }
+            });
+
+            return {
+                ...p,
+                totalPoints: parseFloat(totalPoints.toFixed(2)),
+                breakdown: breakdown
+            };
+        });
+
+        // 5. Populate Filters (If empty)
+        const catFilter = document.getElementById('filterPointsCategory');
+        if (catFilter && catFilter.options.length === 1 && typeof categoriesList !== 'undefined') {
+            (categoriesList.length > 0 ? categoriesList : await loadCategories()).forEach(c => catFilter.innerHTML += `<option value="${c.name}">${c.name}</option>`);
+        }
+        const teamFilter = document.getElementById('filterPointsTeam');
+        if (teamFilter && teamFilter.options.length === 1 && typeof teamsList !== 'undefined') {
+            (teamsList.length > 0 ? teamsList : await loadStagesAndTeams()).forEach(t => teamFilter.innerHTML += `<option value="${t.name}">${t.name}</option>`);
+        }
+
+        filterPointsTable(true);
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+}
+
+function filterPointsTable(resetPage = true) {
+    const query = document.getElementById('searchPointsInput').value.toLowerCase();
+    const catFilter = document.getElementById('filterPointsCategory').value;
+    const teamFilter = document.getElementById('filterPointsTeam').value;
+    const batchFilter = document.getElementById('filterPointsBatch').value;
+    
+    filteredPointsList = pointsDataList.filter(p => {
+        const matchName = p.name.toLowerCase().includes(query) || (p.unique_id && p.unique_id.toLowerCase().includes(query));
+        const matchCat = catFilter === "" || (p.categories?.name || '') === catFilter;
+        const matchTeam = teamFilter === "" || (p.teams?.name || '') === teamFilter;
+        const matchBatch = batchFilter === "" || (p.batch_no && p.batch_no.toString() === batchFilter);
+        
+        return matchName && matchCat && matchTeam && matchBatch;
+    });
+    
+    // Sort highest points first
+    filteredPointsList.sort((a, b) => b.totalPoints - a.totalPoints);
+    
+    if (resetPage) pointsCurrentPage = 1; 
+    renderPointsTable();
+}
+
+function renderPointsTable() {
+    const tbody = document.getElementById('points-tbody');
+    tbody.innerHTML = '';
+    
+    const start = (pointsCurrentPage - 1) * pointsRowsPerPage;
+    const end = start + pointsRowsPerPage;
+    const pageData = filteredPointsList.slice(start, end);
+
+    if (pageData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">No records found.</td></tr>`;
+        document.getElementById('points-pagination').innerHTML = '';
+        return;
+    }
+
+    pageData.forEach(p => {
+        tbody.innerHTML += `
+            <tr>
+                <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}"></td>
+                <td style="font-family: monospace; font-weight: 600; color: var(--text-muted);">${p.unique_id}</td>
+                <td style="font-weight: 700;">${p.name}</td>
+                <td>${p.teams?.name || 'INDEPENDENT'}</td>
+                <td style="font-weight: 900; color: var(--primary); font-size: 1.1rem;">${p.totalPoints} <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">PTS</span></td>
+                <td>
+                    <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" title="View Detail Breakdown" onclick="viewParticipantPointDetails('${p.id}')"><i class="fa-solid fa-list"></i> View Details</button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    renderPointsPagination();
+}
+
+function renderPointsPagination() {
+    const totalPages = Math.ceil(filteredPointsList.length / pointsRowsPerPage) || 1;
+    const paginationContainer = document.getElementById('points-pagination');
+    
+    const startNum = filteredPointsList.length === 0 ? 0 : ((pointsCurrentPage - 1) * pointsRowsPerPage) + 1;
+    const endNum = Math.min(pointsCurrentPage * pointsRowsPerPage, filteredPointsList.length);
+
+    paginationContainer.innerHTML = `
+        <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">Showing ${startNum} to ${endNum} of ${filteredPointsList.length} participants</div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-outline" style="padding: 0.4rem 0.8rem;" onclick="pointsCurrentPage--; renderPointsTable();" ${pointsCurrentPage === 1 ? 'disabled' : ''}>Previous</button>
+            <span style="display: flex; align-items: center; padding: 0 0.75rem; font-weight: 600; font-size: 0.9rem; color: var(--primary);">Page ${pointsCurrentPage} of ${totalPages}</span>
+            <button class="btn btn-outline" style="padding: 0.4rem 0.8rem;" onclick="pointsCurrentPage++; renderPointsTable();" ${pointsCurrentPage === totalPages ? 'disabled' : ''}>Next</button>
+        </div>
+    `;
+}
+
+// In-App Modal Detail View
+function viewParticipantPointDetails(pId) {
+    const p = pointsDataList.find(x => x.id === pId);
+    if (!p) return;
+
+    let trs = p.breakdown.length > 0 ? p.breakdown.map((b, i) => `
+        <tr>
+            <td style="font-weight: 600;">${b.compName}</td>
+            <td><span class="badge" style="background:var(--bg-main);">${b.compCat}</span></td>
+            <td style="text-align: right;">${b.avgMark} / ${b.maxMark}</td>
+            <td style="text-align: right; font-weight: 800; color: var(--primary);">${b.pointsEarned}</td>
+        </tr>
+    `).join('') : `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem;">No evaluated programs yet.</td></tr>`;
+
+    document.getElementById('listModalTitle').innerText = 'Points Breakdown Ledger';
+    document.getElementById('listModalTable').innerHTML = `
+        <div style="background: var(--bg-main); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+            <div style="font-size: 1.25rem; font-weight: 800;">${p.name}</div>
+            <div style="font-family: monospace; color: var(--text-muted); font-size: 0.9rem;">${p.unique_id} | ${(p.teams?.name || 'INDEPENDENT').toUpperCase()}</div>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--border); text-align: left;">
+                    <th style="padding-bottom: 8px;">Competition</th>
+                    <th style="padding-bottom: 8px;">Category</th>
+                    <th style="padding-bottom: 8px; text-align: right;">Marks</th>
+                    <th style="padding-bottom: 8px; text-align: right;">Points</th>
+                </tr>
+            </thead>
+            <tbody>${trs}</tbody>
+            <tfoot>
+                <tr style="border-top: 2px solid var(--border);">
+                    <td colspan="3" style="padding-top: 12px; text-align: right; font-weight: 800;">TOTAL POINTS:</td>
+                    <td style="padding-top: 12px; text-align: right; font-weight: 900; color: var(--primary); font-size: 1.1rem;">${p.totalPoints}</td>
+                </tr>
+            </tfoot>
+        </table>
+    `;
+    document.getElementById('listModal').classList.add('show');
+}
+
+// Bulk PDF Report Generator (One Page Per Participant)
+async function bulkExportPointsPDF() {
+    const ids = getSelectedIds('points-tbody');
+    let targetList = ids.length > 0 ? pointsDataList.filter(p => ids.includes(p.id)) : filteredPointsList;
+    
+    if (targetList.length === 0) return showToast("No participants to export", "error");
+    
+    showToast("Generating Multi-Page PDF...", "success");
+    const container = document.createElement('div');
+    container.style.fontFamily = 'Inter, sans-serif';
+    container.style.width = '100%';
+    container.style.background = 'white';
+
+    targetList.forEach((p, index) => {
+        let trs = p.breakdown.length > 0 ? p.breakdown.map((b, i) => `
+            <tr style="border-bottom: 1px solid #E2E8F0;">
+                <td style="padding: 12px; font-size: 12px;">${i+1}</td>
+                <td style="padding: 12px; font-size: 12px; font-weight: 600;">${b.compName}</td>
+                <td style="padding: 12px; font-size: 12px;">${b.compCat}</td>
+                <td style="padding: 12px; font-size: 12px; text-align: center;">${b.avgMark} / ${b.maxMark}</td>
+                <td style="padding: 12px; font-size: 12px; text-align: right; font-weight: 700; color: #4F46E5;">${b.pointsEarned}</td>
+            </tr>
+        `).join('') : `<tr><td colspan="5" style="padding: 20px; text-align: center; color: #64748B;">No programs evaluated yet.</td></tr>`;
+
+        // The "page-break-after: always" ensures each participant gets their own clean page
+        container.innerHTML += `
+            <div style="padding: 40px; ${index < targetList.length - 1 ? 'page-break-after: always;' : ''}">
+                <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #E2E8F0;">
+                    <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 24px; text-transform: uppercase;">Participant Point Ledger</h1>
+                    <p style="color: #64748B; font-size: 12px;">Generated on: ${new Date().toLocaleString()}</p>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: 30px; background: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0;">
+                    <div>
+                        <p style="font-size: 10px; color: #64748B; font-weight: 700; margin-bottom: 4px;">PARTICIPANT NAME</p>
+                        <h2 style="font-size: 18px; color: #0F172A; margin: 0; text-transform: uppercase;">${p.name}</h2>
+                        <p style="font-family: monospace; font-size: 12px; color: #64748B; margin-top: 4px;">${p.unique_id}</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <p style="font-size: 10px; color: #64748B; font-weight: 700; margin-bottom: 4px;">TEAM AFFILIATION</p>
+                        <h2 style="font-size: 16px; color: #0F172A; margin: 0; text-transform: uppercase;">${p.teams?.name || 'INDEPENDENT'}</h2>
+                        <p style="font-size: 12px; color: #64748B; margin-top: 4px;">BATCH ${p.batch_no || '1'}</p>
+                    </div>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                    <thead>
+                        <tr style="background: #1E293B; color: white; text-align: left;">
+                            <th style="padding: 12px; font-size: 11px;">#</th>
+                            <th style="padding: 12px; font-size: 11px;">PROGRAM (COMPETITION)</th>
+                            <th style="padding: 12px; font-size: 11px;">CATEGORY</th>
+                            <th style="padding: 12px; font-size: 11px; text-align: center;">AWARDED MARKS</th>
+                            <th style="padding: 12px; font-size: 11px; text-align: right;">POINTS EARNED</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${trs}
+                    </tbody>
+                    <tfoot>
+                        <tr style="background: #F1F5F9; border-top: 2px solid #CBD5E1;">
+                            <td colspan="4" style="padding: 16px; text-align: right; font-weight: 800; font-size: 14px; color: #0F172A;">TOTAL AGGREGATED POINTS:</td>
+                            <td style="padding: 16px; text-align: right; font-weight: 900; font-size: 16px; color: #4F46E5;">${p.totalPoints}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        `;
+    });
+
+    const opt = { 
+        margin: 0, 
+        filename: `Fest_Participant_Points_Report.pdf`, 
+        image: { type: 'jpeg', quality: 0.98 }, 
+        html2canvas: { scale: 2, useCORS: true }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    };
+    
+    html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported Successfully!'));
 }

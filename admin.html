@@ -382,7 +382,8 @@ tr:hover td { background: var(--bg-main); }
         <div class="nav-item" onclick="switchTab('stages')"><i class="fa-solid fa-masks-theater"></i> Stages & Teams</div>
         <div class="nav-item" onclick="switchTab('users')"><i class="fa-solid fa-user-shield"></i> Users</div>
         <div class="nav-item" onclick="switchTab('assignments')"><i class="fa-solid fa-clipboard-user"></i> Assign Students</div>
-        
+        <div class="nav-item" onclick="switchTab('participant-points')"><i class="fa-solid fa-chart-line"></i> Points Ledger</div>
+
         <div id="master-admin-portals" style="display: none; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
             <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; padding-left: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Cross-Portal Access</div>
             <a href="manager.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-briefcase"></i> Manager Hub</a>
@@ -561,6 +562,62 @@ tr:hover td { background: var(--bg-main); }
                 });
             </script>
         </div>
+    </div>
+</div>
+
+<div id="participant-points" class="content-section">
+    <div class="action-bar" style="margin-bottom: 1rem;">
+        <div>
+            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Participant Points Ledger</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">View detailed point breakdowns per student and generate report cards.</p>
+        </div>
+        <div class="bulk-actions">
+            <button class="btn btn-primary" onclick="bulkExportPointsPDF()"><i class="fa-solid fa-file-pdf"></i> Generate PDF Reports</button>
+        </div>
+    </div>
+
+    <div class="controls-bar">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="searchPointsInput" placeholder="Search name or ID..." onkeyup="filterPointsTable(true)">
+        </div>
+        <div class="filter-box">
+            <select id="filterPointsCategory" onchange="filterPointsTable(true)">
+                <option value="">All Categories</option>
+            </select>
+        </div>
+        <div class="filter-box">
+            <select id="filterPointsTeam" onchange="filterPointsTable(true)">
+                <option value="">All Teams</option>
+            </select>
+        </div>
+        <div class="filter-box">
+            <select id="filterPointsBatch" onchange="filterPointsTable(true)">
+                <option value="">All Batches</option>
+                <option value="1">Batch 1</option>
+                <option value="2">Batch 2</option>
+                <option value="3">Batch 3</option>
+                <option value="4">Batch 4</option>
+                <option value="5">Batch 5</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th class="checkbox-cell" title="Select for Bulk PDF"><input type="checkbox" onchange="toggleSelectAll('points-tbody', this)"></th>
+                    <th>Unique ID</th>
+                    <th>Participant Name</th>
+                    <th>Team</th>
+                    <th>Total Points Earned</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="points-tbody"></tbody>
+        </table>
+        <div id="points-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border);"></div>
     </div>
 </div>
 
