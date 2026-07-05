@@ -231,18 +231,81 @@
             .filters input, .filters select { width: 100%; padding: 1rem !important; font-size: 0.95rem !important; border-radius: 12px !important; }
             .competitions-grid { grid-template-columns: 1fr; gap: 1rem; }
             
-            /* Modals */
-            .modal-content { max-height: 95vh; border-radius: 20px 20px 0 0; position: absolute; bottom: 0; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-            .modal-overlay.active .modal-content { transform: translateY(0); }
-            .modal-header { padding: 1.5rem 1.25rem 1rem; }
-            .modal-body { padding: 1.25rem; gap: 2rem; }
+           /* Modals - Premium Mobile Bottom Sheet */
+            .modal-overlay { 
+                align-items: flex-end; 
+                padding: 0; 
+            }
             
-            /* Winners List Mobile */
-            .winner-list-item { padding: 0.75rem; }
-            .w-rank { width: 25px; font-size: 1.25rem; margin-right: 0.5rem; }
-            .w-details h4 { font-size: 0.95rem; }
+            .modal-content { 
+                max-height: 92vh; 
+                border-radius: 28px 28px 0 0; 
+                position: relative; 
+                transform: translateY(100%); 
+                transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+                display: flex;
+                flex-direction: column;
+                margin: 0;
+            }
+            
+            .modal-overlay.active .modal-content { 
+                transform: translateY(0); 
+            }
+            
+            .modal-header { 
+                padding: 1.25rem 1.5rem; 
+                background: rgba(255,255,255,0.98);
+                border-radius: 28px 28px 0 0;
+                box-shadow: 0 4px 20px -10px rgba(0,0,0,0.05);
+            }
+            
+            .modal-header h2 { font-size: 1.25rem !important; }
+            .modal-close { background: #f1f5f9; }
+            
+            .modal-body { 
+                padding: 1.5rem; 
+                gap: 2rem; 
+                overflow-y: auto;
+                padding-bottom: 2.5rem;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Compact Winners List */
+            .winner-list-item { 
+                padding: 0.85rem 1rem; 
+                margin-bottom: 0.75rem; 
+                border-radius: 16px; 
+                background: #f8fafc;
+            }
+            .w-rank { width: 30px; font-size: 1.25rem; margin-right: 0.75rem; }
+            .w-details h4 { font-size: 0.95rem; margin-bottom: 0.15rem; }
             .w-details p { font-size: 0.75rem; }
-            .w-score { font-size: 0.85rem; padding: 0.3rem 0.6rem; }
+            .w-score { font-size: 0.85rem; padding: 0.35rem 0.6rem; }
+            
+            /* Responsive Poster Section */
+            .poster-section { background: white; border-top: 1px dashed var(--border); padding-top: 1.5rem; }
+            .poster-section h3 { font-size: 1.05rem !important; margin-bottom: 1rem !important; }
+            
+            .template-tabs { 
+                flex-wrap: nowrap; 
+                overflow-x: auto; 
+                padding-bottom: 0.75rem; 
+                -webkit-overflow-scrolling: touch; 
+            }
+            
+            .preview-wrapper { 
+                max-height: 65vw; /* Keeps the square poster perfectly sized for mobile screens */
+                border-radius: 16px;
+                background: #f1f5f9;
+            }
+            
+            .poster-section .btn { 
+                margin-top: 1.25rem; 
+                font-size: 0.95rem; 
+                padding: 0.9rem; 
+                border-radius: 14px;
+                box-shadow: 0 4px 15px var(--primary-glow);
+            }
         }
 
     </style>
