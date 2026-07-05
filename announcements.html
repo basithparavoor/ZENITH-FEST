@@ -749,7 +749,7 @@
             doc.save(`${comp.name.replace(/\s+/g, '_')}_Results_Table.pdf`);
         }
 
-        function downloadAllAwardsPDF() {
+       function downloadAllAwardsPDF() {
             // Get all current active filters for WYSIWYG printing
             const statusFilter = document.getElementById('filter-award-status').value;
             const positionFilter = document.getElementById('filter-position').value;
@@ -792,6 +792,7 @@
                         r.position.toString(),
                         r.participant.unique_id || 'GROUP',
                         r.participant.name.toUpperCase(),
+                        (r.participant.teams?.name || 'IND').toUpperCase(), // Added Team Data
                         r.award_given ? 'GIVEN' : 'PENDING'
                     ]);
                 });
@@ -804,7 +805,7 @@
 
             doc.autoTable({
                 startY: 45,
-                head: [['Competition', 'Category', 'Pos', 'ID', 'Name', 'Status']],
+                head: [['Competition', 'Category', 'Pos', 'ID', 'Name', 'Team', 'Status']], // Added Team Header
                 body: tableData,
                 theme: 'grid',
                 headStyles: { fillColor: [126, 34, 206] }, 
