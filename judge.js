@@ -29,7 +29,7 @@ async function initializeApp() {
     loadDashboard(); 
 }
 
-// 2. Load Assigned Competitions (Optimized Logic)
+// 2. Load Assigned Competitions (Global Grading Fix)
 async function loadDashboard() {
     const container = document.getElementById('competitions-container');
     container.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading assignments...</p>`;
@@ -44,30 +44,29 @@ async function loadDashboard() {
             
         if (error) return container.innerHTML = `<p style="color: #EF4444;">Failed to load competitions.</p>`;
         
-        const { data: adminMarks } = await supabaseClient
+        // FIX: Removed .eq('judge_id', user.id) so it checks if ANY judge submitted marks
+        const { data: gradedRecords } = await supabaseClient
             .from('judgements')
             .select('competition_id')
-            .eq('judge_id', user.id)
             .not('awarded_mark', 'is', null);
 
-        const gradedIds = new Set(adminMarks?.map(m => m.competition_id) || []);
+        const gradedIds = new Set(gradedRecords?.map(m => m.competition_id) || []);
 
         allComps.forEach(comp => {
             if (!gradedIds.has(comp.id)) globalJudgeComps.push(comp);
         });
 
     } else {
-        // --- THE ULTIMATE FIX ---
         // Step 1: Fetch ONLY base assignments for competitions that are currently active
         const { data: assignments, error: assignError } = await supabaseClient
             .from('judgements')
             .select(`
                 competition_id, 
-                competitions!inner(id, name, max_mark, status, registration_start, created_at, categories(name))
+                competitions!inner(id, name, max_mark, status, categories(name))
             `)
             .eq('judge_id', user.id)
             .is('participant_id', null)
-            .in('competitions.status', ['registration', 'ongoing']); // Filters out past/finished comps at the database level!
+            .in('competitions.status', ['registration', 'ongoing']); 
 
         if (assignError) return container.innerHTML = `<p style="color: #EF4444;">Failed to load assignments.</p>`;
         
@@ -75,12 +74,12 @@ async function loadDashboard() {
             // Step 2: Get the IDs of just the active competitions
             const activeCompIds = assignments.map(a => a.competition_id);
 
-            // Step 3: Check for marks ONLY inside these specific active competitions
+            // Step 3: Check for marks ONLY inside these specific active competitions, from ANY judge
             const { data: gradedRecords } = await supabaseClient
                 .from('judgements')
                 .select('competition_id')
-                .eq('judge_id', user.id)
-                .in('competition_id', activeCompIds) // GUARANTEES we never fetch historical marks!
+                .in('competition_id', activeCompIds)
+                // FIX: Removed .eq('judge_id', user.id) to hide it if someone else already graded it!
                 .not('awarded_mark', 'is', null);
 
             const gradedIds = new Set(gradedRecords?.map(m => m.competition_id) || []);
@@ -94,14 +93,14 @@ async function loadDashboard() {
         }
     }
 
-    // Sort by status preference and registration order
+    // Sort by status preference and ID
     globalJudgeComps.sort((a, b) => {
         if (a.status === 'ongoing' && b.status !== 'ongoing') return -1;
         if (a.status !== 'ongoing' && b.status === 'ongoing') return 1;
         
-        const startA = new Date(a.registration_start || a.created_at || a.id);
-        const startB = new Date(b.registration_start || b.created_at || b.id);
-        return startA - startB;
+        if (a.id < b.id) return -1;
+        if (a.id > b.id) return 1;
+        return 0;
     });
 
     // Populate Category Dropdown Dynamically
