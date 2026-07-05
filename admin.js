@@ -537,10 +537,20 @@ async function deleteCompetition(id) {
     if(confirm("Delete this competition?")) {
         try {
             const { error } = await supabaseClient.from('competitions').delete().eq('id', id);
-            if(error) throw error;
+            
+            if (error) {
+                // 23503 is the PostgreSQL error code for foreign key violations
+                if (error.code === '23503') {
+                    throw new Error('Cannot delete this competition because it has enrolled students or recorded marks. Remove them first.');
+                }
+                throw error;
+            }
+            
             showToast('Competition deleted.');
             loadCompetitions();
-        } catch(e) { showToast(e.message, 'error'); }
+        } catch(e) { 
+            showToast(e.message, 'error'); 
+        }
     }
 }
 
