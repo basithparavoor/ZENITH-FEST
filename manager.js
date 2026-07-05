@@ -4,6 +4,8 @@ const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+window.db = supabaseClient;
+
 // Auth check
 const user = JSON.parse(localStorage.getItem('festUser'));
 if (!user || (user.role !== 'fest_manager' && user.role !== 'master_admin')) {
