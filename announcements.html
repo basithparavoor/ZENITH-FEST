@@ -180,9 +180,26 @@
             </div>
 
             <!-- Tab Contents -->
-            <div id="view-reg" class="tab-content grid-layout"></div>
-            <div id="view-ongoing" class="tab-content grid-layout hidden"></div>
-            <div id="view-results" class="tab-content grid-layout hidden"></div>
+            <!-- Tab Contents -->
+<div id="view-reg" class="tab-content">
+    <div class="filter-bar" style="margin-bottom: 1.5rem; justify-content: flex-end;">
+        <button class="btn-pdf-small" onclick="downloadAllCallListsPDF()" style="padding: 0.75rem 1rem; font-size: 0.9rem;">
+            <i class="fa-solid fa-file-pdf"></i> Download Bulk Call Lists
+        </button>
+    </div>
+    <div id="reg-container" class="grid-layout"></div>
+</div>
+
+<div id="view-ongoing" class="tab-content grid-layout hidden"></div>
+
+<div id="view-results" class="tab-content hidden">
+    <div class="filter-bar" style="margin-bottom: 1.5rem; justify-content: flex-end;">
+        <button class="btn-pdf-small" onclick="downloadAllResultsPDF()" style="padding: 0.75rem 1rem; font-size: 0.9rem;">
+            <i class="fa-solid fa-file-pdf"></i> Download Bulk Results
+        </button>
+    </div>
+    <div id="results-container" class="grid-layout"></div>
+</div>
             
             <!-- Awards View -->
             <div id="view-awards" class="tab-content hidden">
@@ -441,25 +458,25 @@
         }
 
         function switchTab(tabId) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => {
-                c.classList.add('hidden');
-                if(c.id === 'view-awards') { c.style.display = 'none'; } 
-            });
-            
-            event.currentTarget.classList.add('active');
-            const activeTab = document.getElementById(`view-${tabId}`);
-            activeTab.classList.remove('hidden');
-            if(tabId === 'awards') { activeTab.style.display = 'grid'; }
-        }
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => {
+        c.classList.add('hidden');
+        if(c.id === 'view-awards' || c.id === 'view-reg' || c.id === 'view-results') { c.style.display = 'none'; } 
+    });
+    
+    event.currentTarget.classList.add('active');
+    const activeTab = document.getElementById(`view-${tabId}`);
+    activeTab.classList.remove('hidden');
+    if(tabId === 'awards' || tabId === 'reg' || tabId === 'results') { activeTab.style.display = 'block'; } 
+}
 
         // --- RENDERERS ---
-        function renderRegistrations(data) {
-            const container = document.getElementById('view-reg');
-            if (data.length === 0) {
-                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No open registrations for selected filters.</div>';
-                return;
-            }
+      function renderRegistrations(data) {
+    const container = document.getElementById('reg-container'); // Updated ID
+    if (data.length === 0) {
+        container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No open registrations for selected filters.</div>';
+        return;
+    }
             container.innerHTML = data.map(comp => {
                 const enrollments = comp.participant_competitions || [];
                 let participantsHtml = enrollments.length > 0 ? `
@@ -485,10 +502,10 @@
             container.innerHTML = data.map(comp => `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><span class="badge badge-live">LIVE</span></div><div class="metric"><i class="fa-solid fa-layer-group"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-location-dot"></i> ${comp.stages?.name || 'Global Stage'}</div></div>`).join('');
         }
 
-        function renderResults(data) {
-            const container = document.getElementById('view-results');
-            const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
-            const visibleData = data.filter(comp => !announcedComps.includes(comp.id));
+       function renderResults(data) {
+    const container = document.getElementById('results-container'); // Updated ID
+    const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
+    const visibleData = data.filter(comp => !announcedComps.includes(comp.id));
 
             if (visibleData.length === 0) {
                 container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No new results pending announcement.</div>';
@@ -826,6 +843,131 @@
                 console.warn("Could not fetch global branding:", e.message);
             }
         }
+
+// ==========================================
+// NEW BULK PDF GENERATORS (UPDATED)
+// ==========================================
+
+function downloadAllCallListsPDF() {
+    // By setting this directly to rawRegData, it ignores the dropdown filters
+    // and fetches every competition currently in the calling/registration phase.
+    const filteredComps = rawRegData;
+
+    if (filteredComps.length === 0) {
+        alert("No calling lists available to download.");
+        return;
+    }
+
+    const doc = setupPDFDoc(
+        `Master Calling Lists Report`, 
+        `All Competitions | Generated: ${new Date().toLocaleString()}`
+    );
+
+    let startY = 45;
+
+    filteredComps.forEach((comp, index) => {
+        const enrollments = comp.participant_competitions || [];
+        if (enrollments.length === 0) return;
+
+        const tableData = enrollments.map((e, idx) => [
+            (idx + 1).toString(),
+            e.participants.unique_id,
+            e.participants.name.toUpperCase(),
+            (e.participants.teams?.name || 'IND').toUpperCase()
+        ]);
+
+        // Add competition title above each table
+        doc.setFontSize(12);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`${comp.name.toUpperCase()} (${comp.categories?.name || 'GENERAL'})`, 14, startY);
+        startY += 5;
+
+        doc.autoTable({
+            startY: startY,
+            head: [['S.No', 'Chest/ID', 'Participant Name', 'Team']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [79, 70, 229] },
+            styles: { fontSize: 9, cellPadding: 2 },
+            margin: { top: 20 }
+        });
+        
+        startY = doc.lastAutoTable.finalY + 15;
+        
+        // Break to a new page if getting too close to the bottom
+        if (startY > doc.internal.pageSize.height - 30 && index < filteredComps.length - 1) {
+            doc.addPage();
+            startY = 20;
+        }
+    });
+
+    doc.save(`FestOS_Bulk_Calling_Lists.pdf`);
+}
+
+function downloadAllResultsPDF() {
+    const stageId = document.getElementById('filter-stage').value;
+    const catId = document.getElementById('filter-category').value;
+    const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
+
+    // Applies the UI filters AND ensures results that have been "ticked" 
+    // are excluded from this pending results download.
+    const filteredComps = publishedComps.filter(comp => {
+        const matchStage = stageId === 'all' || comp.stage_id === stageId;
+        const matchCat = catId === 'all' || comp.category_id === catId;
+        const notAnnounced = !announcedComps.includes(comp.id);
+        
+        return matchStage && matchCat && notAnnounced;
+    });
+
+    if (filteredComps.length === 0) {
+        alert("No results match the current filters to download.");
+        return;
+    }
+
+    const doc = setupPDFDoc(
+        `Master Official Results Report`, 
+        `Filtered Pending Results | Generated: ${new Date().toLocaleString()}`
+    );
+
+    let startY = 45;
+
+    filteredComps.forEach((comp, index) => {
+        const results = computedResults[comp.id] || [];
+        if (results.length === 0) return;
+
+        const tableData = results.map(r => [
+            r.position.toString(),
+            r.participant.unique_id || 'GROUP',
+            r.participant.name.toUpperCase(),
+            (r.participant.teams?.name || 'IND').toUpperCase()
+        ]);
+
+        doc.setFontSize(12);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`${comp.name.toUpperCase()} (${comp.categories?.name || 'GENERAL'})`, 14, startY);
+        startY += 5;
+
+        doc.autoTable({
+            startY: startY,
+            head: [['Pos', 'Chest/ID', 'Participant/Group Name', 'Team']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [16, 185, 129] },
+            styles: { fontSize: 9, cellPadding: 2 },
+            margin: { top: 20 }
+        });
+        
+        startY = doc.lastAutoTable.finalY + 15;
+
+        if (startY > doc.internal.pageSize.height - 30 && index < filteredComps.length - 1) {
+            doc.addPage();
+            startY = 20;
+        }
+    });
+
+    doc.save(`FestOS_Bulk_Results_Table.pdf`);
+}
+
     </script>
 </body>
 </html>
