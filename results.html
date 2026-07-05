@@ -433,10 +433,22 @@
                 }
 
                 populateCategoryFilter();
-                renderCompetitionsGrid();
-                
-            } catch (err) {
-                console.error("Init Error:", err);
+        renderCompetitionsGrid();
+        
+        // --- NEW: URL Auto-Opener Logic ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const compIdToOpen = urlParams.get('comp');
+        if (compIdToOpen) {
+            // Switch to the Individual Events tab
+            switchTab('individual', document.querySelectorAll('.tab')[1]);
+            // Wait half a second for rendering to finish, then pop the modal
+            setTimeout(() => {
+                openResultModal(compIdToOpen);
+            }, 500);
+        }
+        
+    } catch (err) {
+        console.error("Init Error:", err);
                 document.getElementById('competitions-container').innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #ef4444;">Failed to load events. Check console for details.</p>`;
             }
         }
