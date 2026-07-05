@@ -3469,7 +3469,6 @@ let filteredPointsList = [];
 let pointsCurrentPage = 1;
 const pointsRowsPerPage = 10;
 let pointsAdminSettings = { ratio_standard: 10, ratio_general: 20 };
-
 async function loadParticipantPoints() {
     try {
         // 1. Fetch Point Ratios
@@ -3483,9 +3482,9 @@ async function loadParticipantPoints() {
         const { data: judgements, error: jErr } = await supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark');
         if (jErr) throw jErr;
 
-        // 3. Average out judgement marks in case of multiple judges
+        // 3. Average out judgement marks in case of multiple judges (Safely handling null judgements)
         let compAverages = {}; 
-        judgements.forEach(j => {
+        (judgements || []).forEach(j => {
             const key = `${j.competition_id}_${j.participant_id}`;
             if(!compAverages[key]) compAverages[key] = { total: 0, count: 0 };
             compAverages[key].total += parseFloat(j.awarded_mark);
@@ -3525,14 +3524,17 @@ async function loadParticipantPoints() {
             };
         });
 
-        // 5. Populate Filters (If empty)
+        // 5. Populate Filters Safely (Waiting for lists to populate before running forEach)
         const catFilter = document.getElementById('filterPointsCategory');
-        if (catFilter && catFilter.options.length === 1 && typeof categoriesList !== 'undefined') {
-            (categoriesList.length > 0 ? categoriesList : await loadCategories()).forEach(c => catFilter.innerHTML += `<option value="${c.name}">${c.name}</option>`);
+        if (catFilter && catFilter.options.length === 1) {
+            if (typeof categoriesList !== 'undefined' && categoriesList.length === 0) await loadCategories();
+            (categoriesList || []).forEach(c => catFilter.innerHTML += `<option value="${c.name}">${c.name}</option>`);
         }
+        
         const teamFilter = document.getElementById('filterPointsTeam');
-        if (teamFilter && teamFilter.options.length === 1 && typeof teamsList !== 'undefined') {
-            (teamsList.length > 0 ? teamsList : await loadStagesAndTeams()).forEach(t => teamFilter.innerHTML += `<option value="${t.name}">${t.name}</option>`);
+        if (teamFilter && teamFilter.options.length === 1) {
+            if (typeof teamsList !== 'undefined' && teamsList.length === 0) await loadStagesAndTeams();
+            (teamsList || []).forEach(t => teamFilter.innerHTML += `<option value="${t.name}">${t.name}</option>`);
         }
 
         filterPointsTable(true);
@@ -3627,29 +3629,32 @@ function viewParticipantPointDetails(pId) {
     `).join('') : `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem;">No evaluated programs yet.</td></tr>`;
 
     document.getElementById('listModalTitle').innerText = 'Points Breakdown Ledger';
+    
+    // Fix: Wrapped the header div inside a valid table row/cell structure
     document.getElementById('listModalTable').innerHTML = `
-        <div style="background: var(--bg-main); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-            <div style="font-size: 1.25rem; font-weight: 800;">${p.name}</div>
-            <div style="font-family: monospace; color: var(--text-muted); font-size: 0.9rem;">${p.unique_id} | ${(p.teams?.name || 'INDEPENDENT').toUpperCase()}</div>
-        </div>
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
-            <thead>
-                <tr style="border-bottom: 2px solid var(--border); text-align: left;">
-                    <th style="padding-bottom: 8px;">Competition</th>
-                    <th style="padding-bottom: 8px;">Category</th>
-                    <th style="padding-bottom: 8px; text-align: right;">Marks</th>
-                    <th style="padding-bottom: 8px; text-align: right;">Points</th>
-                </tr>
-            </thead>
-            <tbody>${trs}</tbody>
-            <tfoot>
-                <tr style="border-top: 2px solid var(--border);">
-                    <td colspan="3" style="padding-top: 12px; text-align: right; font-weight: 800;">TOTAL POINTS:</td>
-                    <td style="padding-top: 12px; text-align: right; font-weight: 900; color: var(--primary); font-size: 1.1rem;">${p.totalPoints}</td>
-                </tr>
-            </tfoot>
-        </table>
+        <tbody>
+            <tr>
+                <td colspan="4" style="padding: 0; border: none; padding-bottom: 1rem;">
+                    <div style="background: var(--bg-main); padding: 1rem; border-radius: 8px;">
+                        <div style="font-size: 1.25rem; font-weight: 800; line-height: 1.2;">${p.name}</div>
+                        <div style="font-family: monospace; color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">${p.unique_id} | ${(p.teams?.name || 'INDEPENDENT').toUpperCase()}</div>
+                    </div>
+                </td>
+            </tr>
+            <tr style="background: var(--bg-main); font-size: 0.75rem; color: var(--text-muted);">
+                <th style="padding: 0.75rem 1rem;">Competition</th>
+                <th style="padding: 0.75rem 1rem;">Category</th>
+                <th style="padding: 0.75rem 1rem; text-align: right;">Marks</th>
+                <th style="padding: 0.75rem 1rem; text-align: right;">Points</th>
+            </tr>
+            ${trs}
+            <tr style="border-top: 2px solid var(--border); background: #f8fafc;">
+                <td colspan="3" style="padding: 1rem; text-align: right; font-weight: 800; font-size: 0.9rem;">TOTAL POINTS:</td>
+                <td style="padding: 1rem; text-align: right; font-weight: 900; color: var(--primary); font-size: 1.15rem;">${p.totalPoints}</td>
+            </tr>
+        </tbody>
     `;
+    
     document.getElementById('listModal').classList.add('show');
 }
 
