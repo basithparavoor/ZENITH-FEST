@@ -450,9 +450,34 @@ tr:hover td { background: var(--bg-main); }
                 </div>
             </div>
             <div class="bulk-actions" style="margin-top: 0.5rem;">
-<input type="file" id="studio-bg-upload" accept="image/*" style="display: none;" onchange="handleStudioUpload(event)">                <button class="btn btn-outline" onclick="document.getElementById('studio-bg-upload').click()"><i class="fa-solid fa-image"></i> Upload Background</button>
-                <button class="btn btn-success" onclick="saveActiveTemplate()"><i class="fa-solid fa-floppy-disk"></i> Save Template</button>
-            </div>
+    <input type="file" id="studio-bg-upload" accept="image/*" style="display: none;" onchange="handleStudioUpload(event)">
+    <button class="btn btn-outline" onclick="document.getElementById('studio-bg-upload').click()">
+        <i class="fa-solid fa-image"></i> Upload Background
+    </button>
+
+    <input type="file" id="studio-element-upload" accept=".svg, .png, .jpg, .jpeg, .webp" style="display: none;" onchange="handleElementUpload(event)">
+    <button class="btn btn-outline" onclick="document.getElementById('studio-element-upload').click()">
+        <i class="fa-solid fa-shapes"></i> Add Element
+    </button>
+    <input type="file" id="studio-font-upload" accept=".ttf, .otf, .woff, .woff2" style="display: none;" onchange="handleFontUpload(event)">
+    <button class="btn btn-outline" onclick="document.getElementById('studio-font-upload').click()">
+        <i class="fa-solid fa-font"></i> Add Font
+    </button>
+<div class="bulk-actions" style="margin-top: 0.5rem;">
+    <div style="display: flex; gap: 0.25rem; margin-right: 0.5rem; border-right: 2px solid var(--border); padding-right: 1rem;">
+        <button class="btn btn-outline" id="btn-undo" onclick="undo()" style="padding: 0.5rem 0.75rem;" disabled title="Undo">
+            <i class="fa-solid fa-rotate-left"></i>
+        </button>
+        <button class="btn btn-outline" id="btn-redo" onclick="redo()" style="padding: 0.5rem 0.75rem;" disabled title="Redo">
+            <i class="fa-solid fa-rotate-right"></i>
+        </button>
+    </div>
+
+    </div>
+    <button class="btn btn-success" onclick="saveActiveTemplate()">
+        <i class="fa-solid fa-floppy-disk"></i> Save Template
+    </button>
+</div>
         </div>
 
        <div class="grid-2" style="grid-template-columns: 350px 1fr; gap: 2rem;">

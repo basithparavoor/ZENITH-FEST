@@ -2516,10 +2516,15 @@ let studioActiveData = null;
 let studioActiveField = null; 
 let currentLibraryFilter = 'all';
 
-// DRAG STATE
+// DRAG & RESIZE STATE
 let isDraggingLayer = false;
+let isResizingLayer = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
+let resizeStartW = 0;
+let resizeStartH = 0;
+let resizeStartX = 0;
+let resizeStartY = 0;
 
 const TEMPLATE_SCHEMAS = {
     individual: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 1 Team', 'Position 1 Photo', 'Position 2 Name', 'Position 2 Team', 'Position 2 Photo', 'Position 3 Name', 'Position 3 Team', 'Position 3 Photo'],
@@ -2638,17 +2643,59 @@ function openTemplateStudio(template = null) {
         studioActiveData = JSON.parse(JSON.stringify(template)); 
         document.getElementById('studio-template-name').value = studioActiveData.name;
         document.getElementById('studio-template-type').value = studioActiveData.type;
+        
+        // Rehydrate main background image
         studioActiveData.imgObj = new Image();
-        
-        // ADD THIS LINE:
         studioActiveData.imgObj.crossOrigin = "Anonymous"; 
-        
         studioActiveData.imgObj.onload = () => drawStudioCanvas();
         if (studioActiveData.bg_base64) studioActiveData.imgObj.src = studioActiveData.bg_base64;
+
+        // Rehydrate static uploaded elements (logos, SVGs, etc.)
+        if (studioActiveData.fields) {
+            Object.keys(studioActiveData.fields).forEach(key => {
+                const field = studioActiveData.fields[key];
+                if (field.isStaticElement && field.src) {
+                    field.imgObj = new Image();
+                    field.imgObj.crossOrigin = "Anonymous";
+                    // Redraw canvas once this specific element loads
+                    field.imgObj.onload = () => drawStudioCanvas();
+                    field.imgObj.src = field.src;
+                }
+            });
+        }
+
+        // ---> NEW: Rehydrate Custom Fonts <---
+        if (studioActiveData.customFonts && studioActiveData.customFonts.length > 0) {
+            studioActiveData.customFonts.forEach(async (fontData) => {
+                // Prevent adding the same font to the dropdown multiple times if opened twice
+                if (!AVAILABLE_FONTS.find(f => f.value === fontData.family)) {
+                    try {
+                        const customFont = new FontFace(fontData.family, `url(${fontData.url})`);
+                        const loadedFace = await customFont.load();
+                        document.fonts.add(loadedFace);
+                        
+                        AVAILABLE_FONTS.push({ name: fontData.name, value: fontData.family });
+                        
+                        // Redraw the canvas just in case it drew before the font finished downloading
+                        drawStudioCanvas(); 
+                    } catch (e) {
+                        console.error("Failed to rehydrate custom font:", fontData.family, e);
+                    }
+                }
+            });
+        }
     } else {
-        studioActiveData = { id: 'TPL_' + Date.now(), name: '', type: 'individual', bg_base64: null, imgObj: new Image(), fields: {} };
+        // Initialize a brand new template
+        studioActiveData = { 
+            id: 'TPL_' + Date.now(), 
+            name: '', 
+            type: 'individual', 
+            bg_base64: null, 
+            imgObj: new Image(), 
+            fields: {},
+            customFonts: [] // Ensure the array exists for new templates
+        };
         
-        // ADD THIS LINE:
         studioActiveData.imgObj.crossOrigin = "Anonymous";
         
         document.getElementById('studio-template-name').value = '';
@@ -2656,15 +2703,19 @@ function openTemplateStudio(template = null) {
     }
     
     studioActiveField = null;
+    
+    // Reset History Stacks
+    undoStack = [];
+    redoStack = [];
+    updateHistoryButtons();
+    
     initializeStudioFields();
 }
-
 function closeTemplateStudio() {
     document.getElementById('template-studio-view').style.display = 'none';
     document.getElementById('template-library-view').style.display = 'block';
     loadTemplatesList(); 
 }
-
 function initializeStudioFields() {
     const type = document.getElementById('studio-template-type').value;
     studioActiveData.type = type;
@@ -2673,9 +2724,35 @@ function initializeStudioFields() {
     // Build Data Defaults
     requiredFields.forEach(field => {
         const key = field.replace(/\s+/g, '');
-const isImage = (key.includes('Photo') || key === 'QRCode');        if (!studioActiveData.fields[key]) {
-            if (isImage) studioActiveData.fields[key] = { enabled: false, x: 100, y: 150, w: 250, h: 300, radius: 20, isImage: true };
-            else studioActiveData.fields[key] = { enabled: false, x: 100, y: 150, size: 40, color: '#0F172A', align: 'left', font: 'Inter, sans-serif', weight: 'bold', isImage: false };
+        const isImage = (key.includes('Photo') || key === 'QRCode');        
+        
+        if (!studioActiveData.fields[key]) {
+            if (isImage) {
+                // NEW: Added aspectLocked and aspectRatio to image defaults
+                studioActiveData.fields[key] = { 
+                    enabled: false, 
+                    x: 100, 
+                    y: 150, 
+                    w: 250, 
+                    h: 300, 
+                    radius: 20, 
+                    isImage: true,
+                    aspectLocked: true,
+                    aspectRatio: 250 / 300 
+                };
+            } else {
+                studioActiveData.fields[key] = { 
+                    enabled: false, 
+                    x: 100, 
+                    y: 150, 
+                    size: 40, 
+                    color: '#0F172A', 
+                    align: 'left', 
+                    font: 'Inter, sans-serif', 
+                    weight: 'bold', 
+                    isImage: false 
+                };
+            }
         }
         studioActiveData.fields[key].displayName = field;
     });
@@ -2742,14 +2819,22 @@ function renderPropertiesPanel() {
 
     let specificHTML = '';
     if (data.isImage) {
+        const lockIcon = data.aspectLocked ? 'fa-lock' : 'fa-lock-open';
+        const deleteBtn = data.isStaticElement 
+            ? `<button class="btn btn-outline" style="grid-column: span 3; border-color: var(--danger); color: var(--danger); margin-top: 0.5rem;" onclick="deleteStudioLayer('${key}')"><i class="fa-solid fa-trash"></i> Delete Element</button>` 
+            : '';
+
         specificHTML = `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem;">
-                <div><label style="font-size: 0.75rem; font-weight:700;">WIDTH (px)</label><input type="number" id="prop-w" value="${data.w}" oninput="updateActiveProperty('w', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
-                <div><label style="font-size: 0.75rem; font-weight:700;">HEIGHT (px)</label><input type="number" id="prop-h" value="${data.h}" oninput="updateActiveProperty('h', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
-                <div style="grid-column: span 2;"><label style="font-size: 0.75rem; font-weight:700;">CORNER RADIUS (px)</label><input type="number" id="prop-rad" value="${data.radius || 0}" oninput="updateActiveProperty('radius', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.5rem; margin-top: 1rem; align-items: end;">
+                <div><label style="font-size: 0.75rem; font-weight:700;">WIDTH</label><input type="number" id="prop-w" value="${data.w}" oninput="updateActiveProperty('w', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+                <button class="btn btn-outline" style="padding: 0.5rem; height: 35px; width: 35px; display: flex; justify-content: center; align-items: center;" onclick="toggleAspectRatioLock('${key}')" title="Toggle Aspect Ratio Lock"><i class="fa-solid ${lockIcon}"></i></button>
+                <div><label style="font-size: 0.75rem; font-weight:700;">HEIGHT</label><input type="number" id="prop-h" value="${data.h}" oninput="updateActiveProperty('h', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+                <div style="grid-column: span 3;"><label style="font-size: 0.75rem; font-weight:700;">CORNER RADIUS</label><input type="number" id="prop-rad" value="${data.radius || 0}" oninput="updateActiveProperty('radius', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+                ${deleteBtn}
             </div>
         `;
     } else {
+        // [KEEP YOUR EXISTING TEXT specificHTML BLOCK HERE EXACTLY AS IT WAS]
         specificHTML = `
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem;">
                 <div><label style="font-size: 0.75rem; font-weight:700;">FONT SIZE</label><input type="number" id="prop-sz" value="${data.size}" oninput="updateActiveProperty('size', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
@@ -2779,13 +2864,40 @@ function renderPropertiesPanel() {
     `;
 }
 
+let historyTimeout = null;
+
 function updateActiveProperty(prop, value) {
     if (!studioActiveField) return;
+    const data = studioActiveData.fields[studioActiveField];
     const isNum = ['x','y','w','h','size','radius'].includes(prop);
-    studioActiveData.fields[studioActiveField][prop] = isNum ? (parseInt(value) || 0) : value;
+    const val = isNum ? (parseInt(value) || 0) : value;
+
+    // ---> NEW: Save History once per interaction burst <---
+    if (!historyTimeout && !isRestoringHistory) saveHistoryState();
+    clearTimeout(historyTimeout);
+    historyTimeout = setTimeout(() => { historyTimeout = null; }, 800);
+
+    // Handle Proportional Scaling
+    if (prop === 'w' && data.aspectLocked && data.aspectRatio) {
+        data.w = val;
+        data.h = Math.round(val / data.aspectRatio);
+        const propH = document.getElementById('prop-h');
+        if (propH) propH.value = data.h;
+    } else if (prop === 'h' && data.aspectLocked && data.aspectRatio) {
+        data.h = val;
+        data.w = Math.round(val * data.aspectRatio);
+        const propW = document.getElementById('prop-w');
+        if (propW) propW.value = data.w;
+    } else {
+        data[prop] = val;
+    }
+
+    if (!data.aspectLocked && (prop === 'w' || prop === 'h')) {
+        if (data.w > 0 && data.h > 0) data.aspectRatio = data.w / data.h;
+    }
+
     drawStudioCanvas();
 }
-
 function handleStudioUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -2805,7 +2917,6 @@ function handleStudioUpload(event) {
     };
     reader.readAsDataURL(file);
 }
-
 // --- 3. CANVAS ENGINE & DRAWING ---
 function drawStudioCanvas() {
     const canvas = document.getElementById('studio-canvas');
@@ -2826,25 +2937,54 @@ function drawStudioCanvas() {
         if (!data.enabled) continue; 
 
         if (data.isImage) {
-            // Draw Rounded Rectangle
-            ctx.beginPath();
-            if(ctx.roundRect) {
-                ctx.roundRect(data.x, data.y, data.w, data.h, data.radius || 0);
+            if (data.isStaticElement) {
+                // --- RENDER CUSTOM UPLOADED ELEMENTS ---
+                if (data.imgObj && data.imgObj.src) {
+                    ctx.drawImage(data.imgObj, data.x, data.y, data.w, data.h);
+                }
+
+                // Draw a selection border if it's currently clicked
+                if (studioActiveField === key) {
+                    ctx.strokeStyle = '#4F46E5'; 
+                    ctx.lineWidth = 4; 
+                    ctx.setLineDash([10, 5]);
+                    ctx.strokeRect(data.x, data.y, data.w, data.h);
+                    ctx.setLineDash([]);
+                }
             } else {
-                ctx.rect(data.x, data.y, data.w, data.h); // Fallback
-            }
-            
-ctx.fillStyle = key.includes('Photo') ? 'rgba(79, 70, 229, 0.2)' : 'rgba(15, 23, 42, 0.1)';            ctx.fill();
+                // --- RENDER DYNAMIC PARTICIPANT PHOTO PLACEHOLDERS ---
+                // Draw Rounded Rectangle
+                ctx.beginPath();
+                if(ctx.roundRect) {
+                    ctx.roundRect(data.x, data.y, data.w, data.h, data.radius || 0);
+                } else {
+                    ctx.rect(data.x, data.y, data.w, data.h); // Fallback
+                }
+                
+                ctx.fillStyle = key.includes('Photo') ? 'rgba(79, 70, 229, 0.2)' : 'rgba(15, 23, 42, 0.1)';            
+                ctx.fill();
 
+                if (studioActiveField === key) {
+                    ctx.strokeStyle = '#4F46E5'; ctx.lineWidth = 6; ctx.setLineDash([15, 10]);
+                    ctx.stroke(); ctx.setLineDash([]);
+                }
+
+                ctx.fillStyle = '#0F172A'; ctx.font = "bold 28px Inter"; ctx.textAlign = "center";
+                ctx.fillText(data.displayName, data.x + (data.w / 2), data.y + (data.h / 2) + 10);
+            }
+
+            // --- DRAW RESIZE HANDLE (For both static and dynamic images) ---
             if (studioActiveField === key) {
-                ctx.strokeStyle = '#4F46E5'; ctx.lineWidth = 6; ctx.setLineDash([15, 10]);
-                ctx.stroke(); ctx.setLineDash([]);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.strokeStyle = '#4F46E5';
+                ctx.lineWidth = 2;
+                const hSize = 14; // Size of the resize box
+                ctx.fillRect(data.x + data.w - (hSize/2), data.y + data.h - (hSize/2), hSize, hSize);
+                ctx.strokeRect(data.x + data.w - (hSize/2), data.y + data.h - (hSize/2), hSize, hSize);
             }
-
-            ctx.fillStyle = '#0F172A'; ctx.font = "bold 28px Inter"; ctx.textAlign = "center";
-            ctx.fillText(data.displayName, data.x + (data.w / 2), data.y + (data.h / 2) + 10);
             
         } else {
+            // --- RENDER TEXT ELEMENTS ---
             ctx.textAlign = data.align; ctx.fillStyle = data.color;
             ctx.font = `${data.weight || 'bold'} ${data.size}px ${data.font}`;
             const mockText = STUDIO_MOCK_DATA[key] || data.displayName.toUpperCase();
@@ -2860,19 +3000,40 @@ ctx.fillStyle = key.includes('Photo') ? 'rgba(79, 70, 229, 0.2)' : 'rgba(15, 23,
     }
 }
 
-// --- 4. DRAG & DROP INTERACTION ---
+// --- 4. DRAG, DROP & RESIZE INTERACTION ---
 document.addEventListener("DOMContentLoaded", () => {
     const canvas = document.getElementById('studio-canvas');
     if (!canvas) return;
 
-    // Mouse Down (Hit Test)
     canvas.addEventListener('mousedown', function(e) {
         const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
-        const mouseX = (e.clientX - rect.left) * scaleX; const mouseY = (e.clientY - rect.top) * scaleY;
+        const scaleX = canvas.width / rect.width; 
+        const scaleY = canvas.height / rect.height;
+        const mouseX = (e.clientX - rect.left) * scaleX; 
+        const mouseY = (e.clientY - rect.top) * scaleY;
 
+       // 1. Check if we are clicking a Resize Handle
+        if (studioActiveField && studioActiveData.fields[studioActiveField].isImage) {
+            const data = studioActiveData.fields[studioActiveField];
+            const hitZone = 20; 
+            
+            if (mouseX >= data.x + data.w - hitZone && mouseX <= data.x + data.w + hitZone &&
+                mouseY >= data.y + data.h - hitZone && mouseY <= data.y + data.h + hitZone) {
+                
+                saveHistoryState(); // <-- ADD THIS LINE HERE
+                
+                isResizingLayer = true;
+                resizeStartW = data.w;
+                // ... [keep rest of resize logic]
+                resizeStartH = data.h;
+                resizeStartX = mouseX;
+                resizeStartY = mouseY;
+                return; // Stop here, we are resizing, not selecting/dragging
+            }
+        }
+
+        // 2. If not resizing, do standard Hit Detection (Drag/Select)
         let hit = null;
-        // Loop in reverse to hit topmost items first
         const keys = Object.keys(studioActiveData.fields).reverse();
         
         for(let key of keys) {
@@ -2884,7 +3045,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     hit = key; break;
                 }
             } else {
-                // Approximate Text Hitbox
                 const ctx = canvas.getContext('2d');
                 ctx.font = `${data.weight || 'bold'} ${data.size}px ${data.font}`;
                 const w = ctx.measureText(STUDIO_MOCK_DATA[key] || data.displayName).width;
@@ -2899,39 +3059,80 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
+       // ... [hit detection loop] ...
+
         if(hit) {
-            selectStudioLayer(hit);
+            if (studioActiveField !== hit) selectStudioLayer(hit);
+            
+            saveHistoryState(); // <-- ADD THIS LINE HERE
+            
             isDraggingLayer = true;
             dragOffsetX = mouseX - studioActiveData.fields[hit].x;
-            dragOffsetY = mouseY - studioActiveData.fields[hit].y;
+            // ... [keep rest of drag logic]
         } else {
-            studioActiveField = null; // Deselect
-            renderLayersPanel(); renderPropertiesPanel(); drawStudioCanvas();
+            studioActiveField = null; 
+            renderLayersPanel(); 
+            renderPropertiesPanel(); 
+            drawStudioCanvas();
         }
     });
 
-    // Mouse Move (Dragging)
     canvas.addEventListener('mousemove', function(e) {
-        if(!isDraggingLayer || !studioActiveField) return;
+        if(!studioActiveField) return;
         
         const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
-        const mouseX = (e.clientX - rect.left) * scaleX; const mouseY = (e.clientY - rect.top) * scaleY;
+        const scaleX = canvas.width / rect.width; 
+        const scaleY = canvas.height / rect.height;
+        const mouseX = (e.clientX - rect.left) * scaleX; 
+        const mouseY = (e.clientY - rect.top) * scaleY;
+        const data = studioActiveData.fields[studioActiveField];
 
-        studioActiveData.fields[studioActiveField].x = Math.round(mouseX - dragOffsetX);
-        studioActiveData.fields[studioActiveField].y = Math.round(mouseY - dragOffsetY);
+        // HANDLE RESIZING
+        if (isResizingLayer) {
+            let deltaX = mouseX - resizeStartX;
+            
+            // Calculate new width (prevent it from getting too small)
+            let newW = Math.max(20, resizeStartW + deltaX);
+            let newH = data.h; // Default
 
-        // Live update input fields if Properties panel is showing
-        const propX = document.getElementById('prop-x');
-        const propY = document.getElementById('prop-y');
-        if(propX) propX.value = studioActiveData.fields[studioActiveField].x;
-        if(propY) propY.value = studioActiveData.fields[studioActiveField].y;
+            if (data.aspectLocked && data.aspectRatio) {
+                newH = Math.round(newW / data.aspectRatio);
+            } else {
+                let deltaY = mouseY - resizeStartY;
+                newH = Math.max(20, resizeStartH + deltaY);
+            }
 
-        drawStudioCanvas();
+            data.w = newW;
+            data.h = newH;
+
+            // Live update the properties panel
+            const propW = document.getElementById('prop-w');
+            const propH = document.getElementById('prop-h');
+            if (propW) propW.value = data.w;
+            if (propH) propH.value = data.h;
+            
+            drawStudioCanvas();
+            return;
+        }
+
+        // HANDLE DRAGGING
+        if(isDraggingLayer) {
+            data.x = Math.round(mouseX - dragOffsetX);
+            data.y = Math.round(mouseY - dragOffsetY);
+
+            const propX = document.getElementById('prop-x');
+            const propY = document.getElementById('prop-y');
+            if(propX) propX.value = data.x;
+            if(propY) propY.value = data.y;
+
+            drawStudioCanvas();
+        }
     });
 
-    // Mouse Up (Stop Drag)
-    window.addEventListener('mouseup', () => { isDraggingLayer = false; });
+    window.addEventListener('mouseup', () => { 
+        isDraggingLayer = false; 
+        isResizingLayer = false; 
+    });
 });
 
 // --- 5. SAVING ---
@@ -3747,4 +3948,239 @@ async function bulkExportPointsPDF() {
     };
     
     html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported Successfully!'));
+}
+
+async function handleElementUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Show a quick loading state on the button to let the admin know it's uploading
+    const uploadBtn = event.target.nextElementSibling; 
+    const originalText = uploadBtn.innerHTML;
+    uploadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
+    uploadBtn.disabled = true;
+
+    try {
+        // 1. Upload to Supabase Storage
+        const fileExt = file.name.split('.').pop();
+        const fileName = `element_${Date.now()}.${fileExt}`;
+
+        const { data: uploadData, error: uploadError } = await supabaseClient.storage
+            .from('elements') // Pointing to the new bucket we created in SQL
+            .upload(fileName, file, { contentType: file.type });
+
+        if (uploadError) throw uploadError;
+
+        // 2. Get the permanent Public URL
+        const { data: publicUrlData } = supabaseClient.storage
+            .from('elements')
+            .getPublicUrl(fileName);
+
+        const publicUrl = publicUrlData.publicUrl;
+
+        // 3. Load the URL into the Studio Canvas
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        
+        img.onload = function() {
+            const key = 'Element_' + Date.now();
+            
+            // Scale down initially if the image is massive
+            let initialWidth = img.naturalWidth;
+            let initialHeight = img.naturalHeight;
+            if (initialWidth > 300) {
+                initialHeight = initialHeight * (300 / initialWidth);
+                initialWidth = 300;
+            }
+
+            // Inside handleElementUpload, update the properties:
+            studioActiveData.fields[key] = {
+                enabled: true,
+                displayName: file.name.substring(0, 15) + '...',
+                x: 50,
+                y: 50,
+                w: Math.round(initialWidth),
+                h: Math.round(initialHeight),
+                isImage: true,
+                isStaticElement: true,
+                aspectLocked: true, // NEW: Default to locked
+                aspectRatio: initialWidth / initialHeight, // NEW: Store initial ratio
+                src: publicUrl, 
+                imgObj: img
+            };
+            
+            renderLayersPanel();
+            selectStudioLayer(key);
+            
+            // Clear the input so the same file can be uploaded again if needed
+            document.getElementById('studio-element-upload').value = ''; 
+        };
+        
+        img.src = publicUrl;
+
+    } catch (err) {
+        console.error("Upload error:", err);
+        showToast("Failed to upload element to cloud.", "error");
+    } finally {
+        // Reset the button UI
+        uploadBtn.innerHTML = originalText;
+        uploadBtn.disabled = false;
+    }
+}
+
+function deleteStudioLayer(key) {
+    if (confirm("Delete this uploaded element permanently?")) {
+        delete studioActiveData.fields[key];
+        if (studioActiveField === key) studioActiveField = null;
+        renderLayersPanel();
+        renderPropertiesPanel();
+        drawStudioCanvas();
+    }
+}
+
+function toggleAspectRatioLock(key) {
+    const data = studioActiveData.fields[key];
+    data.aspectLocked = !data.aspectLocked;
+    
+    // Recalculate ratio upon locking if they changed it while unlocked
+    if (data.aspectLocked && data.w > 0 && data.h > 0) {
+        data.aspectRatio = data.w / data.h;
+    }
+    renderPropertiesPanel();
+}
+
+// --- UNDO / REDO STATE ENGINE ---
+let undoStack = [];
+let redoStack = [];
+const MAX_HISTORY = 25; // Prevents memory leaks
+let isRestoringHistory = false;
+
+function saveHistoryState() {
+    if (!studioActiveData || !studioActiveData.fields || isRestoringHistory) return;
+    
+    // Create a deep copy of the layer configurations
+    const stateCopy = {};
+    for (const key in studioActiveData.fields) {
+        stateCopy[key] = { ...studioActiveData.fields[key] };
+    }
+    
+    undoStack.push(stateCopy);
+    if (undoStack.length > MAX_HISTORY) undoStack.shift();
+    
+    redoStack = []; // A new action invalidates the future redo timeline
+    updateHistoryButtons();
+}
+
+function undo() {
+    if (undoStack.length === 0) return;
+    isRestoringHistory = true;
+    
+    // Push current to redo
+    const currentState = {};
+    for (const key in studioActiveData.fields) {
+        currentState[key] = { ...studioActiveData.fields[key] };
+    }
+    redoStack.push(currentState);
+    
+    // Restore past
+    studioActiveData.fields = undoStack.pop();
+    finalizeHistoryAction();
+}
+
+function redo() {
+    if (redoStack.length === 0) return;
+    isRestoringHistory = true;
+    
+    // Push current to undo
+    const currentState = {};
+    for (const key in studioActiveData.fields) {
+        currentState[key] = { ...studioActiveData.fields[key] };
+    }
+    undoStack.push(currentState);
+    
+    // Restore future
+    studioActiveData.fields = redoStack.pop();
+    finalizeHistoryAction();
+}
+
+function finalizeHistoryAction() {
+    studioActiveField = null; // Clear active selections to prevent ghost resizing handles
+    updateHistoryButtons();
+    renderLayersPanel();
+    renderPropertiesPanel();
+    drawStudioCanvas();
+    isRestoringHistory = false;
+}
+
+function updateHistoryButtons() {
+    const btnUndo = document.getElementById('btn-undo');
+    const btnRedo = document.getElementById('btn-redo');
+    if (btnUndo) btnUndo.disabled = undoStack.length === 0;
+    if (btnRedo) btnRedo.disabled = redoStack.length === 0;
+}
+
+async function handleFontUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Show loading state
+    const uploadBtn = event.target.nextElementSibling;
+    const originalText = uploadBtn.innerHTML;
+    uploadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
+    uploadBtn.disabled = true;
+
+    try {
+        // 1. Upload to Supabase Storage
+        const fileExt = file.name.split('.').pop();
+        const safeName = file.name.replace(/[^a-zA-Z0-9]/g, '_').split('_')[0]; 
+        const fileName = `font_${safeName}_${Date.now()}.${fileExt}`;
+        const familyName = `CustomFont_${Date.now()}`; // Unique internal CSS name
+
+        const { data: uploadData, error: uploadError } = await supabaseClient.storage
+            .from('fonts')
+            .upload(fileName, file, { contentType: file.type });
+
+        if (uploadError) throw uploadError;
+
+        // 2. Get Public URL
+        const { data: publicUrlData } = supabaseClient.storage
+            .from('fonts')
+            .getPublicUrl(fileName);
+        const publicUrl = publicUrlData.publicUrl;
+
+        // 3. Load the Font into the Browser natively
+        const customFont = new FontFace(familyName, `url(${publicUrl})`);
+        const loadedFace = await customFont.load();
+        document.fonts.add(loadedFace);
+
+        // 4. Add to the Global Dropdown list
+        const displayName = file.name.split('.')[0].substring(0, 15);
+        AVAILABLE_FONTS.push({ name: `⭐ ${displayName}`, value: familyName });
+
+        // 5. Save the font data into the template state so it persists in the database
+        if (!studioActiveData.customFonts) studioActiveData.customFonts = [];
+        studioActiveData.customFonts.push({ 
+            name: `⭐ ${displayName}`, 
+            family: familyName, 
+            url: publicUrl 
+        });
+
+        // 6. Automatically apply the new font to the currently selected text layer (if any)
+        if (studioActiveField && !studioActiveData.fields[studioActiveField].isImage) {
+            saveHistoryState(); // From your undo/redo engine
+            studioActiveData.fields[studioActiveField].font = familyName;
+        }
+
+        renderPropertiesPanel();
+        drawStudioCanvas();
+        showToast("Custom font added successfully!", "success");
+
+    } catch (err) {
+        console.error("Font upload error:", err);
+        showToast("Failed to upload font.", "error");
+    } finally {
+        uploadBtn.innerHTML = originalText;
+        uploadBtn.disabled = false;
+        event.target.value = ''; // Reset input
+    }
 }

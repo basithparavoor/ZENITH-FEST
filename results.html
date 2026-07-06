@@ -535,6 +535,8 @@
                 const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', 'individual');
                 cachedTemplates = templates || [];
 
+                cachedTemplates.forEach(tpl => ensureFontsLoaded(tpl));
+
                 if (publishedCompetitions.length > 0) {
                     const compIds = publishedCompetitions.map(c => c.id);
                     const { data: judgements } = await supabaseClient
@@ -808,10 +810,12 @@
         const img = new Image();
         img.crossOrigin = "Anonymous";
         
-        img.onload = () => {
+       img.onload = async () => {
             canvas.width = img.naturalWidth || 1080;
             canvas.height = img.naturalHeight || 1080;
             ctx.drawImage(img, 0, 0);
+            
+            await ensureFontsLoaded(template); // <-- NEW: Ensure font is ready
 
             const mappedData = {};
 
@@ -819,7 +823,6 @@
                 const limitVal = document.getElementById('event-timeline-filter').value;
                 const totalPublished = publishedCompetitions.length;
                 const interval = SYSTEM_SETTINGS.poster_interval || 10;
-                
                 const displayCount = limitVal === 'all' ? (Math.floor(totalPublished / interval) * interval) : limitVal;
                 
                 mappedData['ResultsCountText'] = `AFTER ${displayCount}`;
@@ -830,7 +833,6 @@
             }
 
             const top5 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5);
-            
             for(let i = 0; i < 5; i++) {
                 mappedData[`Rank${i+1}Team`] = top5[i] ? top5[i].name : "";
                 mappedData[`Rank${i+1}Points`] = top5[i] ? `${top5[i].score}` : "";
@@ -838,7 +840,28 @@
 
             if(template.fields) {
                 for (const [key, fieldConfig] of Object.entries(template.fields)) {
-                    if (!fieldConfig.enabled || fieldConfig.isImage) continue;
+                    if (!fieldConfig.enabled) continue;
+                    
+                    if (fieldConfig.isImage) {
+                        if (fieldConfig.isStaticElement) {
+                            // --- NEW: Render Custom Uploaded Elements on Team Posters ---
+                            try {
+                                const staticImg = await new Promise((resolve) => {
+                                    const pImg = new Image();
+                                    pImg.crossOrigin = "Anonymous";
+                                    pImg.onload = () => resolve(pImg);
+                                    pImg.onerror = () => resolve(null);
+                                    pImg.src = fieldConfig.src;
+                                });
+                                if (staticImg) {
+                                    ctx.drawImage(staticImg, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h);
+                                }
+                            } catch(e) {
+                                console.error("Failed to load team poster element", e);
+                            }
+                        }
+                        continue;
+                    }
 
                     const text = mappedData[key] || "";
                     if (!text) continue;
@@ -850,6 +873,7 @@
                 }
             }
 
+            // Generate Image only AFTER all fonts and static images have loaded
             currentTeamPosterDataUrl = canvas.toDataURL("image/jpeg", 1.0);
             currentTeamPosterFilename = `FestOS_${type}_Standings.jpg`;
             
@@ -954,10 +978,12 @@ function openResultModal(compId) {
             const img = new Image();
             img.crossOrigin = "Anonymous";
             
-            img.onload = async () => {
+           img.onload = async () => {
                 canvas.width = img.naturalWidth || 1080;
                 canvas.height = img.naturalHeight || 1080;
                 ctx.drawImage(img, 0, 0);
+                
+                await ensureFontsLoaded(template); // <-- NEW: Ensure font is ready
 
                 const comp = publishedCompetitions.find(c => c.id === activeCompId);
                 const results = competitionResults[activeCompId] || [];
@@ -968,7 +994,6 @@ function openResultModal(compId) {
                     'Competition': comp.name || ""
                 };
 
-                // Map Names, Teams, and Photos
                 for(let i = 0; i < 3; i++) {
                     const entry = results[i];
                     mappedData[`Position${i+1}Name`] = entry ? entry.participant.name : "AVAILABLE";
@@ -981,33 +1006,51 @@ function openResultModal(compId) {
                         if (!fieldConfig.enabled) continue;
                         
                         if (fieldConfig.isImage) {
-                            const photoSrc = mappedData[key] || 'https://via.placeholder.com/400x600/E5E7EB/6B7280?text=NO+PHOTO';
-                            
-                            try {
-                                const pPhoto = await new Promise((resolve) => {
-                                    const pImg = new Image();
-                                    pImg.crossOrigin = "Anonymous";
-                                    pImg.onload = () => resolve(pImg);
-                                    pImg.onerror = () => resolve(null);
-                                    pImg.src = photoSrc;
-                                });
-                                
-                                if (pPhoto) {
-                                    ctx.save();
-                                    ctx.beginPath();
-                                    if(ctx.roundRect) {
-                                        ctx.roundRect(fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h, fieldConfig.radius || 0);
-                                    } else {
-                                        ctx.rect(fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h);
+                            if (fieldConfig.isStaticElement) {
+                                // --- NEW: Render Custom Uploaded Elements (Logos, SVGs) ---
+                                try {
+                                    const staticImg = await new Promise((resolve) => {
+                                        const pImg = new Image();
+                                        pImg.crossOrigin = "Anonymous";
+                                        pImg.onload = () => resolve(pImg);
+                                        pImg.onerror = () => resolve(null);
+                                        pImg.src = fieldConfig.src;
+                                    });
+                                    if (staticImg) {
+                                        ctx.drawImage(staticImg, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h);
                                     }
-                                    ctx.clip();
-                                    ctx.drawImage(pPhoto, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h);
-                                    ctx.restore();
+                                } catch (err) {
+                                    console.error("Failed to render static element", err);
                                 }
-                            } catch (err) {
-                                console.error("Failed to render photo on canvas:", err);
+                            } else {
+                                // --- Render Dynamic Participant Photos ---
+                                const photoSrc = mappedData[key] || 'https://via.placeholder.com/400x600/E5E7EB/6B7280?text=NO+PHOTO';
+                                try {
+                                    const pPhoto = await new Promise((resolve) => {
+                                        const pImg = new Image();
+                                        pImg.crossOrigin = "Anonymous";
+                                        pImg.onload = () => resolve(pImg);
+                                        pImg.onerror = () => resolve(null);
+                                        pImg.src = photoSrc;
+                                    });
+                                    if (pPhoto) {
+                                        ctx.save();
+                                        ctx.beginPath();
+                                        if(ctx.roundRect) {
+                                            ctx.roundRect(fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h, fieldConfig.radius || 0);
+                                        } else {
+                                            ctx.rect(fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h);
+                                        }
+                                        ctx.clip();
+                                        ctx.drawImage(pPhoto, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h);
+                                        ctx.restore();
+                                    }
+                                } catch (err) {
+                                    console.error("Failed to render photo on canvas:", err);
+                                }
                             }
                         } else {
+                            // --- Render Text ---
                             const text = mappedData[key] || "";
                             if (!text) continue;
 
@@ -1018,7 +1061,6 @@ function openResultModal(compId) {
                         }
                     }
                 }
-                
                 loader.style.display = 'none';
             };
             
@@ -1071,6 +1113,27 @@ function applyGlobalBranding(brandingData) {
         container.style.alignItems = 'center';
         container.style.justifyContent = 'center'; // Keeps the scan text centered
     });
+}
+
+const loadedFontFamilies = new Set();
+
+async function ensureFontsLoaded(template) {
+    if (!template.customFonts || template.customFonts.length === 0) return;
+    
+    const loadPromises = template.customFonts.map(async (fontData) => {
+        if (!loadedFontFamilies.has(fontData.family)) {
+            try {
+                const customFont = new FontFace(fontData.family, `url(${fontData.url})`);
+                const loadedFace = await customFont.load();
+                document.fonts.add(loadedFace);
+                loadedFontFamilies.add(fontData.family);
+            } catch (e) {
+                console.error("Failed to load custom font:", fontData.family, e);
+            }
+        }
+    });
+    
+    await Promise.all(loadPromises);
 }
 
         init();
