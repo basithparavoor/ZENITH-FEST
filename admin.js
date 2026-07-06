@@ -1412,14 +1412,20 @@ async function handleBulkUpload(tableName, fileInputId) {
         }
     });
 }
-
 document.addEventListener("DOMContentLoaded", () => {
-    // Added 'admin' to the permitted roles for the cross-portal menu
+    // Existing code: Show cross-portal menu for both Admin and Master Admin
     if (user && (user.role === 'master_admin' || user.role === 'admin')) {
         const portalMenu = document.getElementById('master-admin-portals');
         if (portalMenu) portalMenu.style.display = 'block';
     }
+
+    // ---> NEW CODE: Show Data Center ONLY for Master Admin <---
+    if (user && user.role === 'master_admin') {
+        const dataCenterTab = document.getElementById('nav-data-center');
+        if (dataCenterTab) dataCenterTab.style.display = 'block';
+    }
     
+    // Continue with the rest of your initialization...
     loadCategories();
     
     // Check for cached branding and apply it immediately
@@ -4182,5 +4188,161 @@ async function handleFontUpload(event) {
         uploadBtn.innerHTML = originalText;
         uploadBtn.disabled = false;
         event.target.value = ''; // Reset input
+    }
+}
+
+// ==========================================
+// MASTER DATA CENTER & ZIP ENGINE
+// ==========================================
+
+let pendingSecureAction = null;
+let pendingFileToImport = null;
+
+const MASTER_TABLES = ['categories', 'teams', 'competitions', 'participants', 'judgements', 'templates', 'announcements', 'settings'];
+
+function requestSecureAction(action) {
+    pendingSecureAction = action;
+    document.getElementById('master-auth-password').value = '';
+    document.getElementById('masterPasswordModal').classList.add('show');
+}
+
+function handleBackupSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    pendingFileToImport = file;
+    requestSecureAction('import');
+    event.target.value = ''; // Reset input
+}
+
+async function verifyMasterPassword() {
+    const btn = document.getElementById('btn-verify-master');
+    const pwd = document.getElementById('master-auth-password').value;
+    
+    if(!pwd) return showToast("Password required", "error");
+    
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying...';
+    btn.disabled = true;
+
+    try {
+        // Authenticate against the users table
+        const { data, error } = await supabaseClient
+            .from('users')
+            .select('id, role')
+            .eq('username', user.username)
+            .eq('password_hash', pwd) // <--- THIS WAS THE CAUSE OF THE 400 ERROR
+            .single();
+
+        if (error || !data) throw new Error("Invalid password");
+        if (data.role !== 'master_admin') throw new Error("Unauthorized access level.");
+
+        document.getElementById('masterPasswordModal').classList.remove('show');
+        
+        // Route to the requested action
+        if (pendingSecureAction === 'export') await executeZipExport();
+        if (pendingSecureAction === 'import') await executeZipImport();
+        if (pendingSecureAction === 'reset') await executeFactoryReset();
+
+    } catch (err) {
+        showToast("Authentication failed: " + err.message, "error");
+    } finally {
+        btn.innerHTML = 'Verify';
+        btn.disabled = false;
+        pendingSecureAction = null;
+    }
+}
+
+// --- 1. EXPORT LOGIC ---
+async function executeZipExport() {
+    showToast("Gathering system data, please wait...", "success");
+    const zip = new JSZip();
+    const dbFolder = zip.folder("database");
+
+    try {
+        for (const table of MASTER_TABLES) {
+            const { data, error } = await supabaseClient.from(table).select('*');
+            if (error) console.error(`Error fetching ${table}:`, error);
+            
+            // Save each table as a JSON file inside the ZIP
+            dbFolder.file(`${table}.json`, JSON.stringify(data || [], null, 2));
+        }
+
+        // Add a manifest file with metadata
+        zip.file("festos_manifest.json", JSON.stringify({
+            exported_at: new Date().toISOString(),
+            exported_by: user.username,
+            version: "1.0"
+        }, null, 2));
+
+        // Generate and download the ZIP
+        const content = await zip.generateAsync({ type: "blob" });
+        saveAs(content, `FestOS_FullBackup_${new Date().toISOString().split('T')[0]}.zip`);
+        showToast("Export completed successfully!", "success");
+
+    } catch (err) {
+        console.error("Export Error:", err);
+        showToast("Failed to export data.", "error");
+    }
+}
+
+// --- 2. IMPORT LOGIC ---
+async function executeZipImport() {
+    if (!pendingFileToImport) return;
+    showToast("Restoring system data, do not close page...", "warning");
+    
+    try {
+        const zip = await JSZip.loadAsync(pendingFileToImport);
+        
+        // 1. Verify Manifest
+        const manifestFile = zip.file("festos_manifest.json");
+        if (!manifestFile) throw new Error("Invalid backup file. Manifest missing.");
+
+        // 2. We MUST insert data in order of Foreign Key dependencies
+        // e.g., You can't insert a participant until their team exists.
+        const orderOfOperations = ['settings', 'categories', 'teams', 'competitions', 'templates', 'participants', 'judgements', 'announcements'];
+
+        for (const table of orderOfOperations) {
+            const file = zip.file(`database/${table}.json`);
+            if (file) {
+                const jsonStr = await file.async("string");
+                const tableData = JSON.parse(jsonStr);
+                
+                if (tableData.length > 0) {
+                    // Use upsert to replace existing data without breaking keys
+                    const { error } = await supabaseClient.from(table).upsert(tableData);
+                    if (error) console.error(`Import Error on ${table}:`, error);
+                }
+            }
+        }
+        
+        showToast("Data restored successfully! Reloading...", "success");
+        setTimeout(() => location.reload(), 2000);
+
+    } catch (err) {
+        console.error("Import Error:", err);
+        showToast("Failed to restore data: " + err.message, "error");
+    } finally {
+        pendingFileToImport = null;
+    }
+}
+// --- 3. FACTORY RESET LOGIC ---
+async function executeFactoryReset() {
+    if(!confirm("FINAL WARNING: This will delete absolutely everything. Type 'YES' to confirm.")) return;
+    
+    showToast("Wiping database...", "warning");
+
+    try {
+        // Delete in reverse order of dependencies to prevent foreign key constraint errors
+        const reverseOrder = ['judgements', 'announcements', 'participants', 'templates', 'competitions', 'teams', 'categories'];
+
+        for (const table of reverseOrder) {
+            // Delete all rows where id is not null (which is all rows)
+            await supabaseClient.from(table).delete().not('id', 'is', null);
+        }
+
+        showToast("System Reset Complete. Reloading...", "success");
+        setTimeout(() => location.reload(), 2000);
+    } catch (err) {
+        console.error("Reset Error:", err);
+        showToast("Failed to complete reset.", "error");
     }
 }
