@@ -8,12 +8,12 @@ window.db = supabaseClient;
 
 // Auth check
 const user = JSON.parse(localStorage.getItem('festUser'));
-if (!user || (user.role !== 'fest_manager' && user.role !== 'master_admin')) {
+if (!user || (user.role !== 'fest_manager' && user.role !== 'master_admin' && user.role !== 'admin')) {
     window.location.href = 'index.html';
 }
 
-// Inject Return Button for Master Admin
-if (user.role === 'master_admin') {
+// Inject Return Button for Admins
+if (user.role === 'master_admin' || user.role === 'admin') {
     document.addEventListener("DOMContentLoaded", () => {
         const header = document.querySelector('.header');
         const returnBtn = document.createElement('button');

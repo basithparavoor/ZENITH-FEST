@@ -24,15 +24,14 @@ function showToast(message, type = 'success') {
     setTimeout(() => toast.remove(), 4000);
 }
 
-// 1. Initialize App
 async function initializeApp() {
     user = JSON.parse(localStorage.getItem('festUser'));
-    if (!user || (user.role !== 'stage_controller' && user.role !== 'master_admin')) {
+    if (!user || (user.role !== 'stage_controller' && user.role !== 'master_admin' && user.role !== 'admin')) {
         window.location.href = 'index.html';
         return;
     }
     
-    if (user.role === 'master_admin') {
+    if (user.role === 'master_admin' || user.role === 'admin') {
         const navActions = document.querySelector('.nav-actions');
         // SAFETY CHECK: Only inject if the element actually exists in the DOM
         if (navActions) {
@@ -49,13 +48,12 @@ async function initializeApp() {
     loadDashboard();
 }
 
-// 2. Load Dashboard & Stage Info
 async function loadDashboard() {
     const container = document.getElementById('competitions-container');
     container.innerHTML = `<div style="text-align:center; padding: 3rem;"><i class="ph ph-spinner-gap" style="font-size: 2rem; animation: spin 1s linear infinite; color: var(--text-muted);"></i><p style="margin-top: 1rem; color: var(--text-muted);">Loading Stage Data...</p></div>`;
 
-    if (user.role === 'master_admin') {
-        document.getElementById('stage-name').innerText = "Master Override";
+    if (user.role === 'master_admin' || user.role === 'admin') {
+        document.getElementById('stage-name').innerText = "Admin Override";
         document.getElementById('master-filter-container').style.display = 'block';
         
         // FIX: Increase body padding dynamically so the taller Master Admin header doesn't cover content

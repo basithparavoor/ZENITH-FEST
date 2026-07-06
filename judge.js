@@ -12,16 +12,16 @@ async function initializeApp() {
     user = JSON.parse(localStorage.getItem('festUser'));
 
     // Security Check
-    if (!user || (user.role !== 'judge' && user.role !== 'master_admin')) {
+    if (!user || (user.role !== 'judge' && user.role !== 'master_admin' && user.role !== 'admin')) {
         window.location.href = 'index.html';
         return; 
     }
 
     // Update UI
-    let roleDisplay = user.role === 'master_admin' ? '(Master Override)' : '';
+    let roleDisplay = (user.role === 'master_admin' || user.role === 'admin') ? '(Admin Override)' : '';
     document.getElementById('judge-name').innerText = `Welcome, ${user.username || user.email} ${roleDisplay}`;
 
-    if (user.role === 'master_admin') {
+    if (user.role === 'master_admin' || user.role === 'admin') {
         const nav = document.querySelector('.navbar > div:last-child');
         nav.insertAdjacentHTML('afterbegin', `<button class="btn btn-primary" onclick="window.location.href='admin.html'">Admin Hub</button>`);
     }
@@ -36,7 +36,8 @@ async function loadDashboard() {
 
     globalJudgeComps = []; // Reset global state
 
-    if (user.role === 'master_admin') {
+    if (user.role === 'master_admin' || user.role === 'admin') {
+        
         const { data: allComps, error } = await supabaseClient
             .from('competitions')
             .select('*, categories(name)')

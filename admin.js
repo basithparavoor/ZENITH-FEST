@@ -1414,7 +1414,8 @@ async function handleBulkUpload(tableName, fileInputId) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    if (user && user.role === 'master_admin') {
+    // Added 'admin' to the permitted roles for the cross-portal menu
+    if (user && (user.role === 'master_admin' || user.role === 'admin')) {
         const portalMenu = document.getElementById('master-admin-portals');
         if (portalMenu) portalMenu.style.display = 'block';
     }
