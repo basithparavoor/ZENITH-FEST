@@ -367,15 +367,18 @@ function renderCompetitionsTable() {
     }
 
    pageData.forEach(comp => {
-        // Extract the actual enrollment count from the Supabase relational query
         const studentCount = comp.participant_competitions?.[0]?.count || 0; 
-        const totalCapacity = (comp.max_participants || 0) * (teamsList.length || 0); // Calculate total system limit
+        const totalCapacity = (comp.max_participants || 0) * (teamsList.length || 0); 
+        
+        // NEW: Check if it's an offstage event
+        const stageDisplay = comp.is_offstage ? '<span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:800;"><i class="fa-solid fa-pen-nib"></i> OFFSTAGE</span>' : (comp.stages?.name || 'Unassigned');
     
         tbody.innerHTML += `
             <tr>
-<td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${comp.id}" ${globalSelections['competitions-tbody']?.has(comp.id) ? 'checked' : ''} onchange="handleRowSelection('competitions-tbody', this.value, this.checked)"></td>                <td>${comp.name}</td>
+                <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${comp.id}" ${globalSelections['competitions-tbody']?.has(comp.id) ? 'checked' : ''} onchange="handleRowSelection('competitions-tbody', this.value, this.checked)"></td>
+                <td style="font-weight: 700;">${comp.name}</td>
                 <td><span class="badge badge-primary">${comp.categories?.name || 'N/A'}</span></td>
-                <td>${comp.stages?.name || 'Unassigned'}</td>
+                <td>${stageDisplay}</td>
                 
                 <td style="font-weight: 700; color: var(--text-main);">${comp.max_mark || '0'}</td>
                 
@@ -543,7 +546,8 @@ function openCompModal(editData = null) {
     const cName = isEdit ? editData.name : '';
     const cMarks = isEdit ? editData.max_mark : '100';
     const cLimit = isEdit ? editData.max_participants : '1';
-    const cIsGroup = isEdit ? editData.is_group : false; // NEW
+    const cIsGroup = isEdit ? editData.is_group : false; 
+    const cIsOffstage = isEdit ? editData.is_offstage : false; // NEW: Offstage Flag
 
     let catOpts = categoriesList.map(c => `<option value="${c.id}" ${isEdit && editData.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
     let stageOpts = stagesList.map(s => `<option value="${s.id}" ${isEdit && editData.stage_id === s.id ? 'selected' : ''}>${s.name}</option>`).join('');
@@ -552,14 +556,20 @@ function openCompModal(editData = null) {
         <input type="hidden" id="compId" value="${cId}">
         <div class="form-group"><label>Competition Name</label><input type="text" id="compName" value="${cName}"></div>
         
-        <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; background: var(--primary-light); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.25rem;">
-            <input type="checkbox" id="compIsGroup" ${cIsGroup ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer;">
-            <label for="compIsGroup" style="margin: 0; color: var(--primary); font-weight: 700; cursor: pointer;">Group Competition</label>
+        <div style="display: flex; gap: 1rem; margin-bottom: 1.25rem;">
+            <div class="form-group" style="flex: 1; display: flex; align-items: center; gap: 0.5rem; background: var(--primary-light); padding: 1rem; border-radius: var(--radius-md); margin: 0;">
+                <input type="checkbox" id="compIsGroup" ${cIsGroup ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer;">
+                <label for="compIsGroup" style="margin: 0; color: var(--primary); font-weight: 700; cursor: pointer;">Group Event</label>
+            </div>
+            <div class="form-group" style="flex: 1; display: flex; align-items: center; gap: 0.5rem; background: #FEF3C7; padding: 1rem; border-radius: var(--radius-md); margin: 0;">
+                <input type="checkbox" id="compIsOffstage" ${cIsOffstage ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: #D97706; cursor: pointer;" onchange="const stageSelect = document.getElementById('compStage'); if(this.checked){ stageSelect.value=''; stageSelect.disabled=true; } else { stageSelect.disabled=false; }">
+                <label for="compIsOffstage" style="margin: 0; color: #D97706; font-weight: 700; cursor: pointer;">Offstage Event</label>
+            </div>
         </div>
 
         <div style="display:flex; gap:1rem;">
             <div class="form-group" style="flex:1;"><label>Category</label><select id="compCategory">${catOpts}</select></div>
-            <div class="form-group" style="flex:1;"><label>Stage</label><select id="compStage"><option value="">-- NO STAGE YET --</option>${stageOpts}</select></div>
+            <div class="form-group" style="flex:1;"><label>Stage</label><select id="compStage" ${cIsOffstage ? 'disabled' : ''}><option value="">-- NO STAGE YET --</option>${stageOpts}</select></div>
         </div>
         <div style="display:flex; gap:1rem;">
             <div class="form-group" style="flex:1;"><label>Max Marks</label><input type="number" id="compMarks" value="${cMarks}"></div>
@@ -572,16 +582,17 @@ async function saveCompetition() {
     const id = document.getElementById('compId').value;
     const name = document.getElementById('compName').value;
     const category_id = document.getElementById('compCategory').value;
-    const stage_id = document.getElementById('compStage').value || null;
+    const is_offstage = document.getElementById('compIsOffstage').checked; // NEW
+    const stage_id = is_offstage ? null : (document.getElementById('compStage').value || null);
     const max_mark = document.getElementById('compMarks').value;
     const max_participants = document.getElementById('compParticipants').value;
-    const is_group = document.getElementById('compIsGroup').checked; // NEW
+    const is_group = document.getElementById('compIsGroup').checked; 
     
     if(!name) return showToast('Name is required', 'error');
     
     setLoading('modalSaveBtn', true);
     try {
-        const payload = { name, category_id, stage_id, max_mark, max_participants, is_group }; // UPDATED
+        const payload = { name, category_id, stage_id, max_mark, max_participants, is_group, is_offstage }; 
         if (id) payload.id = id;
 
         const { error } = await supabaseClient.from('competitions').upsert([payload]);

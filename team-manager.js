@@ -199,7 +199,11 @@ function renderCatalog() {
         if (catFilter !== 'all' && catName !== catFilter) return;
         if (search && !comp.name.toLowerCase().includes(search) && !catName.toLowerCase().includes(search)) return;
 
-        const stageName = comp.stages?.name || 'TBD';
+        // NEW: Check if Offstage Event
+        const stageName = comp.is_offstage 
+            ? '<span style="color:#D97706; font-weight:800;"><i class="fa-solid fa-pen-nib"></i> OFFSTAGE</span>' 
+            : (comp.stages?.name || 'TBD');
+            
         const limitDisplay = comp.max_participants ? comp.max_participants : 'NO LIMIT';
         
         // Make the badges clickable
@@ -568,7 +572,8 @@ async function exportTeamProgramListPDF() {
                     compsMap[comp.id] = {
                         compName: comp.name,
                         category: comp.categories?.name || 'GENERAL',
-                        stage: comp.stages?.name || 'TBD',
+                        // NEW: Update PDF to reflect Offstage status
+                        stage: comp.is_offstage ? 'OFFSTAGE' : (comp.stages?.name || 'TBD'),
                         participants: []
                     };
                 }
