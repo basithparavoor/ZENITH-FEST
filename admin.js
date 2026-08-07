@@ -925,8 +925,7 @@ function renderParticipantsTable() {
 
     pageData.forEach(p => {
         const safeData = JSON.stringify(p).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
-        const photoSrc = p.photo_url ? p.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=NO+PHOTO';
-        
+const photoSrc = p.photo_url ? p.photo_url : 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%236B7280"%3ENO PHOTO%3C/text%3E%3C/svg%3E';        
         tbody.innerHTML += `
             <tr>
 <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}" ${globalSelections['participants-tbody']?.has(p.id) ? 'checked' : ''} onchange="handleRowSelection('participants-tbody', this.value, this.checked)"></td>                <td style="font-family: monospace; font-weight: 600; color: var(--primary);">${p.unique_id}</td>
@@ -1075,8 +1074,7 @@ async function exportParticipantsCSV() {
 function viewParticipantCard(p) {
     const teamName = p.teams ? p.teams.name : 'UNASSIGNED';
     const catName = p.categories ? p.categories.name : 'GENERAL';
-    const photoSrc = p.photo_url ? p.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=NO+PHOTO';
-    
+const photoSrc = p.photo_url ? p.photo_url : 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%236B7280"%3ENO PHOTO%3C/text%3E%3C/svg%3E';    
     document.getElementById('listModalTitle').innerText = 'Participant Identity';
     
     // Reset wrapper styling to allow flexible component layout
@@ -1284,8 +1282,7 @@ function openParticipantModal(editData = null) {
     const pDob = isEdit && editData.dob ? editData.dob : '';
     
     const pUniqueId = isEdit ? editData.unique_id : '';
-    const pPhoto = isEdit && editData.photo_url ? editData.photo_url : 'https://via.placeholder.com/150/EEF2FF/6366F1?text=PHOTO';
-
+const pPhoto = isEdit && editData.photo_url ? editData.photo_url : 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="100%25" height="100%25" fill="%23EEF2FF"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%236366F1"%3EPHOTO%3C/text%3E%3C/svg%3E';
     const modalHtml = `
         <style>
             .part-modal-grid { display: grid; grid-template-columns: 150px 1fr; gap: 2rem; align-items: start; }
@@ -2375,10 +2372,11 @@ async function exportAssignmentsPDF() {
 // --- HELPER: Promise-based image loader ---
 function loadImagePromise(src) {
     return new Promise((resolve) => {
+        if (!src) return resolve(null);
         const img = new Image();
         img.crossOrigin = "Anonymous";
         img.onload = () => resolve(img);
-        img.onerror = () => resolve(img); // Resolve anyway to avoid freezing if an image fails
+        img.onerror = () => resolve(null); // Return null if broken to prevent canvas crash
         img.src = src;
     });
 }
@@ -2409,8 +2407,12 @@ async function generateParticipantIDCanvas(participant, template) {
         if (field.isImage) {
             // Render Participant Photo
             if (key === 'Photo') {
-                const photoSrc = participant.photo_url || 'https://via.placeholder.com/400x600/E5E7EB/6B7280?text=NO+PHOTO';
-                const pPhoto = await loadImagePromise(photoSrc);
+                const photoSrc = participant.photo_url || null; // Removed external URL dependency
+                let pPhoto = null;
+                
+                if (photoSrc) {
+                    pPhoto = await loadImagePromise(photoSrc);
+                }
                 
                 ctx.save();
                 ctx.beginPath();
@@ -2418,8 +2420,21 @@ async function generateParticipantIDCanvas(participant, template) {
                 else ctx.rect(field.x, field.y, field.w, field.h);
                 ctx.clip();
                 
-                // Draw Image filling the bounds
-                ctx.drawImage(pPhoto, field.x, field.y, field.w, field.h);
+                // If image successfully loaded, draw it
+                if (pPhoto && pPhoto.naturalWidth > 0) {
+                    ctx.drawImage(pPhoto, field.x, field.y, field.w, field.h);
+                } else {
+                    // Native Canvas Fallback (No external URL needed)
+                    ctx.fillStyle = "#E2E8F0"; // Light gray background
+                    ctx.fillRect(field.x, field.y, field.w, field.h);
+                    
+                    ctx.fillStyle = "#94A3B8"; // Slate text color
+                    ctx.font = "bold 24px Inter, sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText("NO PHOTO", field.x + (field.w / 2), field.y + (field.h / 2));
+                }
+                
                 ctx.restore();
             }
             

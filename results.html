@@ -1016,8 +1016,7 @@ let SYSTEM_SETTINGS = {
                                     if (staticImg) { ctx.drawImage(staticImg, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); }
                                 } catch (err) { console.error("Failed to render static element", err); }
                             } else {
-                                const photoSrc = mappedData[key] || 'https://via.placeholder.com/400x600/E5E7EB/6B7280?text=NO+PHOTO';
-                                try {
+const photoSrc = mappedData[key] || 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="600"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="40" font-weight="bold" fill="%236B7280"%3ENO PHOTO%3C/text%3E%3C/svg%3E';                                try {
                                     const pPhoto = await new Promise((resolve) => {
                                         const pImg = new Image(); pImg.crossOrigin = "Anonymous";
                                         pImg.onload = () => resolve(pImg); pImg.onerror = () => resolve(null); pImg.src = photoSrc;
