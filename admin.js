@@ -83,16 +83,17 @@ function switchTab(tabId) {
 
     // Trigger specific data loads with error handling
     try {
-        if (tabId === 'categories') loadCategories();
+       if (tabId === 'categories') loadCategories();
         else if (tabId === 'competitions') loadCompetitions();
         else if (tabId === 'participants') loadParticipants();
         else if (tabId === 'stages') loadStagesAndTeams();
         else if (tabId === 'users') loadUsers();
         else if (tabId === 'assignments') initAssignWorkspace();
         else if (tabId === 'direct-valuation') initDirectValuation();
-        else if (tabId === 'point-settings') loadPointSettings(); // ADD THIS LINE
+        else if (tabId === 'point-settings') loadPointSettings(); 
         else if (tabId === 'branding-settings') loadBrandingSettings();
         else if (tabId === 'participant-points') loadParticipantPoints();
+        else if (tabId === 'admin-appeals') loadAdminAppeals(); // <--- ADD THIS LINE
     } catch (e) {
         showToast("Failed to fetch dashboard data.", "error");
     }
@@ -390,8 +391,9 @@ function renderCompetitionsTable() {
                 </td>
                 <td>
                     <div style="display: flex; gap: 0.5rem;">
-                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openCompModal(${JSON.stringify(comp).replace(/'/g, "&apos;")})'><i class="fa-solid fa-pen"></i></button>
-                        <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteCompetition('${comp.id}')"><i class="fa-solid fa-trash"></i></button>
+                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openCompModal(${JSON.stringify(comp).replace(/'/g, "&apos;")})' title="Edit"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem; color:var(--warning); border-color:var(--warning);" onclick="bulkDownloadCertificates('${comp.id}')" title="Download Merit Certificates"><i class="fa-solid fa-award"></i></button>
+                        <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteCompetition('${comp.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </td>
             </tr>
@@ -2804,7 +2806,8 @@ const TEMPLATE_SCHEMAS = {
     individual: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 1 Team', 'Position 1 Photo', 'Position 2 Name', 'Position 2 Team', 'Position 2 Photo', 'Position 3 Name', 'Position 3 Team', 'Position 3 Photo'],
     team: ['Results Count Text', 'Rank 1 Team', 'Rank 1 Points', 'Rank 2 Team', 'Rank 2 Points', 'Rank 3 Team', 'Rank 3 Points', 'Rank 4 Team', 'Rank 4 Points', 'Rank 5 Team', 'Rank 5 Points'],
     final: ['Total Competitions Count', 'Rank 1 Team', 'Rank 1 Points', 'Rank 2 Team', 'Rank 2 Points', 'Rank 3 Team', 'Rank 3 Points', 'Rank 4 Team', 'Rank 4 Points', 'Rank 5 Team', 'Rank 5 Points'],
-    id_card: ['Participant Name', 'Unique ID', 'Team Name', 'Category', 'Date of Birth', 'Photo', 'QR Code']
+    id_card: ['Participant Name', 'Unique ID', 'Team Name', 'Category', 'Date of Birth', 'Photo', 'QR Code'],
+    certificate: ['Participant Name', 'Unique ID', 'Team Name', 'Category', 'Competition', 'Position', 'Grade', 'Issue Date', 'QR Code'] // NEW: Certificate Schema
 };
 
 const STUDIO_MOCK_DATA = {
@@ -2816,7 +2819,8 @@ const STUDIO_MOCK_DATA = {
     'TotalCompetitionsCount': 'FINAL OVERALL', 
     'Rank1Team': 'FALCONS', 'Rank1Points': '450',
     'Rank2Team': 'EAGLES', 'Rank2Points': '380',
-    'ParticipantName': 'JOHN DOE', 'UniqueID': 'FEST-26-987654', 'BatchNo': 'BATCH 1'
+    'ParticipantName': 'JOHN DOE', 'UniqueID': 'FEST-26-987654', 'BatchNo': 'BATCH 1',
+    'Position': 'FIRST PLACE', 'Grade': 'A+ GRADE', 'IssueDate': new Date().toLocaleDateString()
 };
 
 const AVAILABLE_FONTS = [
@@ -3990,26 +3994,32 @@ async function loadParticipantPoints() {
         const { data: participants } = await supabaseClient.from('participants').select('*, teams(name), categories(name)');
         const { data: judgements } = await supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark');
 
-        // Group & Average
+       // Group & Aggregate marks into arrays
         let compAverages = {}; 
         (judgements || []).forEach(j => {
             if(!compAverages[j.competition_id]) compAverages[j.competition_id] = {};
-            if(!compAverages[j.competition_id][j.participant_id]) compAverages[j.competition_id][j.participant_id] = { total: 0, count: 0 };
-            compAverages[j.competition_id][j.participant_id].total += parseFloat(j.awarded_mark);
-            compAverages[j.competition_id][j.participant_id].count += 1;
+            if(!compAverages[j.competition_id][j.participant_id]) compAverages[j.competition_id][j.participant_id] = { marks_array: [] };
+            compAverages[j.competition_id][j.participant_id].marks_array.push(parseFloat(j.awarded_mark));
         });
 
-        // Calculate Ranks & Points per Comp
+        // Calculate Ranks, Averages & Points per Comp
         let compResults = {};
         (comps || []).forEach(comp => {
             if(!compAverages[comp.id]) return;
-            const participantsArr = Object.entries(compAverages[comp.id]).map(([pId, data]) => ({
-                id: pId, mark: data.total / data.count
-            })).sort((a, b) => b.mark - a.mark);
+            const participantsArr = Object.entries(compAverages[comp.id]).map(([pId, data]) => {
+                // OUTLIER DROPPING
+                let sortedMarks = data.marks_array.sort((a, b) => a - b);
+                if (sortedMarks.length >= 3) {
+                    sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
+                }
+                const sum = sortedMarks.reduce((a, b) => a + b, 0);
+                return { id: pId, mark: sum / sortedMarks.length };
+            }).sort((a, b) => b.mark - a.mark);
 
             const limit = comp.max_participants || 1;
             let sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
             const eligibleForPosPoints = comp.participant_competitions?.[0]?.count >= 3;
+            // ... (The rest of the function remains exactly the same below this)
 
             participantsArr.forEach((p, index) => {
                 let percent = (p.mark / (comp.max_mark || 100)) * 100;
@@ -4648,5 +4658,227 @@ async function executeFactoryReset() {
     } catch (err) {
         console.error("Reset Error:", err);
         showToast("Failed to complete reset.", "error");
+    }
+}
+
+async function loadAdminAppeals() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('appeals')
+            .select('*, teams(name), competitions(name), participants(name)')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        const tbody = document.getElementById('admin-appeals-tbody'); 
+        tbody.innerHTML = '';
+        
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No appeals found.</td></tr>';
+            return;
+        }
+
+        data.forEach(ticket => {
+            const statusClass = ticket.status === 'pending' ? 'badge-warning' : (ticket.status === 'approved' ? 'badge-success' : 'badge-danger');
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td><span class="badge" style="background:var(--bg-main);">${ticket.issue_type}</span></td>
+                    <td style="font-weight:700;">${ticket.teams?.name}</td>
+                    <td>${ticket.competitions?.name || '-'} <br> <small>${ticket.participants?.name || '-'}</small></td>
+                    <td><div style="max-width: 250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${ticket.description}">${ticket.description}</div></td>
+                    <td><span class="badge ${statusClass}">${ticket.status.toUpperCase()}</span></td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            ${ticket.status === 'pending' ? `
+                                <button class="btn btn-outline" style="padding:0.4rem 0.75rem; color:var(--success); border-color:var(--success);" onclick="resolveAppeal('${ticket.id}', 'approved')" title="Approve"><i class="fa-solid fa-check"></i></button>
+                                <button class="btn btn-outline" style="padding:0.4rem 0.75rem; color:var(--warning); border-color:var(--warning);" onclick="resolveAppeal('${ticket.id}', 'rejected')" title="Reject"><i class="fa-solid fa-xmark"></i></button>
+                            ` : '<span style="color:var(--text-muted); font-size:0.8rem; margin-right: 0.5rem;">Resolved</span>'}
+                            
+                            <!-- Master Admin Only Delete Button -->
+                            <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteAppeal('${ticket.id}')" title="Delete Ticket"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function resolveAppeal(ticketId, newStatus) {
+    if(!confirm(`Mark this ticket as ${newStatus.toUpperCase()}?`)) return;
+    try {
+        const { error } = await supabaseClient.from('appeals').update({ status: newStatus }).eq('id', ticketId);
+        if (error) throw error;
+        showToast(`Ticket ${newStatus}!`);
+        loadAdminAppeals();
+    } catch (e) { showToast(e.message, 'error'); }
+}
+async function deleteAppeal(ticketId) {
+    if (!confirm("Are you sure you want to permanently delete this appeal ticket? This action cannot be undone.")) return;
+    
+    try {
+        const { error } = await supabaseClient.from('appeals').delete().eq('id', ticketId);
+        if (error) throw error;
+        
+        showToast("Appeal ticket deleted successfully.");
+        loadAdminAppeals(); // Refresh the list to remove the deleted row
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+}
+
+// ==========================================
+// ADMIN CERTIFICATE GENERATION ENGINE
+// ==========================================
+async function bulkDownloadCertificates(compId) {
+    showToast("Fetching data and preparing certificates...", "success");
+
+    try {
+        // 1. Fetch Certificate Template
+        const { data: certTemplates } = await supabaseClient.from('templates').select('*').eq('type', 'certificate').limit(1);
+        if (!certTemplates || certTemplates.length === 0) throw new Error("No Certificate template found. Please design one in the Poster Templates Studio first.");
+        const template = certTemplates[0];
+
+        // 2. Fetch Competition & Judgements
+        const { data: comp } = await supabaseClient.from('competitions').select('*, categories(name)').eq('id', compId).single();
+        const { data: judgements } = await supabaseClient.from('judgements').select('participant_id, awarded_mark, participants(name, unique_id, teams(name))').eq('competition_id', compId);
+
+        if (!judgements || judgements.length === 0) throw new Error("No judgements found for this competition yet.");
+
+        // 3. Group, Average, Drop Outliers
+        const pMap = {};
+        judgements.forEach(j => {
+            const pId = j.participant_id;
+            if (!pMap[pId]) pMap[pId] = { participant: j.participants, marks: [] };
+            pMap[pId].marks.push(parseFloat(j.awarded_mark));
+        });
+
+        // 4. Calculate Final Marks and slice Top 3
+        const results = Object.values(pMap).map(p => {
+            let sortedMarks = p.marks.sort((a, b) => a - b);
+            if (sortedMarks.length >= 3) {
+                sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
+            }
+            const avg = sortedMarks.reduce((a, b) => a + b, 0) / sortedMarks.length;
+            return { ...p, avgMark: avg };
+        }).sort((a, b) => b.avgMark - a.avgMark).slice(0, 3); // ONLY TOP 3 FOR MERIT CERTS
+
+        if (results.length === 0) throw new Error("Could not calculate top standings.");
+
+        // 5. Determine Grades
+        await loadPointSettings(); 
+        results.forEach((r, idx) => {
+            let percent = (r.avgMark / (comp.max_mark || 100)) * 100;
+            let gradeStr = 'N/A';
+            if (percent >= 50) {
+                if (percent >= pointsAdminSettings.thresholds.aplus) gradeStr = 'A+';
+                else if (percent >= pointsAdminSettings.thresholds.a) gradeStr = 'A';
+                else if (percent >= pointsAdminSettings.thresholds.b) gradeStr = 'B';
+                else gradeStr = 'C';
+            }
+            r.grade = gradeStr;
+            r.position = idx === 0 ? 'FIRST PLACE' : idx === 1 ? 'SECOND PLACE' : 'THIRD PLACE';
+        });
+
+        // 6. Generate PDF via Canvas
+        const { jsPDF } = window.jspdf;
+        let pdf = null;
+        let pdfConfig = null;
+
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        await new Promise((resolve, reject) => {
+            img.onload = resolve; img.onerror = reject; img.src = template.bg_base64;
+        });
+
+        // Preload custom fonts from template
+        if (template.customFonts && template.customFonts.length > 0) {
+            for (const fontData of template.customFonts) {
+                try {
+                    const customFont = new FontFace(fontData.family, `url(${fontData.url})`);
+                    const loadedFace = await customFont.load();
+                    document.fonts.add(loadedFace);
+                } catch (e) { console.error("Font load error:", e); }
+            }
+        }
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.naturalWidth || 1080; 
+        canvas.height = img.naturalHeight || 1080;
+
+        for (let i = 0; i < results.length; i++) {
+            const entry = results[i];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+
+            const mappedData = {
+                'ParticipantName': entry.participant.name.toUpperCase(),
+                'UniqueID': entry.participant.unique_id || '',
+                'TeamName': (entry.participant.teams?.name || 'INDEPENDENT').toUpperCase(),
+                'Category': (comp.categories?.name || 'GENERAL').toUpperCase(),
+                'Competition': comp.name.toUpperCase(),
+                'Position': entry.position,
+                'Grade': entry.grade,
+                'IssueDate': new Date().toLocaleDateString()
+            };
+
+            // Draw QR Code if enabled in template
+            if (template.fields['QRCode'] && template.fields['QRCode'].enabled) {
+                const f = template.fields['QRCode'];
+                const qrContainer = document.createElement('div');
+                new QRCode(qrContainer, { text: entry.participant.unique_id, width: f.w, height: f.h, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
+                await new Promise(r => setTimeout(r, 50));
+                const qrCanvas = qrContainer.querySelector('canvas');
+                if(qrCanvas) ctx.drawImage(qrCanvas, f.x, f.y, f.w, f.h);
+            }
+
+            // Draw text and static overlays
+            if(template.fields) {
+                for (const [key, fieldConfig] of Object.entries(template.fields)) {
+                    if (!fieldConfig.enabled || key === 'QRCode' || fieldConfig.isImage) {
+                        if (fieldConfig.isImage && fieldConfig.isStaticElement && fieldConfig.src && fieldConfig.enabled) {
+                            try {
+                                const staticImg = await new Promise((resolve) => {
+                                    const pImg = new Image(); pImg.crossOrigin = "Anonymous";
+                                    pImg.onload = () => resolve(pImg); pImg.onerror = () => resolve(null); pImg.src = fieldConfig.src;
+                                });
+                                if (staticImg) ctx.drawImage(staticImg, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h);
+                            } catch (err) {}
+                        }
+                        continue;
+                    }
+                    const text = mappedData[key] || ""; if (!text) continue;
+                    ctx.textAlign = fieldConfig.align || 'left'; 
+                    ctx.fillStyle = fieldConfig.color || '#000000';
+                    ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
+                    ctx.fillText(text, fieldConfig.x, fieldConfig.y);
+                }
+            }
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            
+            if (!pdfConfig) {
+                const baseWidthMm = 297; // A4 Landscape
+                const calculatedHeightMm = (canvas.height * baseWidthMm) / canvas.width;
+                pdfConfig = {
+                    width: baseWidthMm,
+                    height: calculatedHeightMm,
+                    orientation: baseWidthMm > calculatedHeightMm ? 'landscape' : 'portrait'
+                };
+                pdf = new jsPDF({ orientation: pdfConfig.orientation, unit: 'mm', format: [pdfConfig.width, pdfConfig.height] });
+            }
+            
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfConfig.width, pdfConfig.height);
+            if (i < results.length - 1) pdf.addPage();
+        }
+
+        pdf.save(`${comp.name.replace(/\s+/g, '_')}_Certificates.pdf`);
+        showToast("Certificates Downloaded Successfully!", "success");
+
+    } catch (e) {
+        console.error(e);
+        showToast(e.message, 'error');
     }
 }

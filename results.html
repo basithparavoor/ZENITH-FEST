@@ -9,6 +9,7 @@
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
@@ -700,63 +701,72 @@ let SYSTEM_SETTINGS = {
             renderLeaderboard();
         }
 
-     function processJudgements(judgements) {
-            const compGroups = {};
-            judgements.forEach(j => {
-                if (!j.participants || !j.participants.id) return; 
-                const comp = publishedCompetitions.find(c => c.id === j.competition_id);
-                if(!compGroups[j.competition_id]) {
-                    compGroups[j.competition_id] = { participants: {}, comp_data: comp, total_enrolled: 0 };
-                }
-                const pId = j.participants.id;
-                if(!compGroups[j.competition_id].participants[pId]) {
-                    compGroups[j.competition_id].participants[pId] = { participant: j.participants, total_mark: 0, judge_count: 0 };
-                    compGroups[j.competition_id].total_enrolled++;
-                }
-                compGroups[j.competition_id].participants[pId].total_mark += parseFloat(j.awarded_mark);
-                compGroups[j.competition_id].participants[pId].judge_count += 1;
-            });
-
-            for (const [compId, compData] of Object.entries(compGroups)) {
-                const limit = compData.comp_data.max_participants || 1;
-                const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
-                const eligibleForPosPts = compData.total_enrolled >= 3;
-
-                const participantsArr = Object.values(compData.participants).map(p => {
-                    p.score = p.total_mark / p.judge_count;
-                    return p;
-                }).sort((a, b) => b.score - a.score);
-
-                // Add points to team scores for ALL participants
-                participantsArr.forEach((entry, idx) => {
-                    let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
-                    let gradePts = 0; let posPts = 0;
-
-                    if (percent >= 50) {
-                        if (percent >= SYSTEM_SETTINGS.thresholds.aplus) gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].aplus;
-                        else if (percent >= SYSTEM_SETTINGS.thresholds.a) gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].a;
-                        else if (percent >= SYSTEM_SETTINGS.thresholds.b) gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].b;
-                        else gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].c;
-                        
-                        if (eligibleForPosPts && idx < 3) {
-                            if (idx === 0) posPts = SYSTEM_SETTINGS.pos_points.p1;
-                            else if (idx === 1) posPts = SYSTEM_SETTINGS.pos_points.p2;
-                            else if (idx === 2) posPts = SYSTEM_SETTINGS.pos_points.p3;
-                        }
-                    }
-
-                    const teamId = entry.participant.team_id;
-                    if (teamId && calculatedTeamScores[teamId]) { 
-                        calculatedTeamScores[teamId].score += (gradePts + posPts); 
-                    }
-                });
-
-                // ONLY save the top 3 for the individual Poster/Popup display
-                competitionResults[compId] = participantsArr.slice(0, 3);
-            }
+    function processJudgements(judgements) {
+    const compGroups = {};
+    
+    // 1. Group and collect all marks
+    judgements.forEach(j => {
+        if (!j.participants || !j.participants.id) return; 
+        const comp = publishedCompetitions.find(c => c.id === j.competition_id);
+        if(!compGroups[j.competition_id]) {
+            compGroups[j.competition_id] = { participants: {}, comp_data: comp, total_enrolled: 0 };
         }
+        const pId = j.participants.id;
+        if(!compGroups[j.competition_id].participants[pId]) {
+            compGroups[j.competition_id].participants[pId] = { participant: j.participants, marks_array: [] };
+            compGroups[j.competition_id].total_enrolled++;
+        }
+        compGroups[j.competition_id].participants[pId].marks_array.push(parseFloat(j.awarded_mark));
+    });
 
-        function renderLeaderboard() {
+    for (const [compId, compData] of Object.entries(compGroups)) {
+        const limit = compData.comp_data.max_participants || 1;
+        const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
+        const eligibleForPosPts = compData.total_enrolled >= 3;
+
+        const participantsArr = Object.values(compData.participants).map(p => {
+            // OUTLIER DROPPING & AVERAGING
+            let sortedMarks = p.marks_array.sort((a, b) => a - b);
+            if (sortedMarks.length >= 3) {
+                sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
+            }
+            const sum = sortedMarks.reduce((a, b) => a + b, 0);
+            p.score = sum / sortedMarks.length;
+            return p;
+        }).sort((a, b) => b.score - a.score);
+
+        // Add points to team scores
+        participantsArr.forEach((entry, idx) => {
+            let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
+            let gradePts = 0; let posPts = 0;
+            let gradeStr = 'N/A'; 
+
+            if (percent >= 50) {
+                if (percent >= SYSTEM_SETTINGS.thresholds.aplus) { gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].aplus; gradeStr = 'A+'; }
+                else if (percent >= SYSTEM_SETTINGS.thresholds.a) { gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].a; gradeStr = 'A'; }
+                else if (percent >= SYSTEM_SETTINGS.thresholds.b) { gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].b; gradeStr = 'B'; }
+                else { gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].c; gradeStr = 'C'; }
+                
+                if (eligibleForPosPts && idx < 3) {
+                    if (idx === 0) posPts = SYSTEM_SETTINGS.pos_points.p1;
+                    else if (idx === 1) posPts = SYSTEM_SETTINGS.pos_points.p2;
+                    else if (idx === 2) posPts = SYSTEM_SETTINGS.pos_points.p3;
+                }
+            }
+            
+            entry.grade = gradeStr; // Attach to object for certificates
+
+            const teamId = entry.participant.team_id;
+            if (teamId && calculatedTeamScores[teamId]) { 
+                calculatedTeamScores[teamId].score += (gradePts + posPts); 
+            }
+        });
+
+        // ONLY save the top 3 for the individual Poster/Popup display
+        competitionResults[compId] = participantsArr.slice(0, 3);
+    }
+}
+function renderLeaderboard() {
             const container = document.getElementById('leaderboard-container');
             container.innerHTML = '';
             const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score);

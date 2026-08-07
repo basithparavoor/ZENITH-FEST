@@ -31,6 +31,37 @@ function toggleSidebar() {
     document.querySelector('.mobile-overlay').classList.toggle('open');
 }
 
+// Modal & Loading Utils
+function openModal(title, bodyHTML, saveFunction) {
+    document.getElementById('modalTitle').innerText = title;
+    document.getElementById('modalBody').innerHTML = bodyHTML;
+
+    const saveBtn = document.getElementById('modalSaveBtn');
+    saveBtn.onclick = saveFunction;
+    saveBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Ticket';
+    saveBtn.disabled = false;
+
+    document.getElementById('formModal').classList.add('show');
+}
+
+function closeModal() {
+    const modal = document.getElementById('formModal');
+    if(modal) modal.classList.remove('show');
+}
+
+function setLoading(btnId, isLoading) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    if (isLoading) {
+        btn.dataset.originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+        btn.disabled = true;
+    } else {
+        btn.innerHTML = btn.dataset.originalText || 'Submit';
+        btn.disabled = false;
+    }
+}
+
 function switchTab(tabId) {
     document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
@@ -42,6 +73,11 @@ function switchTab(tabId) {
     if(window.innerWidth <= 768) {
         document.getElementById('sidebar').classList.remove('open');
         document.querySelector('.mobile-overlay').classList.remove('open');
+    }
+
+    // NEW: Trigger data fetch when the tab is clicked
+    if (tabId === 'appeals') {
+        loadAppeals();
     }
 }
 
@@ -79,8 +115,34 @@ async function initDashboard() {
     }
 }
 
+// Data Fetching
+async function refreshDashboard(btnElement) {
+    if (btnElement) {
+        const icon = btnElement.querySelector('i');
+        if (icon) icon.classList.add('fa-spin'); // Add spinning animation to the icon
+    }
+    
+    try {
+        await fetchAllData();
+        showToast('Dashboard Data Synced!', 'success');
+    } catch (e) {
+        console.error(e);
+        showToast('Failed to sync data.', 'error');
+    } finally {
+        if (btnElement) {
+            const icon = btnElement.querySelector('i');
+            if (icon) icon.classList.remove('fa-spin'); // Remove spinning animation
+        }
+    }
+}
+
 async function fetchAllData() {
     try {
+        // 1. Fetch system settings to check for Registration Deadlines
+        const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
+        let systemSettings = set_data && set_data.value ? set_data.value : {};
+
+        // 2. Fetch Core Data
         const { data: cats } = await supabaseClient.from('categories').select('*');
         globalCategories = cats || [];
 
@@ -100,7 +162,7 @@ async function fetchAllData() {
             globalAssignments = assigns || [];
         }
 
-        // Populate the new catalog category filter
+        // 3. Populate the new catalog category filter
         const catSet = new Set(globalComps.map(c => c.categories?.name || 'GENERAL'));
         const catSelect = document.getElementById('filter-catalog-cat');
         if (catSelect) {
@@ -108,6 +170,31 @@ async function fetchAllData() {
             catSet.forEach(cat => catSelect.innerHTML += `<option value="${cat}">${cat}</option>`);
         }
 
+        // 4. CHECK REGISTRATION DEADLINE (AUTO-LOCKING)
+        if (systemSettings.lock_date) {
+            const deadline = new Date(systemSettings.lock_date);
+            const now = new Date();
+            if (now > deadline) {
+                isAssignmentLocked = true;
+                
+                const workspace = document.getElementById('catalog-assign-workspace');
+                if (workspace) {
+                    workspace.style.opacity = '0.5';
+                    workspace.style.pointerEvents = 'none';
+                    
+                    // Prevent duplicate alerts if re-fetched
+                    if (!document.getElementById('lock-alert')) {
+                        workspace.insertAdjacentHTML('afterbegin', 
+                            `<div id="lock-alert" style="background: var(--danger); color: white; padding: 1rem; border-radius: 8px; font-weight: 800; text-align: center; margin-bottom: 1rem; box-shadow: var(--shadow-sm);">
+                                <i class="fa-solid fa-lock"></i> REGISTRATION DEADLINE HAS PASSED. ENROLLMENTS ARE LOCKED.
+                            </div>`
+                        );
+                    }
+                }
+            }
+        }
+
+        // 5. Render UI
         updateDashboardStats();
         renderStudents();
         renderCatalog();
@@ -118,7 +205,6 @@ async function fetchAllData() {
         console.error(e);
     }
 }
-
 function updateDashboardStats() {
     document.getElementById('stat-total-students').innerText = globalStudents.length;
     // Calculate unique events
@@ -686,12 +772,127 @@ function applyGlobalBranding(brandingData) {
     if (reportHeader && !reportHeader.classList.contains('brand')) {
         let html = '';
         if (validLogo) html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
-        if (validName) html += `<span>${brandingData.fest_name} Reports Engine</span>`;
+        if (validName) html += `<span>${brandingData.fest_name} Team Portal</span>`;
         
         // If neither exists, clear the header entirely
         reportHeader.innerHTML = html;
     }
 }
+
+// ==========================================
+// APPEALS & GRIEVANCE TICKETS
+// ==========================================
+
+async function loadAppeals() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('appeals')
+            .select('*, competitions(name), participants(name, unique_id)')
+            .eq('team_id', myTeamId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        const container = document.getElementById('appeals-container');
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-muted); background: white; border-radius: 12px; border: 1px dashed var(--border);">No active appeals.</div>';
+            return;
+        }
+
+        container.innerHTML = data.map(ticket => {
+            let statusColor = ticket.status === 'pending' ? 'var(--warning)' : (ticket.status === 'approved' ? 'var(--success)' : 'var(--danger)');
+            
+            return `
+            <div style="background: white; border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; box-shadow: var(--shadow-sm);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                    <div>
+                        <span style="background: var(--bg-main); padding: 0.25rem 0.75rem; border-radius: 50px; font-size: 0.7rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: inline-block;">${ticket.issue_type.toUpperCase()}</span>
+                        <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.25rem;">${ticket.competitions?.name || 'General Issue'}</h3>
+                        <p style="font-family: monospace; font-size: 0.85rem; color: var(--primary); font-weight: 600;">${ticket.participants?.name || 'N/A'} (${ticket.participants?.unique_id || 'N/A'})</p>
+                    </div>
+                    <span style="padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 800; border: 1px solid ${statusColor}; color: ${statusColor};">${ticket.status.toUpperCase()}</span>
+                </div>
+                <div style="background: #F8FAFC; padding: 1rem; border-radius: 8px; font-size: 0.9rem; color: var(--text-muted); border-left: 3px solid var(--border);">
+                    "${ticket.description}"
+                </div>
+            </div>`;
+        }).join('');
+
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
+function openAppealModal() {
+    const compOpts = globalComps.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    const partOpts = globalStudents.map(p => `<option value="${p.id}">${p.name} (${p.unique_id})</option>`).join('');
+
+    const premiumHtml = `
+        <div style="background: var(--primary-light); padding: 1.25rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: flex-start; border: 1px solid rgba(79, 70, 229, 0.2);">
+            <i class="fa-solid fa-circle-info" style="color: var(--primary); font-size: 1.25rem; margin-top: 0.1rem;"></i>
+            <div style="font-size: 0.85rem; color: var(--primary); font-weight: 600; line-height: 1.5; text-transform: none;">
+                Use this form to report scoring disputes, name corrections, or technical issues. Your ticket will be logged securely and sent directly to the Master Admin for review.
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem;">
+            <div class="form-group" style="grid-column: 1 / -1; margin: 0;">
+                <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block; letter-spacing: 0.05em;"><i class="fa-solid fa-tag" style="margin-right: 0.25rem;"></i> ISSUE TYPE</label>
+                <select id="appealType" style="width: 100%; padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid var(--border); font-weight: 700; outline: none; background: #F8FAFC; color: var(--text-main);">
+                    <option value="score_dispute">🏆 Score / Result Dispute</option>
+                    <option value="name_correction">✍️ Name / ID Correction</option>
+                    <option value="other">⚙️ Other Technical Issue</option>
+                </select>
+            </div>
+            
+            <div class="form-group" style="margin: 0;">
+                <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block; letter-spacing: 0.05em;"><i class="fa-solid fa-microphone-stage" style="margin-right: 0.25rem;"></i> RELATED EVENT (OPTIONAL)</label>
+                <select id="appealComp" style="width: 100%; padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid var(--border); outline: none; background: #F8FAFC; font-weight: 600; color: var(--text-main);">
+                    <option value="">-- NOT APPLICABLE --</option>
+                    ${compOpts}
+                </select>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+                <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block; letter-spacing: 0.05em;"><i class="fa-solid fa-user" style="margin-right: 0.25rem;"></i> PARTICIPANT (OPTIONAL)</label>
+                <select id="appealPart" style="width: 100%; padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid var(--border); outline: none; background: #F8FAFC; font-weight: 600; color: var(--text-main);">
+                    <option value="">-- NOT APPLICABLE --</option>
+                    ${partOpts}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block; letter-spacing: 0.05em;"><i class="fa-solid fa-align-left" style="margin-right: 0.25rem;"></i> DETAILED DESCRIPTION</label>
+            <textarea id="appealDesc" rows="4" placeholder="Please explain the issue clearly..." style="width: 100%; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); resize: vertical; font-weight: 500; outline: none; background: #F8FAFC; text-transform: none; color: var(--text-main); font-family: 'Inter', sans-serif;"></textarea>
+        </div>
+    `;
+
+    openModal('Raise Grievance Ticket', premiumHtml, async () => {
+        const payload = {
+            team_id: myTeamId,
+            issue_type: document.getElementById('appealType').value,
+            competition_id: document.getElementById('appealComp').value || null,
+            participant_id: document.getElementById('appealPart').value || null,
+            description: document.getElementById('appealDesc').value.trim()
+        };
+
+        if (!payload.description) return showToast("Description is required.", "error");
+
+        setLoading('modalSaveBtn', true);
+        try {
+            const { error } = await supabaseClient.from('appeals').insert([payload]);
+            if (error) throw error;
+            showToast("Ticket submitted to Master Admin.", "success");
+            closeModal();
+            loadAppeals();
+        } catch (e) { 
+            showToast(e.message, 'error'); 
+        } finally { 
+            setLoading('modalSaveBtn', false); 
+        }
+    });
+}
+
+// Add loadAppeals() to your switchTab logic!
 
 // Boot
 document.addEventListener('DOMContentLoaded', initDashboard);

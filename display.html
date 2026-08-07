@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FestOS | Spectator Display</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg-dark: #0f172a;
+            --surface: rgba(30, 41, 59, 0.7);
+            --gold: #F59E0B; --silver: #94A3B8; --bronze: #D97706;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; text-transform: uppercase; font-family: 'Plus Jakarta Sans', sans-serif; }
+        
+        body { 
+            background: var(--bg-dark); color: white; 
+            overflow: hidden; height: 100vh; display: flex; flex-direction: column;
+        }
+
+        /* Ambient Background */
+        .ambient-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+        .orb { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.6; animation: float 25s infinite alternate ease-in-out; }
+        .orb-1 { background: rgba(79, 70, 229, 0.4); width: 60vw; height: 60vw; top: -20%; left: -10%; }
+        .orb-2 { background: rgba(236, 72, 153, 0.3); width: 50vw; height: 50vw; bottom: -10%; right: -10%; animation-delay: -5s; }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(-5%, 10%) scale(1.1); }
+        }
+
+        .header {
+            padding: 2rem 4rem; display: flex; justify-content: space-between; align-items: center;
+            background: linear-gradient(to bottom, rgba(15,23,42,0.9), transparent);
+            border-bottom: 1px solid rgba(255,255,255,0.05); z-index: 10;
+        }
+        .header h1 { font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; }
+        .header .live-badge { background: rgba(225, 29, 72, 0.2); color: #FDA4AF; padding: 0.5rem 1.5rem; border-radius: 50px; border: 1px solid rgba(225, 29, 72, 0.4); font-size: 1.2rem; font-weight: 800; animation: pulse 2s infinite; }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        .slide-container {
+            flex: 1; position: relative; padding: 3rem 4rem;
+        }
+        .slide {
+            position: absolute; inset: 0; padding: 3rem 4rem;
+            opacity: 0; transition: opacity 1s ease-in-out; display: flex; flex-direction: column;
+            pointer-events: none;
+        }
+        .slide.active { opacity: 1; pointer-events: all; }
+
+        .slide-title { font-size: 3rem; color: var(--primary); margin-bottom: 2rem; text-shadow: 0 4px 20px rgba(79,70,229,0.4); }
+
+        /* Standings Board */
+        .leaderboard { display: flex; flex-direction: column; gap: 1.5rem; }
+        .lb-row { 
+            background: var(--surface); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(20px);
+            padding: 1.5rem 3rem; border-radius: 20px; display: flex; align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .lb-row.gold { border-left: 8px solid var(--gold); background: linear-gradient(90deg, rgba(245,158,11,0.1), var(--surface)); transform: scale(1.02); }
+        .lb-row.silver { border-left: 8px solid var(--silver); background: linear-gradient(90deg, rgba(148,163,184,0.1), var(--surface)); }
+        .lb-row.bronze { border-left: 8px solid var(--bronze); background: linear-gradient(90deg, rgba(217,119,6,0.1), var(--surface)); }
+        
+        .lb-rank { font-size: 2.5rem; font-weight: 800; width: 80px; color: rgba(255,255,255,0.5); }
+        .lb-team { flex: 1; font-size: 2.5rem; font-weight: 800; letter-spacing: 1px; }
+        .lb-score { font-size: 3.5rem; font-weight: 800; color: white; }
+
+        /* Winner Cards */
+        .winner-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        .winner-card {
+            background: var(--surface); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(20px);
+            padding: 2.5rem; border-radius: 24px; text-align: center;
+        }
+        .w-comp { font-size: 1.5rem; color: var(--primary); margin-bottom: 1rem; }
+        .w-name { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .w-team { font-size: 1.2rem; color: var(--silver); letter-spacing: 2px; }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-bg"><div class="orb orb-1"></div><div class="orb orb-2"></div></div>
+
+    <div class="header">
+        <h1 id="fest-title">FestOS Live</h1>
+        <div class="live-badge">● LIVE BROADCAST</div>
+    </div>
+
+    <div class="slide-container">
+        <!-- Slide 1: Standings -->
+        <div id="slide-standings" class="slide active">
+            <h2 class="slide-title">OVERALL CHAMPIONSHIP STANDINGS</h2>
+            <div class="leaderboard" id="standings-board">
+                <h3 style="color:white; text-align:center; padding: 4rem;">SYNCING LIVE SCORES...</h3>
+            </div>
+        </div>
+
+        <!-- Slide 2: Recent Winners -->
+        <div id="slide-winners" class="slide">
+            <h2 class="slide-title">RECENT GOLD MEDALISTS</h2>
+            <div class="winner-grid" id="winners-board"></div>
+        </div>
+    </div>
+
+    <script>
+        // Use your existing Supabase credentials here
+        const SUPABASE_URL = 'YOUR_URL';
+        const SUPABASE_KEY = 'YOUR_KEY';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let currentSlide = 0;
+        const slides = ['slide-standings', 'slide-winners'];
+
+        async function fetchDisplayData() {
+            // Include your standard point mapping and fetching logic here to aggregate team scores
+            // and fetch the latest published events. 
+            // For a complete drop-in, you can copy the `processJudgements` function from results.html.
+            
+            // Example population logic:
+            document.getElementById('standings-board').innerHTML = `
+                <div class="lb-row gold"><div class="lb-rank">1</div><div class="lb-team">TEAM FALCONS</div><div class="lb-score">450</div></div>
+                <div class="lb-row silver"><div class="lb-rank">2</div><div class="lb-team">TEAM EAGLES</div><div class="lb-score">320</div></div>
+                <div class="lb-row bronze"><div class="lb-rank">3</div><div class="lb-team">TEAM HAWKS</div><div class="lb-score">210</div></div>
+            `;
+            
+            document.getElementById('winners-board').innerHTML = `
+                <div class="winner-card"><div class="w-comp">DANCE OFF (GENERAL)</div><div class="w-name">JOHN DOE</div><div class="w-team">FALCONS</div></div>
+                <div class="winner-card"><div class="w-comp">SINGING SOLO</div><div class="w-name">JANE SMITH</div><div class="w-team">EAGLES</div></div>
+            `;
+        }
+
+        function rotateSlides() {
+            document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+            document.getElementById(slides[currentSlide]).classList.add('active');
+            
+            currentSlide++;
+            if (currentSlide >= slides.length) {
+                currentSlide = 0;
+                fetchDisplayData(); // Refetch data before looping back to the start
+            }
+        }
+
+        // Initialize
+        fetchDisplayData();
+        setInterval(rotateSlides, 10000); // Change slide every 10 seconds
+    </script>
+</body>
+</html>

@@ -154,7 +154,7 @@
         <div class="nav-item" onclick="switchTab('event-catalog')"><i class="fa-solid fa-book-open"></i> CATALOG</div>
         <div class="nav-item" onclick="switchTab('competitions')"><i class="fa-solid fa-satellite-dish"></i> TRACKING</div>
         <div class="nav-item" onclick="switchTab('assignments')"><i class="fa-solid fa-clipboard-check"></i> ASSIGN</div>
-        
+        <button class="nav-item" onclick="switchTab('appeals')"><i class="fa-solid fa-scale-balanced"></i> Grievances & Appeals</button>
         <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
             <div class="nav-item" onclick="openScanModal()"><i class="fa-solid fa-qrcode"></i> SCAN PORTAL</div>
         </div>
@@ -169,7 +169,14 @@
                     <p style="color: var(--text-muted); font-size: 0.85rem; display: none;" id="desktop-subtitle">TEAM MANAGER DASHBOARD</p>
                 </div>
             </div>
-            <button class="btn btn-outline" style="padding: 0.5rem 1rem;" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i></button>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button class="btn btn-outline" style="padding: 0.5rem 1rem; color: var(--primary); border-color: var(--border);" onclick="refreshDashboard(this)" title="Sync Latest Data">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+                <button class="btn btn-outline" style="padding: 0.5rem 1rem; color: var(--danger); border-color: var(--border);" onclick="logout()" title="Sign Out">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
         </div>
 
         <div id="dashboard" class="content-section active">
@@ -247,6 +254,21 @@
             </div>
         </div>
 
+        <!-- APPEALS SECTION -->
+        <div id="appeals" class="content-section">
+            <div class="action-bar" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 700;">Grievances & Appeals</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Raise disputes for spelling errors or scoring issues.</p>
+                </div>
+                <button class="btn btn-primary" onclick="openAppealModal()"><i class="fa-solid fa-plus"></i> Raise New Ticket</button>
+            </div>
+            
+            <div id="appeals-container" style="display: flex; flex-direction: column; gap: 1rem;">
+                <!-- Tickets render here -->
+            </div>
+        </div>
+
         <div id="competitions" class="content-section">
             <h2 style="margin-bottom: 0.5rem;">LIVE TRACKING</h2>
             <p style="color: var(--text-muted); margin-bottom: 1.5rem;">TRACK THE REAL-TIME STATUS OF EVENTS YOUR STUDENTS ARE IN.</p>
@@ -295,6 +317,7 @@
     <button class="btn btn-success" id="btn-bulk-enroll" style="flex: 1;" onclick="executeBulkAction('enroll')"><i class="fa-solid fa-check"></i> ENROLL</button>
     <button class="btn btn-danger" id="btn-bulk-remove" style="flex: 1;" onclick="executeBulkAction('remove')"><i class="fa-solid fa-xmark"></i> REMOVE</button>
 </div>
+
             </div>
 
             <div class="table-container" id="bulk-table-wrapper" style="display: none;">
@@ -355,6 +378,21 @@
         </div>
     </div>
 
+<!-- Generic Form Modal (For Appeals & Tickets) -->
+    <div id="formModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle">Modal Title</h2>
+                <button class="btn btn-outline" style="border: none; padding: 0.5rem;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="modalBody" style="display: flex; flex-direction: column; gap: 1rem;"></div>
+            <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" id="modalSaveBtn">Submit</button>
+            </div>
+        </div>
+    </div>
+    
     <div id="toast-container"></div>
     <script src="team-manager.js"></script>
 </body>
