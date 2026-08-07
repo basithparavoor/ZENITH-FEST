@@ -14,6 +14,7 @@ let isAssignmentLocked = false;
 let globalStudents = [];
 let globalComps = [];
 let globalAssignments = [];
+let globalCategories = []; // <--- NEW: Stores category rules
 
 // UI Utils
 function showToast(message, type = 'success') {
@@ -80,11 +81,15 @@ async function initDashboard() {
 
 async function fetchAllData() {
     try {
+        // NEW: Fetch categories to know which ones allow general crossover
+        const { data: cats } = await supabaseClient.from('categories').select('*');
+        globalCategories = cats || [];
+
         const { data: students } = await supabaseClient.from('participants').select('*').eq('team_id', myTeamId).order('name');
         globalStudents = students || [];
 
-        // Fetches ALL columns, perfectly getting 'limit', 'is_group', etc.
-        const { data: comps } = await supabaseClient.from('competitions').select('*, categories(name), stages(name)').order('name');
+        // Fetches ALL columns, including 'is_general' from the category relation
+        const { data: comps } = await supabaseClient.from('competitions').select('*, categories(id, name, is_general), stages(name)').order('name');
         globalComps = comps || [];
 
         const studentIds = globalStudents.map(s => s.id);
@@ -305,7 +310,24 @@ function renderBulkAssignmentTable() {
     // Toggle Leader Column Visibility
     leaderTh.style.display = comp.is_group ? 'table-cell' : 'none';
 
+    // --- NEW: Calculate Allowed Categories for General Events ---
+    const compCategoryId = comp.category_id;
+    const isGeneral = comp.categories?.is_general === true;
+    let allowedCatIds = [compCategoryId];
+    
+    if (isGeneral && globalCategories.length > 0) {
+        globalCategories.forEach(c => {
+            if (c.allowed_general_categories && c.allowed_general_categories.includes(compCategoryId)) {
+                allowedCatIds.push(c.id);
+            }
+        });
+    }
+
     globalStudents.forEach(student => {
+        // FILTER: Only show student if they belong to the specific category, OR an allowed standard category
+        if (!isGeneral && student.category_id !== compCategoryId) return;
+        if (isGeneral && !allowedCatIds.includes(student.category_id)) return;
+
         const assignment = globalAssignments.find(a => a.participant_id === student.id && a.competition_id === compId);
         const isEnrolled = !!assignment;
         
@@ -416,6 +438,9 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchAndApplyBranding();
 });
 
+// ==========================================
+// UNIFIED GLOBAL BRANDING ENGINE
+// ==========================================
 async function fetchAndApplyBranding() {
     try {
         const { data, error } = await supabaseClient
@@ -432,17 +457,48 @@ async function fetchAndApplyBranding() {
 }
 
 function applyGlobalBranding(brandingData) {
+    const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
+    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+    
+    // 1. Update Document Title dynamically
+    const festName = validName ? brandingData.fest_name : 'FestOS';
+    const titleParts = document.title.split('|');
+    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
+    document.title = `${festName} | ${pageContext}`;
+
+    // 2. Update all standard brand containers
     const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
     brandContainers.forEach(container => {
-        let html = brandingData.fest_logo 
-            ? `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">` 
-            : `<i class="fa-solid fa-bolt" style="margin-right: 8px;"></i>`;
+        let html = '';
         
-        html += `<span>${brandingData.fest_name || 'FestOS'}</span>`;
+        // STRICT RULE: No fallbacks. Only show what is provided in the admin panel.
+        if (validLogo) {
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
+        }
+        if (validName) {
+            html += `<span>${brandingData.fest_name}</span>`;
+        }
+        
         container.innerHTML = html;
         container.style.display = 'flex';
         container.style.alignItems = 'center';
+        
+        // Keep centered on login and scan screens
+        if (window.location.pathname.includes('login') || window.location.pathname.includes('scan')) {
+            container.style.justifyContent = 'center';
+        }
     });
+
+    // 3. Special handler for the new program_report.html
+    const reportHeader = document.querySelector('.header h1');
+    if (reportHeader && !reportHeader.classList.contains('brand')) {
+        let html = '';
+        if (validLogo) html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
+        if (validName) html += `<span>${brandingData.fest_name} Reports Engine</span>`;
+        
+        // If neither exists, clear the header entirely
+        reportHeader.innerHTML = html;
+    }
 }
 
 // Boot

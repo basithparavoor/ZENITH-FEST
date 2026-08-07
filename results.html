@@ -572,8 +572,16 @@
             auth: { persistSession: false }
         });
 
-        let SYSTEM_SETTINGS = { ratio_standard: 10, ratio_general: 20, poster_interval: 10 };
-        let publishedCompetitions = []; let allTeams = []; let calculatedTeamScores = {}; 
+let SYSTEM_SETTINGS = {
+            thresholds: { aplus: 90, a: 70, b: 60, c: 50 },
+            points_solo: { aplus: 8, a: 7, b: 5, c: 3 },
+            points_small: { aplus: 12, a: 10, b: 7, c: 5 },
+            points_large: { aplus: 15, a: 12, b: 10, c: 7 },
+            pos_points: { p1: 3, p2: 2, p3: 1 },
+            poster_interval: 10,
+            tm_access: true
+        };
+                let publishedCompetitions = []; let allTeams = []; let calculatedTeamScores = {}; 
         let competitionResults = {}; let cachedTemplates = []; let activeCompId = null;
         let activeTemplateIndex = 0; let globalJudgements = []; let currentTeamPosterDataUrl = null;
         let currentTeamPosterFilename = "";
@@ -692,60 +700,59 @@
             renderLeaderboard();
         }
 
-        function processJudgements(judgements) {
+     function processJudgements(judgements) {
             const compGroups = {};
             judgements.forEach(j => {
                 if (!j.participants || !j.participants.id) return; 
                 const comp = publishedCompetitions.find(c => c.id === j.competition_id);
                 if(!compGroups[j.competition_id]) {
-                    compGroups[j.competition_id] = {
-                        participants: {}, is_general: comp?.categories?.is_general || false,
-                        is_group: comp?.is_group || false, max_mark: comp?.max_mark || 100, comp_data: comp
-                    };
+                    compGroups[j.competition_id] = { participants: {}, comp_data: comp, total_enrolled: 0 };
                 }
                 const pId = j.participants.id;
                 if(!compGroups[j.competition_id].participants[pId]) {
                     compGroups[j.competition_id].participants[pId] = { participant: j.participants, total_mark: 0, judge_count: 0 };
+                    compGroups[j.competition_id].total_enrolled++;
                 }
                 compGroups[j.competition_id].participants[pId].total_mark += parseFloat(j.awarded_mark);
                 compGroups[j.competition_id].participants[pId].judge_count += 1;
             });
 
             for (const [compId, compData] of Object.entries(compGroups)) {
-                const baseRatio = compData.is_general ? SYSTEM_SETTINGS.ratio_general : SYSTEM_SETTINGS.ratio_standard;
-                if (compData.is_group) {
-                    const teamAverages = {};
-                    Object.values(compData.participants).forEach(p => {
-                        const tId = p.participant.team_id;
-                        if (!tId) return; 
-                        if (!teamAverages[tId]) teamAverages[tId] = { total: 0, count: 0, team_id: tId, participant: p.participant };
-                        teamAverages[tId].total += (p.total_mark / p.judge_count);
-                        teamAverages[tId].count += 1;
-                    });
-                    const teamScores = Object.values(teamAverages).map(t => {
-                        const teamAvgMark = t.total / t.count;
-                        t.normalized_points = parseFloat(((teamAvgMark / compData.max_mark) * baseRatio).toFixed(2));
-                        t.participant.name = `${allTeams.find(tm => tm.id === t.team_id)?.name || 'Team'} (Group)`;
-                        return t;
-                    });
-                    const sorted = teamScores.sort((a, b) => b.normalized_points - a.normalized_points);
-                    const top3 = sorted.slice(0, 3);
-                    competitionResults[compId] = top3; 
-                    top3.forEach((entry) => { if (entry.team_id && calculatedTeamScores[entry.team_id]) { calculatedTeamScores[entry.team_id].score += entry.normalized_points; } });
-                } else {
-                    const participantsArr = Object.values(compData.participants).map(p => {
-                        const averageMark = p.total_mark / p.judge_count;
-                        p.normalized_points = parseFloat(((averageMark / compData.max_mark) * baseRatio).toFixed(2));
-                        return p;
-                    });
-                    const sorted = participantsArr.sort((a, b) => b.normalized_points - a.normalized_points);
-                    const top3 = sorted.slice(0, 3);
-                    competitionResults[compId] = top3;
-                    top3.forEach((entry) => {
-                        const teamId = entry.participant.team_id;
-                        if (teamId && calculatedTeamScores[teamId]) { calculatedTeamScores[teamId].score += entry.normalized_points; }
-                    });
-                }
+                const limit = compData.comp_data.max_participants || 1;
+                const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
+                const eligibleForPosPts = compData.total_enrolled >= 3;
+
+                const participantsArr = Object.values(compData.participants).map(p => {
+                    p.score = p.total_mark / p.judge_count;
+                    return p;
+                }).sort((a, b) => b.score - a.score);
+
+                // Add points to team scores for ALL participants
+                participantsArr.forEach((entry, idx) => {
+                    let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
+                    let gradePts = 0; let posPts = 0;
+
+                    if (percent >= 50) {
+                        if (percent >= SYSTEM_SETTINGS.thresholds.aplus) gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].aplus;
+                        else if (percent >= SYSTEM_SETTINGS.thresholds.a) gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].a;
+                        else if (percent >= SYSTEM_SETTINGS.thresholds.b) gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].b;
+                        else gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].c;
+                        
+                        if (eligibleForPosPts && idx < 3) {
+                            if (idx === 0) posPts = SYSTEM_SETTINGS.pos_points.p1;
+                            else if (idx === 1) posPts = SYSTEM_SETTINGS.pos_points.p2;
+                            else if (idx === 2) posPts = SYSTEM_SETTINGS.pos_points.p3;
+                        }
+                    }
+
+                    const teamId = entry.participant.team_id;
+                    if (teamId && calculatedTeamScores[teamId]) { 
+                        calculatedTeamScores[teamId].score += (gradePts + posPts); 
+                    }
+                });
+
+                // ONLY save the top 3 for the individual Poster/Popup display
+                competitionResults[compId] = participantsArr.slice(0, 3);
             }
         }
 
@@ -1036,7 +1043,7 @@
             img.src = template.bg_base64;
         }
 
-        function downloadCurrentPoster() {
+       function downloadCurrentPoster() {
             const canvas = document.getElementById('poster-canvas');
             const comp = publishedCompetitions.find(c => c.id === activeCompId);
             const safeName = comp ? comp.name.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'event';
@@ -1045,35 +1052,61 @@
             link.href = canvas.toDataURL("image/jpeg", 1.0); link.click();
         }
 
-        document.addEventListener("DOMContentLoaded", () => { fetchAndApplyBranding(); });
-
+        // ==========================================
+        // UNIFIED GLOBAL BRANDING ENGINE
+        // ==========================================
         async function fetchAndApplyBranding() {
             try {
-                const { data, error } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
-                if (error) throw error; if (data && data.value) applyGlobalBranding(data.value);
-            } catch (e) { console.warn("Could not fetch global branding:", e.message); }
+                const { data, error } = await supabaseClient
+                    .from('settings')
+                    .select('value')
+                    .eq('id', 'system_branding')
+                    .maybeSingle();
+
+                if (error) throw error;
+                if (data && data.value) applyGlobalBranding(data.value);
+            } catch (e) {
+                console.warn("Could not fetch global branding:", e.message);
+            }
         }
 
         function applyGlobalBranding(brandingData) {
+            const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
+            const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+            
+            // 1. Update Document Title dynamically
+            const festName = validName ? brandingData.fest_name : 'FestOS';
+            const titleParts = document.title.split('|');
+            const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
+            document.title = `${festName} | ${pageContext}`;
+
+            // 2. Update all standard brand containers
             const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
             brandContainers.forEach(container => {
-                let html = brandingData.fest_logo 
-                    ? `<img src="${brandingData.fest_logo}" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">` 
-                    : `<i class="fa-solid fa-bolt" style="margin-right: 8px; color: var(--primary);"></i>`;
+                let html = '';
                 
-                // UPGRADED: Only add the name span if a name actually exists and isn't empty
-                if (brandingData.fest_name && brandingData.fest_name.trim() !== '') {
+                // STRICT RULE: No fallbacks. Only show what is provided in the admin panel.
+                if (validLogo) {
+                    html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
+                }
+                if (validName) {
                     html += `<span>${brandingData.fest_name}</span>`;
                 }
-
-                container.innerHTML = html; 
-                container.style.display = 'flex'; 
-                container.style.alignItems = 'center'; 
-                container.style.justifyContent = 'center';
+                
+                container.innerHTML = html;
+                container.style.display = 'flex';
+                container.style.alignItems = 'center';
+                
+                // Keep centered on login and scan screens
+                if (window.location.pathname.includes('login') || window.location.pathname.includes('scan')) {
+                    container.style.justifyContent = 'center';
+                }
             });
         }
 
+        // --- Font Loader & Init ---
         const loadedFontFamilies = new Set();
+        
         async function ensureFontsLoaded(template) {
             if (!template.customFonts || template.customFonts.length === 0) return;
             const loadPromises = template.customFonts.map(async (fontData) => {
@@ -1088,6 +1121,11 @@
             await Promise.all(loadPromises);
         }
 
+        // Boot up
+        document.addEventListener("DOMContentLoaded", () => { 
+            fetchAndApplyBranding(); 
+        });
+        
         init();
     </script>
 </body>

@@ -332,6 +332,15 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchAndApplyBranding();
 });
 
+// ==========================================
+// UNIFIED GLOBAL BRANDING ENGINE
+// ==========================================
+
+document.addEventListener("DOMContentLoaded", () => {
+    // Other init functions...
+    fetchAndApplyBranding();
+});
+
 async function fetchAndApplyBranding() {
     try {
         const { data, error } = await supabaseClient
@@ -348,13 +357,28 @@ async function fetchAndApplyBranding() {
 }
 
 function applyGlobalBranding(brandingData) {
+    const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
+    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+    
+    // 1. Update Document Title dynamically
+    const festName = validName ? brandingData.fest_name : 'FestOS';
+    const titleParts = document.title.split('|');
+    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Judge Portal';
+    document.title = `${festName} | ${pageContext}`;
+
+    // 2. Update all standard brand containers
     const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
     brandContainers.forEach(container => {
-        let html = brandingData.fest_logo 
-            ? `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">` 
-            : `<i class="fa-solid fa-bolt" style="margin-right: 8px;"></i>`;
+        let html = '';
         
-        html += `<span>${brandingData.fest_name || 'FestOS'}</span>`;
+        // STRICT RULE: No fallbacks. Only show what is provided in the admin panel.
+        if (validLogo) {
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
+        }
+        if (validName) {
+            html += `<span>${brandingData.fest_name}</span>`;
+        }
+        
         container.innerHTML = html;
         container.style.display = 'flex';
         container.style.alignItems = 'center';

@@ -366,7 +366,9 @@
             });
         }
 
-        // --- GLOBAL BRANDING ENGINE ---
+        // ==========================================
+        // UNIFIED GLOBAL BRANDING ENGINE
+        // ==========================================
         async function fetchAndApplyBranding() {
             try {
                 const { data, error } = await supabaseClient
@@ -383,16 +385,48 @@
         }
 
         function applyGlobalBranding(brandingData) {
-            const headerTitle = document.querySelector('.header h1');
-            if (headerTitle) {
-                let html = brandingData.fest_logo 
-                    ? `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">` 
-                    : `<i class="fa-solid fa-file-contract" style="margin-right: 8px;"></i>`;
+            const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
+            const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+            
+            // 1. Update Document Title dynamically
+            const festName = validName ? brandingData.fest_name : 'FestOS';
+            const titleParts = document.title.split('|');
+            const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Master Program';
+            document.title = `${festName} | ${pageContext}`;
+
+            // 2. Update all standard brand containers
+            const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
+            brandContainers.forEach(container => {
+                let html = '';
                 
-                html += `<span>${brandingData.fest_name || 'FestOS'} Reports Engine</span>`;
-                headerTitle.innerHTML = html;
+                // STRICT RULE: No fallbacks. Only show what is provided in the admin panel.
+                if (validLogo) {
+                    html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
+                }
+                if (validName) {
+                    html += `<span>${brandingData.fest_name}</span>`;
+                }
+                
+                container.innerHTML = html;
+                container.style.display = 'flex';
+                container.style.alignItems = 'center';
+                
+                // Keep centered on login and scan screens
+                if (window.location.pathname.includes('login') || window.location.pathname.includes('scan')) {
+                    container.style.justifyContent = 'center';
+                }
+            });
+
+            // 3. Special handler for the new program_report.html
+            const reportHeader = document.querySelector('.header h1');
+            if (reportHeader && !reportHeader.classList.contains('brand')) {
+                let html = '';
+                if (validLogo) html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
+                if (validName) html += `<span>${brandingData.fest_name} Reports Engine</span>`;
+                
+                // If neither exists, clear the header entirely
+                reportHeader.innerHTML = html;
             }
-            document.title = `${brandingData.fest_name || 'FestOS'} | Master Program`;
         }
 
         document.addEventListener("DOMContentLoaded", () => {

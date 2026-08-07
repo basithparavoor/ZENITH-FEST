@@ -231,7 +231,15 @@
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let systemBranding = { fest_name: 'FestOS' };
-        let systemSettings = { ratio_standard: 10, ratio_general: 20 };
+        let systemSettings = {
+            thresholds: { aplus: 90, a: 70, b: 60, c: 50 },
+            points_solo: { aplus: 8, a: 7, b: 5, c: 3 },
+            points_small: { aplus: 12, a: 10, b: 7, c: 5 },
+            points_large: { aplus: 15, a: 12, b: 10, c: 7 },
+            pos_points: { p1: 3, p2: 2, p3: 1 },
+            poster_interval: 10,
+            tm_access: true
+        };
         let isInitialLoad = true;
 
      // --- AUTH CHECK ---
@@ -366,73 +374,62 @@
             }
         }
 
-        function calculateResults(judgements, savedAwards) {
+function calculateResults(judgements, savedAwards) {
             computedResults = {};
             const compGroups = {};
             
             judgements.forEach(j => {
                 if (!j.participants || !j.participants.id) return; 
                 const comp = publishedComps.find(c => c.id === j.competition_id);
-                
                 if(!compGroups[j.competition_id]) {
                     compGroups[j.competition_id] = {
-                        participants: {}, 
-                        is_general: comp?.categories?.is_general || false,
-                        is_group: comp?.is_group || false,
-                        max_mark: comp?.max_mark || 100,
-                        comp_data: comp
+                        participants: {}, comp_data: comp, total_enrolled: 0
                     };
                 }
-                
                 const pId = j.participants.id;
                 if(!compGroups[j.competition_id].participants[pId]) {
-                    compGroups[j.competition_id].participants[pId] = {
-                        participant: j.participants, 
-                        total_mark: 0, 
-                        judge_count: 0
-                    };
+                    compGroups[j.competition_id].participants[pId] = { participant: j.participants, total_mark: 0, judge_count: 0 };
+                    compGroups[j.competition_id].total_enrolled++;
                 }
                 compGroups[j.competition_id].participants[pId].total_mark += parseFloat(j.awarded_mark);
                 compGroups[j.competition_id].participants[pId].judge_count += 1;
             });
 
             for (const [compId, compData] of Object.entries(compGroups)) {
-                let top3 = [];
+                const limit = compData.comp_data.max_participants || 1;
+                const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
+                const eligibleForPosPts = compData.total_enrolled >= 3;
 
-                if (compData.is_group) {
-                    const teamAverages = {};
-                    Object.values(compData.participants).forEach(p => {
-                        const tId = p.participant.team_id;
-                        if (!tId) return; 
-                        if (!teamAverages[tId]) teamAverages[tId] = { total: 0, count: 0, participant: p.participant };
-                        teamAverages[tId].total += (p.total_mark / p.judge_count);
-                        teamAverages[tId].count += 1;
-                    });
+                const participantsArr = Object.values(compData.participants).map(p => {
+                    p.score = p.total_mark / p.judge_count;
+                    return p;
+                }).sort((a, b) => b.score - a.score);
 
-                    const teamScores = Object.values(teamAverages).map(t => {
-                        t.score = t.total / t.count;
-                        t.participant.name = `${allTeams.find(tm => tm.id === t.participant.team_id)?.name || 'Team'} (Group)`;
-                        return t;
-                    });
-
-                    top3 = teamScores.sort((a, b) => b.score - a.score).slice(0, 3);
-                } else {
-                    const participantsArr = Object.values(compData.participants).map(p => {
-                        p.score = p.total_mark / p.judge_count;
-                        return p;
-                    });
-                    top3 = participantsArr.sort((a, b) => b.score - a.score).slice(0, 3);
-                }
-
-                computedResults[compId] = top3.map((entry, idx) => {
+                computedResults[compId] = participantsArr.map((entry, idx) => {
                     const teamName = allTeams.find(t => t.id === entry.participant.team_id)?.name || 'IND';
                     entry.participant.teams = { name: teamName };
                     
+                    let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
+                    let grade = '-'; let gradePts = 0; let posPts = 0;
+
+                    if (percent >= 50) {
+                        if (percent >= systemSettings.thresholds.aplus) { grade = 'A+'; gradePts = systemSettings[`points_${sizeCat}`].aplus; }
+                        else if (percent >= systemSettings.thresholds.a) { grade = 'A'; gradePts = systemSettings[`points_${sizeCat}`].a; }
+                        else if (percent >= systemSettings.thresholds.b) { grade = 'B'; gradePts = systemSettings[`points_${sizeCat}`].b; }
+                        else { grade = 'C'; gradePts = systemSettings[`points_${sizeCat}`].c; }
+                        
+                        if (eligibleForPosPts) {
+                            if (idx === 0) posPts = systemSettings.pos_points.p1;
+                            else if (idx === 1) posPts = systemSettings.pos_points.p2;
+                            else if (idx === 2) posPts = systemSettings.pos_points.p3;
+                        }
+                    }
+
                     const savedRecord = savedAwards.find(sa => sa.competition_id === compId && sa.participant_id === entry.participant.id);
                     
                     return {
-                        position: idx + 1,
-                        participant: entry.participant,
+                        position: idx + 1, participant: entry.participant,
+                        mark: entry.score.toFixed(2), grade: grade, points: gradePts + posPts,
                         award_given: savedRecord ? savedRecord.award_given : false
                     };
                 });
@@ -503,10 +500,10 @@
             container.innerHTML = data.map(comp => `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><span class="badge badge-live">LIVE</span></div><div class="metric"><i class="fa-solid fa-layer-group"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-location-dot"></i> ${comp.stages?.name || 'Global Stage'}</div></div>`).join('');
         }
 
-       function renderResults(data) {
-    const container = document.getElementById('results-container'); // Updated ID
-    const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
-    const visibleData = data.filter(comp => !announcedComps.includes(comp.id));
+      function renderResults(data) {
+            const container = document.getElementById('results-container'); 
+            const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
+            const visibleData = data.filter(comp => !announcedComps.includes(comp.id));
 
             if (visibleData.length === 0) {
                 container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No new results pending announcement.</div>';
@@ -519,18 +516,21 @@
 
                 if(resultsList.length > 0) {
                     const rows = resultsList.map(r => `
-                        <div class="data-item">
+                        <div class="data-item" style="flex-wrap: wrap; gap: 0.5rem;">
                             <div style="display:flex; gap: 1rem; align-items:center;">
-                                <span class="pos-${r.position}">#${r.position}</span>
-                                <div><strong>${r.participant.name}</strong><br><small style="color:var(--text-muted); font-family: monospace;">${r.participant.unique_id || 'Group/N/A'}</small></div>
+                                <span class="pos-${r.position <= 3 ? r.position : '0'}" style="width: 30px;">#${r.position}</span>
+                                <div><strong>${r.participant.name}</strong><br><small style="color:var(--text-muted); font-family: monospace;">${r.participant.teams?.name || 'IND'}</small></div>
                             </div>
-                            <span style="font-size:0.8rem; font-weight:600; text-align:right;">${r.participant.teams?.name || 'IND'}</span>
+                            <div style="text-align: right;">
+                                <span style="font-weight: 800; color: var(--primary); font-size: 1.1rem; margin-right: 10px;">${r.grade}</span>
+                                <span style="font-size:0.8rem; font-weight:700; background: var(--bg-main); padding: 0.25rem 0.5rem; border-radius: 4px;">${r.points} PTS</span>
+                            </div>
                         </div>`).join('');
 
                     tableHtml = `
                         <div class="data-list">
                             <div class="data-list-header">
-                                Final Results (Top ${resultsList.length})
+                                Full Participant Results
                                 <button class="btn-pdf-small" onclick="downloadResultsPDF('${comp.id}')"><i class="fa-solid fa-file-pdf"></i> Table PDF</button>
                             </div>
                             ${rows}
@@ -546,7 +546,6 @@
                         <span class="badge badge-results">PUBLISHED</span>
                     </div>
                     <div class="metric"><i class="fa-solid fa-layer-group"></i> ${comp.categories?.name || 'General'}</div>
-                    <div class="metric"><i class="fa-solid fa-gavel"></i> Evaluation Completed</div>
                     ${tableHtml}
                     <button class="btn-main" onclick="markAnnounced('${comp.id}')">
                         <i class="fa-solid fa-check"></i> Tick After Announcement
@@ -554,7 +553,7 @@
                 </div>`;
             }).join('');
         }
-
+        
         function renderAwards(data, statusFilter, positionFilter) {
             const container = document.getElementById('awards-container');
             
@@ -817,35 +816,68 @@
         }
 
 
-        // ==========================================
-        // GLOBAL BRANDING ENGINE
-        // ==========================================
-        async function fetchAndApplyBranding() {
-            try {
-                const { data, error } = await supabaseClient
-                    .from('settings')
-                    .select('value')
-                    .eq('id', 'system_branding')
-                    .maybeSingle();
+// ==========================================
+// UNIFIED GLOBAL BRANDING ENGINE
+// ==========================================
+async function fetchAndApplyBranding() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('settings')
+            .select('value')
+            .eq('id', 'system_branding')
+            .maybeSingle();
 
-                if (data && data.value) {
-                    systemBranding = data.value;
-                    const brandContainers = document.querySelectorAll('.brand');
-                    brandContainers.forEach(container => {
-                        let html = systemBranding.fest_logo 
-                            ? `<img src="${systemBranding.fest_logo}" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">` 
-                            : `<i class="fa-solid fa-bolt" style="margin-right: 8px;"></i>`;
-                        html += `<span>${systemBranding.fest_name || 'FestOS'}</span>`;
-                        container.innerHTML = html;
-                        container.style.display = 'flex';
-                        container.style.alignItems = 'center';
-                    });
-                }
-            } catch (e) {
-                console.warn("Could not fetch global branding:", e.message);
-            }
+        if (error) throw error;
+        if (data && data.value) applyGlobalBranding(data.value);
+    } catch (e) {
+        console.warn("Could not fetch global branding:", e.message);
+    }
+}
+
+function applyGlobalBranding(brandingData) {
+    const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
+    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+    
+    // 1. Update Document Title dynamically
+    const festName = validName ? brandingData.fest_name : 'FestOS';
+    const titleParts = document.title.split('|');
+    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
+    document.title = `${festName} | ${pageContext}`;
+
+    // 2. Update all standard brand containers
+    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
+    brandContainers.forEach(container => {
+        let html = '';
+        
+        // STRICT RULE: No fallbacks. Only show what is provided in the admin panel.
+        if (validLogo) {
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
         }
+        if (validName) {
+            html += `<span>${brandingData.fest_name}</span>`;
+        }
+        
+        container.innerHTML = html;
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        
+        // Keep centered on login and scan screens
+        if (window.location.pathname.includes('login') || window.location.pathname.includes('scan')) {
+            container.style.justifyContent = 'center';
+        }
+    });
 
+    // 3. Special handler for the new program_report.html
+    const reportHeader = document.querySelector('.header h1');
+    if (reportHeader && !reportHeader.classList.contains('brand')) {
+        let html = '';
+        if (validLogo) html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
+        if (validName) html += `<span>${brandingData.fest_name} Reports Engine</span>`;
+        
+        // If neither exists, clear the header entirely
+        reportHeader.innerHTML = html;
+    }
+}
 // ==========================================
 // NEW BULK PDF GENERATORS (UPDATED)
 // ==========================================

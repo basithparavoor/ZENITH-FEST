@@ -162,6 +162,7 @@ async function loadCategories() {
 
 // Function to handle viewing counts in a popup
 async function viewRelationalData(fetchTable, filterColumn, filterId, displayColumn = 'name') {
+    document.getElementById('listModalTable').parentElement.style.cssText = "max-height: 300px; overflow-y: auto; border: 1px solid var(--border); background: white; box-shadow: var(--shadow-sm);";
     try {
         // Fetch the related data based on the ID clicked
         const { data, error } = await supabaseClient
@@ -191,13 +192,34 @@ async function viewRelationalData(fetchTable, filterColumn, filterId, displayCol
     }
 }
 
-// 1. Update the modal function to accept data
+// 1. Update the modal function to accept data and show general category links
 function openCategoryModal(editData = null) {
-    // If editData exists, we populate the fields. If not, they are blank.
     const isEdit = !!editData;
     const catId = isEdit ? editData.id : '';
     const catName = isEdit ? editData.name : '';
     const isGeneral = isEdit ? editData.is_general.toString() : 'false';
+    const allowedGenerals = isEdit && editData.allowed_general_categories ? editData.allowed_general_categories : [];
+
+    // Filter out only general categories
+    let generalCats = categoriesList.filter(c => c.is_general && c.id !== catId);
+    let generalOptsHtml = '';
+    
+    if (generalCats.length > 0) {
+        generalOptsHtml = `
+            <div class="form-group" id="general-eligibility-section" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--border); ${isGeneral === 'true' ? 'display:none;' : 'display:block;'}">
+                <label style="margin-bottom: 0.5rem; display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-main);">Eligible General Categories</label>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">Select which general categories students from this standard category are allowed to participate in.</p>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 150px; overflow-y: auto; padding-right: 0.5rem;">
+                    ${generalCats.map(gc => `
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text-main);">
+                            <input type="checkbox" class="cat-general-eligibility" value="${gc.id}" ${allowedGenerals.includes(gc.id) ? 'checked' : ''} style="width: 16px; height: 16px; accent-color: var(--primary);">
+                            ${gc.name}
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
 
     openModal(isEdit ? 'Edit Category' : 'Create Category', `
         <input type="hidden" id="catId" value="${catId}">
@@ -207,26 +229,34 @@ function openCategoryModal(editData = null) {
         </div>
         <div class="form-group">
             <label>Type</label>
-            <select id="catGeneral">
+            <select id="catGeneral" onchange="const el = document.getElementById('general-eligibility-section'); if(el) el.style.display = this.value === 'true' ? 'none' : 'block';">
                 <option value="false" ${isGeneral === 'false' ? 'selected' : ''}>Standard (Limits apply)</option>
                 <option value="true" ${isGeneral === 'true' ? 'selected' : ''}>General (Anyone can participate)</option>
             </select>
         </div>
+        ${generalOptsHtml}
     `, saveCategory);
 }
 
-// 2. Update the save function to Upsert
+// 2. Update the save function to Upsert with the new array
 async function saveCategory() {
-    const id = document.getElementById('catId').value; // Check if we are editing
+    const id = document.getElementById('catId').value;
     const name = document.getElementById('catName').value;
     const is_general = document.getElementById('catGeneral').value === 'true';
     
+    // Grab all checked IDs
+    const allowed_general_categories = Array.from(document.querySelectorAll('.cat-general-eligibility:checked')).map(cb => cb.value);
+
     if(!name) return showToast('Name is required', 'error');
     
     setLoading('modalSaveBtn', true);
     try {
-        const payload = { name, is_general };
-        if (id) payload.id = id; // If ID exists, Supabase will update instead of insert
+        const payload = { 
+            name, 
+            is_general, 
+            allowed_general_categories: is_general ? [] : allowed_general_categories 
+        };
+        if (id) payload.id = id;
 
         const { error } = await supabaseClient.from('categories').upsert([payload]);
         if (error) throw error;
@@ -281,7 +311,7 @@ async function loadCompetitions() {
 
         const { data, error } = await supabaseClient
             .from('competitions')
-            .select(`*, categories(name), stages(name)`)
+            .select(`*, categories(name), stages(name), participant_competitions(count)`)
             .order('name');
             
         if(error) throw error;
@@ -336,10 +366,11 @@ function renderCompetitionsTable() {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">No competitions found.</td></tr>`;
     }
 
-    pageData.forEach(comp => {
-        const studentCount = "?"; // Placeholder for foreign key count
+   pageData.forEach(comp => {
+        // Extract the actual enrollment count from the Supabase relational query
+        const studentCount = comp.participant_competitions?.[0]?.count || 0; 
         const totalCapacity = (comp.max_participants || 0) * (teamsList.length || 0); // Calculate total system limit
-        
+    
         tbody.innerHTML += `
             <tr>
 <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${comp.id}" ${globalSelections['competitions-tbody']?.has(comp.id) ? 'checked' : ''} onchange="handleRowSelection('competitions-tbody', this.value, this.checked)"></td>                <td>${comp.name}</td>
@@ -461,29 +492,51 @@ async function exportCompetitionsPDF() {
     } catch (e) { showToast(e.message, 'error'); }
 }
 // Special function to view participants linked to a competition (Many-to-Many)
+// Special function to view participants linked to a competition (Many-to-Many)
 async function viewCompParticipants(compId) {
     try {
+        // Fetch participants along with their team details
         const { data, error } = await supabaseClient
             .from('participant_competitions')
-            .select('participants(name, unique_id)')
+            .select('participants(name, unique_id, teams(name))')
             .eq('competition_id', compId);
             
         if (error) throw error;
         
+        // Reset container styling for tabular modal display
+        const container = document.getElementById('listModalTable').parentElement;
+        container.style.cssText = "max-height: 350px; overflow-y: auto; border: 1px solid var(--border); background: white; box-shadow: var(--shadow-sm); border-radius: var(--radius-md);";
+
         const tbody = document.getElementById('listModalTable');
-        tbody.innerHTML = `<tr><th>PARTICIPANT NAME</th></tr>`; 
+        tbody.innerHTML = `<tr><th style="padding: 1rem;">PARTICIPANT NAME</th><th style="padding: 1rem;">TEAM</th></tr>`; 
         
-        if (!data || data.length === 0) tbody.innerHTML += `<tr><td style="color:var(--text-muted);">No students assigned.</td></tr>`;
-        
-        data.forEach(item => {
-            tbody.innerHTML += `<tr><td>${item.participants?.name} (${item.participants?.unique_id})</td></tr>`;
-        });
+        if (!data || data.length === 0) {
+            tbody.innerHTML += `<tr><td colspan="2" style="color:var(--text-muted); text-align:center; padding: 2rem;">No students assigned.</td></tr>`;
+        } else {
+            data.forEach(item => {
+                const p = item.participants;
+                const teamName = p?.teams?.name || 'INDEPENDENT';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="padding: 1rem;">
+                            <strong style="font-weight: 700; color: var(--text-main); display: block; margin-bottom: 0.2rem;">${p?.name}</strong>
+                            <span style="font-family: monospace; font-size: 0.8rem; color: var(--text-muted);">${p?.unique_id}</span>
+                        </td>
+                        <td style="padding: 1rem;">
+                            <span class="badge" style="background: var(--bg-main); color: var(--primary); font-weight: 700; border: 1px solid var(--border);">${teamName}</span>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
         
         document.getElementById('listModalTitle').innerText = `Enrolled Students`;
         document.getElementById('listModal').classList.add('show');
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) { 
+        showToast(e.message, 'error'); 
+    }
 }
-
 function openCompModal(editData = null) {
     const isEdit = !!editData;
     const cId = isEdit ? editData.id : '';
@@ -1015,140 +1068,138 @@ function viewParticipantCard(p) {
     
     document.getElementById('listModalTitle').innerText = 'Participant Identity';
     
+    // Reset wrapper styling to allow flexible component layout
+    const container = document.getElementById('listModalTable').parentElement;
+    container.style.border = 'none';
+    container.style.boxShadow = 'none';
+    container.style.background = 'transparent';
+    container.style.maxHeight = 'none';
+    container.style.overflow = 'visible';
+    
     document.getElementById('listModalTable').innerHTML = `
         <style>
-            .premium-profile-top { 
-                display: flex; 
-                gap: 1.25rem; 
-                align-items: center; 
+            #listModalTable { display: block; width: 100%; border: none; }
+            #listModalTable tbody, #listModalTable tr, #listModalTable td { 
+                display: block; width: 100%; border: none; padding: 0; background: transparent; 
             }
-            .premium-profile-bottom { 
-                display: grid; 
-                grid-template-columns: 130px 1fr; 
-                gap: 1rem; 
-                align-items: stretch; 
+            #listModalTable td::before { display: none !important; }
+
+            .pid-wrapper { display: flex; flex-direction: column; gap: 1rem; width: 100%; }
+            
+            /* Top Card */
+            .pid-top { 
+                display: flex; gap: 1.5rem; background: white; border: 1px solid var(--border); 
+                border-radius: 16px; padding: 1.5rem; box-shadow: var(--shadow-sm); align-items: center; 
             }
-            .premium-photo-box { 
-                width: 100px; 
-                height: 130px; 
-                flex-shrink: 0; 
+            .pid-photo { 
+                width: 110px; height: 140px; flex-shrink: 0; border-radius: 12px; 
+                overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow-sm); 
             }
-            .premium-info-box { 
-                text-align: left; 
+            .pid-photo img { width: 100%; height: 100%; object-fit: cover; }
+            
+            .pid-info { flex: 1; text-align: left; overflow: hidden; }
+            .pid-name { 
+                font-size: 1.4rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem; 
+                line-height: 1.2; word-break: break-word; text-transform: uppercase; 
             }
-            .premium-info-row { 
-                display: flex; 
-                align-items: center; 
-                justify-content: flex-start; 
-                gap: 0.5rem; 
+            .pid-badge { 
+                background: var(--primary); color: white; padding: 0.35rem 0.75rem; 
+                border-radius: 8px; font-family: monospace; font-size: 0.9rem; font-weight: 700; 
+                display: inline-block; margin-bottom: 0.75rem; white-space: nowrap; 
+                box-shadow: 0 4px 10px rgba(79,70,229,0.2); 
+            }
+            .pid-meta { 
+                display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.8rem; 
+                font-weight: 700; color: var(--text-muted); text-transform: uppercase; 
+            }
+            .pid-meta-item { display: flex; align-items: center; gap: 0.5rem; }
+
+            /* Bottom Cards */
+            .pid-bottom { display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: stretch; }
+            
+            .pid-qr-card { 
+                background: white; border: 1px solid var(--border); border-radius: 16px; 
+                padding: 1.25rem; display: flex; flex-direction: column; align-items: center; 
+                justify-content: center; gap: 0.5rem; box-shadow: var(--shadow-sm); 
+            }
+            .pid-qr-box { width: 110px; height: 110px; display: flex; justify-content: center; align-items: center; }
+            
+            .pid-actions { display: flex; flex-direction: column; gap: 1rem; }
+            .pid-dob-card { 
+                background: var(--primary-light); border: 1px solid rgba(79,70,229,0.15); 
+                border-radius: 16px; padding: 1.25rem; display: flex; justify-content: space-between; 
+                align-items: center; flex: 1; min-height: 80px;
             }
             
-            /* --- Mobile Breakpoint Optimization --- */
+            .pid-btn { 
+                width: 100%; justify-content: center; padding: 1rem; border-radius: 12px; 
+                background: white; border: 2px solid var(--border); font-weight: 800; 
+                color: var(--text-main); transition: all 0.2s; box-shadow: var(--shadow-sm); 
+                cursor: pointer; display: flex; align-items: center; gap: 0.5rem; 
+                font-size: 0.9rem; text-transform: uppercase; 
+            }
+            .pid-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+            /* Mobile Stack Optimization */
             @media (max-width: 600px) {
-                .premium-profile-top { 
-                    flex-direction: column; 
-                    text-align: center; 
-                    gap: 1rem; 
-                    padding: 1.25rem 1rem !important; 
-                }
-                .premium-photo-box { 
-                    width: 110px; 
-                    height: 140px; 
-                    margin: 0 auto; 
-                }
-                .premium-info-box { 
-                    text-align: center; 
-                    display: flex; 
-                    flex-direction: column; 
-                    align-items: center; 
-                    width: 100%;
-                }
-                .premium-info-row { 
-                    justify-content: center; 
-                    word-break: break-word;
-                }
-                .premium-profile-bottom { 
-                    grid-template-columns: 1fr; 
-                    gap: 1rem; 
-                }
-                .qr-card-mobile {
-                    width: 100%;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                }
+                .pid-top { flex-direction: column; align-items: center; text-align: center; padding: 1.5rem 1rem; }
+                .pid-info { text-align: center; display: flex; flex-direction: column; align-items: center; }
+                .pid-bottom { grid-template-columns: 1fr; }
             }
         </style>
         
-        <tbody style="display: block; width: 100%;">
+        <tbody>
             <tr>
-                <td style="padding: 0; border: none; background: transparent; width: 100%; display: block;">
-                    
-                    <!-- Top Profile Card -->
-                    <div class="premium-profile-top" style="background: linear-gradient(135deg, var(--bg-main) 0%, white 100%); border: 1px solid var(--border); border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: var(--shadow-sm); position: relative; overflow: hidden;">
+                <td>
+                    <div class="pid-wrapper">
                         
-                        <!-- Background Glow Element -->
-                        <div style="position: absolute; right: -20px; top: -20px; width: 100px; height: 100px; background: var(--primary-light); border-radius: 50%; opacity: 0.5; pointer-events: none;"></div>
-
-                        <!-- Photo -->
-                        <div class="premium-photo-box" style="border-radius: 12px; border: 3px solid white; box-shadow: var(--shadow-md); overflow: hidden; z-index: 1;">
-                            <img src="${photoSrc}" style="width: 100%; height: 100%; object-fit: cover; background: #E2E8F0;">
-                        </div>
-
-                        <!-- Name & Details -->
-                        <div class="premium-info-box" style="flex: 1; z-index: 1;">
-                            <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-main); line-height: 1.2; margin-bottom: 0.5rem; letter-spacing: -0.02em; text-transform: uppercase; word-break: break-word;">
-                                ${p.name}
-                            </h3>
-                            
-                            <div class="premium-info-row" style="margin-bottom: 0.75rem;">
-                                <span style="background: var(--primary); color: white; padding: 0.35rem 0.75rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; font-weight: 700; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); word-break: break-all;">
-                                    ${p.unique_id}
-                                </span>
+                        <!-- Top Profile Section -->
+                        <div class="pid-top">
+                            <div class="pid-photo">
+                                <img src="${photoSrc}" alt="Photo">
                             </div>
-
-                            <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.35rem; text-transform: uppercase;">
-                                <span class="premium-info-row"><i class="fa-solid fa-users" style="width: 18px; color: var(--primary);"></i> ${teamName}</span>
-                                <span class="premium-info-row"><i class="fa-solid fa-layer-group" style="width: 18px; color: var(--primary);"></i> ${catName}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Bottom Grid: QR & Extra Details -->
-                    <div class="premium-profile-bottom">
-                        
-                        <!-- QR Code Card -->
-                        <div class="qr-card-mobile" style="background: white; border: 1px solid var(--border); border-radius: 16px; padding: 1rem; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem;">
-                            <div id="qr-container-${p.unique_id}" style="width: 110px; height: 110px; display: flex; justify-content: center; align-items: center;">
-                                <i class="fa-solid fa-spinner fa-spin" style="color: var(--text-muted); font-size: 1.5rem;"></i>
-                            </div>
-                            <span style="font-size: 0.65rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.05em; text-align: center;">SCAN TO VERIFY</span>
-                        </div>
-
-                        <!-- Actions & Extra Info -->
-                        <div style="display: flex; flex-direction: column; justify-content: space-between; gap: 0.75rem;">
-                            
-                            <!-- DOB Tag -->
-                            <div style="background: var(--primary-light); border: 1px solid rgba(79, 70, 229, 0.15); border-radius: 16px; padding: 1rem; display: flex; align-items: center; justify-content: space-between; flex: 1; min-height: 70px;">
-                                <div style="display: flex; flex-direction: column; gap: 0.2rem; text-align: left;">
-                                    <span style="font-size: 0.7rem; font-weight: 800; color: var(--primary); letter-spacing: 0.05em;">DATE OF BIRTH</span>
-                                    <span style="font-size: 1.1rem; font-weight: 800; color: var(--text-main); text-transform: uppercase;">${p.dob || 'NOT PROVIDED'}</span>
+                            <div class="pid-info">
+                                <div class="pid-name">${p.name}</div>
+                                <div class="pid-badge">${p.unique_id}</div>
+                                <div class="pid-meta">
+                                    <div class="pid-meta-item"><i class="fa-solid fa-users" style="color: var(--primary); width: 16px;"></i> ${teamName}</div>
+                                    <div class="pid-meta-item"><i class="fa-solid fa-layer-group" style="color: var(--primary); width: 16px;"></i> ${catName}</div>
                                 </div>
-                                <i class="fa-solid fa-cake-candles" style="font-size: 1.5rem; color: var(--primary); opacity: 0.3;"></i>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Section -->
+                        <div class="pid-bottom">
+                            <!-- QR Code -->
+                            <div class="pid-qr-card">
+                                <div id="qr-container-${p.unique_id}" class="pid-qr-box">
+                                    <i class="fa-solid fa-spinner fa-spin" style="color: var(--text-muted); font-size: 1.5rem;"></i>
+                                </div>
+                                <span style="font-size: 0.65rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.05em;">SCAN TO VERIFY</span>
                             </div>
 
-                            <!-- View Competitions Button -->
-                            <button class="btn" style="width: 100%; justify-content: center; padding: 0.85rem; border-radius: 12px; background: white; border: 2px solid var(--border); font-weight: 800; color: var(--text-main); transition: all 0.2s; box-shadow: var(--shadow-sm);" onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-main)';" onclick="viewParticipantEnrollments('${p.id}')">
-                                <i class="fa-solid fa-clipboard-list" style="margin-right: 6px;"></i> VIEW ENROLLMENTS
-                            </button>
-                        </div>
-                    </div>
+                            <!-- Actions & DOB -->
+                            <div class="pid-actions">
+                                <div class="pid-dob-card">
+                                    <div style="display: flex; flex-direction: column; gap: 0.25rem; text-align: left;">
+                                        <span style="font-size: 0.7rem; font-weight: 800; color: var(--primary); letter-spacing: 0.05em; text-transform: uppercase;">DATE OF BIRTH</span>
+                                        <span style="font-size: 1.15rem; font-weight: 800; color: var(--text-main);">${p.dob || 'NOT PROVIDED'}</span>
+                                    </div>
+                                    <i class="fa-solid fa-cake-candles" style="font-size: 1.75rem; color: var(--primary); opacity: 0.3;"></i>
+                                </div>
 
+                                <button class="pid-btn" onclick="viewParticipantEnrollments('${p.id}')">
+                                    <i class="fa-solid fa-clipboard-list"></i> VIEW ENROLLMENTS
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
                 </td>
             </tr>
         </tbody>
     `;
-    
+
     document.getElementById('listModal').classList.add('show');
 
     // Generate the QR code dynamically
@@ -1169,6 +1220,7 @@ function viewParticipantCard(p) {
 }
 // NEW FUNCTION: specifically joins competitions and categories to the participant
 async function viewParticipantEnrollments(participantId) {
+    document.getElementById('listModalTable').parentElement.style.cssText = "max-height: 300px; overflow-y: auto; border: 1px solid var(--border); background: white; box-shadow: var(--shadow-sm);";
     try {
         const { data, error } = await supabaseClient
             .from('participant_competitions')
@@ -2004,10 +2056,26 @@ async function loadAssignWorkspaceStudents() {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading students...</td></tr>';
 
     try {
+        const limitDisplay = document.getElementById('assignLimitIndicator');
+        limitDisplay.innerHTML = `<i class="fa-solid fa-users"></i> Max Enrollment: ${currentAssignCompLimit} Participants Per Team`;
+        
+        // --- NEW: Calculate Allowed Categories ---
+        let allowedCatIds = [categoryId]; 
+        if (isGeneral && typeof categoriesList !== 'undefined') {
+            categoriesList.forEach(c => {
+                if (c.allowed_general_categories && c.allowed_general_categories.includes(categoryId)) {
+                    allowedCatIds.push(c.id);
+                }
+            });
+        }
+        
         let studentQuery = supabaseClient.from('participants').select('*, teams(name)');
         if (!isGeneral) {
             studentQuery = studentQuery.eq('category_id', categoryId);
+        } else {
+            studentQuery = studentQuery.in('category_id', allowedCatIds);
         }
+
         const { data: students, error: studentError } = await studentQuery.order('name');
         if (studentError) throw studentError;
 
@@ -2019,9 +2087,6 @@ async function loadAssignWorkspaceStudents() {
         if (enrollError) throw enrollError;
 
         currentEnrolledStudentIds = (enrollments || []).map(e => e.participant_id);
-
-        const limitDisplay = document.getElementById('assignLimitIndicator');
-        limitDisplay.innerHTML = `<i class="fa-solid fa-users"></i> Max Enrollment: ${currentAssignCompLimit} Participants Per Team`;
         
         // NEW: Update table header dynamically based on competition type
         document.querySelector('#assign-workspace-tbody').parentElement.querySelector('thead tr').innerHTML = `
@@ -2058,7 +2123,8 @@ async function loadAssignWorkspaceStudents() {
                 
             tbody.innerHTML += `
                 <tr data-team="${s.team_id || ''}" data-dob="${s.dob || ''}">
-<td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${s.id}" ${globalSelections['assign-workspace-tbody']?.has(s.id) ? 'checked' : ''} onchange="handleRowSelection('assign-workspace-tbody', this.value, this.checked)"></td>                    <td style="font-family: monospace; font-weight: 600;">${s.unique_id}</td>
+                    <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${s.id}" ${globalSelections['assign-workspace-tbody']?.has(s.id) ? 'checked' : ''} onchange="handleRowSelection('assign-workspace-tbody', this.value, this.checked)"></td>
+                    <td style="font-family: monospace; font-weight: 600;">${s.unique_id}</td>
                     <td class="searchable-name">${s.name}</td>
                     <td>${s.teams?.name || 'INDEPENDENT'}</td>
                     <td>${s.dob || 'N/A'}</td>
@@ -2073,6 +2139,7 @@ async function loadAssignWorkspaceStudents() {
         showToast(e.message, 'error');
     }
 }
+
 // Local Table Filter (Search, Team, Batch, Status)
 function filterAssignTable() {
     const searchVal = document.getElementById('assignSearch').value.toLowerCase();
@@ -3666,53 +3733,6 @@ async function bulkRevokeTeam() {
     } catch (e) { showToast(e.message, 'error'); }
 }
 
-// Call initBulkTeamControls inside loadParticipants() 
-// or at the end of the DOMContentLoaded event
-async function loadPointSettings() {
-    try {
-        const { data, error } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
-        if (data && data.value) {
-            document.getElementById('setting-ratio-standard').value = data.value.ratio_standard || 10;
-            document.getElementById('setting-ratio-general').value = data.value.ratio_general || 20;
-            
-            // Restore Poster Interval loader
-            if(document.getElementById('setting-poster-interval')) {
-                document.getElementById('setting-poster-interval').value = data.value.poster_interval || 10;
-            }
-
-            // NEW: Load Team Manager Access Control
-            if(document.getElementById('setting-tm-access')) {
-                // Default to true if the setting doesn't exist yet
-                const tmAccess = data.value.tm_access !== false; 
-                const checkbox = document.getElementById('setting-tm-access');
-                checkbox.checked = tmAccess;
-                // Trigger the visual animation for the toggle switch
-                checkbox.dispatchEvent(new Event('change')); 
-            }
-        }
-    } catch (e) {
-        console.warn("No custom point settings found, using defaults.");
-    }
-}
-
-async function savePointSettings() {
-    const payload = {
-        ratio_standard: parseFloat(document.getElementById('setting-ratio-standard').value) || 10,
-        ratio_general: parseFloat(document.getElementById('setting-ratio-general').value) || 20,
-        // Restore Poster Interval saver
-        poster_interval: parseInt(document.getElementById('setting-poster-interval').value) || 10,
-        // NEW: Save Team Manager Access Control
-        tm_access: document.getElementById('setting-tm-access') ? document.getElementById('setting-tm-access').checked : true
-    };
-
-    try {
-        const { error } = await supabaseClient.from('settings').upsert({ id: 'point_system', value: payload });
-        if (error) throw error;
-        showToast("Point Settings Saved Successfully!");
-    } catch (e) {
-        showToast(e.message, 'error');
-    }
-}
 // --- BRANDING & UI ENGINE ---
 let pendingBrandingLogoBase64 = null;
 
@@ -3809,9 +3829,11 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchAndApplyBranding();
 });
 
+// ==========================================
+// UNIFIED GLOBAL BRANDING ENGINE
+// ==========================================
 async function fetchAndApplyBranding() {
     try {
-        // Query the database directly for the branding data
         const { data, error } = await supabaseClient
             .from('settings')
             .select('value')
@@ -3819,43 +3841,56 @@ async function fetchAndApplyBranding() {
             .maybeSingle();
 
         if (error) throw error;
-
-        // If branding exists in the DB, apply it to the UI
-        if (data && data.value) {
-            applyGlobalBranding(data.value);
-        }
+        if (data && data.value) applyGlobalBranding(data.value);
     } catch (e) {
-        console.warn("Could not fetch global branding from database:", e.message);
+        console.warn("Could not fetch global branding:", e.message);
     }
 }
 
 function applyGlobalBranding(brandingData) {
-    // Find all branding containers across the different portals
-    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
+    const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
+    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
     
+    // 1. Update Document Title dynamically
+    const festName = validName ? brandingData.fest_name : 'FestOS';
+    const titleParts = document.title.split('|');
+    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
+    document.title = `${festName} | ${pageContext}`;
+
+    // 2. Update all standard brand containers
+    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
     brandContainers.forEach(container => {
         let html = '';
         
-        // If a logo exists in the DB, render it
-        if (brandingData.fest_logo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Fest Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
-        } else {
-            // Fallback icon if no logo is uploaded
-            html += `<i class="fa-solid fa-bolt" style="margin-right: 8px;"></i>`;
+        // STRICT RULE: No fallbacks. Only show what is provided in the admin panel.
+        if (validLogo) {
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
+        }
+        if (validName) {
+            html += `<span>${brandingData.fest_name}</span>`;
         }
         
-        // Append the Fest Name
-        html += `<span>${brandingData.fest_name || 'FestOS'}</span>`;
-        
-        // Update the DOM element
         container.innerHTML = html;
-        
-        // Make sure it uses flexbox for alignment
         container.style.display = 'flex';
         container.style.alignItems = 'center';
+        
+        // Keep centered on login and scan screens
+        if (window.location.pathname.includes('login') || window.location.pathname.includes('scan')) {
+            container.style.justifyContent = 'center';
+        }
     });
-}
 
+    // 3. Special handler for the new program_report.html
+    const reportHeader = document.querySelector('.header h1');
+    if (reportHeader && !reportHeader.classList.contains('brand')) {
+        let html = '';
+        if (validLogo) html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
+        if (validName) html += `<span>${brandingData.fest_name} Reports Engine</span>`;
+        
+        // If neither exists, clear the header entirely
+        reportHeader.innerHTML = html;
+    }
+}
 // ============================================================================
 // PARTICIPANT POINTS LEDGER ENGINE
 // ============================================================================
@@ -3863,78 +3898,135 @@ let pointsDataList = [];
 let filteredPointsList = [];
 let pointsCurrentPage = 1;
 let pointsRowsPerPage = 10;
-let pointsAdminSettings = { ratio_standard: 10, ratio_general: 20 };
+let pointsAdminSettings = {
+    thresholds: { aplus: 90, a: 70, b: 60, c: 50 },
+    points_solo: { aplus: 8, a: 7, b: 5, c: 3 },
+    points_small: { aplus: 12, a: 10, b: 7, c: 5 },
+    points_large: { aplus: 15, a: 12, b: 10, c: 7 },
+    pos_points: { p1: 3, p2: 2, p3: 1 },
+    poster_interval: 10,
+    tm_access: true
+};
+
+async function loadPointSettings() {
+    try {
+        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
+        if (data && data.value) {
+            pointsAdminSettings = data.value;
+            const v = data.value;
+            
+            // Map to UI
+            ['aplus', 'a', 'b', 'c'].forEach(g => {
+                if(document.getElementById(`th-${g}`)) document.getElementById(`th-${g}`).value = v.thresholds[g];
+                if(document.getElementById(`pt-solo-${g}`)) document.getElementById(`pt-solo-${g}`).value = v.points_solo[g];
+                if(document.getElementById(`pt-small-${g}`)) document.getElementById(`pt-small-${g}`).value = v.points_small[g];
+                if(document.getElementById(`pt-large-${g}`)) document.getElementById(`pt-large-${g}`).value = v.points_large[g];
+            });
+            if(document.getElementById('pos-1')) document.getElementById('pos-1').value = v.pos_points.p1;
+            if(document.getElementById('pos-2')) document.getElementById('pos-2').value = v.pos_points.p2;
+            if(document.getElementById('pos-3')) document.getElementById('pos-3').value = v.pos_points.p3;
+            if(document.getElementById('setting-poster-interval')) document.getElementById('setting-poster-interval').value = v.poster_interval;
+            
+            if(document.getElementById('setting-tm-access')) {
+                const checkbox = document.getElementById('setting-tm-access');
+                checkbox.checked = v.tm_access !== false;
+                checkbox.dispatchEvent(new Event('change')); 
+            }
+        }
+    } catch (e) { console.warn("Using default point settings."); }
+}
+
+async function savePointSettings() {
+    const getVal = (id) => parseInt(document.getElementById(id).value) || 0;
+    const payload = {
+        thresholds: { aplus: getVal('th-aplus'), a: getVal('th-a'), b: getVal('th-b'), c: getVal('th-c') },
+        points_solo: { aplus: getVal('pt-solo-aplus'), a: getVal('pt-solo-a'), b: getVal('pt-solo-b'), c: getVal('pt-solo-c') },
+        points_small: { aplus: getVal('pt-small-aplus'), a: getVal('pt-small-a'), b: getVal('pt-small-b'), c: getVal('pt-small-c') },
+        points_large: { aplus: getVal('pt-large-aplus'), a: getVal('pt-large-a'), b: getVal('pt-large-b'), c: getVal('pt-large-c') },
+        pos_points: { p1: getVal('pos-1'), p2: getVal('pos-2'), p3: getVal('pos-3') },
+        poster_interval: getVal('setting-poster-interval'),
+        tm_access: document.getElementById('setting-tm-access') ? document.getElementById('setting-tm-access').checked : true
+    };
+
+    try {
+        const { error } = await supabaseClient.from('settings').upsert({ id: 'point_system', value: payload });
+        if (error) throw error;
+        pointsAdminSettings = payload;
+        showToast("Point Settings Saved Successfully!");
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
 async function loadParticipantPoints() {
     try {
-        // 1. Fetch Point Ratios
-        const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
-        if (set_data && set_data.value) pointsAdminSettings = set_data.value;
+        await loadPointSettings();
 
-        // 2. Fetch baseline data needed for calculations
-        const { data: comps } = await supabaseClient.from('competitions').select('*, categories(name, is_general)');
-        const { data: participants, error: pErr } = await supabaseClient.from('participants').select('*, teams(name), categories(name)');
-        if (pErr) throw pErr;
-        const { data: judgements, error: jErr } = await supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark');
-        if (jErr) throw jErr;
+        const { data: comps } = await supabaseClient.from('competitions').select('*, categories(name, is_general), participant_competitions(count)');
+        const { data: participants } = await supabaseClient.from('participants').select('*, teams(name), categories(name)');
+        const { data: judgements } = await supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark');
 
-        // 3. Average out judgement marks in case of multiple judges (Safely handling null judgements)
+        // Group & Average
         let compAverages = {}; 
         (judgements || []).forEach(j => {
-            const key = `${j.competition_id}_${j.participant_id}`;
-            if(!compAverages[key]) compAverages[key] = { total: 0, count: 0 };
-            compAverages[key].total += parseFloat(j.awarded_mark);
-            compAverages[key].count += 1;
+            if(!compAverages[j.competition_id]) compAverages[j.competition_id] = {};
+            if(!compAverages[j.competition_id][j.participant_id]) compAverages[j.competition_id][j.participant_id] = { total: 0, count: 0 };
+            compAverages[j.competition_id][j.participant_id].total += parseFloat(j.awarded_mark);
+            compAverages[j.competition_id][j.participant_id].count += 1;
         });
 
-        // 4. Calculate total points and breakdowns per participant
-        pointsDataList = (participants || []).map(p => {
-            let totalPoints = 0;
-            let breakdown = [];
+        // Calculate Ranks & Points per Comp
+        let compResults = {};
+        (comps || []).forEach(comp => {
+            if(!compAverages[comp.id]) return;
+            const participantsArr = Object.entries(compAverages[comp.id]).map(([pId, data]) => ({
+                id: pId, mark: data.total / data.count
+            })).sort((a, b) => b.mark - a.mark);
 
-            (comps || []).forEach(comp => {
-                const key = `${comp.id}_${p.id}`;
-                if(compAverages[key]) {
-                    const avgMark = compAverages[key].total / compAverages[key].count;
-                    const baseRatio = comp.categories?.is_general ? (pointsAdminSettings.ratio_general || 20) : (pointsAdminSettings.ratio_standard || 10);
-                    const maxMark = comp.max_mark || 100;
+            const limit = comp.max_participants || 1;
+            let sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
+            const eligibleForPosPoints = comp.participant_competitions?.[0]?.count >= 3;
+
+            participantsArr.forEach((p, index) => {
+                let percent = (p.mark / (comp.max_mark || 100)) * 100;
+                let grade = '-'; let gradePts = 0; let posPts = 0;
+
+                if (percent >= 50) {
+                    if (percent >= pointsAdminSettings.thresholds.aplus) { grade = 'A+'; gradePts = pointsAdminSettings[`points_${sizeCat}`].aplus; }
+                    else if (percent >= pointsAdminSettings.thresholds.a) { grade = 'A'; gradePts = pointsAdminSettings[`points_${sizeCat}`].a; }
+                    else if (percent >= pointsAdminSettings.thresholds.b) { grade = 'B'; gradePts = pointsAdminSettings[`points_${sizeCat}`].b; }
+                    else { grade = 'C'; gradePts = pointsAdminSettings[`points_${sizeCat}`].c; }
                     
-                    // Normalize the point formula based on limits
-                    const normalized = parseFloat(((avgMark / maxMark) * baseRatio).toFixed(2));
-
-                    totalPoints += normalized;
-                    breakdown.push({
-                        compName: comp.name,
-                        compCat: comp.categories?.name || 'General',
-                        avgMark: avgMark.toFixed(2),
-                        maxMark: maxMark,
-                        pointsEarned: normalized
-                    });
+                    if (eligibleForPosPoints) {
+                        if (index === 0) posPts = pointsAdminSettings.pos_points.p1;
+                        else if (index === 1) posPts = pointsAdminSettings.pos_points.p2;
+                        else if (index === 2) posPts = pointsAdminSettings.pos_points.p3;
+                    }
                 }
+                
+                if(!compResults[p.id]) compResults[p.id] = [];
+                compResults[p.id].push({
+                    compName: comp.name, compCat: comp.categories?.name || 'General',
+                    mark: p.mark.toFixed(2), grade: grade, totalPts: gradePts + posPts
+                });
             });
-
-            return {
-                ...p,
-                totalPoints: parseFloat(totalPoints.toFixed(2)),
-                breakdown: breakdown
-            };
         });
 
-        // 5. Populate Filters Safely (Waiting for lists to populate before running forEach)
-        const catFilter = document.getElementById('filterPointsCategory');
-        if (catFilter && catFilter.options.length === 1) {
-            if (typeof categoriesList !== 'undefined' && categoriesList.length === 0) await loadCategories();
-            (categoriesList || []).forEach(c => catFilter.innerHTML += `<option value="${c.name}">${c.name}</option>`);
-        }
-        
-        const teamFilter = document.getElementById('filterPointsTeam');
-        if (teamFilter && teamFilter.options.length === 1) {
-            if (typeof teamsList !== 'undefined' && teamsList.length === 0) await loadStagesAndTeams();
-            (teamsList || []).forEach(t => teamFilter.innerHTML += `<option value="${t.name}">${t.name}</option>`);
-        }
+        // Apply to participant list
+        pointsDataList = (participants || []).map(p => {
+            const breakdown = compResults[p.id] || [];
+            const totalPoints = breakdown.reduce((sum, b) => sum + b.totalPts, 0);
+            return { ...p, totalPoints, breakdown };
+        });
 
+        populateDropdownSafe('filterPointsCategory', categoriesList);
+        populateDropdownSafe('filterPointsTeam', teamsList);
         filterPointsTable(true);
-    } catch (e) {
-        showToast(e.message, 'error');
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
+function populateDropdownSafe(id, list) {
+    const el = document.getElementById(id);
+    if(el && el.options.length === 1 && list && list.length > 0) {
+        list.forEach(i => el.innerHTML += `<option value="${i.name}">${i.name}</option>`);
     }
 }
 

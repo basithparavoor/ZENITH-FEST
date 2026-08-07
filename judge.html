@@ -295,8 +295,12 @@ input, .mark-input {
 
         <nav class="navbar">
     <div class="user-info">
-        <h1>Judge Portal</h1>
-        <p id="judge-name" style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">Loading profile...</p>
+        <!-- The Unified Branding Engine targets this .brand class -->
+        <div class="brand" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.35rem; font-weight: 800; color: var(--primary); margin-bottom: 0.25rem;"></div>
+        
+        <!-- We moved "Judge Portal" down so it doesn't get overwritten -->
+        <h1 style="font-size: 1.05rem; color: var(--text-main); font-weight: 700; background: none; -webkit-text-fill-color: initial; letter-spacing: 0;">Judge Portal</h1>
+        <p id="judge-name" style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.15rem;">Loading profile...</p>
     </div>
     
     <div style="display: flex; gap: 0.75rem;">

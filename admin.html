@@ -538,62 +538,89 @@ tr:hover td { background: var(--bg-main); }
     <div class="action-bar" style="margin-bottom: 1.5rem;">
         <div>
             <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Point System Settings</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Configure the maximum base points and download intervals.</p>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Configure grading thresholds, point matrices, and position bonuses based on group sizes.</p>
         </div>
         <button class="btn btn-primary" onclick="savePointSettings()"><i class="fa-solid fa-floppy-disk"></i> Save Configuration</button>
     </div>
 
     <div class="grid-2" style="gap: 2rem;">
-        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-trophy" style="color: var(--primary);"></i> Standard Competitions</h3>
-            <div class="form-group">
-                <label>Maximum Points (Base Ratio)</label>
-                <input type="number" id="setting-ratio-standard" value="10" placeholder="e.g. 10">
+        <!-- Grade Thresholds -->
+        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); grid-column: 1 / -1;">
+            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-percent" style="color: var(--primary);"></i> Grade Thresholds (Minimum % out of Max Marks)</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                <div class="form-group"><label>A+ Grade</label><input type="number" id="th-aplus" value="90"></div>
+                <div class="form-group"><label>A Grade</label><input type="number" id="th-a" value="70"></div>
+                <div class="form-group"><label>B Grade</label><input type="number" id="th-b" value="60"></div>
+                <div class="form-group"><label>C Grade</label><input type="number" id="th-c" value="50"></div>
             </div>
         </div>
 
+        <!-- Grade Points Matrix -->
+        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); grid-column: 1 / -1; overflow-x: auto;">
+            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-table" style="color: var(--primary);"></i> Grade Points Matrix</h3>
+            <table style="width: 100%; border-collapse: collapse; min-width: 600px;">
+                <thead>
+                    <tr>
+                        <th style="background: var(--bg-main);">No. of Participants</th>
+                        <th style="background: var(--bg-main);">A+ Points</th>
+                        <th style="background: var(--bg-main);">A Points</th>
+                        <th style="background: var(--bg-main);">B Points</th>
+                        <th style="background: var(--bg-main);">C Points</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="font-weight: 700;">1 (Solo)</td>
+                        <td><input type="number" id="pt-solo-aplus" value="8" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                        <td><input type="number" id="pt-solo-a" value="7" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                        <td><input type="number" id="pt-solo-b" value="5" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                        <td><input type="number" id="pt-solo-c" value="3" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td style="font-weight: 700;">2 or 3</td>
+                        <td><input type="number" id="pt-small-aplus" value="12" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                        <td><input type="number" id="pt-small-a" value="10" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                        <td><input type="number" id="pt-small-b" value="7" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                        <td><input type="number" id="pt-small-c" value="5" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td style="font-weight: 700;">4 or 5+</td>
+                        <td><input type="number" id="pt-large-aplus" value="15" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                        <td><input type="number" id="pt-large-a" value="12" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                        <td><input type="number" id="pt-large-b" value="10" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                        <td><input type="number" id="pt-large-c" value="7" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Position Points -->
         <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-star" style="color: var(--warning);"></i> General Competitions</h3>
-            <div class="form-group">
-                <label>Maximum Points (Base Ratio)</label>
-                <input type="number" id="setting-ratio-general" value="20" placeholder="e.g. 20">
-            </div>
+            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-medal" style="color: var(--warning);"></i> Position Points</h3>
+            <div class="form-group"><label>1st Place</label><input type="number" id="pos-1" value="3"></div>
+            <div class="form-group"><label>2nd Place</label><input type="number" id="pos-2" value="2"></div>
+            <div class="form-group"><label>3rd Place</label><input type="number" id="pos-3" value="1"></div>
         </div>
         
-        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); grid-column: 1 / -1;">
-            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-images" style="color: var(--primary);"></i> Team Poster Downloads</h3>
-            <div class="form-group">
-                <label>Results Interval (Multiples)</label>
-                <input type="number" id="setting-poster-interval" value="10" placeholder="e.g. 10">
+        <!-- Other Settings -->
+        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-gears" style="color: var(--primary);"></i> Global Settings</h3>
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label>Results Poster Interval</label>
+                <input type="number" id="setting-poster-interval" value="10">
                 <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Live results dropdown will show "After 10", "After 20", etc.</p>
             </div>
-        </div>
-
-        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-lock" style="color: var(--danger);"></i> Access Control</h3>
             <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
                 <div>
                     <label style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text-main);">Allow TM Assignments</label>
                     <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Let Team Managers assign students</p>
                 </div>
                 <label style="position: relative; display: inline-block; width: 50px; height: 26px;">
-                    <input type="checkbox" id="setting-tm-access" style="opacity: 0; width: 0; height: 0;" checked>
-                    <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .4s; border-radius: 34px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);"></span>
-                    <span id="tm-toggle-knob" style="position: absolute; content: ''; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></span>
+                    <input type="checkbox" id="setting-tm-access" style="opacity: 0; width: 0; height: 0;" checked onchange="this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#cbd5e1'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(24px)' : 'translateX(0)';">
+                    <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .4s; border-radius: 34px;"></span>
+                    <span id="tm-toggle-knob" style="position: absolute; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; transform: translateX(24px);"></span>
                 </label>
             </div>
-            <script>
-                document.getElementById('setting-tm-access').addEventListener('change', function() {
-                    const knob = document.getElementById('tm-toggle-knob');
-                    if(this.checked) {
-                        this.nextElementSibling.style.backgroundColor = 'var(--success)';
-                        knob.style.transform = 'translateX(24px)';
-                    } else {
-                        this.nextElementSibling.style.backgroundColor = '#cbd5e1';
-                        knob.style.transform = 'translateX(0)';
-                    }
-                });
-            </script>
         </div>
     </div>
 </div>
