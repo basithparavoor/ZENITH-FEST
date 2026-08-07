@@ -81,25 +81,31 @@ async function initDashboard() {
 
 async function fetchAllData() {
     try {
-        // NEW: Fetch categories to know which ones allow general crossover
         const { data: cats } = await supabaseClient.from('categories').select('*');
         globalCategories = cats || [];
 
         const { data: students } = await supabaseClient.from('participants').select('*').eq('team_id', myTeamId).order('name');
         globalStudents = students || [];
 
-        // Fetches ALL columns, including 'is_general' from the category relation
         const { data: comps } = await supabaseClient.from('competitions').select('*, categories(id, name, is_general), stages(name)').order('name');
         globalComps = comps || [];
 
         const studentIds = globalStudents.map(s => s.id);
         if(studentIds.length > 0) {
-            // Include 'is_leader' to track group leaders
+            // Include 'is_present' for live tracking
             const { data: assigns } = await supabaseClient
                 .from('participant_competitions')
-                .select(`id, participant_id, competition_id, is_leader`)
+                .select(`id, participant_id, competition_id, is_leader, is_present`)
                 .in('participant_id', studentIds);
             globalAssignments = assigns || [];
+        }
+
+        // Populate the new catalog category filter
+        const catSet = new Set(globalComps.map(c => c.categories?.name || 'GENERAL'));
+        const catSelect = document.getElementById('filter-catalog-cat');
+        if (catSelect) {
+            catSelect.innerHTML = '<option value="all">ALL CATEGORIES</option>';
+            catSet.forEach(cat => catSelect.innerHTML += `<option value="${cat}">${cat}</option>`);
         }
 
         updateDashboardStats();
@@ -113,10 +119,12 @@ async function fetchAllData() {
     }
 }
 
-// ---------------- DASHBOARD ----------------
 function updateDashboardStats() {
     document.getElementById('stat-total-students').innerText = globalStudents.length;
-    document.getElementById('stat-total-assignments').innerText = globalAssignments.length;
+    // Calculate unique events
+    const uniqueEvents = new Set(globalAssignments.map(a => a.competition_id)).size;
+    document.getElementById('stat-total-events').innerText = uniqueEvents;
+    
     const completedComps = globalComps.filter(c => c.status === 'published' || c.status === 'judgement_complete');
     document.getElementById('stat-completed-events').innerText = completedComps.length;
 }
@@ -137,7 +145,7 @@ function renderStudents() {
             <tr>
                 <td data-label="STUDENT NAME"></td>
                 <td data-label="UNIQUE ID" style="font-family: monospace;">${student.unique_id}</td>
-                <td data-label="BATCH">BATCH ${student.batch_no || 'N/A'}</td>
+                <td data-label="DOB">${student.dob || 'N/A'}</td>
                 <td data-label="EVENTS ENROLLED">
                     <span class="badge ${badgeClass}" onclick="viewStudentEvents('${student.id}')">${enrollCount} EVENTS <i class="fa-solid fa-arrow-up-right-from-square"></i></span>
                 </td>
@@ -176,10 +184,10 @@ function viewStudentEvents(studentId) {
     document.getElementById('studentEventsModal').classList.add('show');
 }
 
-// ---------------- EVENT CATALOG ----------------
 function renderCatalog() {
     const search = document.getElementById('search-catalog').value.toLowerCase();
     const typeFilter = document.getElementById('filter-catalog-type').value;
+    const catFilter = document.getElementById('filter-catalog-cat').value;
     const tbody = document.getElementById('catalog-tbody');
     tbody.innerHTML = '';
 
@@ -188,16 +196,16 @@ function renderCatalog() {
         
         if (typeFilter === 'group' && !comp.is_group) return;
         if (typeFilter === 'individual' && comp.is_group) return;
+        if (catFilter !== 'all' && catName !== catFilter) return;
         if (search && !comp.name.toLowerCase().includes(search) && !catName.toLowerCase().includes(search)) return;
 
         const stageName = comp.stages?.name || 'TBD';
-        
-        // Correct Limit Display from actual Admin Database Limits
         const limitDisplay = comp.max_participants ? comp.max_participants : 'NO LIMIT';
         
+        // Make the badges clickable
         const typeBadge = comp.is_group 
-            ? `<span class="badge" style="background:#e0e7ff; color:#4338ca;"><i class="fa-solid fa-users"></i> GROUP (LIMIT: ${limitDisplay} PER TEAM)</span>`
-            : `<span class="badge" style="background:#d1fae5; color:#059669;"><i class="fa-solid fa-user"></i> SOLO (LIMIT: ${limitDisplay} PER TEAM)</span>`;
+            ? `<span class="badge" style="background:#e0e7ff; color:#4338ca; cursor:pointer;" onclick="viewCatalogEnrollments('${comp.id}')"><i class="fa-solid fa-users"></i> GROUP (LIMIT: ${limitDisplay} PER TEAM)</span>`
+            : `<span class="badge" style="background:#d1fae5; color:#059669; cursor:pointer;" onclick="viewCatalogEnrollments('${comp.id}')"><i class="fa-solid fa-user"></i> SOLO (LIMIT: ${limitDisplay} PER TEAM)</span>`;
 
         tbody.innerHTML += `
             <tr>
@@ -211,6 +219,34 @@ function renderCatalog() {
     });
 }
 
+function viewCatalogEnrollments(compId) {
+    const comp = globalComps.find(c => c.id === compId);
+    const enrollments = globalAssignments.filter(a => a.competition_id === compId);
+    
+    document.getElementById('se-modal-title').innerText = `${comp.name} ENROLLMENTS`;
+    const body = document.getElementById('se-modal-body');
+    body.innerHTML = '';
+    
+    if (enrollments.length === 0) {
+        body.innerHTML = `<p style="color: var(--text-muted); text-align: center;">NO STUDENTS ENROLLED IN THIS EVENT.</p>`;
+    } else {
+        enrollments.forEach(a => {
+            const student = globalStudents.find(s => s.id === a.participant_id);
+            if (student) {
+                const leaderTag = a.is_leader ? '<span class="badge badge-success" style="font-size: 0.65rem;">LEADER</span>' : '';
+                body.innerHTML += `
+                    <div style="padding: 1rem; background: #F8FAFC; border-radius: 8px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600;">${student.name} ${leaderTag}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">${student.unique_id}</div>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+    }
+    document.getElementById('studentEventsModal').classList.add('show');
+}
 // ---------------- LIVE TRACKING & ENROLLED POPUP ----------------
 function renderLiveTracking() {
     const search = document.getElementById('search-comps').value.toLowerCase();
@@ -250,24 +286,27 @@ function renderLiveTracking() {
 
 function viewEnrolledDetails(compId) {
     const comp = globalComps.find(c => c.id === compId);
-    const enrolledIds = globalAssignments.filter(a => a.competition_id === compId).map(a => a.participant_id);
+    const assignments = globalAssignments.filter(a => a.competition_id === compId);
 
-    let enrolledHtml = '';
+    let checkedInHtml = '';
     let pendingHtml = '';
 
-    globalStudents.forEach(s => {
-        if(enrolledIds.includes(s.id)) {
-            enrolledHtml += `<div style="padding: 0.75rem; background: #d1fae5; color: #059669; border-radius: 8px; margin-bottom: 0.5rem; font-weight: 600;">${s.name} (${s.unique_id})</div>`;
-        } else {
-            pendingHtml += `<div style="padding: 0.75rem; background: #f1f5f9; color: #475569; border-radius: 8px; margin-bottom: 0.5rem; font-weight: 600;">${s.name} (${s.unique_id})</div>`;
+    assignments.forEach(a => {
+        const s = globalStudents.find(student => student.id === a.participant_id);
+        if (s) {
+            if(a.is_present) {
+                checkedInHtml += `<div style="padding: 0.75rem; background: #d1fae5; color: #059669; border-radius: 8px; margin-bottom: 0.5rem; font-weight: 600;">${s.name} (${s.unique_id})</div>`;
+            } else {
+                pendingHtml += `<div style="padding: 0.75rem; background: #fef3c7; color: #d97706; border-radius: 8px; margin-bottom: 0.5rem; font-weight: 600;">${s.name} (${s.unique_id})</div>`;
+            }
         }
     });
 
-    if(!enrolledHtml) enrolledHtml = '<p style="color: var(--text-muted);">NO STUDENTS ENROLLED</p>';
+    if(!checkedInHtml) checkedInHtml = '<p style="color: var(--text-muted);">NO STUDENTS CHECKED IN</p>';
     if(!pendingHtml) pendingHtml = '<p style="color: var(--text-muted);">NO PENDING STUDENTS</p>';
 
     document.getElementById('enroll-modal-title').innerText = comp.name;
-    document.getElementById('enroll-modal-enrolled').innerHTML = enrolledHtml;
+    document.getElementById('enroll-modal-enrolled').innerHTML = checkedInHtml;
     document.getElementById('enroll-modal-pending').innerHTML = pendingHtml;
     document.getElementById('enrollmentDetailsModal').classList.add('show');
 }
@@ -437,6 +476,154 @@ document.addEventListener("DOMContentLoaded", () => {
     // Other init functions...
     fetchAndApplyBranding();
 });
+
+// ==========================================
+// TEAM PDF REPORTS ENGINE
+// ==========================================
+
+async function exportTeamParticipantListPDF() {
+    showToast('Generating Participant List PDF...', 'success');
+    try {
+        const teamName = document.getElementById('team-name-title').innerText || 'MY TEAM';
+
+        const container = document.createElement('div');
+        container.style.padding = '40px';
+        container.style.fontFamily = 'Inter, sans-serif';
+        container.innerHTML = `
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 28px; text-transform: uppercase;">${teamName}</h1>
+                <h2 style="color: #1E293B; font-size: 18px; margin-top:0;">PARTICIPANT DIRECTORY</h2>
+                <p style="color: #64748B; font-size: 12px;">Generated on: ${new Date().toLocaleString()}</p>
+            </div>
+        `;
+
+        let tableRows = globalStudents.map((p, index) => {
+            const enrollCount = globalAssignments.filter(a => a.participant_id === p.id).length;
+            return `
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${index + 1}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-family: monospace; font-weight: 600;">${p.unique_id}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${p.name}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${p.dob || 'N/A'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; text-align: center;">${enrollCount}</td>
+            </tr>
+        `}).join('');
+
+        if (globalStudents.length === 0) {
+            tableRows = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #64748B;">No students found in this team.</td></tr>';
+        }
+
+        container.innerHTML += `
+            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
+                <thead>
+                    <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B; text-transform: uppercase;">
+                        <th style="padding: 10px;">#</th>
+                        <th style="padding: 10px;">UNIQUE ID</th>
+                        <th style="padding: 10px;">NAME</th>
+                        <th style="padding: 10px;">DOB</th>
+                        <th style="padding: 10px; text-align: center;">EVENTS ENROLLED</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size: 12px; color: #334155; text-transform: uppercase;">
+                    ${tableRows}
+                </tbody>
+            </table>
+        `;
+
+        const opt = {
+            margin: 10,
+            filename: `${teamName.replace(/[^a-z0-9]/gi, '_')}_Participants.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(container).save().then(() => showToast('Participant PDF Downloaded!'));
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function exportTeamProgramListPDF() {
+    showToast('Generating Program List PDF...', 'success');
+    try {
+        const teamName = document.getElementById('team-name-title').innerText || 'MY TEAM';
+
+        const container = document.createElement('div');
+        container.style.padding = '40px';
+        container.style.fontFamily = 'Inter, sans-serif';
+        container.innerHTML = `
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 28px; text-transform: uppercase;">${teamName}</h1>
+                <h2 style="color: #1E293B; font-size: 18px; margin-top:0;">MASTER PROGRAM LIST</h2>
+                <p style="color: #64748B; font-size: 12px;">Generated on: ${new Date().toLocaleString()}</p>
+            </div>
+        `;
+
+        // Group data by competition
+        let compsMap = {};
+        globalAssignments.forEach(a => {
+            const student = globalStudents.find(s => s.id === a.participant_id);
+            const comp = globalComps.find(c => c.id === a.competition_id);
+            if (student && comp) {
+                if (!compsMap[comp.id]) {
+                    compsMap[comp.id] = {
+                        compName: comp.name,
+                        category: comp.categories?.name || 'GENERAL',
+                        stage: comp.stages?.name || 'TBD',
+                        participants: []
+                    };
+                }
+                compsMap[comp.id].participants.push({
+                    name: student.name,
+                    id: student.unique_id,
+                    is_leader: a.is_leader
+                });
+            }
+        });
+
+        const sortedComps = Object.values(compsMap).sort((a, b) => {
+            if (a.category !== b.category) return a.category.localeCompare(b.category);
+            return a.compName.localeCompare(b.compName);
+        });
+
+        if (sortedComps.length === 0) {
+            container.innerHTML += '<p style="text-align: center; color: #64748B;">No enrollments found for this team.</p>';
+        } else {
+            sortedComps.forEach(c => {
+                let pRows = c.participants.sort((a,b) => a.name.localeCompare(b.name)).map((p, i) => `
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #E2E8F0; width: 40px;">${i + 1}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #E2E8F0; font-family: monospace; font-weight: 600;">${p.id}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #E2E8F0;">${p.name} ${p.is_leader ? '<span style="color: #10B981; font-size:10px; font-weight:bold;">(LEADER)</span>' : ''}</td>
+                    </tr>
+                `).join('');
+
+                container.innerHTML += `
+                    <div style="margin-bottom: 20px; page-break-inside: avoid;">
+                        <div style="background: #1E293B; color: white; padding: 10px; border-radius: 8px 8px 0 0;">
+                            <h3 style="margin: 0; font-size: 14px; text-transform: uppercase;">${c.compName}</h3>
+                            <p style="margin: 4px 0 0 0; font-size: 11px; color: #CBD5E1; text-transform: uppercase;">CATEGORY: ${c.category} | STAGE: ${c.stage}</p>
+                        </div>
+                        <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; border-top: none;">
+                            <tbody style="font-size: 12px; color: #334155; text-transform: uppercase;">
+                                ${pRows}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            });
+        }
+
+        const opt = {
+            margin: 10,
+            filename: `${teamName.replace(/[^a-z0-9]/gi, '_')}_Program_List.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+        };
+
+        html2pdf().set(opt).from(container).save().then(() => showToast('Program List PDF Downloaded!'));
+    } catch (e) { showToast(e.message, 'error'); }
+}
 
 // ==========================================
 // UNIFIED GLOBAL BRANDING ENGINE

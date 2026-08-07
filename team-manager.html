@@ -6,9 +6,11 @@
     <title>FESTOS | TEAM MANAGER</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 320 512%22><path fill=%22%234F46E5%22 d=%22M296 160H180.6l42.6-129.8C227.2 15 215.7 0 200 0H56C44 0 33.8 8.9 32.2 20.8l-32 240C-.5 273.6 9.3 288 24 288h118.7L96.6 482.5c-3.6 15.2 8 29.5 23.3 29.5 8.4 0 16.4-4.4 20.8-12l176-304c9.3-15.9-2.2-36-20.7-36z%22/></svg>">
     
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- ADD THIS LINE: -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">    
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
 
@@ -180,8 +182,8 @@
                 </div>
                 <div class="stat-card">
                     <div class="icon" style="background: #e0e7ff; color: #4338ca;"><i class="fa-solid fa-clipboard-list"></i></div>
-                    <h3>TOTAL ENROLLMENTS</h3>
-                    <div class="value" id="stat-total-assignments">0</div>
+                    <h3>TOTAL EVENTS</h3>
+                    <div class="value" id="stat-total-events">0</div>
                 </div>
                 <div class="stat-card">
                     <div class="icon" style="background: #d1fae5; color: #059669;"><i class="fa-solid fa-check-circle"></i></div>
@@ -191,20 +193,24 @@
             </div>
         </div>
 
-        <div id="my-team" class="content-section">
+       <div id="my-team" class="content-section">
             <h2 style="margin-bottom: 0.5rem;">STUDENT DIRECTORY</h2>
             <p style="color: var(--text-muted); margin-bottom: 1.5rem;">VIEW ALL STUDENTS ASSIGNED TO YOUR TEAM AND THEIR ACTIVE ENROLLMENTS.</p>
             
-            <div class="controls-bar">
-                <div class="search-box">
+            <div class="controls-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                <div class="search-box" style="flex: 1; min-width: 250px;">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="text" id="search-students" placeholder="SEARCH BY NAME OR ID..." onkeyup="renderStudents()">
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="btn btn-outline" onclick="exportTeamParticipantListPDF()"><i class="fa-solid fa-file-pdf" style="color: var(--danger);"></i> PARTICIPANTS PDF</button>
+                    <button class="btn btn-outline" onclick="exportTeamProgramListPDF()"><i class="fa-solid fa-file-pdf" style="color: var(--primary);"></i> PROGRAM LIST PDF</button>
                 </div>
             </div>
 
             <div class="table-container">
                 <table>
-                    <thead><tr><th>STUDENT NAME</th><th>UNIQUE ID</th><th>BATCH</th><th>EVENTS ENROLLED</th></tr></thead>
+                    <thead><tr><th>STUDENT NAME</th><th>UNIQUE ID</th><th>DOB</th><th>EVENTS ENROLLED</th></tr></thead>
                     <tbody id="students-tbody"></tbody>
                 </table>
             </div>
@@ -214,10 +220,15 @@
             <h2 style="margin-bottom: 0.5rem;">EVENT CATALOG</h2>
             <p style="color: var(--text-muted); margin-bottom: 1.5rem;">REVIEW RULES, STAGES, AND LIMITS FOR ALL COMPETITIONS.</p>
             
-            <div class="controls-bar">
+         <div class="controls-bar">
                 <div class="search-box">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="text" id="search-catalog" placeholder="SEARCH EVENTS..." onkeyup="renderCatalog()">
+                </div>
+                <div class="filter-box">
+                    <select id="filter-catalog-cat" onchange="renderCatalog()">
+                        <option value="all">ALL CATEGORIES</option>
+                    </select>
                 </div>
                 <div class="filter-box">
                     <select id="filter-catalog-type" onchange="renderCatalog()">
@@ -314,11 +325,11 @@
             </div>
             <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 200px;">
-                    <h3 style="color: var(--success); margin-bottom: 0.75rem;"><i class="fa-solid fa-check-circle"></i> ENROLLED</h3>
+                    <h3 id="enroll-modal-enrolled-title" style="color: var(--success); margin-bottom: 0.75rem;"><i class="fa-solid fa-check-circle"></i> REGISTERED (CHECKED IN)</h3>
                     <div id="enroll-modal-enrolled" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 400px; overflow-y: auto;"></div>
                 </div>
                 <div style="flex: 1; min-width: 200px;">
-                    <h3 style="color: var(--text-muted); margin-bottom: 0.75rem;"><i class="fa-solid fa-clock"></i> PENDING (NOT ENROLLED)</h3>
+                    <h3 id="enroll-modal-pending-title" style="color: var(--warning); margin-bottom: 0.75rem;"><i class="fa-solid fa-clock"></i> PENDING (NOT CHECKED IN)</h3>
                     <div id="enroll-modal-pending" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 400px; overflow-y: auto;"></div>
                 </div>
             </div>
