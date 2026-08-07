@@ -165,8 +165,11 @@ function applyGlobalBranding(brandingData) {
         container.style.display = 'flex';
         container.style.alignItems = 'center';
         
-        // Keep centered on login and scan screens
-        if (window.location.pathname.includes('login') || window.location.pathname.includes('scan')) {
+        // FIX: Added 'index' and '/' to ensure the title centers on the main login screen!
+        if (window.location.pathname.includes('login') || 
+            window.location.pathname.includes('scan') || 
+            window.location.pathname.includes('index') || 
+            window.location.pathname === '/') {
             container.style.justifyContent = 'center';
         }
     });
