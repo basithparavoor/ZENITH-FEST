@@ -143,8 +143,7 @@ async function loadCategories() {
             const compCount = cat.competitions[0]?.count || 0;
             tbody.innerHTML += `
                 <tr>
-                    <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${cat.id}"></td>
-                    <td>${cat.name}</td>
+<td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${cat.id}" ${globalSelections['categories-tbody']?.has(cat.id) ? 'checked' : ''} onchange="handleRowSelection('categories-tbody', this.value, this.checked)"></td>                    <td>${cat.name}</td>
                     <td>${cat.is_general ? '<span class="badge badge-primary">General</span>' : 'Standard'}</td>
                     <td><span class="badge-count" onclick="viewRelationalData('participants', 'category_id', '${cat.id}')">${partCount} Students</span></td>
                     <td><span class="badge-count" onclick="viewRelationalData('competitions', 'category_id', '${cat.id}')">${compCount} Competitions</span></td>
@@ -271,13 +270,14 @@ function filterCategoriesTable() {
 }
 // --- COMPETITIONS MANAGEMENT (PAGINATED) ---
 let compCurrentPage = 1;
-const compRowsPerPage = 10;
+let compRowsPerPage = 10;
 let filteredCompetitionsList = []; 
 
 async function loadCompetitions() {
     try {
         if (stagesList.length === 0) { const { data } = await supabaseClient.from('stages').select('*'); stagesList = data || []; }
         if (categoriesList.length === 0) await loadCategories();
+        if (teamsList.length === 0) { const { data } = await supabaseClient.from('teams').select('*'); teamsList = data || []; }
 
         const { data, error } = await supabaseClient
             .from('competitions')
@@ -338,21 +338,21 @@ function renderCompetitionsTable() {
 
     pageData.forEach(comp => {
         const studentCount = "?"; // Placeholder for foreign key count
+        const totalCapacity = (comp.max_participants || 0) * (teamsList.length || 0); // Calculate total system limit
         
         tbody.innerHTML += `
             <tr>
-                <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${comp.id}"></td>
-                <td>${comp.name}</td>
+<td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${comp.id}" ${globalSelections['competitions-tbody']?.has(comp.id) ? 'checked' : ''} onchange="handleRowSelection('competitions-tbody', this.value, this.checked)"></td>                <td>${comp.name}</td>
                 <td><span class="badge badge-primary">${comp.categories?.name || 'N/A'}</span></td>
                 <td>${comp.stages?.name || 'Unassigned'}</td>
                 
-                <!-- FIX: Added the missing Max Marks column data -->
                 <td style="font-weight: 700; color: var(--text-main);">${comp.max_mark || '0'}</td>
                 
                 <td>
-                    <span class="badge-count" onclick="viewCompParticipants('${comp.id}')">
-                        ${studentCount} / ${comp.max_participants} Limit
+                    <span class="badge-count" onclick="viewCompParticipants('${comp.id}')" title="Click to view enrolled">
+                        ${studentCount} / ${totalCapacity} Total
                     </span>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; font-weight: 600;">(${comp.max_participants} PER TEAM)</div>
                 </td>
                 <td>
                     <div style="display: flex; gap: 0.5rem;">
@@ -374,9 +374,19 @@ function renderCompPagination() {
     const startNum = filteredCompetitionsList.length === 0 ? 0 : ((compCurrentPage - 1) * compRowsPerPage) + 1;
     const endNum = Math.min(compCurrentPage * compRowsPerPage, filteredCompetitionsList.length);
 
+    // Ensure the Select All box is unchecked visually when pages change
+    const masterCb = document.querySelector('#competitions-tbody')?.previousElementSibling?.querySelector('input[type="checkbox"]');
+    if(masterCb) masterCb.checked = false;
+
     paginationContainer.innerHTML = `
-        <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">
+        <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 0.75rem;">
             Showing ${startNum} to ${endNum} of ${filteredCompetitionsList.length} entries
+            <select onchange="compRowsPerPage = parseInt(this.value); compCurrentPage = 1; renderCompetitionsTable();" style="padding: 0.25rem 0.5rem; border-radius: 4px; border: 1px solid var(--border); outline: none; background: white; font-weight: 600;">
+                <option value="10" ${compRowsPerPage === 10 ? 'selected' : ''}>10 per page</option>
+                <option value="25" ${compRowsPerPage === 25 ? 'selected' : ''}>25 per page</option>
+                <option value="50" ${compRowsPerPage === 50 ? 'selected' : ''}>50 per page</option>
+                <option value="100" ${compRowsPerPage === 100 ? 'selected' : ''}>100 per page</option>
+            </select>
         </div>
         <div style="display: flex; gap: 0.5rem;">
             <button class="btn btn-outline" style="padding: 0.4rem 0.8rem;" onclick="changeCompPage(-1)" ${compCurrentPage === 1 ? 'disabled' : ''}>Previous</button>
@@ -780,7 +790,7 @@ function openTeamModal(editData = null) {
 
 // Global states for pagination
 let partCurrentPage = 1;
-const partRowsPerPage = 10;
+let partRowsPerPage = 10;
 let filteredParticipantsList = [];
 
 async function loadParticipants() {
@@ -818,7 +828,7 @@ function filterParticipants(resetPage = true) {
     const catFilter = document.getElementById('filterCategory').value;
     
     const teamFilter = document.getElementById('filterPartTeam') ? document.getElementById('filterPartTeam').value : "";
-    const batchFilter = document.getElementById('filterPartBatch') ? document.getElementById('filterPartBatch').value : "";
+const dobFilter = document.getElementById('filterPartDob') ? document.getElementById('filterPartDob').value : "";
     
     filteredParticipantsList = participantsList.filter(p => {
         const matchName = p.name.toLowerCase().includes(query) || (p.unique_id && p.unique_id.toLowerCase().includes(query));
@@ -829,9 +839,8 @@ function filterParticipants(resetPage = true) {
         const partTeamName = p.teams?.name || '';
         const matchTeam = teamFilter === "" || partTeamName === teamFilter;
         
-        const matchBatch = batchFilter === "" || (p.batch_no && p.batch_no.toString() === batchFilter);
-        
-        return matchName && matchCat && matchTeam && matchBatch;
+        const matchDob = dobFilter === "" || p.dob === dobFilter;
+return matchName && matchCat && matchTeam && matchDob;
     });
     
     if (resetPage) partCurrentPage = 1; 
@@ -856,8 +865,7 @@ function renderParticipantsTable() {
         
         tbody.innerHTML += `
             <tr>
-                <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}"></td>
-                <td style="font-family: monospace; font-weight: 600; color: var(--primary);">${p.unique_id}</td>
+<td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}" ${globalSelections['participants-tbody']?.has(p.id) ? 'checked' : ''} onchange="handleRowSelection('participants-tbody', this.value, this.checked)"></td>                <td style="font-family: monospace; font-weight: 600; color: var(--primary);">${p.unique_id}</td>
                 <td>
                     <div style="display: flex; align-items: center; gap: 0.75rem;">
                         <img src="${photoSrc}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0;">
@@ -888,9 +896,18 @@ function renderPartPagination() {
     const startNum = filteredParticipantsList.length === 0 ? 0 : ((partCurrentPage - 1) * partRowsPerPage) + 1;
     const endNum = Math.min(partCurrentPage * partRowsPerPage, filteredParticipantsList.length);
 
+    const masterCb = document.querySelector('#participants-tbody')?.previousElementSibling?.querySelector('input[type="checkbox"]');
+    if(masterCb) masterCb.checked = false;
+
     paginationContainer.innerHTML = `
-        <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">
+        <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 0.75rem;">
             Showing ${startNum} to ${endNum} of ${filteredParticipantsList.length} entries
+            <select onchange="partRowsPerPage = parseInt(this.value); partCurrentPage = 1; renderParticipantsTable();" style="padding: 0.25rem 0.5rem; border-radius: 4px; border: 1px solid var(--border); outline: none; background: white; font-weight: 600;">
+                <option value="10" ${partRowsPerPage === 10 ? 'selected' : ''}>10 per page</option>
+                <option value="25" ${partRowsPerPage === 25 ? 'selected' : ''}>25 per page</option>
+                <option value="50" ${partRowsPerPage === 50 ? 'selected' : ''}>50 per page</option>
+                <option value="100" ${partRowsPerPage === 100 ? 'selected' : ''}>100 per page</option>
+            </select>
         </div>
         <div style="display: flex; gap: 0.5rem;">
             <button class="btn btn-outline" style="padding: 0.4rem 0.8rem;" onclick="changePartPage(-1)" ${partCurrentPage === 1 ? 'disabled' : ''}>Previous</button>
@@ -933,7 +950,7 @@ async function exportParticipantsPDF() {
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${p.name}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${p.teams?.name || 'UNASSIGNED'}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${p.categories?.name || 'N/A'}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${p.batch_no || '1'}</td>
+<td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${p.dob || 'N/A'}</td>
             </tr>
         `).join('');
 
@@ -946,7 +963,7 @@ async function exportParticipantsPDF() {
                         <th style="padding: 10px;">NAME</th>
                         <th style="padding: 10px;">TEAM</th>
                         <th style="padding: 10px;">CATEGORY</th>
-                        <th style="padding: 10px;">BATCH</th>
+                        <th style="padding: 10px;">DOB</th>
                     </tr>
                 </thead>
                 <tbody style="font-size: 12px; color: #334155;">
@@ -977,7 +994,7 @@ async function exportParticipantsCSV() {
             "NAME": p.name || 'N/A',
             "TEAM": p.teams?.name || 'UNASSIGNED',
             "CATEGORY": p.categories?.name || 'N/A',
-            "BATCH NO": p.batch_no || '1'
+            "DOB": p.dob || 'N/A'
         }));
 
         const blob = new Blob([Papa.unparse(flatData)], { type: 'text/csv;charset=utf-8;' });
@@ -996,30 +1013,160 @@ function viewParticipantCard(p) {
     const catName = p.categories ? p.categories.name : 'GENERAL';
     const photoSrc = p.photo_url ? p.photo_url : 'https://via.placeholder.com/150/E5E7EB/6B7280?text=NO+PHOTO';
     
-    document.getElementById('listModalTitle').innerText = 'Participant Profile';
+    document.getElementById('listModalTitle').innerText = 'Participant Identity';
+    
     document.getElementById('listModalTable').innerHTML = `
-        <div style="display: flex; gap: 1.5rem; align-items: flex-start; text-transform: uppercase; padding: 1rem;">
-            <img src="${photoSrc}" style="width: 130px; height: 195px; object-fit: cover; border-radius: 12px; border: 3px solid var(--border); box-shadow: var(--shadow-sm);">
-            <div style="flex: 1;">
-                <h3 style="font-size: 1.5rem; margin-bottom: 0.25rem; font-weight: 800; color: var(--primary);">${p.name}</h3>
-                <p style="font-family: monospace; font-size: 1rem; margin-bottom: 1.5rem; font-weight: 600; color: var(--text-muted);">${p.unique_id}</p>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1rem;">
-                    <div><strong style="font-size: 0.75rem; color: var(--text-muted);">TEAM</strong><br><span style="font-weight:600;">${teamName}</span></div>
-                    <div><strong style="font-size: 0.75rem; color: var(--text-muted);">CATEGORY</strong><br><span style="font-weight:600;">${catName}</span></div>
-                    <div><strong style="font-size: 0.75rem; color: var(--text-muted);">BATCH NO</strong><br><span style="font-weight:600;">${p.batch_no || '1'}</span></div>
-                    <div>
-                        <strong style="font-size: 0.75rem; color: var(--text-muted);">COMPETITIONS</strong><br>
-                        <!-- Updated to use the new join function -->
-                        <button class="badge-count" style="margin-top:0.35rem; border:none;" onclick="viewParticipantEnrollments('${p.id}')">VIEW ENROLLMENTS</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    document.getElementById('listModal').classList.add('show');
-}
+        <style>
+            .premium-profile-top { 
+                display: flex; 
+                gap: 1.25rem; 
+                align-items: center; 
+            }
+            .premium-profile-bottom { 
+                display: grid; 
+                grid-template-columns: 130px 1fr; 
+                gap: 1rem; 
+                align-items: stretch; 
+            }
+            .premium-photo-box { 
+                width: 100px; 
+                height: 130px; 
+                flex-shrink: 0; 
+            }
+            .premium-info-box { 
+                text-align: left; 
+            }
+            .premium-info-row { 
+                display: flex; 
+                align-items: center; 
+                justify-content: flex-start; 
+                gap: 0.5rem; 
+            }
+            
+            /* --- Mobile Breakpoint Optimization --- */
+            @media (max-width: 600px) {
+                .premium-profile-top { 
+                    flex-direction: column; 
+                    text-align: center; 
+                    gap: 1rem; 
+                    padding: 1.25rem 1rem !important; 
+                }
+                .premium-photo-box { 
+                    width: 110px; 
+                    height: 140px; 
+                    margin: 0 auto; 
+                }
+                .premium-info-box { 
+                    text-align: center; 
+                    display: flex; 
+                    flex-direction: column; 
+                    align-items: center; 
+                    width: 100%;
+                }
+                .premium-info-row { 
+                    justify-content: center; 
+                    word-break: break-word;
+                }
+                .premium-profile-bottom { 
+                    grid-template-columns: 1fr; 
+                    gap: 1rem; 
+                }
+                .qr-card-mobile {
+                    width: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                }
+            }
+        </style>
+        
+        <tbody style="display: block; width: 100%;">
+            <tr>
+                <td style="padding: 0; border: none; background: transparent; width: 100%; display: block;">
+                    
+                    <!-- Top Profile Card -->
+                    <div class="premium-profile-top" style="background: linear-gradient(135deg, var(--bg-main) 0%, white 100%); border: 1px solid var(--border); border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: var(--shadow-sm); position: relative; overflow: hidden;">
+                        
+                        <!-- Background Glow Element -->
+                        <div style="position: absolute; right: -20px; top: -20px; width: 100px; height: 100px; background: var(--primary-light); border-radius: 50%; opacity: 0.5; pointer-events: none;"></div>
 
+                        <!-- Photo -->
+                        <div class="premium-photo-box" style="border-radius: 12px; border: 3px solid white; box-shadow: var(--shadow-md); overflow: hidden; z-index: 1;">
+                            <img src="${photoSrc}" style="width: 100%; height: 100%; object-fit: cover; background: #E2E8F0;">
+                        </div>
+
+                        <!-- Name & Details -->
+                        <div class="premium-info-box" style="flex: 1; z-index: 1;">
+                            <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-main); line-height: 1.2; margin-bottom: 0.5rem; letter-spacing: -0.02em; text-transform: uppercase; word-break: break-word;">
+                                ${p.name}
+                            </h3>
+                            
+                            <div class="premium-info-row" style="margin-bottom: 0.75rem;">
+                                <span style="background: var(--primary); color: white; padding: 0.35rem 0.75rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; font-weight: 700; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); word-break: break-all;">
+                                    ${p.unique_id}
+                                </span>
+                            </div>
+
+                            <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.35rem; text-transform: uppercase;">
+                                <span class="premium-info-row"><i class="fa-solid fa-users" style="width: 18px; color: var(--primary);"></i> ${teamName}</span>
+                                <span class="premium-info-row"><i class="fa-solid fa-layer-group" style="width: 18px; color: var(--primary);"></i> ${catName}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Grid: QR & Extra Details -->
+                    <div class="premium-profile-bottom">
+                        
+                        <!-- QR Code Card -->
+                        <div class="qr-card-mobile" style="background: white; border: 1px solid var(--border); border-radius: 16px; padding: 1rem; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <div id="qr-container-${p.unique_id}" style="width: 110px; height: 110px; display: flex; justify-content: center; align-items: center;">
+                                <i class="fa-solid fa-spinner fa-spin" style="color: var(--text-muted); font-size: 1.5rem;"></i>
+                            </div>
+                            <span style="font-size: 0.65rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.05em; text-align: center;">SCAN TO VERIFY</span>
+                        </div>
+
+                        <!-- Actions & Extra Info -->
+                        <div style="display: flex; flex-direction: column; justify-content: space-between; gap: 0.75rem;">
+                            
+                            <!-- DOB Tag -->
+                            <div style="background: var(--primary-light); border: 1px solid rgba(79, 70, 229, 0.15); border-radius: 16px; padding: 1rem; display: flex; align-items: center; justify-content: space-between; flex: 1; min-height: 70px;">
+                                <div style="display: flex; flex-direction: column; gap: 0.2rem; text-align: left;">
+                                    <span style="font-size: 0.7rem; font-weight: 800; color: var(--primary); letter-spacing: 0.05em;">DATE OF BIRTH</span>
+                                    <span style="font-size: 1.1rem; font-weight: 800; color: var(--text-main); text-transform: uppercase;">${p.dob || 'NOT PROVIDED'}</span>
+                                </div>
+                                <i class="fa-solid fa-cake-candles" style="font-size: 1.5rem; color: var(--primary); opacity: 0.3;"></i>
+                            </div>
+
+                            <!-- View Competitions Button -->
+                            <button class="btn" style="width: 100%; justify-content: center; padding: 0.85rem; border-radius: 12px; background: white; border: 2px solid var(--border); font-weight: 800; color: var(--text-main); transition: all 0.2s; box-shadow: var(--shadow-sm);" onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-main)';" onclick="viewParticipantEnrollments('${p.id}')">
+                                <i class="fa-solid fa-clipboard-list" style="margin-right: 6px;"></i> VIEW ENROLLMENTS
+                            </button>
+                        </div>
+                    </div>
+
+                </td>
+            </tr>
+        </tbody>
+    `;
+    
+    document.getElementById('listModal').classList.add('show');
+
+    // Generate the QR code dynamically
+    setTimeout(() => {
+        const qrContainer = document.getElementById(`qr-container-${p.unique_id}`);
+        if (qrContainer) {
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: p.unique_id,
+                width: 110,
+                height: 110,
+                colorDark: "#0F172A",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+    }, 50);
+}
 // NEW FUNCTION: specifically joins competitions and categories to the participant
 async function viewParticipantEnrollments(participantId) {
     try {
@@ -1069,11 +1216,11 @@ function openParticipantModal(editData = null) {
     const isEdit = !!editData;
     const pId = isEdit ? editData.id : '';
     const pName = isEdit ? editData.name : '';
-    const pBatch = isEdit ? editData.batch_no : '1';
     
-    // NEW: Capture the existing unique_id
+    // CHANGED: Load 'dob' instead of 'batch_no'
+    const pDob = isEdit && editData.dob ? editData.dob : '';
+    
     const pUniqueId = isEdit ? editData.unique_id : '';
-    
     const pPhoto = isEdit && editData.photo_url ? editData.photo_url : 'https://via.placeholder.com/150/EEF2FF/6366F1?text=PHOTO';
 
     const modalHtml = `
@@ -1128,9 +1275,11 @@ function openParticipantModal(editData = null) {
                         <label>Category <span style="color: var(--danger);">*</span></label>
                         <select id="partCategory">${catOpts}</select>
                     </div>
-                    <div class="form-group" style="flex: 1; min-width: 100px;">
-                        <label>Batch No</label>
-                        <input type="number" id="partBatch" min="1" max="7" value="${pBatch}">
+                    
+                    <!-- CHANGED: Replaced Batch input with Date of Birth -->
+                    <div class="form-group" style="flex: 1; min-width: 130px;">
+                        <label>Date of Birth</label>
+                        <input type="date" id="partDob" value="${pDob}" style="text-transform: none;">
                     </div>
                 </div>
             </div>
@@ -1149,7 +1298,9 @@ async function saveParticipant() {
     const name = document.getElementById('partName').value;
     const team_id = document.getElementById('partTeam').value || null;
     const category_id = document.getElementById('partCategory').value;
-    const batch_no = document.getElementById('partBatch').value;
+    
+    // CHANGED: Grab Date of Birth instead of Batch No
+    const dob = document.getElementById('partDob').value || null;
     
     // Grab the existing unique_id if editing, otherwise generate a new one
     let unique_id = document.getElementById('partUniqueId').value;
@@ -1188,8 +1339,9 @@ async function saveParticipant() {
             photo_url = publicUrlData.publicUrl;
         }
 
-        // Build the payload (unique_id is now ALWAYS included)
-        const payload = { name, team_id, category_id, batch_no, unique_id };
+        // CHANGED: Include 'dob' in the payload
+        const payload = { name, team_id, category_id, dob, unique_id };
+        
         if (id) payload.id = id; 
         if (photo_url) payload.photo_url = photo_url; 
 
@@ -1201,8 +1353,6 @@ async function saveParticipant() {
         if(currentCropper) { currentCropper.destroy(); currentCropper = null; }
         
         closeModal(); 
-        
-        // Use the paginated render function to refresh the view correctly
         loadParticipants();
         
     } catch(e) { 
@@ -1659,16 +1809,44 @@ function filterTableByColumn(tbodyId, colIndex, value) {
     });
 }
 
+const globalSelections = {
+    'categories-tbody': new Set(),
+    'competitions-tbody': new Set(),
+    'participants-tbody': new Set(),
+    'points-tbody': new Set(),
+    'assign-workspace-tbody': new Set()
+};
+
+function handleRowSelection(tbodyId, value, isChecked) {
+    if (!globalSelections[tbodyId]) globalSelections[tbodyId] = new Set();
+    if (isChecked) globalSelections[tbodyId].add(value);
+    else globalSelections[tbodyId].delete(value);
+}
+
+function clearSelection(tbodyId) {
+    if (globalSelections[tbodyId]) globalSelections[tbodyId].clear();
+    const masterCb = document.querySelector(`#${tbodyId}`)?.previousElementSibling?.querySelector('input[type="checkbox"]');
+    if (masterCb) masterCb.checked = false;
+    
+    // Uncheck DOM elements if any are still visible
+    document.querySelectorAll(`#${tbodyId} input[type="checkbox"].row-cb`).forEach(cb => cb.checked = false);
+}
+
 function toggleSelectAll(tbodyId, masterCheckbox) {
     const checkboxes = document.querySelectorAll(`#${tbodyId} input[type="checkbox"].row-cb`);
     checkboxes.forEach(cb => {
-        if (cb.closest('tr').style.display !== 'none') cb.checked = masterCheckbox.checked;
+        if (cb.closest('tr').style.display !== 'none') {
+            cb.checked = masterCheckbox.checked;
+            handleRowSelection(tbodyId, cb.value, masterCheckbox.checked);
+        }
     });
 }
 
 function getSelectedIds(tbodyId) {
-    const checkboxes = document.querySelectorAll(`#${tbodyId} input[type="checkbox"].row-cb:checked`);
-    return Array.from(checkboxes).map(cb => cb.value);
+    // Fallback sync for manually checked DOM items just in case
+    const domChecked = Array.from(document.querySelectorAll(`#${tbodyId} input[type="checkbox"].row-cb:checked`)).map(cb => cb.value);
+    domChecked.forEach(val => handleRowSelection(tbodyId, val, true));
+    return Array.from(globalSelections[tbodyId] || []);
 }
 
 // --- BULK ACTION LOGIC ---
@@ -1685,9 +1863,7 @@ async function bulkDelete(tableName, tbodyId) {
             
             showToast(`Successfully deleted ${ids.length} items`);
             
-            // Uncheck the master checkbox
-            const masterCb = document.querySelector(`#${tbodyId}`).previousElementSibling.querySelector('input[type="checkbox"]');
-            if(masterCb) masterCb.checked = false;
+           clearSelection(tbodyId);
             
             // Reload the respective tab
             if(tableName === 'categories') loadCategories();
@@ -1739,7 +1915,7 @@ async function openBulkAssignModal() {
             closeModal(); 
             
             // Uncheck the boxes and flip to assignments tab to see results
-            document.querySelectorAll('#participants-tbody input[type="checkbox"]').forEach(cb => cb.checked = false);
+clearSelection('participants-tbody');
             switchTab('assignments');
         } catch (e) { 
             showToast(e.message, 'error'); 
@@ -1853,7 +2029,7 @@ async function loadAssignWorkspaceStudents() {
             <th>Unique ID</th>
             <th>Participant Name</th>
             <th>Team</th>
-            <th>Batch</th>
+            <th>DOB</th>
             <th>${isGroupComp ? 'Group Role' : 'Current Status'}</th>
         `;
 
@@ -1881,12 +2057,11 @@ async function loadAssignWorkspaceStudents() {
             }
                 
             tbody.innerHTML += `
-                <tr data-team="${s.team_id || ''}" data-batch="${s.batch_no || ''}" data-status="${isAssigned ? 'assigned' : 'unassigned'}">
-                    <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${s.id}"></td>
-                    <td style="font-family: monospace; font-weight: 600;">${s.unique_id}</td>
+                <tr data-team="${s.team_id || ''}" data-dob="${s.dob || ''}">
+<td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${s.id}" ${globalSelections['assign-workspace-tbody']?.has(s.id) ? 'checked' : ''} onchange="handleRowSelection('assign-workspace-tbody', this.value, this.checked)"></td>                    <td style="font-family: monospace; font-weight: 600;">${s.unique_id}</td>
                     <td class="searchable-name">${s.name}</td>
                     <td>${s.teams?.name || 'INDEPENDENT'}</td>
-                    <td>BATCH ${s.batch_no || '1'}</td>
+                    <td>${s.dob || 'N/A'}</td>
                     <td>${statusBadge}</td>
                 </tr>
             `;
@@ -1902,7 +2077,7 @@ async function loadAssignWorkspaceStudents() {
 function filterAssignTable() {
     const searchVal = document.getElementById('assignSearch').value.toLowerCase();
     const teamVal = document.getElementById('assignFilterTeam').value;
-    const batchVal = document.getElementById('assignFilterBatch').value;
+const dobVal = document.getElementById('assignFilterDob').value;
     const statusVal = document.getElementById('assignFilterStatus').value; // NEW
     const rows = document.querySelectorAll('#assign-workspace-tbody tr');
 
@@ -1911,8 +2086,8 @@ function filterAssignTable() {
         
         const text = row.querySelector('.searchable-name').innerText.toLowerCase() + " " + row.cells[1].innerText.toLowerCase();
         const rowTeam = row.getAttribute('data-team');
-        const rowBatch = row.getAttribute('data-batch');
-        const rowStatus = row.getAttribute('data-status'); // NEW
+        const rowDob = row.getAttribute('data-dob');
+const matchDob = dobVal === "" || rowDob === dobVal;
 
         const matchSearch = text.includes(searchVal);
         const matchTeam = teamVal === "" || rowTeam === teamVal;
@@ -1920,7 +2095,7 @@ function filterAssignTable() {
         const matchStatus = statusVal === "" || rowStatus === statusVal; // NEW
 
         // Hide or show row based on ALL conditions matching
-        row.style.display = (matchSearch && matchTeam && matchBatch && matchStatus) ? '' : 'none';
+row.style.display = (matchSearch && matchTeam && matchDob && matchStatus) ? '' : 'none';
     });
 }
 
@@ -1975,7 +2150,7 @@ async function executeWorkspaceAssign() {
         if (error) throw error;
         
         showToast(`Successfully assigned ${newIds.length} students!`);
-        document.querySelector('#assign-workspace-tbody').previousElementSibling.querySelector('input[type="checkbox"]').checked = false;
+clearSelection('assign-workspace-tbody');
         loadAssignWorkspaceStudents(); 
 
     } catch (e) {
@@ -2147,7 +2322,7 @@ async function generateParticipantIDCanvas(participant, template) {
         'UniqueID': participant.unique_id || `FEST-${participant.id.substring(0,6)}`.toUpperCase(),
         'TeamName': participant.teams?.name?.toUpperCase() || 'INDEPENDENT',
         'Category': participant.categories?.name?.toUpperCase() || '',
-        'BatchNo': `BATCH ${participant.batch_no || '1'}`
+        'DateOfBirth': participant.dob || ''
     };
 
     for (const [key, field] of Object.entries(template.fields)) {
@@ -2536,7 +2711,7 @@ const TEMPLATE_SCHEMAS = {
     individual: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 1 Team', 'Position 1 Photo', 'Position 2 Name', 'Position 2 Team', 'Position 2 Photo', 'Position 3 Name', 'Position 3 Team', 'Position 3 Photo'],
     team: ['Results Count Text', 'Rank 1 Team', 'Rank 1 Points', 'Rank 2 Team', 'Rank 2 Points', 'Rank 3 Team', 'Rank 3 Points', 'Rank 4 Team', 'Rank 4 Points', 'Rank 5 Team', 'Rank 5 Points'],
     final: ['Total Competitions Count', 'Rank 1 Team', 'Rank 1 Points', 'Rank 2 Team', 'Rank 2 Points', 'Rank 3 Team', 'Rank 3 Points', 'Rank 4 Team', 'Rank 4 Points', 'Rank 5 Team', 'Rank 5 Points'],
-    id_card: ['Participant Name', 'Unique ID', 'Team Name', 'Category', 'Batch No', 'Photo', 'QR Code']
+    id_card: ['Participant Name', 'Unique ID', 'Team Name', 'Category', 'Date of Birth', 'Photo', 'QR Code']
 };
 
 const STUDIO_MOCK_DATA = {
@@ -3466,6 +3641,7 @@ async function bulkAssignTeam() {
             
         if (error) throw error;
         showToast(`Successfully assigned ${participantIds.length} participants to team.`);
+        clearSelection('participants-tbody');
         loadParticipants();
     } catch (e) { showToast(e.message, 'error'); }
 }
@@ -3485,6 +3661,7 @@ async function bulkRevokeTeam() {
             
         if (error) throw error;
         showToast('Teams revoked successfully.');
+        clearSelection('participants-tbody');
         loadParticipants();
     } catch (e) { showToast(e.message, 'error'); }
 }
@@ -3685,7 +3862,7 @@ function applyGlobalBranding(brandingData) {
 let pointsDataList = [];
 let filteredPointsList = [];
 let pointsCurrentPage = 1;
-const pointsRowsPerPage = 10;
+let pointsRowsPerPage = 10;
 let pointsAdminSettings = { ratio_standard: 10, ratio_general: 20 };
 async function loadParticipantPoints() {
     try {
@@ -3765,15 +3942,14 @@ function filterPointsTable(resetPage = true) {
     const query = document.getElementById('searchPointsInput').value.toLowerCase();
     const catFilter = document.getElementById('filterPointsCategory').value;
     const teamFilter = document.getElementById('filterPointsTeam').value;
-    const batchFilter = document.getElementById('filterPointsBatch').value;
+    const dobFilter = document.getElementById('filterPointsDob').value;
     
     filteredPointsList = pointsDataList.filter(p => {
         const matchName = p.name.toLowerCase().includes(query) || (p.unique_id && p.unique_id.toLowerCase().includes(query));
         const matchCat = catFilter === "" || (p.categories?.name || '') === catFilter;
         const matchTeam = teamFilter === "" || (p.teams?.name || '') === teamFilter;
-        const matchBatch = batchFilter === "" || (p.batch_no && p.batch_no.toString() === batchFilter);
-        
-        return matchName && matchCat && matchTeam && matchBatch;
+        const matchDob = dobFilter === "" || p.dob === dobFilter;
+return matchName && matchCat && matchTeam && matchDob;
     });
     
     // Sort highest points first
@@ -3800,8 +3976,7 @@ function renderPointsTable() {
     pageData.forEach(p => {
         tbody.innerHTML += `
             <tr>
-                <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}"></td>
-                <td style="font-family: monospace; font-weight: 600; color: var(--text-muted);">${p.unique_id}</td>
+<td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}" ${globalSelections['points-tbody']?.has(p.id) ? 'checked' : ''} onchange="handleRowSelection('points-tbody', this.value, this.checked)"></td>                <td style="font-family: monospace; font-weight: 600; color: var(--text-muted);">${p.unique_id}</td>
                 <td style="font-weight: 700;">${p.name}</td>
                 <td>${p.teams?.name || 'INDEPENDENT'}</td>
                 <td style="font-weight: 900; color: var(--primary); font-size: 1.1rem;">${p.totalPoints} <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">PTS</span></td>
@@ -3822,8 +3997,19 @@ function renderPointsPagination() {
     const startNum = filteredPointsList.length === 0 ? 0 : ((pointsCurrentPage - 1) * pointsRowsPerPage) + 1;
     const endNum = Math.min(pointsCurrentPage * pointsRowsPerPage, filteredPointsList.length);
 
+   const masterCb = document.querySelector('#points-tbody')?.previousElementSibling?.querySelector('input[type="checkbox"]');
+    if(masterCb) masterCb.checked = false;
+
     paginationContainer.innerHTML = `
-        <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">Showing ${startNum} to ${endNum} of ${filteredPointsList.length} participants</div>
+        <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 0.75rem;">
+            Showing ${startNum} to ${endNum} of ${filteredPointsList.length} participants
+            <select onchange="pointsRowsPerPage = parseInt(this.value); pointsCurrentPage = 1; renderPointsTable();" style="padding: 0.25rem 0.5rem; border-radius: 4px; border: 1px solid var(--border); outline: none; background: white; font-weight: 600;">
+                <option value="10" ${pointsRowsPerPage === 10 ? 'selected' : ''}>10 per page</option>
+                <option value="25" ${pointsRowsPerPage === 25 ? 'selected' : ''}>25 per page</option>
+                <option value="50" ${pointsRowsPerPage === 50 ? 'selected' : ''}>50 per page</option>
+                <option value="100" ${pointsRowsPerPage === 100 ? 'selected' : ''}>100 per page</option>
+            </select>
+        </div>
         <div style="display: flex; gap: 0.5rem;">
             <button class="btn btn-outline" style="padding: 0.4rem 0.8rem;" onclick="pointsCurrentPage--; renderPointsTable();" ${pointsCurrentPage === 1 ? 'disabled' : ''}>Previous</button>
             <span style="display: flex; align-items: center; padding: 0 0.75rem; font-weight: 600; font-size: 0.9rem; color: var(--primary);">Page ${pointsCurrentPage} of ${totalPages}</span>

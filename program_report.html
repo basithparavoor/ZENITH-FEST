@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FestOS | Master Program & Reports</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 320 512%22><path fill=%22%234F46E5%22 d=%22M296 160H180.6l42.6-129.8C227.2 15 215.7 0 200 0H56C44 0 33.8 8.9 32.2 20.8l-32 240C-.5 273.6 9.3 288 24 288h118.7L96.6 482.5c-3.6 15.2 8 29.5 23.3 29.5 8.4 0 16.4-4.4 20.8-12l176-304c9.3-15.9-2.2-36-20.7-36z%22/></svg>">
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+
+        :root {
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --primary-light: #EEF2FF;
+            --danger: #E11D48;
+            --success: #10B981;
+            --bg-main: #F8FAFC; 
+            --bg-surface: #FFFFFF;
+            --text-main: #0F172A;
+            --text-muted: #64748B;
+            --border: #E2E8F0;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --shadow-sm: 0 2px 4px rgba(15, 23, 42, 0.02);
+            --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.04);
+            --transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; text-transform: uppercase; }
+        
+        body { background-color: var(--bg-main); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+
+        .header {
+            background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px);
+            padding: 1.25rem 2.5rem; display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100;
+        }
+        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 0.75rem; }
+
+        .container { padding: 2rem 2.5rem; flex: 1; max-width: 1600px; margin: 0 auto; width: 100%; }
+
+        .controls-card {
+            background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg);
+            border: 1px solid var(--border); box-shadow: var(--shadow-sm); margin-bottom: 2rem;
+            display: flex; flex-direction: column; gap: 1rem;
+        }
+
+        .filter-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .filter-group { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 0.5rem; }
+        .filter-group label { font-size: 0.75rem; font-weight: 800; color: var(--text-muted); }
+        
+        .control-input {
+            width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md);
+            border: 1px solid var(--border); font-size: 0.9rem; font-weight: 600;
+            background: var(--bg-main); color: var(--text-main); outline: none; transition: var(--transition);
+        }
+        .control-input:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px var(--primary-light); }
+        select.control-input { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748B'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.2rem; padding-right: 2.5rem; }
+
+        .action-row { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 0.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border); }
+
+        .btn {
+            padding: 0.75rem 1.5rem; border-radius: var(--radius-md); font-weight: 700; font-size: 0.9rem;
+            cursor: pointer; transition: var(--transition); border: 1px solid transparent; display: inline-flex;
+            align-items: center; justify-content: center; gap: 0.5rem;
+        }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); }
+        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-2px); }
+        .btn-outline { background: white; border-color: var(--border); color: var(--text-main); }
+        .btn-outline:hover { background: var(--bg-main); border-color: var(--primary); color: var(--primary); }
+
+        .report-wrapper {
+            background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border);
+            box-shadow: var(--shadow-md); overflow: hidden; padding: 2rem;
+        }
+
+        /* Printable Report Styles */
+        #report-content { width: 100%; background: white; color: #0F172A; }
+        .report-header { text-align: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border); }
+        .report-header h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 2rem; color: var(--primary); margin-bottom: 0.5rem; }
+        .report-header p { color: var(--text-muted); font-size: 0.9rem; font-weight: 600; }
+        
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 1rem; font-weight: 800; color: var(--text-muted); font-size: 0.75rem; background: var(--bg-main); border-bottom: 2px solid var(--border); white-space: nowrap; }
+        td { padding: 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; color: var(--text-main); }
+        tr:nth-child(even) td { background: #F8FAFC; }
+        
+        .badge { padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 800; background: var(--primary-light); color: var(--primary); }
+
+        .loading-overlay {
+            position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 1000;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            font-weight: 700; color: var(--primary); font-size: 1.2rem;
+        }
+
+        @media (max-width: 768px) {
+            .filter-row { flex-direction: column; }
+            .action-row { flex-direction: column; }
+            .btn { width: 100%; }
+            .container { padding: 1rem; }
+            .report-wrapper { padding: 1rem; overflow-x: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loading-overlay" id="loader">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+        <span>Generating Report...</span>
+    </div>
+
+    <div class="header">
+        <h1><i class="fa-solid fa-file-contract"></i> FestOS Reports Engine</h1>
+        <button class="btn btn-outline" onclick="window.location.href='admin.html'"><i class="fa-solid fa-arrow-left"></i> Admin Hub</button>
+    </div>
+
+    <div class="container">
+        <!-- Controls & Filters -->
+        <div class="controls-card">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>Search Participant</label>
+                    <input type="text" id="filter-search" class="control-input" placeholder="Name or ID..." onkeyup="applyFilters()">
+                </div>
+                <div class="filter-group">
+                    <label>Filter by Competition</label>
+                    <select id="filter-comp" class="control-input" onchange="applyFilters()">
+                        <option value="all">All Competitions</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Filter by Category</label>
+                    <select id="filter-cat" class="control-input" onchange="applyFilters()">
+                        <option value="all">All Categories</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Filter by Stage</label>
+                    <select id="filter-stage" class="control-input" onchange="applyFilters()">
+                        <option value="all">All Stages</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Filter by Team</label>
+                    <select id="filter-team" class="control-input" onchange="applyFilters()">
+                        <option value="all">All Teams</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="action-row">
+                <span id="record-count" style="margin-right: auto; font-weight: 800; color: var(--text-muted); align-self: center;">0 RECORDS FOUND</span>
+                <button class="btn btn-outline" onclick="exportCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+                <button class="btn btn-primary" onclick="exportPDF()"><i class="fa-solid fa-file-pdf"></i> Download Premium PDF</button>
+            </div>
+        </div>
+
+        <!-- Report Preview -->
+        <div class="report-wrapper">
+            <div id="report-content">
+                <div class="report-header">
+                    <h2 id="report-title">MASTER PROGRAM LIST</h2>
+                    <p id="report-subtitle">All Enrolled Participants & Events</p>
+                    <p style="font-size: 0.75rem; color: #94A3B8; margin-top: 0.5rem;" id="report-timestamp"></p>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>S.NO</th>
+                            <th>PARTICIPANT NAME</th>
+                            <th>UNIQUE ID</th>
+                            <th>TEAM</th>
+                            <th>COMPETITION</th>
+                            <th>CATEGORY</th>
+                            <th>STAGE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="report-tbody">
+                        <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading Data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --- AUTH GUARD (MASTER ADMIN ONLY) ---
+        const user = JSON.parse(localStorage.getItem('festUser'));
+        if (!user || user.role !== 'master_admin') {
+            window.location.href = 'index.html';
+        }
+
+        let masterData = [];
+        let filteredData = [];
+
+        async function init() {
+            document.getElementById('report-timestamp').innerText = `Generated on: ${new Date().toLocaleString()}`;
+            await fetchData();
+        }
+
+        async function fetchData() {
+            try {
+                // Fetch the central join table combining participants and competitions
+                const { data, error } = await supabaseClient
+                    .from('participant_competitions')
+                    .select(`
+                        id,
+                        participants ( name, unique_id, teams ( name ) ),
+                        competitions ( name, categories ( name ), stages ( name ) )
+                    `);
+
+                if (error) throw error;
+
+                // Flatten the data for easier filtering and rendering
+                masterData = (data || []).map(row => ({
+                    id: row.id,
+                    participantName: row.participants?.name || 'UNKNOWN',
+                    uniqueId: row.participants?.unique_id || 'N/A',
+                    teamName: row.participants?.teams?.name || 'INDEPENDENT',
+                    compName: row.competitions?.name || 'UNKNOWN',
+                    categoryName: row.competitions?.categories?.name || 'GENERAL',
+                    stageName: row.competitions?.stages?.name || 'UNASSIGNED'
+                }));
+
+                // Populate Filters
+                populateDropdown('filter-comp', [...new Set(masterData.map(d => d.compName))].sort());
+                populateDropdown('filter-cat', [...new Set(masterData.map(d => d.categoryName))].sort());
+                populateDropdown('filter-stage', [...new Set(masterData.map(d => d.stageName))].sort());
+                populateDropdown('filter-team', [...new Set(masterData.map(d => d.teamName))].sort());
+
+                applyFilters();
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('report-tbody').innerHTML = `<tr><td colspan="7" style="color: red; text-align: center;">Error loading data.</td></tr>`;
+            }
+        }
+
+        function populateDropdown(id, items) {
+            const select = document.getElementById(id);
+            items.forEach(item => {
+                select.innerHTML += `<option value="${item}">${item}</option>`;
+            });
+        }
+
+        function applyFilters() {
+            const search = document.getElementById('filter-search').value.toLowerCase();
+            const comp = document.getElementById('filter-comp').value;
+            const cat = document.getElementById('filter-cat').value;
+            const stage = document.getElementById('filter-stage').value;
+            const team = document.getElementById('filter-team').value;
+
+            filteredData = masterData.filter(d => {
+                const matchSearch = d.participantName.toLowerCase().includes(search) || d.uniqueId.toLowerCase().includes(search);
+                const matchComp = comp === 'all' || d.compName === comp;
+                const matchCat = cat === 'all' || d.categoryName === cat;
+                const matchStage = stage === 'all' || d.stageName === stage;
+                const matchTeam = team === 'all' || d.teamName === team;
+
+                return matchSearch && matchComp && matchCat && matchStage && matchTeam;
+            });
+
+            // Sort logically: Category -> Competition -> Participant Name
+            filteredData.sort((a, b) => {
+                if (a.categoryName !== b.categoryName) return a.categoryName.localeCompare(b.categoryName);
+                if (a.compName !== b.compName) return a.compName.localeCompare(b.compName);
+                return a.participantName.localeCompare(b.participantName);
+            });
+
+            renderTable();
+            updateReportTitles(comp, cat, stage, team);
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('report-tbody');
+            tbody.innerHTML = '';
+
+            document.getElementById('record-count').innerText = `${filteredData.length} RECORDS FOUND`;
+
+            if (filteredData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">No records match your filters.</td></tr>`;
+                return;
+            }
+
+            filteredData.forEach((d, index) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td style="font-weight: 800;">${d.participantName}</td>
+                        <td style="font-family: monospace; color: var(--text-muted);">${d.uniqueId}</td>
+                        <td>${d.teamName}</td>
+                        <td><span style="font-weight: 700; color: var(--primary);">${d.compName}</span></td>
+                        <td><span class="badge">${d.categoryName}</span></td>
+                        <td>${d.stageName}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function updateReportTitles(comp, cat, stage, team) {
+            let subtitle = [];
+            if (comp !== 'all') subtitle.push(`Competition: ${comp}`);
+            if (cat !== 'all') subtitle.push(`Category: ${cat}`);
+            if (stage !== 'all') subtitle.push(`Stage: ${stage}`);
+            if (team !== 'all') subtitle.push(`Team: ${team}`);
+
+            document.getElementById('report-subtitle').innerText = subtitle.length > 0 ? subtitle.join(' | ') : 'All Enrolled Participants & Events';
+            document.getElementById('report-timestamp').innerText = `Generated on: ${new Date().toLocaleString()}`;
+        }
+
+        function exportCSV() {
+            if (filteredData.length === 0) return alert('No data to export.');
+            
+            const exportData = filteredData.map((d, i) => ({
+                "S.NO": i + 1,
+                "PARTICIPANT NAME": d.participantName,
+                "UNIQUE ID": d.uniqueId,
+                "TEAM": d.teamName,
+                "COMPETITION": d.compName,
+                "CATEGORY": d.categoryName,
+                "STAGE": d.stageName
+            }));
+
+            const csv = Papa.unparse(exportData);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `FestOS_Program_List_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        function exportPDF() {
+            if (filteredData.length === 0) return alert('No data to export.');
+            
+            const loader = document.getElementById('loader');
+            loader.style.display = 'flex';
+
+            const element = document.getElementById('report-content');
+            
+            // Temporary styling adjustments for PDF rendering
+            element.style.padding = '20px';
+            element.style.width = '100%';
+
+            const opt = {
+                margin:       10,
+                filename:     `FestOS_Program_List_${new Date().toISOString().split('T')[0]}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                loader.style.display = 'none';
+                element.style.padding = '0';
+            });
+        }
+
+        // --- GLOBAL BRANDING ENGINE ---
+        async function fetchAndApplyBranding() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('settings')
+                    .select('value')
+                    .eq('id', 'system_branding')
+                    .maybeSingle();
+
+                if (error) throw error;
+                if (data && data.value) applyGlobalBranding(data.value);
+            } catch (e) {
+                console.warn("Could not fetch global branding:", e.message);
+            }
+        }
+
+        function applyGlobalBranding(brandingData) {
+            const headerTitle = document.querySelector('.header h1');
+            if (headerTitle) {
+                let html = brandingData.fest_logo 
+                    ? `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">` 
+                    : `<i class="fa-solid fa-file-contract" style="margin-right: 8px;"></i>`;
+                
+                html += `<span>${brandingData.fest_name || 'FestOS'} Reports Engine</span>`;
+                headerTitle.innerHTML = html;
+            }
+            document.title = `${brandingData.fest_name || 'FestOS'} | Master Program`;
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            fetchAndApplyBranding();
+            init();
+        });
+    </script>
+</body>
+</html>

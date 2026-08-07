@@ -188,11 +188,11 @@ function renderCatalog() {
         const stageName = comp.stages?.name || 'TBD';
         
         // Correct Limit Display from actual Admin Database Limits
-        const limitDisplay = comp.limit ? comp.limit : 'NO LIMIT';
+        const limitDisplay = comp.max_participants ? comp.max_participants : 'NO LIMIT';
         
         const typeBadge = comp.is_group 
-            ? `<span class="badge" style="background:#e0e7ff; color:#4338ca;"><i class="fa-solid fa-users"></i> GROUP (LIMIT: ${limitDisplay})</span>`
-            : `<span class="badge" style="background:#d1fae5; color:#059669;"><i class="fa-solid fa-user"></i> SOLO (LIMIT: ${limitDisplay})</span>`;
+            ? `<span class="badge" style="background:#e0e7ff; color:#4338ca;"><i class="fa-solid fa-users"></i> GROUP (LIMIT: ${limitDisplay} PER TEAM)</span>`
+            : `<span class="badge" style="background:#d1fae5; color:#059669;"><i class="fa-solid fa-user"></i> SOLO (LIMIT: ${limitDisplay} PER TEAM)</span>`;
 
         tbody.innerHTML += `
             <tr>
@@ -294,7 +294,7 @@ function renderBulkAssignmentTable() {
     const comp = globalComps.find(c => c.id === compId);
     
     // Shows correct limit fetched from database
-    const limit = comp.limit ? comp.limit : 'NO LIMIT';
+    const limit = comp.max_participants ? comp.max_participants : 'NO LIMIT';
     const currentEnrolled = globalAssignments.filter(a => a.competition_id === compId).length;
     
     document.getElementById('bulk-comp-info').innerHTML = `
@@ -375,8 +375,8 @@ async function executeBulkAction(action) {
 
     if (action === 'enroll') {
         const newEnrollments = payload.filter(p => !p.id).length; // Count only new ones for limit check
-        if (comp.limit && (currentEnrolled + newEnrollments > comp.limit)) {
-            return showToast(`LIMIT EXCEEDED! ONLY ${comp.limit - currentEnrolled} SLOTS LEFT.`, "error");
+        if (comp.max_participants && (currentEnrolled + newEnrollments > comp.max_participants)) {
+            return showToast(`LIMIT EXCEEDED! ONLY ${comp.max_participants - currentEnrolled} SLOTS LEFT FOR YOUR TEAM.`, "error");
         }
 
         try {
