@@ -351,6 +351,8 @@ function renderLiveTracking() {
         const ourEnrolled = globalAssignments.filter(a => a.competition_id === comp.id).length;
         if (ourEnrolled === 0) return; 
 
+        // Get Category and Stage Names
+        const catName = comp.categories?.name || 'UNCATEGORIZED';
         const stageName = comp.stages?.name || 'TBD';
         
         let statusBadge = `<span class="badge badge-info">UPCOMING</span>`;
@@ -361,6 +363,7 @@ function renderLiveTracking() {
         tbody.innerHTML += `
             <tr>
                 <td data-label="EVENT NAME"></td>
+                <td data-label="CATEGORY"><span class="badge badge-gray">${catName}</span></td>
                 <td data-label="STAGE"><i class="fa-solid fa-microphone-stage" style="color:var(--text-muted); margin-right:4px;"></i> ${stageName}</td>
                 <td data-label="STATUS">${statusBadge}</td>
                 <td data-label="OUR ENROLLED">

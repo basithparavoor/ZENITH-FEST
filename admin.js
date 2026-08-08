@@ -372,8 +372,10 @@ function renderCompetitionsTable() {
         const totalCapacity = (comp.max_participants || 0) * (teamsList.length || 0); 
         
         // NEW: Check if it's an offstage event
-        const stageDisplay = comp.is_offstage ? '<span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:800;"><i class="fa-solid fa-pen-nib"></i> OFFSTAGE</span>' : (comp.stages?.name || 'Unassigned');
-    
+let stageDisplay = comp.stages?.name || 'Unassigned';
+        if (comp.is_offstage) {
+            stageDisplay += ` <br><span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:800; margin-top: 4px; display: inline-block; font-size: 0.65rem;"><i class="fa-solid fa-pen-nib"></i> OFFSTAGE</span>`;
+        }    
         tbody.innerHTML += `
             <tr>
                 <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${comp.id}" ${globalSelections['competitions-tbody']?.has(comp.id) ? 'checked' : ''} onchange="handleRowSelection('competitions-tbody', this.value, this.checked)"></td>
@@ -563,15 +565,17 @@ function openCompModal(editData = null) {
                 <input type="checkbox" id="compIsGroup" ${cIsGroup ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer;">
                 <label for="compIsGroup" style="margin: 0; color: var(--primary); font-weight: 700; cursor: pointer;">Group Event</label>
             </div>
+            <!-- REMOVED THE ONCHANGE DISABLE LOGIC HERE -->
             <div class="form-group" style="flex: 1; display: flex; align-items: center; gap: 0.5rem; background: #FEF3C7; padding: 1rem; border-radius: var(--radius-md); margin: 0;">
-                <input type="checkbox" id="compIsOffstage" ${cIsOffstage ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: #D97706; cursor: pointer;" onchange="const stageSelect = document.getElementById('compStage'); if(this.checked){ stageSelect.value=''; stageSelect.disabled=true; } else { stageSelect.disabled=false; }">
+                <input type="checkbox" id="compIsOffstage" ${cIsOffstage ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: #D97706; cursor: pointer;">
                 <label for="compIsOffstage" style="margin: 0; color: #D97706; font-weight: 700; cursor: pointer;">Offstage Event</label>
             </div>
         </div>
 
         <div style="display:flex; gap:1rem;">
             <div class="form-group" style="flex:1;"><label>Category</label><select id="compCategory">${catOpts}</select></div>
-            <div class="form-group" style="flex:1;"><label>Stage</label><select id="compStage" ${cIsOffstage ? 'disabled' : ''}><option value="">-- NO STAGE YET --</option>${stageOpts}</select></div>
+            <!-- REMOVED THE DISABLED TAG HERE -->
+            <div class="form-group" style="flex:1;"><label>Stage</label><select id="compStage"><option value="">-- NO STAGE YET --</option>${stageOpts}</select></div>
         </div>
         <div style="display:flex; gap:1rem;">
             <div class="form-group" style="flex:1;"><label>Max Marks</label><input type="number" id="compMarks" value="${cMarks}"></div>
@@ -585,8 +589,7 @@ async function saveCompetition() {
     const name = document.getElementById('compName').value;
     const category_id = document.getElementById('compCategory').value;
     const is_offstage = document.getElementById('compIsOffstage').checked; // NEW
-    const stage_id = is_offstage ? null : (document.getElementById('compStage').value || null);
-    const max_mark = document.getElementById('compMarks').value;
+const stage_id = document.getElementById('compStage').value || null;    const max_mark = document.getElementById('compMarks').value;
     const max_participants = document.getElementById('compParticipants').value;
     const is_group = document.getElementById('compIsGroup').checked; 
     
@@ -1367,7 +1370,7 @@ async function saveParticipant() {
     // Grab the existing unique_id if editing, otherwise generate a new one
     let unique_id = document.getElementById('partUniqueId').value;
     if (!id || !unique_id) {
-        unique_id = `FEST-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+        unique_id = `${Math.floor(100000 + Math.random() * 900000)}`; // <--- UPDATED LINE
     }
     
     if(!name) return showToast('Name is required', 'error');
@@ -1609,7 +1612,10 @@ async function handleBulkUpload(tableName, fileInputId) {
                 if (row.max_participants) row.max_participants = parseInt(row.max_participants);
                 if (row.max_mark) row.max_mark = parseFloat(row.max_mark);
                 if (row.batch_no) row.batch_no = parseInt(row.batch_no);
-                if (tableName === 'participants' && !row.unique_id) row.unique_id = `FEST-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+                
+                // <--- UPDATED LINE BELOW --->
+                if (tableName === 'participants' && !row.unique_id) row.unique_id = `${Math.floor(100000 + Math.random() * 900000)}`;
+                
                 return row;
             });
             
@@ -2150,29 +2156,38 @@ async function loadAssignWorkspaceStudents() {
     }
 }
 
-// Local Table Filter (Search, Team, Batch, Status)
+// Local Table Filter (Search, Team, DOB, Status)
 function filterAssignTable() {
     const searchVal = document.getElementById('assignSearch').value.toLowerCase();
     const teamVal = document.getElementById('assignFilterTeam').value;
-const dobVal = document.getElementById('assignFilterDob').value;
-    const statusVal = document.getElementById('assignFilterStatus').value; // NEW
+    const dobVal = document.getElementById('assignFilterDob').value;
+    const statusVal = document.getElementById('assignFilterStatus').value; 
+    
     const rows = document.querySelectorAll('#assign-workspace-tbody tr');
 
     rows.forEach(row => {
         if(row.children.length === 1) return; // Skip "Loading..." row
         
+        // Grab values from the row attributes and cells
         const text = row.querySelector('.searchable-name').innerText.toLowerCase() + " " + row.cells[1].innerText.toLowerCase();
         const rowTeam = row.getAttribute('data-team');
         const rowDob = row.getAttribute('data-dob');
-const matchDob = dobVal === "" || rowDob === dobVal;
 
+        // Dynamically determine the row's assignment status based on the badge text in the last cell
+        const statusText = row.cells[5].innerText.toLowerCase();
+        let rowStatus = 'unassigned';
+        if (statusText.includes('assigned') && !statusText.includes('unassigned') || statusText.includes('leader') || statusText.includes('party')) {
+            rowStatus = 'assigned';
+        }
+
+        // Evaluate all filter conditions
         const matchSearch = text.includes(searchVal);
         const matchTeam = teamVal === "" || rowTeam === teamVal;
-        const matchBatch = batchVal === "" || rowBatch === batchVal;
-        const matchStatus = statusVal === "" || rowStatus === statusVal; // NEW
+        const matchDob = dobVal === "" || rowDob === dobVal;
+        const matchStatus = statusVal === "" || rowStatus === statusVal; 
 
         // Hide or show row based on ALL conditions matching
-row.style.display = (matchSearch && matchTeam && matchDob && matchStatus) ? '' : 'none';
+        row.style.display = (matchSearch && matchTeam && matchDob && matchStatus) ? '' : 'none';
     });
 }
 
@@ -2394,10 +2409,10 @@ async function generateParticipantIDCanvas(participant, template) {
     canvas.height = bgImg.naturalHeight;
     ctx.drawImage(bgImg, 0, 0);
 
-    // Map Participant Data to the specific fields you defined in the Studio
     const mappedData = {
         'ParticipantName': participant.name.toUpperCase(),
-        'UniqueID': participant.unique_id || `FEST-${participant.id.substring(0,6)}`.toUpperCase(),
+        // <--- UPDATED LINE BELOW --->
+        'UniqueID': participant.unique_id || `${participant.id.substring(0,6)}`.toUpperCase(),
         'TeamName': participant.teams?.name?.toUpperCase() || 'INDEPENDENT',
         'Category': participant.categories?.name?.toUpperCase() || '',
         'DateOfBirth': participant.dob || ''
