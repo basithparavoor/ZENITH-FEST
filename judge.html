@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FestOS | Premium Judge Dashboard</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 320 512%22><path fill=%22%234F46E5%22 d=%22M296 160H180.6l42.6-129.8C227.2 15 215.7 0 200 0H56C44 0 33.8 8.9 32.2 20.8l-32 240C-.5 273.6 9.3 288 24 288h118.7L96.6 482.5c-3.6 15.2 8 29.5 23.3 29.5 8.4 0 16.4-4.4 20.8-12l176-304c9.3-15.9-2.2-36-20.7-36z%22/></svg>">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" href="data:,">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
@@ -26,23 +27,23 @@
     --warning-light: #FEF3C7;
     
     /* Neutrals */
-    --bg-main: #F1F5F9; 
+    --bg-main: #F4F7F9; /* Slightly softer premium gray */
     --bg-surface: #FFFFFF;
     --text-main: #0F172A;
     --text-muted: #64748B;
     --border: #E2E8F0;
     
-    /* Mobile Elevations */
-    --shadow-nav: 0 2px 10px rgba(15, 23, 42, 0.05);
-    --shadow-bottom-nav: 0 -4px 16px rgba(15, 23, 42, 0.06);
-    --shadow-card: 0 2px 8px rgba(15, 23, 42, 0.04);
-    --shadow-float: 0 8px 20px -4px rgba(79, 70, 229, 0.25);
+    /* Premium Mobile Elevations */
+    --shadow-nav: 0 4px 20px rgba(15, 23, 42, 0.04);
+    --shadow-bottom-nav: 0 -10px 30px rgba(15, 23, 42, 0.05);
+    --shadow-card: 0 4px 12px rgba(15, 23, 42, 0.03), 0 1px 2px rgba(15, 23, 42, 0.02);
+    --shadow-float: 0 12px 24px -6px rgba(79, 70, 229, 0.25);
     
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-xl: 24px;
     
-    --transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    --transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 /* --- SYSTEM RESET --- */
@@ -60,21 +61,20 @@ body {
     min-height: 100vh; 
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
-    /* Safe padding for fixed mobile headers and footers */
     padding-top: 85px; 
-    padding-bottom: calc(90px + env(safe-area-inset-bottom)); 
+    padding-bottom: calc(100px + env(safe-area-inset-bottom)); 
 }
 
 /* --- MOBILE APP SHELL (NAVBAR) --- */
 .navbar { 
     position: fixed; 
     top: 0; left: 0; right: 0; 
-    background: rgba(255, 255, 255, 0.95); 
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.9); 
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     z-index: 100;
     padding: 1rem 1.25rem;
     box-shadow: var(--shadow-nav);
-    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.4);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -84,7 +84,7 @@ body {
 .user-info { display: flex; flex-direction: column; }
 .navbar h1 { 
     font-family: 'Plus Jakarta Sans', sans-serif; 
-    font-size: 1.35rem; font-weight: 800; 
+    font-size: 1.3rem; font-weight: 800; 
     color: transparent;
     background: var(--primary-gradient);
     -webkit-background-clip: text;
@@ -92,254 +92,264 @@ body {
     letter-spacing: -0.5px;
 }
 
-.navbar > div:last-child {
+.navbar-actions {
     display: flex;
     gap: 0.5rem !important;
 }
 
 /* Compact header buttons */
 .navbar .btn {
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem;
     font-size: 0.85rem;
-    min-height: 40px;
-    width: auto;
+    height: 40px;
+    min-width: 40px;
     border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
 }
 
 /* --- MAIN CONTAINER --- */
 .container { 
     width: 100%; 
-    padding: 1rem; 
+    max-width: 800px;
+    padding: 1.5rem 1.25rem; 
     margin: 0 auto;
 }
 
 /* --- TYPOGRAPHY --- */
 .section-title { 
     font-family: 'Plus Jakarta Sans', sans-serif; 
-    font-size: 1.4rem; 
-    font-weight: 700; 
+    font-size: 1.5rem; 
+    font-weight: 800; 
     margin-bottom: 1.25rem; 
     color: var(--text-main); 
-    padding-left: 0.25rem;
+    letter-spacing: -0.5px;
 }
+
+/* --- SEARCH & FILTER --- */
+.controls-wrapper {
+    display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+}
+.search-box { flex: 2; min-width: 200px; position: relative; }
+.search-box input { 
+    width: 100%; padding: 0.85rem 1rem 0.85rem 2.75rem; 
+    border-radius: var(--radius-md); border: 1px solid var(--border); 
+    font-size: 0.95rem; font-weight: 500; outline: none; transition: var(--transition); 
+    background: var(--bg-surface);
+}
+.search-box input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+.search-box i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+
+.filter-box { flex: 1; min-width: 150px; }
+.filter-box select { 
+    width: 100%; padding: 0.85rem 2.5rem 0.85rem 1rem; 
+    border-radius: var(--radius-md); border: 1px solid var(--border); 
+    font-size: 0.95rem; font-weight: 600; outline: none; appearance: none; 
+    background: var(--bg-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748B'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E") no-repeat right 1rem center/1.2rem; 
+    transition: var(--transition);
+}
+.filter-box select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
 
 /* --- MOBILE CARDS --- */
 .card { 
     background: var(--bg-surface); 
     border-radius: var(--radius-xl); 
-    padding: 1.5rem 1.25rem; 
+    padding: 1.5rem; 
     margin-bottom: 1rem; 
     box-shadow: var(--shadow-card); 
     border: 1px solid var(--border);
-    animation: fadeUp 0.3s ease forwards;
+    animation: fadeUp 0.4s ease forwards;
+    transition: var(--transition);
 }
-@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-/* Competition Card Inner Adjustments for Mobile */
-.comp-card-inner {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start !important;
-    gap: 1.25rem;
-}
-.comp-card-inner > div { width: 100%; }
-.comp-card-inner h3 { 
-    font-family: 'Plus Jakarta Sans', sans-serif; 
-    font-size: 1.25rem; 
-    font-weight: 700; 
-    color: var(--text-main); 
-}
+.card:active { transform: scale(0.98); }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
 /* --- TOUCH-FRIENDLY BUTTONS --- */
 .btn { 
-    padding: 0.85rem 1.25rem; border-radius: var(--radius-md); font-weight: 600; font-size: 0.95rem;
+    padding: 0.85rem 1.25rem; border-radius: var(--radius-md); font-weight: 700; font-size: 0.95rem;
     cursor: pointer; transition: var(--transition); border: 1px solid transparent; 
     display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; 
     min-height: 52px; /* strict minimum for mobile tapping */
     width: 100%; /* Default to full width on mobile */
+    letter-spacing: 0.02em;
 }
-.btn:active { transform: scale(0.97); }
+.btn:active { transform: scale(0.96); }
 .btn:disabled { opacity: 0.6; pointer-events: none; }
 
-.btn-primary { background: var(--primary-gradient); color: white; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); border: none; }
+.btn-primary { background: var(--primary-gradient); color: white; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.25); border: none; }
 .btn-primary:active { box-shadow: var(--shadow-float); }
-.btn-success { background: var(--success); color: white; border: none; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25); }
-.btn-outline { background: var(--bg-surface); border-color: var(--border); color: var(--text-main); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.btn-outline { background: var(--bg-surface); border-color: var(--border); color: var(--text-main); font-weight: 600; }
+.btn-success { background: var(--success); color: white; border: none; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25); }
 
-/* --- EVALUATION UI (MARKING SYSTEM) --- */
+/* --- EVALUATION UI (PREMIUM MARKING SYSTEM) --- */
 .eval-header { 
     display: flex; 
     flex-direction: column; 
-    gap: 1rem; 
+    gap: 0.5rem; 
     margin-bottom: 1.5rem; 
     padding-bottom: 1.5rem; 
-    border-bottom: 1px dashed var(--border); 
+    border-bottom: 1px solid var(--border); 
 }
 .eval-header h2 { 
     font-family: 'Plus Jakarta Sans', sans-serif; 
     font-size: 1.4rem; 
-    font-weight: 700; 
+    font-weight: 800; 
+    line-height: 1.2;
 }
-.eval-header .btn { min-height: 44px; width: 100%; }
+.eval-header-actions {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;
+}
 
 .participant-list { 
     display: flex; 
     flex-direction: column; 
-    gap: 0.75rem; 
-    padding-bottom: 120px; /* ADD THIS LINE TO PREVENT FOOTER OVERLAP */
+    gap: 1rem; 
 }
 
-input, .mark-input {
-    text-transform: uppercase;
-}
+/* Input forced styling */
+input, .mark-input { text-transform: uppercase; }
 
 .participant-row { 
     display: flex; 
     justify-content: space-between; 
     align-items: center; 
-    padding: 1rem; 
-    background: #F8FAFC;
+    padding: 1.25rem; 
+    background: var(--bg-surface);
     border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     transition: var(--transition);
     gap: 1rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.02);
 }
 .participant-row:focus-within { 
     border-color: var(--primary); 
-    background: var(--bg-surface); 
-    box-shadow: 0 0 0 3px var(--primary-ring); 
+    box-shadow: 0 0 0 3px var(--primary-ring), 0 4px 12px rgba(0,0,0,0.05); 
+    transform: translateY(-2px);
 }
 
 .participant-info { display: flex; align-items: center; gap: 1rem; flex: 1; }
-.code-letter { 
-    font-size: 1.25rem; 
-    font-weight: 800; 
-    color: var(--primary); 
-    width: 48px; 
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--primary-light); 
-    border: 1px solid rgba(79, 70, 229, 0.15);
-    border-radius: var(--radius-md); 
-}
 
 .mark-wrapper { 
     display: flex; 
     align-items: center; 
     gap: 0.5rem; 
-    background: var(--bg-surface); 
-    padding: 0.5rem 0.75rem; 
+    background: var(--bg-main); 
+    padding: 0.5rem; 
     border-radius: var(--radius-md); 
     border: 1px solid var(--border);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    transition: var(--transition);
+}
+.participant-row:focus-within .mark-wrapper {
+    background: white;
+    border-color: var(--primary);
 }
 .mark-input { 
-    width: 70px; 
-    height: 44px;
-    padding: 0; 
+    width: 60px; 
+    height: 40px;
+    padding: 0 0.5rem; 
     border: none; 
     background: transparent;
-    font-size: 1.25rem; 
-    font-weight: 700;
-    text-align: right; 
+    font-size: 1.35rem; 
+    font-weight: 800;
+    text-align: center; 
     outline: none; 
     color: var(--primary);
+    /* Prevent iOS zoom */
+    font-size: 16px;
 }
-.mark-input::placeholder { color: #CBD5E1; }
-.max-mark-label { font-size: 0.95rem; font-weight: 600; color: var(--text-muted); }
+.mark-input::placeholder { color: #CBD5E1; font-weight: 600; }
+.max-mark-divider { width: 2px; height: 24px; background: var(--border); border-radius: 2px; }
+.max-mark-label { font-size: 1rem; font-weight: 700; color: var(--text-muted); padding-right: 0.5rem; }
 
 /* --- NATIVE STICKY FOOTER (Submit Button) --- */
 .sticky-footer {
     position: fixed;
     bottom: 0; left: 0; right: 0;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
     padding: 1rem 1.25rem calc(1rem + env(safe-area-inset-bottom)) 1.25rem;
     border-top: 1px solid rgba(226, 232, 240, 0.6);
     box-shadow: var(--shadow-bottom-nav);
     z-index: 100;
 }
-.sticky-footer .btn { font-size: 1.05rem; letter-spacing: 0.02em; }
 
 /* --- TOAST NOTIFICATIONS --- */
 #toast-container { 
     position: fixed; 
-    bottom: calc(90px + env(safe-area-inset-bottom)); /* Sits above the sticky footer */
+    bottom: calc(100px + env(safe-area-inset-bottom)); 
     right: 1rem; left: 1rem; 
     z-index: 9999; display: flex; flex-direction: column; gap: 0.75rem; pointer-events: none; 
 }
 .toast { 
     background: var(--bg-surface); padding: 1.15rem 1.5rem; border-radius: var(--radius-md); 
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 1rem; 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 1rem; 
     width: 100%; box-sizing: border-box; justify-content: flex-start;
-    animation: slideInToast 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
+    animation: slideInToast 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
     border: 1px solid var(--border); pointer-events: auto;
     font-weight: 600; color: var(--text-main); font-size: 0.95rem;
     border-left: 4px solid var(--primary);
 }
 .toast.success { border-left-color: var(--success); }
 .toast.error { border-left-color: var(--danger); }
-@keyframes slideInToast { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes slideInToast { from { transform: translateY(20px) scale(0.95); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+
+/* Fixes for Desktop viewing */
+@media (min-width: 768px) {
+    #toast-container { left: auto; width: 350px; }
+    .btn { width: auto; }
+}
     </style>
 </head>
 <body>
 
    <div class="container">
-        <style>
-            input, .mark-input {
-                text-transform: uppercase !important;
-            }
-        </style>
-
         <nav class="navbar">
-    <div class="user-info">
-        <!-- The Unified Branding Engine targets this .brand class -->
-        <div class="brand" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.35rem; font-weight: 800; color: var(--primary); margin-bottom: 0.25rem;"></div>
-        
-        <!-- We moved "Judge Portal" down so it doesn't get overwritten -->
-        <h1 style="font-size: 1.05rem; color: var(--text-main); font-weight: 700; background: none; -webkit-text-fill-color: initial; letter-spacing: 0;">Judge Portal</h1>
-        <p id="judge-name" style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.15rem;">Loading profile...</p>
-    </div>
-    
-    <div style="display: flex; gap: 0.75rem;">
-        <button class="btn btn-outline" onclick="loadDashboard()">↻ Refresh</button>
-        <button class="btn btn-outline" onclick="logout()">Logout</button>
-    </div>
-</nav>
-
-    <main id="dashboard-view">
-            <h2 class="section-title">Assigned Competitions</h2>
+            <div class="user-info">
+                <!-- The Unified Branding Engine targets this .brand class -->
+                <div class="brand" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--primary); margin-bottom: 0.15rem;"></div>
+                <h1 style="font-size: 1.05rem; color: var(--text-main); font-weight: 700; background: none; -webkit-text-fill-color: initial; letter-spacing: 0;">Judge Portal</h1>
+                <p id="judge-name" style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.1rem; font-weight: 500;">Loading profile...</p>
+            </div>
             
-            <div style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
-                <div style="flex: 2; min-width: 200px;">
-                    <input type="text" id="judgeSearch" placeholder="Search competitions..." onkeyup="filterJudgeCompetitions()" style="width: 100%; padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none; transition: var(--transition);">
+            <div class="navbar-actions">
+                <button class="btn btn-outline" onclick="loadDashboard()" title="Refresh"><i class="fa-solid fa-rotate-right"></i></button>
+                <button class="btn btn-outline" onclick="logout()" style="color: var(--danger);" title="Sign Out"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </div>
+        </nav>
+
+        <main id="dashboard-view">
+            <h2 class="section-title">Assigned Events</h2>
+            
+            <div class="controls-wrapper">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="judgeSearch" placeholder="SEARCH EVENTS..." onkeyup="filterJudgeCompetitions()">
                 </div>
-                <div style="flex: 1; min-width: 150px;">
-                    <select id="judgeCategoryFilter" onchange="filterJudgeCompetitions()" style="width: 100%; padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none; background: white; appearance: none; background-image: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 fill=%22%2364748b%22><path d=%22M4 6l4 4 4-4%22/></svg>'); background-repeat: no-repeat; background-position: right 1rem center;">
+                <div class="filter-box">
+                    <select id="judgeCategoryFilter" onchange="filterJudgeCompetitions()">
                         <option value="">ALL CATEGORIES</option>
                     </select>
                 </div>
             </div>
 
-            <div id="competitions-container">
-                </div>
+            <div id="competitions-container"></div>
         </main>
-        <main id="evaluation-view" class="card eval-container">
-            <div class="eval-header">
-                <div>
-                    <h2 id="eval-comp-name">Competition Name</h2>
-                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">Enter marks carefully. Max mark: <span id="eval-max-mark" style="font-weight: 600;">0</span></p>
+        
+        <main id="evaluation-view" style="display: none; padding-bottom: 2rem;">
+            <div class="card" style="padding: 1.5rem; margin-bottom: 1.5rem; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+                <div class="eval-header-actions">
+                    <button class="btn btn-outline" onclick="closeEvaluation()" style="padding: 0.5rem 1rem; min-height: 40px; font-size: 0.85rem;"><i class="fa-solid fa-arrow-left"></i> Back</button>
+                    <span style="font-size: 0.75rem; font-weight: 800; color: var(--primary); background: var(--primary-light); padding: 0.3rem 0.75rem; border-radius: 50px;">EVALUATION MODE</span>
                 </div>
-                <button class="btn btn-outline" onclick="closeEvaluation()">← Back</button>
+                <div class="eval-header" style="border: none; padding-bottom: 0; margin-bottom: 0;">
+                    <h2 id="eval-comp-name">Competition Name</h2>
+                    <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem;">Enter marks securely below. Max Mark: <span id="eval-max-mark" style="font-weight: 800; color: var(--text-main);">0</span></p>
+                </div>
             </div>
             
-            <div id="participants-container" class="participant-list" style="padding-bottom: 120px;">
-                </div>
+            <div id="participants-container" class="participant-list"></div>
             
             <div class="sticky-footer">
-                <button class="btn btn-success" onclick="submitJudgement()" id="submit-btn">Submit All Marks</button>
+                <button class="btn btn-success" onclick="submitJudgement()" id="submit-btn"><i class="fa-solid fa-paper-plane"></i> Submit Final Marks</button>
             </div>
         </main>
     </div>
