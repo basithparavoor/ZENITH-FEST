@@ -767,10 +767,10 @@ function processJudgements(judgements) {
                 if (currentRank === 1) posPts = SYSTEM_SETTINGS.pos_points.p1;
                 else if (currentRank === 2) posPts = SYSTEM_SETTINGS.pos_points.p2;
                 else if (currentRank === 3) posPts = SYSTEM_SETTINGS.pos_points.p3;
-            
             }
             
-            entry.grade = gradeStr;
+            entry.grade = gradeStr; // Attach to object for certificates
+            entry.points = gradePts + posPts; // <--- ADD THIS LINE TO SAVE POINTS FOR THE PDF!
 
             const teamId = entry.participant.team_id;
             if (teamId && calculatedTeamScores[teamId]) { 

@@ -738,35 +738,7 @@ function calculateResults(judgements, savedAwards) {
             doc.save(`${comp.name.replace(/\s+/g, '_')}_CallingList.pdf`);
         }
 
-        function downloadResultsPDF(compId) {
-            const comp = publishedComps.find(c => c.id === compId);
-            const results = computedResults[compId] || [];
-            if(!comp || results.length === 0) return;
-
-            const doc = setupPDFDoc(
-                `Official Results: ${comp.name.toUpperCase()}`, 
-                `Category: ${comp.categories?.name || 'General'}  |  Generated: ${new Date().toLocaleString()}`
-            );
-
-            const tableData = results.map(r => [
-                r.position.toString(),
-                r.participant.unique_id || 'GROUP',
-                r.participant.name.toUpperCase(),
-                (r.participant.teams?.name || 'IND').toUpperCase()
-            ]);
-
-            doc.autoTable({
-                startY: 45,
-                head: [['Pos', 'Chest/ID', 'Participant/Group Name', 'Team']],
-                body: tableData,
-                theme: 'grid',
-                headStyles: { fillColor: [16, 185, 129] }, 
-                styles: { fontSize: 10, cellPadding: 3 }
-            });
-
-            doc.save(`${comp.name.replace(/\s+/g, '_')}_Results_Table.pdf`);
-        }
-
+        
        function downloadAllAwardsPDF() {
             // Get all current active filters for WYSIWYG printing
             const statusFilter = document.getElementById('filter-award-status').value;
@@ -956,70 +928,112 @@ function downloadAllCallListsPDF() {
     doc.save(`FestOS_Bulk_Calling_Lists.pdf`);
 }
 
-function downloadAllResultsPDF() {
-    const stageId = document.getElementById('filter-stage').value;
-    const catId = document.getElementById('filter-category').value;
-    const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
+function downloadResultsPDF(compId) {
+            // Automatically detect which portal we are in
+            const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
+            const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
+            
+            const comp = compsList.find(c => c.id === compId);
+            const results = resList[compId] || [];
+            if(!comp || results.length === 0) return;
 
-    // Applies the UI filters AND ensures results that have been "ticked" 
-    // are excluded from this pending results download.
-    const filteredComps = publishedComps.filter(comp => {
-        const matchStage = stageId === 'all' || comp.stage_id === stageId;
-        const matchCat = catId === 'all' || comp.category_id === catId;
-        const notAnnounced = !announcedComps.includes(comp.id);
-        
-        return matchStage && matchCat && notAnnounced;
-    });
+            const doc = setupPDFDoc(
+                `Official Results: ${comp.name.toUpperCase()}`, 
+                `Category: ${comp.categories?.name || 'General'}  |  Generated: ${new Date().toLocaleString()}`
+            );
 
-    if (filteredComps.length === 0) {
-        alert("No results match the current filters to download.");
-        return;
-    }
+            // Added Grade, Points, and renamed ID to Code Letter
+            const tableData = results.map(r => [
+                r.position.toString(),
+                r.participant.unique_id || 'GROUP',
+                r.participant.name.toUpperCase(),
+                (r.participant.teams?.name || 'IND').toUpperCase(),
+                r.grade || '-',
+                (r.points || 0).toString()
+            ]);
 
-    const doc = setupPDFDoc(
-        `Master Official Results Report`, 
-        `Filtered Pending Results | Generated: ${new Date().toLocaleString()}`
-    );
+            doc.autoTable({
+                startY: 45,
+                head: [['Pos', 'Code Letter', 'Participant/Group Name', 'Team', 'Grade', 'Points']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [16, 185, 129] }, 
+                styles: { fontSize: 10, cellPadding: 3 }
+            });
 
-    let startY = 45;
-
-    filteredComps.forEach((comp, index) => {
-        const results = computedResults[comp.id] || [];
-        if (results.length === 0) return;
-
-        const tableData = results.map(r => [
-            r.position.toString(),
-            r.participant.unique_id || 'GROUP',
-            r.participant.name.toUpperCase(),
-            (r.participant.teams?.name || 'IND').toUpperCase()
-        ]);
-
-        doc.setFontSize(12);
-        doc.setTextColor(15, 23, 42);
-        doc.text(`${comp.name.toUpperCase()} (${comp.categories?.name || 'GENERAL'})`, 14, startY);
-        startY += 5;
-
-        doc.autoTable({
-            startY: startY,
-            head: [['Pos', 'Chest/ID', 'Participant/Group Name', 'Team']],
-            body: tableData,
-            theme: 'grid',
-            headStyles: { fillColor: [16, 185, 129] },
-            styles: { fontSize: 9, cellPadding: 2 },
-            margin: { top: 20 }
-        });
-        
-        startY = doc.lastAutoTable.finalY + 15;
-
-        if (startY > doc.internal.pageSize.height - 30 && index < filteredComps.length - 1) {
-            doc.addPage();
-            startY = 20;
+            doc.save(`${comp.name.replace(/\s+/g, '_')}_Results_Table.pdf`);
         }
-    });
 
-    doc.save(`FestOS_Bulk_Results_Table.pdf`);
-}
+        function downloadAllResultsPDF() {
+            const stageId = document.getElementById('filter-stage') ? document.getElementById('filter-stage').value : 'all';
+            const catId = document.getElementById('filter-category') ? document.getElementById('filter-category').value : 'all';
+            const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
 
+            // Automatically detect which portal we are in
+            const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
+            const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
+
+            // Applies the UI filters AND ensures results that have been "ticked" are excluded
+            const filteredComps = compsList.filter(comp => {
+                const matchStage = stageId === 'all' || comp.stage_id === stageId;
+                const matchCat = catId === 'all' || comp.category_id === catId;
+                const notAnnounced = !announcedComps.includes(comp.id);
+                
+                return matchStage && matchCat && notAnnounced;
+            });
+
+            if (filteredComps.length === 0) {
+                alert("No results match the current filters to download.");
+                return;
+            }
+
+            const doc = setupPDFDoc(
+                `Master Official Results Report`, 
+                `Filtered Pending Results | Generated: ${new Date().toLocaleString()}`
+            );
+
+            let startY = 45;
+
+            filteredComps.forEach((comp, index) => {
+                const results = resList[comp.id] || [];
+                if (results.length === 0) return;
+
+                // Added Grade, Points, and renamed ID to Code Letter
+                const tableData = results.map(r => [
+                    r.position.toString(),
+                    r.participant.unique_id || 'GROUP',
+                    r.participant.name.toUpperCase(),
+                    (r.participant.teams?.name || 'IND').toUpperCase(),
+                    r.grade || '-',
+                    (r.points || 0).toString()
+                ]);
+
+                doc.setFontSize(12);
+                doc.setTextColor(15, 23, 42);
+                doc.text(`${comp.name.toUpperCase()} (${comp.categories?.name || 'GENERAL'})`, 14, startY);
+                startY += 5;
+
+                doc.autoTable({
+                    startY: startY,
+                    head: [['Pos', 'Code Letter', 'Participant/Group Name', 'Team', 'Grade', 'Points']],
+                    body: tableData,
+                    theme: 'grid',
+                    headStyles: { fillColor: [16, 185, 129] },
+                    styles: { fontSize: 9, cellPadding: 2 },
+                    margin: { top: 20 }
+                });
+                
+                startY = doc.lastAutoTable.finalY + 15;
+
+                // Break to a new page if getting too close to the bottom
+                if (startY > doc.internal.pageSize.height - 30 && index < filteredComps.length - 1) {
+                    doc.addPage();
+                    startY = 20;
+                }
+            });
+
+            doc.save(`FestOS_Bulk_Results_Table.pdf`);
+        }
     </script>
 </body>
 </html>

@@ -4019,7 +4019,7 @@ async function loadParticipantPoints() {
             const limit = comp.max_participants || 1;
             let sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
             
-            // FIX: Evaluate position point eligibility using registered database count
+            // Evaluate position point eligibility using registered database count
             const registeredCount = comp.participant_competitions?.[0]?.count || 0;
             const eligibleForPosPoints = registeredCount >= 3;
             
@@ -4028,12 +4028,13 @@ async function loadParticipantPoints() {
             let previousScore = -1;
 
             participantsArr.forEach((p, index) => {
+                // Update rank only if the score is different from the previous participant
                 if (p.mark !== previousScore) {
                     currentRank = index + 1;
                 }
                 previousScore = p.mark;
 
-               let percent = (p.mark / (comp.max_mark || 100)) * 100;
+                let percent = (p.mark / (comp.max_mark || 100)) * 100;
                 let grade = '-'; let gradePts = 0; let posPts = 0;
 
                 // 1. Assign Grade Points ONLY if >= 50%
@@ -4049,7 +4050,6 @@ async function loadParticipantPoints() {
                     if (currentRank === 1) posPts = pointsAdminSettings.pos_points.p1;
                     else if (currentRank === 2) posPts = pointsAdminSettings.pos_points.p2;
                     else if (currentRank === 3) posPts = pointsAdminSettings.pos_points.p3;
-                }
                 }
                 
                 if(!compResults[p.id]) compResults[p.id] = [];
