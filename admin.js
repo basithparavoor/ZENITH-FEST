@@ -4018,33 +4018,38 @@ async function loadParticipantPoints() {
 
             const limit = comp.max_participants || 1;
             let sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
-            const eligibleForPosPoints = comp.participant_competitions?.[0]?.count >= 3;
             
-            // --- NEW: TIE-AWARE RANKING LOGIC ---
+            // FIX: Evaluate position point eligibility using registered database count
+            const registeredCount = comp.participant_competitions?.[0]?.count || 0;
+            const eligibleForPosPoints = registeredCount >= 3;
+            
+            // TIE-AWARE RANKING LOGIC
             let currentRank = 1;
             let previousScore = -1;
 
             participantsArr.forEach((p, index) => {
-                // Update rank only if the score is different from the previous participant
                 if (p.mark !== previousScore) {
                     currentRank = index + 1;
                 }
                 previousScore = p.mark;
 
-                let percent = (p.mark / (comp.max_mark || 100)) * 100;
+               let percent = (p.mark / (comp.max_mark || 100)) * 100;
                 let grade = '-'; let gradePts = 0; let posPts = 0;
 
+                // 1. Assign Grade Points ONLY if >= 50%
                 if (percent >= 50) {
                     if (percent >= pointsAdminSettings.thresholds.aplus) { grade = 'A+'; gradePts = pointsAdminSettings[`points_${sizeCat}`].aplus; }
                     else if (percent >= pointsAdminSettings.thresholds.a) { grade = 'A'; gradePts = pointsAdminSettings[`points_${sizeCat}`].a; }
                     else if (percent >= pointsAdminSettings.thresholds.b) { grade = 'B'; gradePts = pointsAdminSettings[`points_${sizeCat}`].b; }
                     else { grade = 'C'; gradePts = pointsAdminSettings[`points_${sizeCat}`].c; }
-                    
-                    if (eligibleForPosPoints && currentRank <= 3) {
-                        if (currentRank === 1) posPts = pointsAdminSettings.pos_points.p1;
-                        else if (currentRank === 2) posPts = pointsAdminSettings.pos_points.p2;
-                        else if (currentRank === 3) posPts = pointsAdminSettings.pos_points.p3;
-                    }
+                }
+                
+                // 2. Assign Position Points ALWAYS (if eligible and ranked top 3)
+                if (eligibleForPosPoints && currentRank <= 3) {
+                    if (currentRank === 1) posPts = pointsAdminSettings.pos_points.p1;
+                    else if (currentRank === 2) posPts = pointsAdminSettings.pos_points.p2;
+                    else if (currentRank === 3) posPts = pointsAdminSettings.pos_points.p3;
+                }
                 }
                 
                 if(!compResults[p.id]) compResults[p.id] = [];
@@ -4753,10 +4758,17 @@ async function bulkDownloadCertificates(compId) {
         if (!certTemplates || certTemplates.length === 0) throw new Error("No Certificate template found. Please design one in the Poster Templates Studio first.");
         const template = certTemplates[0];
 
-        // 2. Fetch Competition & Judgements
-        const { data: comp } = await supabaseClient.from('competitions').select('*, categories(name)').eq('id', compId).single();
-        const { data: judgements } = await supabaseClient.from('judgements').select('participant_id, awarded_mark, participants(name, unique_id, teams(name))').eq('competition_id', compId);
-
+        // 2. Fetch Competition & Judgements with Registered Count
+        const { data: comp } = await supabaseClient
+            .from('competitions')
+            .select('*, categories(name), participant_competitions(count)')
+            .eq('id', compId)
+            .single();
+            
+        const { data: judgements } = await supabaseClient
+            .from('judgements')
+            .select('participant_id, awarded_mark, participants(name, unique_id, teams(name))')
+            .eq('competition_id', compId);
         if (!judgements || judgements.length === 0) throw new Error("No judgements found for this competition yet.");
 
         // 3. Group, Average, Drop Outliers

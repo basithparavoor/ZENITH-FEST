@@ -505,7 +505,6 @@ async function bulkRevokeJudges() {
 }
 async function previewConvertedPoints(compId, legacyMaxMark, legacyIsGeneral) {
     try {
-        // 1. Fetch Real-time Point Settings
         let sysSet = {
             thresholds: { aplus: 90, a: 70, b: 60, c: 50 },
             points_solo: { aplus: 8, a: 7, b: 5, c: 3 },
@@ -516,17 +515,17 @@ async function previewConvertedPoints(compId, legacyMaxMark, legacyIsGeneral) {
         const { data: settingsData } = await window.db.from('settings').select('value').eq('id', 'point_system').maybeSingle();
         if (settingsData && settingsData.value) sysSet = settingsData.value;
 
-        // 2. Fetch Competition Details to determine Size Category
         const { data: comp } = await window.db.from('competitions').select('*, participant_competitions(count)').eq('id', compId).single();
         if (!comp) throw new Error("Competition not found.");
         
         const maxMark = comp.max_mark || 100;
         const limit = comp.max_participants || 1;
         const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
-        const totalEnrolled = comp.participant_competitions?.[0]?.count || 0;
-        const eligibleForPosPts = totalEnrolled >= 3;
+        
+        // FIX: Evaluate eligibility based on REGISTERED count, not REPORTED count
+        const registeredCount = comp.participant_competitions?.[0]?.count || 0;
+        const eligibleForPosPts = registeredCount >= 3;
 
-        // 3. Fetch Judgements
         const { data: judgements, error } = await window.db
             .from('judgements')
             .select('participant_id, awarded_mark, participants(name)')
@@ -539,7 +538,6 @@ async function previewConvertedPoints(compId, legacyMaxMark, legacyIsGeneral) {
             return showToast("No scores available to preview yet.", "error");
         }
 
-        // 4. Group marks by participant into arrays
         const pMap = {};
         judgements.forEach(j => {
             if (!pMap[j.participant_id]) {
@@ -548,24 +546,18 @@ async function previewConvertedPoints(compId, legacyMaxMark, legacyIsGeneral) {
             pMap[j.participant_id].marks.push(parseFloat(j.awarded_mark));
         });
 
-        // 5. Calculate Average with OUTLIER DROPPING
         const resultsArr = Object.values(pMap).map(p => {
             let sortedMarks = p.marks.sort((a, b) => a - b);
-            
-            // Drop highest and lowest if 3 or more judges
             if (sortedMarks.length >= 3) {
                 sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
             }
-            
             const sum = sortedMarks.reduce((a, b) => a + b, 0);
             p.score = sum / sortedMarks.length;
             return p;
         }).sort((a, b) => b.score - a.score);
 
-        // 6. Assign Official Grades and Position Points
         let previewHTML = `<div style="text-align: left; margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.5); border-radius: 8px; max-height: 250px; overflow-y: auto;">`;
         
-        // --- NEW: TIE-AWARE RANKING LOGIC ---
         let currentRank = 1;
         let previousScore = -1;
 
@@ -579,18 +571,19 @@ async function previewConvertedPoints(compId, legacyMaxMark, legacyIsGeneral) {
             let percent = (r.score / maxMark) * 100;
             let gradePts = 0; let posPts = 0; let gradeStr = '-';
 
+            // 1. Assign Grade Points ONLY if >= 50%
             if (percent >= 50) {
                 if (percent >= sysSet.thresholds.aplus) { gradePts = sysSet[`points_${sizeCat}`].aplus; gradeStr = 'A+'; }
                 else if (percent >= sysSet.thresholds.a) { gradePts = sysSet[`points_${sizeCat}`].a; gradeStr = 'A'; }
                 else if (percent >= sysSet.thresholds.b) { gradePts = sysSet[`points_${sizeCat}`].b; gradeStr = 'B'; }
                 else { gradePts = sysSet[`points_${sizeCat}`].c; gradeStr = 'C'; }
-                
-                // Award points based on currentRank instead of array idx
-                if (eligibleForPosPts && currentRank <= 3) {
-                    if (currentRank === 1) posPts = sysSet.pos_points.p1;
-                    else if (currentRank === 2) posPts = sysSet.pos_points.p2;
-                    else if (currentRank === 3) posPts = sysSet.pos_points.p3;
-                }
+            }
+            
+            // 2. Assign Position Points ALWAYS (if eligible and ranked top 3)
+            if (eligibleForPosPts && currentRank <= 3) {
+                if (currentRank === 1) posPts = sysSet.pos_points.p1;
+                else if (currentRank === 2) posPts = sysSet.pos_points.p2;
+                else if (currentRank === 3) posPts = sysSet.pos_points.p3;
             }
             
             const totalPts = gradePts + posPts;
@@ -608,10 +601,8 @@ async function previewConvertedPoints(compId, legacyMaxMark, legacyIsGeneral) {
         });
         previewHTML += `</div>`;
 
-        // Display using a modal-like robust Toast
         showToast(`Results Preview <br> ${previewHTML}`, 'success');
         
-        // Adjust toast width to fit the detailed view
         const toasts = document.querySelectorAll('.toast');
         if (toasts.length > 0) {
             const latestToast = toasts[toasts.length - 1];

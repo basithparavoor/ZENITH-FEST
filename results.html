@@ -731,7 +731,6 @@ function processJudgements(judgements) {
         const eligibleForPosPts = registeredCount >= 3;
 
         const participantsArr = Object.values(compData.participants).map(p => {
-            // OUTLIER DROPPING & AVERAGING
             let sortedMarks = p.marks_array.sort((a, b) => a - b);
             if (sortedMarks.length >= 3) {
                 sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
@@ -741,37 +740,37 @@ function processJudgements(judgements) {
             return p;
         }).sort((a, b) => b.score - a.score);
 
-        // --- NEW: TIE-AWARE RANKING LOGIC ---
         let currentRank = 1;
         let previousScore = -1;
 
-        // Add points to team scores
         participantsArr.forEach((entry, idx) => {
-            // TIE-BREAKER LOGIC
             if (entry.score !== previousScore) {
                 currentRank = idx + 1; 
             }
-            entry.position = currentRank; // Attach true position
+            entry.position = currentRank;
             previousScore = entry.score;
 
             let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
             let gradePts = 0; let posPts = 0;
-            let gradeStr = 'N/A'; 
+            let gradeStr = '-'; 
 
+            // 1. Assign Grade Points ONLY if >= 50%
             if (percent >= 50) {
                 if (percent >= SYSTEM_SETTINGS.thresholds.aplus) { gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].aplus; gradeStr = 'A+'; }
                 else if (percent >= SYSTEM_SETTINGS.thresholds.a) { gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].a; gradeStr = 'A'; }
                 else if (percent >= SYSTEM_SETTINGS.thresholds.b) { gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].b; gradeStr = 'B'; }
                 else { gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].c; gradeStr = 'C'; }
-                
-                if (eligibleForPosPts && currentRank <= 3) {
-                    if (currentRank === 1) posPts = SYSTEM_SETTINGS.pos_points.p1;
-                    else if (currentRank === 2) posPts = SYSTEM_SETTINGS.pos_points.p2;
-                    else if (currentRank === 3) posPts = SYSTEM_SETTINGS.pos_points.p3;
-                }
             }
             
-            entry.grade = gradeStr; // Attach to object for certificates
+            // 2. Assign Position Points ALWAYS (if eligible and ranked top 3)
+            if (eligibleForPosPts && currentRank <= 3) {
+                if (currentRank === 1) posPts = SYSTEM_SETTINGS.pos_points.p1;
+                else if (currentRank === 2) posPts = SYSTEM_SETTINGS.pos_points.p2;
+                else if (currentRank === 3) posPts = SYSTEM_SETTINGS.pos_points.p3;
+            
+            }
+            
+            entry.grade = gradeStr;
 
             const teamId = entry.participant.team_id;
             if (teamId && calculatedTeamScores[teamId]) { 
@@ -779,11 +778,10 @@ function processJudgements(judgements) {
             }
         });
 
-        // Save top competitors (now properly handling ties extending past index 2)
+        // Save top competitors
         competitionResults[compId] = participantsArr.filter(p => p.position <= 3);
     }
 }
-
 function renderLeaderboard() {
             const container = document.getElementById('leaderboard-container');
             container.innerHTML = '';

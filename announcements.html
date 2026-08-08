@@ -390,11 +390,10 @@ function calculateResults(judgements, savedAwards) {
             compGroups[j.competition_id].participants[pId] = { participant: j.participants, marks_array: [] };
             compGroups[j.competition_id].total_enrolled++;
         }
-        // Push all individual judge marks into an array
         compGroups[j.competition_id].participants[pId].marks_array.push(parseFloat(j.awarded_mark));
     });
 
-    // 2. Calculate Averages with Outlier Dropping
+    // 2. Calculate Averages with Outlier Dropping & Tie-Aware Positions
     for (const [compId, compData] of Object.entries(compGroups)) {
         const limit = compData.comp_data.max_participants || 1;
         const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
@@ -404,22 +403,15 @@ function calculateResults(judgements, savedAwards) {
         const eligibleForPosPts = registeredCount >= 3;
 
         const participantsArr = Object.values(compData.participants).map(p => {
-            // Sort marks ascending
             let sortedMarks = p.marks_array.sort((a, b) => a - b);
-            
-            // OUTLIER DROPPING: If 3 or more judges, drop highest and lowest
             if (sortedMarks.length >= 3) {
                 sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
             }
-            
-            // Average the remaining marks
             const sum = sortedMarks.reduce((a, b) => a + b, 0);
             p.score = sum / sortedMarks.length;
-            
             return p;
         }).sort((a, b) => b.score - a.score);
 
-        // --- NEW: TIE-AWARE RANKING LOGIC ---
         let currentRank = 1;
         let previousScore = -1;
 
@@ -427,7 +419,6 @@ function calculateResults(judgements, savedAwards) {
             const teamName = allTeams.find(t => t.id === entry.participant.team_id)?.name || 'IND';
             entry.participant.teams = { name: teamName };
             
-            // Update rank only if the score is different from the previous participant
             if (entry.score !== previousScore) {
                 currentRank = idx + 1; 
             }
@@ -436,23 +427,26 @@ function calculateResults(judgements, savedAwards) {
             let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
             let grade = '-'; let gradePts = 0; let posPts = 0;
 
+            // 1. Assign Grade Points ONLY if >= 50%
             if (percent >= 50) {
                 if (percent >= systemSettings.thresholds.aplus) { grade = 'A+'; gradePts = systemSettings[`points_${sizeCat}`].aplus; }
                 else if (percent >= systemSettings.thresholds.a) { grade = 'A'; gradePts = systemSettings[`points_${sizeCat}`].a; }
                 else if (percent >= systemSettings.thresholds.b) { grade = 'B'; gradePts = systemSettings[`points_${sizeCat}`].b; }
                 else { grade = 'C'; gradePts = systemSettings[`points_${sizeCat}`].c; }
-                
-                if (eligibleForPosPts) {
-                    if (currentRank === 1) posPts = systemSettings.pos_points.p1;
-                    else if (currentRank === 2) posPts = systemSettings.pos_points.p2;
-                    else if (currentRank === 3) posPts = systemSettings.pos_points.p3;
-                }
+            }
+            
+            // 2. Assign Position Points ALWAYS (if eligible and ranked top 3)
+            if (eligibleForPosPts && currentRank <= 3) {
+                if (currentRank === 1) posPts = systemSettings.pos_points.p1;
+                else if (currentRank === 2) posPts = systemSettings.pos_points.p2;
+                else if (currentRank === 3) posPts = systemSettings.pos_points.p3;
+        
             }
 
             const savedRecord = savedAwards.find(sa => sa.competition_id === compId && sa.participant_id === entry.participant.id);
             
             return {
-                position: currentRank, // Uses true rank instead of simple index
+                position: currentRank,
                 participant: entry.participant,
                 mark: entry.score.toFixed(2), grade: grade, points: gradePts + posPts,
                 award_given: savedRecord ? savedRecord.award_given : false
@@ -460,7 +454,6 @@ function calculateResults(judgements, savedAwards) {
         });
     }
 }
-
 // --- FILTERING LOGIC ---
         function applyFilters() {
             const stageId = document.getElementById('filter-stage').value;
