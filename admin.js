@@ -3995,12 +3995,12 @@ async function loadParticipantPoints() {
         const { data: judgements } = await supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark');
 
        // Group & Aggregate marks into arrays
-        let compAverages = {}; 
-        (judgements || []).forEach(j => {
-            if(!compAverages[j.competition_id]) compAverages[j.competition_id] = {};
-            if(!compAverages[j.competition_id][j.participant_id]) compAverages[j.competition_id][j.participant_id] = { marks_array: [] };
-            compAverages[j.competition_id][j.participant_id].marks_array.push(parseFloat(j.awarded_mark));
-        });
+       let compAverages = {}; 
+       (judgements || []).forEach(j => {
+           if(!compAverages[j.competition_id]) compAverages[j.competition_id] = {};
+           if(!compAverages[j.competition_id][j.participant_id]) compAverages[j.competition_id][j.participant_id] = { marks_array: [] };
+           compAverages[j.competition_id][j.participant_id].marks_array.push(parseFloat(j.awarded_mark));
+       });
 
         // Calculate Ranks, Averages & Points per Comp
         let compResults = {};
@@ -4019,9 +4019,18 @@ async function loadParticipantPoints() {
             const limit = comp.max_participants || 1;
             let sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
             const eligibleForPosPoints = comp.participant_competitions?.[0]?.count >= 3;
-            // ... (The rest of the function remains exactly the same below this)
+            
+            // --- NEW: TIE-AWARE RANKING LOGIC ---
+            let currentRank = 1;
+            let previousScore = -1;
 
             participantsArr.forEach((p, index) => {
+                // Update rank only if the score is different from the previous participant
+                if (p.mark !== previousScore) {
+                    currentRank = index + 1;
+                }
+                previousScore = p.mark;
+
                 let percent = (p.mark / (comp.max_mark || 100)) * 100;
                 let grade = '-'; let gradePts = 0; let posPts = 0;
 
@@ -4031,17 +4040,20 @@ async function loadParticipantPoints() {
                     else if (percent >= pointsAdminSettings.thresholds.b) { grade = 'B'; gradePts = pointsAdminSettings[`points_${sizeCat}`].b; }
                     else { grade = 'C'; gradePts = pointsAdminSettings[`points_${sizeCat}`].c; }
                     
-                    if (eligibleForPosPoints) {
-                        if (index === 0) posPts = pointsAdminSettings.pos_points.p1;
-                        else if (index === 1) posPts = pointsAdminSettings.pos_points.p2;
-                        else if (index === 2) posPts = pointsAdminSettings.pos_points.p3;
+                    if (eligibleForPosPoints && currentRank <= 3) {
+                        if (currentRank === 1) posPts = pointsAdminSettings.pos_points.p1;
+                        else if (currentRank === 2) posPts = pointsAdminSettings.pos_points.p2;
+                        else if (currentRank === 3) posPts = pointsAdminSettings.pos_points.p3;
                     }
                 }
                 
                 if(!compResults[p.id]) compResults[p.id] = [];
                 compResults[p.id].push({
                     compName: comp.name, compCat: comp.categories?.name || 'General',
-                    mark: p.mark.toFixed(2), grade: grade, totalPts: gradePts + posPts
+                    mark: p.mark.toFixed(2), 
+                    maxMark: comp.max_mark || 100, 
+                    grade: grade, 
+                    totalPts: gradePts + posPts
                 });
             });
         });
@@ -4058,7 +4070,6 @@ async function loadParticipantPoints() {
         filterPointsTable(true);
     } catch (e) { showToast(e.message, 'error'); }
 }
-
 function populateDropdownSafe(id, list) {
     const el = document.getElementById(id);
     if(el && el.options.length === 1 && list && list.length > 0) {
@@ -4151,12 +4162,13 @@ function viewParticipantPointDetails(pId) {
     const p = pointsDataList.find(x => x.id === pId);
     if (!p) return;
 
-    let trs = p.breakdown.length > 0 ? p.breakdown.map((b, i) => `
+   let trs = p.breakdown.length > 0 ? p.breakdown.map((b, i) => `
         <tr>
             <td style="font-weight: 600;">${b.compName}</td>
             <td><span class="badge" style="background:var(--bg-main);">${b.compCat}</span></td>
-            <td style="text-align: right;">${b.avgMark} / ${b.maxMark}</td>
-            <td style="text-align: right; font-weight: 800; color: var(--primary);">${b.pointsEarned}</td>
+            <!-- CHANGE THE NEXT TWO LINES 👇 -->
+            <td style="text-align: right;">${b.mark} / ${b.maxMark}</td>
+            <td style="text-align: right; font-weight: 800; color: var(--primary);">${b.totalPts}</td>
         </tr>
     `).join('') : `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem;">No evaluated programs yet.</td></tr>`;
 
@@ -4204,13 +4216,14 @@ async function bulkExportPointsPDF() {
     container.style.background = 'white';
 
     targetList.forEach((p, index) => {
-        let trs = p.breakdown.length > 0 ? p.breakdown.map((b, i) => `
+       let trs = p.breakdown.length > 0 ? p.breakdown.map((b, i) => `
             <tr style="border-bottom: 1px solid #E2E8F0;">
                 <td style="padding: 12px; font-size: 12px;">${i+1}</td>
                 <td style="padding: 12px; font-size: 12px; font-weight: 600;">${b.compName}</td>
                 <td style="padding: 12px; font-size: 12px;">${b.compCat}</td>
-                <td style="padding: 12px; font-size: 12px; text-align: center;">${b.avgMark} / ${b.maxMark}</td>
-                <td style="padding: 12px; font-size: 12px; text-align: right; font-weight: 700; color: #4F46E5;">${b.pointsEarned}</td>
+                <!-- CHANGE THE NEXT TWO LINES 👇 -->
+                <td style="padding: 12px; font-size: 12px; text-align: center;">${b.mark} / ${b.maxMark}</td>
+                <td style="padding: 12px; font-size: 12px; text-align: right; font-weight: 700; color: #4F46E5;">${b.totalPts}</td>
             </tr>
         `).join('') : `<tr><td colspan="5" style="padding: 20px; text-align: center; color: #64748B;">No programs evaluated yet.</td></tr>`;
 

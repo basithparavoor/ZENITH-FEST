@@ -338,9 +338,10 @@
 
                 // 2. Fetch Published Competitions
                 const { data: pubData } = await supabaseClient
-                    .from('competitions')
-                    .select('*, stages(id, name), categories(id, name, is_general)')
-                    .eq('status', 'published'); 
+                  .from('competitions')
+                    // FIX: Added participant_competitions(count) to fetch the registered count
+                    .select('*, stages(id, name), categories(id, name, is_general), participant_competitions(count)')
+                    .eq('status', 'published');
                 
                 publishedComps = pubData || [];
                 
@@ -397,7 +398,10 @@ function calculateResults(judgements, savedAwards) {
     for (const [compId, compData] of Object.entries(compGroups)) {
         const limit = compData.comp_data.max_participants || 1;
         const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
-        const eligibleForPosPts = compData.total_enrolled >= 3;
+        
+        // FIX: Evaluate eligibility based on REGISTERED count, not REPORTED count
+        const registeredCount = compData.comp_data.participant_competitions?.[0]?.count || 0;
+        const eligibleForPosPts = registeredCount >= 3;
 
         const participantsArr = Object.values(compData.participants).map(p => {
             // Sort marks ascending
@@ -415,9 +419,19 @@ function calculateResults(judgements, savedAwards) {
             return p;
         }).sort((a, b) => b.score - a.score);
 
+        // --- NEW: TIE-AWARE RANKING LOGIC ---
+        let currentRank = 1;
+        let previousScore = -1;
+
         computedResults[compId] = participantsArr.map((entry, idx) => {
             const teamName = allTeams.find(t => t.id === entry.participant.team_id)?.name || 'IND';
             entry.participant.teams = { name: teamName };
+            
+            // Update rank only if the score is different from the previous participant
+            if (entry.score !== previousScore) {
+                currentRank = idx + 1; 
+            }
+            previousScore = entry.score;
             
             let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
             let grade = '-'; let gradePts = 0; let posPts = 0;
@@ -429,22 +443,24 @@ function calculateResults(judgements, savedAwards) {
                 else { grade = 'C'; gradePts = systemSettings[`points_${sizeCat}`].c; }
                 
                 if (eligibleForPosPts) {
-                    if (idx === 0) posPts = systemSettings.pos_points.p1;
-                    else if (idx === 1) posPts = systemSettings.pos_points.p2;
-                    else if (idx === 2) posPts = systemSettings.pos_points.p3;
+                    if (currentRank === 1) posPts = systemSettings.pos_points.p1;
+                    else if (currentRank === 2) posPts = systemSettings.pos_points.p2;
+                    else if (currentRank === 3) posPts = systemSettings.pos_points.p3;
                 }
             }
 
             const savedRecord = savedAwards.find(sa => sa.competition_id === compId && sa.participant_id === entry.participant.id);
             
             return {
-                position: idx + 1, participant: entry.participant,
+                position: currentRank, // Uses true rank instead of simple index
+                participant: entry.participant,
                 mark: entry.score.toFixed(2), grade: grade, points: gradePts + posPts,
                 award_given: savedRecord ? savedRecord.award_given : false
             };
         });
     }
 }
+
 // --- FILTERING LOGIC ---
         function applyFilters() {
             const stageId = document.getElementById('filter-stage').value;

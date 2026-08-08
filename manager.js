@@ -503,15 +503,30 @@ async function bulkRevokeJudges() {
         loadAssignments();
     }
 }
-async function previewConvertedPoints(compId, maxMark, isGeneral) {
+async function previewConvertedPoints(compId, legacyMaxMark, legacyIsGeneral) {
     try {
-        // Fetch dynamic settings to ensure preview matches the real logic
-        let baseRatio = isGeneral ? 20 : 10;
-        const { data: settingsData } = await window.db.from('settings').select('value').eq('id', 'point_system').single();
-        if (settingsData && settingsData.value) {
-            baseRatio = isGeneral ? settingsData.value.ratio_general : settingsData.value.ratio_standard;
-        }
+        // 1. Fetch Real-time Point Settings
+        let sysSet = {
+            thresholds: { aplus: 90, a: 70, b: 60, c: 50 },
+            points_solo: { aplus: 8, a: 7, b: 5, c: 3 },
+            points_small: { aplus: 12, a: 10, b: 7, c: 5 },
+            points_large: { aplus: 15, a: 12, b: 10, c: 7 },
+            pos_points: { p1: 3, p2: 2, p3: 1 }
+        };
+        const { data: settingsData } = await window.db.from('settings').select('value').eq('id', 'point_system').maybeSingle();
+        if (settingsData && settingsData.value) sysSet = settingsData.value;
 
+        // 2. Fetch Competition Details to determine Size Category
+        const { data: comp } = await window.db.from('competitions').select('*, participant_competitions(count)').eq('id', compId).single();
+        if (!comp) throw new Error("Competition not found.");
+        
+        const maxMark = comp.max_mark || 100;
+        const limit = comp.max_participants || 1;
+        const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
+        const totalEnrolled = comp.participant_competitions?.[0]?.count || 0;
+        const eligibleForPosPts = totalEnrolled >= 3;
+
+        // 3. Fetch Judgements
         const { data: judgements, error } = await window.db
             .from('judgements')
             .select('participant_id, awarded_mark, participants(name)')
@@ -520,36 +535,89 @@ async function previewConvertedPoints(compId, maxMark, isGeneral) {
             .not('awarded_mark', 'is', null);
 
         if (error) throw error;
-
         if (!judgements || judgements.length === 0) {
             return showToast("No scores available to preview yet.", "error");
         }
 
-        const participantMarks = {};
-
-        // Average the marks if multiple judges exist
+        // 4. Group marks by participant into arrays
+        const pMap = {};
         judgements.forEach(j => {
-            if (!participantMarks[j.participant_id]) {
-                participantMarks[j.participant_id] = { 
-                    name: j.participants?.name || 'Unknown Participant', 
-                    total: 0, 
-                    count: 0 
-                };
+            if (!pMap[j.participant_id]) {
+                pMap[j.participant_id] = { name: j.participants?.name || 'Unknown', marks: [] };
             }
-            participantMarks[j.participant_id].total += parseFloat(j.awarded_mark);
-            participantMarks[j.participant_id].count += 1;
+            pMap[j.participant_id].marks.push(parseFloat(j.awarded_mark));
         });
 
-        let previewHTML = `<div style="text-align: left; margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.5); border-radius: 8px;">`;
-        for (const [pId, data] of Object.entries(participantMarks)) {
-            const averageMark = data.total / data.count;
-            // Uses the admin-configured dynamic base ratio
-            const convertedPoint = ((averageMark / maxMark) * baseRatio).toFixed(2);
-            previewHTML += `<div style="margin-bottom: 6px;"><strong>${data.name}:</strong> ${convertedPoint} / ${baseRatio} pts</div>`;
-        }
+        // 5. Calculate Average with OUTLIER DROPPING
+        const resultsArr = Object.values(pMap).map(p => {
+            let sortedMarks = p.marks.sort((a, b) => a - b);
+            
+            // Drop highest and lowest if 3 or more judges
+            if (sortedMarks.length >= 3) {
+                sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
+            }
+            
+            const sum = sortedMarks.reduce((a, b) => a + b, 0);
+            p.score = sum / sortedMarks.length;
+            return p;
+        }).sort((a, b) => b.score - a.score);
+
+        // 6. Assign Official Grades and Position Points
+        let previewHTML = `<div style="text-align: left; margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.5); border-radius: 8px; max-height: 250px; overflow-y: auto;">`;
+        
+        // --- NEW: TIE-AWARE RANKING LOGIC ---
+        let currentRank = 1;
+        let previousScore = -1;
+
+        resultsArr.forEach((r, idx) => {
+            // Update rank only if the score is different from the previous participant
+            if (r.score !== previousScore) {
+                currentRank = idx + 1;
+            }
+            previousScore = r.score;
+
+            let percent = (r.score / maxMark) * 100;
+            let gradePts = 0; let posPts = 0; let gradeStr = '-';
+
+            if (percent >= 50) {
+                if (percent >= sysSet.thresholds.aplus) { gradePts = sysSet[`points_${sizeCat}`].aplus; gradeStr = 'A+'; }
+                else if (percent >= sysSet.thresholds.a) { gradePts = sysSet[`points_${sizeCat}`].a; gradeStr = 'A'; }
+                else if (percent >= sysSet.thresholds.b) { gradePts = sysSet[`points_${sizeCat}`].b; gradeStr = 'B'; }
+                else { gradePts = sysSet[`points_${sizeCat}`].c; gradeStr = 'C'; }
+                
+                // Award points based on currentRank instead of array idx
+                if (eligibleForPosPts && currentRank <= 3) {
+                    if (currentRank === 1) posPts = sysSet.pos_points.p1;
+                    else if (currentRank === 2) posPts = sysSet.pos_points.p2;
+                    else if (currentRank === 3) posPts = sysSet.pos_points.p3;
+                }
+            }
+            
+            const totalPts = gradePts + posPts;
+            
+            previewHTML += `
+            <div style="margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="color:var(--text-main); font-size:0.95rem;">${currentRank}. ${r.name}</strong>
+                    <span class="badge" style="background:var(--primary-light); color:var(--primary); font-size:0.75rem;">${gradeStr} | ${totalPts} PTS</span>
+                </div>
+                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+                    Avg Mark: <b>${r.score.toFixed(2)}</b> / ${maxMark}
+                </div>
+            </div>`;
+        });
         previewHTML += `</div>`;
 
-        showToast(`Converted Points Preview: ${previewHTML}`, 'success');
+        // Display using a modal-like robust Toast
+        showToast(`Results Preview <br> ${previewHTML}`, 'success');
+        
+        // Adjust toast width to fit the detailed view
+        const toasts = document.querySelectorAll('.toast');
+        if (toasts.length > 0) {
+            const latestToast = toasts[toasts.length - 1];
+            latestToast.style.width = '350px';
+            latestToast.style.alignItems = 'flex-start';
+        }
         
     } catch (err) {
         console.error("Preview Generation Error:", err);

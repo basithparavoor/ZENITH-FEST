@@ -625,7 +625,8 @@ let SYSTEM_SETTINGS = {
                 allTeams = teams || [];
                 
                 const { data: comps, error: compError } = await supabaseClient.from('competitions')
-                    .select('*, categories(name, is_general)') 
+                    // FIX: Added participant_competitions(count)
+                    .select('*, categories(name, is_general), participant_competitions(count)') 
                     .eq('status', 'published');
                 
                 if (compError) throw compError;
@@ -642,11 +643,13 @@ let SYSTEM_SETTINGS = {
 
                 cachedTemplates.forEach(tpl => ensureFontsLoaded(tpl));
 
+                // 3. Fetch Judgements
                 if (publishedCompetitions.length > 0) {
                     const compIds = publishedCompetitions.map(c => c.id);
                     const { data: judgements } = await supabaseClient
                         .from('judgements')
-                        .select(`competition_id, awarded_mark, participants(id, name, team_id, batch_no, photo_url)`)
+                        // CHANGE batch_no to dob right here 👇
+                        .select(`competition_id, awarded_mark, participants(id, name, team_id, dob, photo_url)`)
                         .in('competition_id', compIds)
                         .not('participant_id', 'is', null)
                         .not('awarded_mark', 'is', null);
@@ -701,7 +704,7 @@ let SYSTEM_SETTINGS = {
             renderLeaderboard();
         }
 
-    function processJudgements(judgements) {
+function processJudgements(judgements) {
     const compGroups = {};
     
     // 1. Group and collect all marks
@@ -722,7 +725,10 @@ let SYSTEM_SETTINGS = {
     for (const [compId, compData] of Object.entries(compGroups)) {
         const limit = compData.comp_data.max_participants || 1;
         const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
-        const eligibleForPosPts = compData.total_enrolled >= 3;
+        
+        // FIX: Evaluate eligibility based on REGISTERED count, not REPORTED count
+        const registeredCount = compData.comp_data.participant_competitions?.[0]?.count || 0;
+        const eligibleForPosPts = registeredCount >= 3;
 
         const participantsArr = Object.values(compData.participants).map(p => {
             // OUTLIER DROPPING & AVERAGING
@@ -735,8 +741,19 @@ let SYSTEM_SETTINGS = {
             return p;
         }).sort((a, b) => b.score - a.score);
 
+        // --- NEW: TIE-AWARE RANKING LOGIC ---
+        let currentRank = 1;
+        let previousScore = -1;
+
         // Add points to team scores
         participantsArr.forEach((entry, idx) => {
+            // TIE-BREAKER LOGIC
+            if (entry.score !== previousScore) {
+                currentRank = idx + 1; 
+            }
+            entry.position = currentRank; // Attach true position
+            previousScore = entry.score;
+
             let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
             let gradePts = 0; let posPts = 0;
             let gradeStr = 'N/A'; 
@@ -747,10 +764,10 @@ let SYSTEM_SETTINGS = {
                 else if (percent >= SYSTEM_SETTINGS.thresholds.b) { gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].b; gradeStr = 'B'; }
                 else { gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].c; gradeStr = 'C'; }
                 
-                if (eligibleForPosPts && idx < 3) {
-                    if (idx === 0) posPts = SYSTEM_SETTINGS.pos_points.p1;
-                    else if (idx === 1) posPts = SYSTEM_SETTINGS.pos_points.p2;
-                    else if (idx === 2) posPts = SYSTEM_SETTINGS.pos_points.p3;
+                if (eligibleForPosPts && currentRank <= 3) {
+                    if (currentRank === 1) posPts = SYSTEM_SETTINGS.pos_points.p1;
+                    else if (currentRank === 2) posPts = SYSTEM_SETTINGS.pos_points.p2;
+                    else if (currentRank === 3) posPts = SYSTEM_SETTINGS.pos_points.p3;
                 }
             }
             
@@ -762,10 +779,11 @@ let SYSTEM_SETTINGS = {
             }
         });
 
-        // ONLY save the top 3 for the individual Poster/Popup display
-        competitionResults[compId] = participantsArr.slice(0, 3);
+        // Save top competitors (now properly handling ties extending past index 2)
+        competitionResults[compId] = participantsArr.filter(p => p.position <= 3);
     }
 }
+
 function renderLeaderboard() {
             const container = document.getElementById('leaderboard-container');
             container.innerHTML = '';
@@ -953,13 +971,13 @@ function renderLeaderboard() {
                 results.forEach((entry, idx) => {
                     const teamName = allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent';
                     
-                    // UPGRADED: Removed Points display from here
                     winnersList.innerHTML += `
                         <div class="winner-list-item" style="animation: popIn 0.4s var(--spring) ${idx * 0.1}s backwards;">
                             <div class="w-rank">${medals[idx]}</div>
                             <div class="w-details">
                                 <h4>${entry.participant.name}</h4>
-                                <p>${teamName} | Batch ${entry.participant.batch_no || 'N/A'}</p>
+                                <!-- CHANGE THIS LINE BELOW 👇 -->
+                                <p>${teamName} | DOB: ${entry.participant.dob || 'N/A'}</p>
                             </div>
                         </div>`;
                 });
