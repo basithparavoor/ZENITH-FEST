@@ -386,6 +386,14 @@ tr:hover td { background: var(--bg-main); }
         <div class="nav-item" onclick="switchTab('users')"><i class="fa-solid fa-user-shield"></i> Users</div>
         <div class="nav-item" onclick="switchTab('assignments')"><i class="fa-solid fa-clipboard-user"></i> Assign Students</div>
         <div class="nav-item" onclick="switchTab('participant-points')"><i class="fa-solid fa-chart-line"></i> Points Ledger</div>
+        <div class="nav-item" onclick="switchTab('admin-appeals')"><i class="fa-solid fa-scale-balanced"></i> Appeals</div>
+        <div class="nav-item" onclick="switchTab('data-center')"><i class="fa-solid fa-server"></i> Data Center</div>
+        <div class="nav-item" onclick="switchTab('direct-valuation')"><i class="fa-solid fa-bolt"></i> Direct Valuation</div>
+        <div class="nav-item" onclick="switchTab('poster-templates')"><i class="fa-solid fa-image"></i> Poster Templates</div>
+        <div class="nav-item" onclick="switchTab('point-settings')"><i class="fa-solid fa-sliders"></i> Point System</div>
+        <div class="nav-item" onclick="switchTab('branding-settings')"><i class="fa-solid fa-palette"></i> Branding & UI</div>
+            
+
 
         <div id="master-admin-portals" style="display: none; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
             <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; padding-left: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Cross-Portal Access</div>
@@ -395,13 +403,7 @@ tr:hover td { background: var(--bg-main); }
             <a href="announcements.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-microphone-lines"></i> Announcer Portal</a>
     <a href="program_report.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-file-pdf"></i> Master Reports</a>
 
-    <div class="nav-item" onclick="switchTab('admin-appeals')"><i class="fa-solid fa-scale-balanced"></i> APPEALS</div>
-            <div class="nav-item" onclick="switchTab('data-center')"><i class="fa-solid fa-server"></i> Data Center</div>
-            <div class="nav-item" onclick="switchTab('direct-valuation')"><i class="fa-solid fa-bolt"></i> Direct Valuation</div>
-            <div class="nav-item" onclick="switchTab('poster-templates')"><i class="fa-solid fa-image"></i> Poster Templates</div>
-            <div class="nav-item" onclick="switchTab('point-settings')"><i class="fa-solid fa-sliders"></i> Point System</div>
-            <div class="nav-item" onclick="switchTab('branding-settings')"><i class="fa-solid fa-palette"></i> Branding & UI</div>
-            
+        
         </div>
     </div>
 
@@ -1309,6 +1311,45 @@ tr:hover td { background: var(--bg-main); }
             <div style="display: flex; gap: 1rem;">
                 <button class="btn btn-outline" style="flex: 1;" onclick="document.getElementById('masterPasswordModal').classList.remove('show')">Cancel</button>
                 <button class="btn btn-primary" style="flex: 1;" id="btn-verify-master" onclick="verifyMasterPassword()">Verify</button>
+            </div>
+        </div>
+    </div>
+
+<!-- Competition Master Log Modal -->
+    <div id="compLogModal" class="modal-overlay">
+        <div class="modal" style="max-width: 850px; width: 95%;">
+            <div class="modal-header">
+                <div>
+                    <span id="log-cat-name" class="badge badge-primary" style="margin-bottom: 0.5rem; display: inline-block;">CATEGORY</span>
+                    <h2 id="log-comp-name" style="margin-top: 0.25rem;">Competition Log</h2>
+                </div>
+                <button class="close-btn" onclick="document.getElementById('compLogModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div id="log-summary" style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                <!-- Summary cards populate here -->
+            </div>
+            
+            <div class="table-container" style="max-height: 450px; overflow-y: auto; overflow-x: auto;">
+                <table style="min-width: 700px;">
+                    <thead style="position: sticky; top: 0; z-index: 10;">
+                        <tr>
+                            <th>PARTICIPANT</th>
+                            <th>TEAM</th>
+                            <th>CODE LETTER</th>
+                            <th>STATUS</th>
+                            <th>JUDGE MARKS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="log-tbody"></tbody>
+                </table>
+            </div>
+            
+            <div class="modal-footer" style="margin-top: 1.5rem; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                <p style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin: auto 0;"><i class="fa-solid fa-circle-info"></i> Contains all enrollment and marking records.</p>
+                <button class="btn btn-primary" id="btn-download-log" onclick="downloadCompLogPDF()">
+                    <i class="fa-solid fa-file-pdf"></i> Download PDF Report
+                </button>
             </div>
         </div>
     </div>

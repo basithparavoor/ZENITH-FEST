@@ -391,9 +391,13 @@ let stageDisplay = comp.stages?.name || 'Unassigned';
                     </span>
                     <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; font-weight: 600;">(${comp.max_participants} PER TEAM)</div>
                 </td>
-                <td>
-                    <div style="display: flex; gap: 0.5rem;">
+               <td>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                         <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openCompModal(${JSON.stringify(comp).replace(/'/g, "&apos;")})' title="Edit"><i class="fa-solid fa-pen"></i></button>
+                        
+                        
+                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem; color:var(--primary); border-color:var(--primary);" onclick="viewCompetitionLog('${comp.id}')" title="View Master Log"><i class="fa-solid fa-file-invoice"></i></button>
+                        
                         <button class="btn btn-outline" style="padding:0.4rem 0.75rem; color:var(--warning); border-color:var(--warning);" onclick="bulkDownloadCertificates('${comp.id}')" title="Download Merit Certificates"><i class="fa-solid fa-award"></i></button>
                         <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteCompetition('${comp.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
                     </div>
@@ -4925,4 +4929,188 @@ async function bulkDownloadCertificates(compId) {
         console.error(e);
         showToast(e.message, 'error');
     }
+}
+
+// ==========================================
+// COMPETITION MASTER LOG ENGINE
+// ==========================================
+let currentLogData = null;
+
+async function viewCompetitionLog(compId) {
+    const comp = competitionsList.find(c => c.id === compId);
+    if(!comp) return;
+
+    document.getElementById('log-comp-name').innerText = comp.name;
+    document.getElementById('log-cat-name').innerText = comp.categories?.name || 'GENERAL';
+
+    const tbody = document.getElementById('log-tbody');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 3rem;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i> Fetching Records...</td></tr>';
+    document.getElementById('compLogModal').classList.add('show');
+
+    try {
+        // Fetch enrollments and participants
+        const { data: enrollments, error: enrollErr } = await supabaseClient
+            .from('participant_competitions')
+            .select('participant_id, is_present, code_letter, participants(name, unique_id, teams(name))')
+            .eq('competition_id', compId);
+
+        if (enrollErr) throw enrollErr;
+
+        // Fetch judgements and judge names
+        const { data: judgements, error: judgeErr } = await supabaseClient
+            .from('judgements')
+            .select('participant_id, awarded_mark, users(username)')
+            .eq('competition_id', compId);
+
+        if (judgeErr) throw judgeErr;
+
+        currentLogData = { comp, enrollments: enrollments || [], judgements: judgements || [] };
+
+        let totalEnrolled = enrollments ? enrollments.length : 0;
+        let totalPresent = enrollments ? enrollments.filter(e => e.is_present).length : 0;
+        let uniqueJudges = new Set((judgements || []).map(j => j.users?.username).filter(Boolean));
+
+        document.getElementById('log-summary').innerHTML = `
+            <div class="badge" style="background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border); padding: 0.5rem 1rem; font-size: 0.8rem;"><i class="fa-solid fa-users"></i> ${totalEnrolled} ENROLLED</div>
+            <div class="badge" style="background: var(--success-light); color: var(--success); padding: 0.5rem 1rem; font-size: 0.8rem;"><i class="fa-solid fa-check-circle"></i> ${totalPresent} CHECKED-IN</div>
+            <div class="badge" style="background: var(--primary-light); color: var(--primary); padding: 0.5rem 1rem; font-size: 0.8rem;"><i class="fa-solid fa-gavel"></i> ${uniqueJudges.size} JUDGE(S)</div>
+        `;
+
+        tbody.innerHTML = '';
+        if (!enrollments || enrollments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 2rem;">No participants enrolled in this event.</td></tr>';
+            return;
+        }
+
+        // Sort alphabetically by participant name
+        enrollments.sort((a, b) => a.participants.name.localeCompare(b.participants.name)).forEach(e => {
+            const p = e.participants;
+            const statusBadge = e.is_present 
+                ? '<span class="badge" style="background: var(--success-light); color: var(--success); font-size: 0.7rem;">REGISTERED</span>' 
+                : '<span class="badge" style="background: var(--warning-light); color: #D97706; font-size: 0.7rem;">PENDING</span>';
+            
+            // Map judgements for this specific participant
+            const pJudgements = (judgements || []).filter(j => j.participant_id === e.participant_id);
+            let judgeHtml = '';
+            if(pJudgements.length > 0) {
+                judgeHtml = pJudgements.map(j => `<div style="font-size: 0.85rem; margin-bottom: 4px; background: var(--bg-main); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); display: inline-block; margin-right: 4px;"><span style="color: var(--text-muted); font-weight: 600;">${j.users?.username || 'Admin'}:</span> <span style="color:var(--primary); font-weight: 800;">${j.awarded_mark}</span></div>`).join('');
+            } else {
+                judgeHtml = '<span style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600; background: var(--bg-main); padding: 4px 8px; border-radius: 4px;">Awaiting Marks</span>';
+            }
+
+            tbody.innerHTML += `
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <strong style="display:block; font-size: 1rem; color: var(--text-main);">${p.name}</strong>
+                        <small style="font-family:monospace; font-weight: 600; color:var(--text-muted);">${p.unique_id}</small>
+                    </td>
+                    <td><span class="badge" style="background: var(--bg-main); color: var(--text-muted);">${p.teams?.name || 'INDEPENDENT'}</span></td>
+                    <td style="font-weight: 800; font-size: 1.1rem; color: var(--primary);">${e.code_letter || '-'}</td>
+                    <td>${statusBadge}</td>
+                    <td>${judgeHtml}</td>
+                </tr>
+            `;
+        });
+
+    } catch (e) {
+        showToast(e.message, 'error');
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--danger); font-weight: 600; padding: 2rem;">Error loading log data.</td></tr>`;
+    }
+}
+
+async function downloadCompLogPDF() {
+    if(!currentLogData) return showToast("No data to export", "error");
+    showToast("Generating Premium Report...", "success");
+
+    const { comp, enrollments, judgements } = currentLogData;
+    const totalEnrolled = enrollments.length;
+    const totalPresent = enrollments.filter(e => e.is_present).length;
+    
+    const container = document.createElement('div');
+    container.style.padding = '40px';
+    container.style.fontFamily = 'Inter, sans-serif';
+    
+    // Header
+    container.innerHTML = `
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 28px; text-transform: uppercase;">FestOS</h1>
+            <h2 style="color: #1E293B; font-size: 18px; margin-top:0; text-transform: uppercase;">COMPETITION MASTER LOG</h2>
+            <p style="color: #64748B; font-size: 12px; margin-top: 5px;">Generated on: ${new Date().toLocaleString()}</p>
+        </div>
+        
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 20px; border-radius: 12px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h3 style="font-size: 16px; color: #0F172A; margin: 0; margin-bottom: 4px; text-transform: uppercase; font-weight: 800;">${comp.name}</h3>
+                <p style="font-size: 11px; color: #64748B; margin: 0; text-transform: uppercase; font-weight: 600;">CATEGORY: ${comp.categories?.name || 'GENERAL'} | STAGE: ${comp.stages?.name || 'TBD'}</p>
+            </div>
+            <div style="text-align: right;">
+                <p style="font-size: 11px; font-weight: 700; color: #0F172A; margin: 0; text-transform: uppercase;">ENROLLED: ${totalEnrolled}</p>
+                <p style="font-size: 11px; font-weight: 700; color: #10B981; margin: 0; margin-top: 4px; text-transform: uppercase;">CHECKED-IN: ${totalPresent}</p>
+            </div>
+        </div>
+    `;
+
+    // Table Data
+    let tableRows = enrollments.map((e, index) => {
+        const p = e.participants;
+        const status = e.is_present ? 'REGISTERED' : 'PENDING';
+        const statusColor = e.is_present ? '#10B981' : '#F59E0B';
+        
+        const pJudgements = judgements.filter(j => j.participant_id === e.participant_id);
+        let judgeText = pJudgements.length > 0 
+            ? pJudgements.map(j => `${j.users?.username || 'Admin'}: ${j.awarded_mark}`).join(' | ') 
+            : 'Awaiting Marks';
+
+        return `
+            <tr>
+                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0;">${index + 1}</td>
+                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0;">
+                    <span style="font-weight: 700; color: #0F172A;">${p.name.toUpperCase()}</span><br>
+                    <span style="font-size: 10px; color: #64748B; font-family: monospace; font-weight: 600;">${p.unique_id}</span>
+                </td>
+                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600; color: #475569;">${(p.teams?.name || 'IND').toUpperCase()}</td>
+                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 800; color: #4F46E5;">${e.code_letter || '-'}</td>
+                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; color: ${statusColor}; font-weight: 800;">${status}</td>
+                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; font-size: 11px; font-weight: 600; color: #475569;">${judgeText.toUpperCase()}</td>
+            </tr>
+        `;
+    }).join('');
+
+    if (enrollments.length === 0) {
+        tableRows = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: #64748B; font-weight: 600;">No participants found.</td></tr>`;
+    }
+
+    container.innerHTML += `
+        <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
+            <thead>
+                <tr style="background: #F1F5F9; text-align: left; font-size: 11px; color: #64748B; text-transform: uppercase;">
+                    <th style="padding: 12px 10px;">#</th>
+                    <th style="padding: 12px 10px;">PARTICIPANT</th>
+                    <th style="padding: 12px 10px;">TEAM</th>
+                    <th style="padding: 12px 10px;">CODE</th>
+                    <th style="padding: 12px 10px;">STATUS</th>
+                    <th style="padding: 12px 10px;">MARKS</th>
+                </tr>
+            </thead>
+            <tbody style="font-size: 12px; color: #334155;">
+                ${tableRows}
+            </tbody>
+        </table>
+    `;
+
+    // Download PDF Config
+    const opt = { 
+        margin: 10, 
+        filename: `FestOS_Log_${comp.name.replace(/[^a-z0-9]/gi, '_')}.pdf`, 
+        image: { type: 'jpeg', quality: 0.98 }, 
+        html2canvas: { scale: 2, useCORS: true }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    };
+    
+    html2pdf().set(opt).from(container).save().then(() => {
+        const btn = document.getElementById('btn-download-log');
+        const origText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Downloaded!';
+        setTimeout(() => btn.innerHTML = origText, 2000);
+    });
 }
