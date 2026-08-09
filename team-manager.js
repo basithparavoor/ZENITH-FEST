@@ -78,7 +78,14 @@ function switchTab(tabId) {
     if (tabId === 'appeals') {
         loadAppeals();
     }
-    window.scrollTo(0, 0); // Reset scroll on mobile tab switch
+    // Automatically populate the dropdown when navigating to assignments tab
+    if (tabId === 'assignments') {
+        populateBulkAssignDropdown();
+    }
+    
+    // Reset mobile smooth scroll container to the top
+    const mainContent = document.querySelector('.main-content');
+    if(mainContent) mainContent.scrollTop = 0;
 }
 
 function logout() {
@@ -187,12 +194,15 @@ async function fetchAllData() {
         renderStudents();
         renderCatalog();
         renderLiveTracking();
+        
+        // Ensures the dropdown populates immediately without having to click the tab
         populateBulkAssignDropdown();
 
     } catch (e) {
         console.error(e);
     }
 }
+
 function updateDashboardStats() {
     document.getElementById('stat-total-students').innerText = globalStudents.length;
     const uniqueEvents = new Set(globalAssignments.map(a => a.competition_id)).size;
@@ -391,9 +401,13 @@ function viewEnrolledDetails(compId) {
 // ---------------- BULK ASSIGNMENTS ----------------
 function populateBulkAssignDropdown() {
     const select = document.getElementById('bulkAssignComp');
+    if (!select) return;
     select.innerHTML = '<option value="">-- CHOOSE A COMPETITION --</option>';
     
-    globalComps.filter(c => c.status === 'pending').forEach(c => {
+    // Broadened filter to ensure TM can see anything that isn't completely finished
+    const eligibleComps = globalComps.filter(c => c.status !== 'published' && c.status !== 'judgement_complete');
+    
+    eligibleComps.forEach(c => {
         select.innerHTML += `<option value="${c.id}">${c.name} (${c.categories?.name || 'GENERAL'})</option>`;
     });
 }
@@ -685,6 +699,45 @@ async function exportTeamProgramListPDF() {
 
         html2pdf().set(opt).from(container).save().then(() => showToast('Program List PDF Downloaded!'));
     } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ==========================================
+// UNIFIED GLOBAL BRANDING ENGINE
+// ==========================================
+async function fetchAndApplyBranding() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('settings')
+            .select('value')
+            .eq('id', 'system_branding')
+            .maybeSingle();
+
+        if (error) throw error;
+        if (data && data.value) applyGlobalBranding(data.value);
+    } catch (e) {
+        console.warn("Could not fetch global branding:", e.message);
+    }
+}
+
+function applyGlobalBranding(brandingData) {
+    const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
+    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+    
+    const festName = validName ? brandingData.fest_name : 'FestOS';
+    const titleParts = document.title.split('|');
+    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Team Portal';
+    document.title = `${festName} | ${pageContext}`;
+
+    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
+    brandContainers.forEach(container => {
+        let html = '';
+        if (validLogo) html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
+        if (validName) html += `<span>${brandingData.fest_name} TM</span>`;
+        
+        container.innerHTML = html;
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+    });
 }
 
 // ==========================================

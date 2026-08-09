@@ -31,10 +31,11 @@
             /* Neutrals & Surfaces */
             --bg-main: #F4F7F9; 
             --bg-surface: #FFFFFF;
-            --input-bg: #F4F5F8;
+            --input-bg: #F8FAFC;
             --text-main: #0F172A;
             --text-muted: #64748B;
             --border: #E2E8F0;
+            --border-hover: #CBD5E1;
             
             /* Premium Elevations */
             --shadow-nav: 0 4px 20px rgba(15, 23, 42, 0.04);
@@ -72,7 +73,11 @@
         .nav-item.active i { color: var(--primary); transform: scale(1.1); }
 
         /* --- MAIN CONTENT & HEADER --- */
-        .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; position: relative; scroll-behavior: smooth; }
+        .main-content { 
+            flex: 1; display: flex; flex-direction: column; 
+            overflow-y: auto; -webkit-overflow-scrolling: touch; 
+            position: relative; scroll-behavior: smooth; 
+        }
         
         .header { 
             background: rgba(255, 255, 255, 0.9); padding: 1rem 2.5rem; 
@@ -121,8 +126,8 @@
         .filter-box select:focus, .filter-box input[type="date"]:focus { border-color: var(--primary); background: var(--bg-surface); box-shadow: 0 0 0 3px var(--primary-ring); }
 
         /* --- TABLES --- */
-        .table-container { background: var(--bg-surface); border-radius: var(--radius-xl); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-card); }
-        table { width: 100%; border-collapse: collapse; text-align: left; }
+        .table-container { background: var(--bg-surface); border-radius: var(--radius-xl); border: 1px solid var(--border); overflow-x: auto; box-shadow: var(--shadow-card); }
+        table { width: 100%; min-width: 600px; border-collapse: collapse; text-align: left; }
         th { padding: 1.25rem 1.5rem; font-weight: 800; color: var(--text-muted); font-size: 0.75rem; background: var(--bg-main); border-bottom: 1px solid var(--border); letter-spacing: 0.05em; }
         td { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); font-size: 0.95rem; font-weight: 600; }
         tr:last-child td { border-bottom: none; }
@@ -146,7 +151,7 @@
         .btn-success { background: var(--success); color: white; border: none; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25); }
         
         /* --- BADGES --- */
-        .badge { padding: 0.4rem 0.85rem; border-radius: 50px; font-size: 0.75rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem; letter-spacing: 0.05em; }
+        .badge { padding: 0.4rem 0.85rem; border-radius: 50px; font-size: 0.75rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; letter-spacing: 0.05em; text-align: center; }
         .badge-success { background: var(--success-light); color: var(--success-hover); }
         .badge-warning { background: var(--warning-light); color: #d97706; }
         .badge-info { background: var(--primary-light); color: var(--primary); }
@@ -170,10 +175,10 @@
         @keyframes slideInToast { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
         /* ========================================================================
-           APP-LIKE MOBILE VIEW (NATIVE FEEL)
+           PREMIUM APP-LIKE MOBILE VIEW
            ======================================================================== */
         @media (max-width: 768px) {
-            body { flex-direction: column; background-color: var(--bg-surface); }
+            body { flex-direction: column; background-color: var(--bg-main); }
             
             /* Native Sidebar Drawer */
             .sidebar { position: fixed; height: 100%; transform: translateX(-100%); width: 280px; border-radius: 0 24px 24px 0; border: none; box-shadow: var(--shadow-float); }
@@ -188,8 +193,8 @@
             .header .btn-outline { border: none; background: var(--bg-main); border-radius: 50%; width: 44px; height: 44px; padding: 0; font-size: 0; }
             .header .btn-outline i { font-size: 1.15rem; margin: 0; }
             
-            /* Content Layout */
-            .main-content { overflow-y: visible; padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+            /* Content Layout & Smooth Scrolling */
+            .main-content { overflow-y: auto; flex: 1; padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
             .content-section { padding: 1.5rem 1.25rem; }
             .content-section h2 { font-size: 1.4rem; }
             
@@ -203,26 +208,64 @@
             .bulk-actions-wrapper { flex-direction: column; width: 100%; }
             .bulk-actions-wrapper .btn { margin-top: 0.5rem; }
             
-            /* Native List-Style Tables */
+            /* ----------------------------------------------------
+               FIXED NATIVE LIST-STYLE TABLES (NO ALIGNMENT BUGS)
+               ---------------------------------------------------- */
             .table-container { background: transparent; border: none; box-shadow: none; overflow: visible; }
-            table, thead, tbody, th, td, tr { display: block; }
+            table, thead, tbody, th, td, tr { display: block; width: 100%; min-width: 100%; }
             thead { display: none; }
-            tbody tr { background: var(--bg-surface); border-radius: var(--radius-xl); padding: 1.5rem 1.25rem; margin-bottom: 1.25rem; box-shadow: var(--shadow-card); border: 1px solid rgba(226, 232, 240, 0.8); position: relative; }
             
-            td { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--bg-main); text-align: right; font-size: 0.95rem; }
-            td:last-child { border-bottom: none; padding-bottom: 0; padding-top: 1.25rem; margin-top: 0.5rem; border-top: 1px dashed var(--border); justify-content: center; width: 100%; }
-            td::before { font-weight: 700; color: var(--text-muted); font-size: 0.8rem; text-align: left; content: attr(data-label); letter-spacing: 0.05em; }
+            tbody tr { 
+                background: var(--bg-surface); border-radius: var(--radius-xl); 
+                padding: 1.25rem; margin-bottom: 1.25rem; box-shadow: var(--shadow-card); 
+                border: 1px solid rgba(226, 232, 240, 0.8); position: relative; 
+            }
             
-            /* Absolute Checkbox Positioning */
-            .checkbox-cell { position: absolute; top: 1.5rem; left: 1.25rem; padding: 0; border: none; width: auto; }
-            input[type="checkbox"] { width: 24px; height: 24px; } /* Larger touch target */
+            td { 
+                display: flex; justify-content: space-between; align-items: flex-start; 
+                padding: 0.85rem 0; border-bottom: 1px solid var(--bg-main); 
+                text-align: right; font-size: 0.95rem; gap: 1rem; min-height: 44px;
+            }
+            td:last-child { 
+                border-bottom: none; padding-bottom: 0; padding-top: 1.25rem; 
+                margin-top: 0.25rem; justify-content: flex-end; 
+            }
             
-            td:nth-child(2) { padding-left: 2.5rem; font-size: 1.15rem; font-weight: 800; color: var(--primary); justify-content: flex-start; border-bottom: none; padding-top: 0; margin-bottom: 0.5rem; }
-            td:nth-child(2)::before { display: none; }
+            /* Force the injected label to the left */
+            td::before { 
+                font-weight: 700; color: var(--text-muted); font-size: 0.8rem; 
+                text-align: left; content: attr(data-label); letter-spacing: 0.05em; 
+                flex-shrink: 0; margin-top: 0.15rem;
+            }
+            
+            /* Force content wrapper to the right to handle wrapping */
+            td > span, td > div { justify-content: flex-end; text-align: right; }
+            
+            /* Checkbox Targeting Fix */
+            .checkbox-cell { 
+                position: absolute; top: 1.5rem; left: 1.25rem; 
+                padding: 0 !important; border: none !important; width: auto; min-height: auto;
+            }
+            .checkbox-cell::before { display: none !important; }
+            
+            /* Magic CSS: If the row HAS a checkbox, push ONLY the next <td> to the right */
+            .checkbox-cell ~ td:nth-of-type(2) { 
+                padding-left: 2.75rem; 
+            }
             
             /* Bottom Sheet Style Modals */
             .modal-overlay { align-items: flex-end; padding: 0; background: rgba(0, 0, 0, 0.6); }
-            .modal { padding: 2.5rem 1.5rem calc(2rem + env(safe-area-inset-bottom)) 1.5rem; border-radius: 32px 32px 0 0; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); max-height: 90vh; }
+            .modal { 
+                padding: 2.5rem 1.5rem calc(2rem + env(safe-area-inset-bottom)) 1.5rem; 
+                border-radius: 32px 32px 0 0; transform: translateY(100%); 
+                transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); max-height: 90vh; 
+                position: relative;
+            }
+            /* Native Drag Handle Indicator */
+            .modal::before {
+                content: ''; position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+                width: 40px; height: 5px; background: var(--border); border-radius: 10px;
+            }
             .modal-overlay.show .modal { transform: translateY(0); }
             
             /* Mobile Toasts */
