@@ -586,68 +586,68 @@ function populateBulkAssignDropdown() {
 
 function renderBulkAssignmentTable() {
     const compId = document.getElementById('bulkAssignComp').value;
-    const wrapper = document.getElementById('bulk-table-wrapper');
     const tbody = document.getElementById('bulk-assignments-tbody');
-    const leaderTh = document.getElementById('th-leader');
-    
+    const wrapper = document.getElementById('bulk-table-wrapper');
+    const thLeader = document.getElementById('th-leader'); 
+
     if (!compId) {
         wrapper.style.display = 'none';
         return;
     }
-    
+
+    const comp = globalCompetitions.find(c => c.id === compId);
+    if (!comp) return;
+
     wrapper.style.display = 'block';
+    
+    // Show/Hide the extra column for Group Leaders
+    if (thLeader) thLeader.style.display = comp.is_group ? 'table-cell' : 'none';
+
     tbody.innerHTML = '';
-
-    const comp = globalComps.find(c => c.id === compId);
-    const limit = comp.max_participants ? comp.max_participants : 'NO LIMIT';
-    const currentEnrolled = globalAssignments.filter(a => a.competition_id === compId).length;
     
-    document.getElementById('bulk-comp-info').innerHTML = `
-        <span style="color:var(--primary); font-size: 1.05rem;"><i class="fa-solid fa-users"></i> ENROLLED: ${currentEnrolled} / ${limit}</span>
-        <span class="badge badge-gray">${comp.is_group ? 'GROUP EVENT' : 'INDIVIDUAL EVENT'}</span>
-    `;
-
-    leaderTh.style.display = comp.is_group ? 'table-cell' : 'none';
-
-    const compCategoryId = comp.category_id;
-    const isGeneral = comp.categories?.is_general === true;
-    let allowedCatIds = [compCategoryId];
-    
-    if (isGeneral && globalCategories.length > 0) {
-        globalCategories.forEach(c => {
-            if (c.allowed_general_categories && c.allowed_general_categories.includes(compCategoryId)) {
-                allowedCatIds.push(c.id);
-            }
-        });
+    let eligibleStudents = globalStudents;
+    if (!comp.categories?.is_general) {
+        eligibleStudents = globalStudents.filter(s => s.category_id === comp.category_id);
+    } else {
+        const allowedCats = comp.categories?.allowed_general_categories || [];
+        eligibleStudents = globalStudents.filter(s => s.category_id === comp.category_id || allowedCats.includes(s.category_id));
     }
 
-    globalStudents.forEach(student => {
-        if (!isGeneral && student.category_id !== compCategoryId) return;
-        if (isGeneral && !allowedCatIds.includes(student.category_id)) return;
+    const enrolledData = globalAssignments.filter(a => a.competition_id === compId);
 
-        const assignment = globalAssignments.find(a => a.participant_id === student.id && a.competition_id === compId);
-        const isEnrolled = !!assignment;
+    document.getElementById('bulk-comp-info').innerHTML = `<i class="fa-solid fa-users"></i> ${comp.name} <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 10px;">(Max ${comp.max_participants} per team)</span>`;
+
+    eligibleStudents.forEach(student => {
+        const assignmentRecord = enrolledData.find(a => a.participant_id === student.id);
+        const isAssigned = !!assignmentRecord;
         
-        const statusBadge = isEnrolled 
-            ? `<span class="badge badge-success"><i class="fa-solid fa-check"></i> ENROLLED</span>` 
-            : `<span class="badge badge-gray">NOT ENROLLED</span>`;
+        let statusBadge = '';
+        let leaderCellHtml = '';
+        
+        // --- NEW: LEADER RADIO BUTTON LOGIC ---
+        if (comp.is_group) {
+            if (isAssigned) {
+                leaderCellHtml = assignmentRecord.is_leader 
+                    ? '<span class="badge" style="background:var(--primary); color:white;">LEADER</span>' 
+                    : '<span class="badge" style="background:#E2E8F0; color:#475569;">PARTY</span>';
+            } else {
+                leaderCellHtml = `<label style="cursor:pointer; font-size:0.8rem; font-weight:700; color:var(--text-muted); display:flex; align-items:center; gap:0.25rem; justify-content:center;"><input type="radio" name="tm_leader" value="${student.id}" style="width:14px; height:14px; accent-color: var(--primary);"> Set Leader</label>`;
+            }
+        }
 
-        const leaderRadio = comp.is_group 
-            ? `<td data-label="GROUP LEADER" style="text-align:center;"><input type="radio" name="group_leader" class="leader-radio" value="${student.id}" ${assignment?.is_leader ? 'checked' : ''} style="width:24px; height:24px; accent-color:var(--primary); cursor:pointer;"></td>` 
-            : '';
+        statusBadge = isAssigned 
+            ? '<span style="color:var(--success); font-weight:800;"><i class="fa-solid fa-check"></i> ENROLLED</span>'
+            : '<span style="color:var(--text-muted); font-weight:600;">UNASSIGNED</span>';
 
         tbody.innerHTML += `
             <tr>
-                <td class="checkbox-cell">
-                    <input type="checkbox" class="bulk-cb" value="${student.id}" data-assignment-id="${assignment ? assignment.id : ''}" ${isEnrolled ? 'checked' : ''} style="width:24px; height:24px; cursor:pointer;">
-                </td>
-                <td data-label="STUDENT NAME"></td>
-                <td data-label="UNIQUE ID" style="font-family: monospace; font-weight: 700; color: var(--text-muted);">${student.unique_id}</td>
-                ${leaderRadio}
-                <td data-label="STATUS">${statusBadge}</td>
+                <td class="checkbox-cell"><input type="checkbox" class="bulk-row-cb" value="${student.id}" style="width:18px; height:18px;"></td>
+                <td style="font-weight: 700; color: var(--text-main);">${student.name}</td>
+                <td style="font-family: monospace; color: var(--text-muted);">${student.unique_id}</td>
+                ${comp.is_group ? `<td style="text-align: center;">${leaderCellHtml}</td>` : ''} 
+                <td>${statusBadge}</td>
             </tr>
         `;
-        tbody.lastElementChild.children[1].innerText = student.name;
     });
 }
 
@@ -657,64 +657,80 @@ function toggleSelectAllBulk(source) {
 }
 
 async function executeBulkAction(action) {
-    if (isAssignmentLocked) return;
-
+    if (isAssignmentLocked) return showToast("Registration is locked.", "error");
+    
     const compId = document.getElementById('bulkAssignComp').value;
-    if (!compId) return showToast("PLEASE SELECT A COMPETITION FIRST.", "error");
+    if (!compId) return showToast('Please select a competition.', 'error');
+    
+    const comp = globalCompetitions.find(c => c.id === compId);
+    const checkboxes = document.querySelectorAll('.bulk-row-cb:checked');
+    const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (selectedIds.length === 0) return showToast('Please select at least one student.', 'error');
 
-    const checkboxes = document.querySelectorAll('.bulk-cb:checked');
-    if (checkboxes.length === 0) return showToast("PLEASE SELECT AT LEAST ONE STUDENT.", "error");
+    setLoading(action === 'enroll' ? 'btn-bulk-enroll' : 'btn-bulk-remove', true);
 
-    const comp = globalComps.find(c => c.id === compId);
-    const currentEnrolled = globalAssignments.filter(a => a.competition_id === compId).length;
-
-    let payload = [];
-    let deleteIds = [];
-
-    const leaderId = document.querySelector('.leader-radio:checked')?.value;
-
-    checkboxes.forEach(cb => {
-        const pId = cb.value;
-        const assignId = cb.getAttribute('data-assignment-id');
-        const isLeader = (pId === leaderId);
-        
+    try {
         if (action === 'enroll') {
-            if(assignId) {
-                payload.push({ id: assignId, participant_id: pId, competition_id: compId, is_leader: isLeader });
-            } else {
-                payload.push({ participant_id: pId, competition_id: compId, is_leader: isLeader });
+            const currentEnrolledCount = globalAssignments.filter(a => a.competition_id === compId).length;
+            const newIds = selectedIds.filter(id => !globalAssignments.find(a => a.competition_id === compId && a.participant_id === id));
+            
+            if (newIds.length === 0) throw new Error("Selected students are already enrolled.");
+            
+            if (comp.max_participants > 0 && (currentEnrolledCount + newIds.length) > comp.max_participants) {
+                throw new Error(`Limit Exceeded! You can only enroll ${comp.max_participants} students total for this event.`);
             }
-        } else if (action === 'remove' && assignId) {
-            deleteIds.push(assignId);
-        }
-    });
 
-    if (action === 'enroll') {
-        const newEnrollments = payload.filter(p => !p.id).length; 
-        if (comp.max_participants && (currentEnrolled + newEnrollments > comp.max_participants)) {
-            return showToast(`LIMIT EXCEEDED! ONLY ${comp.max_participants - currentEnrolled} SLOTS LEFT FOR YOUR TEAM.`, "error");
-        }
+            // --- NEW: GRAB THE LEADER AND BUILD THE PAYLOAD ---
+            const inserts = [];
+            const groupId = comp.is_group ? `GRP_${compId}_${myTeamId}_${Date.now()}` : null;
+            
+            let leaderId = null;
+            if (comp.is_group) {
+                const leaderRadio = document.querySelector('input[name="tm_leader"]:checked');
+                if (leaderRadio) leaderId = leaderRadio.value;
+            }
 
-        try {
-            const { error } = await supabaseClient.from('participant_competitions').upsert(payload);
+            newIds.forEach(pId => {
+                inserts.push({
+                    participant_id: pId,
+                    competition_id: compId,
+                    group_id: groupId,
+                    is_leader: comp.is_group ? (pId === leaderId) : false
+                });
+            });
+
+            const { error } = await supabaseClient.from('participant_competitions').insert(inserts);
             if (error) throw error;
-            showToast(`STUDENTS SUCCESSFULLY ENROLLED / UPDATED!`);
-        } catch(e) { return showToast(e.message, 'error'); }
+            showToast(`Successfully enrolled ${newIds.length} students!`, 'success');
+            
+        } else if (action === 'remove') {
+            const removeIds = selectedIds.filter(id => globalAssignments.find(a => a.competition_id === compId && a.participant_id === id));
+            if (removeIds.length === 0) throw new Error("Selected students are not enrolled.");
 
-    } else if (action === 'remove') {
-        if (deleteIds.length === 0) return showToast("SELECTED STUDENTS ARE NOT ENROLLED.", "warning");
-        
-        try {
-            const { error } = await supabaseClient.from('participant_competitions').delete().in('id', deleteIds);
+            if(!confirm(`Remove ${removeIds.length} students from this event?`)) return;
+
+            const { error } = await supabaseClient.from('participant_competitions')
+                .delete()
+                .eq('competition_id', compId)
+                .in('participant_id', removeIds);
             if (error) throw error;
-            showToast(`${deleteIds.length} STUDENTS REMOVED.`);
-        } catch(e) { return showToast(e.message, 'error'); }
+            showToast(`Removed ${removeIds.length} students!`, 'success');
+        }
+
+        // Reset UI
+        const masterCb = document.querySelector('.checkbox-cell input[type="checkbox"]');
+        if(masterCb) masterCb.checked = false;
+
+        await fetchAllData(); 
+        renderBulkAssignmentTable(); 
+
+    } catch (e) {
+        showToast(e.message, 'error');
+    } finally {
+        setLoading(action === 'enroll' ? 'btn-bulk-enroll' : 'btn-bulk-remove', false);
     }
-
-    await fetchAllData();
-    renderBulkAssignmentTable(); 
 }
-
 // ---------------- SCAN PORTAL POPUP ----------------
 function openScanModal() {
     document.getElementById('scanIframe').src = 'scan.html';

@@ -522,7 +522,7 @@ async function previewConvertedPoints(compId, legacyMaxMark, legacyIsGeneral) {
         const limit = comp.max_participants || 1;
         const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
         
-        // FIX: Evaluate eligibility based on REGISTERED count, not REPORTED count
+        // Evaluate eligibility based on REGISTERED count
         const registeredCount = comp.participant_competitions?.[0]?.count || 0;
         const eligibleForPosPts = registeredCount >= 3;
 
@@ -587,11 +587,17 @@ async function previewConvertedPoints(compId, legacyMaxMark, legacyIsGeneral) {
             }
             
             const totalPts = gradePts + posPts;
+
+            // --- APPEND "& PARTY" FOR PREVIEW MODAL ---
+            let displayName = r.name;
+            if (comp.is_group && !displayName.endsWith('& PARTY')) {
+                displayName += ' & PARTY';
+            }
             
             previewHTML += `
             <div style="margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 6px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <strong style="color:var(--text-main); font-size:0.95rem;">${currentRank}. ${r.name}</strong>
+                    <strong style="color:var(--text-main); font-size:0.95rem;">${currentRank}. ${displayName}</strong>
                     <span class="badge" style="background:var(--primary-light); color:var(--primary); font-size:0.75rem;">${gradeStr} | ${totalPts} PTS</span>
                 </div>
                 <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
@@ -706,6 +712,9 @@ async function openEditPointsModal(compId) {
     document.getElementById('edit-points-modal').classList.add('active');
 
     try {
+        // Fetch comp details to check if it's a group
+        const { data: comp } = await window.db.from('competitions').select('is_group').eq('id', compId).single();
+
         // Fetch all judgements for this competition that have actual marks
         const { data: judgements, error } = await window.db
             .from('judgements')
@@ -725,9 +734,14 @@ async function openEditPointsModal(compId) {
         modalBody.innerHTML = '';
 
         judgements.forEach(j => {
-            const participantName = j.participants?.name || 'Unknown Participant';
+            let participantName = j.participants?.name || 'Unknown Participant';
             const judgeName = j.users?.username ? `(Judge: ${j.users.username})` : '';
             
+            // --- APPEND "& PARTY" FOR EDIT MODAL ---
+            if (comp && comp.is_group && !participantName.endsWith('& PARTY')) {
+                participantName += ' & PARTY';
+            }
+
             modalBody.innerHTML += `
                 <div class="edit-point-item">
                     <label>${participantName} <span style="font-size: 0.75rem; color: var(--text-muted);">${judgeName}</span></label>

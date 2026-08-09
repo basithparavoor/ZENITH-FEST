@@ -414,11 +414,13 @@
 function calculateResults(judgements, savedAwards) {
     computedResults = {};
     const compGroups = {};
-    
+
     // 1. Group and collect all marks
     judgements.forEach(j => {
         if (!j.participants || !j.participants.id) return; 
-        const comp = publishedComps.find(c => c.id === j.competition_id);
+        const comp = publishedComps.find(c => c.id === j.competition_id); 
+        if (!comp) return;
+
         if(!compGroups[j.competition_id]) {
             compGroups[j.competition_id] = { participants: {}, comp_data: comp, total_enrolled: 0 };
         }
@@ -430,13 +432,12 @@ function calculateResults(judgements, savedAwards) {
         compGroups[j.competition_id].participants[pId].marks_array.push(parseFloat(j.awarded_mark));
     });
 
-    // 2. Calculate Averages with Outlier Dropping & Tie-Aware Positions
+    // 2. Calculate Averages & Assign Positions
     for (const [compId, compData] of Object.entries(compGroups)) {
         const limit = compData.comp_data.max_participants || 1;
         const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
         
-        // FIX: Evaluate eligibility based on REGISTERED count, not REPORTED count
-        const registeredCount = compData.comp_data.participant_competitions?.[0]?.count || 0;
+        const registeredCount = compData.comp_data.participant_competitions?.[0]?.count || 3;
         const eligibleForPosPts = registeredCount >= 3;
 
         const participantsArr = Object.values(compData.participants).map(p => {
@@ -456,6 +457,12 @@ function calculateResults(judgements, savedAwards) {
             const teamName = allTeams.find(t => t.id === entry.participant.team_id)?.name || 'IND';
             entry.participant.teams = { name: teamName };
             
+            // --- AUTO-APPEND "& PARTY" FOR GROUP LEADERS ---
+            if (compData.comp_data.is_group && !entry.participant.name.endsWith('& PARTY')) {
+                entry.participant.name += ' & PARTY';
+            }
+            // ----------------------------------------------------
+            
             if (entry.score !== previousScore) {
                 currentRank = idx + 1; 
             }
@@ -464,7 +471,7 @@ function calculateResults(judgements, savedAwards) {
             let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
             let grade = '-'; let gradePts = 0; let posPts = 0;
 
-            // 1. Assign Grade Points ONLY if >= 50%
+            // FIX: Using systemSettings (lowercase 's') to match announcements.html
             if (percent >= 50) {
                 if (percent >= systemSettings.thresholds.aplus) { grade = 'A+'; gradePts = systemSettings[`points_${sizeCat}`].aplus; }
                 else if (percent >= systemSettings.thresholds.a) { grade = 'A'; gradePts = systemSettings[`points_${sizeCat}`].a; }
@@ -472,15 +479,13 @@ function calculateResults(judgements, savedAwards) {
                 else { grade = 'C'; gradePts = systemSettings[`points_${sizeCat}`].c; }
             }
             
-            // 2. Assign Position Points ALWAYS (if eligible and ranked top 3)
             if (eligibleForPosPts && currentRank <= 3) {
                 if (currentRank === 1) posPts = systemSettings.pos_points.p1;
                 else if (currentRank === 2) posPts = systemSettings.pos_points.p2;
                 else if (currentRank === 3) posPts = systemSettings.pos_points.p3;
-        
             }
 
-            const savedRecord = savedAwards.find(sa => sa.competition_id === compId && sa.participant_id === entry.participant.id);
+            const savedRecord = savedAwards ? savedAwards.find(sa => sa.competition_id === compId && sa.participant_id === entry.participant.id) : null;
             
             return {
                 position: currentRank,

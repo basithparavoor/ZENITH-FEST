@@ -95,7 +95,7 @@ async function loadCompetitions(stageId) {
     let query = supabaseClient.from('competitions')
         .select('*, categories(name), judgements(judge_id, awarded_mark), participant_competitions(participant_id)');
     
-    // REMOVED THE MISPLACED VALIDATION BLOCK FROM HERE
+    // (BROKEN VALIDATION BLOCK WAS REMOVED FROM HERE)
 
     if (stageId && stageId !== 'ALL') {
         query = query.eq('stage_id', stageId);
@@ -407,6 +407,7 @@ function resetScanner() {
 
 function onScanFailure(error) { /* Ignore routine frame failures */ }
 
+// --- STRICT LEADER FILTERING FOR PENDING & DISPLAY ---
 async function loadCheckedInList(compId) {
     const listContainer = document.getElementById(`list-${compId}`);
     if (!listContainer) return;
@@ -429,7 +430,6 @@ async function loadCheckedInList(compId) {
         return;
     }
 
-    // Sort Checked-In List by Code Letter
     const checkedIn = data.filter(d => d.is_present).sort((a, b) => {
         if(a.code_letter < b.code_letter) return 1;
         if(a.code_letter > b.code_letter) return -1;
@@ -626,7 +626,7 @@ function applyGlobalBranding(brandingData) {
         
         // Dynamic Text
         if (showName) {
-            html += `<span style="letter-spacing: -0.5px; display: inline-block; vertical-align: middle;">${validName ? brandingData.fest_name : 'FestOS'}</span>`;
+            html += `<span style="letter-spacing: -0.5px; display: inline-block; vertical-align: middle; white-space: normal; word-break: break-word;">${validName ? brandingData.fest_name : 'FestOS'}</span>`;
         }
         
         container.innerHTML = html;
