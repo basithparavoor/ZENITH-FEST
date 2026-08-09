@@ -496,14 +496,18 @@ async function exportCompetitionsPDF() {
         html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
     } catch (e) { showToast(e.message, 'error'); }
 }
+
 // Special function to view participants linked to a competition (Many-to-Many)
-// Special function to view participants linked to a competition (Many-to-Many)
+
 async function viewCompParticipants(compId) {
     try {
-        // Fetch participants along with their team details
+        // Fetch competition details to know if it's a group event
+        const { data: comp } = await supabaseClient.from('competitions').select('is_group').eq('id', compId).single();
+
+        // Fetch participants along with their team details and leader status
         const { data, error } = await supabaseClient
             .from('participant_competitions')
-            .select('participants(name, unique_id, teams(name))')
+            .select('is_leader, participants(name, unique_id, teams(name))')
             .eq('competition_id', compId);
             
         if (error) throw error;
@@ -522,13 +526,21 @@ async function viewCompParticipants(compId) {
                 const p = item.participants;
                 const teamName = p?.teams?.name || 'INDEPENDENT';
                 
+                let roleBadge = '';
+                if (comp && comp.is_group) {
+                    roleBadge = item.is_leader 
+                        ? `<br><span class="badge" style="background: var(--primary-light); color: var(--primary); font-size: 0.65rem; margin-top: 6px;">GROUP LEADER</span>` 
+                        : `<br><span class="badge" style="background: var(--bg-main); color: var(--text-muted); font-size: 0.65rem; margin-top: 6px;">MEMBER</span>`;
+                }
+                
                 tbody.innerHTML += `
                     <tr>
                         <td style="padding: 1rem;">
                             <strong style="font-weight: 700; color: var(--text-main); display: block; margin-bottom: 0.2rem;">${p?.name}</strong>
                             <span style="font-family: monospace; font-size: 0.8rem; color: var(--text-muted);">${p?.unique_id}</span>
+                            ${roleBadge}
                         </td>
-                        <td style="padding: 1rem;">
+                        <td style="padding: 1rem; vertical-align: top;">
                             <span class="badge" style="background: var(--bg-main); color: var(--primary); font-weight: 700; border: 1px solid var(--border);">${teamName}</span>
                         </td>
                     </tr>
@@ -542,6 +554,7 @@ async function viewCompParticipants(compId) {
         showToast(e.message, 'error'); 
     }
 }
+
 function openCompModal(editData = null) {
     const isEdit = !!editData;
     const cId = isEdit ? editData.id : '';
@@ -5038,7 +5051,7 @@ async function viewCompetitionLog(compId) {
         // Fetch enrollments and participants
         const { data: enrollments, error: enrollErr } = await supabaseClient
             .from('participant_competitions')
-            .select('participant_id, is_present, code_letter, participants(name, unique_id, teams(name))')
+            .select('participant_id, is_present, code_letter, is_leader, participants(name, unique_id, teams(name))')
             .eq('competition_id', compId);
 
         if (enrollErr) throw enrollErr;
@@ -5121,7 +5134,7 @@ async function viewCompetitionLog(compId) {
             return;
         }
 
-       // Sort alphabetically by participant name
+      // Sort alphabetically by participant name
         enrollments.sort((a, b) => a.participants.name.localeCompare(b.participants.name)).forEach(e => {
             const p = e.participants;
             const statusBadge = e.is_present 
@@ -5143,7 +5156,7 @@ async function viewCompetitionLog(compId) {
             const fGrade = res ? `<span style="font-weight: 800; color: var(--text-main);">${res.grade}</span>` : '-';
             const fPoints = res ? `<span style="font-weight: 800; color: var(--primary);">${res.points}</span>` : '-';
 
-            // --- NEW: DISPLAY "& PARTY" FOR LEADERS IN ADMIN LOG ---
+            // --- DISPLAY "& PARTY" FOR LEADERS IN ADMIN LOG ---
             let displayName = p.name;
             let roleTag = '';
             if (comp.is_group) {

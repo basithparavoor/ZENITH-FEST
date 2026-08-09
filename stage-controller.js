@@ -411,9 +411,12 @@ async function loadCheckedInList(compId) {
     const listContainer = document.getElementById(`list-${compId}`);
     if (!listContainer) return;
 
+    // Fetch comp info to know if it's a group event
+    const { data: comp } = await supabaseClient.from('competitions').select('is_group').eq('id', compId).single();
+
     const { data, error } = await supabaseClient
         .from('participant_competitions')
-        .select('code_letter, is_present, participants(name, unique_id)')
+        .select('code_letter, is_present, is_leader, participants(name, unique_id)')
         .eq('competition_id', compId);
 
     if (error) {
@@ -426,28 +429,41 @@ async function loadCheckedInList(compId) {
         return;
     }
 
+    // Sort Checked-In List by Code Letter
     const checkedIn = data.filter(d => d.is_present).sort((a, b) => {
         if(a.code_letter < b.code_letter) return 1;
         if(a.code_letter > b.code_letter) return -1;
         return 0;
     });
     
-    const pending = data.filter(d => !d.is_present).sort((a, b) => a.participants.name.localeCompare(b.participants.name));
+    // Sort Pending List
+    let pending = data.filter(d => !d.is_present);
+    
+    // --- STRICT LEADER FILTER FOR PENDING ARRIVALS ---
+    if (comp && comp.is_group) {
+        pending = pending.filter(d => d.is_leader); // Hide regular members
+    }
+    
+    pending = pending.sort((a, b) => a.participants.name.localeCompare(b.participants.name));
 
     let html = '';
 
     if (checkedIn.length > 0) {
-        html += checkedIn.map(reg => `
+        html += checkedIn.map(reg => {
+            let displayName = reg.participants.name;
+            if (comp && comp.is_group && reg.is_leader) displayName += " & PARTY";
+            
+            return `
             <div class="participant-item" style="border-left: 4px solid var(--success);">
                 <div>
-                    <span style="font-weight: 700; font-size: 1rem; color: var(--text-main); display: block;">${reg.participants.name}</span>
+                    <span style="font-weight: 700; font-size: 1rem; color: var(--text-main); display: block;">${displayName}</span>
                     <span style="font-size: 0.8rem; font-weight: 700; color: var(--success); display: flex; align-items: center; gap: 0.3rem; margin-top: 0.25rem;">
                         <i class="fa-solid fa-circle-check"></i> CHECKED IN
                     </span>
                 </div>
                 <span class="code-letter">${reg.code_letter}</span>
             </div>
-        `).join('');
+        `}).join('');
     } else {
         html += `<p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 500; margin-bottom: 0.5rem;">No one has checked in yet.</p>`;
     }
@@ -461,15 +477,19 @@ async function loadCheckedInList(compId) {
             </div>
         `;
         
-        html += pending.map(reg => `
+        html += pending.map(reg => {
+            let displayName = reg.participants.name;
+            if (comp && comp.is_group && reg.is_leader) displayName += " & PARTY";
+
+            return `
             <div class="participant-item" style="opacity: 0.75; background: var(--bg-main); border-left: 4px solid var(--warning);">
                 <div>
-                    <span style="font-weight: 600; font-size: 0.95rem; color: var(--text-main); display: block;">${reg.participants.name}</span>
+                    <span style="font-weight: 600; font-size: 0.95rem; color: var(--text-main); display: block;">${displayName}</span>
                     <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace; font-weight: 600; margin-top: 0.25rem; display: block;">${reg.participants.unique_id}</span>
                 </div>
                 <span style="font-size: 0.75rem; font-weight: 800; color: var(--warning); background: var(--warning-light); padding: 0.35rem 0.75rem; border-radius: 6px;">ABSENT</span>
             </div>
-        `).join('');
+        `}).join('');
     }
 
     listContainer.innerHTML = html;
