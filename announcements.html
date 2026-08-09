@@ -2,11 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FestOS | Premium Announcement Portal</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 320 512%22><path fill=%22%234F46E5%22 d=%22M296 160H180.6l42.6-129.8C227.2 15 215.7 0 200 0H56C44 0 33.8 8.9 32.2 20.8l-32 240C-.5 273.6 9.3 288 24 288h118.7L96.6 482.5c-3.6 15.2 8 29.5 23.3 29.5 8.4 0 16.4-4.4 20.8-12l176-304c9.3-15.9-2.2-36-20.7-36z%22/></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 320 512%22><path fill=%22%234F46E5%22 d=%22M296 160H180.6l42.6-129.8C227.2 15 215.7 0 200 0H56C44 0 33.8 8.9 32.2 20.8l-32 240C-.5 273.6 9.3 288 24 288h118.7L96.6 482.5c-3.6 15.2 8 29.5 23.3 29.5 8.4 0 16.4-4.4 20.8-12l176-304c9.3-15.9-2.2-36-20.7-36z%22/></svg>">
     
-    <link rel="icon" href="data:,"> 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
@@ -23,36 +22,44 @@
         :root {
             --primary: #4F46E5;
             --primary-gradient: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+            --primary-light: #EEF2FF;
+            --primary-ring: rgba(79, 70, 229, 0.2);
             --danger: #E11D48;
+            --danger-light: #FFF1F2;
             --success: #10B981;
             --warning: #F59E0B;
-            --bg-main: #F1F5F9; 
+            --bg-main: #F4F7F9; 
             --bg-surface: #FFFFFF;
+            --input-bg: #F8FAFC;
             --text-main: #0F172A;
             --text-muted: #64748B;
             --border: #E2E8F0;
             --radius-md: 12px;
             --radius-lg: 16px;
-            --shadow-card: 0 2px 10px rgba(15, 23, 42, 0.04);
+            --radius-xl: 24px;
+            --shadow-nav: 0 4px 20px rgba(15, 23, 42, 0.04);
+            --shadow-card: 0 4px 12px rgba(15, 23, 42, 0.03), 0 1px 2px rgba(15, 23, 42, 0.02);
+            --shadow-float: 0 12px 24px -6px rgba(79, 70, 229, 0.25);
+            --transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
 
-        /* FORCE ALL TEXT TO UPPERCASE */
         * { 
             margin: 0; padding: 0; box-sizing: border-box; 
             font-family: 'Inter', sans-serif; 
             text-transform: uppercase !important; 
+            -webkit-tap-highlight-color: transparent;
         }
         
-        body { background-color: var(--bg-main); color: var(--text-main); min-height: 100vh; padding-bottom: 80px; }
+        body { background-color: var(--bg-main); color: var(--text-main); min-height: 100vh; padding-bottom: calc(80px + env(safe-area-inset-bottom)); -webkit-font-smoothing: antialiased; }
 
         /* Loader */
         .loader-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(241, 245, 249, 0.9); backdrop-filter: blur(4px);
+            position: fixed; inset: 0;
+            background: rgba(244, 247, 249, 0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
             z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 1rem;
         }
         .spinner {
-            width: 40px; height: 40px; border: 4px solid var(--border);
+            width: 44px; height: 44px; border: 4px solid var(--border);
             border-top-color: var(--primary); border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -60,92 +67,122 @@
 
         /* App Shell */
         .header {
-            position: sticky; top: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px);
-            padding: 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between;
-            align-items: center; z-index: 100;
+            position: sticky; top: 0; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            padding: 1rem 1.5rem; border-bottom: 1px solid rgba(226, 232, 240, 0.6); display: flex; justify-content: space-between;
+            align-items: center; z-index: 100; box-shadow: var(--shadow-nav);
         }
-        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; color: var(--primary); }
+        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.35rem; font-weight: 800; color: transparent; background: var(--primary-gradient); -webkit-background-clip: text; letter-spacing: -0.5px; }
 
-        .container { padding: 1.5rem 1rem; width: 100%; max-width: 800px; margin: 0 auto; }
+        .header button {
+            background: var(--danger-light); color: var(--danger); font-weight: 700; padding: 0.5rem 1rem; border-radius: var(--radius-md); border: none; cursor: pointer; transition: var(--transition); min-height: 40px; display: flex; align-items: center;
+        }
+        .header button:active { transform: scale(0.95); }
+
+        .container { padding: 1.5rem 1.25rem; width: 100%; max-width: 1000px; margin: 0 auto; }
         
         /* Desktop Responsiveness */
         @media (min-width: 768px) {
-            .container { max-width: 1200px; padding: 2rem; }
-            .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5rem; }
+            .container { padding: 2.5rem; }
+            .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 1.5rem; }
             .card { margin-bottom: 0 !important; height: 100%; display: flex; flex-direction: column; }
             .btn-main, .btn-tick { margin-top: auto; }
+            .header { padding: 1.25rem 2.5rem; }
         }
         
         /* Filters & Tabs */
         .filter-bar { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
         .filter-bar select {
-            flex: 1; min-width: 150px; padding: 0.75rem 1rem; border-radius: var(--radius-md);
-            border: 1px solid var(--border); background: white; font-weight: 600; color: var(--text-main);
-            outline: none; font-size: 0.9rem;
+            flex: 1; min-width: 150px; padding: 0.85rem 1.25rem; border-radius: var(--radius-md);
+            border: 1px solid var(--border); background: var(--input-bg); font-weight: 700; color: var(--text-main);
+            outline: none; font-size: 0.95rem; transition: var(--transition); appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748B'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.2rem;
         }
+        .filter-bar select:focus { border-color: var(--primary); background: var(--bg-surface); box-shadow: 0 0 0 3px var(--primary-ring); }
         
         .tab-nav {
-            display: flex; gap: 0.5rem; background: white; padding: 0.5rem; border-radius: var(--radius-lg);
-            margin-bottom: 1.5rem; box-shadow: var(--shadow-card); overflow-x: auto;
+            display: flex; gap: 0.5rem; background: var(--bg-surface); padding: 0.5rem; border-radius: var(--radius-lg);
+            margin-bottom: 1.5rem; box-shadow: var(--shadow-card); overflow-x: auto; scrollbar-width: none; border: 1px solid var(--border);
         }
+        .tab-nav::-webkit-scrollbar { display: none; }
         .tab-btn {
-            flex: 1; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--text-muted);
-            font-weight: 600; font-size: 0.9rem; border-radius: 8px; cursor: pointer; white-space: nowrap;
+            flex: 1; padding: 0.85rem 1.25rem; border: none; background: transparent; color: var(--text-muted);
+            font-weight: 700; font-size: 0.95rem; border-radius: var(--radius-md); cursor: pointer; white-space: nowrap; transition: var(--transition);
         }
-        .tab-btn.active { background: var(--primary-light, #EEF2FF); color: var(--primary); }
+        .tab-btn.active { background: var(--primary-light); color: var(--primary); box-shadow: 0 2px 8px rgba(79, 70, 229, 0.1); }
 
         /* Cards */
         .card {
-            background: white; border-radius: var(--radius-lg); padding: 1.5rem;
-            margin-bottom: 1rem; box-shadow: var(--shadow-card); border: 1px solid var(--border);
+            background: var(--bg-surface); border-radius: var(--radius-xl); padding: 1.5rem;
+            margin-bottom: 1.25rem; box-shadow: var(--shadow-card); border: 1px solid var(--border);
+            animation: fadeUp 0.4s ease forwards; transition: var(--transition);
         }
-        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
-        .card-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.2rem; font-weight: 700; line-height: 1.3; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; gap: 1rem; }
+        .card-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; font-weight: 800; line-height: 1.3; color: var(--text-main); }
         
-        .badge { padding: 0.35rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+        .badge { padding: 0.4rem 0.85rem; border-radius: 50px; font-size: 0.75rem; font-weight: 800; white-space: nowrap; letter-spacing: 0.05em; }
         .badge-reg { background: #DBEAFE; color: #1D4ED8; }
         .badge-live { background: #D1FAE5; color: #059669; }
         .badge-results { background: #FEF3C7; color: #D97706; }
         .badge-awards { background: #F3E8FF; color: #7E22CE; }
         
-        .metric { font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;}
+        .metric { font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; font-weight: 600; }
         
         /* Tables (Lists) */
         .data-list {
-            margin-top: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden;
+            margin-top: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--input-bg);
         }
         .data-list-header {
-            background: var(--bg-main); padding: 0.5rem 1rem; font-size: 0.75rem; font-weight: 800;
-            color: var(--text-muted); text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;
+            background: var(--bg-main); padding: 0.75rem 1rem; font-size: 0.8rem; font-weight: 800;
+            color: var(--text-muted); text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);
         }
         .data-item {
-            display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem;
-            border-top: 1px solid var(--border); font-size: 0.9rem; background: white;
+            display: flex; justify-content: space-between; align-items: center; padding: 1rem;
+            border-bottom: 1px solid var(--border); font-size: 0.95rem; background: var(--bg-surface);
         }
+        .data-item:last-child { border-bottom: none; }
         
         /* Buttons */
         .btn-main {
             width: 100%; padding: 1rem; background: var(--success); color: white; border: none;
-            border-radius: var(--radius-md); font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 1rem;
+            border-radius: var(--radius-md); font-weight: 800; font-size: 1rem; cursor: pointer; margin-top: 1rem;
+            transition: var(--transition); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25); letter-spacing: 0.02em;
         }
+        .btn-main:active { transform: scale(0.97); }
+        
         .btn-pdf-small {
-            padding: 0.35rem 0.75rem; background: white; color: var(--primary); border: 1px solid var(--primary);
-            border-radius: 6px; font-weight: 600; font-size: 0.75rem; cursor: pointer; display: flex; gap: 0.25rem; align-items: center;
+            padding: 0.65rem 1rem; background: var(--bg-surface); color: var(--primary); border: 1px solid var(--primary);
+            border-radius: var(--radius-md); font-weight: 700; font-size: 0.85rem; cursor: pointer; display: flex; gap: 0.4rem; align-items: center; transition: var(--transition);
         }
+        .btn-pdf-small:active { background: var(--primary-light); }
         
         .btn-award {
-            padding: 0.5rem 1rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.75rem; cursor: pointer;
-            transition: all 0.2s; white-space: nowrap;
+            padding: 0.65rem 1.25rem; border: none; border-radius: var(--radius-md); font-weight: 700; font-size: 0.85rem; cursor: pointer;
+            transition: var(--transition); white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.05); letter-spacing: 0.02em;
         }
-        .btn-award.given { background: var(--success); color: white; }
-        .btn-award.pending { background: var(--warning); color: white; }
+        .btn-award.given { background: var(--success); color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25); }
+        .btn-award.pending { background: var(--warning); color: white; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25); }
         .btn-award:active { transform: scale(0.95); }
 
-        .pos-1 { color: #D4AF37; font-weight: 900; font-size: 1.2rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .pos-2 { color: #94A3B8; font-weight: 900; font-size: 1.2rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .pos-3 { color: #CD7F32; font-weight: 900; font-size: 1.2rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .pos-1 { color: #D4AF37; font-weight: 900; font-size: 1.25rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1); width: 35px; }
+        .pos-2 { color: #94A3B8; font-weight: 900; font-size: 1.25rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1); width: 35px; }
+        .pos-3 { color: #CD7F32; font-weight: 900; font-size: 1.25rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1); width: 35px; }
 
         .hidden { display: none !important; }
+
+        /* Mobile specific overrides */
+        @media (max-width: 768px) {
+            .filter-bar select { min-height: 52px; font-size: 16px; }
+            .btn-pdf-small { min-height: 52px; width: 100%; justify-content: center; }
+            
+            #view-awards .data-item { flex-direction: column; align-items: stretch; gap: 1rem; }
+            #view-awards .data-item > button { width: 100%; min-height: 52px; }
+            
+            #view-results .data-item { flex-direction: column; align-items: stretch; gap: 0.75rem; }
+            #view-results .data-item > div:last-child { display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border); padding-top: 0.75rem; width: 100%; }
+        }
     </style>
 </head>
 <body>
@@ -159,7 +196,7 @@
     <div id="app-screen">
         <div class="header">
             <h1 class="brand"><i class="fa-solid fa-microphone-lines"></i> Live Desk</h1>
-            <button onclick="logout()" style="background: none; border: none; color: var(--danger); font-weight: 600; cursor: pointer;">Sign Out</button>
+            <button onclick="logout()">Sign Out</button>
         </div>
 
         <div class="container">
@@ -181,26 +218,25 @@
             </div>
 
             <!-- Tab Contents -->
-            <!-- Tab Contents -->
-<div id="view-reg" class="tab-content">
-    <div class="filter-bar" style="margin-bottom: 1.5rem; justify-content: flex-end;">
-        <button class="btn-pdf-small" onclick="downloadAllCallListsPDF()" style="padding: 0.75rem 1rem; font-size: 0.9rem;">
-            <i class="fa-solid fa-file-pdf"></i> Download Bulk Call Lists
-        </button>
-    </div>
-    <div id="reg-container" class="grid-layout"></div>
-</div>
+            <div id="view-reg" class="tab-content">
+                <div class="filter-bar" style="margin-bottom: 1.5rem; justify-content: flex-end;">
+                    <button class="btn-pdf-small" onclick="downloadAllCallListsPDF()">
+                        <i class="fa-solid fa-file-pdf"></i> Download Bulk Call Lists
+                    </button>
+                </div>
+                <div id="reg-container" class="grid-layout"></div>
+            </div>
 
-<div id="view-ongoing" class="tab-content grid-layout hidden"></div>
+            <div id="view-ongoing" class="tab-content grid-layout hidden"></div>
 
-<div id="view-results" class="tab-content hidden">
-    <div class="filter-bar" style="margin-bottom: 1.5rem; justify-content: flex-end;">
-        <button class="btn-pdf-small" onclick="downloadAllResultsPDF()" style="padding: 0.75rem 1rem; font-size: 0.9rem;">
-            <i class="fa-solid fa-file-pdf"></i> Download Bulk Results
-        </button>
-    </div>
-    <div id="results-container" class="grid-layout"></div>
-</div>
+            <div id="view-results" class="tab-content hidden">
+                <div class="filter-bar" style="margin-bottom: 1.5rem; justify-content: flex-end;">
+                    <button class="btn-pdf-small" onclick="downloadAllResultsPDF()">
+                        <i class="fa-solid fa-file-pdf"></i> Download Bulk Results
+                    </button>
+                </div>
+                <div id="results-container" class="grid-layout"></div>
+            </div>
             
             <!-- Awards View -->
             <div id="view-awards" class="tab-content hidden">
@@ -216,7 +252,7 @@
                         <option value="2">2nd Place Only</option>
                         <option value="3">3rd Place Only</option>
                     </select>
-                    <button class="btn-pdf-small" onclick="downloadAllAwardsPDF()" style="flex: 1; justify-content: center; padding: 0.75rem 1rem; font-size: 0.9rem;">
+                    <button class="btn-pdf-small" onclick="downloadAllAwardsPDF()" style="flex: 1; justify-content: center;">
                         <i class="fa-solid fa-download"></i> Download Report
                     </button>
                 </div>
@@ -260,7 +296,7 @@
                 const btnGroup = document.createElement('div');
                 btnGroup.style.display = 'flex';
                 btnGroup.style.alignItems = 'center';
-                btnGroup.style.gap = '1.5rem';
+                btnGroup.style.gap = '1rem';
                 
                 // Create the Return Button using existing portal color variables
                 const returnBtn = document.createElement('button');
@@ -269,9 +305,10 @@
                 returnBtn.style.background = 'var(--primary)';
                 returnBtn.style.color = 'white';
                 returnBtn.style.border = 'none';
-                returnBtn.style.borderRadius = '8px';
-                returnBtn.style.fontWeight = '600';
+                returnBtn.style.borderRadius = 'var(--radius-md)';
+                returnBtn.style.fontWeight = '700';
                 returnBtn.style.cursor = 'pointer';
+                returnBtn.style.minHeight = '40px';
                 returnBtn.onclick = () => window.location.href = 'admin.html';
 
                 // Append everything safely to the DOM
@@ -499,23 +536,22 @@ function calculateResults(judgements, savedAwards) {
                     <div class="data-list">
                         <div class="data-list-header">
                             Calling List (${enrollments.length})
-                            <button class="btn-pdf-small" onclick="downloadCallListPDF('${comp.id}')"><i class="fa-solid fa-file-pdf"></i> PDF</button>
                         </div>
                         ${enrollments.map(e => `
                             <div class="data-item">
-                                <div><strong>${e.participants.name}</strong><br><small style="color:var(--text-muted); font-family: monospace;">${e.participants.unique_id}</small></div>
-                                <span style="font-size:0.8rem; font-weight:600; color:var(--primary);">${e.participants.teams?.name || 'IND'}</span>
+                                <div><strong style="color: var(--text-main); font-size: 1.05rem;">${e.participants.name}</strong><br><small style="color:var(--text-muted); font-family: monospace;">${e.participants.unique_id}</small></div>
+                                <span style="font-size:0.85rem; font-weight:700; color:var(--primary); background: var(--primary-light); padding: 0.25rem 0.75rem; border-radius: 50px;">${e.participants.teams?.name || 'IND'}</span>
                             </div>`).join('')}
-                    </div>` : `<div style="margin-top:1rem; padding: 1rem; text-align:center; font-size:0.85rem; color:var(--text-muted); border: 1px dashed var(--border); border-radius: 8px;">No participants registered yet.</div>`;
+                    </div>` : `<div style="margin-top:1rem; padding: 1.5rem; text-align:center; font-size:0.9rem; font-weight: 600; color:var(--text-muted); border: 2px dashed var(--border); border-radius: 12px;">No participants registered yet.</div>`;
                 
-                return `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><span class="badge badge-reg">CALLING</span></div><div class="metric"><i class="fa-solid fa-layer-group"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-location-dot"></i> ${comp.stages?.name || 'Global Stage'}</div>${participantsHtml}</div>`;
+                return `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><span class="badge badge-reg">CALLING</span></div><div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${comp.stages?.name || 'Global Stage'}</div>${participantsHtml}</div>`;
             }).join('');
         }
 
         function renderOngoing(data) {
             const container = document.getElementById('view-ongoing');
             if (data.length === 0) return container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No ongoing events.</div>';
-            container.innerHTML = data.map(comp => `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><span class="badge badge-live">LIVE</span></div><div class="metric"><i class="fa-solid fa-layer-group"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-location-dot"></i> ${comp.stages?.name || 'Global Stage'}</div></div>`).join('');
+            container.innerHTML = data.map(comp => `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><span class="badge badge-live"><i class="fa-solid fa-satellite-dish fa-fade"></i> LIVE</span></div><div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${comp.stages?.name || 'Global Stage'}</div></div>`).join('');
         }
 
       function renderResults(data) {
@@ -524,7 +560,7 @@ function calculateResults(judgements, savedAwards) {
             const visibleData = data.filter(comp => !announcedComps.includes(comp.id));
 
             if (visibleData.length === 0) {
-                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No new results pending announcement.</div>';
+                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 3rem; background: var(--bg-surface); border-radius: var(--radius-xl); border: 2px dashed var(--border); font-weight: 600;"><i class="fa-solid fa-clipboard-check" style="font-size: 3rem; color: #CBD5E1; margin-bottom: 1rem; display: block;"></i>No new results pending announcement.</div>';
                 return;
             }
             
@@ -534,27 +570,27 @@ function calculateResults(judgements, savedAwards) {
 
                 if(resultsList.length > 0) {
                     const rows = resultsList.map(r => `
-                        <div class="data-item" style="flex-wrap: wrap; gap: 0.5rem;">
+                        <div class="data-item">
                             <div style="display:flex; gap: 1rem; align-items:center;">
-                                <span class="pos-${r.position <= 3 ? r.position : '0'}" style="width: 30px;">#${r.position}</span>
-                                <div><strong>${r.participant.name}</strong><br><small style="color:var(--text-muted); font-family: monospace;">${r.participant.teams?.name || 'IND'}</small></div>
+                                <span class="pos-${r.position <= 3 ? r.position : '0'}">#${r.position}</span>
+                                <div><strong style="color: var(--text-main); font-size: 1.05rem;">${r.participant.name}</strong><br><small style="color:var(--text-muted); font-family: monospace; font-weight: 600;">${r.participant.teams?.name || 'IND'}</small></div>
                             </div>
                             <div style="text-align: right;">
-                                <span style="font-weight: 800; color: var(--primary); font-size: 1.1rem; margin-right: 10px;">${r.grade}</span>
-                                <span style="font-size:0.8rem; font-weight:700; background: var(--bg-main); padding: 0.25rem 0.5rem; border-radius: 4px;">${r.points} PTS</span>
+                                <span style="font-weight: 800; color: var(--primary); font-size: 1.25rem; margin-right: 10px;">${r.grade}</span>
+                                <span style="font-size:0.8rem; font-weight:800; background: var(--input-bg); color: var(--text-muted); padding: 0.35rem 0.65rem; border-radius: 6px; border: 1px solid var(--border);">${r.points} PTS</span>
                             </div>
                         </div>`).join('');
 
                     tableHtml = `
                         <div class="data-list">
                             <div class="data-list-header">
-                                Full Participant Results
-                                <button class="btn-pdf-small" onclick="downloadResultsPDF('${comp.id}')"><i class="fa-solid fa-file-pdf"></i> Table PDF</button>
+                                FINAL STANDINGS
+                                <button class="btn-pdf-small" onclick="downloadResultsPDF('${comp.id}')"><i class="fa-solid fa-file-pdf"></i> PDF</button>
                             </div>
                             ${rows}
                         </div>`;
                 } else {
-                    tableHtml = `<div style="margin-top:1rem; padding: 1rem; text-align:center; font-size:0.85rem; color:var(--warning); border: 1px dashed var(--warning); border-radius: 8px;">Awaiting Judging Marks...</div>`;
+                    tableHtml = `<div style="margin-top:1rem; padding: 1.5rem; text-align:center; font-size:0.9rem; font-weight: 600; color:var(--warning); border: 2px dashed var(--warning-light); border-radius: 12px; background: var(--warning-light);">Awaiting Judging Marks...</div>`;
                 }
 
                 return `
@@ -563,10 +599,10 @@ function calculateResults(judgements, savedAwards) {
                         <div class="card-title">${comp.name}</div>
                         <span class="badge badge-results">PUBLISHED</span>
                     </div>
-                    <div class="metric"><i class="fa-solid fa-layer-group"></i> ${comp.categories?.name || 'General'}</div>
+                    <div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div>
                     ${tableHtml}
                     <button class="btn-main" onclick="markAnnounced('${comp.id}')">
-                        <i class="fa-solid fa-check"></i> Tick After Announcement
+                        <i class="fa-solid fa-check-double"></i> Mark as Announced
                     </button>
                 </div>`;
             }).join('');
@@ -589,7 +625,7 @@ function calculateResults(judgements, savedAwards) {
             });
 
             if (filteredComps.length === 0) {
-                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No awards matching criteria.</div>';
+                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 3rem; background: var(--bg-surface); border-radius: var(--radius-xl); border: 2px dashed var(--border); font-weight: 600;">No awards matching criteria.</div>';
                 return;
             }
 
@@ -610,13 +646,13 @@ function calculateResults(judgements, savedAwards) {
                 const rows = results.map(r => {
                     const p = r.participant;
                     const btnClass = r.award_given ? 'given' : 'pending';
-                    const btnText = r.award_given ? '<i class="fa-solid fa-check-double"></i> Given' : 'Mark Given';
+                    const btnText = r.award_given ? '<i class="fa-solid fa-check-double"></i> GIVEN' : 'MARK GIVEN';
                     
                     return `
-                        <div class="data-item" style="flex-wrap: wrap; gap: 0.5rem;">
+                        <div class="data-item">
                             <div style="display:flex; gap: 1rem; align-items:center; min-width: 200px;">
                                 <span class="pos-${r.position}">#${r.position}</span>
-                                <div><strong>${p.name}</strong><br><small style="color:var(--text-muted);">${p.unique_id || 'Group'} | ${p.teams?.name || 'IND'}</small></div>
+                                <div><strong style="color: var(--text-main); font-size: 1.05rem;">${p.name}</strong><br><small style="color:var(--text-muted); font-weight: 600;">${p.unique_id || 'Group'} | ${p.teams?.name || 'IND'}</small></div>
                             </div>
                             <button class="btn-award ${btnClass}" onclick="toggleAward('${comp.id}', '${p.id}')">${btnText}</button>
                         </div>`;
@@ -628,7 +664,7 @@ function calculateResults(judgements, savedAwards) {
                             <div class="card-title">${comp.name}</div>
                             <span class="badge badge-awards"><i class="fa-solid fa-trophy"></i> AWARDS</span>
                         </div>
-                        <div class="metric" style="margin-bottom: 1rem;"><i class="fa-solid fa-layer-group"></i> ${comp.categories?.name || 'General'}</div>
+                        <div class="metric" style="margin-bottom: 1rem;"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div>
                         <div class="data-list" style="margin-top:0;">
                             ${rows}
                         </div>
@@ -738,7 +774,113 @@ function calculateResults(judgements, savedAwards) {
             doc.save(`${comp.name.replace(/\s+/g, '_')}_CallingList.pdf`);
         }
 
-        
+        function downloadResultsPDF(compId) {
+            // Automatically detect which portal we are in
+            const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
+            const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
+            
+            const comp = compsList.find(c => c.id === compId);
+            const results = resList[compId] || [];
+            if(!comp || results.length === 0) return;
+
+            const doc = setupPDFDoc(
+                `Official Results: ${comp.name.toUpperCase()}`, 
+                `Category: ${comp.categories?.name || 'General'}  |  Generated: ${new Date().toLocaleString()}`
+            );
+
+            // Added Grade, Points, and renamed ID to Code Letter
+            const tableData = results.map(r => [
+                r.position.toString(),
+                r.participant.unique_id || 'GROUP',
+                r.participant.name.toUpperCase(),
+                (r.participant.teams?.name || 'IND').toUpperCase(),
+                r.grade || '-',
+                (r.points || 0).toString()
+            ]);
+
+            doc.autoTable({
+                startY: 45,
+                head: [['Pos', 'Code Letter', 'Participant/Group Name', 'Team', 'Grade', 'Points']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [16, 185, 129] }, 
+                styles: { fontSize: 10, cellPadding: 3 }
+            });
+
+            doc.save(`${comp.name.replace(/\s+/g, '_')}_Results_Table.pdf`);
+        }
+
+        function downloadAllResultsPDF() {
+            const stageId = document.getElementById('filter-stage') ? document.getElementById('filter-stage').value : 'all';
+            const catId = document.getElementById('filter-category') ? document.getElementById('filter-category').value : 'all';
+            const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
+
+            // Automatically detect which portal we are in
+            const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
+            const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
+
+            // Applies the UI filters AND ensures results that have been "ticked" are excluded
+            const filteredComps = compsList.filter(comp => {
+                const matchStage = stageId === 'all' || comp.stage_id === stageId;
+                const matchCat = catId === 'all' || comp.category_id === catId;
+                const notAnnounced = !announcedComps.includes(comp.id);
+                
+                return matchStage && matchCat && notAnnounced;
+            });
+
+            if (filteredComps.length === 0) {
+                alert("No results match the current filters to download.");
+                return;
+            }
+
+            const doc = setupPDFDoc(
+                `Master Official Results Report`, 
+                `Filtered Pending Results | Generated: ${new Date().toLocaleString()}`
+            );
+
+            let startY = 45;
+
+            filteredComps.forEach((comp, index) => {
+                const results = resList[comp.id] || [];
+                if (results.length === 0) return;
+
+                // Added Grade, Points, and renamed ID to Code Letter
+                const tableData = results.map(r => [
+                    r.position.toString(),
+                    r.participant.unique_id || 'GROUP',
+                    r.participant.name.toUpperCase(),
+                    (r.participant.teams?.name || 'IND').toUpperCase(),
+                    r.grade || '-',
+                    (r.points || 0).toString()
+                ]);
+
+                doc.setFontSize(12);
+                doc.setTextColor(15, 23, 42);
+                doc.text(`${comp.name.toUpperCase()} (${comp.categories?.name || 'GENERAL'})`, 14, startY);
+                startY += 5;
+
+                doc.autoTable({
+                    startY: startY,
+                    head: [['Pos', 'Code Letter', 'Participant/Group Name', 'Team', 'Grade', 'Points']],
+                    body: tableData,
+                    theme: 'grid',
+                    headStyles: { fillColor: [16, 185, 129] },
+                    styles: { fontSize: 9, cellPadding: 2 },
+                    margin: { top: 20 }
+                });
+                
+                startY = doc.lastAutoTable.finalY + 15;
+
+                // Break to a new page if getting too close to the bottom
+                if (startY > doc.internal.pageSize.height - 30 && index < filteredComps.length - 1) {
+                    doc.addPage();
+                    startY = 20;
+                }
+            });
+
+            doc.save(`FestOS_Bulk_Results_Table.pdf`);
+        }
+
        function downloadAllAwardsPDF() {
             // Get all current active filters for WYSIWYG printing
             const statusFilter = document.getElementById('filter-award-status').value;
@@ -927,113 +1069,6 @@ function downloadAllCallListsPDF() {
 
     doc.save(`FestOS_Bulk_Calling_Lists.pdf`);
 }
-
-function downloadResultsPDF(compId) {
-            // Automatically detect which portal we are in
-            const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
-            const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
-            
-            const comp = compsList.find(c => c.id === compId);
-            const results = resList[compId] || [];
-            if(!comp || results.length === 0) return;
-
-            const doc = setupPDFDoc(
-                `Official Results: ${comp.name.toUpperCase()}`, 
-                `Category: ${comp.categories?.name || 'General'}  |  Generated: ${new Date().toLocaleString()}`
-            );
-
-            // Added Grade, Points, and renamed ID to Code Letter
-            const tableData = results.map(r => [
-                r.position.toString(),
-                r.participant.unique_id || 'GROUP',
-                r.participant.name.toUpperCase(),
-                (r.participant.teams?.name || 'IND').toUpperCase(),
-                r.grade || '-',
-                (r.points || 0).toString()
-            ]);
-
-            doc.autoTable({
-                startY: 45,
-                head: [['Pos', 'Code Letter', 'Participant/Group Name', 'Team', 'Grade', 'Points']],
-                body: tableData,
-                theme: 'grid',
-                headStyles: { fillColor: [16, 185, 129] }, 
-                styles: { fontSize: 10, cellPadding: 3 }
-            });
-
-            doc.save(`${comp.name.replace(/\s+/g, '_')}_Results_Table.pdf`);
-        }
-
-        function downloadAllResultsPDF() {
-            const stageId = document.getElementById('filter-stage') ? document.getElementById('filter-stage').value : 'all';
-            const catId = document.getElementById('filter-category') ? document.getElementById('filter-category').value : 'all';
-            const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
-
-            // Automatically detect which portal we are in
-            const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
-            const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
-
-            // Applies the UI filters AND ensures results that have been "ticked" are excluded
-            const filteredComps = compsList.filter(comp => {
-                const matchStage = stageId === 'all' || comp.stage_id === stageId;
-                const matchCat = catId === 'all' || comp.category_id === catId;
-                const notAnnounced = !announcedComps.includes(comp.id);
-                
-                return matchStage && matchCat && notAnnounced;
-            });
-
-            if (filteredComps.length === 0) {
-                alert("No results match the current filters to download.");
-                return;
-            }
-
-            const doc = setupPDFDoc(
-                `Master Official Results Report`, 
-                `Filtered Pending Results | Generated: ${new Date().toLocaleString()}`
-            );
-
-            let startY = 45;
-
-            filteredComps.forEach((comp, index) => {
-                const results = resList[comp.id] || [];
-                if (results.length === 0) return;
-
-                // Added Grade, Points, and renamed ID to Code Letter
-                const tableData = results.map(r => [
-                    r.position.toString(),
-                    r.participant.unique_id || 'GROUP',
-                    r.participant.name.toUpperCase(),
-                    (r.participant.teams?.name || 'IND').toUpperCase(),
-                    r.grade || '-',
-                    (r.points || 0).toString()
-                ]);
-
-                doc.setFontSize(12);
-                doc.setTextColor(15, 23, 42);
-                doc.text(`${comp.name.toUpperCase()} (${comp.categories?.name || 'GENERAL'})`, 14, startY);
-                startY += 5;
-
-                doc.autoTable({
-                    startY: startY,
-                    head: [['Pos', 'Code Letter', 'Participant/Group Name', 'Team', 'Grade', 'Points']],
-                    body: tableData,
-                    theme: 'grid',
-                    headStyles: { fillColor: [16, 185, 129] },
-                    styles: { fontSize: 9, cellPadding: 2 },
-                    margin: { top: 20 }
-                });
-                
-                startY = doc.lastAutoTable.finalY + 15;
-
-                // Break to a new page if getting too close to the bottom
-                if (startY > doc.internal.pageSize.height - 30 && index < filteredComps.length - 1) {
-                    doc.addPage();
-                    startY = 20;
-                }
-            });
-
-            doc.save(`FestOS_Bulk_Results_Table.pdf`);
-        }
     </script>
 </body>
 </html>
