@@ -4,7 +4,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let html5QrcodeScanner = null;
 let currentPresentCount = 0; 
-let activeScanCompId = null; // Tracks which competition the popup is scanning for
+let activeScanCompId = null; 
 let user = null;
 let isProcessingScan = false;
 
@@ -15,11 +15,11 @@ function showToast(message, type = 'success') {
     toast.className = `toast`;
     toast.style.borderLeftColor = type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--danger)' : 'var(--warning)';
     
-    const icon = type === 'success' ? '<i class="ph-fill ph-check-circle" style="color: var(--success); font-size: 1.25rem;"></i>' 
-               : type === 'error' ? '<i class="ph-fill ph-x-circle" style="color: var(--danger); font-size: 1.25rem;"></i>'
-               : '<i class="ph-fill ph-warning" style="color: var(--warning); font-size: 1.25rem;"></i>';
+    const icon = type === 'success' ? '<i class="fa-solid fa-circle-check" style="color: var(--success); font-size: 1.25rem;"></i>' 
+               : type === 'error' ? '<i class="fa-solid fa-circle-xmark" style="color: var(--danger); font-size: 1.25rem;"></i>'
+               : '<i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 1.25rem;"></i>';
                
-    toast.innerHTML = `${icon} <span style="font-weight: 500; font-size: 0.9rem;">${message}</span>`;
+    toast.innerHTML = `${icon} <span style="font-weight: 600; font-size: 0.95rem;">${message}</span>`;
     container.appendChild(toast);
     setTimeout(() => toast.remove(), 4000);
 }
@@ -33,13 +33,11 @@ async function initializeApp() {
     
     if (user.role === 'master_admin' || user.role === 'admin') {
         const navActions = document.querySelector('.nav-actions');
-        // SAFETY CHECK: Only inject if the element actually exists in the DOM
         if (navActions) {
-            navActions.insertAdjacentHTML('afterbegin', `<button class="btn btn-primary" onclick="window.location.href='admin.html'"><i class="ph ph-shield-check"></i> Admin Hub</button>`);
+            navActions.insertAdjacentHTML('afterbegin', `<button class="btn btn-primary" onclick="window.location.href='admin.html'"><i class="fa-solid fa-shield-halved"></i> Admin Hub</button>`);
         }
     }
     
-    // Inject the username
     const welcomeMsg = document.getElementById('welcome-msg');
     if (welcomeMsg) {
         welcomeMsg.innerText = `WELCOME, ${user.username}`;
@@ -50,14 +48,11 @@ async function initializeApp() {
 
 async function loadDashboard() {
     const container = document.getElementById('competitions-container');
-    container.innerHTML = `<div style="text-align:center; padding: 3rem;"><i class="ph ph-spinner-gap" style="font-size: 2rem; animation: spin 1s linear infinite; color: var(--text-muted);"></i><p style="margin-top: 1rem; color: var(--text-muted);">Loading Stage Data...</p></div>`;
+    container.innerHTML = `<div style="text-align:center; padding: 3rem;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i><p style="margin-top: 1rem; color: var(--text-muted); font-weight: 600;">Loading Stage Data...</p></div>`;
 
     if (user.role === 'master_admin' || user.role === 'admin') {
         document.getElementById('stage-name').innerText = "Admin Override";
         document.getElementById('master-filter-container').style.display = 'block';
-        
-        // FIX: Increase body padding dynamically so the taller Master Admin header doesn't cover content
-        document.body.style.paddingTop = '160px'; 
         
         // Fetch all stages to populate the Master Admin dropdown
         const { data: stages } = await supabaseClient.from('stages').select('id, name').order('stage_no');
@@ -79,7 +74,7 @@ async function loadDashboard() {
 
     if (stageError || !stage) {
         document.getElementById('stage-name').innerText = "Unassigned / Error";
-        container.innerHTML = `<p style="color: var(--danger); text-align:center; background: white; padding: 2rem; border-radius: 12px;">Failed to load stage data. Ask the Master Admin to assign you to a stage.</p>`;
+        container.innerHTML = `<p style="color: var(--danger); text-align:center; background: white; padding: 2rem; border-radius: 12px; font-weight: 600;">Failed to load stage data. Ask the Master Admin to assign you to a stage.</p>`;
         return;
     }
 
@@ -91,7 +86,7 @@ async function loadDashboard() {
 function adjustLayoutPadding() {
     const navbar = document.querySelector('.navbar > div:first-child');
     if (navbar) {
-        document.body.style.paddingTop = `${navbar.offsetHeight + 20}px`;
+        document.body.style.paddingTop = `${navbar.offsetHeight + 15}px`;
     }
 }
 
@@ -100,7 +95,6 @@ async function loadCompetitions(stageId) {
     let query = supabaseClient.from('competitions')
         .select('*, categories(name), judgements(judge_id, awarded_mark), participant_competitions(participant_id)');
     
-    // APPLY STAGE FILTER
     if (stageId && stageId !== 'ALL') {
         query = query.eq('stage_id', stageId);
     }
@@ -110,29 +104,29 @@ async function loadCompetitions(stageId) {
     container.innerHTML = '';
 
     if (error || !competitions || competitions.length === 0) {
-        container.innerHTML = `<div class="card" style="text-align:center; padding:3rem;"><p style="color: var(--text-muted);">No competitions assigned to this stage yet.</p></div>`;
-        adjustLayoutPadding(); // Run layout fix
+        container.innerHTML = `
+            <div style="text-align: center; padding: 3rem 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 2px dashed var(--border);">
+                <i class="fa-solid fa-clipboard-check" style="font-size: 3rem; color: #CBD5E1; margin-bottom: 1rem;"></i>
+                <p style="color: var(--text-muted); font-size: 1.05rem; font-weight: 600;">No competitions assigned to this stage yet.</p>
+            </div>`;
+        adjustLayoutPadding(); 
         return;
     }
 
-    // --- NEW: POPULATE CATEGORY DROPDOWN ---
     const uniqueCategories = [...new Set(competitions.map(c => c.categories?.name || 'Uncategorized'))].sort();
     const catDropdown = document.getElementById('category-filter');
     if (catDropdown) {
-        const currentSelection = catDropdown.value; // Remember what they had selected
+        const currentSelection = catDropdown.value; 
         
         catDropdown.innerHTML = '<option value="ALL">All Categories</option>';
         uniqueCategories.forEach(cat => {
             catDropdown.innerHTML += `<option value="${cat}">${cat}</option>`;
         });
-        // Restore selection if it still exists in the new list
         if (uniqueCategories.includes(currentSelection)) {
             catDropdown.value = currentSelection;
         }
     }
 
-    // --- SETUP DATA PREFERENCE (SORTING) ---
-    // Weights: Lower number = higher priority at the top of the list
     const statusWeights = {
         'ongoing': 1,
         'registration': 2,
@@ -144,11 +138,9 @@ async function loadCompetitions(stageId) {
         const weightA = statusWeights[a.status] || 99;
         const weightB = statusWeights[b.status] || 99;
         
-        // Sort by status weight first
         if (weightA !== weightB) {
             return weightA - weightB;
         }
-        // If statuses are the same, sort alphabetically by name
         return a.name.localeCompare(b.name);
     });
 
@@ -156,59 +148,56 @@ async function loadCompetitions(stageId) {
     competitions.forEach(comp => {
         if (comp.status === 'published') return;
 
-        // --- UPDATED STATUS TEXT LABELS ---
         let badgeClass = 'badge-pending';
         let statusText = 'AWAITING'; 
-        if (comp.status === 'registration') { badgeClass = 'badge-registration'; statusText = 'REGISTRATION'; }
-        if (comp.status === 'ongoing') { badgeClass = 'badge-ongoing'; statusText = 'ONGOING'; }
-        if (comp.status === 'judgement_complete') { badgeClass = 'badge-complete'; statusText = 'AWAITING RESULTS'; }
+        let statusIcon = '<i class="fa-regular fa-clock"></i>';
+        
+        if (comp.status === 'registration') { badgeClass = 'badge-registration'; statusText = 'REGISTRATION'; statusIcon = '<i class="fa-solid fa-qrcode"></i>';}
+        if (comp.status === 'ongoing') { badgeClass = 'badge-ongoing'; statusText = 'ONGOING'; statusIcon = '<i class="fa-solid fa-circle-play"></i>';}
+        if (comp.status === 'judgement_complete') { badgeClass = 'badge-complete'; statusText = 'AWAITING RESULTS'; statusIcon = '<i class="fa-solid fa-flag-checkered"></i>';}
 
-        // Calculate enrolled students
         const enrolledCount = comp.participant_competitions ? comp.participant_competitions.length : 0;
         const categoryName = comp.categories?.name || 'Uncategorized';
 
         const card = document.createElement('div');
-        card.className = 'card comp-card'; // Added 'comp-card' class for the search filter
-        // Store both name and category in data attributes for easier filtering
+        card.className = 'card comp-card';
         card.setAttribute('data-comp-name', comp.name.toLowerCase()); 
         card.setAttribute('data-category', categoryName); 
-        card.setAttribute('data-status', comp.status); // <--- NEW LINE
+        card.setAttribute('data-status', comp.status); 
         
         card.innerHTML = `
             <div class="card-header">
                 <div style="width: 100%;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; gap: 1rem;">
-                        <h2 class="card-title">${comp.name}</h2>
-                        <span class="badge ${badgeClass}" style="white-space: nowrap;">${statusText}</span>
+                        <span style="color: var(--primary); font-size: 0.75rem; font-weight: 800; background: var(--primary-light); padding: 0.35rem 0.75rem; border-radius: 6px;">
+                            ${categoryName}
+                        </span>
+                        <span class="badge ${badgeClass}" style="white-space: nowrap;">${statusIcon} ${statusText}</span>
                     </div>
                     
-                    <div style="display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.75rem;">
-                        <span style="color: var(--primary); font-size: 0.85rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem;">
-                            <i class="ph-fill ph-folders"></i> ${categoryName}
+                    <h2 class="card-title" style="margin-top: 0.75rem;">${comp.name}</h2>
+                    
+                    <div style="display: flex; gap: 1.25rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600; margin-top: 0.25rem;">
+                        <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                            <i class="fa-solid fa-users" style="color: var(--primary);"></i> Enrolled: <strong style="color: var(--text-main);">${enrolledCount}</strong>
                         </span>
-                        
-                        <div style="display: flex; gap: 1rem; color: var(--text-muted); font-size: 0.85rem;">
-                            <span style="display: inline-flex; align-items: center; gap: 0.3rem;">
-                                <i class="ph-fill ph-users"></i> Enrolled: <strong>${enrolledCount}</strong>
-                            </span>
-                            <span style="display: inline-flex; align-items: center; gap: 0.3rem;">
-                                <i class="ph-fill ph-gavel"></i> Marks: <strong>${comp.judgements ? comp.judgements.length : 0}</strong>
-                            </span>
-                        </div>
+                        <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                            <i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Marks: <strong style="color: var(--text-main);">${comp.judgements ? comp.judgements.length : 0}</strong>
+                        </span>
                     </div>
                 </div>
             </div>
             
-            <div id="controls-${comp.id}" style="display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap;">
+            <div id="controls-${comp.id}">
                 ${getButtonsForStatus(comp)}
             </div>
 
             <div class="card-list-section" ${comp.status === 'pending' ? 'style="display:none;"' : ''}>
-                <h3 style="font-size: 1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="ph-fill ph-users" style="color: var(--primary);"></i> Participant Status
+                <h3 style="font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main);">
+                    <i class="fa-solid fa-clipboard-user" style="color: var(--primary);"></i> Participant Status
                 </h3>
                 <div class="participant-list" id="list-${comp.id}">
-                    <p style="color: var(--text-muted); font-size: 0.9rem; grid-column: 1/-1;">Loading participants...</p>
+                    <p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 600;">Loading participants...</p>
                 </div>
             </div>
         `;
@@ -219,14 +208,10 @@ async function loadCompetitions(stageId) {
         }
     });
     
-    // Fix layout after rendering so the search bar doesn't overlap cards
     setTimeout(adjustLayoutPadding, 50); 
-    
-    // Re-apply search/category filter if there's text/selection after a refresh
     filterCompetitions();
 }
 
-// --- Search, Category & Status Filter Logic ---
 function filterCompetitions() {
     const searchInput = document.getElementById('comp-search');
     const categoryDropdown = document.getElementById('category-filter');
@@ -245,12 +230,10 @@ function filterCompetitions() {
         const compCat = card.getAttribute('data-category');
         const compStatus = card.getAttribute('data-status');
         
-        // Check all three conditions
         const matchesText = compName.includes(textFilter);
         const matchesCategory = (catFilter === 'ALL' || compCat === catFilter);
         const matchesStatus = (statusFilter === 'ALL' || compStatus === statusFilter);
         
-        // Only show if it passes every active filter
         if (matchesText && matchesCategory && matchesStatus) {
             card.style.display = 'block'; 
         } else {
@@ -258,24 +241,22 @@ function filterCompetitions() {
         }
     });
     
-    // Fix layout spacing in case filters caused a scrollbar to appear/disappear
     adjustLayoutPadding();
 }
 
 function getButtonsForStatus(comp) {
-    // 1. Escape quotes to prevent inline Javascript syntax errors
     const safeName = comp.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
     if (comp.status === 'pending') {
-        return `<button class="btn btn-primary" onclick="changeCompetitionState('${comp.id}', 'registration', this, 'STARTING')"><i class="ph ph-qr-code"></i> START REGISTRATION</button>`;
+        return `<button class="btn btn-primary" onclick="changeCompetitionState('${comp.id}', 'registration', this, 'STARTING')"><i class="fa-solid fa-qrcode"></i> START REGISTRATION</button>`;
     }
     
     if (comp.status === 'registration') {
         return `
-            <div style="display: flex; gap: 0.5rem; width: 100%;">
-                <button class="btn btn-outline" style="flex:1; padding: 0.5rem;" onclick="openScannerModal('${comp.id}', '${safeName}')" title="SCAN QR"><i class="ph ph-scan"></i> SCAN</button>
-                <button class="btn btn-success" style="flex:1; padding: 0.5rem;" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'STARTING')"><i class="ph ph-play"></i> START</button>
-                <button class="btn" style="flex:1; padding: 0.5rem; background: var(--danger); color: white;" onclick="cancelRegistration('${comp.id}', this)"><i class="ph ph-x"></i> CANCEL</button>
+            <div>
+                <button class="btn btn-outline" style="color: var(--primary); border-color: var(--primary);" onclick="openScannerModal('${comp.id}', '${safeName}')" title="SCAN QR"><i class="fa-solid fa-expand"></i> SCAN QR</button>
+                <button class="btn btn-success" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'STARTING')"><i class="fa-solid fa-play"></i> START EVENT</button>
+                <button class="btn btn-danger" onclick="cancelRegistration('${comp.id}', this)"><i class="fa-solid fa-xmark"></i> CANCEL REGISTRATION</button>
             </div>
         `;
     }
@@ -284,18 +265,18 @@ function getButtonsForStatus(comp) {
         const hasMarks = comp.judgements && comp.judgements.some(j => j.awarded_mark !== null);
 
         const endBtn = hasMarks 
-            ? `<button class="btn btn-warning" style="flex:2;" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'ENDING')"><i class="ph ph-flag-checkered"></i> END COMPETITION</button>`
-            : `<button class="btn btn-outline" style="flex:2; opacity: 0.6; cursor: not-allowed;" title="WAITING FOR JUDGES TO SUBMIT MARKS..." disabled><i class="ph ph-hourglass"></i> AWAITING JUDGES...</button>`;
+            ? `<button class="btn btn-warning" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'ENDING')"><i class="fa-solid fa-flag-checkered"></i> END COMPETITION</button>`
+            : `<button class="btn btn-outline" style="opacity: 0.6; pointer-events: none;" disabled><i class="fa-solid fa-hourglass-half"></i> AWAITING JUDGES...</button>`;
 
         return `
-            <div style="display: flex; gap: 0.5rem; width: 100%;">
-                <button class="btn btn-outline" style="flex:1;" onclick="backToRegistration('${comp.id}', this)"><i class="ph ph-arrow-u-up-left"></i> BACK</button>
+            <div>
+                <button class="btn btn-outline" onclick="backToRegistration('${comp.id}', this)"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT TO REGISTRATION</button>
                 ${endBtn}
             </div>
         `;
     }
     
-    return `<p style="color: var(--text-muted); font-size: 0.95rem; width: 100%; text-align: center; background: #F8FAFC; padding: 1rem; border-radius: 8px;">ACTION COMPLETED. WAITING FOR MANAGER TO PUBLISH.</p>`;
+    return `<div style="color: var(--primary); font-size: 0.95rem; font-weight: 700; width: 100%; text-align: center; background: var(--primary-light); padding: 1.25rem; border-radius: 12px; border: 1px dashed rgba(79, 70, 229, 0.3);">EVENT COMPLETED. WAITING FOR MANAGER.</div>`;
 }
 
 async function openScannerModal(compId, compName) {
@@ -303,7 +284,6 @@ async function openScannerModal(compId, compName) {
     document.getElementById('modal-comp-name').innerText = `Scanning: ${compName}`;
     document.getElementById('scanner-modal').style.display = 'flex';
 
-    // CHANGED: Now looking at participant_competitions
     const { count } = await supabaseClient
         .from('participant_competitions') 
         .select('*', { count: 'exact', head: true })
@@ -312,7 +292,6 @@ async function openScannerModal(compId, compName) {
     
     currentPresentCount = count || 0;
 
-    // Start Camera
     html5QrcodeScanner = new Html5QrcodeScanner("global-reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
     html5QrcodeScanner.render(onScanSuccess, onScanFailure);
 }
@@ -323,10 +302,9 @@ function closeScannerModal() {
     }
     document.getElementById('scanner-modal').style.display = 'none';
     activeScanCompId = null;
-    loadDashboard(); // Refresh cards to show newly scanned students
+    loadDashboard(); 
 }
 
-// Auto-generate code letters (A, B... Z, AA...)
 function generateCodeLetter(index) {
     let letter = '';
     while (index >= 0) {
@@ -341,7 +319,6 @@ async function onScanSuccess(decodedText) {
     isProcessingScan = true;
     html5QrcodeScanner.pause();
 
-    // Clean the text and extract the ID if it's a URL
     let qrId = decodedText.trim();
     if (qrId.includes('?id=')) {
         qrId = qrId.split('?id=')[1];
@@ -349,7 +326,6 @@ async function onScanSuccess(decodedText) {
     console.log("Scanned QR Data:", qrId);
 
     try {
-        // Fetch the participant
         const { data: participant, error: pError } = await supabaseClient
             .from('participants')
             .select('id, name')
@@ -362,7 +338,6 @@ async function onScanSuccess(decodedText) {
             return;
         }
 
-        // CHANGED: Now looking at participant_competitions
         const { data: registration, error: rError } = await supabaseClient
             .from('participant_competitions')
             .select('*')
@@ -384,7 +359,6 @@ async function onScanSuccess(decodedText) {
 
         const codeLetter = generateCodeLetter(currentPresentCount);
         
-        // CHANGED: Now updating participant_competitions
         const { error: updateErr } = await supabaseClient
             .from('participant_competitions')
             .update({ is_present: true, code_letter: codeLetter })
@@ -407,83 +381,75 @@ async function onScanSuccess(decodedText) {
 function resetScanner() {
     setTimeout(() => {
         isProcessingScan = false;
-        // Only resume if scanner modal is still active
         if (document.getElementById('scanner-modal').style.display === 'flex') {
             html5QrcodeScanner.resume();
         }
-    }, 800); // Changed from 2000 to 800 for rapid scanning!
+    }, 800); 
 }
 
 function onScanFailure(error) { /* Ignore routine frame failures */ }
-
-// --- REPLACE THIS FUNCTION IN STAGE-CONTROLLER.JS ---
 
 async function loadCheckedInList(compId) {
     const listContainer = document.getElementById(`list-${compId}`);
     if (!listContainer) return;
 
-    // Fetch ALL participants registered for this specific competition
     const { data, error } = await supabaseClient
         .from('participant_competitions')
         .select('code_letter, is_present, participants(name, unique_id)')
         .eq('competition_id', compId);
 
     if (error) {
-        listContainer.innerHTML = `<p style="color: var(--danger); font-size: 0.9rem;">Failed to load participants.</p>`;
+        listContainer.innerHTML = `<p style="color: var(--danger); font-size: 0.95rem; font-weight: 600;">Failed to load participants.</p>`;
         return;
     }
 
     if (!data || data.length === 0) {
-        listContainer.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem; grid-column: 1/-1;">No participants are enrolled in this competition.</p>`;
+        listContainer.innerHTML = `<p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 500;">No participants are enrolled in this competition.</p>`;
         return;
     }
 
-    // Split data into Checked-In vs Pending
     const checkedIn = data.filter(d => d.is_present).sort((a, b) => {
         if(a.code_letter < b.code_letter) return 1;
         if(a.code_letter > b.code_letter) return -1;
         return 0;
     });
     
-    // Sort pending alphabetically by name
     const pending = data.filter(d => !d.is_present).sort((a, b) => a.participants.name.localeCompare(b.participants.name));
 
     let html = '';
 
-    // --- 1. RENDER CHECKED-IN STUDENTS ---
     if (checkedIn.length > 0) {
         html += checkedIn.map(reg => `
             <div class="participant-item" style="border-left: 4px solid var(--success);">
                 <div>
-                    <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-main); display: block;">${reg.participants.name}</span>
-                    <span style="font-size: 0.75rem; font-weight: 600; color: var(--success); display: flex; align-items: center; gap: 0.2rem;">
-                        <i class="ph-fill ph-check-circle"></i> Checked In
+                    <span style="font-weight: 700; font-size: 1rem; color: var(--text-main); display: block;">${reg.participants.name}</span>
+                    <span style="font-size: 0.8rem; font-weight: 700; color: var(--success); display: flex; align-items: center; gap: 0.3rem; margin-top: 0.25rem;">
+                        <i class="fa-solid fa-circle-check"></i> CHECKED IN
                     </span>
                 </div>
                 <span class="code-letter">${reg.code_letter}</span>
             </div>
         `).join('');
     } else {
-        html += `<p style="color: var(--text-muted); font-size: 0.9rem; grid-column: 1/-1; margin-bottom: 0.5rem;">No one has checked in yet.</p>`;
+        html += `<p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 500; margin-bottom: 0.5rem;">No one has checked in yet.</p>`;
     }
 
-    // --- 2. RENDER PENDING STUDENTS ---
     if (pending.length > 0) {
         html += `
-            <div style="grid-column: 1/-1; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--border);">
-                <h4 style="font-size: 0.8rem; font-weight: 800; color: var(--warning); margin-bottom: 0.75rem; letter-spacing: 0.05em;">
-                    <i class="ph-fill ph-clock"></i> PENDING ARRIVAL (${pending.length})
+            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border);">
+                <h4 style="font-size: 0.85rem; font-weight: 800; color: var(--warning); margin-bottom: 1rem; letter-spacing: 0.05em;">
+                    <i class="fa-solid fa-clock"></i> PENDING ARRIVAL (${pending.length})
                 </h4>
             </div>
         `;
         
         html += pending.map(reg => `
-            <div class="participant-item" style="opacity: 0.75; background: transparent; border-left: 4px solid var(--warning);">
+            <div class="participant-item" style="opacity: 0.75; background: var(--bg-main); border-left: 4px solid var(--warning);">
                 <div>
-                    <span style="font-weight: 600; font-size: 0.9rem; color: var(--text-main); display: block;">${reg.participants.name}</span>
-                    <span style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">${reg.participants.unique_id}</span>
+                    <span style="font-weight: 600; font-size: 0.95rem; color: var(--text-main); display: block;">${reg.participants.name}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace; font-weight: 600; margin-top: 0.25rem; display: block;">${reg.participants.unique_id}</span>
                 </div>
-                <span style="font-size: 0.7rem; font-weight: 800; color: var(--warning); background: var(--warning-light); padding: 0.25rem 0.6rem; border-radius: 4px;">ABSENT</span>
+                <span style="font-size: 0.75rem; font-weight: 800; color: var(--warning); background: var(--warning-light); padding: 0.35rem 0.75rem; border-radius: 6px;">ABSENT</span>
             </div>
         `).join('');
     }
@@ -491,27 +457,22 @@ async function loadCheckedInList(compId) {
     listContainer.innerHTML = html;
 }
 
-// --- NEW MASTER STATE TRANSITION FUNCTION ---
 async function changeCompetitionState(compId, newStatus, btnElement, loadingText) {
-    // 1. Confirmations
     if (newStatus === 'ongoing' && !confirm("Lock registration and start the event?")) return;
     if (newStatus === 'judgement_complete' && !confirm("End competition? This locks marks and notifies the Manager.")) return;
 
-    // 2. Set UI Loading State
     const originalHTML = btnElement.innerHTML;
-    btnElement.innerHTML = `<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> ${loadingText}...`;
+    btnElement.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${loadingText}...`;
     btnElement.disabled = true;
 
     try {
-        // 3. SIDE EFFECTS: If moving BACKWARDS to pending or registration, wipe any rogue marks!
         if (newStatus === 'registration' || newStatus === 'pending') {
-    await supabaseClient.from('judgements')
-        .delete()
-        .eq('competition_id', compId)
-        .not('participant_id', 'is', null);
-}
+            await supabaseClient.from('judgements')
+                .delete()
+                .eq('competition_id', compId)
+                .not('participant_id', 'is', null);
+        }
 
-        // 4. UPDATE DB STATUS
         const { error } = await supabaseClient
             .from('competitions')
             .update({ status: newStatus })
@@ -520,7 +481,7 @@ async function changeCompetitionState(compId, newStatus, btnElement, loadingText
         if (error) throw error;
         
         showToast(`Status updated successfully!`);
-        loadDashboard(); // Refresh UI
+        loadDashboard(); 
         
     } catch (err) {
         showToast("Error updating status: " + err.message, "error");
@@ -529,17 +490,14 @@ async function changeCompetitionState(compId, newStatus, btnElement, loadingText
     }
 }
 
-// --- Cancel Registration (Even if participants are scanned) ---
 async function cancelRegistration(compId, btn) {
     try {
         if (!confirm("WARNING: THIS WILL CANCEL REGISTRATION AND REMOVE ANY SCANNED PARTICIPANTS. PROCEED?")) return;
         
-        // Set the button to loading
         const originalHTML = btn.innerHTML;
-        btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> CANCELLING...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CANCELLING...';
         btn.disabled = true;
 
-        // Reset all scanned participants for this competition back to 'not present'
         const { error: resetError } = await supabaseClient
             .from('participant_competitions')
             .update({ is_present: false, code_letter: null })
@@ -547,33 +505,17 @@ async function cancelRegistration(compId, btn) {
             
         if (resetError) throw resetError;
         
-        // Change state back to pending
         await changeCompetitionState(compId, 'pending', btn, 'CANCELLING');
     } catch (err) {
         showToast("ERROR CANCELLING: " + err.message, "error");
-        btn.innerHTML = '<i class="ph ph-x"></i> CANCEL';
+        btn.innerHTML = '<i class="fa-solid fa-xmark"></i> CANCEL REGISTRATION';
         btn.disabled = false;
     }
 }
 
-// --- Go back to Registration from Ongoing ---
 async function backToRegistration(compId, btn) {
     if(!confirm("⚠️ Re-open the scanner? This will ERASE any submitted marks!")) return;
     changeCompetitionState(compId, 'registration', btn, 'Reverting');
-}
-
-function logout() {
-    if (html5QrcodeScanner) html5QrcodeScanner.clear().catch(e => console.error(e));
-    localStorage.removeItem('festUser');
-    window.location.href = 'index.html';
-}
-
-// Automatically adjusts page padding so the fixed header never hides content
-function adjustLayoutPadding() {
-    const navbar = document.querySelector('.navbar > div:first-child');
-    if (navbar) {
-        document.body.style.paddingTop = `${navbar.offsetHeight + 20}px`;
-    }
 }
 
 // Dynamic CSS for spinner
@@ -581,15 +523,13 @@ const style = document.createElement('style');
 style.innerHTML = `@keyframes spin { 100% { transform: rotate(360deg); } }`;
 document.head.appendChild(style);
 
-
-document.addEventListener("DOMContentLoaded", () => {
-    // Other init functions...
-    fetchAndApplyBranding();
-});
-
 // ==========================================
 // UNIFIED GLOBAL BRANDING ENGINE
 // ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+    fetchAndApplyBranding();
+});
+
 async function fetchAndApplyBranding() {
     try {
         const { data, error } = await supabaseClient
@@ -609,18 +549,14 @@ function applyGlobalBranding(brandingData) {
     const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
     const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
     
-    // 1. Update Document Title dynamically
     const festName = validName ? brandingData.fest_name : 'FestOS';
     const titleParts = document.title.split('|');
     const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
     document.title = `${festName} | ${pageContext}`;
 
-    // 2. Update all standard brand containers
     const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
     brandContainers.forEach(container => {
         let html = '';
-        
-        // STRICT RULE: No fallbacks. Only show what is provided in the admin panel.
         if (validLogo) {
             html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
         }
@@ -631,24 +567,7 @@ function applyGlobalBranding(brandingData) {
         container.innerHTML = html;
         container.style.display = 'flex';
         container.style.alignItems = 'center';
-        
-        // Keep centered on login and scan screens
-        if (window.location.pathname.includes('login') || window.location.pathname.includes('scan')) {
-            container.style.justifyContent = 'center';
-        }
     });
-
-    // 3. Special handler for the new program_report.html
-    const reportHeader = document.querySelector('.header h1');
-    if (reportHeader && !reportHeader.classList.contains('brand')) {
-        let html = '';
-        if (validLogo) html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
-        if (validName) html += `<span>${brandingData.fest_name} Reports Engine</span>`;
-        
-        // If neither exists, clear the header entirely
-        reportHeader.innerHTML = html;
-    }
 }
 
 initializeApp();
-

@@ -14,7 +14,7 @@ let isAssignmentLocked = false;
 let globalStudents = [];
 let globalComps = [];
 let globalAssignments = [];
-let globalCategories = []; // <--- NEW: Stores category rules
+let globalCategories = []; 
 
 // UI Utils
 function showToast(message, type = 'success') {
@@ -75,10 +75,10 @@ function switchTab(tabId) {
         document.querySelector('.mobile-overlay').classList.remove('open');
     }
 
-    // NEW: Trigger data fetch when the tab is clicked
     if (tabId === 'appeals') {
         loadAppeals();
     }
+    window.scrollTo(0, 0); // Reset scroll on mobile tab switch
 }
 
 function logout() {
@@ -115,11 +115,10 @@ async function initDashboard() {
     }
 }
 
-// Data Fetching
 async function refreshDashboard(btnElement) {
     if (btnElement) {
         const icon = btnElement.querySelector('i');
-        if (icon) icon.classList.add('fa-spin'); // Add spinning animation to the icon
+        if (icon) icon.classList.add('fa-spin'); 
     }
     
     try {
@@ -131,18 +130,16 @@ async function refreshDashboard(btnElement) {
     } finally {
         if (btnElement) {
             const icon = btnElement.querySelector('i');
-            if (icon) icon.classList.remove('fa-spin'); // Remove spinning animation
+            if (icon) icon.classList.remove('fa-spin'); 
         }
     }
 }
 
 async function fetchAllData() {
     try {
-        // 1. Fetch system settings to check for Registration Deadlines
         const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
         let systemSettings = set_data && set_data.value ? set_data.value : {};
 
-        // 2. Fetch Core Data
         const { data: cats } = await supabaseClient.from('categories').select('*');
         globalCategories = cats || [];
 
@@ -154,7 +151,6 @@ async function fetchAllData() {
 
         const studentIds = globalStudents.map(s => s.id);
         if(studentIds.length > 0) {
-            // Include 'is_present' for live tracking
             const { data: assigns } = await supabaseClient
                 .from('participant_competitions')
                 .select(`id, participant_id, competition_id, is_leader, is_present`)
@@ -162,7 +158,6 @@ async function fetchAllData() {
             globalAssignments = assigns || [];
         }
 
-        // 3. Populate the new catalog category filter
         const catSet = new Set(globalComps.map(c => c.categories?.name || 'GENERAL'));
         const catSelect = document.getElementById('filter-catalog-cat');
         if (catSelect) {
@@ -170,31 +165,24 @@ async function fetchAllData() {
             catSet.forEach(cat => catSelect.innerHTML += `<option value="${cat}">${cat}</option>`);
         }
 
-        // 4. CHECK REGISTRATION DEADLINE (AUTO-LOCKING)
         if (systemSettings.lock_date) {
             const deadline = new Date(systemSettings.lock_date);
             const now = new Date();
             if (now > deadline) {
                 isAssignmentLocked = true;
                 
-                const workspace = document.getElementById('catalog-assign-workspace');
+                const workspace = document.getElementById('assignments');
                 if (workspace) {
-                    workspace.style.opacity = '0.5';
-                    workspace.style.pointerEvents = 'none';
+                    const lockBanner = document.getElementById('lock-banner');
+                    lockBanner.style.display = 'flex';
+                    lockBanner.innerHTML = `<i class="fa-solid fa-lock"></i> REGISTRATION DEADLINE HAS PASSED. ENROLLMENTS ARE LOCKED.`;
                     
-                    // Prevent duplicate alerts if re-fetched
-                    if (!document.getElementById('lock-alert')) {
-                        workspace.insertAdjacentHTML('afterbegin', 
-                            `<div id="lock-alert" style="background: var(--danger); color: white; padding: 1rem; border-radius: 8px; font-weight: 800; text-align: center; margin-bottom: 1rem; box-shadow: var(--shadow-sm);">
-                                <i class="fa-solid fa-lock"></i> REGISTRATION DEADLINE HAS PASSED. ENROLLMENTS ARE LOCKED.
-                            </div>`
-                        );
-                    }
+                    document.getElementById('btn-bulk-enroll').disabled = true;
+                    document.getElementById('btn-bulk-remove').disabled = true;
                 }
             }
         }
 
-        // 5. Render UI
         updateDashboardStats();
         renderStudents();
         renderCatalog();
@@ -207,7 +195,6 @@ async function fetchAllData() {
 }
 function updateDashboardStats() {
     document.getElementById('stat-total-students').innerText = globalStudents.length;
-    // Calculate unique events
     const uniqueEvents = new Set(globalAssignments.map(a => a.competition_id)).size;
     document.getElementById('stat-total-events').innerText = uniqueEvents;
     
@@ -231,9 +218,9 @@ function renderStudents() {
             <tr>
                 <td data-label="STUDENT NAME"></td>
                 <td data-label="UNIQUE ID" style="font-family: monospace;">${student.unique_id}</td>
-                <td data-label="DOB">${student.dob || 'N/A'}</td>
+                <td data-label="DOB" style="font-weight: 800; color: var(--text-muted);">${student.dob || 'N/A'}</td>
                 <td data-label="EVENTS ENROLLED">
-                    <span class="badge ${badgeClass}" onclick="viewStudentEvents('${student.id}')">${enrollCount} EVENTS <i class="fa-solid fa-arrow-up-right-from-square"></i></span>
+                    <span class="badge ${badgeClass}" onclick="viewStudentEvents('${student.id}')">${enrollCount} EVENTS <i class="fa-solid fa-arrow-up-right-from-square" style="margin-left: 4px;"></i></span>
                 </td>
             </tr>
         `;
@@ -250,16 +237,16 @@ function viewStudentEvents(studentId) {
     body.innerHTML = '';
     
     if (assignedComps.length === 0) {
-        body.innerHTML = `<p style="color: var(--text-muted); text-align: center;">NOT ENROLLED IN ANY EVENTS.</p>`;
+        body.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem 0; font-weight: 600;">NOT ENROLLED IN ANY EVENTS.</p>`;
     } else {
         assignedComps.forEach(compId => {
             const comp = globalComps.find(c => c.id === compId);
             if (comp) {
                 body.innerHTML += `
-                    <div style="padding: 1rem; background: #F8FAFC; border-radius: 8px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                    <div style="padding: 1.25rem; background: var(--bg-main); border-radius: var(--radius-md); border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <div style="font-weight: 600;">${comp.name}</div>
-                            <div style="font-size: 0.8rem; color: var(--text-muted);">${comp.categories?.name || 'EVENT'}</div>
+                            <div style="font-weight: 800; font-size: 1.05rem; margin-bottom: 0.25rem; color: var(--text-main);">${comp.name}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;"><i class="fa-solid fa-layer-group" style="margin-right: 4px;"></i> ${comp.categories?.name || 'EVENT'}</div>
                         </div>
                         <span class="badge badge-gray" style="text-transform: uppercase;">${comp.status.replace('_', ' ')}</span>
                     </div>
@@ -285,22 +272,20 @@ function renderCatalog() {
         if (catFilter !== 'all' && catName !== catFilter) return;
         if (search && !comp.name.toLowerCase().includes(search) && !catName.toLowerCase().includes(search)) return;
 
-        // NEW: Check if Offstage Event
         const stageName = comp.is_offstage 
-            ? '<span style="color:#D97706; font-weight:800;"><i class="fa-solid fa-pen-nib"></i> OFFSTAGE</span>' 
-            : (comp.stages?.name || 'TBD');
+            ? '<span style="color:#D97706; font-weight:800; background: #FEF3C7; padding: 4px 8px; border-radius: 6px;"><i class="fa-solid fa-pen-nib"></i> OFFSTAGE</span>' 
+            : `<span style="color: var(--text-muted); font-weight: 700;"><i class="fa-solid fa-microphone-stage" style="margin-right: 4px;"></i> ${comp.stages?.name || 'TBD'}</span>`;
             
         const limitDisplay = comp.max_participants ? comp.max_participants : 'NO LIMIT';
         
-        // Make the badges clickable
         const typeBadge = comp.is_group 
-            ? `<span class="badge" style="background:#e0e7ff; color:#4338ca; cursor:pointer;" onclick="viewCatalogEnrollments('${comp.id}')"><i class="fa-solid fa-users"></i> GROUP (LIMIT: ${limitDisplay} PER TEAM)</span>`
-            : `<span class="badge" style="background:#d1fae5; color:#059669; cursor:pointer;" onclick="viewCatalogEnrollments('${comp.id}')"><i class="fa-solid fa-user"></i> SOLO (LIMIT: ${limitDisplay} PER TEAM)</span>`;
+            ? `<span class="badge" style="background:var(--primary-light); color:var(--primary); cursor:pointer;" onclick="viewCatalogEnrollments('${comp.id}')"><i class="fa-solid fa-users"></i> GROUP (LIMIT: ${limitDisplay})</span>`
+            : `<span class="badge" style="background:var(--success-light); color:var(--success-hover); cursor:pointer;" onclick="viewCatalogEnrollments('${comp.id}')"><i class="fa-solid fa-user"></i> SOLO (LIMIT: ${limitDisplay})</span>`;
 
         tbody.innerHTML += `
             <tr>
                 <td data-label="EVENT NAME"></td>
-                <td data-label="CATEGORY">${catName}</td>
+                <td data-label="CATEGORY"><span class="badge badge-gray">${catName}</span></td>
                 <td data-label="STAGE">${stageName}</td>
                 <td data-label="TYPE & LIMIT">${typeBadge}</td>
             </tr>
@@ -318,17 +303,17 @@ function viewCatalogEnrollments(compId) {
     body.innerHTML = '';
     
     if (enrollments.length === 0) {
-        body.innerHTML = `<p style="color: var(--text-muted); text-align: center;">NO STUDENTS ENROLLED IN THIS EVENT.</p>`;
+        body.innerHTML = `<p style="color: var(--text-muted); text-align: center; font-weight: 600; padding: 2rem 0;">NO STUDENTS ENROLLED IN THIS EVENT.</p>`;
     } else {
         enrollments.forEach(a => {
             const student = globalStudents.find(s => s.id === a.participant_id);
             if (student) {
-                const leaderTag = a.is_leader ? '<span class="badge badge-success" style="font-size: 0.65rem;">LEADER</span>' : '';
+                const leaderTag = a.is_leader ? '<span class="badge badge-success" style="font-size: 0.7rem; margin-left: 8px;">LEADER</span>' : '';
                 body.innerHTML += `
-                    <div style="padding: 1rem; background: #F8FAFC; border-radius: 8px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                    <div style="padding: 1.25rem; background: var(--bg-main); border-radius: var(--radius-md); border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <div style="font-weight: 600;">${student.name} ${leaderTag}</div>
-                            <div style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">${student.unique_id}</div>
+                            <div style="font-weight: 800; font-size: 1.05rem; color: var(--text-main); margin-bottom: 0.25rem;">${student.name} ${leaderTag}</div>
+                            <div style="font-size: 0.85rem; color: var(--text-muted); font-family: monospace; font-weight: 600;">${student.unique_id}</div>
                         </div>
                     </div>
                 `;
@@ -337,7 +322,8 @@ function viewCatalogEnrollments(compId) {
     }
     document.getElementById('studentEventsModal').classList.add('show');
 }
-// ---------------- LIVE TRACKING & ENROLLED POPUP ----------------
+
+// ---------------- LIVE TRACKING ----------------
 function renderLiveTracking() {
     const search = document.getElementById('search-comps').value.toLowerCase();
     const statusFilter = document.getElementById('filter-comp-status').value;
@@ -351,24 +337,22 @@ function renderLiveTracking() {
         const ourEnrolled = globalAssignments.filter(a => a.competition_id === comp.id).length;
         if (ourEnrolled === 0) return; 
 
-        // Get Category and Stage Names
         const catName = comp.categories?.name || 'UNCATEGORIZED';
         const stageName = comp.stages?.name || 'TBD';
         
-        let statusBadge = `<span class="badge badge-info">UPCOMING</span>`;
-        if(comp.status === 'ongoing' || comp.status === 'registration') statusBadge = `<span class="badge badge-warning"><i class="fa-solid fa-satellite-dish fa-fade"></i> LIVE</span>`;
+        let statusBadge = `<span class="badge badge-gray" style="border: 1px solid var(--border);">UPCOMING</span>`;
+        if(comp.status === 'ongoing' || comp.status === 'registration') statusBadge = `<span class="badge" style="background: #FEF3C7; color: #D97706; border: 1px solid rgba(245, 158, 11, 0.2);"><i class="fa-solid fa-satellite-dish fa-fade"></i> LIVE</span>`;
         if(comp.status === 'published' || comp.status === 'judgement_complete') statusBadge = `<span class="badge badge-success">COMPLETED</span>`;
 
-        // Clickable badge to see who is enrolled vs who is pending
         tbody.innerHTML += `
             <tr>
                 <td data-label="EVENT NAME"></td>
                 <td data-label="CATEGORY"><span class="badge badge-gray">${catName}</span></td>
-                <td data-label="STAGE"><i class="fa-solid fa-microphone-stage" style="color:var(--text-muted); margin-right:4px;"></i> ${stageName}</td>
+                <td data-label="STAGE"><span style="color: var(--text-muted); font-weight: 700;"><i class="fa-solid fa-microphone-stage" style="margin-right:4px;"></i> ${stageName}</span></td>
                 <td data-label="STATUS">${statusBadge}</td>
                 <td data-label="OUR ENROLLED">
                     <span class="badge badge-info" onclick="viewEnrolledDetails('${comp.id}')" style="cursor: pointer;">
-                        ${ourEnrolled} ENROLLED <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        ${ourEnrolled} ENROLLED <i class="fa-solid fa-arrow-up-right-from-square" style="margin-left: 4px;"></i>
                     </span>
                 </td>
             </tr>
@@ -388,15 +372,15 @@ function viewEnrolledDetails(compId) {
         const s = globalStudents.find(student => student.id === a.participant_id);
         if (s) {
             if(a.is_present) {
-                checkedInHtml += `<div style="padding: 0.75rem; background: #d1fae5; color: #059669; border-radius: 8px; margin-bottom: 0.5rem; font-weight: 600;">${s.name} (${s.unique_id})</div>`;
+                checkedInHtml += `<div style="padding: 1rem; background: var(--success-light); color: var(--success-hover); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-md); font-weight: 700; display: flex; justify-content: space-between; align-items: center;">${s.name} <span style="font-family: monospace; font-size: 0.8rem; background: white; padding: 2px 6px; border-radius: 4px;">${s.unique_id}</span></div>`;
             } else {
-                pendingHtml += `<div style="padding: 0.75rem; background: #fef3c7; color: #d97706; border-radius: 8px; margin-bottom: 0.5rem; font-weight: 600;">${s.name} (${s.unique_id})</div>`;
+                pendingHtml += `<div style="padding: 1rem; background: var(--warning-light); color: #D97706; border: 1px solid rgba(245, 158, 11, 0.2); border-radius: var(--radius-md); font-weight: 700; display: flex; justify-content: space-between; align-items: center;">${s.name} <span style="font-family: monospace; font-size: 0.8rem; background: white; padding: 2px 6px; border-radius: 4px;">${s.unique_id}</span></div>`;
             }
         }
     });
 
-    if(!checkedInHtml) checkedInHtml = '<p style="color: var(--text-muted);">NO STUDENTS CHECKED IN</p>';
-    if(!pendingHtml) pendingHtml = '<p style="color: var(--text-muted);">NO PENDING STUDENTS</p>';
+    if(!checkedInHtml) checkedInHtml = '<div style="padding: 2rem; text-align: center; background: var(--bg-main); border-radius: var(--radius-md); color: var(--text-muted); font-weight: 600;">NO STUDENTS CHECKED IN</div>';
+    if(!pendingHtml) pendingHtml = '<div style="padding: 2rem; text-align: center; background: var(--bg-main); border-radius: var(--radius-md); color: var(--text-muted); font-weight: 600;">NO PENDING STUDENTS</div>';
 
     document.getElementById('enroll-modal-title').innerText = comp.name;
     document.getElementById('enroll-modal-enrolled').innerHTML = checkedInHtml;
@@ -429,20 +413,16 @@ function renderBulkAssignmentTable() {
     tbody.innerHTML = '';
 
     const comp = globalComps.find(c => c.id === compId);
-    
-    // Shows correct limit fetched from database
     const limit = comp.max_participants ? comp.max_participants : 'NO LIMIT';
     const currentEnrolled = globalAssignments.filter(a => a.competition_id === compId).length;
     
     document.getElementById('bulk-comp-info').innerHTML = `
-        <span style="color:var(--primary);"><i class="fa-solid fa-users"></i> ENROLLED: ${currentEnrolled} / ${limit}</span>
-        <span style="color:var(--text-muted); font-size: 0.8rem; margin-left: 1rem;">${comp.is_group ? 'GROUP EVENT' : 'INDIVIDUAL EVENT'}</span>
+        <span style="color:var(--primary); font-size: 1.05rem;"><i class="fa-solid fa-users"></i> ENROLLED: ${currentEnrolled} / ${limit}</span>
+        <span class="badge badge-gray">${comp.is_group ? 'GROUP EVENT' : 'INDIVIDUAL EVENT'}</span>
     `;
 
-    // Toggle Leader Column Visibility
     leaderTh.style.display = comp.is_group ? 'table-cell' : 'none';
 
-    // --- NEW: Calculate Allowed Categories for General Events ---
     const compCategoryId = comp.category_id;
     const isGeneral = comp.categories?.is_general === true;
     let allowedCatIds = [compCategoryId];
@@ -456,7 +436,6 @@ function renderBulkAssignmentTable() {
     }
 
     globalStudents.forEach(student => {
-        // FILTER: Only show student if they belong to the specific category, OR an allowed standard category
         if (!isGeneral && student.category_id !== compCategoryId) return;
         if (isGeneral && !allowedCatIds.includes(student.category_id)) return;
 
@@ -467,18 +446,17 @@ function renderBulkAssignmentTable() {
             ? `<span class="badge badge-success"><i class="fa-solid fa-check"></i> ENROLLED</span>` 
             : `<span class="badge badge-gray">NOT ENROLLED</span>`;
 
-        // Generate Leader Radio Button for Group Events
         const leaderRadio = comp.is_group 
-            ? `<td data-label="GROUP LEADER" style="text-align:center;"><input type="radio" name="group_leader" class="leader-radio" value="${student.id}" ${assignment?.is_leader ? 'checked' : ''} style="width:18px; height:18px; accent-color:var(--primary); cursor:pointer;"></td>` 
+            ? `<td data-label="GROUP LEADER" style="text-align:center;"><input type="radio" name="group_leader" class="leader-radio" value="${student.id}" ${assignment?.is_leader ? 'checked' : ''} style="width:24px; height:24px; accent-color:var(--primary); cursor:pointer;"></td>` 
             : '';
 
         tbody.innerHTML += `
             <tr>
                 <td class="checkbox-cell">
-                    <input type="checkbox" class="bulk-cb" value="${student.id}" data-assignment-id="${assignment ? assignment.id : ''}" ${isEnrolled ? 'checked' : ''} style="width:18px; height:18px; cursor:pointer;">
+                    <input type="checkbox" class="bulk-cb" value="${student.id}" data-assignment-id="${assignment ? assignment.id : ''}" ${isEnrolled ? 'checked' : ''} style="width:24px; height:24px; cursor:pointer;">
                 </td>
                 <td data-label="STUDENT NAME"></td>
-                <td data-label="UNIQUE ID" style="font-family: monospace;">${student.unique_id}</td>
+                <td data-label="UNIQUE ID" style="font-family: monospace; font-weight: 700; color: var(--text-muted);">${student.unique_id}</td>
                 ${leaderRadio}
                 <td data-label="STATUS">${statusBadge}</td>
             </tr>
@@ -507,7 +485,6 @@ async function executeBulkAction(action) {
     let payload = [];
     let deleteIds = [];
 
-    // Get selected leader ID (if group event)
     const leaderId = document.querySelector('.leader-radio:checked')?.value;
 
     checkboxes.forEach(cb => {
@@ -517,7 +494,6 @@ async function executeBulkAction(action) {
         
         if (action === 'enroll') {
             if(assignId) {
-                // Upsert to handle modifying an existing group leader
                 payload.push({ id: assignId, participant_id: pId, competition_id: compId, is_leader: isLeader });
             } else {
                 payload.push({ participant_id: pId, competition_id: compId, is_leader: isLeader });
@@ -528,7 +504,7 @@ async function executeBulkAction(action) {
     });
 
     if (action === 'enroll') {
-        const newEnrollments = payload.filter(p => !p.id).length; // Count only new ones for limit check
+        const newEnrollments = payload.filter(p => !p.id).length; 
         if (comp.max_participants && (currentEnrolled + newEnrollments > comp.max_participants)) {
             return showToast(`LIMIT EXCEEDED! ONLY ${comp.max_participants - currentEnrolled} SLOTS LEFT FOR YOUR TEAM.`, "error");
         }
@@ -560,15 +536,9 @@ function openScanModal() {
 }
 
 function closeScanModal() {
-    // Setting src to blank properly kills the camera feed in the iframe
     document.getElementById('scanIframe').src = '';
     document.getElementById('scanModal').classList.remove('show');
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-    // Other init functions...
-    fetchAndApplyBranding();
-});
 
 // ==========================================
 // TEAM PDF REPORTS ENGINE
@@ -651,7 +621,6 @@ async function exportTeamProgramListPDF() {
             </div>
         `;
 
-        // Group data by competition
         let compsMap = {};
         globalAssignments.forEach(a => {
             const student = globalStudents.find(s => s.id === a.participant_id);
@@ -661,7 +630,6 @@ async function exportTeamProgramListPDF() {
                     compsMap[comp.id] = {
                         compName: comp.name,
                         category: comp.categories?.name || 'GENERAL',
-                        // NEW: Update PDF to reflect Offstage status
                         stage: comp.is_offstage ? 'OFFSTAGE' : (comp.stages?.name || 'TBD'),
                         participants: []
                     };
@@ -720,69 +688,6 @@ async function exportTeamProgramListPDF() {
 }
 
 // ==========================================
-// UNIFIED GLOBAL BRANDING ENGINE
-// ==========================================
-async function fetchAndApplyBranding() {
-    try {
-        const { data, error } = await supabaseClient
-            .from('settings')
-            .select('value')
-            .eq('id', 'system_branding')
-            .maybeSingle();
-
-        if (error) throw error;
-        if (data && data.value) applyGlobalBranding(data.value);
-    } catch (e) {
-        console.warn("Could not fetch global branding:", e.message);
-    }
-}
-
-function applyGlobalBranding(brandingData) {
-    const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
-    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
-    
-    // 1. Update Document Title dynamically
-    const festName = validName ? brandingData.fest_name : 'FestOS';
-    const titleParts = document.title.split('|');
-    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
-    document.title = `${festName} | ${pageContext}`;
-
-    // 2. Update all standard brand containers
-    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
-    brandContainers.forEach(container => {
-        let html = '';
-        
-        // STRICT RULE: No fallbacks. Only show what is provided in the admin panel.
-        if (validLogo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
-        }
-        if (validName) {
-            html += `<span>${brandingData.fest_name}</span>`;
-        }
-        
-        container.innerHTML = html;
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        
-        // Keep centered on login and scan screens
-        if (window.location.pathname.includes('login') || window.location.pathname.includes('scan')) {
-            container.style.justifyContent = 'center';
-        }
-    });
-
-    // 3. Special handler for the new program_report.html
-    const reportHeader = document.querySelector('.header h1');
-    if (reportHeader && !reportHeader.classList.contains('brand')) {
-        let html = '';
-        if (validLogo) html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
-        if (validName) html += `<span>${brandingData.fest_name} Team Portal</span>`;
-        
-        // If neither exists, clear the header entirely
-        reportHeader.innerHTML = html;
-    }
-}
-
-// ==========================================
 // APPEALS & GRIEVANCE TICKETS
 // ==========================================
 
@@ -798,7 +703,7 @@ async function loadAppeals() {
         
         const container = document.getElementById('appeals-container');
         if (!data || data.length === 0) {
-            container.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-muted); background: white; border-radius: 12px; border: 1px dashed var(--border);">No active appeals.</div>';
+            container.innerHTML = '<div style="padding: 3rem; text-align: center; color: var(--text-muted); background: var(--bg-surface); border-radius: var(--radius-lg); border: 2px dashed var(--border); font-weight: 600;">No active appeals.</div>';
             return;
         }
 
@@ -806,16 +711,16 @@ async function loadAppeals() {
             let statusColor = ticket.status === 'pending' ? 'var(--warning)' : (ticket.status === 'approved' ? 'var(--success)' : 'var(--danger)');
             
             return `
-            <div style="background: white; border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; box-shadow: var(--shadow-sm);">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+            <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-card);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem;">
                     <div>
-                        <span style="background: var(--bg-main); padding: 0.25rem 0.75rem; border-radius: 50px; font-size: 0.7rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: inline-block;">${ticket.issue_type.toUpperCase()}</span>
-                        <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.25rem;">${ticket.competitions?.name || 'General Issue'}</h3>
-                        <p style="font-family: monospace; font-size: 0.85rem; color: var(--primary); font-weight: 600;">${ticket.participants?.name || 'N/A'} (${ticket.participants?.unique_id || 'N/A'})</p>
+                        <span style="background: var(--bg-main); padding: 0.35rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: inline-block;">${ticket.issue_type.replace('_', ' ').toUpperCase()}</span>
+                        <h3 style="font-size: 1.2rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.25rem;">${ticket.competitions?.name || 'GENERAL ISSUE'}</h3>
+                        <p style="font-family: monospace; font-size: 0.95rem; color: var(--primary); font-weight: 700;">${ticket.participants?.name || 'N/A'} (${ticket.participants?.unique_id || 'N/A'})</p>
                     </div>
-                    <span style="padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 800; border: 1px solid ${statusColor}; color: ${statusColor};">${ticket.status.toUpperCase()}</span>
+                    <span style="padding: 0.4rem 0.85rem; border-radius: 8px; font-size: 0.8rem; font-weight: 800; background: ${statusColor}15; color: ${statusColor}; border: 1px solid ${statusColor}30;">${ticket.status.toUpperCase()}</span>
                 </div>
-                <div style="background: #F8FAFC; padding: 1rem; border-radius: 8px; font-size: 0.9rem; color: var(--text-muted); border-left: 3px solid var(--border);">
+                <div style="background: var(--input-bg); padding: 1.25rem; border-radius: var(--radius-md); font-size: 0.95rem; color: var(--text-muted); border-left: 4px solid var(--border); font-weight: 500; line-height: 1.5;">
                     "${ticket.description}"
                 </div>
             </div>`;
@@ -829,34 +734,34 @@ function openAppealModal() {
     const partOpts = globalStudents.map(p => `<option value="${p.id}">${p.name} (${p.unique_id})</option>`).join('');
 
     const premiumHtml = `
-        <div style="background: var(--primary-light); padding: 1.25rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: flex-start; border: 1px solid rgba(79, 70, 229, 0.2);">
+        <div style="background: var(--primary-light); padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: flex-start; border: 1px solid var(--primary-ring);">
             <i class="fa-solid fa-circle-info" style="color: var(--primary); font-size: 1.25rem; margin-top: 0.1rem;"></i>
-            <div style="font-size: 0.85rem; color: var(--primary); font-weight: 600; line-height: 1.5; text-transform: none;">
+            <div style="font-size: 0.9rem; color: var(--primary); font-weight: 600; line-height: 1.5; text-transform: none;">
                 Use this form to report scoring disputes, name corrections, or technical issues. Your ticket will be logged securely and sent directly to the Master Admin for review.
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem;">
-            <div class="form-group" style="grid-column: 1 / -1; margin: 0;">
-                <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block; letter-spacing: 0.05em;"><i class="fa-solid fa-tag" style="margin-right: 0.25rem;"></i> ISSUE TYPE</label>
-                <select id="appealType" style="width: 100%; padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid var(--border); font-weight: 700; outline: none; background: #F8FAFC; color: var(--text-main);">
-                    <option value="score_dispute">🏆 Score / Result Dispute</option>
-                    <option value="name_correction">✍️ Name / ID Correction</option>
-                    <option value="other">⚙️ Other Technical Issue</option>
+        <div style="display: grid; grid-template-columns: 1fr; gap: 1.25rem; margin-bottom: 1.25rem;">
+            <div class="form-group" style="margin: 0;">
+                <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block; letter-spacing: 0.05em;"><i class="fa-solid fa-tag" style="margin-right: 0.25rem;"></i> ISSUE TYPE</label>
+                <select id="appealType" style="width: 100%; padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-weight: 700; outline: none; background: var(--input-bg); color: var(--text-main);">
+                    <option value="score_dispute">SCORE / RESULT DISPUTE</option>
+                    <option value="name_correction">NAME / ID CORRECTION</option>
+                    <option value="other">OTHER TECHNICAL ISSUE</option>
                 </select>
             </div>
             
             <div class="form-group" style="margin: 0;">
-                <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block; letter-spacing: 0.05em;"><i class="fa-solid fa-microphone-stage" style="margin-right: 0.25rem;"></i> RELATED EVENT (OPTIONAL)</label>
-                <select id="appealComp" style="width: 100%; padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid var(--border); outline: none; background: #F8FAFC; font-weight: 600; color: var(--text-main);">
+                <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block; letter-spacing: 0.05em;"><i class="fa-solid fa-microphone-stage" style="margin-right: 0.25rem;"></i> RELATED EVENT (OPTIONAL)</label>
+                <select id="appealComp" style="width: 100%; padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); outline: none; background: var(--input-bg); font-weight: 600; color: var(--text-main);">
                     <option value="">-- NOT APPLICABLE --</option>
                     ${compOpts}
                 </select>
             </div>
 
             <div class="form-group" style="margin: 0;">
-                <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block; letter-spacing: 0.05em;"><i class="fa-solid fa-user" style="margin-right: 0.25rem;"></i> PARTICIPANT (OPTIONAL)</label>
-                <select id="appealPart" style="width: 100%; padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid var(--border); outline: none; background: #F8FAFC; font-weight: 600; color: var(--text-main);">
+                <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block; letter-spacing: 0.05em;"><i class="fa-solid fa-user" style="margin-right: 0.25rem;"></i> PARTICIPANT (OPTIONAL)</label>
+                <select id="appealPart" style="width: 100%; padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); outline: none; background: var(--input-bg); font-weight: 600; color: var(--text-main);">
                     <option value="">-- NOT APPLICABLE --</option>
                     ${partOpts}
                 </select>
@@ -864,12 +769,12 @@ function openAppealModal() {
         </div>
 
         <div class="form-group" style="margin: 0;">
-            <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block; letter-spacing: 0.05em;"><i class="fa-solid fa-align-left" style="margin-right: 0.25rem;"></i> DETAILED DESCRIPTION</label>
-            <textarea id="appealDesc" rows="4" placeholder="Please explain the issue clearly..." style="width: 100%; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); resize: vertical; font-weight: 500; outline: none; background: #F8FAFC; text-transform: none; color: var(--text-main); font-family: 'Inter', sans-serif;"></textarea>
+            <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block; letter-spacing: 0.05em;"><i class="fa-solid fa-align-left" style="margin-right: 0.25rem;"></i> DETAILED DESCRIPTION</label>
+            <textarea id="appealDesc" rows="5" placeholder="PLEASE EXPLAIN THE ISSUE CLEARLY..." style="width: 100%; padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); resize: vertical; font-weight: 500; outline: none; background: var(--input-bg); color: var(--text-main); font-family: 'Inter', sans-serif; font-size: 0.95rem;"></textarea>
         </div>
     `;
 
-    openModal('Raise Grievance Ticket', premiumHtml, async () => {
+    openModal('RAISE GRIEVANCE TICKET', premiumHtml, async () => {
         const payload = {
             team_id: myTeamId,
             issue_type: document.getElementById('appealType').value,
@@ -895,7 +800,46 @@ function openAppealModal() {
     });
 }
 
-// Add loadAppeals() to your switchTab logic!
+// Global Branding Synchronization
+document.addEventListener("DOMContentLoaded", () => {
+    fetchAndApplyBranding();
+});
+
+async function fetchAndApplyBranding() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('settings')
+            .select('value')
+            .eq('id', 'system_branding')
+            .maybeSingle();
+
+        if (error) throw error;
+        if (data && data.value) applyGlobalBranding(data.value);
+    } catch (e) {
+        console.warn("Could not fetch global branding:", e.message);
+    }
+}
+
+function applyGlobalBranding(brandingData) {
+    const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
+    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+    
+    const festName = validName ? brandingData.fest_name : 'FestOS';
+    const titleParts = document.title.split('|');
+    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Team Portal';
+    document.title = `${festName} | ${pageContext}`;
+
+    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
+    brandContainers.forEach(container => {
+        let html = '';
+        if (validLogo) html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
+        if (validName) html += `<span>${brandingData.fest_name} TM</span>`;
+        
+        container.innerHTML = html;
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+    });
+}
 
 // Boot
 document.addEventListener('DOMContentLoaded', initDashboard);
