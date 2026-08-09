@@ -22,7 +22,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
 
 :root {
-    /* Premium Palette Architecture */
     --primary: #4F46E5;
     --primary-hover: #4338CA;
     --primary-light: #EEF2FF;
@@ -37,7 +36,6 @@
     --success-hover: #059669;
     --success-light: #ECFDF5;
     
-    /* Neutrals & Surfaces */
     --bg-main: #F8FAFC; 
     --bg-surface: #FFFFFF;
     --text-main: #0F172A;
@@ -45,7 +43,6 @@
     --border: #E2E8F0;
     --border-hover: #CBD5E1;
     
-    /* Elevation Tokens */
     --shadow-sm: 0 2px 4px rgba(15, 23, 42, 0.02), 0 1px 2px rgba(15, 23, 42, 0.02);
     --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.04), 0 2px 4px rgba(15, 23, 42, 0.02);
     --shadow-lg: 0 16px 32px rgba(15, 23, 42, 0.06), 0 8px 16px rgba(15, 23, 42, 0.03);
@@ -59,22 +56,9 @@
     --transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-* { 
-    margin: 0; 
-    padding: 0; 
-    box-sizing: border-box; 
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
-    -webkit-tap-highlight-color: transparent;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; -webkit-tap-highlight-color: transparent; }
 
-body { 
-    display: flex; 
-    height: 100vh; 
-    background-color: var(--bg-main); 
-    color: var(--text-main); 
-    overflow: hidden; 
-    -webkit-font-smoothing: antialiased;
-}
+body { display: flex; height: 100vh; background-color: var(--bg-main); color: var(--text-main); overflow: hidden; -webkit-font-smoothing: antialiased; }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -85,111 +69,38 @@ input, select, textarea, table td:not(.checkbox-cell) { text-transform: uppercas
 input[type="password"], input[type="file"], .file-input, textarea[style*="text-transform: none"] { text-transform: none !important; }
 ::placeholder { text-transform: uppercase; opacity: 0.4; font-size: 0.85rem; font-weight: 500; }
 
-.sidebar {
-    width: 280px; 
-    background: var(--bg-surface); 
-    border-right: 1px solid var(--border);
-    display: flex; 
-    flex-direction: column; 
-    padding: 2rem 1.25rem; 
-    z-index: 40;
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    
-    /* Add this line: */
-    overflow-y: auto; 
-}
+.sidebar { width: 280px; background: var(--bg-surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 2rem 1.25rem; z-index: 40; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); overflow-y: auto; }
 
-.brand {
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 1.25rem; /* Scaled down slightly */
-    font-weight: 800; 
-    color: var(--primary);
-    margin-bottom: 2.5rem; 
-    display: flex; 
-    align-items: center; 
-    gap: 0.75rem;
-    padding-left: 0.75rem;
-    flex-wrap: wrap; /* Allows text to wrap safely */
-    line-height: 1.2;
-    word-break: break-word;
-}
+.brand { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; font-weight: 800; color: var(--primary); margin-bottom: 2.5rem; display: flex; align-items: center; gap: 0.75rem; padding-left: 0.75rem; flex-wrap: nowrap; line-height: 1.2; word-break: break-word; }
 
-.header h1 { 
-    font-family: 'Plus Jakarta Sans', sans-serif; 
-    font-size: 1.25rem; 
-    font-weight: 700; 
-    color: var(--text-main); 
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap; /* Allows text to wrap on smaller screens */
-    line-height: 1.2;
-}
-
-.nav-item {
-    padding: 0.875rem 1.25rem; 
-    margin-bottom: 0.5rem; 
-    border-radius: var(--radius-md);
-    cursor: pointer; 
-    color: var(--text-muted); 
-    font-weight: 600; 
-    font-size: 0.95rem;
-    transition: var(--transition); 
-    display: flex; 
-    align-items: center; 
-    gap: 1rem;
-}
-
+.nav-item { padding: 0.875rem 1.25rem; margin-bottom: 0.5rem; border-radius: var(--radius-md); cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 0.95rem; transition: var(--transition); display: flex; align-items: center; gap: 1rem; }
 .nav-item i { width: 22px; text-align: center; font-size: 1.15rem; color: #94A3B8; transition: var(--transition); }
 .nav-item:hover { background: var(--bg-main); color: var(--text-main); }
 .nav-item.active { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); }
 .nav-item.active i { color: white; }
 
-/* --- MAIN WORKSPACE --- */
 .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; scroll-behavior: smooth; }
 .content-section { display: none; padding: 2rem 2.5rem; animation: fadeUp 0.3s ease forwards; opacity: 0; }
 .content-section.active { display: block; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-.header {
-    background: rgba(255, 255, 255, 0.85); 
-    padding: 1.25rem 2.5rem;
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center;
-    position: sticky; 
-    top: 0; 
-    z-index: 20;
-    backdrop-filter: blur(12px); 
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
-}
+/* FIX: Header constraints applied */
+.header { background: rgba(255, 255, 255, 0.85); padding: 1.25rem 2.5rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 20; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); gap: 1rem; flex-wrap: nowrap; }
+.header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
 
-/* --- CONTROLS --- */
 .action-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap; }
 .bulk-actions { display: flex; gap: 0.75rem; align-items: center; }
 
-.controls-bar {
-    display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
-    background: white; padding: 1rem; border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm); border: 1px solid var(--border);
-}
-
+.controls-bar { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; background: white; padding: 1rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border); }
 .search-box { flex: 2; min-width: 260px; position: relative; }
 .search-box input { width: 100%; padding: 0.75rem 1rem 0.75rem 2.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; font-weight: 500; outline: none; transition: var(--transition); }
 .search-box input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
 .search-box i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
-
 .filter-box { flex: 1; min-width: 180px; }
 .filter-box select { width: 100%; padding: 0.75rem 2.5rem 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; font-weight: 500; outline: none; appearance: none; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748B'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E") no-repeat right 1rem center/1.2rem; }
 .filter-box select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
 
-/* --- BUTTONS --- */
-.btn {
-    padding: 0.65rem 1.25rem; border-radius: var(--radius-md); font-weight: 600; font-size: 0.9rem;
-    cursor: pointer; transition: var(--transition); border: 1px solid transparent; display: inline-flex; 
-    align-items: center; justify-content: center; gap: 0.5rem; min-height: 42px;
-}
+.btn { padding: 0.65rem 1.25rem; border-radius: var(--radius-md); font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: var(--transition); border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 42px; white-space: nowrap; }
 .btn:active { transform: scale(0.97); }
 .btn-primary { background: var(--primary); color: white; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25); }
 .btn-primary:hover { background: var(--primary-hover); box-shadow: var(--shadow-float); transform: translateY(-1px); }
@@ -198,7 +109,6 @@ input[type="password"], input[type="file"], .file-input, textarea[style*="text-t
 .btn-danger { background: var(--danger-light); color: var(--danger); }
 .btn-success { background: var(--success); color: white; }
 
-/* --- DESKTOP TABLES --- */
 .table-container { background: white; border-radius: var(--radius-lg); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-sm); }
 table { width: 100%; border-collapse: collapse; text-align: left; }
 th { padding: 1rem 1.5rem; font-weight: 700; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; background: var(--bg-main); border-bottom: 1px solid var(--border); }
@@ -208,13 +118,11 @@ tr:hover td { background: var(--bg-main); }
 .checkbox-cell { width: 48px; text-align: center; }
 .checkbox-cell input { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
 
-/* --- BADGES --- */
 .badge { padding: 0.35rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 700; background: var(--bg-main); color: var(--text-muted); }
 .badge-primary { background: var(--primary-light); color: var(--primary); }
 .badge-count { padding: 0.35rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700; background: var(--bg-main); border: 1px solid var(--border); cursor: pointer; transition: var(--transition); }
 .badge-count:hover { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
 
-/* --- MODALS --- */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); z-index: 999; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.2s ease; padding: 1rem; }
 .modal-overlay.show { display: flex; opacity: 1; }
 .modal { background: white; width: 100%; max-width: 520px; border-radius: var(--radius-xl); padding: 2rem; box-shadow: var(--shadow-lg); transform: scale(0.95); transition: transform 0.2s ease; max-height: 90vh; overflow-y: auto; }
@@ -229,39 +137,30 @@ tr:hover td { background: var(--bg-main); }
 .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 2rem; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 
-/* ========================================================================
-   APP-LIKE MOBILE VIEW (NATIVE FEEL)
-   ======================================================================== */
 .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: 30; opacity: 0; transition: opacity 0.3s; }
 .menu-toggle { display: none; background: transparent; border: none; font-size: 1.5rem; color: var(--text-main); cursor: pointer; }
 
 @media (max-width: 768px) {
-    body { background-color: #F1F5F9; } /* Slightly darker background for mobile to make white cards pop */
-    
-    /* Native Sidebar Drawer */
+    body { background-color: #F1F5F9; } 
     .sidebar { position: fixed; height: 100%; transform: translateX(-100%); width: 280px; border-radius: 0 24px 24px 0; border: none; box-shadow: var(--shadow-lg); }
     .sidebar.open { transform: translateX(0); }
     .mobile-overlay.open { display: block; opacity: 1; }
     .menu-toggle { display: block; }
     
-    /* Sticky Glassmorphic Mobile Header */
-    .header { padding: 1rem 1.25rem; border-bottom: none; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); position: sticky; top: 0; z-index: 25; box-shadow: var(--shadow-sm); }
-    .header h1 { font-size: 1.25rem; }
-    .header .btn-outline { border: none; background: var(--bg-main); border-radius: 50%; width: 40px; height: 40px; padding: 0; font-size: 0; }
+    .header { padding: 1rem 1.25rem; border-bottom: none; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); position: sticky; top: 0; z-index: 25; box-shadow: var(--shadow-sm); flex-wrap: nowrap; }
+    .header h1 { font-size: 1.2rem; }
+    .header .btn-outline { border: none; background: var(--bg-main); border-radius: 50%; width: 40px; height: 40px; padding: 0; font-size: 0; min-height: 40px; flex-shrink: 0; }
     .header .btn-outline i { font-size: 1.1rem; margin: 0; color: var(--danger); }
     
     .content-section { padding: 1.25rem 1rem; }
-    
-    /* Touch-Optimized Action & Control Bars */
     .action-bar { flex-direction: column; align-items: stretch; gap: 0.75rem; margin-bottom: 1rem; }
-    .action-bar .btn { width: 100%; min-height: 48px; } /* 48px minimal touch target */
+    .action-bar .btn { width: 100%; min-height: 48px; }
     .bulk-actions { flex-direction: column; align-items: stretch; background: transparent; border: none; padding: 0; box-shadow: none; gap: 0.75rem; width: 100%; }
     
     .controls-bar { flex-direction: column; padding: 1.25rem; border-radius: var(--radius-lg); border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.04); gap: 1rem; margin-bottom: 1.5rem; }
     .search-box, .filter-box, .controls-bar input, .controls-bar select { width: 100%; min-width: 100%; min-height: 48px; }
     .controls-bar > div:last-child { width: 100%; display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
     
-    /* Bottom Sheet Style Modals */
     .modal-overlay { align-items: flex-end; padding: 0; background: rgba(0, 0, 0, 0.5); }
     .modal { padding: 2rem 1.5rem; border-radius: 24px 24px 0 0; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); max-height: 85vh; padding-bottom: 3rem; }
     .modal-overlay.show .modal { transform: translateY(0); }
@@ -270,57 +169,20 @@ tr:hover td { background: var(--bg-main); }
     
     .grid-2 { grid-template-columns: 1fr; gap: 1.25rem; }
 
-    /* ========================================================================
-       PREMIUM NATIVE-APP CARD UI FOR DATA
-       ======================================================================== */
     .table-container { background: transparent; border: none; box-shadow: none; overflow: visible; }
     table, thead, tbody, th, td, tr { display: block; }
     thead { display: none; }
     
-    tbody tr {
-        background: white;
-        border-radius: var(--radius-xl);
-        padding: 1.25rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
-        border: 1px solid rgba(226, 232, 240, 0.6);
-        position: relative;
-    }
+    tbody tr { background: white; border-radius: var(--radius-xl); padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04); border: 1px solid rgba(226, 232, 240, 0.6); position: relative; }
+    td { display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 0; border-bottom: 1px solid var(--bg-main); text-align: right; font-size: 0.9rem; }
+    td:last-child { border-bottom: none; padding-bottom: 0; padding-top: 1.25rem; margin-top: 0.5rem; border-top: 1px dashed var(--border); justify-content: center; }
     
-    td {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.65rem 0;
-        border-bottom: 1px solid var(--bg-main);
-        text-align: right;
-        font-size: 0.9rem;
-    }
-    td:last-child { 
-        border-bottom: none; 
-        padding-bottom: 0; 
-        padding-top: 1.25rem; 
-        margin-top: 0.5rem;
-        border-top: 1px dashed var(--border);
-        justify-content: center;
-    }
-    
-    /* Absolute Positioning for the Checkbox Top-Left */
-    .checkbox-cell { 
-        position: absolute; 
-        top: 1.25rem; 
-        left: 1.25rem; 
-        padding: 0; 
-        border: none;
-        width: auto;
-    }
+    .checkbox-cell { position: absolute; top: 1.25rem; left: 1.25rem; padding: 0; border: none; width: auto; }
     .checkbox-cell input { width: 22px; height: 22px; }
     
-    /* Push content to make room for checkbox */
     td:nth-child(2) { padding-left: 2.5rem; font-size: 1.05rem; font-weight: 700; color: var(--primary); justify-content: flex-start; border-bottom: none; padding-top: 0; }
-    td:nth-child(2)::before { display: none !important; } /* Hide label for the main title */
+    td:nth-child(2)::before { display: none !important; }
 
-    /* Structural Custom Pseudo-Label Dynamic Injection Map */
     #categories-tbody td:nth-of-type(3)::before { content: "Type"; }
     #categories-tbody td:nth-of-type(4)::before { content: "Students"; }
     #categories-tbody td:nth-of-type(5)::before { content: "Comps"; }
@@ -347,42 +209,19 @@ tr:hover td { background: var(--bg-main); }
     #assign-workspace-tbody td:nth-of-type(5)::before { content: "Batch"; }
     #assign-workspace-tbody td:nth-of-type(6)::before { content: "Status"; }
 
-    /* Clean typography for injected structural elements */
-    td:not(.checkbox-cell)::before {
-        font-weight: 600;
-        color: var(--text-muted);
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-        text-align: left;
-    }
+    td:not(.checkbox-cell)::before { font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; text-align: left; }
     
-    /* Make Action Buttons Full Width & Touch Friendly */
-    td:last-child div {
-        display: grid !important;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.75rem;
-        width: 100%;
-    }
-    td:last-child div button { 
-        width: 100%; 
-        justify-content: center; 
-        min-height: 44px; 
-        border-radius: var(--radius-md);
-    }
-    
-    /* Specifically handle tables that have extra buttons (like participants) */
+    td:last-child div { display: grid !important; grid-template-columns: 1fr 1fr; gap: 0.75rem; width: 100%; }
+    td:last-child div button { width: 100%; justify-content: center; min-height: 44px; border-radius: var(--radius-md); }
     #participants-tbody td:last-child div { grid-template-columns: 1fr 1fr; }
 }
 
-/* --- TOAST MESSAGING --- */
 #toast-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.75rem; max-width: 400px; width: calc(100% - 4rem); pointer-events: none; }
 .toast { background: var(--bg-surface); border: 1px solid var(--border); padding: 1.15rem 1.5rem; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 1rem; font-size: 0.95rem; font-weight: 600; color: var(--text-main); animation: slideInToast 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; pointer-events: auto; }
 .toast.success { border-left: 4px solid var(--success); }
 .toast.error { border-left: 4px solid var(--danger); }
 @keyframes slideInToast { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fadeOut { to { opacity: 0; transform: scale(0.95); } }
-
 @media (max-width: 768px) { #toast-container { bottom: 1rem; right: 1rem; width: calc(100% - 2rem); } }
     </style>
 </head>
@@ -406,8 +245,6 @@ tr:hover td { background: var(--bg-main); }
         <div class="nav-item" onclick="switchTab('poster-templates')"><i class="fa-solid fa-image"></i> Poster Templates</div>
         <div class="nav-item" onclick="switchTab('point-settings')"><i class="fa-solid fa-sliders"></i> Point System</div>
         <div class="nav-item" onclick="switchTab('branding-settings')"><i class="fa-solid fa-palette"></i> Branding & UI</div>
-            
-
 
         <div id="master-admin-portals" style="display: none; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
             <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; padding-left: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Cross-Portal Access</div>
@@ -415,466 +252,79 @@ tr:hover td { background: var(--bg-main); }
             <a href="stage-controller.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-microphone"></i> Stage Controller</a>
             <a href="judge.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-gavel"></i> Judge Portal</a>
             <a href="announcements.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-microphone-lines"></i> Announcer Portal</a>
-    <a href="program_report.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-file-pdf"></i> Master Reports</a>
-
-        
+            <a href="program_report.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-file-pdf"></i> Master Reports</a>
         </div>
     </div>
 
     <div class="main-content">
         <div class="header">
-            <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 1rem; min-width: 0;">
                 <button class="menu-toggle" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
                 <h1 id="page-title">Workspace Overview</h1>
             </div>
-            <button class="btn btn-outline" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+            <button class="btn btn-outline" onclick="logout()" style="flex-shrink: 0;"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
         </div>
 
-<div id="poster-templates" class="content-section">
-    
-    <div id="template-library-view">
-        <div class="action-bar" style="margin-bottom: 1rem;">
-            <div>
-                <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Poster Templates</h2>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Manage, organize, and edit your dynamic graphics templates.</p>
+        <div id="categories" class="content-section active">
+            <div class="action-bar">
+                <button class="btn btn-primary" onclick="openCategoryModal()"><i class="fa-solid fa-plus"></i> Create Category</button>
             </div>
-            <div class="bulk-actions">
-                <button class="btn btn-primary" onclick="openTemplateStudio()"><i class="fa-solid fa-plus"></i> Create New Template</button>
-            </div>
-        </div>
-
-        <div class="controls-bar" style="display: flex; gap: 0.5rem; background: transparent; padding: 0; box-shadow: none; border: none; margin-bottom: 1.5rem;">
-            <button class="btn btn-outline active-filter-btn" id="filter-all" onclick="filterTemplateLibrary('all')" style="border-radius: 50px;">All Templates</button>
-            <button class="btn btn-outline" id="filter-individual" onclick="filterTemplateLibrary('individual')" style="border-radius: 50px;">Individual Events</button>
-            <button class="btn btn-outline" id="filter-team" onclick="filterTemplateLibrary('team')" style="border-radius: 50px;">Team Standings</button>
-            <button class="btn btn-outline" id="filter-final" onclick="filterTemplateLibrary('final')" style="border-radius: 50px;">Final Results</button>
-            <button class="btn btn-outline" id="filter-id_card" onclick="filterTemplateLibrary('id_card')" style="border-radius: 50px;">ID Cards</button>
-        </div>
-        
-        <div class="card-grid" id="saved-templates-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
-            <p style="color: var(--text-muted);">Loading templates...</p>
-        </div>
-    </div>
-
-    <div id="template-studio-view" style="display: none; animation: fadeUp 0.3s ease forwards;">
-        <div class="action-bar" style="background: white; padding: 1rem 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border); margin-bottom: 1.5rem;">
-            <div style="display: flex; gap: 1rem; align-items: center; flex: 1; flex-wrap: wrap;">
-                <button class="btn btn-outline" onclick="closeTemplateStudio()" style="padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px;"><i class="fa-solid fa-arrow-left"></i></button>
-                <div style="display: flex; flex-direction: column; flex: 1; min-width: 200px;">
-                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">TEMPLATE NAME</label>
-                    <input type="text" id="studio-template-name" placeholder="e.g. Dark Theme Individual Winner" style="border: none; border-bottom: 2px solid var(--border); font-size: 1.1rem; font-weight: 700; outline: none; padding: 0.25rem 0; background: transparent;">
+            <div class="controls-bar">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" placeholder="Search categories..." onkeyup="filterCategoriesTable()">
                 </div>
-                <div style="display: flex; flex-direction: column; flex: 1; min-width: 200px;">
-                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">TEMPLATE SECTOR</label>
-                   <select id="studio-template-type" onchange="initializeStudioFields()" style="padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border);">
-    <option value="individual">Individual Event Poster</option>
-    <option value="team">Live Team Standings</option>
-    <option value="final">Final Championship</option>
-    <option value="id_card">Participant ID Card</option>
-    <option value="certificate">Merit / Participation Certificate</option>
-</select>
+                <div class="filter-box">
+                    <select onchange="filterCategoriesTable()">
+                        <option value="">All Types</option>
+                        <option value="Standard">Standard</option>
+                        <option value="General">General</option>
+                    </select>
                 </div>
+                <button class="btn btn-danger" onclick="bulkDelete('categories', 'categories-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
             </div>
-            <div class="bulk-actions" style="margin-top: 0.5rem;">
-    <input type="file" id="studio-bg-upload" accept="image/*" style="display: none;" onchange="handleStudioUpload(event)">
-    <button class="btn btn-outline" onclick="document.getElementById('studio-bg-upload').click()">
-        <i class="fa-solid fa-image"></i> Upload Background
-    </button>
-
-    <input type="file" id="studio-element-upload" accept=".svg, .png, .jpg, .jpeg, .webp" style="display: none;" onchange="handleElementUpload(event)">
-    <button class="btn btn-outline" onclick="document.getElementById('studio-element-upload').click()">
-        <i class="fa-solid fa-shapes"></i> Add Element
-    </button>
-    <input type="file" id="studio-font-upload" accept=".ttf, .otf, .woff, .woff2" style="display: none;" onchange="handleFontUpload(event)">
-    <button class="btn btn-outline" onclick="document.getElementById('studio-font-upload').click()">
-        <i class="fa-solid fa-font"></i> Add Font
-    </button>
-<div class="bulk-actions" style="margin-top: 0.5rem;">
-    <div style="display: flex; gap: 0.25rem; margin-right: 0.5rem; border-right: 2px solid var(--border); padding-right: 1rem;">
-        <button class="btn btn-outline" id="btn-undo" onclick="undo()" style="padding: 0.5rem 0.75rem;" disabled title="Undo">
-            <i class="fa-solid fa-rotate-left"></i>
-        </button>
-        <button class="btn btn-outline" id="btn-redo" onclick="redo()" style="padding: 0.5rem 0.75rem;" disabled title="Redo">
-            <i class="fa-solid fa-rotate-right"></i>
-        </button>
-    </div>
-
-    </div>
-    <button class="btn btn-success" onclick="saveActiveTemplate()">
-        <i class="fa-solid fa-floppy-disk"></i> Save Template
-    </button>
-</div>
-        </div>
-
-       <div class="grid-2" style="grid-template-columns: 350px 1fr; gap: 2rem;">
-    <div style="display: flex; flex-direction: column; gap: 1rem; max-height: 70vh;">
-        
-        <div class="table-container" style="background: white; border: 1px solid var(--border); display: flex; flex-direction: column; max-height: 40%;">
-            <div style="padding: 0.75rem 1rem; background: var(--bg-main); border-bottom: 1px solid var(--border); font-weight: 800; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;">
-                <span><i class="fa-solid fa-layer-group" style="margin-right: 5px; color: var(--primary);"></i> Active Layers</span>
-            </div>
-            <div id="studio-layers-panel" style="overflow-y: auto; padding: 0.5rem; flex: 1; display: flex; flex-direction: column; gap: 0.25rem;">
-                </div>
-        </div>
-
-        <div class="table-container" style="background: white; border: 1px solid var(--border); flex: 1; display: flex; flex-direction: column; overflow-y: auto;">
-            <div style="padding: 0.75rem 1rem; background: var(--bg-main); border-bottom: 1px solid var(--border); font-weight: 800; font-size: 0.9rem;">
-                <i class="fa-solid fa-sliders" style="margin-right: 5px; color: var(--primary);"></i> Layer Properties
-            </div>
-            <div id="studio-properties-panel" style="padding: 1rem;">
-                <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">Select a layer above or click on the canvas to edit properties.</p>
-            </div>
-        </div>
-
-    </div>
-
-    <div class="table-container" style="padding: 1.5rem; background: #E2E8F0; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border); position: relative; height: 65vh;">
-        
-        <div style="position: absolute; top: 1rem; left: 1rem; background: rgba(0,0,0,0.6); color: white; padding: 0.5rem 1rem; border-radius: 50px; font-size: 0.8rem; font-weight: 600; pointer-events: none; z-index: 10;">
-            <i class="fa-solid fa-hand-pointer"></i> Drag elements to position
-        </div>
-
-        <button class="btn btn-dark" onclick="openFullViewModal()" style="position: absolute; top: 1rem; right: 1rem; z-index: 10; padding: 0.5rem 1rem; font-size: 0.8rem; opacity: 0.8;">
-            <i class="fa-solid fa-expand"></i> Full Size
-        </button>
-
-        <div style="position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;">
-            <canvas id="studio-canvas" style="max-width: 100%; max-height: 100%; object-fit: contain; cursor: move; background: white; box-shadow: var(--shadow-lg);"></canvas>
-        </div>
-    </div>
-</div>
-    </div>
-</div>
-<div id="poster-templates" class="content-section">
-    <div id="template-library-view">
-        </div>
-
-    <div id="template-studio-view" style="display: none; animation: fadeUp 0.3s ease forwards;">
-        </div>
-</div>
-<div id="point-settings" class="content-section">
-    
-    <div class="action-bar" style="margin-bottom: 1.5rem;">
-        <div>
-            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Point System Settings</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Configure grading thresholds, point matrices, and position bonuses based on group sizes.</p>
-        </div>
-        <button class="btn btn-primary" onclick="savePointSettings()"><i class="fa-solid fa-floppy-disk"></i> Save Configuration</button>
-    </div>
-
-    <div class="grid-2" style="gap: 2rem;">
-        <!-- Grade Thresholds -->
-        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); grid-column: 1 / -1;">
-            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-percent" style="color: var(--primary);"></i> Grade Thresholds (Minimum % out of Max Marks)</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
-                <div class="form-group"><label>A+ Grade</label><input type="number" id="th-aplus" value="90"></div>
-                <div class="form-group"><label>A Grade</label><input type="number" id="th-a" value="70"></div>
-                <div class="form-group"><label>B Grade</label><input type="number" id="th-b" value="60"></div>
-                <div class="form-group"><label>C Grade</label><input type="number" id="th-c" value="50"></div>
-            </div>
-        </div>
-
-        <!-- Grade Points Matrix -->
-        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); grid-column: 1 / -1; overflow-x: auto;">
-            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-table" style="color: var(--primary);"></i> Grade Points Matrix</h3>
-            <table style="width: 100%; border-collapse: collapse; min-width: 600px;">
-                <thead>
-                    <tr>
-                        <th style="background: var(--bg-main);">No. of Participants</th>
-                        <th style="background: var(--bg-main);">A+ Points</th>
-                        <th style="background: var(--bg-main);">A Points</th>
-                        <th style="background: var(--bg-main);">B Points</th>
-                        <th style="background: var(--bg-main);">C Points</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="font-weight: 700;">1 (Solo)</td>
-                        <td><input type="number" id="pt-solo-aplus" value="8" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                        <td><input type="number" id="pt-solo-a" value="7" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                        <td><input type="number" id="pt-solo-b" value="5" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                        <td><input type="number" id="pt-solo-c" value="3" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                    </tr>
-                    <tr>
-                        <td style="font-weight: 700;">2 or 3</td>
-                        <td><input type="number" id="pt-small-aplus" value="12" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                        <td><input type="number" id="pt-small-a" value="10" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                        <td><input type="number" id="pt-small-b" value="7" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                        <td><input type="number" id="pt-small-c" value="5" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                    </tr>
-                    <tr>
-                        <td style="font-weight: 700;">4 or 5+</td>
-                        <td><input type="number" id="pt-large-aplus" value="15" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                        <td><input type="number" id="pt-large-a" value="12" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                        <td><input type="number" id="pt-large-b" value="10" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                        <td><input type="number" id="pt-large-c" value="7" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Position Points -->
-        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-medal" style="color: var(--warning);"></i> Position Points</h3>
-            <div class="form-group"><label>1st Place</label><input type="number" id="pos-1" value="3"></div>
-            <div class="form-group"><label>2nd Place</label><input type="number" id="pos-2" value="2"></div>
-            <div class="form-group"><label>3rd Place</label><input type="number" id="pos-3" value="1"></div>
-        </div>
-        
-        <!-- Other Settings -->
-        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-gears" style="color: var(--primary);"></i> Global Settings</h3>
-            <div class="form-group" style="margin-bottom: 1rem;">
-                <label>Results Poster Interval</label>
-                <input type="number" id="setting-poster-interval" value="10">
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Live results dropdown will show "After 10", "After 20", etc.</p>
-            </div>
-            <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
-                <div>
-                    <label style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text-main);">Allow TM Assignments</label>
-                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Let Team Managers assign students</p>
-                </div>
-                <label style="position: relative; display: inline-block; width: 50px; height: 26px;">
-                    <input type="checkbox" id="setting-tm-access" style="opacity: 0; width: 0; height: 0;" checked onchange="this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#cbd5e1'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(24px)' : 'translateX(0)';">
-                    <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .4s; border-radius: 34px;"></span>
-                    <span id="tm-toggle-knob" style="position: absolute; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; transform: translateX(24px);"></span>
-                </label>
-            </div>
-            <div class="form-group" style="margin-bottom: 1rem;">
-                <label>Auto-Lock Registration Deadline</label>
-                <input type="datetime-local" id="setting-lock-date" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border);">
-                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">After this exact time, Team Managers will be in read-only mode.</p>
-            </div>
-        </div>
-        
-    </div>
-</div>
-
-<!-- APPEALS REVIEW SECTION -->
-        <div id="admin-appeals" class="content-section">
-            <div class="action-bar" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: flex-end;">
-                <div>
-                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Grievances & Appeals</h2>
-                    <p style="color: var(--text-muted); font-size: 0.9rem;">Review and resolve tickets submitted by Team Managers.</p>
-                </div>
-                <button class="btn btn-outline" onclick="loadAdminAppeals()"><i class="fa-solid fa-rotate-right"></i> Refresh List</button>
-            </div>
-
             <div class="table-container">
                 <table>
                     <thead>
                         <tr>
-                            <th>TYPE</th>
-                            <th>TEAM</th>
-                            <th>EVENT / STUDENT</th>
-                            <th>DESCRIPTION</th>
-                            <th>STATUS</th>
-                            <th>ACTIONS</th>
+                            <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAll('categories-tbody', this)"></th>
+                            <th>Category Name</th>
+                            <th>Type</th>
+                            <th>Students</th>
+                            <th>Competitions</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="admin-appeals-tbody">
-                        <!-- Loaded via JS -->
-                    </tbody>
+                    <tbody id="categories-tbody"></tbody>
                 </table>
             </div>
         </div>
 
-<div id="participant-points" class="content-section">
-    <div class="action-bar" style="margin-bottom: 1rem;">
-        <div>
-            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Participant Points Ledger</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">View detailed point breakdowns per student and generate report cards.</p>
-        </div>
-        <div class="bulk-actions">
-            <button class="btn btn-primary" onclick="bulkExportPointsPDF()"><i class="fa-solid fa-file-pdf"></i> Generate PDF Reports</button>
-        </div>
-    </div>
-
-    <div class="controls-bar">
-        <div class="search-box">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="searchPointsInput" placeholder="Search name or ID..." onkeyup="filterPointsTable(true)">
-        </div>
-        <div class="filter-box">
-            <select id="filterPointsCategory" onchange="filterPointsTable(true)">
-                <option value="">All Categories</option>
-            </select>
-        </div>
-        <div class="filter-box">
-            <select id="filterPointsTeam" onchange="filterPointsTable(true)">
-                <option value="">All Teams</option>
-            </select>
-        </div>
-        <div class="filter-box">
-        <input type="date" id="filterPointsDob" onchange="filterPointsTable(true)" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none;">
-    </div>
-    </div>
-
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th class="checkbox-cell" title="Select for Bulk PDF"><input type="checkbox" onchange="toggleSelectAll('points-tbody', this)"></th>
-                    <th>Unique ID</th>
-                    <th>Participant Name</th>
-                    <th>Team</th>
-                    <th>Total Points Earned</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="points-tbody"></tbody>
-        </table>
-        <div id="points-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border);"></div>
-    </div>
-</div>
-
-<div id="branding-settings" class="content-section">
-    <div class="action-bar" style="margin-bottom: 1.5rem;">
-        <div>
-            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">System Branding</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Customize the Fest Name and Logo displayed across all portals.</p>
-        </div>
-        <button class="btn btn-primary" id="btnSaveBranding" onclick="saveBrandingSettings()">
-            <i class="fa-solid fa-floppy-disk"></i> Save Branding
-        </button>
-    </div>
-
-    <div class="grid-2" style="gap: 2rem;">
-        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;">
-                <i class="fa-solid fa-signature" style="color: var(--primary);"></i> Fest Details
-            </h3>
-            <div class="form-group">
-                <label>Global Fest Name</label>
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <input type="text" id="setting-fest-name" placeholder="e.g. FESTOS 2026" style="flex: 1;">
-                    <button class="btn btn-outline" onclick="document.getElementById('setting-fest-name').value = '';" style="color: var(--danger); border-color: var(--danger);" title="Clear Fest Name">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- NEW: Display Preferences Dropdown -->
-            <div class="form-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border);">
-                <label><i class="fa-solid fa-display" style="color: var(--primary); margin-right: 0.3rem;"></i> Branding Display Preference</label>
-                <select id="setting-branding-display" style="width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); font-weight: 600; cursor: pointer;">
-                    <option value="both">Show Both Logo & Name</option>
-                    <option value="logo">Show Logo Only</option>
-                    <option value="name">Show Name Only</option>
-                </select>
-                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">Controls what appears in the top navigation bar and generated PDFs across all portals.</p>
-            </div>
-        </div>
-
-        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;">
-                <i class="fa-solid fa-image" style="color: var(--primary);"></i> Fest Logo
-            </h3>
-            <div style="display: flex; gap: 1rem; align-items: center;">
-                <img id="branding-logo-preview" src="" style="width: 80px; height: 80px; object-fit: contain; border: 1px dashed var(--border); border-radius: 8px; background: #f8fafc; display: none;">
-                <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                    <input type="file" id="setting-fest-logo" accept="image/png, image/jpeg, image/webp, image/svg+xml" style="display: none;" onchange="handleBrandingLogo(event)">
-                    <button class="btn btn-outline" onclick="document.getElementById('setting-fest-logo').click()">
-                        <i class="fa-solid fa-upload"></i> Upload New Logo
-                    </button>
-                    <button class="btn btn-outline" id="btnRemoveLogo" onclick="removeBrandingLogo()" style="color: var(--danger); border-color: var(--danger); display: none;">
-                        <i class="fa-solid fa-trash"></i> Remove Logo
-                    </button>
-                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; width: 100%;">Recommended: Square format with transparent background</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-</div>
-
-<!-- ================= FULL VIEW MODAL ================= -->
-<div id="fullViewModal" class="modal-overlay" style="z-index: 1050; padding: 2rem; background: rgba(15, 23, 42, 0.9);">
-    <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-        
-        <div style="width: 100%; display: flex; justify-content: flex-end; margin-bottom: 1rem;">
-            <button class="btn btn-outline" style="background: white; color: black; border: none;" onclick="document.getElementById('fullViewModal').classList.remove('show')">
-                <i class="fa-solid fa-xmark"></i> Close Full View
-            </button>
-        </div>
-
-        <!-- REMOVED OVERFLOW, ADDED MAX-HEIGHT TO IMAGE -->
-        <div style="width: 100%; flex: 1; display: flex; justify-content: center; align-items: center; background: transparent; padding-bottom: 2rem;">
-            <img id="fullViewImage" src="" style="box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); max-width: 100%; max-height: 85vh; object-fit: contain; border-radius: 8px;">
-        </div>
-    </div>
-</div>
-        <!-- 1. CATEGORIES -->
-<div id="categories" class="content-section active">
-    <div class="action-bar">
-        <button class="btn btn-primary" onclick="openCategoryModal()"><i class="fa-solid fa-plus"></i> Create Category</button>
-    </div>
-    
-    <div class="controls-bar">
-        <div class="search-box">
-    <i class="fa-solid fa-magnifying-glass"></i>
-    <input type="text" placeholder="Search categories..." onkeyup="filterCategoriesTable()">
-</div>
-<div class="filter-box">
-    <select onchange="filterCategoriesTable()">
-        <option value="">All Types</option>
-        <option value="Standard">Standard</option>
-        <option value="General">General</option>
-    </select>
-</div>
-        <button class="btn btn-danger" onclick="bulkDelete('categories', 'categories-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
-    </div>
-
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAll('categories-tbody', this)"></th>
-                    <th>Category Name</th>
-                    <th>Type</th>
-                    <th>Students</th>
-                    <th>Competitions</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="categories-tbody"></tbody>
-        </table>
-    </div>
-</div>
-       <!-- 2. COMPETITIONS -->
         <div id="competitions" class="content-section">
             <div class="action-bar">
                 <button class="btn btn-primary" onclick="openCompModal()"><i class="fa-solid fa-plus"></i> New Competition</button>
                 <div class="bulk-actions" style="flex-wrap: wrap; gap: 0.5rem;">
-                    <!-- New PDF and CSV Export Buttons -->
                     <button class="btn btn-primary" onclick="exportCompetitionsPDF()"><i class="fa-solid fa-file-pdf"></i> Premium PDF</button>
                     <button class="btn btn-outline" onclick="downloadCSV('competitions')"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
-                    
-            
                 </div>
             </div>
-            
-           <div class="controls-bar">
-    <div class="search-box">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="searchCompInput" placeholder="Search competitions..." onkeyup="filterCompetitions(true)">
-    </div>
-    <div class="filter-box">
-        <select id="filterCompCategory" onchange="filterCompetitions(true)">
-            <option value="">All Categories</option>
-            <!-- Populated via JS -->
-        </select>
-    </div>
-    <!-- NEW: Stage Filter -->
-    <div class="filter-box">
-        <select id="filterCompStage" onchange="filterCompetitions(true)">
-            <option value="">All Stages</option>
-            <!-- Populated via JS -->
-        </select>
-    </div>
-    <button class="btn btn-danger" onclick="bulkDelete('competitions', 'competitions-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
-</div>
-
+            <div class="controls-bar">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="searchCompInput" placeholder="Search competitions..." onkeyup="filterCompetitions(true)">
+                </div>
+                <div class="filter-box">
+                    <select id="filterCompCategory" onchange="filterCompetitions(true)">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+                <div class="filter-box">
+                    <select id="filterCompStage" onchange="filterCompetitions(true)">
+                        <option value="">All Stages</option>
+                    </select>
+                </div>
+                <button class="btn btn-danger" onclick="bulkDelete('competitions', 'competitions-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
+            </div>
             <div class="table-container">
                 <table>
                     <thead>
@@ -890,87 +340,73 @@ tr:hover td { background: var(--bg-main); }
                     </thead>
                     <tbody id="competitions-tbody"></tbody>
                 </table>
-                <!-- Pagination Footer -->
                 <div id="comp-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border);"></div>
             </div>
         </div>
         
-    <!-- 3. PARTICIPANTS -->
-<div id="participants" class="content-section">
-    <div class="action-bar">
-        <button class="btn btn-primary" onclick="openParticipantModal()"><i class="fa-solid fa-plus"></i> Register</button>
-        <div class="bulk-actions" style="flex-wrap: wrap; gap: 0.5rem;">
-            <!-- New PDF and CSV Export Buttons -->
-            <button class="btn btn-primary" onclick="exportParticipantsPDF()"><i class="fa-solid fa-file-pdf"></i> Premium PDF</button>
-            <button class="btn btn-outline" onclick="exportParticipantsCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
-            
-        
+        <div id="participants" class="content-section">
+            <div class="action-bar">
+                <button class="btn btn-primary" onclick="openParticipantModal()"><i class="fa-solid fa-plus"></i> Register</button>
+                <div class="bulk-actions" style="flex-wrap: wrap; gap: 0.5rem;">
+                    <button class="btn btn-primary" onclick="exportParticipantsPDF()"><i class="fa-solid fa-file-pdf"></i> Premium PDF</button>
+                    <button class="btn btn-outline" onclick="exportParticipantsCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+                </div>
+            </div>
+            <div class="controls-bar">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="searchPartInput" placeholder="Search name or ID..." onkeyup="filterParticipants(true)">
+                </div>
+                <div class="filter-box">
+                    <select id="filterCategory" onchange="filterParticipants(true)">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+                <div class="filter-box">
+                    <select id="filterPartTeam" onchange="filterParticipants(true)">
+                        <option value="">All Teams</option>
+                    </select>
+                </div>
+                <div class="filter-box">
+                    <input type="date" id="filterPartDob" onchange="filterParticipants(true)" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none;">
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex: 1; justify-content: flex-end;">
+                    <button class="btn btn-success" onclick="bulkPrintSelected()"><i class="fa-solid fa-print"></i> Print Selected</button>
+                    <button class="btn btn-danger" onclick="bulkDelete('participants', 'participants-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
+                </div>
+            </div>
+            <div class="controls-bar" style="background: var(--primary-light); border: 1.5px solid var(--primary);">
+                <div style="flex: 1; font-weight: 800; color: var(--primary); display: flex; align-items: center;">
+                    <i class="fa-solid fa-users-gear" style="margin-right: 8px;"></i> TEAM MANAGEMENT
+                </div>
+                <div class="filter-box">
+                    <select id="bulkTeamSelect">
+                        <option value="">-- SELECT TEAM TO ASSIGN --</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-primary" onclick="bulkAssignTeam()">Assign</button>
+                    <button class="btn btn-outline" onclick="bulkRevokeTeam()" style="border-color: var(--danger); color: var(--danger);">Revoke</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAll('participants-tbody', this)"></th>
+                            <th>Unique ID</th>
+                            <th>Name</th>
+                            <th>Team</th>
+                            <th>Category</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="participants-tbody"></tbody>
+                </table>
+                <div id="part-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border);"></div>
+            </div>
         </div>
-    </div>
-
-    <!-- NEW CONTROLS BAR -->
-   <div class="controls-bar">
-    <div class="search-box">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="searchPartInput" placeholder="Search name or ID..." onkeyup="filterParticipants(true)">
-    </div>
-    <div class="filter-box">
-        <select id="filterCategory" onchange="filterParticipants(true)">
-            <option value="">All Categories</option>
-            <!-- Populated dynamically via JS -->
-        </select>
-    </div>
-    <!-- NEW: Team Filter -->
-    <div class="filter-box">
-        <select id="filterPartTeam" onchange="filterParticipants(true)">
-            <option value="">All Teams</option>
-            <!-- Populated dynamically via JS -->
-        </select>
-    </div>
-    <!-- NEW: Batch Filter -->
-   <div class="filter-box">
-        <input type="date" id="filterPartDob" onchange="filterParticipants(true)" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none;">
-    </div>
-    <div style="display: flex; gap: 0.5rem; flex: 1; justify-content: flex-end;">
-        <button class="btn btn-success" onclick="bulkPrintSelected()"><i class="fa-solid fa-print"></i> Print Selected</button>
-        <button class="btn btn-danger" onclick="bulkDelete('participants', 'participants-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
-    </div>
-</div>
-<div class="controls-bar" style="background: var(--primary-light); border: 1.5px solid var(--primary);">
-    <div style="flex: 1; font-weight: 800; color: var(--primary); display: flex; align-items: center;">
-        <i class="fa-solid fa-users-gear" style="margin-right: 8px;"></i> TEAM MANAGEMENT
-    </div>
-    <div class="filter-box">
-        <select id="bulkTeamSelect">
-            <option value="">-- SELECT TEAM TO ASSIGN --</option>
-            </select>
-    </div>
-    <div style="display: flex; gap: 0.5rem;">
-        <button class="btn btn-primary" onclick="bulkAssignTeam()">Assign</button>
-        <button class="btn btn-outline" onclick="bulkRevokeTeam()" style="border-color: var(--danger); color: var(--danger);">Revoke</button>
-    </div>
-</div>
-
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAll('participants-tbody', this)"></th>
-                    <th>Unique ID</th>
-                    <th>Name</th>
-                    <th>Team</th>
-                    <th>Category</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="participants-tbody"></tbody>
-        </table>
-        <!-- Pagination Footer -->
-        <div id="part-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border);"></div>
-    </div>
-</div>
         
-        <!-- 4. STAGES & TEAMS -->
         <div id="stages" class="content-section">
             <div class="grid-2">
                 <div>
@@ -985,7 +421,6 @@ tr:hover td { background: var(--bg-main); }
                         </table>
                     </div>
                 </div>
-
                 <div>
                     <div class="action-bar" style="margin-bottom:1rem;">
                         <h2 style="font-size:1.25rem; font-weight:700;">Teams</h2>
@@ -1001,7 +436,6 @@ tr:hover td { background: var(--bg-main); }
             </div>
         </div>
 
-       <!-- 5. USERS -->
         <div id="users" class="content-section">
             <div class="action-bar">
                 <button class="btn btn-primary" onclick="openUserModal()"><i class="fa-solid fa-user-plus"></i> Create Account</button>
@@ -1011,247 +445,551 @@ tr:hover td { background: var(--bg-main); }
             </div>
             <div class="table-container">
                 <table>
-                    <!-- Added the Password column here -->
                     <thead><tr><th>Username</th><th>Assigned Role</th><th>Password</th><th>Actions</th></tr></thead>
                     <tbody id="users-tbody"></tbody>
                 </table>
             </div>
         </div>
    
-<!-- =========================================================================
-     DIRECT VALUATION (BYPASS WORKFLOW)
-     ========================================================================= -->
-     <div id="data-center" class="content-section">
-        
-        <div class="action-bar" style="margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
-            <div>
-                <h2 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.25rem; color: var(--text-main);"><i class="fa-solid fa-server" style="color: var(--primary);"></i> Master Data Center</h2>
-                <p style="color: var(--text-muted); font-size: 0.95rem;">System-wide data portability, backups, and destructive operations.</p>
-            </div>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 2.5rem;">
-            
-            <div>
-                <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 1.25rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                    <i class="fa-solid fa-cloud-arrow-down" style="color: var(--success);"></i> System Backup & Recovery
-                </h3>
-                
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
-                    
-                    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: var(--transition);">
-                        <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
-                            <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--primary-light); color: var(--primary); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; flex-shrink: 0;">
-                                <i class="fa-solid fa-file-zipper"></i>
-                            </div>
-                            <div>
-                                <h4 style="font-weight: 800; color: var(--text-main); margin-bottom: 0.25rem; font-size: 1.1rem;">Export Backup</h4>
-                                <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">Download a complete ZIP file containing all database tables, templates, and photo configurations.</p>
-                            </div>
-                        </div>
-                        <div style="margin-top: auto; padding-top: 1.25rem; border-top: 1px dashed var(--border);">
-                            <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.75rem;" onclick="requestSecureAction('export')">
-                                <i class="fa-solid fa-download"></i> Generate .ZIP Backup
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: var(--transition);">
-                        <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
-                            <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--success-light); color: var(--success); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; flex-shrink: 0;">
-                                <i class="fa-solid fa-upload"></i>
-                            </div>
-                            <div>
-                                <h4 style="font-weight: 800; color: var(--text-main); margin-bottom: 0.25rem; font-size: 1.1rem;">Restore Data</h4>
-                                <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">Upload a previously exported FestOS ZIP backup to completely restore the system state.</p>
-                            </div>
-                        </div>
-                        <div style="margin-top: auto; padding-top: 1.25rem; border-top: 1px dashed var(--border);">
-                            <input type="file" id="backup-upload" accept=".zip" style="display: none;" onchange="handleBackupSelect(event)">
-                            <button class="btn btn-success" style="width: 100%; justify-content: center; padding: 0.75rem;" onclick="document.getElementById('backup-upload').click()">
-                                <i class="fa-solid fa-folder-open"></i> Select Backup File
-                            </button>
-                        </div>
-                    </div>
-
+        <div id="data-center" class="content-section">
+            <div class="action-bar" style="margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.25rem; color: var(--text-main);"><i class="fa-solid fa-server" style="color: var(--primary);"></i> Master Data Center</h2>
+                    <p style="color: var(--text-muted); font-size: 0.95rem;">System-wide data portability, backups, and destructive operations.</p>
                 </div>
             </div>
+            <div style="display: flex; flex-direction: column; gap: 2.5rem;">
+                <div>
+                    <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 1.25rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                        <i class="fa-solid fa-cloud-arrow-down" style="color: var(--success);"></i> System Backup & Recovery
+                    </h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+                        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: var(--transition);">
+                            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                                <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--primary-light); color: var(--primary); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; flex-shrink: 0;">
+                                    <i class="fa-solid fa-file-zipper"></i>
+                                </div>
+                                <div>
+                                    <h4 style="font-weight: 800; color: var(--text-main); margin-bottom: 0.25rem; font-size: 1.1rem;">Export Backup</h4>
+                                    <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">Download a complete ZIP file containing all database tables, templates, and photo configurations.</p>
+                                </div>
+                            </div>
+                            <div style="margin-top: auto; padding-top: 1.25rem; border-top: 1px dashed var(--border);">
+                                <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.75rem;" onclick="requestSecureAction('export')">
+                                    <i class="fa-solid fa-download"></i> Generate .ZIP Backup
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: var(--transition);">
+                            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                                <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--success-light); color: var(--success); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; flex-shrink: 0;">
+                                    <i class="fa-solid fa-upload"></i>
+                                </div>
+                                <div>
+                                    <h4 style="font-weight: 800; color: var(--text-main); margin-bottom: 0.25rem; font-size: 1.1rem;">Restore Data</h4>
+                                    <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">Upload a previously exported FestOS ZIP backup to completely restore the system state.</p>
+                                </div>
+                            </div>
+                            <div style="margin-top: auto; padding-top: 1.25rem; border-top: 1px dashed var(--border);">
+                                <input type="file" id="backup-upload" accept=".zip" style="display: none;" onchange="handleBackupSelect(event)">
+                                <button class="btn btn-success" style="width: 100%; justify-content: center; padding: 0.75rem;" onclick="document.getElementById('backup-upload').click()">
+                                    <i class="fa-solid fa-folder-open"></i> Select Backup File
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            <div style="margin-top: 1rem;">
-                <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 1.25rem; color: var(--danger); display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                    <i class="fa-solid fa-triangle-exclamation"></i> Danger Zone
-                </h3>
-                
-                <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid rgba(225, 29, 72, 0.4); box-shadow: 0 4px 15px rgba(225, 29, 72, 0.05);">
-                    <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; width: 100%;">
-                        
-                        <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--danger-light); color: var(--danger); display: flex; justify-content: center; align-items: center; font-size: 1.8rem; flex-shrink: 0;">
-                            <i class="fa-solid fa-radiation"></i>
+                <div style="margin-top: 1rem;">
+                    <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 1.25rem; color: var(--danger); display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Danger Zone
+                    </h3>
+                    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid rgba(225, 29, 72, 0.4); box-shadow: 0 4px 15px rgba(225, 29, 72, 0.05);">
+                        <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; width: 100%;">
+                            <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--danger-light); color: var(--danger); display: flex; justify-content: center; align-items: center; font-size: 1.8rem; flex-shrink: 0;">
+                                <i class="fa-solid fa-radiation"></i>
+                            </div>
+                            <div style="flex: 1; min-width: 250px;">
+                                <h4 style="font-weight: 800; color: var(--text-main); font-size: 1.15rem; margin-bottom: 0.25rem;">Total Factory Reset</h4>
+                                <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5;">This action will permanently wipe all teams, participants, results, templates, and configurations. <strong style="color: var(--danger);">This cannot be undone without a backup.</strong></p>
+                            </div>
+                            <div style="min-width: 200px; display: flex; justify-content: flex-end;">
+                                <button class="btn btn-danger" style="width: 100%; padding: 1rem; font-size: 1rem; justify-content: center; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.3);" onclick="requestSecureAction('reset')">
+                                    <i class="fa-solid fa-skull-crossbones"></i> WIPE ALL DATA
+                                </button>
+                            </div>
                         </div>
-                        
-                        <div style="flex: 1; min-width: 250px;">
-                            <h4 style="font-weight: 800; color: var(--text-main); font-size: 1.15rem; margin-bottom: 0.25rem;">Total Factory Reset</h4>
-                            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5;">This action will permanently wipe all teams, participants, results, templates, and configurations. <strong style="color: var(--danger);">This cannot be undone without a backup.</strong></p>
-                        </div>
-                        
-                        <div style="min-width: 200px; display: flex; justify-content: flex-end;">
-                            <button class="btn btn-danger" style="width: 100%; padding: 1rem; font-size: 1rem; justify-content: center; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.3);" onclick="requestSecureAction('reset')">
-                                <i class="fa-solid fa-skull-crossbones"></i> WIPE ALL DATA
-                            </button>
-                        </div>
-
                     </div>
                 </div>
             </div>
-
-        </div>
-    </div>
-<div id="direct-valuation" class="content-section">
-    <div class="action-bar" style="margin-bottom: 1rem;">
-        <div>
-            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Direct Valuation</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Bypass the judging process. Directly enter final marks to push to the Publisher.</p>
-        </div>
-    </div>
-
-    <!-- Step 1 & 2: Selection -->
-    <div class="controls-bar" style="background: var(--primary-light); border: 1.5px solid var(--primary); padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.5rem;">
-        
-        <div class="filter-box" style="flex: 1; min-width: 200px;">
-            <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">1. FILTER BY CATEGORY</label>
-            <select id="dvCategory" onchange="loadDVCompetitions()" style="width: 100%; border-color: var(--primary);">
-                <option value="">-- ALL CATEGORIES --</option>
-            </select>
         </div>
 
-        <div class="filter-box" style="flex: 1; min-width: 200px;">
-            <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">2. FILTER BY STAGE</label>
-            <select id="dvStage" onchange="loadDVCompetitions()" style="width: 100%; border-color: var(--primary);">
-                <option value="">-- ALL STAGES --</option>
-            </select>
-        </div>
-
-        <div class="filter-box" style="flex: 2; min-width: 250px;">
-            <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">3. SELECT COMPETITION</label>
-            <select id="dvComp" onchange="loadDVParticipants()" style="width: 100%; border-color: var(--primary);">
-                <option value="">-- SELECT COMPETITION --</option>
-            </select>
-        </div>
-        
-    </div>
-
-    <!-- Step 3: Valuation Workspace (Keep exactly as you have it) -->
-    <div id="dvWorkspace" style="display: none; animation: fadeUp 0.4s ease;">
-        <div class="table-container" style="margin-bottom: 1.5rem;">
-            <div style="padding: 1rem 1.5rem; background: #F8FAFC; border-bottom: 2px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">
-                    <i class="fa-solid fa-list-check"></i> Enrolled Participants
-                </span>
-                <span id="dvMaxMarks" style="font-weight: 800; font-size: 0.9rem; color: var(--danger);">
-                    Max Marks: 100
-                </span>
+        <div id="direct-valuation" class="content-section">
+            <div class="action-bar" style="margin-bottom: 1rem;">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Direct Valuation</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Bypass the judging process. Directly enter final marks to push to the Publisher.</p>
+                </div>
             </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th class="checkbox-cell" title="Toggle Attendance"><input type="checkbox" checked onchange="toggleDVSelectAll(this)"></th>
-                        <th>Participant</th>
-                        <th>Team</th>
-                        <th>Awarded Mark</th>
-                    </tr>
-                </thead>
-                <tbody id="dv-participants-tbody"></tbody>
-            </table>
+            <div class="controls-bar" style="background: var(--primary-light); border: 1.5px solid var(--primary); padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.5rem;">
+                <div class="filter-box" style="flex: 1; min-width: 200px;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">1. FILTER BY CATEGORY</label>
+                    <select id="dvCategory" onchange="loadDVCompetitions()" style="width: 100%; border-color: var(--primary);">
+                        <option value="">-- ALL CATEGORIES --</option>
+                    </select>
+                </div>
+                <div class="filter-box" style="flex: 1; min-width: 200px;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">2. FILTER BY STAGE</label>
+                    <select id="dvStage" onchange="loadDVCompetitions()" style="width: 100%; border-color: var(--primary);">
+                        <option value="">-- ALL STAGES --</option>
+                    </select>
+                </div>
+                <div class="filter-box" style="flex: 2; min-width: 250px;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">3. SELECT COMPETITION</label>
+                    <select id="dvComp" onchange="loadDVParticipants()" style="width: 100%; border-color: var(--primary);">
+                        <option value="">-- SELECT COMPETITION --</option>
+                    </select>
+                </div>
+            </div>
+            <div id="dvWorkspace" style="display: none; animation: fadeUp 0.4s ease;">
+                <div class="table-container" style="margin-bottom: 1.5rem;">
+                    <div style="padding: 1rem 1.5rem; background: #F8FAFC; border-bottom: 2px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">
+                            <i class="fa-solid fa-list-check"></i> Enrolled Participants
+                        </span>
+                        <span id="dvMaxMarks" style="font-weight: 800; font-size: 0.9rem; color: var(--danger);">
+                            Max Marks: 100
+                        </span>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="checkbox-cell" title="Toggle Attendance"><input type="checkbox" checked onchange="toggleDVSelectAll(this)"></th>
+                                <th>Participant</th>
+                                <th>Team</th>
+                                <th>Awarded Mark</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dv-participants-tbody"></tbody>
+                    </table>
+                </div>
+                <div style="display: flex; justify-content: flex-end;">
+                    <button class="btn btn-success" id="btnSubmitDV" onclick="submitDirectValuation()" style="padding: 1rem 2rem; font-size: 1rem;">
+                        <i class="fa-solid fa-paper-plane"></i> Submit & Push to Fest Manager
+                    </button>
+                </div>
+            </div>
         </div>
-        <div style="display: flex; justify-content: flex-end;">
-            <button class="btn btn-success" id="btnSubmitDV" onclick="submitDirectValuation()" style="padding: 1rem 2rem; font-size: 1rem;">
-                <i class="fa-solid fa-paper-plane"></i> Submit & Push to Fest Manager
+
+        <div id="assignments" class="content-section">
+            <div class="action-bar">
+                <button class="btn btn-primary" onclick="exportAssignmentsPDF()"><i class="fa-solid fa-file-pdf"></i> Premium PDF</button>
+                <div class="bulk-actions">
+                    <button class="btn btn-outline" onclick="exportAssignmentsCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+                </div>
+            </div>
+            <div class="controls-bar" style="background: var(--primary-light); border: 1.5px solid var(--primary); padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.5rem;">
+                <div class="filter-box" style="flex: 1; min-width: 250px;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">1. SELECT CATEGORY</label>
+                    <select id="assignWorkCategory" onchange="loadAssignWorkspaceCompetitions()" style="width: 100%; border-color: var(--primary);">
+                        <option value="">-- CHOOSE CATEGORY --</option>
+                    </select>
+                </div>
+                <div class="filter-box" style="flex: 1; min-width: 250px;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">2. SELECT COMPETITION</label>
+                    <select id="assignWorkComp" onchange="loadAssignWorkspaceStudents()" style="width: 100%; border-color: var(--primary);" disabled>
+                        <option value="">-- CHOOSE COMPETITION FIRST --</option>
+                    </select>
+                </div>
+            </div>
+            <div id="assignStudentWorkspace" style="display: none; animation: slideUp 0.4s ease;">
+                <div class="controls-bar" style="margin-top: 1rem;">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="assignSearch" placeholder="Search student name or ID..." onkeyup="filterAssignTable()">
+                    </div>
+                    <div class="filter-box">
+                        <select id="assignFilterTeam" onchange="filterAssignTable()">
+                            <option value="">All Teams</option>
+                        </select>
+                    </div>
+                    <div class="filter-box">
+                        <input type="date" id="assignFilterDob" onchange="filterAssignTable()" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none;">
+                    </div>
+                    <div class="filter-box">
+                        <select id="assignFilterStatus" onchange="filterAssignTable()">
+                            <option value="">All Statuses</option>
+                            <option value="assigned">Assigned</option>
+                            <option value="unassigned">Unassigned</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex: 1; min-width: 250px; justify-content: flex-end; flex-wrap: wrap;">
+                        <button class="btn btn-success" id="btnWorkspaceAssign" onclick="executeWorkspaceAssign()" style="flex: 1;"><i class="fa-solid fa-check"></i> Assign Selected</button>
+                        <button class="btn btn-danger" id="btnWorkspaceRemove" onclick="executeWorkspaceRemove()" style="flex: 1;"><i class="fa-solid fa-xmark"></i> Remove</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <div style="padding: 1rem 1.5rem; background: #F8FAFC; border-bottom: 2px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <span id="assignLimitIndicator" style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">
+                            <i class="fa-solid fa-users"></i> Enrollment: 0 / 0 Limit
+                        </span>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAll('assign-workspace-tbody', this)"></th>
+                                <th>Unique ID</th>
+                                <th>Participant Name</th>
+                                <th>Team</th>
+                                <th>Batch</th>
+                                <th>Current Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assign-workspace-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="poster-templates" class="content-section">
+            <div id="template-library-view">
+                <div class="action-bar" style="margin-bottom: 1rem;">
+                    <div>
+                        <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Poster Templates</h2>
+                        <p style="color: var(--text-muted); font-size: 0.9rem;">Manage, organize, and edit your dynamic graphics templates.</p>
+                    </div>
+                    <div class="bulk-actions">
+                        <button class="btn btn-primary" onclick="openTemplateStudio()"><i class="fa-solid fa-plus"></i> Create New Template</button>
+                    </div>
+                </div>
+                <div class="controls-bar" style="display: flex; gap: 0.5rem; background: transparent; padding: 0; box-shadow: none; border: none; margin-bottom: 1.5rem;">
+                    <button class="btn btn-outline active-filter-btn" id="filter-all" onclick="filterTemplateLibrary('all')" style="border-radius: 50px;">All Templates</button>
+                    <button class="btn btn-outline" id="filter-individual" onclick="filterTemplateLibrary('individual')" style="border-radius: 50px;">Individual Events</button>
+                    <button class="btn btn-outline" id="filter-team" onclick="filterTemplateLibrary('team')" style="border-radius: 50px;">Team Standings</button>
+                    <button class="btn btn-outline" id="filter-final" onclick="filterTemplateLibrary('final')" style="border-radius: 50px;">Final Results</button>
+                    <button class="btn btn-outline" id="filter-id_card" onclick="filterTemplateLibrary('id_card')" style="border-radius: 50px;">ID Cards</button>
+                </div>
+                <div class="card-grid" id="saved-templates-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+                    <p style="color: var(--text-muted);">Loading templates...</p>
+                </div>
+            </div>
+
+            <div id="template-studio-view" style="display: none; animation: fadeUp 0.3s ease forwards;">
+                <div class="action-bar" style="background: white; padding: 1rem 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border); margin-bottom: 1.5rem;">
+                    <div style="display: flex; gap: 1rem; align-items: center; flex: 1; flex-wrap: wrap;">
+                        <button class="btn btn-outline" onclick="closeTemplateStudio()" style="padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px;"><i class="fa-solid fa-arrow-left"></i></button>
+                        <div style="display: flex; flex-direction: column; flex: 1; min-width: 200px;">
+                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">TEMPLATE NAME</label>
+                            <input type="text" id="studio-template-name" placeholder="e.g. Dark Theme Individual Winner" style="border: none; border-bottom: 2px solid var(--border); font-size: 1.1rem; font-weight: 700; outline: none; padding: 0.25rem 0; background: transparent;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; flex: 1; min-width: 200px;">
+                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">TEMPLATE SECTOR</label>
+                           <select id="studio-template-type" onchange="initializeStudioFields()" style="padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border);">
+                                <option value="individual">Individual Event Poster</option>
+                                <option value="team">Live Team Standings</option>
+                                <option value="final">Final Championship</option>
+                                <option value="id_card">Participant ID Card</option>
+                                <option value="certificate">Merit / Participation Certificate</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="bulk-actions" style="margin-top: 0.5rem;">
+                        <input type="file" id="studio-bg-upload" accept="image/*" style="display: none;" onchange="handleStudioUpload(event)">
+                        <button class="btn btn-outline" onclick="document.getElementById('studio-bg-upload').click()">
+                            <i class="fa-solid fa-image"></i> Upload Background
+                        </button>
+                        <input type="file" id="studio-element-upload" accept=".svg, .png, .jpg, .jpeg, .webp" style="display: none;" onchange="handleElementUpload(event)">
+                        <button class="btn btn-outline" onclick="document.getElementById('studio-element-upload').click()">
+                            <i class="fa-solid fa-shapes"></i> Add Element
+                        </button>
+                        <input type="file" id="studio-font-upload" accept=".ttf, .otf, .woff, .woff2" style="display: none;" onchange="handleFontUpload(event)">
+                        <button class="btn btn-outline" onclick="document.getElementById('studio-font-upload').click()">
+                            <i class="fa-solid fa-font"></i> Add Font
+                        </button>
+                        <div class="bulk-actions" style="margin-top: 0.5rem;">
+                            <div style="display: flex; gap: 0.25rem; margin-right: 0.5rem; border-right: 2px solid var(--border); padding-right: 1rem;">
+                                <button class="btn btn-outline" id="btn-undo" onclick="undo()" style="padding: 0.5rem 0.75rem;" disabled title="Undo">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                </button>
+                                <button class="btn btn-outline" id="btn-redo" onclick="redo()" style="padding: 0.5rem 0.75rem;" disabled title="Redo">
+                                    <i class="fa-solid fa-rotate-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button class="btn btn-success" onclick="saveActiveTemplate()">
+                            <i class="fa-solid fa-floppy-disk"></i> Save Template
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid-2" style="grid-template-columns: 350px 1fr; gap: 2rem;">
+                    <div style="display: flex; flex-direction: column; gap: 1rem; max-height: 70vh;">
+                        <div class="table-container" style="background: white; border: 1px solid var(--border); display: flex; flex-direction: column; max-height: 40%;">
+                            <div style="padding: 0.75rem 1rem; background: var(--bg-main); border-bottom: 1px solid var(--border); font-weight: 800; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;">
+                                <span><i class="fa-solid fa-layer-group" style="margin-right: 5px; color: var(--primary);"></i> Active Layers</span>
+                            </div>
+                            <div id="studio-layers-panel" style="overflow-y: auto; padding: 0.5rem; flex: 1; display: flex; flex-direction: column; gap: 0.25rem;">
+                            </div>
+                        </div>
+                        <div class="table-container" style="background: white; border: 1px solid var(--border); flex: 1; display: flex; flex-direction: column; overflow-y: auto;">
+                            <div style="padding: 0.75rem 1rem; background: var(--bg-main); border-bottom: 1px solid var(--border); font-weight: 800; font-size: 0.9rem;">
+                                <i class="fa-solid fa-sliders" style="margin-right: 5px; color: var(--primary);"></i> Layer Properties
+                            </div>
+                            <div id="studio-properties-panel" style="padding: 1rem;">
+                                <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">Select a layer above or click on the canvas to edit properties.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-container" style="padding: 1.5rem; background: #E2E8F0; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border); position: relative; height: 65vh;">
+                        <div style="position: absolute; top: 1rem; left: 1rem; background: rgba(0,0,0,0.6); color: white; padding: 0.5rem 1rem; border-radius: 50px; font-size: 0.8rem; font-weight: 600; pointer-events: none; z-index: 10;">
+                            <i class="fa-solid fa-hand-pointer"></i> Drag elements to position
+                        </div>
+                        <button class="btn btn-dark" onclick="openFullViewModal()" style="position: absolute; top: 1rem; right: 1rem; z-index: 10; padding: 0.5rem 1rem; font-size: 0.8rem; opacity: 0.8;">
+                            <i class="fa-solid fa-expand"></i> Full Size
+                        </button>
+                        <div style="position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                            <canvas id="studio-canvas" style="max-width: 100%; max-height: 100%; object-fit: contain; cursor: move; background: white; box-shadow: var(--shadow-lg);"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="point-settings" class="content-section">
+            <div class="action-bar" style="margin-bottom: 1.5rem;">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Point System Settings</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Configure grading thresholds, point matrices, and position bonuses based on group sizes.</p>
+                </div>
+                <button class="btn btn-primary" onclick="savePointSettings()"><i class="fa-solid fa-floppy-disk"></i> Save Configuration</button>
+            </div>
+            <div class="grid-2" style="gap: 2rem;">
+                <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); grid-column: 1 / -1;">
+                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-percent" style="color: var(--primary);"></i> Grade Thresholds (Minimum % out of Max Marks)</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                        <div class="form-group"><label>A+ Grade</label><input type="number" id="th-aplus" value="90"></div>
+                        <div class="form-group"><label>A Grade</label><input type="number" id="th-a" value="70"></div>
+                        <div class="form-group"><label>B Grade</label><input type="number" id="th-b" value="60"></div>
+                        <div class="form-group"><label>C Grade</label><input type="number" id="th-c" value="50"></div>
+                    </div>
+                </div>
+
+                <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); grid-column: 1 / -1; overflow-x: auto;">
+                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-table" style="color: var(--primary);"></i> Grade Points Matrix</h3>
+                    <table style="width: 100%; border-collapse: collapse; min-width: 600px;">
+                        <thead>
+                            <tr>
+                                <th style="background: var(--bg-main);">No. of Participants</th>
+                                <th style="background: var(--bg-main);">A+ Points</th>
+                                <th style="background: var(--bg-main);">A Points</th>
+                                <th style="background: var(--bg-main);">B Points</th>
+                                <th style="background: var(--bg-main);">C Points</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-weight: 700;">1 (Solo)</td>
+                                <td><input type="number" id="pt-solo-aplus" value="8" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                                <td><input type="number" id="pt-solo-a" value="7" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                                <td><input type="number" id="pt-solo-b" value="5" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                                <td><input type="number" id="pt-solo-c" value="3" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 700;">2 or 3</td>
+                                <td><input type="number" id="pt-small-aplus" value="12" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                                <td><input type="number" id="pt-small-a" value="10" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                                <td><input type="number" id="pt-small-b" value="7" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                                <td><input type="number" id="pt-small-c" value="5" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 700;">4 or 5+</td>
+                                <td><input type="number" id="pt-large-aplus" value="15" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                                <td><input type="number" id="pt-large-a" value="12" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                                <td><input type="number" id="pt-large-b" value="10" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                                <td><input type="number" id="pt-large-c" value="7" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-medal" style="color: var(--warning);"></i> Position Points</h3>
+                    <div class="form-group"><label>1st Place</label><input type="number" id="pos-1" value="3"></div>
+                    <div class="form-group"><label>2nd Place</label><input type="number" id="pos-2" value="2"></div>
+                    <div class="form-group"><label>3rd Place</label><input type="number" id="pos-3" value="1"></div>
+                </div>
+                
+                <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-gears" style="color: var(--primary);"></i> Global Settings</h3>
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label>Results Poster Interval</label>
+                        <input type="number" id="setting-poster-interval" value="10">
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Live results dropdown will show "After 10", "After 20", etc.</p>
+                    </div>
+                    <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
+                        <div>
+                            <label style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text-main);">Allow TM Assignments</label>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Let Team Managers assign students</p>
+                        </div>
+                        <label style="position: relative; display: inline-block; width: 50px; height: 26px;">
+                            <input type="checkbox" id="setting-tm-access" style="opacity: 0; width: 0; height: 0;" checked onchange="this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#cbd5e1'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(24px)' : 'translateX(0)';">
+                            <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .4s; border-radius: 34px;"></span>
+                            <span id="tm-toggle-knob" style="position: absolute; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; transform: translateX(24px);"></span>
+                        </label>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label>Auto-Lock Registration Deadline</label>
+                        <input type="datetime-local" id="setting-lock-date" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border);">
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">After this exact time, Team Managers will be in read-only mode.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="admin-appeals" class="content-section">
+            <div class="action-bar" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: flex-end;">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Grievances & Appeals</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Review and resolve tickets submitted by Team Managers.</p>
+                </div>
+                <button class="btn btn-outline" onclick="loadAdminAppeals()"><i class="fa-solid fa-rotate-right"></i> Refresh List</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>TYPE</th>
+                            <th>TEAM</th>
+                            <th>EVENT / STUDENT</th>
+                            <th>DESCRIPTION</th>
+                            <th>STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-appeals-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="participant-points" class="content-section">
+            <div class="action-bar" style="margin-bottom: 1rem;">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Participant Points Ledger</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">View detailed point breakdowns per student and generate report cards.</p>
+                </div>
+                <div class="bulk-actions">
+                    <button class="btn btn-primary" onclick="bulkExportPointsPDF()"><i class="fa-solid fa-file-pdf"></i> Generate PDF Reports</button>
+                </div>
+            </div>
+            <div class="controls-bar">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="searchPointsInput" placeholder="Search name or ID..." onkeyup="filterPointsTable(true)">
+                </div>
+                <div class="filter-box">
+                    <select id="filterPointsCategory" onchange="filterPointsTable(true)">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+                <div class="filter-box">
+                    <select id="filterPointsTeam" onchange="filterPointsTable(true)">
+                        <option value="">All Teams</option>
+                    </select>
+                </div>
+                <div class="filter-box">
+                    <input type="date" id="filterPointsDob" onchange="filterPointsTable(true)" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none;">
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell" title="Select for Bulk PDF"><input type="checkbox" onchange="toggleSelectAll('points-tbody', this)"></th>
+                            <th>Unique ID</th>
+                            <th>Participant Name</th>
+                            <th>Team</th>
+                            <th>Total Points Earned</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="points-tbody"></tbody>
+                </table>
+                <div id="points-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border);"></div>
+            </div>
+        </div>
+
+        <div id="branding-settings" class="content-section">
+            <div class="action-bar" style="margin-bottom: 1.5rem;">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">System Branding</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Customize the Fest Name and Logo displayed across all portals.</p>
+                </div>
+                <button class="btn btn-primary" id="btnSaveBranding" onclick="saveBrandingSettings()">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Branding
+                </button>
+            </div>
+            <div class="grid-2" style="gap: 2rem;">
+                <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;">
+                        <i class="fa-solid fa-signature" style="color: var(--primary);"></i> Fest Details
+                    </h3>
+                    <div class="form-group">
+                        <label>Global Fest Name</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <input type="text" id="setting-fest-name" placeholder="e.g. FESTOS 2026" style="flex: 1;">
+                            <button class="btn btn-outline" onclick="document.getElementById('setting-fest-name').value = '';" style="color: var(--danger); border-color: var(--danger);" title="Clear Fest Name">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border);">
+                        <label><i class="fa-solid fa-display" style="color: var(--primary); margin-right: 0.3rem;"></i> Branding Display Preference</label>
+                        <select id="setting-branding-display" style="width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); font-weight: 600; cursor: pointer;">
+                            <option value="both">Show Both Logo & Name</option>
+                            <option value="logo">Show Logo Only</option>
+                            <option value="name">Show Name Only</option>
+                        </select>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">Controls what appears in the top navigation bar and generated PDFs across all portals.</p>
+                    </div>
+                </div>
+                <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;">
+                        <i class="fa-solid fa-image" style="color: var(--primary);"></i> Fest Logo
+                    </h3>
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <img id="branding-logo-preview" src="" style="width: 80px; height: 80px; object-fit: contain; border: 1px dashed var(--border); border-radius: 8px; background: #f8fafc; display: none;">
+                        <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            <input type="file" id="setting-fest-logo" accept="image/png, image/jpeg, image/webp, image/svg+xml" style="display: none;" onchange="handleBrandingLogo(event)">
+                            <button class="btn btn-outline" onclick="document.getElementById('setting-fest-logo').click()">
+                                <i class="fa-solid fa-upload"></i> Upload New Logo
+                            </button>
+                            <button class="btn btn-outline" id="btnRemoveLogo" onclick="removeBrandingLogo()" style="color: var(--danger); border-color: var(--danger); display: none;">
+                                <i class="fa-solid fa-trash"></i> Remove Logo
+                            </button>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; width: 100%;">Recommended: Square format with transparent background</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+<!-- ================= FULL VIEW MODAL ================= -->
+<div id="fullViewModal" class="modal-overlay" style="z-index: 1050; padding: 2rem; background: rgba(15, 23, 42, 0.9);">
+    <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        
+        <div style="width: 100%; display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+            <button class="btn btn-outline" style="background: white; color: black; border: none;" onclick="document.getElementById('fullViewModal').classList.remove('show')">
+                <i class="fa-solid fa-xmark"></i> Close Full View
             </button>
         </div>
-    </div>
-</div>
-<!-- 6. ASSIGNMENTS WORKSPACE -->
-<div id="assignments" class="content-section">
-    
-    <!-- FIXED ACTION BAR: Matches Users Tab Layout -->
-    <div class="action-bar">
-        <button class="btn btn-primary" onclick="exportAssignmentsPDF()"><i class="fa-solid fa-file-pdf"></i> Premium PDF</button>
-        <div class="bulk-actions">
-            <button class="btn btn-outline" onclick="exportAssignmentsCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
-        </div>
-    </div>
-    
-    <!-- Step 1 & 2: Selection (Fixed Mobile Wrapping) -->
-    <div class="controls-bar" style="background: var(--primary-light); border: 1.5px solid var(--primary); padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.5rem;">
-        <div class="filter-box" style="flex: 1; min-width: 250px;">
-            <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">1. SELECT CATEGORY</label>
-            <select id="assignWorkCategory" onchange="loadAssignWorkspaceCompetitions()" style="width: 100%; border-color: var(--primary);">
-                <option value="">-- CHOOSE CATEGORY --</option>
-                <!-- Populated via JS -->
-            </select>
-        </div>
-        <div class="filter-box" style="flex: 1; min-width: 250px;">
-            <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">2. SELECT COMPETITION</label>
-            <select id="assignWorkComp" onchange="loadAssignWorkspaceStudents()" style="width: 100%; border-color: var(--primary);" disabled>
-                <option value="">-- CHOOSE COMPETITION FIRST --</option>
-            </select>
-        </div>
-    </div>
 
-    <!-- Step 3: Student Management -->
-    <div id="assignStudentWorkspace" style="display: none; animation: slideUp 0.4s ease;">
-        <div class="controls-bar" style="margin-top: 1rem;">
-            <div class="search-box">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="assignSearch" placeholder="Search student name or ID..." onkeyup="filterAssignTable()">
-            </div>
-            <div class="filter-box">
-                <select id="assignFilterTeam" onchange="filterAssignTable()">
-                    <option value="">All Teams</option>
-                </select>
-            </div>
-           <div class="filter-box">
-        <input type="date" id="assignFilterDob" onchange="filterAssignTable()" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none;">
-    </div>
-
-            <div class="filter-box">
-    <select id="assignFilterStatus" onchange="filterAssignTable()">
-        <option value="">All Statuses</option>
-        <option value="assigned">Assigned</option>
-        <option value="unassigned">Unassigned</option>
-    </select>
-</div>
-            
-            <!-- Assure Action Buttons Wrap on Mobile -->
-            <div style="display: flex; gap: 0.5rem; flex: 1; min-width: 250px; justify-content: flex-end; flex-wrap: wrap;">
-                <button class="btn btn-success" id="btnWorkspaceAssign" onclick="executeWorkspaceAssign()" style="flex: 1;"><i class="fa-solid fa-check"></i> Assign Selected</button>
-                <button class="btn btn-danger" id="btnWorkspaceRemove" onclick="executeWorkspaceRemove()" style="flex: 1;"><i class="fa-solid fa-xmark"></i> Remove</button>
-            </div>
-        </div>
-
-        <div class="table-container">
-            <div style="padding: 1rem 1.5rem; background: #F8FAFC; border-bottom: 2px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                <span id="assignLimitIndicator" style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">
-                    <i class="fa-solid fa-users"></i> Enrollment: 0 / 0 Limit
-                </span>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAll('assign-workspace-tbody', this)"></th>
-                        <th>Unique ID</th>
-                        <th>Participant Name</th>
-                        <th>Team</th>
-                        <th>Batch</th>
-                        <th>Current Status</th>
-                    </tr>
-                </thead>
-                <tbody id="assign-workspace-tbody"></tbody>
-            </table>
+        <div style="width: 100%; flex: 1; display: flex; justify-content: center; align-items: center; background: transparent; padding-bottom: 2rem;">
+            <img id="fullViewImage" src="" style="box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); max-width: 100%; max-height: 85vh; object-fit: contain; border-radius: 8px;">
         </div>
     </div>
-</div>
-
 </div>
 
 <!-- List View Popup -->
@@ -1281,21 +1019,22 @@ tr:hover td { background: var(--bg-main); }
     </div>
 </div>
 
-    <!-- Reusable Form Modal -->
-    <div id="formModal" class="modal-overlay">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 id="modalTitle">Add Item</h2>
-                <button class="close-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div id="modalBody"></div>
-            <div class="modal-footer">
-                <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
-                <button class="btn btn-primary" id="modalSaveBtn">Save Changes</button>
-            </div>
+<!-- Reusable Form Modal -->
+<div id="formModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="modalTitle">Add Item</h2>
+            <button class="close-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="modalBody"></div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" id="modalSaveBtn">Save Changes</button>
         </div>
     </div>
-    <!-- Custom Delete Confirmation Modal -->
+</div>
+
+<!-- Custom Delete Confirmation Modal -->
 <div id="confirmModal" class="modal-overlay">
     <div class="modal" style="max-width: 400px; text-align: center;">
         <div style="font-size: 3rem; color: var(--danger); margin-bottom: 1rem;">
@@ -1309,10 +1048,10 @@ tr:hover td { background: var(--bg-main); }
         </div>
     </div>
 </div>
-    <!-- Toast Container -->
-    <div id="toast-container"></div>
 
-    <div id="cropperModal" class="modal-overlay" style="z-index: 1000;">
+<div id="toast-container"></div>
+
+<div id="cropperModal" class="modal-overlay" style="z-index: 1000;">
     <div class="modal" style="max-width: 450px; text-align: center;">
         <h3 style="margin-bottom: 1rem; font-weight: 800; color: var(--text-main);">Adjust Photo (2:3 Ratio)</h3>
         <div style="width: 100%; height: 350px; background: #f1f5f9; border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden; display: flex; align-items: center; justify-content: center;">
@@ -1324,64 +1063,57 @@ tr:hover td { background: var(--bg-main); }
         </div>
     </div>
 </div>
-<div id="masterPasswordModal" class="modal-overlay" style="z-index: 2000;">
-        <div class="modal" style="max-width: 400px; text-align: center;">
-            <div style="width: 60px; height: 60px; border-radius: 50%; background: var(--danger-light); color: var(--danger); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 1rem;">
-                <i class="fa-solid fa-lock"></i>
-            </div>
-            <h3 style="margin-bottom: 0.5rem; font-weight: 800; color: var(--text-main);">Security Verification</h3>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">Please enter your Master Admin password to authorize this critical action.</p>
-            
-            <input type="password" id="master-auth-password" class="form-control" placeholder="Enter your password" style="margin-bottom: 1.5rem; text-align: center; font-size: 1.1rem; padding: 1rem;">
-            
-            <div style="display: flex; gap: 1rem;">
-                <button class="btn btn-outline" style="flex: 1;" onclick="document.getElementById('masterPasswordModal').classList.remove('show')">Cancel</button>
-                <button class="btn btn-primary" style="flex: 1;" id="btn-verify-master" onclick="verifyMasterPassword()">Verify</button>
-            </div>
-        </div>
-    </div>
 
-<!-- Competition Master Log Modal -->
-    <div id="compLogModal" class="modal-overlay">
-        <div class="modal" style="max-width: 950px; width: 95%;">
-            <div class="modal-header">
-                <div>
-                    <span id="log-cat-name" class="badge badge-primary" style="margin-bottom: 0.5rem; display: inline-block;">CATEGORY</span>
-                    <h2 id="log-comp-name" style="margin-top: 0.25rem;">Competition Log</h2>
-                </div>
-                <button class="close-btn" onclick="document.getElementById('compLogModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            
-            <div id="log-summary" style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
-                <!-- Summary cards populate here -->
-            </div>
-            
-            <div class="table-container" style="max-height: 450px; overflow-y: auto; overflow-x: auto;">
-                <table style="min-width: 800px;">
-                    <thead style="position: sticky; top: 0; z-index: 10;">
-                        <tr>
-                            <th>PARTICIPANT</th>
-                            <th>TEAM</th>
-                            <th>CODE LETTER</th>
-                            <th>STATUS</th>
-                            <th>JUDGES</th>
-                            <th>FINAL MARK</th>
-                            <th>GRADE</th>
-                            <th>POINTS</th>
-                        </tr>
-                    </thead>
-                    <tbody id="log-tbody"></tbody>
-                </table>
-            </div>
-            
-            <div class="modal-footer" style="margin-top: 1.5rem; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-                <p style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin: auto 0;"><i class="fa-solid fa-circle-info"></i> Contains all enrollment, marking, and result records.</p>
-                <button class="btn btn-primary" id="btn-download-log" onclick="downloadCompLogPDF()">
-                    <i class="fa-solid fa-file-pdf"></i> Download PDF Report
-                </button>
-            </div>
+<div id="masterPasswordModal" class="modal-overlay" style="z-index: 2000;">
+    <div class="modal" style="max-width: 400px; text-align: center;">
+        <div style="width: 60px; height: 60px; border-radius: 50%; background: var(--danger-light); color: var(--danger); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 1rem;">
+            <i class="fa-solid fa-lock"></i>
+        </div>
+        <h3 style="margin-bottom: 0.5rem; font-weight: 800; color: var(--text-main);">Security Verification</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">Please enter your Master Admin password to authorize this critical action.</p>
+        <input type="password" id="master-auth-password" class="form-control" placeholder="Enter your password" style="margin-bottom: 1.5rem; text-align: center; font-size: 1.1rem; padding: 1rem;">
+        <div style="display: flex; gap: 1rem;">
+            <button class="btn btn-outline" style="flex: 1;" onclick="document.getElementById('masterPasswordModal').classList.remove('show')">Cancel</button>
+            <button class="btn btn-primary" style="flex: 1;" id="btn-verify-master" onclick="verifyMasterPassword()">Verify</button>
         </div>
     </div>
+</div>
+
+<div id="compLogModal" class="modal-overlay">
+    <div class="modal" style="max-width: 950px; width: 95%;">
+        <div class="modal-header">
+            <div>
+                <span id="log-cat-name" class="badge badge-primary" style="margin-bottom: 0.5rem; display: inline-block;">CATEGORY</span>
+                <h2 id="log-comp-name" style="margin-top: 0.25rem;">Competition Log</h2>
+            </div>
+            <button class="close-btn" onclick="document.getElementById('compLogModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="log-summary" style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;"></div>
+        <div class="table-container" style="max-height: 450px; overflow-y: auto; overflow-x: auto;">
+            <table style="min-width: 800px;">
+                <thead style="position: sticky; top: 0; z-index: 10;">
+                    <tr>
+                        <th>PARTICIPANT</th>
+                        <th>TEAM</th>
+                        <th>CODE LETTER</th>
+                        <th>STATUS</th>
+                        <th>JUDGES</th>
+                        <th>FINAL MARK</th>
+                        <th>GRADE</th>
+                        <th>POINTS</th>
+                    </tr>
+                </thead>
+                <tbody id="log-tbody"></tbody>
+            </table>
+        </div>
+        <div class="modal-footer" style="margin-top: 1.5rem; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <p style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin: auto 0;"><i class="fa-solid fa-circle-info"></i> Contains all enrollment, marking, and result records.</p>
+            <button class="btn btn-primary" id="btn-download-log" onclick="downloadCompLogPDF()">
+                <i class="fa-solid fa-file-pdf"></i> Download PDF Report
+            </button>
+        </div>
+    </div>
+</div>
 
 <script src="admin.js"></script>
 </body>

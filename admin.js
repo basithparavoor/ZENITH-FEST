@@ -2251,7 +2251,41 @@ async function executeWorkspaceAssign() {
         const { data: newStudents, error: studentError } = await supabaseClient.from('participants').select('id, team_id').in('id', newIds);
         if (studentError) throw studentError;
 
-        // Group the new students by team
+        // --- NEW: STRICT LIMIT CHECK PER TEAM ---
+        if (currentAssignCompLimit > 0) {
+            // Fetch existing enrollments to count current team assignments
+            const { data: existing, error: existErr } = await supabaseClient
+                .from('participant_competitions')
+                .select('participant_id, participants(team_id)')
+                .eq('competition_id', compId);
+            
+            if (existErr) throw existErr;
+
+            const teamCounts = {};
+            (existing || []).forEach(e => {
+                const tId = e.participants?.team_id || 'INDEPENDENT';
+                teamCounts[tId] = (teamCounts[tId] || 0) + 1;
+            });
+
+            // Count how many new ones we are trying to add per team
+            const newTeamCounts = {};
+            newStudents.forEach(s => {
+                const tId = s.team_id || 'INDEPENDENT';
+                newTeamCounts[tId] = (newTeamCounts[tId] || 0) + 1;
+            });
+
+            // Verify limits
+            for (const [tId, count] of Object.entries(newTeamCounts)) {
+                const current = teamCounts[tId] || 0;
+                if (current + count > currentAssignCompLimit) {
+                    const teamName = teamsList.find(t => t.id === tId)?.name || 'INDEPENDENT';
+                    throw new Error(`Limit Exceeded for team '${teamName}'! Max ${currentAssignCompLimit} participants allowed per team. (Currently enrolled: ${current}, Trying to add: ${count})`);
+                }
+            }
+        }
+        // --- END LIMIT CHECK ---
+
+        // Group the new students by team for group leader mapping
         const teamsGrouping = {};
         newStudents.forEach(student => {
              const tId = student.team_id || 'INDEPENDENT';
@@ -2285,7 +2319,7 @@ async function executeWorkspaceAssign() {
         if (error) throw error;
         
         showToast(`Successfully assigned ${newIds.length} students!`);
-clearSelection('assign-workspace-tbody');
+        clearSelection('assign-workspace-tbody');
         loadAssignWorkspaceStudents(); 
 
     } catch (e) {
@@ -3931,6 +3965,7 @@ async function fetchAndApplyBranding() {
 function applyGlobalBranding(brandingData) {
     const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
     const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+    const displayMode = brandingData.display_mode || 'both'; // 'both', 'logo', 'name'
     
     // 1. Update Document Title dynamically
     const festName = validName ? brandingData.fest_name : 'FestOS';
@@ -3938,39 +3973,57 @@ function applyGlobalBranding(brandingData) {
     const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
     document.title = `${festName} | ${pageContext}`;
 
-    // 2. Update all standard brand containers
-    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
-    brandContainers.forEach(container => {
-        let html = '';
-        
-        // STRICT RULE: No fallbacks. Only show what is provided in the admin panel.
-        if (validLogo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
+    // 2. Global Favicon Injection (Works on Master Admin, Login, and all pages)
+    if (validLogo) {
+        let iconLinks = document.querySelectorAll("link[rel~='icon']");
+        if (iconLinks.length === 0) {
+            let newIcon = document.createElement('link');
+            newIcon.rel = 'icon';
+            document.head.appendChild(newIcon);
+            iconLinks = [newIcon];
         }
-        if (validName) {
-            html += `<span>${brandingData.fest_name}</span>`;
+        iconLinks.forEach(link => link.href = brandingData.fest_logo);
+    }
+
+    // 3. UI Header & Logo Sizing Engine
+    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text, .header h1');
+    
+    brandContainers.forEach(container => {
+        if(container.id === 'page-title') return; 
+
+        let html = '';
+        const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
+        const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
+        
+        // Configurable Logo Sizing (Clean height parameter with max constraints)
+        if (showLogo) {
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 36px; width: auto; max-width: 180px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; display: inline-block; vertical-align: middle;">`;
+        } else if (!validLogo && displayMode !== 'name') {
+            html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
+        }
+        
+        // Dynamic Text
+        if (showName) {
+            let textToDisplay = validName ? brandingData.fest_name : 'FestOS';
+            
+            if (window.location.pathname.includes('program_report') && container.tagName === 'H1') {
+                textToDisplay += ' Reports Engine';
+            }
+            
+            html += `<span style="letter-spacing: -0.5px; display: inline-block; vertical-align: middle;">${textToDisplay}</span>`;
         }
         
         container.innerHTML = html;
         container.style.display = 'flex';
         container.style.alignItems = 'center';
+        container.style.flexWrap = 'nowrap'; // Keeps logo and text side-by-side cleanly
         
-        // Keep centered on login and scan screens
-        if (window.location.pathname.includes('login') || window.location.pathname.includes('scan')) {
+        if (window.location.pathname.includes('scan') || window.location.pathname.includes('login') || window.location.pathname.includes('index') || window.location.pathname === '/') {
             container.style.justifyContent = 'center';
         }
     });
 
-    // 3. Special handler for the new program_report.html
-    const reportHeader = document.querySelector('.header h1');
-    if (reportHeader && !reportHeader.classList.contains('brand')) {
-        let html = '';
-        if (validLogo) html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
-        if (validName) html += `<span>${brandingData.fest_name} Reports Engine</span>`;
-        
-        // If neither exists, clear the header entirely
-        reportHeader.innerHTML = html;
-    }
+    if (typeof window !== 'undefined') window.systemBranding = brandingData;
 }
 // ============================================================================
 // PARTICIPANT POINTS LEDGER ENGINE

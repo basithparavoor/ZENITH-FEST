@@ -120,9 +120,6 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchAndApplyBranding();
 });
 
-// ==========================================
-// UNIFIED GLOBAL BRANDING ENGINE
-// ==========================================
 async function fetchAndApplyBranding() {
     try {
         const { data, error } = await supabaseClient
@@ -149,7 +146,7 @@ function applyGlobalBranding(brandingData) {
     const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
     document.title = `${festName} | ${pageContext}`;
 
-    // 2. Global Favicon Injection (Fixes missing Favicons)
+    // 2. Global Favicon Injection (Works on Master Admin, Login, and all pages)
     if (validLogo) {
         let iconLinks = document.querySelectorAll("link[rel~='icon']");
         if (iconLinks.length === 0) {
@@ -161,21 +158,19 @@ function applyGlobalBranding(brandingData) {
         iconLinks.forEach(link => link.href = brandingData.fest_logo);
     }
 
-    // 3. UI Header Updates (Fixes display preferences & sizing)
-    // Grabs the sidebar brand, navbar brand, and the main header h1
+    // 3. UI Header & Logo Sizing Engine
     const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text, .header h1');
     
     brandContainers.forEach(container => {
-        // Safety check to avoid overwriting page titles like "Workspace Overview"
         if(container.id === 'page-title') return; 
 
         let html = '';
         const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
         const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
         
-        // Dynamic Logo Sizing
+        // Configurable Logo Sizing (Clean height parameter with max constraints)
         if (showLogo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '8px' : '0'}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">`;
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 36px; width: auto; max-width: 180px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; display: inline-block; vertical-align: middle;">`;
         } else if (!validLogo && displayMode !== 'name') {
             html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
         }
@@ -184,25 +179,22 @@ function applyGlobalBranding(brandingData) {
         if (showName) {
             let textToDisplay = validName ? brandingData.fest_name : 'FestOS';
             
-            // If this is the specific Program Report header, append its title
             if (window.location.pathname.includes('program_report') && container.tagName === 'H1') {
                 textToDisplay += ' Reports Engine';
             }
             
-            html += `<span style="letter-spacing: -0.5px;">${textToDisplay}</span>`;
+            html += `<span style="letter-spacing: -0.5px; display: inline-block; vertical-align: middle;">${textToDisplay}</span>`;
         }
         
         container.innerHTML = html;
         container.style.display = 'flex';
         container.style.alignItems = 'center';
-        container.style.flexWrap = 'wrap'; // Prevents layout crunching
+        container.style.flexWrap = 'nowrap'; // Keeps logo and text side-by-side cleanly
         
-        // Keeps centered strictly on Login and Scan screens
         if (window.location.pathname.includes('scan') || window.location.pathname.includes('login') || window.location.pathname.includes('index') || window.location.pathname === '/') {
             container.style.justifyContent = 'center';
         }
     });
 
-    // Store globally so the PDF Generators can read the display preference
     if (typeof window !== 'undefined') window.systemBranding = brandingData;
 }
