@@ -5121,7 +5121,7 @@ async function viewCompetitionLog(compId) {
             return;
         }
 
-        // Sort alphabetically by participant name
+       // Sort alphabetically by participant name
         enrollments.sort((a, b) => a.participants.name.localeCompare(b.participants.name)).forEach(e => {
             const p = e.participants;
             const statusBadge = e.is_present 
@@ -5143,11 +5143,24 @@ async function viewCompetitionLog(compId) {
             const fGrade = res ? `<span style="font-weight: 800; color: var(--text-main);">${res.grade}</span>` : '-';
             const fPoints = res ? `<span style="font-weight: 800; color: var(--primary);">${res.points}</span>` : '-';
 
+            // --- NEW: DISPLAY "& PARTY" FOR LEADERS IN ADMIN LOG ---
+            let displayName = p.name;
+            let roleTag = '';
+            if (comp.is_group) {
+                if (e.is_leader) {
+                    displayName += ' & PARTY';
+                    roleTag = '<br><span class="badge" style="background: var(--primary-light); color: var(--primary); font-size: 0.65rem; margin-top: 4px;">GROUP LEADER</span>';
+                } else {
+                    roleTag = '<br><span class="badge" style="background: var(--bg-main); color: var(--text-muted); font-size: 0.65rem; margin-top: 4px;">MEMBER</span>';
+                }
+            }
+
             tbody.innerHTML += `
                 <tr>
                     <td style="white-space: nowrap;">
-                        <strong style="display:block; font-size: 1rem; color: var(--text-main);">${p.name}</strong>
+                        <strong style="display:block; font-size: 1rem; color: var(--text-main);">${displayName}</strong>
                         <small style="font-family:monospace; font-weight: 600; color:var(--text-muted);">${p.unique_id}</small>
+                        ${roleTag}
                     </td>
                     <td><span class="badge" style="background: var(--bg-main); color: var(--text-muted);">${p.teams?.name || 'INDEPENDENT'}</span></td>
                     <td style="font-weight: 800; font-size: 1.1rem; color: var(--primary);">${e.code_letter || '-'}</td>

@@ -95,6 +95,19 @@ async function loadCompetitions(stageId) {
     let query = supabaseClient.from('competitions')
         .select('*, categories(name), judgements(judge_id, awarded_mark), participant_competitions(participant_id)');
     
+// Assume 'assignment' is the fetched participant_competitions record
+    // Assume 'comp' is the competition record fetched
+
+    // --- NEW: STRICT LEADER VERIFICATION ---
+    if (comp.is_group && !assignment.is_leader) {
+        showToast("Group Event: Please scan the Group Leader's ID to register the team.", "error");
+        
+        // Resume camera and stop execution
+        setTimeout(() => { isProcessing = false; html5QrCode.resume(); }, 2500);
+        return; 
+    }
+    // ---------------------------------------
+
     if (stageId && stageId !== 'ALL') {
         query = query.eq('stage_id', stageId);
     }
