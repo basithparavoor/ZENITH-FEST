@@ -95,18 +95,7 @@ async function loadCompetitions(stageId) {
     let query = supabaseClient.from('competitions')
         .select('*, categories(name), judgements(judge_id, awarded_mark), participant_competitions(participant_id)');
     
-// Assume 'assignment' is the fetched participant_competitions record
-    // Assume 'comp' is the competition record fetched
-
-    // --- NEW: STRICT LEADER VERIFICATION ---
-    if (comp.is_group && !assignment.is_leader) {
-        showToast("Group Event: Please scan the Group Leader's ID to register the team.", "error");
-        
-        // Resume camera and stop execution
-        setTimeout(() => { isProcessing = false; html5QrCode.resume(); }, 2500);
-        return; 
-    }
-    // ---------------------------------------
+    // REMOVED THE MISPLACED VALIDATION BLOCK FROM HERE
 
     if (stageId && stageId !== 'ALL') {
         query = query.eq('stage_id', stageId);
@@ -327,6 +316,7 @@ function generateCodeLetter(index) {
     return letter;
 }
 
+// THIS IS THE CORRECT PLACEMENT FOR THE SCAN LOGIC
 async function onScanSuccess(decodedText) {
     if (isProcessingScan || !activeScanCompId) return; 
     isProcessingScan = true;
@@ -363,6 +353,21 @@ async function onScanSuccess(decodedText) {
             resetScanner();
             return;
         }
+
+        // --- CORRECTED: STRICT LEADER VERIFICATION ---
+        // Fetch competition to see if it is a group event
+        const { data: compData } = await supabaseClient
+            .from('competitions')
+            .select('is_group')
+            .eq('id', activeScanCompId)
+            .single();
+            
+        if (compData && compData.is_group && !registration.is_leader) {
+            showToast("Group Event: Please scan the Group Leader's ID to register the team.", "error");
+            resetScanner();
+            return; 
+        }
+        // ---------------------------------------------
 
         if (registration.is_present) {
             showToast(`${participant.name} is already checked in.`, "warning");
@@ -562,6 +567,7 @@ function applyGlobalBranding(brandingData) {
     const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
     const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
     const displayMode = brandingData.display_mode || 'both'; // 'both', 'logo', 'name'
+    const logoSize = brandingData.logo_size || 32; 
     
     // 1. Update Document Title dynamically
     const festName = validName ? brandingData.fest_name : 'FestOS';
@@ -569,16 +575,19 @@ function applyGlobalBranding(brandingData) {
     const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
     document.title = `${festName} | ${pageContext}`;
 
-    // 2. Global Favicon Injection (Instantly updates across all pages)
+    // 2. Global Favicon Injection
     if (validLogo) {
-        let iconLinks = document.querySelectorAll("link[rel~='icon']");
-        if (iconLinks.length === 0) {
+        let allIcons = document.querySelectorAll("link[rel='icon'], link[rel='shortcut icon']");
+        if (allIcons.length === 0) {
             let newIcon = document.createElement('link');
             newIcon.rel = 'icon';
             document.head.appendChild(newIcon);
-            iconLinks = [newIcon];
+            allIcons = [newIcon];
         }
-        iconLinks.forEach(link => link.href = brandingData.fest_logo);
+        allIcons.forEach(link => {
+            if (link.type === 'image/svg+xml') link.removeAttribute('type');
+            link.href = brandingData.fest_logo;
+        });
     }
 
     // 3. UI Header Updates
@@ -590,22 +599,23 @@ function applyGlobalBranding(brandingData) {
         
         // Dynamic Logo Sizing
         if (showLogo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">`;
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: ${logoSize}px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '8px' : '0'}; display: inline-block; vertical-align: middle; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">`;
         } else if (!validLogo && displayMode !== 'name') {
             html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
         }
         
         // Dynamic Text
         if (showName) {
-            html += `<span style="letter-spacing: -0.5px;">${validName ? brandingData.fest_name : 'FestOS'}</span>`;
+            html += `<span style="letter-spacing: -0.5px; display: inline-block; vertical-align: middle;">${validName ? brandingData.fest_name : 'FestOS'}</span>`;
         }
         
         container.innerHTML = html;
         container.style.display = 'flex';
         container.style.alignItems = 'center';
+        container.style.flexWrap = 'nowrap';
         
         // Centering logic for specific screens
-        if (window.location.pathname.includes('scan') || window.location.pathname.includes('login')) {
+        if (window.location.pathname.includes('scan') || window.location.pathname.includes('login') || window.location.pathname.includes('index') || window.location.pathname === '/') {
             container.style.justifyContent = 'center';
         }
     });
