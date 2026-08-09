@@ -937,7 +937,7 @@ function renderLeaderboard() {
 
         function closeTeamModal() { document.getElementById('team-preview-modal').classList.remove('active'); }
 
-        function openResultModal(compId) {
+       function openResultModal(compId) {
             activeCompId = compId; const comp = publishedCompetitions.find(c => c.id === compId);
             document.getElementById('modal-cat-name').innerText = comp.categories?.name || 'EVENT';
             document.getElementById('modal-comp-name').innerText = comp.name;
@@ -949,13 +949,19 @@ function renderLeaderboard() {
             if(results.length === 0) {
                 winnersList.innerHTML = `<p style="color: var(--text-muted); font-weight: 600; padding: 2rem 0; text-align: center;">RESULTS ARE STILL BEING CALCULATED.</p>`;
             } else {
-                const medals = ['🥇', '🥈', '🥉'];
                 results.forEach((entry, idx) => {
                     const teamName = allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent';
                     
+                    // FIX: Use the actual mathematical position instead of the array index
+                    let rankDisplay = '';
+                    if (entry.position === 1) rankDisplay = '🥇';
+                    else if (entry.position === 2) rankDisplay = '🥈';
+                    else if (entry.position === 3) rankDisplay = '🥉';
+                    else rankDisplay = `#${entry.position}`; // Fallback for 4th place and beyond
+                    
                     winnersList.innerHTML += `
                         <div class="winner-list-item" style="animation: popIn 0.4s var(--spring) ${idx * 0.1}s backwards;">
-                            <div class="w-rank">${medals[idx]}</div>
+                            <div class="w-rank">${rankDisplay}</div>
                             <div class="w-details">
                                 <h4>${entry.participant.name}</h4>
                                 <p>${teamName} | DOB: ${entry.participant.dob || 'N/A'}</p>
@@ -982,7 +988,6 @@ function renderLeaderboard() {
             }
             document.getElementById('result-modal').classList.add('active');
         }
-
         function closeModal() { document.getElementById('result-modal').classList.remove('active'); activeCompId = null; }
 
         function renderPreviewCanvas() {
