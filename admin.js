@@ -3972,6 +3972,9 @@ async function loadPointSettings() {
             if(document.getElementById('pos-3')) document.getElementById('pos-3').value = v.pos_points.p3;
             if(document.getElementById('setting-poster-interval')) document.getElementById('setting-poster-interval').value = v.poster_interval;
             
+            // ADDED: Load Lock Date
+            if(document.getElementById('setting-lock-date')) document.getElementById('setting-lock-date').value = v.lock_date || '';
+            
             if(document.getElementById('setting-tm-access')) {
                 const checkbox = document.getElementById('setting-tm-access');
                 checkbox.checked = v.tm_access !== false;
@@ -3990,6 +3993,8 @@ async function savePointSettings() {
         points_large: { aplus: getVal('pt-large-aplus'), a: getVal('pt-large-a'), b: getVal('pt-large-b'), c: getVal('pt-large-c') },
         pos_points: { p1: getVal('pos-1'), p2: getVal('pos-2'), p3: getVal('pos-3') },
         poster_interval: getVal('setting-poster-interval'),
+        // ADDED: Save Lock Date
+        lock_date: document.getElementById('setting-lock-date') ? document.getElementById('setting-lock-date').value : null,
         tm_access: document.getElementById('setting-tm-access') ? document.getElementById('setting-tm-access').checked : true
     };
 
@@ -4000,7 +4005,6 @@ async function savePointSettings() {
         showToast("Point Settings Saved Successfully!");
     } catch (e) { showToast(e.message, 'error'); }
 }
-
 async function loadParticipantPoints() {
     try {
         await loadPointSettings();
