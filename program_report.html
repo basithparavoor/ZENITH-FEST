@@ -315,10 +315,19 @@
             if (stage !== 'all') subtitle.push(`Stage: ${stage}`);
             if (team !== 'all') subtitle.push(`Team: ${team}`);
 
+            // Apply Display Preferences to the PDF Title
+            const displayMode = window.systemBranding?.display_mode || 'both';
+            const validName = window.systemBranding?.fest_name && window.systemBranding.fest_name.trim() !== '';
+            
+            let reportTitle = 'MASTER PROGRAM LIST';
+            if (displayMode === 'name' || displayMode === 'both') {
+                 if (validName) reportTitle = `${window.systemBranding.fest_name.toUpperCase()} - PROGRAM LIST`;
+            }
+            
+            document.getElementById('report-title').innerText = reportTitle;
             document.getElementById('report-subtitle').innerText = subtitle.length > 0 ? subtitle.join(' | ') : 'All Enrolled Participants & Events';
             document.getElementById('report-timestamp').innerText = `Generated on: ${new Date().toLocaleString()}`;
         }
-
         function exportCSV() {
             if (filteredData.length === 0) return alert('No data to export.');
             

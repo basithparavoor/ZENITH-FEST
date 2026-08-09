@@ -101,7 +101,7 @@ input[type="password"], input[type="file"], .file-input, textarea[style*="text-t
 
 .brand {
     font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 1.5rem; 
+    font-size: 1.25rem; /* Scaled down slightly */
     font-weight: 800; 
     color: var(--primary);
     margin-bottom: 2.5rem; 
@@ -109,6 +109,21 @@ input[type="password"], input[type="file"], .file-input, textarea[style*="text-t
     align-items: center; 
     gap: 0.75rem;
     padding-left: 0.75rem;
+    flex-wrap: wrap; /* Allows text to wrap safely */
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.header h1 { 
+    font-family: 'Plus Jakarta Sans', sans-serif; 
+    font-size: 1.25rem; 
+    font-weight: 700; 
+    color: var(--text-main); 
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap; /* Allows text to wrap on smaller screens */
+    line-height: 1.2;
 }
 
 .nav-item {
@@ -149,7 +164,6 @@ input[type="password"], input[type="file"], .file-input, textarea[style*="text-t
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
 }
-.header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--text-main); }
 
 /* --- CONTROLS --- */
 .action-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap; }
@@ -726,36 +740,48 @@ tr:hover td { background: var(--bg-main); }
     </div>
 
     <div class="grid-2" style="gap: 2rem;">
-    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-        <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;">
-            <i class="fa-solid fa-signature" style="color: var(--primary);"></i> Fest Details
-        </h3>
-        <div class="form-group">
-            <label>Global Fest Name</label>
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                <input type="text" id="setting-fest-name" placeholder="e.g. FESTOS 2026" style="flex: 1;">
-                <button class="btn btn-outline" onclick="document.getElementById('setting-fest-name').value = '';" style="color: var(--danger); border-color: var(--danger);" title="Clear Fest Name">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
+        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;">
+                <i class="fa-solid fa-signature" style="color: var(--primary);"></i> Fest Details
+            </h3>
+            <div class="form-group">
+                <label>Global Fest Name</label>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <input type="text" id="setting-fest-name" placeholder="e.g. FESTOS 2026" style="flex: 1;">
+                    <button class="btn btn-outline" onclick="document.getElementById('setting-fest-name').value = '';" style="color: var(--danger); border-color: var(--danger);" title="Clear Fest Name">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- NEW: Display Preferences Dropdown -->
+            <div class="form-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border);">
+                <label><i class="fa-solid fa-display" style="color: var(--primary); margin-right: 0.3rem;"></i> Branding Display Preference</label>
+                <select id="setting-branding-display" style="width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); font-weight: 600; cursor: pointer;">
+                    <option value="both">Show Both Logo & Name</option>
+                    <option value="logo">Show Logo Only</option>
+                    <option value="name">Show Name Only</option>
+                </select>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">Controls what appears in the top navigation bar and generated PDFs across all portals.</p>
             </div>
         </div>
-    </div>
 
-    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-        <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;">
-            <i class="fa-solid fa-image" style="color: var(--primary);"></i> Fest Logo
-        </h3>
-        <div style="display: flex; gap: 1rem; align-items: center;">
-            <img id="branding-logo-preview" src="" style="width: 80px; height: 80px; object-fit: contain; border: 1px dashed var(--border); border-radius: 8px; background: #f8fafc; display: none;">
-            <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                <input type="file" id="setting-fest-logo" accept="image/png, image/jpeg, image/webp, image/svg+xml" style="display: none;" onchange="handleBrandingLogo(event)">
-                <button class="btn btn-outline" onclick="document.getElementById('setting-fest-logo').click()">
-                    <i class="fa-solid fa-upload"></i> Upload New Logo
-                </button>
-                <button class="btn btn-outline" id="btnRemoveLogo" onclick="removeBrandingLogo()" style="color: var(--danger); border-color: var(--danger); display: none;">
-                    <i class="fa-solid fa-trash"></i> Remove Logo
-                </button>
-                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; width: 100%;">Recommended: Square format with transparent background</p>
+        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;">
+                <i class="fa-solid fa-image" style="color: var(--primary);"></i> Fest Logo
+            </h3>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <img id="branding-logo-preview" src="" style="width: 80px; height: 80px; object-fit: contain; border: 1px dashed var(--border); border-radius: 8px; background: #f8fafc; display: none;">
+                <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                    <input type="file" id="setting-fest-logo" accept="image/png, image/jpeg, image/webp, image/svg+xml" style="display: none;" onchange="handleBrandingLogo(event)">
+                    <button class="btn btn-outline" onclick="document.getElementById('setting-fest-logo').click()">
+                        <i class="fa-solid fa-upload"></i> Upload New Logo
+                    </button>
+                    <button class="btn btn-outline" id="btnRemoveLogo" onclick="removeBrandingLogo()" style="color: var(--danger); border-color: var(--danger); display: none;">
+                        <i class="fa-solid fa-trash"></i> Remove Logo
+                    </button>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; width: 100%;">Recommended: Square format with transparent background</p>
+                </div>
             </div>
         </div>
     </div>
@@ -1317,7 +1343,7 @@ tr:hover td { background: var(--bg-main); }
 
 <!-- Competition Master Log Modal -->
     <div id="compLogModal" class="modal-overlay">
-        <div class="modal" style="max-width: 850px; width: 95%;">
+        <div class="modal" style="max-width: 950px; width: 95%;">
             <div class="modal-header">
                 <div>
                     <span id="log-cat-name" class="badge badge-primary" style="margin-bottom: 0.5rem; display: inline-block;">CATEGORY</span>
@@ -1331,14 +1357,17 @@ tr:hover td { background: var(--bg-main); }
             </div>
             
             <div class="table-container" style="max-height: 450px; overflow-y: auto; overflow-x: auto;">
-                <table style="min-width: 700px;">
+                <table style="min-width: 800px;">
                     <thead style="position: sticky; top: 0; z-index: 10;">
                         <tr>
                             <th>PARTICIPANT</th>
                             <th>TEAM</th>
                             <th>CODE LETTER</th>
                             <th>STATUS</th>
-                            <th>JUDGE MARKS</th>
+                            <th>JUDGES</th>
+                            <th>FINAL MARK</th>
+                            <th>GRADE</th>
+                            <th>POINTS</th>
                         </tr>
                     </thead>
                     <tbody id="log-tbody"></tbody>
@@ -1346,7 +1375,7 @@ tr:hover td { background: var(--bg-main); }
             </div>
             
             <div class="modal-footer" style="margin-top: 1.5rem; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-                <p style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin: auto 0;"><i class="fa-solid fa-circle-info"></i> Contains all enrollment and marking records.</p>
+                <p style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin: auto 0;"><i class="fa-solid fa-circle-info"></i> Contains all enrollment, marking, and result records.</p>
                 <button class="btn btn-primary" id="btn-download-log" onclick="downloadCompLogPDF()">
                     <i class="fa-solid fa-file-pdf"></i> Download PDF Report
                 </button>

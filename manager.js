@@ -907,6 +907,7 @@ async function fetchAndApplyBranding() {
 function applyGlobalBranding(brandingData) {
     const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
     const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+    const displayMode = brandingData.display_mode || 'both'; // 'both', 'logo', 'name'
     
     // 1. Update Document Title dynamically
     const festName = validName ? brandingData.fest_name : 'FestOS';
@@ -914,39 +915,49 @@ function applyGlobalBranding(brandingData) {
     const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
     document.title = `${festName} | ${pageContext}`;
 
-    // 2. Update all standard brand containers
+    // 2. Global Favicon Injection (Instantly updates across all pages)
+    if (validLogo) {
+        let iconLinks = document.querySelectorAll("link[rel~='icon']");
+        if (iconLinks.length === 0) {
+            let newIcon = document.createElement('link');
+            newIcon.rel = 'icon';
+            document.head.appendChild(newIcon);
+            iconLinks = [newIcon];
+        }
+        iconLinks.forEach(link => link.href = brandingData.fest_logo);
+    }
+
+    // 3. UI Header Updates
     const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
     brandContainers.forEach(container => {
         let html = '';
+        const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
+        const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
         
-        // STRICT RULE: No fallbacks. Only show what is provided in the admin panel.
-        if (validLogo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
+        // Dynamic Logo Sizing
+        if (showLogo) {
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">`;
+        } else if (!validLogo && displayMode !== 'name') {
+            html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
         }
-        if (validName) {
-            html += `<span>${brandingData.fest_name}</span>`;
+        
+        // Dynamic Text
+        if (showName) {
+            html += `<span style="letter-spacing: -0.5px;">${validName ? brandingData.fest_name : 'FestOS'}</span>`;
         }
         
         container.innerHTML = html;
         container.style.display = 'flex';
         container.style.alignItems = 'center';
         
-        // Keep centered on login and scan screens
-        if (window.location.pathname.includes('login') || window.location.pathname.includes('scan')) {
+        // Centering logic for specific screens
+        if (window.location.pathname.includes('scan') || window.location.pathname.includes('login')) {
             container.style.justifyContent = 'center';
         }
     });
 
-    // 3. Special handler for the new program_report.html
-    const reportHeader = document.querySelector('.header h1');
-    if (reportHeader && !reportHeader.classList.contains('brand')) {
-        let html = '';
-        if (validLogo) html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
-        if (validName) html += `<span>${brandingData.fest_name} Reports Engine</span>`;
-        
-        // If neither exists, clear the header entirely
-        reportHeader.innerHTML = html;
-    }
+    // Store globally for PDF Generators
+    if (typeof window !== 'undefined') window.systemBranding = brandingData;
 }
 
 // --- SYSTEM PROGRESS / UNFINISHED STATS LOGIC ---

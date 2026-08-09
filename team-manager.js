@@ -738,13 +738,7 @@ async function exportTeamParticipantListPDF() {
         const container = document.createElement('div');
         container.style.padding = '40px';
         container.style.fontFamily = 'Inter, sans-serif';
-        container.innerHTML = `
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 28px; text-transform: uppercase;">${teamName}</h1>
-                <h2 style="color: #1E293B; font-size: 18px; margin-top:0;">PARTICIPANT DIRECTORY</h2>
-                <p style="color: #64748B; font-size: 12px;">Generated on: ${new Date().toLocaleString()}</p>
-            </div>
-        `;
+        container.innerHTML = getPDFHeaderHTML(`${teamName} - Participant Directory`);
 
         let tableRows = globalStudents.map((p, index) => {
             const enrollCount = globalAssignments.filter(a => a.participant_id === p.id).length;
@@ -799,14 +793,7 @@ async function exportTeamProgramListPDF() {
         const container = document.createElement('div');
         container.style.padding = '40px';
         container.style.fontFamily = 'Inter, sans-serif';
-        container.innerHTML = `
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 28px; text-transform: uppercase;">${teamName}</h1>
-                <h2 style="color: #1E293B; font-size: 18px; margin-top:0;">MASTER PROGRAM LIST</h2>
-                <p style="color: #64748B; font-size: 12px;">Generated on: ${new Date().toLocaleString()}</p>
-            </div>
-        `;
-
+        container.innerHTML = getPDFHeaderHTML(`${teamName} - Master Program List`);
         let compsMap = {};
         globalAssignments.forEach(a => {
             const student = globalStudents.find(s => s.id === a.participant_id);
@@ -894,22 +881,57 @@ async function fetchAndApplyBranding() {
 function applyGlobalBranding(brandingData) {
     const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
     const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+    const displayMode = brandingData.display_mode || 'both'; // 'both', 'logo', 'name'
     
+    // 1. Update Document Title dynamically
     const festName = validName ? brandingData.fest_name : 'FestOS';
     const titleParts = document.title.split('|');
-    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Team Portal';
+    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
     document.title = `${festName} | ${pageContext}`;
 
+    // 2. Global Favicon Injection (Instantly updates across all pages)
+    if (validLogo) {
+        let iconLinks = document.querySelectorAll("link[rel~='icon']");
+        if (iconLinks.length === 0) {
+            let newIcon = document.createElement('link');
+            newIcon.rel = 'icon';
+            document.head.appendChild(newIcon);
+            iconLinks = [newIcon];
+        }
+        iconLinks.forEach(link => link.href = brandingData.fest_logo);
+    }
+
+    // 3. UI Header Updates
     const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
     brandContainers.forEach(container => {
         let html = '';
-        if (validLogo) html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
-        if (validName) html += `<span>${brandingData.fest_name} TM</span>`;
+        const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
+        const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
+        
+        // Dynamic Logo Sizing
+        if (showLogo) {
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">`;
+        } else if (!validLogo && displayMode !== 'name') {
+            html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
+        }
+        
+        // Dynamic Text
+        if (showName) {
+            html += `<span style="letter-spacing: -0.5px;">${validName ? brandingData.fest_name : 'FestOS'}</span>`;
+        }
         
         container.innerHTML = html;
         container.style.display = 'flex';
         container.style.alignItems = 'center';
+        
+        // Centering logic for specific screens
+        if (window.location.pathname.includes('scan') || window.location.pathname.includes('login')) {
+            container.style.justifyContent = 'center';
+        }
     });
+
+    // Store globally for PDF Generators
+    if (typeof window !== 'undefined') window.systemBranding = brandingData;
 }
 
 // ==========================================
@@ -1048,22 +1070,89 @@ async function fetchAndApplyBranding() {
 function applyGlobalBranding(brandingData) {
     const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
     const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+    const displayMode = brandingData.display_mode || 'both'; // 'both', 'logo', 'name'
     
+    // 1. Update Document Title dynamically
     const festName = validName ? brandingData.fest_name : 'FestOS';
     const titleParts = document.title.split('|');
-    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Team Portal';
+    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
     document.title = `${festName} | ${pageContext}`;
 
+    // 2. Global Favicon Injection (Instantly updates across all pages)
+    if (validLogo) {
+        let iconLinks = document.querySelectorAll("link[rel~='icon']");
+        if (iconLinks.length === 0) {
+            let newIcon = document.createElement('link');
+            newIcon.rel = 'icon';
+            document.head.appendChild(newIcon);
+            iconLinks = [newIcon];
+        }
+        iconLinks.forEach(link => link.href = brandingData.fest_logo);
+    }
+
+    // 3. UI Header Updates
     const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
     brandContainers.forEach(container => {
         let html = '';
-        if (validLogo) html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px; margin-right: 8px;">`;
-        if (validName) html += `<span>${brandingData.fest_name} TM</span>`;
+        const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
+        const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
+        
+        // Dynamic Logo Sizing
+        if (showLogo) {
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">`;
+        } else if (!validLogo && displayMode !== 'name') {
+            html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
+        }
+        
+        // Dynamic Text
+        if (showName) {
+            html += `<span style="letter-spacing: -0.5px;">${validName ? brandingData.fest_name : 'FestOS'}</span>`;
+        }
         
         container.innerHTML = html;
         container.style.display = 'flex';
         container.style.alignItems = 'center';
+        
+        // Centering logic for specific screens
+        if (window.location.pathname.includes('scan') || window.location.pathname.includes('login')) {
+            container.style.justifyContent = 'center';
+        }
     });
+
+    // Store globally for PDF Generators
+    if (typeof window !== 'undefined') window.systemBranding = brandingData;
+}
+
+// Dynamic Branded PDF Header Generator
+function getPDFHeaderHTML(reportTitle) {
+    const cachedBranding = JSON.parse(localStorage.getItem('festBranding') || JSON.stringify(window.systemBranding || {}));
+    const validName = cachedBranding.fest_name && cachedBranding.fest_name.trim() !== '';
+    const validLogo = cachedBranding.fest_logo && cachedBranding.fest_logo.trim() !== '';
+    const displayMode = cachedBranding.display_mode || 'both';
+    
+    let brandHtml = '';
+    
+    const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
+    const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
+    
+    if (showLogo) {
+        brandHtml += `<img src="${cachedBranding.fest_logo}" style="height: 60px; max-width: 250px; object-fit: contain; margin-bottom: 12px; border-radius: 8px;">`;
+    }
+    
+    if (showName) {
+        brandHtml += `<h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 26px; text-transform: uppercase; font-weight: 800;">${validName ? cachedBranding.fest_name : 'FESTOS'}</h1>`;
+    } else if (validLogo && !showName) {
+        // Keeps spacing correct if only the logo is printed
+        brandHtml += `<div style="height: 10px;"></div>`;
+    }
+
+    return `
+        <div style="text-align: center; margin-bottom: 30px;">
+            ${brandHtml}
+            <h2 style="color: #1E293B; font-size: 18px; margin-top:0; text-transform: uppercase;">${reportTitle}</h2>
+            <p style="color: #64748B; font-size: 12px; margin-top: 4px;">Generated on: ${new Date().toLocaleString()}</p>
+        </div>
+    `;
 }
 
 // Boot

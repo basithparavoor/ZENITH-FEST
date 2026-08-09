@@ -453,13 +453,7 @@ async function exportCompetitionsPDF() {
         const container = document.createElement('div');
         container.style.padding = '40px';
         container.style.fontFamily = 'Inter, sans-serif';
-        container.innerHTML = `
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 28px;">FEST 2026</h1>
-                <h2 style="color: #1E293B; font-size: 18px; margin-top:0;">COMPETITIONS DIRECTORY</h2>
-                <p style="color: #64748B; font-size: 12px;">Generated on: ${new Date().toLocaleString()}</p>
-            </div>
-        `;
+       container.innerHTML = getPDFHeaderHTML('Competitions Directory');
 
         // Map over the filtered list to respect any current search criteria
         let tableRows = filteredCompetitionsList.map((comp, index) => `
@@ -1006,13 +1000,7 @@ async function exportParticipantsPDF() {
         const container = document.createElement('div');
         container.style.padding = '40px';
         container.style.fontFamily = 'Inter, sans-serif';
-        container.innerHTML = `
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 28px;">FEST 2026</h1>
-                <h2 style="color: #1E293B; font-size: 18px; margin-top:0;">PARTICIPANTS DIRECTORY</h2>
-                <p style="color: #64748B; font-size: 12px;">Generated on: ${new Date().toLocaleString()}</p>
-            </div>
-        `;
+        container.innerHTML = getPDFHeaderHTML('Participants Directory');
 
         // Map over the filtered list to respect any active search criteria
         let tableRows = filteredParticipantsList.map((p, index) => `
@@ -1673,21 +1661,72 @@ async function fetchAndSyncBranding() {
 }
 
 function applyGlobalBranding(brandingData) {
-    // Find all brand headers across the app (works in admin, manager, judge, etc.)
-    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
+    const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
+    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+    const displayMode = brandingData.display_mode || 'both'; // 'both', 'logo', 'name'
+    
+    // 1. Update Document Title dynamically
+    const festName = validName ? brandingData.fest_name : 'FestOS';
+    const titleParts = document.title.split('|');
+    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
+    document.title = `${festName} | ${pageContext}`;
+
+    // 2. Global Favicon Injection (Fixes missing Favicons)
+    if (validLogo) {
+        let iconLinks = document.querySelectorAll("link[rel~='icon']");
+        if (iconLinks.length === 0) {
+            let newIcon = document.createElement('link');
+            newIcon.rel = 'icon';
+            document.head.appendChild(newIcon);
+            iconLinks = [newIcon];
+        }
+        iconLinks.forEach(link => link.href = brandingData.fest_logo);
+    }
+
+    // 3. UI Header Updates (Fixes display preferences & sizing)
+    // Grabs the sidebar brand, navbar brand, and the main header h1
+    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text, .header h1');
     
     brandContainers.forEach(container => {
+        // Safety check to avoid overwriting page titles like "Workspace Overview"
+        if(container.id === 'page-title') return; 
+
         let html = '';
-        if (brandingData.fest_logo) {
-            // Apply custom logo
-            html += `<img src="${brandingData.fest_logo}" style="height: 28px; width: 28px; object-fit: contain; border-radius: 4px;">`;
-        } else {
-            // Default icon
-            html += `<i class="fa-solid fa-bolt"></i>`;
+        const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
+        const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
+        
+        // Dynamic Logo Sizing
+        if (showLogo) {
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '8px' : '0'}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">`;
+        } else if (!validLogo && displayMode !== 'name') {
+            html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
         }
-        html += ` <span style="margin-left: 8px;">${brandingData.fest_name || 'FestOS'}</span>`;
+        
+        // Dynamic Text
+        if (showName) {
+            let textToDisplay = validName ? brandingData.fest_name : 'FestOS';
+            
+            // If this is the specific Program Report header, append its title
+            if (window.location.pathname.includes('program_report') && container.tagName === 'H1') {
+                textToDisplay += ' Reports Engine';
+            }
+            
+            html += `<span style="letter-spacing: -0.5px;">${textToDisplay}</span>`;
+        }
+        
         container.innerHTML = html;
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.flexWrap = 'wrap'; // Prevents layout crunching
+        
+        // Keeps centered strictly on Login and Scan screens
+        if (window.location.pathname.includes('scan') || window.location.pathname.includes('login') || window.location.pathname.includes('index') || window.location.pathname === '/') {
+            container.style.justifyContent = 'center';
+        }
     });
+
+    // Store globally so the PDF Generators can read the display preference
+    if (typeof window !== 'undefined') window.systemBranding = brandingData;
 }
 
 // --- NEW CROPPER LIFECYCLE ---
@@ -2335,13 +2374,7 @@ async function exportAssignmentsPDF() {
         const container = document.createElement('div');
         container.style.padding = '40px';
         container.style.fontFamily = 'Inter, sans-serif';
-        container.innerHTML = `
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 28px;">FEST 2026</h1>
-                <h2 style="color: #1E293B; font-size: 18px; margin-top:0;">MASTER ASSIGNMENT LEDGER</h2>
-                <p style="color: #64748B; font-size: 12px;">Generated on: ${new Date().toLocaleString()}</p>
-            </div>
-        `;
+       container.innerHTML = getPDFHeaderHTML('Master Assignment Ledger');
 
         for (const [comp, students] of Object.entries(grouped)) {
             let tableRows = students.map((s, index) => `
@@ -3824,13 +3857,17 @@ async function loadBrandingSettings() {
         const { data, error } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();        
         if (data && data.value) {
             document.getElementById('setting-fest-name').value = data.value.fest_name || '';
+            
+            // Load the new display mode
+            const displaySelect = document.getElementById('setting-branding-display');
+            if(displaySelect && data.value.display_mode) displaySelect.value = data.value.display_mode;
+
             if (data.value.fest_logo) {
                 const preview = document.getElementById('branding-logo-preview');
                 preview.src = data.value.fest_logo;
                 preview.style.display = 'block';
                 pendingBrandingLogoBase64 = data.value.fest_logo; 
                 
-                // Show the remove button since an existing logo was loaded
                 const btnRemove = document.getElementById('btnRemoveLogo');
                 if(btnRemove) btnRemove.style.display = 'inline-flex';
             }
@@ -3846,20 +3883,15 @@ async function saveBrandingSettings() {
     
     const payload = {
         fest_name: festName,
-        fest_logo: pendingBrandingLogoBase64 // Will be null if the user clicked "Remove Logo"
+        fest_logo: pendingBrandingLogoBase64,
+        display_mode: document.getElementById('setting-branding-display') ? document.getElementById('setting-branding-display').value : 'both'
     };
 
     try {
-        // Save directly to the cloud database
-        const { error } = await supabaseClient
-            .from('settings')
-            .upsert({ id: 'system_branding', value: payload });
-            
+        const { error } = await supabaseClient.from('settings').upsert({ id: 'system_branding', value: payload });
         if (error) throw error;
         
         showToast("Branding Settings Saved to Database!");
-        
-        // Instantly apply it to the admin's current screen
         applyGlobalBranding(payload);
 
     } catch (e) {
@@ -4258,9 +4290,8 @@ async function bulkExportPointsPDF() {
         // The "page-break-after: always" ensures each participant gets their own clean page
         container.innerHTML += `
             <div style="padding: 40px; ${index < targetList.length - 1 ? 'page-break-after: always;' : ''}">
-                <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #E2E8F0;">
-                    <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 24px; text-transform: uppercase;">Participant Point Ledger</h1>
-                    <p style="color: #64748B; font-size: 12px;">Generated on: ${new Date().toLocaleString()}</p>
+                <div style="padding-bottom: 20px; border-bottom: 2px solid #E2E8F0; margin-bottom: 30px;">
+                    ${getPDFHeaderHTML('Participant Point Ledger')}
                 </div>
                 
                 <div style="display: flex; justify-content: space-between; margin-bottom: 30px; background: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0;">
@@ -4275,6 +4306,7 @@ async function bulkExportPointsPDF() {
                         <p style="font-size: 12px; color: #64748B; margin-top: 4px;">BATCH ${p.batch_no || '1'}</p>
                     </div>
                 </div>
+            
 
                 <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
                     <thead>
@@ -4944,10 +4976,12 @@ async function viewCompetitionLog(compId) {
     document.getElementById('log-cat-name').innerText = comp.categories?.name || 'GENERAL';
 
     const tbody = document.getElementById('log-tbody');
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 3rem;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i> Fetching Records...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 3rem;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i> Fetching Records...</td></tr>';
     document.getElementById('compLogModal').classList.add('show');
 
     try {
+        await loadPointSettings(); // Ensure points settings are loaded for grade calculation
+
         // Fetch enrollments and participants
         const { data: enrollments, error: enrollErr } = await supabaseClient
             .from('participant_competitions')
@@ -4964,7 +4998,59 @@ async function viewCompetitionLog(compId) {
 
         if (judgeErr) throw judgeErr;
 
-        currentLogData = { comp, enrollments: enrollments || [], judgements: judgements || [] };
+        // Calculate results (marks, grades, points)
+        let compResults = {};
+        if (judgements && judgements.length > 0) {
+            let pMarks = {};
+            judgements.forEach(j => {
+                if(!pMarks[j.participant_id]) pMarks[j.participant_id] = [];
+                pMarks[j.participant_id].push(parseFloat(j.awarded_mark));
+            });
+
+            let pAverages = Object.keys(pMarks).map(pId => {
+                let marks = pMarks[pId].sort((a, b) => a - b);
+                if (marks.length >= 3) marks = marks.slice(1, marks.length - 1);
+                let avg = marks.reduce((a, b) => a + b, 0) / marks.length;
+                return { id: pId, mark: avg };
+            }).sort((a, b) => b.mark - a.mark);
+
+            const limit = comp.max_participants || 1;
+            const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
+            const eligibleForPosPts = enrollments.length >= 3;
+            
+            let currentRank = 1;
+            let previousScore = -1;
+
+            pAverages.forEach((p, idx) => {
+                if (p.mark !== previousScore) currentRank = idx + 1;
+                previousScore = p.mark;
+
+                let percent = (p.mark / (comp.max_mark || 100)) * 100;
+                let grade = '-'; let gradePts = 0; let posPts = 0;
+
+                if (percent >= 50) {
+                    if (percent >= pointsAdminSettings.thresholds.aplus) { grade = 'A+'; gradePts = pointsAdminSettings[`points_${sizeCat}`].aplus; }
+                    else if (percent >= pointsAdminSettings.thresholds.a) { grade = 'A'; gradePts = pointsAdminSettings[`points_${sizeCat}`].a; }
+                    else if (percent >= pointsAdminSettings.thresholds.b) { grade = 'B'; gradePts = pointsAdminSettings[`points_${sizeCat}`].b; }
+                    else { grade = 'C'; gradePts = pointsAdminSettings[`points_${sizeCat}`].c; }
+                }
+
+                if (eligibleForPosPts && currentRank <= 3) {
+                    if (currentRank === 1) posPts = pointsAdminSettings.pos_points.p1;
+                    else if (currentRank === 2) posPts = pointsAdminSettings.pos_points.p2;
+                    else if (currentRank === 3) posPts = pointsAdminSettings.pos_points.p3;
+                }
+
+                compResults[p.id] = {
+                    rank: currentRank,
+                    mark: p.mark.toFixed(2),
+                    grade: grade,
+                    points: gradePts + posPts
+                };
+            });
+        }
+
+        currentLogData = { comp, enrollments: enrollments || [], judgements: judgements || [], compResults };
 
         let totalEnrolled = enrollments ? enrollments.length : 0;
         let totalPresent = enrollments ? enrollments.filter(e => e.is_present).length : 0;
@@ -4978,7 +5064,7 @@ async function viewCompetitionLog(compId) {
 
         tbody.innerHTML = '';
         if (!enrollments || enrollments.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 2rem;">No participants enrolled in this event.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color: var(--text-muted); padding: 2rem;">No participants enrolled in this event.</td></tr>';
             return;
         }
 
@@ -4998,6 +5084,12 @@ async function viewCompetitionLog(compId) {
                 judgeHtml = '<span style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600; background: var(--bg-main); padding: 4px 8px; border-radius: 4px;">Awaiting Marks</span>';
             }
 
+            // Map Results Data
+            const res = compResults[e.participant_id];
+            const fMark = res ? res.mark : '-';
+            const fGrade = res ? `<span style="font-weight: 800; color: var(--text-main);">${res.grade}</span>` : '-';
+            const fPoints = res ? `<span style="font-weight: 800; color: var(--primary);">${res.points}</span>` : '-';
+
             tbody.innerHTML += `
                 <tr>
                     <td style="white-space: nowrap;">
@@ -5008,13 +5100,16 @@ async function viewCompetitionLog(compId) {
                     <td style="font-weight: 800; font-size: 1.1rem; color: var(--primary);">${e.code_letter || '-'}</td>
                     <td>${statusBadge}</td>
                     <td>${judgeHtml}</td>
+                    <td style="font-weight: 800; font-size: 1.1rem;">${fMark}</td>
+                    <td>${fGrade}</td>
+                    <td>${fPoints}</td>
                 </tr>
             `;
         });
 
     } catch (e) {
         showToast(e.message, 'error');
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--danger); font-weight: 600; padding: 2rem;">Error loading log data.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color: var(--danger); font-weight: 600; padding: 2rem;">Error loading log data.</td></tr>`;
     }
 }
 
@@ -5022,7 +5117,7 @@ async function downloadCompLogPDF() {
     if(!currentLogData) return showToast("No data to export", "error");
     showToast("Generating Premium Report...", "success");
 
-    const { comp, enrollments, judgements } = currentLogData;
+    const { comp, enrollments, judgements, compResults } = currentLogData;
     const totalEnrolled = enrollments.length;
     const totalPresent = enrollments.filter(e => e.is_present).length;
     
@@ -5032,11 +5127,7 @@ async function downloadCompLogPDF() {
     
     // Header
     container.innerHTML = `
-        <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 28px; text-transform: uppercase;">FestOS</h1>
-            <h2 style="color: #1E293B; font-size: 18px; margin-top:0; text-transform: uppercase;">COMPETITION MASTER LOG</h2>
-            <p style="color: #64748B; font-size: 12px; margin-top: 5px;">Generated on: ${new Date().toLocaleString()}</p>
-        </div>
+        ${getPDFHeaderHTML('Competition Master Log')}
         
         <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 20px; border-radius: 12px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">
             <div>
@@ -5050,8 +5141,11 @@ async function downloadCompLogPDF() {
         </div>
     `;
 
+    // Sort enrollments alphabetically for the PDF
+    const sortedEnrollments = [...enrollments].sort((a, b) => a.participants.name.localeCompare(b.participants.name));
+
     // Table Data
-    let tableRows = enrollments.map((e, index) => {
+    let tableRows = sortedEnrollments.map((e, index) => {
         const p = e.participants;
         const status = e.is_present ? 'REGISTERED' : 'PENDING';
         const statusColor = e.is_present ? '#10B981' : '#F59E0B';
@@ -5060,6 +5154,11 @@ async function downloadCompLogPDF() {
         let judgeText = pJudgements.length > 0 
             ? pJudgements.map(j => `${j.users?.username || 'Admin'}: ${j.awarded_mark}`).join(' | ') 
             : 'Awaiting Marks';
+
+        const res = compResults[e.participant_id];
+        const fMark = res ? res.mark : '-';
+        const fGrade = res ? res.grade : '-';
+        const fPoints = res ? res.points : '-';
 
         return `
             <tr>
@@ -5072,12 +5171,15 @@ async function downloadCompLogPDF() {
                 <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 800; color: #4F46E5;">${e.code_letter || '-'}</td>
                 <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; color: ${statusColor}; font-weight: 800;">${status}</td>
                 <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; font-size: 11px; font-weight: 600; color: #475569;">${judgeText.toUpperCase()}</td>
+                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 800; color: #0F172A;">${fMark}</td>
+                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 800; color: #0F172A;">${fGrade}</td>
+                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 800; color: #4F46E5;">${fPoints}</td>
             </tr>
         `;
     }).join('');
 
     if (enrollments.length === 0) {
-        tableRows = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: #64748B; font-weight: 600;">No participants found.</td></tr>`;
+        tableRows = `<tr><td colspan="9" style="padding: 20px; text-align: center; color: #64748B; font-weight: 600;">No participants found.</td></tr>`;
     }
 
     container.innerHTML += `
@@ -5089,7 +5191,10 @@ async function downloadCompLogPDF() {
                     <th style="padding: 12px 10px;">TEAM</th>
                     <th style="padding: 12px 10px;">CODE</th>
                     <th style="padding: 12px 10px;">STATUS</th>
-                    <th style="padding: 12px 10px;">MARKS</th>
+                    <th style="padding: 12px 10px;">JUDGES</th>
+                    <th style="padding: 12px 10px;">FINAL MARK</th>
+                    <th style="padding: 12px 10px;">GRADE</th>
+                    <th style="padding: 12px 10px;">PTS</th>
                 </tr>
             </thead>
             <tbody style="font-size: 12px; color: #334155;">
@@ -5098,13 +5203,13 @@ async function downloadCompLogPDF() {
         </table>
     `;
 
-    // Download PDF Config
+    // Download PDF Config (Using Landscape for wider table)
     const opt = { 
         margin: 10, 
         filename: `FestOS_Log_${comp.name.replace(/[^a-z0-9]/gi, '_')}.pdf`, 
         image: { type: 'jpeg', quality: 0.98 }, 
         html2canvas: { scale: 2, useCORS: true }, 
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } 
     };
     
     html2pdf().set(opt).from(container).save().then(() => {
@@ -5113,4 +5218,36 @@ async function downloadCompLogPDF() {
         btn.innerHTML = '<i class="fa-solid fa-check"></i> Downloaded!';
         setTimeout(() => btn.innerHTML = origText, 2000);
     });
+}
+
+// Dynamic Branded PDF Header Generator
+function getPDFHeaderHTML(reportTitle) {
+    const cachedBranding = JSON.parse(localStorage.getItem('festBranding') || JSON.stringify(window.systemBranding || {}));
+    const validName = cachedBranding.fest_name && cachedBranding.fest_name.trim() !== '';
+    const validLogo = cachedBranding.fest_logo && cachedBranding.fest_logo.trim() !== '';
+    const displayMode = cachedBranding.display_mode || 'both';
+    
+    let brandHtml = '';
+    
+    const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
+    const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
+    
+    if (showLogo) {
+        brandHtml += `<img src="${cachedBranding.fest_logo}" style="height: 60px; max-width: 250px; object-fit: contain; margin-bottom: 12px; border-radius: 8px;">`;
+    }
+    
+    if (showName) {
+        brandHtml += `<h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 26px; text-transform: uppercase; font-weight: 800;">${validName ? cachedBranding.fest_name : 'FESTOS'}</h1>`;
+    } else if (validLogo && !showName) {
+        // Keeps spacing correct if only the logo is printed
+        brandHtml += `<div style="height: 10px;"></div>`;
+    }
+
+    return `
+        <div style="text-align: center; margin-bottom: 30px;">
+            ${brandHtml}
+            <h2 style="color: #1E293B; font-size: 18px; margin-top:0; text-transform: uppercase;">${reportTitle}</h2>
+            <p style="color: #64748B; font-size: 12px; margin-top: 4px;">Generated on: ${new Date().toLocaleString()}</p>
+        </div>
+    `;
 }
