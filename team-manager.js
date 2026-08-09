@@ -15,6 +15,7 @@ let globalStudents = [];
 let globalComps = [];
 let globalAssignments = [];
 let globalCategories = []; 
+let currentCropper = null;
 
 // UI Utils
 function showToast(message, type = 'success') {
@@ -187,6 +188,14 @@ async function fetchAllData() {
                     document.getElementById('btn-bulk-enroll').disabled = true;
                     document.getElementById('btn-bulk-remove').disabled = true;
                 }
+
+                // NEW: Lock the Add Member button too!
+                const btnAddMember = document.getElementById('btn-add-member');
+                if (btnAddMember) {
+                    btnAddMember.disabled = true;
+                    btnAddMember.innerHTML = `<i class="fa-solid fa-lock"></i> REGISTRATION LOCKED`;
+                    btnAddMember.style.opacity = '0.6';
+                }
             }
         }
 
@@ -224,9 +233,15 @@ function renderStudents() {
         const enrollCount = globalAssignments.filter(a => a.participant_id === student.id).length;
         const badgeClass = enrollCount > 0 ? 'badge-info' : 'badge-warning';
         
+        // NEW: Profile Photo Logic
+        const photoSrc = student.photo_url ? student.photo_url : 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%236B7280"%3EPHOTO%3C/text%3E%3C/svg%3E';
+
         tbody.innerHTML += `
             <tr>
-                <td data-label="STUDENT NAME"></td>
+                <td data-label="STUDENT NAME" style="display: flex; align-items: center; gap: 0.85rem; justify-content: flex-start; text-align: left;">
+                    <img src="${photoSrc}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); box-shadow: var(--shadow-sm); flex-shrink: 0;">
+                    <span style="font-weight: 800; font-size: 1.05rem; color: var(--text-main);">${student.name}</span>
+                </td>
                 <td data-label="UNIQUE ID" style="font-family: monospace;">${student.unique_id}</td>
                 <td data-label="DOB" style="font-weight: 800; color: var(--text-muted);">${student.dob || 'N/A'}</td>
                 <td data-label="EVENTS ENROLLED">
@@ -234,7 +249,6 @@ function renderStudents() {
                 </td>
             </tr>
         `;
-        tbody.lastElementChild.firstElementChild.innerText = student.name;
     });
 }
 
@@ -265,6 +279,164 @@ function viewStudentEvents(studentId) {
         });
     }
     document.getElementById('studentEventsModal').classList.add('show');
+}
+
+// --- ADD NEW MEMBER LOGIC ---
+function openAddMemberModal() {
+    if (isAssignmentLocked) return showToast("Registration is locked by Admin.", "error");
+
+    let catOpts = globalCategories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    const pPhoto = 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="100%25" height="100%25" fill="%23EEF2FF"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%236366F1"%3EPHOTO%3C/text%3E%3C/svg%3E';
+    
+    const modalHtml = `
+        <style>
+            .part-modal-grid { display: grid; grid-template-columns: 150px 1fr; gap: 2rem; align-items: start; }
+            @media (max-width: 600px) { .part-modal-grid { grid-template-columns: 1fr; gap: 1rem; text-align: center; } }
+            .photo-preview-container img { width: 100%; max-width: 150px; aspect-ratio: 2/3; object-fit: cover; border-radius: 12px; border: 2.5px solid var(--border); padding: 4px; box-shadow: var(--shadow-sm); background: white; }
+            .photo-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; justify-content: center; }
+            .photo-actions .btn { padding: 0.4rem; font-size: 0.75rem; flex: 1; min-height: 36px; }
+        </style>
+        
+        <div class="part-modal-grid">
+            <div class="photo-preview-container">
+                <img id="partPhotoPreview" src="${pPhoto}" alt="Participant Photo">
+                <input type="file" id="partPhoto" accept="image/png, image/jpeg, image/webp" onchange="triggerCropper(this)" style="display: none;">
+                <div class="photo-actions">
+                    <button type="button" class="btn btn-primary" onclick="document.getElementById('partPhoto').click()" title="Upload New Photo"><i class="fa-solid fa-upload"></i> New</button>
+                    <button type="button" class="btn btn-outline" onclick="editExistingCrop()" title="Adjust Current Crop"><i class="fa-solid fa-crop-simple"></i> Crop</button>
+                </div>
+            </div>
+
+            <div class="form-fields" style="text-align: left;">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block;">FULL NAME <span style="color: var(--danger);">*</span></label>
+                    <input type="text" id="partName" placeholder="E.G. JOHN DOE" style="width: 100%; padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--input-bg); outline: none; font-weight: 600;">
+                </div>
+                
+                <div style="display:flex; gap:1rem; flex-wrap: wrap;">
+                    <div class="form-group" style="flex: 2; min-width: 150px; margin-bottom: 1rem;">
+                        <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block;">CATEGORY <span style="color: var(--danger);">*</span></label>
+                        <select id="partCategory" style="width: 100%; padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--input-bg); outline: none; font-weight: 600;">${catOpts}</select>
+                    </div>
+                    
+                    <div class="form-group" style="flex: 1; min-width: 130px; margin-bottom: 1rem;">
+                        <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block;">DATE OF BIRTH</label>
+                        <input type="date" id="partDob" style="width: 100%; padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--input-bg); outline: none; font-weight: 600; text-transform: none;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    openModal('REGISTER NEW STUDENT', modalHtml, saveNewMember);
+}
+
+async function saveNewMember() {
+    if (isAssignmentLocked) return showToast("Registration is locked.", "error");
+
+    const name = document.getElementById('partName').value;
+    const category_id = document.getElementById('partCategory').value;
+    const dob = document.getElementById('partDob').value || null;
+    const unique_id = `${Math.floor(100000 + Math.random() * 900000)}`;
+    
+    if(!name) return showToast('Name is required', 'error');
+    
+    setLoading('modalSaveBtn', true);
+    
+    try {
+        let photo_url = undefined; 
+
+        if (currentCropper) {
+            showToast('Processing image...', 'success');
+            const canvas = currentCropper.getCroppedCanvas({ width: 400, height: 600 });
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+            const fileName = `profile_${Date.now()}.jpg`; 
+            
+            const { error: uploadError } = await supabaseClient.storage
+                .from('photos')
+                .upload(fileName, blob, { contentType: 'image/jpeg' });
+                
+            if (uploadError) throw uploadError;
+
+            const { data: publicUrlData } = supabaseClient.storage.from('photos').getPublicUrl(fileName);
+            photo_url = publicUrlData.publicUrl;
+        }
+
+        const payload = { name, team_id: myTeamId, category_id, dob, unique_id };
+        if (photo_url) payload.photo_url = photo_url; 
+
+        const { error } = await supabaseClient.from('participants').insert([payload]);
+        if (error) throw error;
+        
+        showToast('Student added successfully!', 'success');
+        
+        if(currentCropper) { currentCropper.destroy(); currentCropper = null; }
+        closeModal(); 
+        await fetchAllData();
+        
+    } catch(e) { 
+        showToast(e.message, 'error'); 
+    } finally { 
+        setLoading('modalSaveBtn', false); 
+    }
+}
+
+// --- CROPPER LIFECYCLE ---
+function triggerCropper(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const cropperModal = document.getElementById('cropperModal');
+            const image = document.getElementById('cropperImage');
+            
+            image.src = e.target.result;
+            cropperModal.classList.add('show');
+            
+            if (currentCropper) currentCropper.destroy();
+            currentCropper = new Cropper(image, {
+                aspectRatio: 2 / 3,
+                viewMode: 2, 
+                background: false,
+                autoCropArea: 0.9
+            });
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function cancelCropper() {
+    document.getElementById('cropperModal').classList.remove('show');
+    if (currentCropper) { currentCropper.destroy(); currentCropper = null; }
+    if(document.getElementById('partPhoto')) document.getElementById('partPhoto').value = ''; 
+}
+
+function confirmCrop() {
+    if (!currentCropper) return;
+    const canvas = currentCropper.getCroppedCanvas({ width: 400, height: 600 });
+    document.getElementById('partPhotoPreview').src = canvas.toDataURL('image/jpeg', 0.8);
+    document.getElementById('cropperModal').classList.remove('show');
+}
+
+function editExistingCrop() {
+    const currentSrc = document.getElementById('partPhotoPreview').src;
+    if (currentSrc.includes('w3.org')) {
+        showToast('Please upload a photo first before attempting to crop.', 'error');
+        return;
+    }
+    
+    const cropperModal = document.getElementById('cropperModal');
+    const image = document.getElementById('cropperImage');
+    
+    image.src = currentSrc;
+    cropperModal.classList.add('show');
+    
+    if (currentCropper) currentCropper.destroy();
+    currentCropper = new Cropper(image, {
+        aspectRatio: 2 / 3,
+        viewMode: 2, 
+        background: false,
+        autoCropArea: 0.9
+    });
 }
 
 function renderCatalog() {
