@@ -952,19 +952,19 @@ function renderLeaderboard() {
                 results.forEach((entry, idx) => {
                     const teamName = allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent';
                     
-                    // FIX: Use the actual mathematical position instead of the array index
                     let rankDisplay = '';
                     if (entry.position === 1) rankDisplay = '🥇';
                     else if (entry.position === 2) rankDisplay = '🥈';
                     else if (entry.position === 3) rankDisplay = '🥉';
-                    else rankDisplay = `#${entry.position}`; // Fallback for 4th place and beyond
+                    else rankDisplay = `#${entry.position}`; 
                     
                     winnersList.innerHTML += `
                         <div class="winner-list-item" style="animation: popIn 0.4s var(--spring) ${idx * 0.1}s backwards;">
                             <div class="w-rank">${rankDisplay}</div>
                             <div class="w-details">
                                 <h4>${entry.participant.name}</h4>
-                                <p>${teamName} | DOB: ${entry.participant.dob || 'N/A'}</p>
+                                <!-- REMOVED THE DOB FROM HERE 👇 -->
+                                <p>${teamName}</p>
                             </div>
                         </div>`;
                 });
@@ -987,7 +987,8 @@ function renderLeaderboard() {
                 activeTemplateIndex = 0; renderPreviewCanvas();
             }
             document.getElementById('result-modal').classList.add('active');
-        }
+        } 
+        
         function closeModal() { document.getElementById('result-modal').classList.remove('active'); activeCompId = null; }
 
         function renderPreviewCanvas() {
