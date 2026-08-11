@@ -2,42 +2,41 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FestOS | Secure Login</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 320 512%22><path fill=%22%234F46E5%22 d=%22M296 160H180.6l42.6-129.8C227.2 15 215.7 0 200 0H56C44 0 33.8 8.9 32.2 20.8l-32 240C-.5 273.6 9.3 288 24 288h118.7L96.6 482.5c-3.6 15.2 8 29.5 23.3 29.5 8.4 0 16.4-4.4 20.8-12l176-304c9.3-15.9-2.2-36-20.7-36z%22/></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 320 512%22><path fill=%22%234F46E5%22 d=%22M296 160H180.6l42.6-129.8C227.2 15 215.7 0 200 0H56C44 0 33.8 8.9 32.2 20.8l-32 240C-.5 273.6 9.3 288 24 288h118.7L96.6 482.5c-3.6 15.2 8 29.5 23.3 29.5 8.4 0 16.4-4.4 20.8-12l176-304c9.3-15.9-2.2-36-20.7-36z%22/></svg>">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
 
-       
 :root {
-    /* Premium Palette Architecture (Admin Theme) */
+    /* Ultra-Premium Light Palette */
     --primary: #4F46E5;
     --primary-hover: #4338CA;
     --primary-light: #EEF2FF;
-    --primary-ring: rgba(79, 70, 229, 0.2);
-    --primary-gradient: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+    --primary-ring: rgba(79, 70, 229, 0.15);
+    --primary-gradient: linear-gradient(135deg, #4F46E5 0%, #818CF8 100%);
     
     --danger: #E11D48;
     --danger-light: #FFF1F2;
     
-    --bg-main: #F1F5F9; 
-    --bg-surface: #FFFFFF;
+    --bg-main: #F8FAFC; /* Clean, cool slate-gray background */
+    --bg-surface: rgba(255, 255, 255, 0.85); /* Glassmorphism base */
     --text-main: #0F172A;
     --text-muted: #64748B;
-    --border: #E2E8F0;
+    --border: rgba(226, 232, 240, 0.8);
     
-    /* Elevations */
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-    --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
-    --shadow-lg: 0 16px 32px rgba(15, 23, 42, 0.08);
-    --shadow-float: 0 10px 25px -5px rgba(79, 70, 229, 0.25);
+    /* Soft, luxurious elevations */
+    --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 10px 25px -5px rgba(15, 23, 42, 0.08);
+    --shadow-lg: 0 25px 50px -12px rgba(15, 23, 42, 0.12);
+    --shadow-btn: 0 10px 20px -5px rgba(79, 70, 229, 0.3);
     
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
     
-    --transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+    --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* --- SYSTEM RESET --- */
@@ -58,41 +57,82 @@ body {
     padding: 1.5rem;
     color: var(--text-main);
     -webkit-font-smoothing: antialiased;
+    overflow: hidden; /* Prevents scroll from background animations */
+}
+
+/* --- PREMIUM BACKGROUND ANIMATIONS --- */
+.ambient-bg { position: fixed; inset: 0; z-index: -2; pointer-events: none; overflow: hidden; }
+.grid-pattern {
+    position: absolute; inset: 0; z-index: -1;
+    background-image: radial-gradient(rgba(15, 23, 42, 0.06) 1.5px, transparent 1.5px);
+    background-size: 28px 28px;
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 100%);
+}
+
+.orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.6; animation: float 20s infinite alternate cubic-bezier(0.45, 0.05, 0.55, 0.95); }
+.orb-1 { width: 450px; height: 450px; background: rgba(79, 70, 229, 0.12); top: -150px; left: -100px; }
+.orb-2 { width: 350px; height: 350px; background: rgba(236, 72, 153, 0.08); bottom: -100px; right: -50px; animation-delay: -5s; }
+.orb-3 { width: 300px; height: 300px; background: rgba(56, 189, 248, 0.12); bottom: 15%; left: 15%; animation-delay: -10s; }
+
+@keyframes float {
+    0% { transform: translate(0, 0) scale(1) rotate(0deg); }
+    100% { transform: translate(50px, 80px) scale(1.1) rotate(10deg); }
 }
 
 /* --- APP-LIKE LOGIN CARD --- */
 .login-container {
     background: var(--bg-surface);
-    border: 1px solid var(--border);
-    padding: 2.5rem 2rem;
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    padding: 3rem 2.5rem;
     border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 1);
     width: 100%;
-    max-width: 420px;
-    transform: translateY(10px);
+    max-width: 440px;
+    z-index: 10;
+    position: relative;
+    /* Entrance Animation */
+    transform: translateY(20px) scale(0.98);
     opacity: 0;
-    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: scaleUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes slideUp {
-    to { transform: translateY(0); opacity: 1; }
+@keyframes scaleUpFade {
+    to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Staggered entrance for internal elements */
+.stagger-1 { opacity: 0; animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards; }
+.stagger-2 { opacity: 0; animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards; }
+.stagger-3 { opacity: 0; animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards; }
+.stagger-4 { opacity: 0; animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards; }
+
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* --- HEADER --- */
-.header { text-align: center; margin-bottom: 2.5rem; }
+.header { text-align: center; margin-bottom: 2.5rem; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .header h1 { 
     font-family: 'Plus Jakarta Sans', sans-serif; 
-    font-size: 2rem; 
+    font-size: 2.2rem; 
     font-weight: 800; 
     margin-bottom: 0.5rem; 
     letter-spacing: -0.5px;
     color: transparent;
     background: var(--primary-gradient);
     -webkit-background-clip: text;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 .header p { 
     color: var(--text-muted); 
-    font-size: 0.95rem; 
+    font-size: 1rem; 
     font-weight: 500; 
 }
 
@@ -100,40 +140,42 @@ body {
 .input-group { margin-bottom: 1.5rem; }
 .input-group label {
     display: block;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.6rem;
     color: var(--text-main);
     font-size: 0.85rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
 }
 
 .input-wrapper { position: relative; display: flex; align-items: center; }
 
 .input-group input {
     width: 100%;
-    padding: 0.85rem 1rem;
-    background: var(--bg-main);
-    border: 1px solid var(--border);
+    padding: 0.95rem 1.2rem;
+    background: rgba(248, 250, 252, 0.8);
+    border: 1.5px solid var(--border);
     border-radius: var(--radius-md);
-    font-size: 0.95rem;
-    font-weight: 500;
+    font-size: 1rem;
+    font-weight: 600;
     color: var(--text-main);
     transition: var(--transition);
     outline: none;
-    min-height: 52px; /* Touch target for mobile */
-    appearance: none;
+    min-height: 54px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.01);
 }
 
 .input-group input[type="password"],
 .input-group input[type="text"].password-visible {
-    padding-right: 3rem;
+    padding-right: 3.5rem;
 }
 
-.input-group input::placeholder { color: #94A3B8; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.03em; }
+.input-group input::placeholder { color: #94A3B8; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em; font-weight: 600; }
 .input-group input:focus {
+    background: #FFFFFF;
     border-color: var(--primary);
-    background: var(--bg-surface);
-    box-shadow: 0 0 0 4px var(--primary-ring);
+    box-shadow: 0 0 0 4px var(--primary-light), inset 0 2px 4px rgba(0,0,0,0.01);
+    transform: translateY(-1px);
 }
 
 /* --- PASSWORD TOGGLE --- */
@@ -144,155 +186,185 @@ body {
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
     transition: var(--transition);
 }
-.toggle-password:active { background: var(--bg-main); transform: scale(0.9); }
+.toggle-password:hover { background: var(--bg-main); color: var(--primary); }
+.toggle-password:active { transform: scale(0.9); }
 
 /* --- OPTIONS ROW --- */
 .options-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 2rem;
+    margin-bottom: 2.5rem;
 }
 .remember-me {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.75rem;
     color: var(--text-muted);
-    font-size: 0.9rem;
-    font-weight: 500;
+    font-size: 0.95rem;
+    font-weight: 600;
     cursor: pointer;
     user-select: none;
+    transition: var(--transition);
 }
+.remember-me:hover { color: var(--text-main); }
+
 .remember-me input {
-    accent-color: var(--primary);
-    width: 1.25rem;
-    height: 1.25rem;
+    appearance: none;
+    width: 1.4rem;
+    height: 1.4rem;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-main);
     cursor: pointer;
-    border-radius: 4px;
-    border: 1px solid var(--border);
+    position: relative;
+    transition: var(--transition);
+}
+
+.remember-me input:checked {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.remember-me input:checked::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 2px;
+    width: 4px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
 }
 
 /* --- BUTTON --- */
 .btn-primary {
     width: 100%;
-    min-height: 52px; /* Touch friendly */
+    min-height: 56px;
     background: var(--primary-gradient);
     color: white;
     border: none;
     border-radius: var(--radius-md);
-    font-size: 1rem;
-    font-weight: 600;
+    font-size: 1.05rem;
+    font-weight: 700;
     cursor: pointer;
     transition: var(--transition);
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+    box-shadow: var(--shadow-btn);
     display: flex;
     align-items: center;
     justify-content: center;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.03em;
+    position: relative;
+    overflow: hidden;
+}
+.btn-primary::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; width: 50%; height: 100%;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.2), transparent);
+    transform: skewX(-20deg);
+    transition: 0.5s;
+}
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 25px -5px rgba(79, 70, 229, 0.4);
+}
+.btn-primary:hover::after {
+    left: 150%;
 }
 .btn-primary:active { 
-    transform: scale(0.97); 
-    box-shadow: var(--shadow-float); 
+    transform: translateY(1px); 
+    box-shadow: 0 5px 10px rgba(79, 70, 229, 0.3);
 }
-
-/* --- PUBLIC LINKS (BOTTOM NAV) --- */
-.public-links {
-    margin-top: 2.5rem;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    padding-top: 1.5rem;
-    border-top: 1px dashed var(--border);
-}
-.public-links a {
-    color: var(--text-muted);
-    text-decoration: none;
-    font-size: 0.9rem;
-    font-weight: 600;
-    transition: var(--transition);
-    padding: 0.5rem;
-}
-.public-links a:active { color: var(--primary); }
-.public-links span { color: var(--border); }
 
 /* --- ERROR MESSAGE --- */
 #error-message {
     display: none;
     background: var(--danger-light);
-    border: 1px solid rgba(225, 29, 72, 0.2);
+    border: 1.5px solid rgba(225, 29, 72, 0.3);
     color: var(--danger);
-    padding: 1rem;
+    padding: 1rem 1.25rem;
     border-radius: var(--radius-md);
-    font-size: 0.9rem;
-    font-weight: 600;
+    font-size: 0.95rem;
+    font-weight: 700;
     margin-bottom: 1.5rem;
     text-align: center;
-    animation: fadeIn 0.3s ease forwards;
+    box-shadow: 0 4px 12px rgba(225, 29, 72, 0.1);
+    animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-3px, 0, 0); }
+    40%, 60% { transform: translate3d(3px, 0, 0); }
+}
 
 /* ========================================================================
    STRICT MOBILE UI OVERRIDES (NATIVE APP FEEL)
    ======================================================================== */
 @media (max-width: 768px) {
     body {
-        align-items: flex-end; /* Pushes the card down like a drawer */
+        align-items: flex-end; 
         padding: 0;
-        background-color: var(--bg-surface); /* Make the whole screen feel seamless */
+        background-color: #F8FAFC; 
     }
+    
+    .ambient-bg { display: none; } /* Disable heavy animations on mobile */
 
     .login-container {
-        border-radius: 32px 32px 0 0;
+        border-radius: 36px 36px 0 0;
         border: none;
-        border-top: 1px solid var(--border);
-        box-shadow: 0 -10px 40px rgba(0,0,0,0.05);
-        padding: 2.5rem 1.5rem calc(2rem + env(safe-area-inset-bottom)) 1.5rem; /* iOS Safe Area */
+        border-top: 1px solid rgba(255, 255, 255, 0.8);
+        box-shadow: 0 -15px 40px rgba(15, 23, 42, 0.08);
+        padding: 2.5rem 1.5rem calc(2.5rem + env(safe-area-inset-bottom)) 1.5rem; 
         max-width: 100%;
-        min-height: 85vh; /* Acts like a large bottom sheet */
-        display: flex;
-        flex-direction: column;
+        background: rgba(255, 255, 255, 0.95);
+        min-height: auto;
         transform: translateY(100%);
     }
 
-    /* Decorative drawer pull handle at the top */
     .login-container::before {
         content: '';
         display: block;
-        width: 40px;
-        height: 5px;
-        background: var(--border);
+        width: 48px;
+        height: 6px;
+        background: #CBD5E1;
         border-radius: 10px;
         margin: 0 auto 2.5rem auto;
     }
 
-    .header { margin-bottom: 2rem; }
-    .header h1 { font-size: 2.25rem; }
+    .header { margin-bottom: 2.5rem; }
+    .header h1 { font-size: 2.4rem; }
 
-    .input-group label { font-size: 0.9rem; }
+    .input-group label { font-size: 0.85rem; }
+    .input-group input { font-size: 16px !important; /* Force 16px to prevent iOS zoom */ min-height: 56px; }
     
-    /* Ensure inputs don't zoom on iOS by forcing font-size 16px (1rem) */
-    .input-group input { font-size: 1rem !important; }
-
-    .public-links {
-        margin-top: auto; /* Pushes links to the very bottom */
-        padding-top: 2rem;
-    }
+    .btn-primary { min-height: 60px; font-size: 1.1rem; }
 }
     </style>
 </head>
 <body>
 
+    <!-- Premium Background -->
+    <div class="grid-pattern"></div>
+    <div class="ambient-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
     <div class="login-container">
-        <div class="header">
+        <div class="header stagger-1">
             <h1 class="brand">FestOS</h1>
             <p>Enter your credentials to continue</p>
         </div>
@@ -300,38 +372,36 @@ body {
         <div id="error-message"></div>
 
         <form id="loginForm">
-            <div class="input-group">
+            <div class="input-group stagger-2">
                 <label for="username">Username</label>
                 <div class="input-wrapper">
-                    <input type="text" id="username" placeholder="admin, judge1, etc." required autocomplete="off">
+                    <input type="text" id="username" placeholder="e.g., admin, judge1" required autocomplete="off">
                 </div>
             </div>
 
-            <div class="input-group">
+            <div class="input-group stagger-3">
                 <label for="password">Password</label>
                 <div class="input-wrapper">
                     <input type="password" id="password" placeholder="••••••••" required>
                     <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility">
                         <!-- Default Eye Icon -->
-                        <svg id="eyeIcon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.543 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        <svg id="eyeIcon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
                         </svg>
                     </button>
                 </div>
             </div>
 
-            <div class="options-row">
+            <div class="options-row stagger-4">
                 <label class="remember-me">
                     <input type="checkbox" id="rememberMe">
-                    Remember me
+                    Remember my login
                 </label>
             </div>
 
-            <button type="submit" class="btn-primary" id="submitBtn">Authenticate</button>
+            <button type="submit" class="btn-primary stagger-4" id="submitBtn">Secure Login</button>
         </form>
-
-    
     </div>
 
     <script src="login.js"></script>
