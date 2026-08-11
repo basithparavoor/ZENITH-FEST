@@ -5589,26 +5589,71 @@ function getPDFHeaderHTML(reportTitle) {
 // SPECTATOR DISPLAY CONTROL ENGINE
 // ============================================================================
 
+let pendingDisplayImageBase64 = null;
+
+function handleDisplayCustomImage(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        pendingDisplayImageBase64 = e.target.result;
+        document.getElementById('disp-custom-preview').src = e.target.result;
+        document.getElementById('disp-custom-preview').style.display = 'block';
+        document.getElementById('btn-remove-disp-img').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+}
+
+function removeDisplayCustomImage() {
+    pendingDisplayImageBase64 = null;
+    document.getElementById('disp-custom-preview').src = '';
+    document.getElementById('disp-custom-preview').style.display = 'none';
+    document.getElementById('btn-remove-disp-img').style.display = 'none';
+    document.getElementById('disp-custom-img').value = '';
+}
+
 async function loadDisplaySettings() {
     try {
         const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
         if (data && data.value) {
-            if(document.getElementById('setting-slide-duration')) document.getElementById('setting-slide-duration').value = data.value.slide_duration || 12;
-            const qrCheck = document.getElementById('setting-show-qr');
-            if (qrCheck) {
-                qrCheck.checked = data.value.show_qr !== false;
-                qrCheck.dispatchEvent(new Event('change')); // Trigger animation toggle
+            const v = data.value;
+            if(document.getElementById('disp-duration')) document.getElementById('disp-duration').value = v.slide_duration || 12;
+            if(document.getElementById('disp-color')) document.getElementById('disp-color').value = v.primary_color || '#4F46E5';
+            if(document.getElementById('disp-font')) document.getElementById('disp-font').value = v.font_family || 'Plus Jakarta Sans';
+            if(document.getElementById('disp-custom-title')) document.getElementById('disp-custom-title').value = v.custom_title || '';
+            if(document.getElementById('disp-custom-text')) document.getElementById('disp-custom-text').value = v.custom_text || '';
+            
+            const qrCheck = document.getElementById('disp-show-qr');
+            if (qrCheck) { qrCheck.checked = v.show_qr !== false; qrCheck.dispatchEvent(new Event('change')); }
+            
+            const customCheck = document.getElementById('disp-custom-enable');
+            if (customCheck) { customCheck.checked = v.custom_enable === true; customCheck.dispatchEvent(new Event('change')); }
+
+            if (v.custom_image) {
+                pendingDisplayImageBase64 = v.custom_image;
+                document.getElementById('disp-custom-preview').src = v.custom_image;
+                document.getElementById('disp-custom-preview').style.display = 'block';
+                document.getElementById('btn-remove-disp-img').style.display = 'block';
             }
         }
+        scalePreviewIframe();
     } catch(e) { console.warn("Using default display settings."); }
 }
 
 async function saveDisplaySettings() {
-    const duration = parseInt(document.getElementById('setting-slide-duration').value) || 12;
-    const showQr = document.getElementById('setting-show-qr').checked;
+    const payload = {
+        slide_duration: parseInt(document.getElementById('disp-duration').value) || 12,
+        primary_color: document.getElementById('disp-color').value || '#4F46E5',
+        font_family: document.getElementById('disp-font').value || 'Plus Jakarta Sans',
+        show_qr: document.getElementById('disp-show-qr').checked,
+        custom_enable: document.getElementById('disp-custom-enable').checked,
+        custom_title: document.getElementById('disp-custom-title').value,
+        custom_text: document.getElementById('disp-custom-text').value,
+        custom_image: pendingDisplayImageBase64,
+        trigger_confetti: 0 // preserve logic
+    };
     
-    // We preserve the existing trigger_confetti value so it doesn't accidentally trigger
-    let payload = { slide_duration: duration, show_qr: showQr, trigger_confetti: 0 };
+    // Fetch current confetti state to prevent accidental triggers
     const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
     if(data && data.value) payload.trigger_confetti = data.value.trigger_confetti || 0;
 
@@ -5616,7 +5661,12 @@ async function saveDisplaySettings() {
     try {
         const { error } = await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
         if (error) throw error;
-        showToast("Display Settings Saved!");
+        showToast("Display Settings Saved & Synced!");
+        
+        // Refresh preview iframe instantly
+        const iframe = document.getElementById('display-preview-frame');
+        if(iframe) iframe.src = iframe.src; 
+
     } catch(e) {
         showToast(e.message, 'error');
     } finally {
@@ -5629,54 +5679,35 @@ async function triggerManualConfetti() {
         const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
         let payload = data?.value || { slide_duration: 12, show_qr: true };
         
-        // Setting it to Date.now() forces the display to recognize it as a new event
+        // Setting it to Date.now() forces all listening displays to recognize it as a new event
         payload.trigger_confetti = Date.now(); 
         
         await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
-        showToast("Animation triggered on live displays!", "success");
+        showToast("Celebration triggered on live displays!", "success");
     } catch(e) {
         showToast("Failed to trigger animation.", "error");
     }
 }
 
-// NEW: Advanced View Switcher
-function switchPointsView(view) {
-    // Reset all buttons
-    document.getElementById('btn-view-ind').className = 'btn btn-outline';
-    document.getElementById('btn-view-team').className = 'btn btn-outline';
-    document.getElementById('btn-view-star').className = 'btn btn-outline';
-    document.getElementById('btn-view-pen').className = 'btn btn-outline';
-    
-    document.getElementById('btn-view-star').style.color = '#D97706'; document.getElementById('btn-view-star').style.borderColor = '#D97706'; document.getElementById('btn-view-star').style.background = 'transparent';
-    document.getElementById('btn-view-pen').style.color = '#4338CA'; document.getElementById('btn-view-pen').style.borderColor = '#4338CA'; document.getElementById('btn-view-pen').style.background = 'transparent';
-
-    // Hide all containers
-    document.getElementById('ind-points-container').style.display = 'none';
-    document.getElementById('team-points-container').style.display = 'none';
-    document.getElementById('special-points-container').style.display = 'none';
-    document.getElementById('ind-filters').style.display = 'none';
-
-    if (view === 'individual') {
-        document.getElementById('btn-view-ind').className = 'btn btn-primary';
-        document.getElementById('ind-points-container').style.display = 'block';
-        document.getElementById('ind-filters').style.display = 'flex';
-        document.getElementById('btn-export-points').setAttribute('onclick', 'bulkExportPointsPDF()');
-    } else if (view === 'team') {
-        document.getElementById('btn-view-team').className = 'btn btn-primary';
-        document.getElementById('team-points-container').style.display = 'block';
-        document.getElementById('btn-export-points').setAttribute('onclick', 'bulkExportTeamPointsPDF()');
-    } else if (view === 'star') {
-        document.getElementById('btn-view-star').className = 'btn';
-        document.getElementById('btn-view-star').style.background = '#D97706'; document.getElementById('btn-view-star').style.color = 'white';
-        document.getElementById('special-points-container').style.display = 'block';
-        renderSpecialLedger('star');
-    } else if (view === 'pen') {
-        document.getElementById('btn-view-pen').className = 'btn';
-        document.getElementById('btn-view-pen').style.background = '#4338CA'; document.getElementById('btn-view-pen').style.color = 'white';
-        document.getElementById('special-points-container').style.display = 'block';
-        renderSpecialLedger('pen');
+// Ensure the iframe shrinks to fit exactly inside the Admin Card cleanly
+function scalePreviewIframe() {
+    const iframe = document.getElementById('display-preview-frame');
+    if (iframe && iframe.parentElement) {
+        const parent = iframe.parentElement;
+        const parentWidth = parent.clientWidth;
+        
+        // Standard 1080p width is 1920
+        const scale = parentWidth / 1920;
+        iframe.style.transform = `scale(${scale})`;
+        
+        // FIX: Dynamically set the parent height to enforce a perfect 16:9 ratio,
+        // eliminating the black bleeding space at the bottom.
+        const calculatedHeight = parentWidth * (1080 / 1920);
+        parent.style.height = `${calculatedHeight}px`;
     }
 }
+
+window.addEventListener('resize', scalePreviewIframe);
 
 // NEW: Render Star/Pen Contenders
 function renderSpecialLedger(type) {

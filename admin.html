@@ -259,9 +259,10 @@ tr:hover td { background: var(--bg-main); }
 
     <div class="main-content">
         <div class="header">
-            <div style="display: flex; align-items: center; gap: 1rem; min-width: 0;">
+            <!-- FIX: Added flex: 1 to this wrapper so it pushes the Sign Out button to the right -->
+            <div style="display: flex; align-items: center; gap: 1rem; flex: 1; min-width: 0;">
                 <button class="menu-toggle" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
-                <h1 id="page-title">Workspace Overview</h1>
+                <h1 id="page-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0;">Workspace Overview</h1>
             </div>
             <button class="btn btn-outline" onclick="logout()" style="flex-shrink: 0;"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
         </div>
@@ -967,7 +968,7 @@ tr:hover td { background: var(--bg-main); }
     </div>
 </div>
 
-        <div id="branding-settings" class="content-section">
+    <div id="branding-settings" class="content-section">
             <div class="action-bar" style="margin-bottom: 1.5rem;">
                 <div>
                     <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">System Branding</h2>
@@ -1022,48 +1023,108 @@ tr:hover td { background: var(--bg-main); }
             </div>
         </div>
 
-    </div>
-<div id="display-control" class="content-section">
-    <div class="action-bar" style="margin-bottom: 1.5rem;">
-        <div>
-            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Spectator Display Control</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Manage the live projector/TV output and trigger celebrations.</p>
-        </div>
-        <button class="btn btn-success" onclick="window.open('display.html', '_blank')"><i class="fa-solid fa-up-right-from-square"></i> Launch Display</button>
-    </div>
-    
-    <div class="grid-2">
-        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-sliders" style="color: var(--primary);"></i> Settings</h3>
-            
-            <div class="form-group">
-                <label>Slide Duration (Seconds)</label>
-                <input type="number" id="setting-slide-duration" value="12" min="5" max="60">
-            </div>
-            
-            <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
+        <div id="display-control" class="content-section">
+            <div class="action-bar" style="margin-bottom: 1.5rem;">
                 <div>
-                    <label style="margin: 0; font-weight: 700;">Show QR Code Widget</label>
-                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Display the 'Scan for Live Results' block</p>
+                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Spectator Display Hub</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Total control over the live projector feed. Themes, custom slides, and preview.</p>
                 </div>
-                <label style="position: relative; display: inline-block; width: 50px; height: 26px;">
-                    <input type="checkbox" id="setting-show-qr" style="opacity: 0; width: 0; height: 0;" checked onchange="this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#cbd5e1'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(24px)' : 'translateX(0)';">
-                    <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .4s; border-radius: 34px;"></span>
-                    <span style="position: absolute; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; transform: translateX(24px);"></span>
-                </label>
+                <div class="bulk-actions">
+                    <button class="btn btn-outline" style="color: var(--warning); border-color: var(--warning);" onclick="triggerManualConfetti()"><i class="fa-solid fa-wand-magic-sparkles"></i> Trigger Celebration</button>
+                    <button class="btn btn-success" onclick="window.open('display.html', '_blank')"><i class="fa-solid fa-up-right-from-square"></i> Launch Display</button>
+                </div>
             </div>
             
-            <button class="btn btn-primary" onclick="saveDisplaySettings()" style="width: 100%; margin-top: 1rem;"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
+            <div class="grid-2" style="grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <!-- Left: Controls -->
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <!-- Settings & Theme -->
+                    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                        <h3 style="margin-bottom: 1rem; font-weight: 800; color: var(--text-main);"><i class="fa-solid fa-palette" style="color: var(--primary);"></i> Theme & Engine</h3>
+                        
+                        <div class="grid-2" style="gap: 1rem;">
+                            <div class="form-group">
+                                <label>Slide Duration (Secs)</label>
+                                <input type="number" id="disp-duration" value="12" min="5" max="60" style="width: 100%;">
+                            </div>
+                            <div class="form-group">
+                                <label>Primary Highlight Color</label>
+                                <input type="color" id="disp-color" value="#4F46E5" style="width: 100%; height: 42px; padding: 0; border: 1px solid var(--border); border-radius: 8px;">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Display Font Architecture</label>
+                            <select id="disp-font" style="width: 100%;">
+                                <option value="Plus Jakarta Sans">Plus Jakarta Sans (Modern Default)</option>
+                                <option value="Inter">Inter (Clean & Flat)</option>
+                                <option value="Bebas Neue">Bebas Neue (Cinematic & Bold)</option>
+                                <option value="Cinzel">Cinzel (Elegant & Classic)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); margin-top: 1rem;">
+                            <div>
+                                <label style="margin: 0; font-weight: 700; color: var(--text-main);">Show QR Code Widget</label>
+                            </div>
+                            <label style="position: relative; display: inline-block; width: 50px; height: 26px;">
+                                <input type="checkbox" id="disp-show-qr" style="opacity: 0; width: 0; height: 0;" checked onchange="this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#cbd5e1'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(24px)' : 'translateX(0)';">
+                                <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .4s; border-radius: 34px;"></span>
+                                <span style="position: absolute; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; transform: translateX(24px);"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Custom Slide -->
+                    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="font-weight: 800; color: var(--text-main); margin: 0;"><i class="fa-solid fa-image" style="color: var(--primary);"></i> Custom Slide Integration</h3>
+                            <label style="position: relative; display: inline-block; width: 50px; height: 26px;">
+                                <input type="checkbox" id="disp-custom-enable" style="opacity: 0; width: 0; height: 0;" onchange="this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#cbd5e1'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(24px)' : 'translateX(0)';">
+                                <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .4s; border-radius: 34px;"></span>
+                                <span style="position: absolute; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; transform: translateX(0);"></span>
+                            </label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Main Slide Heading</label>
+                            <input type="text" id="disp-custom-title" placeholder="e.g., WELCOME TO FESTOS" style="width: 100%;">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Subtext / Announcement</label>
+                            <textarea id="disp-custom-text" rows="3" style="width: 100%; padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); outline: none; resize: vertical;" placeholder="Type announcement or sponsor text here..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Background Image (Optional)</label>
+                            <input type="file" id="disp-custom-img" accept="image/*" onchange="handleDisplayCustomImage(event)" style="display: none;">
+                            <div style="display: flex; gap: 1rem; align-items: center;">
+                                <button class="btn btn-outline" onclick="document.getElementById('disp-custom-img').click()"><i class="fa-solid fa-upload"></i> Upload Image</button>
+                                <img id="disp-custom-preview" src="" style="height: 40px; border-radius: 4px; display: none;">
+                                <button class="btn btn-outline" id="btn-remove-disp-img" style="color: var(--danger); border-color: var(--danger); display: none;" onclick="removeDisplayCustomImage()"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-primary" onclick="saveDisplaySettings()" style="width: 100%; margin-top: 1.5rem;"><i class="fa-solid fa-cloud-arrow-up"></i> Save & Sync Display</button>
+                    </div>
+                </div>
+
+                <!-- Right: Live Preview -->
+                <div class="card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; background: #0F172A; border-radius: var(--radius-lg); border: 4px solid #CBD5E1; box-shadow: var(--shadow-lg);">
+                    <div style="background: #1E293B; padding: 0.75rem 1rem; color: white; font-size: 0.85rem; font-weight: 700; display: flex; justify-content: space-between; align-items: center;">
+                        <span><i class="fa-solid fa-tv" style="margin-right: 0.5rem;"></i> LIVE OUTPUT PREVIEW</span>
+                        <span style="color: var(--success); font-size: 0.75rem;"><i class="fa-solid fa-circle-dot fa-fade" style="margin-right: 0.25rem;"></i> SYNCED</span>
+                    </div>
+                    <div style="flex: 1; position: relative; width: 100%; aspect-ratio: 16/9; overflow: hidden; background: #000;">
+                        <!-- Scales a 1080p display down to fit the admin card -->
+                        <iframe id="display-preview-frame" src="display.html?preview=true" style="width: 1920px; height: 1080px; border: none; transform-origin: top left; position: absolute; top: 0; left: 0; pointer-events: none;"></iframe>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="card" style="background: white; padding: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
-            <i class="fa-solid fa-tv" style="font-size: 4rem; color: var(--primary-light); margin-bottom: 1rem;"></i>
-            <h3 style="margin-bottom: 0.5rem; font-weight: 800;">Live Event Screen</h3>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">Connect your device to a TV or projector via HDMI/Cast, then launch the display. It will run automatically.</p>
-            <button class="btn btn-outline" style="color: var(--warning); border-color: var(--warning); width: 100%;" onclick="triggerManualConfetti()"><i class="fa-solid fa-wand-magic-sparkles"></i> Test Celebration Animation</button>
-        </div>
-    </div>
-</div>
+    </div> <!-- THIS PROPERLY CLOSES .main-content -->
 
 <!-- ================= FULL VIEW MODAL ================= -->
 <div id="fullViewModal" class="modal-overlay" style="z-index: 1050; padding: 2rem; background: rgba(15, 23, 42, 0.9);">

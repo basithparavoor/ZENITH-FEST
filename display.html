@@ -8,10 +8,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <!-- Fonts -->
+    <!-- Fonts (Includes new Theme Options) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@500;700;800&family=Bebas+Neue&family=Cinzel:wght@700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
@@ -22,9 +22,9 @@
             --gold: #FBBF24; --silver: #94A3B8; --bronze: #D97706;
             --slide-duration: 12s; 
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; text-transform: uppercase; font-family: 'Plus Jakarta Sans', sans-serif; }
+        * { margin: 0; padding: 0; box-sizing: border-box; text-transform: uppercase; }
         
-        body { background: var(--bg-dark); color: white; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        body { background: var(--bg-dark); color: white; overflow: hidden; height: 100vh; display: flex; flex-direction: column; font-family: 'Plus Jakarta Sans', sans-serif; transition: background 1s ease; }
 
         /* Ambient Background */
         .ambient-bg { position: fixed; inset: 0; z-index: -2; pointer-events: none; }
@@ -35,8 +35,8 @@
             mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
             -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
         }
-        .orb { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.5; animation: float 25s infinite alternate ease-in-out; }
-        .orb-1 { background: rgba(79, 70, 229, 0.5); width: 60vw; height: 60vw; top: -20%; left: -10%; }
+        .orb { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.5; animation: float 25s infinite alternate ease-in-out; transition: background 1s ease;}
+        .orb-1 { background: var(--primary); width: 60vw; height: 60vw; top: -20%; left: -10%; }
         .orb-2 { background: rgba(236, 72, 153, 0.3); width: 50vw; height: 50vw; bottom: -10%; right: -10%; animation-delay: -5s; }
         @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(-5%, 10%) scale(1.1); } }
 
@@ -44,7 +44,7 @@
         .header { padding: 2rem 4rem; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to bottom, rgba(7, 11, 20, 0.95), transparent); border-bottom: 1px solid rgba(255,255,255,0.05); z-index: 10; }
         .header-left { display: flex; align-items: center; gap: 1.5rem; }
         .header-left img { height: 50px; object-fit: contain; border-radius: 8px; display: none; }
-        .header h1 { font-size: 2.8rem; font-weight: 800; letter-spacing: -1px; text-shadow: 0 0 20px rgba(79, 70, 229, 0.5); }
+        .header h1 { font-size: 2.8rem; font-weight: 800; letter-spacing: -1px; text-shadow: 0 0 20px var(--primary); }
         .header-right { display: flex; align-items: center; gap: 2rem; }
         .clock { font-family: 'Inter', sans-serif; font-size: 1.5rem; font-weight: 700; color: rgba(255,255,255,0.8); letter-spacing: 2px; }
         .live-badge { background: rgba(225, 29, 72, 0.15); color: #FDA4AF; padding: 0.6rem 1.5rem; border-radius: 50px; border: 1px solid rgba(225, 29, 72, 0.4); font-size: 1.2rem; font-weight: 800; display: flex; align-items: center; gap: 0.75rem; }
@@ -55,22 +55,12 @@
         .slide-container { flex: 1; position: relative; padding: 3rem 4rem; }
         .slide { position: absolute; inset: 0; padding: 2rem 4rem; opacity: 0; transition: opacity 0.8s ease, transform 0.8s ease; display: flex; flex-direction: column; pointer-events: none; transform: scale(0.98); }
         .slide.active { opacity: 1; pointer-events: all; transform: scale(1); }
-        .slide-title { font-size: 3.5rem; color: var(--primary); margin-bottom: 2rem; text-shadow: 0 4px 30px rgba(79,70,229,0.5); letter-spacing: -1px; text-align: center; }
-
-        /* General Card Styles */
-        .card { background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.8)); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(20px); border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); position: relative; overflow: hidden; }
-
-        /* Now on Stage (Live) */
-        .live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 2rem; align-items: start; }
-        .live-card { padding: 2rem; animation: slideUpFade 0.6s ease forwards; }
-        .live-card::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 6px; background: #10B981; }
-        @keyframes slideUpFade { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-title { font-size: 3.5rem; color: var(--primary); margin-bottom: 2rem; text-shadow: 0 4px 30px rgba(0,0,0,0.5); letter-spacing: -1px; text-align: center; }
 
         /* Podium Spotlight */
         .podium-container { display: flex; justify-content: center; align-items: flex-end; gap: 2rem; height: 60vh; padding-bottom: 2rem; }
         .pedestal-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; width: 28%; text-align: center; animation: riseUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(50px); }
         @keyframes riseUp { to { opacity: 1; transform: translateY(0); } }
-        
         .slide.active .pedestal-wrapper.p2 { animation-delay: 0.2s; }
         .slide.active .pedestal-wrapper.p1 { animation-delay: 0.5s; z-index: 5; }
         .slide.active .pedestal-wrapper.p3 { animation-delay: 0.8s; }
@@ -86,8 +76,8 @@
         .p3 .pedestal { height: 140px; background: linear-gradient(to bottom, var(--bronze), #92400E); }
         .rank-num { font-size: 5rem; font-weight: 800; color: rgba(255,255,255,0.9); text-shadow: 0 4px 10px rgba(0,0,0,0.3); line-height: 1; z-index: 2; }
 
-        /* Standings Board */
-        .leaderboard { display: flex; flex-direction: column; gap: 1rem; max-width: 1200px; margin: 0 auto; width: 100%; }
+        /* Data Boards (Standings & Schedule) */
+        .leaderboard { display: flex; flex-direction: column; gap: 1rem; max-width: 1400px; margin: 0 auto; width: 100%; }
         .lb-row { background: var(--surface); border: 1px solid rgba(255,255,255,0.05); padding: 1.25rem 3rem; border-radius: 20px; display: flex; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); opacity: 0; transform: translateX(-20px); transition: all 0.5s ease; }
         .slide.active .lb-row { opacity: 1; transform: translateX(0); }
         .slide.active .lb-row:nth-child(1) { transition-delay: 0.1s; }
@@ -106,7 +96,7 @@
         .lb-score span { font-size: 1.25rem; color: rgba(255,255,255,0.5); }
 
         /* QR Widget */
-        .qr-widget { position: fixed; bottom: 2rem; right: 2rem; background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.1); padding: 1rem; border-radius: 16px; display: flex; align-items: center; gap: 1rem; backdrop-filter: blur(10px); z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .qr-widget { position: fixed; bottom: 2rem; right: 2rem; background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.1); padding: 1rem; border-radius: 16px; display: flex; align-items: center; gap: 1rem; backdrop-filter: blur(10px); z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: opacity 0.5s ease;}
         .qr-widget span { font-size: 0.9rem; font-weight: 800; color: white; max-width: 120px; line-height: 1.3; }
         #display-qr { background: white; padding: 6px; border-radius: 8px; }
 
@@ -114,6 +104,9 @@
         .progress-bar-container { width: 100%; height: 6px; background: rgba(255,255,255,0.05); position: fixed; bottom: 0; left: 0; z-index: 150; }
         .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: none; }
         .progress-bar.animating { transition: width var(--slide-duration) linear; width: 100%; }
+
+        /* Custom Slide Image BG */
+        #custom-bg { position:absolute; inset:0; background-size: cover; background-position: center; z-index:-1; opacity:0; filter: blur(8px) brightness(0.6); transition: opacity 1s ease; }
     </style>
 </head>
 <body>
@@ -123,7 +116,7 @@
     <div class="header">
         <div class="header-left">
             <img id="fest-logo" src="" alt="Logo">
-            <h1 id="fest-title">FestOS Live</h1>
+            <h1 id="fest-title" class="theme-font">FestOS Live</h1>
         </div>
         <div class="header-right">
             <div class="clock" id="live-clock">00:00:00</div>
@@ -132,30 +125,40 @@
     </div>
 
     <div class="slide-container">
+        
+        <!-- NEW: Custom Announcement Slide -->
+        <div id="slide-custom" class="slide">
+            <div id="custom-bg"></div>
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; z-index: 1;">
+                <h2 id="custom-title" class="theme-font" style="font-size: 6rem; color: var(--primary); text-shadow: 0 10px 40px rgba(0,0,0,0.8); margin-bottom: 2rem;"></h2>
+                <p id="custom-text" style="font-size: 2.5rem; font-family: 'Inter', sans-serif; font-weight: 600; max-width: 80%; line-height: 1.4; text-shadow: 0 4px 20px rgba(0,0,0,0.9); color: white;"></p>
+            </div>
+        </div>
+
         <!-- Slide: Podium Spotlight -->
         <div id="slide-podium" class="slide">
-            <h2 class="slide-title">LATEST RESULTS: <span id="podium-comp-name" style="color:white;"></span></h2>
+            <h2 class="slide-title theme-font">LATEST RESULTS: <span id="podium-comp-name" style="color:white;"></span></h2>
             <div class="podium-container" id="podium-board"></div>
         </div>
 
         <!-- Slide: Standings -->
         <div id="slide-standings" class="slide active">
-            <h2 class="slide-title">OVERALL CHAMPIONSHIP STANDINGS</h2>
+            <h2 class="slide-title theme-font">OVERALL CHAMPIONSHIP STANDINGS</h2>
             <div class="leaderboard" id="standings-board">
                 <h3 style="color:rgba(255,255,255,0.5); text-align:center; padding: 4rem;">SYNCING LIVE METRICS...</h3>
             </div>
         </div>
 
-        <!-- Slide: Now on Stage -->
-        <div id="slide-live" class="slide">
-            <h2 class="slide-title">HAPPENING NOW</h2>
-            <div class="live-grid" id="live-board"></div>
+        <!-- NEW: Schedule & Status -->
+        <div id="slide-schedule" class="slide">
+            <h2 class="slide-title theme-font">EVENT STATUS & SCHEDULE</h2>
+            <div class="leaderboard" id="schedule-board"></div>
         </div>
     </div>
 
     <div id="qr-widget" class="qr-widget">
         <div id="display-qr"></div>
-        <span>SCAN FOR LIVE RESULTS</span>
+        <span class="theme-font">SCAN FOR LIVE RESULTS</span>
     </div>
 
     <div class="progress-bar-container">
@@ -175,26 +178,22 @@
         let currentSlide = 0;
         let lastConfettiTrigger = 0;
         let lastPublishedCount = 0;
+        const isPreviewMode = new URLSearchParams(window.location.search).get('preview') === 'true';
 
-        // Clock
         setInterval(() => {
-            const now = new Date();
-            document.getElementById('live-clock').innerText = now.toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('live-clock').innerText = new Date().toLocaleTimeString('en-US', { hour12: false });
         }, 1000);
 
-        // Render QR Code once
         new QRCode(document.getElementById('display-qr'), { text: window.location.origin + '/live-results.html', width: 70, height: 70, colorDark: "#000", colorLight: "#fff", correctLevel: QRCode.CorrectLevel.L });
 
         async function fetchDisplayData() {
             try {
-                // 1. Fetch Branding & Settings
                 const { data: brandData } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
                 if (brandData && brandData.value) {
                     if (brandData.value.fest_name) document.getElementById('fest-title').innerText = brandData.value.fest_name.toUpperCase();
                     if (brandData.value.fest_logo) {
-                        const logoEl = document.getElementById('fest-logo');
-                        logoEl.src = brandData.value.fest_logo;
-                        logoEl.style.display = 'block';
+                        document.getElementById('fest-logo').src = brandData.value.fest_logo;
+                        document.getElementById('fest-logo').style.display = 'block';
                     }
                 }
 
@@ -202,48 +201,63 @@
                 if (set_data && set_data.value) systemSettings = set_data.value;
 
                 const { data: displayData } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+                let customEnabled = false;
+
                 if (displayData && displayData.value) {
-                    const duration = displayData.value.slide_duration || 12;
-                    document.documentElement.style.setProperty('--slide-duration', `${duration}s`);
-                    document.getElementById('qr-widget').style.display = displayData.value.show_qr === false ? 'none' : 'flex';
+                    const v = displayData.value;
+                    document.documentElement.style.setProperty('--slide-duration', `${v.slide_duration || 12}s`);
+                    document.getElementById('qr-widget').style.opacity = v.show_qr === false ? '0' : '1';
                     
-                    // Manual Confetti Trigger from Admin
-                    if (displayData.value.trigger_confetti > lastConfettiTrigger) {
+                    if (v.primary_color) document.documentElement.style.setProperty('--primary', v.primary_color);
+                    if (v.font_family) {
+                        const fontString = `"${v.font_family}", sans-serif`;
+                        document.body.style.fontFamily = fontString;
+                        document.querySelectorAll('.theme-font, .slide-title, .lb-team, .p-name').forEach(el => el.style.fontFamily = fontString);
+                    }
+
+                    if (v.trigger_confetti > lastConfettiTrigger && !isPreviewMode) {
                         fireConfetti();
-                        lastConfettiTrigger = displayData.value.trigger_confetti;
+                        lastConfettiTrigger = v.trigger_confetti;
+                    }
+
+                    if (v.custom_enable) {
+                        customEnabled = true;
+                        document.getElementById('custom-title').innerText = v.custom_title || '';
+                        document.getElementById('custom-text').innerText = v.custom_text || '';
+                        if (v.custom_image) {
+                            document.getElementById('custom-bg').style.backgroundImage = `url(${v.custom_image})`;
+                            document.getElementById('custom-bg').style.opacity = '0.5';
+                        } else {
+                            document.getElementById('custom-bg').style.opacity = '0';
+                        }
                     }
                 }
 
-                // 2. Fetch Teams & Reset Scores
                 const { data: teams } = await supabaseClient.from('teams').select('*');
                 allTeams = teams || [];
                 calculatedTeamScores = {};
                 allTeams.forEach(t => calculatedTeamScores[t.id] = { name: t.name, score: 0 });
 
-                // 3. Fetch Live/Registration Events
-                const { data: liveComps } = await supabaseClient.from('competitions')
+                const { data: allComps } = await supabaseClient.from('competitions')
                     .select('*, categories(name), stages(name), participant_competitions(count)')
-                    .in('status', ['ongoing', 'registration']);
-                
-                // 4. Fetch Published Competitions
-                const { data: publishedComps } = await supabaseClient.from('competitions')
-                    .select('*, categories(name, is_general), participant_competitions(count)')
-                    .eq('status', 'published')
                     .order('updated_at', { ascending: false });
 
-                // Fire Confetti if a NEW result was published
-                if (publishedComps && publishedComps.length > lastPublishedCount && lastPublishedCount !== 0) {
-                    fireConfetti();
-                }
-                lastPublishedCount = publishedComps ? publishedComps.length : 0;
+                const publishedComps = allComps.filter(c => c.status === 'published');
+                
+                if (publishedComps.length > lastPublishedCount && lastPublishedCount !== 0 && !isPreviewMode) fireConfetti();
+                lastPublishedCount = publishedComps.length;
 
-                // Build Active Slides Array
-                activeSlides = ['slide-standings'];
-                if (publishedComps && publishedComps.length > 0) activeSlides.unshift('slide-podium');
-                if (liveComps && liveComps.length > 0) activeSlides.push('slide-live');
+                // Build Active Slides Array Based on Toggles
+                activeSlides = [];
+                if (customEnabled) activeSlides.push('slide-custom');
+                if (publishedComps.length > 0) activeSlides.push('slide-podium');
+                activeSlides.push('slide-standings');
+                
+                // Add the new schedule slide if there are active events
+                const activeEvents = allComps.filter(c => ['ongoing', 'registration', 'valuation', 'pending'].includes(c.status));
+                if (activeEvents.length > 0) activeSlides.push('slide-schedule');
 
-                // 5. Fetch Judgements & Process
-                if (publishedComps && publishedComps.length > 0) {
+                if (publishedComps.length > 0) {
                     const compIds = publishedComps.map(c => c.id);
                     const { data: judgements } = await supabaseClient.from('judgements')
                         .select('competition_id, awarded_mark, participants(id, name, team_id, unique_id)')
@@ -251,10 +265,12 @@
                         .not('participant_id', 'is', null).not('awarded_mark', 'is', null);
 
                     processScores(judgements || [], publishedComps);
+                } else {
+                    document.getElementById('standings-board').innerHTML = `<h3 style="color:rgba(255,255,255,0.5); text-align:center; padding: 4rem;">AWAITING OFFICIAL RESULTS...</h3>`;
                 }
 
                 renderStandings();
-                renderLiveStage(liveComps || []);
+                renderSchedule(allComps);
 
             } catch (error) { console.error("Display Fetch Error:", error); }
         }
@@ -288,7 +304,6 @@
                     const sum = sortedMarks.reduce((a, b) => a + b, 0);
                     p.score = sum / sortedMarks.length;
                     
-                    // --- APPEND "& PARTY" FOR GROUP EVENTS ---
                     if (compData.comp_data.is_group && !p.participant.name.endsWith('& PARTY')) {
                         p.participant.name += " & PARTY";
                     }
@@ -323,18 +338,11 @@
                     if (teamId && calculatedTeamScores[teamId]) calculatedTeamScores[teamId].score += (gradePts + posPts); 
 
                     if (currentRank <= 3) {
-                        compPodium.push({
-                            rank: currentRank,
-                            name: entry.participant.name,
-                            team: allTeams.find(t => t.id === teamId)?.name || 'IND'
-                        });
+                        compPodium.push({ rank: currentRank, name: entry.participant.name, team: allTeams.find(t => t.id === teamId)?.name || 'IND' });
                     }
                 });
 
-                // Save the podium for the most recently updated competition
-                if (publishedComps[0] && compId === publishedComps[0].id) {
-                    latestCompResults = compPodium;
-                }
+                if (publishedComps[0] && compId === publishedComps[0].id) latestCompResults = compPodium;
             }
 
             renderPodium(publishedComps[0], latestCompResults);
@@ -343,18 +351,12 @@
         function renderStandings() {
             const container = document.getElementById('standings-board');
             const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5); 
-
             if (sortedTeams.length === 0) return;
 
             container.innerHTML = sortedTeams.map((team, index) => {
                 const rank = index + 1;
                 let cardClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
-                return `
-                    <div class="lb-row ${cardClass}">
-                        <div class="lb-rank">#${rank}</div>
-                        <div class="lb-team">${team.name}</div>
-                        <div class="lb-score">${team.score} <span>PTS</span></div>
-                    </div>`;
+                return `<div class="lb-row ${cardClass}"><div class="lb-rank theme-font">#${rank}</div><div class="lb-team theme-font">${team.name}</div><div class="lb-score">${team.score} <span>PTS</span></div></div>`;
             }).join('');
         }
 
@@ -363,54 +365,50 @@
             if (!comp || podiumData.length === 0) return;
 
             document.getElementById('podium-comp-name').innerText = `${comp.name} (${comp.categories?.name || 'GEN'})`;
-
             const getPos = (rank) => podiumData.find(p => p.rank === rank) || { name: '-', team: '-' };
             const p1 = getPos(1); const p2 = getPos(2); const p3 = getPos(3);
 
             container.innerHTML = `
-                <div class="pedestal-wrapper p2">
-                    <div class="pedestal-card">
-                        <div class="p-name" style="font-size: 1.5rem;">${p2.name}</div>
-                        <div class="p-team">${p2.team}</div>
-                    </div>
-                    <div class="pedestal"><div class="rank-num">2</div></div>
-                </div>
-                <div class="pedestal-wrapper p1">
-                    <div class="pedestal-card" style="box-shadow: 0 10px 40px rgba(245,158,11,0.3); border-color: rgba(245,158,11,0.3);">
-                        <div class="p-name">${p1.name}</div>
-                        <div class="p-team" style="color: var(--gold);">${p1.team}</div>
-                    </div>
-                    <div class="pedestal"><div class="rank-num">1</div></div>
-                </div>
-                <div class="pedestal-wrapper p3">
-                    <div class="pedestal-card">
-                        <div class="p-name" style="font-size: 1.3rem;">${p3.name}</div>
-                        <div class="p-team">${p3.team}</div>
-                    </div>
-                    <div class="pedestal"><div class="rank-num">3</div></div>
-                </div>
+                <div class="pedestal-wrapper p2"><div class="pedestal-card"><div class="p-name theme-font" style="font-size: 1.5rem;">${p2.name}</div><div class="p-team">${p2.team}</div></div><div class="pedestal"><div class="rank-num theme-font">2</div></div></div>
+                <div class="pedestal-wrapper p1" style="z-index: 5;"><div class="pedestal-card" style="box-shadow: 0 10px 40px rgba(245,158,11,0.3); border-color: rgba(245,158,11,0.3);"><div class="p-name theme-font">${p1.name}</div><div class="p-team" style="color: var(--gold);">${p1.team}</div></div><div class="pedestal"><div class="rank-num theme-font">1</div></div></div>
+                <div class="pedestal-wrapper p3"><div class="pedestal-card"><div class="p-name theme-font" style="font-size: 1.3rem;">${p3.name}</div><div class="p-team">${p3.team}</div></div><div class="pedestal"><div class="rank-num theme-font">3</div></div></div>
             `;
         }
 
-        function renderLiveStage(liveComps) {
-            const container = document.getElementById('live-board');
-            if (liveComps.length === 0) return;
+        function renderSchedule(allComps) {
+            const container = document.getElementById('schedule-board');
+            const activeComps = allComps.filter(c => ['pending', 'registration', 'ongoing', 'valuation'].includes(c.status));
+            
+            activeComps.sort((a,b) => {
+                const getW = s => s === 'ongoing' ? 1 : (s === 'valuation' ? 2 : (s === 'registration' ? 3 : 4));
+                return getW(a.status) - getW(b.status);
+            });
 
-            container.innerHTML = liveComps.map(c => {
-                const statusTag = c.status === 'ongoing' ? '<span style="color:#10B981;"><i class="fa-solid fa-circle-play"></i> LIVE</span>' : '<span style="color:#3B82F6;"><i class="fa-solid fa-users"></i> CALLING</span>';
+            if (activeComps.length === 0) {
+                container.innerHTML = `<h3 style="color:rgba(255,255,255,0.5); text-align:center; padding: 4rem;">ALL SCHEDULED EVENTS COMPLETED</h3>`;
+                return;
+            }
+
+            container.innerHTML = activeComps.slice(0, 5).map(c => {
+                let bText = c.status; let col = "var(--silver)"; let bBg = "rgba(255,255,255,0.1)";
+                if(c.status === 'ongoing') { bText = "HAPPENING NOW"; col = "#10B981"; bBg = "rgba(16,185,129,0.15)"; }
+                if(c.status === 'registration') { bText = "CALLING / REGISTRATION"; col = "#3B82F6"; bBg = "rgba(59,130,246,0.15)"; }
+                if(c.status === 'valuation') { bText = "IN VALUATION"; col = "#F59E0B"; bBg = "rgba(245,158,11,0.15)"; }
+                if(c.status === 'pending') { bText = "UPCOMING"; col = "#94A3B8"; }
+
                 return `
-                <div class="card live-card">
-                    <div style="font-size: 0.9rem; font-weight: 800; margin-bottom: 0.5rem; display: flex; justify-content: space-between;">
-                        <span style="color: var(--primary);">${c.categories?.name || 'GEN'}</span>
-                        ${statusTag}
+                <div class="lb-row" style="border-left: 8px solid ${col};">
+                    <div style="flex:1;">
+                        <div style="font-size: 1.1rem; color: ${col}; font-weight: 800; margin-bottom:0.25rem;">${c.categories?.name || 'GEN'} • ${c.stages?.name || 'GLOBAL STAGE'}</div>
+                        <div class="theme-font" style="font-size: 2.25rem; font-weight: 800; line-height: 1;">${c.name}</div>
                     </div>
-                    <h3 style="font-size: 1.8rem; font-weight: 800; line-height: 1.2; margin-bottom: 1rem;">${c.name}</h3>
-                    <div style="color: var(--text-muted); font-size: 1rem; font-weight: 700;"><i class="fa-solid fa-microphone-stage"></i> ${c.stages?.name || 'GLOBAL'}</div>
+                    <div style="background: ${bBg}; padding: 0.85rem 1.5rem; border-radius: 12px; font-size: 1.25rem; font-weight: 800; color: ${col}; text-align: center; border: 1px solid ${col};">${bText}</div>
                 </div>`;
             }).join('');
         }
 
         function fireConfetti() {
+            if (isPreviewMode) return;
             const duration = 5000; const animationEnd = Date.now() + duration;
             const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
             function randomInRange(min, max) { return Math.random() * (max - min) + min; }
@@ -423,7 +421,6 @@
             }, 250);
         }
 
-        // --- Slide Rotation Engine ---
         function rotateSlides() {
             if (activeSlides.length === 0) return;
             if (currentSlide >= activeSlides.length) currentSlide = 0;
@@ -445,13 +442,15 @@
             }
         }
 
-        // Boot
         fetchDisplayData().then(() => {
-            // Apply initial duration from settings before starting animation loop
-            const durationStr = getComputedStyle(document.documentElement).getPropertyValue('--slide-duration').trim();
-            const durationMs = parseInt(durationStr) * 1000 || 12000;
+            const durationMs = (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--slide-duration')) || 12) * 1000;
             rotateSlides();
             setInterval(rotateSlides, durationMs);
+            
+            // Auto scale if in preview iframe
+            if (isPreviewMode) {
+                document.body.style.zoom = "0.5";
+            }
         });
     </script>
 </body>
