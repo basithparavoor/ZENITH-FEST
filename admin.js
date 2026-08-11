@@ -4937,13 +4937,27 @@ async function handleFontUpload(event) {
 }
 
 // ==========================================
-// MASTER DATA CENTER & ZIP ENGINE
+// MASTER DATA CENTER & ZIP ENGINE (V2.0)
 // ==========================================
 
 let pendingSecureAction = null;
 let pendingFileToImport = null;
 
-const MASTER_TABLES = ['categories', 'teams', 'competitions', 'participants', 'judgements', 'templates', 'announcements', 'settings'];
+// ALL Database tables in correct dependency order
+const MASTER_TABLES = [
+    'settings', 
+    'categories', 
+    'teams', 
+    'competitions', 
+    'templates', 
+    'participants', 
+    'participant_competitions', 
+    'judgements', 
+    'appeals'
+];
+
+// ALL Supabase Storage Buckets containing media
+const STORAGE_BUCKETS = ['photos', 'templates', 'elements', 'fonts'];
 
 function requestSecureAction(action) {
     pendingSecureAction = action;
@@ -4969,12 +4983,11 @@ async function verifyMasterPassword() {
     btn.disabled = true;
 
     try {
-        // Authenticate against the users table
         const { data, error } = await supabaseClient
             .from('users')
             .select('id, role')
             .eq('username', user.username)
-            .eq('password_hash', pwd) // <--- THIS WAS THE CAUSE OF THE 400 ERROR
+            .eq('password_hash', pwd)
             .single();
 
         if (error || !data) throw new Error("Invalid password");
@@ -4996,43 +5009,61 @@ async function verifyMasterPassword() {
     }
 }
 
-// --- 1. EXPORT LOGIC ---
+// --- 1. FULL EXPORT LOGIC (DATABASE + STORAGE) ---
 async function executeZipExport() {
-    showToast("Gathering system data, please wait...", "success");
+    showToast("Gathering database & media files... This may take a minute.", "success");
     const zip = new JSZip();
     const dbFolder = zip.folder("database");
+    const storageFolder = zip.folder("storage");
 
     try {
+        // A. Export Database Tables
         for (const table of MASTER_TABLES) {
             const { data, error } = await supabaseClient.from(table).select('*');
             if (error) console.error(`Error fetching ${table}:`, error);
-            
-            // Save each table as a JSON file inside the ZIP
             dbFolder.file(`${table}.json`, JSON.stringify(data || [], null, 2));
         }
 
-        // Add a manifest file with metadata
+        // B. Export Storage Buckets (Images/Fonts)
+        for (const bucket of STORAGE_BUCKETS) {
+            const bucketFolder = storageFolder.folder(bucket);
+            const { data: files, error: listError } = await supabaseClient.storage.from(bucket).list();
+            
+            if (listError || !files) continue;
+
+            for (const file of files) {
+                if (file.name === '.emptyFolderPlaceholder') continue; // Skip supabase hidden files
+                
+                const { data: blob, error: downloadError } = await supabaseClient.storage.from(bucket).download(file.name);
+                if (blob && !downloadError) {
+                    bucketFolder.file(file.name, blob);
+                }
+            }
+        }
+
+        // C. Generate Manifest
         zip.file("festos_manifest.json", JSON.stringify({
             exported_at: new Date().toISOString(),
             exported_by: user.username,
-            version: "1.0"
+            version: "2.0",
+            includes_media: true
         }, null, 2));
 
-        // Generate and download the ZIP
+        // D. Download the ZIP
         const content = await zip.generateAsync({ type: "blob" });
         saveAs(content, `FestOS_FullBackup_${new Date().toISOString().split('T')[0]}.zip`);
-        showToast("Export completed successfully!", "success");
+        showToast("Complete System Export successful!", "success");
 
     } catch (err) {
         console.error("Export Error:", err);
-        showToast("Failed to export data.", "error");
+        showToast("Failed to export complete data.", "error");
     }
 }
 
-// --- 2. IMPORT LOGIC ---
+// --- 2. FULL IMPORT LOGIC (DATABASE + STORAGE) ---
 async function executeZipImport() {
     if (!pendingFileToImport) return;
-    showToast("Restoring system data, do not close page...", "warning");
+    showToast("Restoring database and media files... Do not close page.", "warning");
     
     try {
         const zip = await JSZip.loadAsync(pendingFileToImport);
@@ -5041,54 +5072,86 @@ async function executeZipImport() {
         const manifestFile = zip.file("festos_manifest.json");
         if (!manifestFile) throw new Error("Invalid backup file. Manifest missing.");
 
-        // 2. We MUST insert data in order of Foreign Key dependencies
-        // e.g., You can't insert a participant until their team exists.
-        const orderOfOperations = ['settings', 'categories', 'teams', 'competitions', 'templates', 'participants', 'judgements', 'announcements'];
-
-        for (const table of orderOfOperations) {
+        // 2. Restore Database Tables (In STRICT dependency order)
+        for (const table of MASTER_TABLES) {
             const file = zip.file(`database/${table}.json`);
             if (file) {
                 const jsonStr = await file.async("string");
                 const tableData = JSON.parse(jsonStr);
                 
                 if (tableData.length > 0) {
-                    // Use upsert to replace existing data without breaking keys
                     const { error } = await supabaseClient.from(table).upsert(tableData);
                     if (error) console.error(`Import Error on ${table}:`, error);
                 }
             }
         }
+
+        // 3. Restore Storage Buckets (Upsert overwrites duplicates safely)
+        for (const bucket of STORAGE_BUCKETS) {
+            const folderRegex = new RegExp(`^storage/${bucket}/(.*)$`);
+            // Find all files in the zip that belong in this bucket
+            const filesInBucket = Object.keys(zip.files).filter(name => folderRegex.test(name) && !zip.files[name].dir);
+
+            for (const filename of filesInBucket) {
+                const fileObj = zip.file(filename);
+                if (!fileObj) continue;
+
+                const blob = await fileObj.async("blob");
+                const cleanName = filename.replace(`storage/${bucket}/`, '');
+
+                const { error: uploadError } = await supabaseClient.storage.from(bucket).upload(cleanName, blob, {
+                    upsert: true,
+                    contentType: blob.type || 'application/octet-stream'
+                });
+                
+                if (uploadError) console.error(`Failed to restore ${cleanName}:`, uploadError);
+            }
+        }
         
-        showToast("Data restored successfully! Reloading...", "success");
+        showToast("System perfectly restored! Reloading...", "success");
         setTimeout(() => location.reload(), 2000);
 
     } catch (err) {
         console.error("Import Error:", err);
-        showToast("Failed to restore data: " + err.message, "error");
+        showToast("Failed to restore system: " + err.message, "error");
     } finally {
         pendingFileToImport = null;
     }
 }
-// --- 3. FACTORY RESET LOGIC ---
+
+// --- 3. TOTAL FACTORY RESET (DATABASE + STORAGE) ---
 async function executeFactoryReset() {
-    if(!confirm("FINAL WARNING: This will delete absolutely everything. Type 'YES' to confirm.")) return;
+    if(!confirm("FINAL WARNING: This will permanently delete ALL tables, settings, photos, templates, and fonts. Type 'YES' to confirm.")) return;
     
-    showToast("Wiping database...", "warning");
+    showToast("Initiating Total Factory Reset...", "warning");
 
     try {
-        // Delete in reverse order of dependencies to prevent foreign key constraint errors
-        const reverseOrder = ['judgements', 'announcements', 'participants', 'templates', 'competitions', 'teams', 'categories'];
+        // 1. Delete Database Tables (Reverse order to avoid Foreign Key errors)
+        const reverseOrder = [...MASTER_TABLES].reverse();
 
         for (const table of reverseOrder) {
-            // Delete all rows where id is not null (which is all rows)
             await supabaseClient.from(table).delete().not('id', 'is', null);
         }
 
-        showToast("System Reset Complete. Reloading...", "success");
+        // 2. Empty Storage Buckets
+        for (const bucket of STORAGE_BUCKETS) {
+            const { data: files } = await supabaseClient.storage.from(bucket).list();
+            
+            if (files && files.length > 0) {
+                // Get all file names except the hidden placeholder
+                const filePaths = files.map(f => f.name).filter(name => name !== '.emptyFolderPlaceholder');
+                
+                if (filePaths.length > 0) {
+                    await supabaseClient.storage.from(bucket).remove(filePaths);
+                }
+            }
+        }
+
+        showToast("System Reset Complete. Everything wiped. Reloading...", "success");
         setTimeout(() => location.reload(), 2000);
     } catch (err) {
         console.error("Reset Error:", err);
-        showToast("Failed to complete reset.", "error");
+        showToast("Failed to complete full reset.", "error");
     }
 }
 
