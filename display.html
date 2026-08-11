@@ -177,7 +177,7 @@
     </div>
 
     <script>
-        const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
+      const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -185,11 +185,15 @@
         let allTeams = [];
         let calculatedTeamScores = {};
         
-        let activeSlides = ['slide-standings'];
+        let activeSlides = [];
         let currentSlide = 0;
         let lastConfettiTrigger = 0;
         let lastPublishedCount = 0;
         let currentPodiumCompId = null; 
+        
+        let globalActiveEvents = [];
+        let globalPublishedComps = [];
+        let rotationTimeout = null;
         
         const isPreviewMode = new URLSearchParams(window.location.search).get('preview') === 'true';
 
@@ -210,12 +214,10 @@
                     const validLogo = b.fest_logo && b.fest_logo.trim() !== '';
                     const displayMode = b.display_mode || 'both';
 
-                    // Document Title
                     document.title = validName ? `${b.fest_name} | Display` : 'Display';
 
-                    // Favicon Inject
                     if (validLogo) {
-                        let allIcons = document.querySelectorAll("link[rel='icon'], link[rel='shortcut icon']");
+                        let allIcons = document.querySelectorAll("link[rel='icon']");
                         if (allIcons.length === 0) {
                             let newIcon = document.createElement('link'); newIcon.rel = 'icon';
                             document.head.appendChild(newIcon); allIcons = [newIcon];
@@ -223,7 +225,6 @@
                         allIcons.forEach(link => { if (link.type === 'image/svg+xml') link.removeAttribute('type'); link.href = b.fest_logo; });
                     }
 
-                    // Strict Header Builder
                     const headerLeft = document.getElementById('branding-header-left');
                     let html = '';
                     const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
@@ -241,8 +242,9 @@
                 const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
                 if (set_data && set_data.value) systemSettings = set_data.value;
 
+                // Handle Display Settings & Custom Slides
                 const { data: displayData } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
-                let customEnabled = false;
+                let customSlidesArray = [];
 
                 if (displayData && displayData.value) {
                     const v = displayData.value;
@@ -266,16 +268,9 @@
                         lastConfettiTrigger = v.trigger_confetti;
                     }
 
-                    if (v.custom_enable) {
-                        customEnabled = true;
-                        document.getElementById('custom-title').innerText = v.custom_title || '';
-                        document.getElementById('custom-text').innerText = v.custom_text || '';
-                        if (v.custom_image) {
-                            document.getElementById('custom-bg').style.backgroundImage = `url(${v.custom_image})`;
-                            document.getElementById('custom-bg').style.opacity = '0.6';
-                        } else {
-                            document.getElementById('custom-bg').style.opacity = '0';
-                        }
+                    // Map custom slides from DB
+                    if (v.custom_slides && Array.isArray(v.custom_slides)) {
+                        customSlidesArray = v.custom_slides.filter(s => s.enabled !== false);
                     }
                 }
 
@@ -288,36 +283,60 @@
                     .select('*, categories(name), stages(name), participant_competitions(count)')
                     .order('updated_at', { ascending: false });
 
-                const publishedComps = allComps.filter(c => c.status === 'published');
+                globalPublishedComps = allComps.filter(c => c.status === 'published');
                 
-                if (publishedComps.length > lastPublishedCount && lastPublishedCount !== 0 && !isPreviewMode) fireConfetti();
-                lastPublishedCount = publishedComps.length;
+                if (globalPublishedComps.length > lastPublishedCount && lastPublishedCount !== 0 && !isPreviewMode) fireConfetti();
+                lastPublishedCount = globalPublishedComps.length;
 
+                // Build Core Slides Array
                 activeSlides = [];
-                if (customEnabled) activeSlides.push('slide-custom');
-                if (publishedComps.length > 0) activeSlides.push('slide-podium');
+                
+                // Inject Custom Slides into DOM and Array
+                document.querySelectorAll('.custom-slide-generated').forEach(el => el.remove());
+                customSlidesArray.forEach(cs => {
+                    const slideId = `slide-custom-${cs.id}`;
+                    activeSlides.push(slideId);
+                    
+                    const slideHtml = `
+                        <div id="${slideId}" class="slide custom-slide-generated" 
+                             data-duration="${cs.duration || ''}" 
+                             data-qr-url="${cs.qr_url || ''}" 
+                             data-qr-text="${cs.qr_text || ''}"
+                             data-ticker="${cs.ticker || ''}">
+                            <div style="position:absolute; inset:0; background-image:url('${cs.bg_url || ''}'); background-size:cover; background-position:center; z-index:-1; opacity:0.6; filter: blur(5px) brightness(0.7);"></div>
+                            <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; z-index: 1;">
+                                <h2 class="theme-font" style="font-size: 5.5rem; color: ${cs.color || 'var(--primary)'}; text-shadow: 0 10px 50px rgba(0,0,0,0.9); margin-bottom: 1.5rem;">${cs.title || ''}</h2>
+                                <p style="font-size: 2.2rem; font-family: 'Inter', sans-serif; font-weight: 600; max-width: 80%; line-height: 1.4; text-shadow: 0 4px 20px rgba(0,0,0,0.9); color: white;">${cs.text || ''}</p>
+                            </div>
+                        </div>
+                    `;
+                    document.querySelector('.slide-container').insertAdjacentHTML('afterbegin', slideHtml);
+                });
+
+                if (globalPublishedComps.length > 0) activeSlides.push('slide-podium');
                 activeSlides.push('slide-standings');
                 
-                const activeEvents = allComps.filter(c => ['ongoing', 'registration', 'valuation', 'pending'].includes(c.status));
-                if (activeEvents.length > 0) activeSlides.push('slide-schedule');
+                globalActiveEvents = allComps.filter(c => ['ongoing', 'registration', 'valuation', 'pending'].includes(c.status));
+                if (globalActiveEvents.length > 0) activeSlides.push('slide-schedule');
 
-                updateLiveTicker(activeEvents, publishedComps);
-
-                if (publishedComps.length > 0) {
-                    currentPodiumCompId = publishedComps[0].id;
-                    const compIds = publishedComps.map(c => c.id);
+                if (globalPublishedComps.length > 0) {
+                    currentPodiumCompId = globalPublishedComps[0].id;
+                    const compIds = globalPublishedComps.map(c => c.id);
                     const { data: judgements } = await supabaseClient.from('judgements')
                         .select('competition_id, awarded_mark, participants(id, name, team_id, unique_id)')
                         .in('competition_id', compIds)
                         .not('participant_id', 'is', null).not('awarded_mark', 'is', null);
 
-                    processScores(judgements || [], publishedComps);
+                    processScores(judgements || [], globalPublishedComps);
                 } else {
                     document.getElementById('standings-board').innerHTML = `<h3 style="color:rgba(255,255,255,0.5); text-align:center; padding: 4rem;">AWAITING OFFICIAL RESULTS...</h3>`;
                 }
 
                 renderStandings();
-                renderSchedule(activeEvents);
+                renderSchedule(globalActiveEvents);
+
+                // Start loop if not already running
+                if (!rotationTimeout) rotateSlides();
 
             } catch (error) { console.error("Display Fetch Error:", error); }
         }
@@ -335,12 +354,16 @@
             track.innerHTML = tickerHtml + tickerHtml;
         }
 
-        function updateDynamicQR(slideId) {
+        function updateDynamicQR(slideId, customUrl = null, customText = null) {
             let targetUrl = window.location.origin + '/spectator.html';
             let mainText = 'SCAN FOR LIVE DATA';
             let subText = 'MOBILE SPECTATOR APP';
 
-            if (slideId === 'slide-podium' && currentPodiumCompId) {
+            if (customUrl) {
+                targetUrl = customUrl;
+                mainText = customText || 'SCAN TO VISIT';
+                subText = 'EXTERNAL LINK';
+            } else if (slideId === 'slide-podium' && currentPodiumCompId) {
                 targetUrl += `?view=results&comp=${currentPodiumCompId}`;
                 mainText = 'SCAN FOR RESULTS'; subText = 'DOWNLOAD THE POSTER';
             } else if (slideId === 'slide-schedule') {
@@ -447,9 +470,9 @@
             const p1 = getPos(1); const p2 = getPos(2); const p3 = getPos(3);
 
             container.innerHTML = `
-                <div class="pedestal-wrapper p2"><div class="pedestal-card"><div class="p-name theme-font">${p2.name}</div><div class="p-team theme-font">${p2.team}</div></div><div class="pedestal"><div class="rank-num theme-font">2</div></div></div>
-                <div class="pedestal-wrapper p1"><div class="pedestal-card" style="box-shadow: 0 20px 50px var(--gold-glow); border-color: rgba(251,191,36,0.5);"><div class="p-name theme-font">${p1.name}</div><div class="p-team theme-font" style="color: var(--gold);">${p1.team}</div></div><div class="pedestal"><div class="rank-num theme-font">1</div></div></div>
-                <div class="pedestal-wrapper p3"><div class="pedestal-card"><div class="p-name theme-font">${p3.name}</div><div class="p-team theme-font">${p3.team}</div></div><div class="pedestal"><div class="rank-num theme-font">3</div></div></div>
+                <div class="pedestal-wrapper p2"><div class="pedestal-card"><div class="p-name theme-font" style="font-size: 1.8rem;">${p2.name}</div><div class="p-team theme-font">${p2.team}</div></div><div class="pedestal"><div class="rank-num theme-font">2</div></div></div>
+                <div class="pedestal-wrapper p1"><div class="pedestal-card" style="box-shadow: 0 20px 50px var(--gold-glow); border-color: rgba(251,191,36,0.5);"><div class="p-name theme-font" style="font-size: 2.2rem;">${p1.name}</div><div class="p-team theme-font" style="color: var(--gold);">${p1.team}</div></div><div class="pedestal"><div class="rank-num theme-font">1</div></div></div>
+                <div class="pedestal-wrapper p3"><div class="pedestal-card"><div class="p-name theme-font" style="font-size: 1.5rem;">${p3.name}</div><div class="p-team theme-font">${p3.team}</div></div><div class="pedestal"><div class="rank-num theme-font">3</div></div></div>
             `;
         }
 
@@ -497,6 +520,7 @@
             }, 250);
         }
 
+        // --- NEW SLIDE ROTATION ENGINE ---
         function rotateSlides() {
             if (activeSlides.length === 0) return;
             if (currentSlide >= activeSlides.length) currentSlide = 0;
@@ -506,11 +530,33 @@
             const slideEl = document.getElementById(activeSlideId);
             if (slideEl) slideEl.classList.add('active');
             
-            updateDynamicQR(activeSlideId);
+            // Extract Custom Data Attributes (if any)
+            const customDuration = slideEl ? parseInt(slideEl.getAttribute('data-duration')) : null;
+            const customQrUrl = slideEl ? slideEl.getAttribute('data-qr-url') : null;
+            const customQrText = slideEl ? slideEl.getAttribute('data-qr-text') : null;
+            const customTicker = slideEl ? slideEl.getAttribute('data-ticker') : null;
+
+            // Determine Timing
+            const defaultDurationSecs = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--slide-duration')) || 12;
+            const durationSecs = customDuration && customDuration > 0 ? customDuration : defaultDurationSecs;
+            const durationMs = durationSecs * 1000;
+
+            // Apply Contextual Overrides
+            updateDynamicQR(activeSlideId, customQrUrl, customQrText);
             
+            if (customTicker && customTicker.trim() !== '') {
+                const track = document.getElementById('live-ticker-track');
+                const html = `<div class="ticker-item"><span class="t-badge" style="background:var(--primary); color:white;">ANNOUNCEMENT</span> ${customTicker}</div>`;
+                track.innerHTML = html + html + html + html; 
+            } else {
+                updateLiveTicker(globalActiveEvents, globalPublishedComps); 
+            }
+
+            // Animate Progress Bar
             const progressBar = document.getElementById('progress');
             progressBar.classList.remove('animating');
             void progressBar.offsetWidth; 
+            progressBar.style.transition = `width ${durationSecs}s linear`;
             progressBar.classList.add('animating');
             
             currentSlide++;
@@ -518,12 +564,12 @@
                 currentSlide = 0;
                 fetchDisplayData(); 
             }
+
+            clearTimeout(rotationTimeout);
+            rotationTimeout = setTimeout(rotateSlides, durationMs);
         }
 
         fetchDisplayData().then(() => {
-            const durationMs = (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--slide-duration')) || 12) * 1000;
-            rotateSlides();
-            setInterval(rotateSlides, durationMs);
             if (isPreviewMode) document.body.style.zoom = "0.45";
         });
     </script>

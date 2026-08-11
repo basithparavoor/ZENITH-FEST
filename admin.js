@@ -5637,28 +5637,9 @@ function getPDFHeaderHTML(reportTitle) {
 // SPECTATOR DISPLAY CONTROL ENGINE
 // ============================================================================
 
-let pendingDisplayImageBase64 = null;
-
-function handleDisplayCustomImage(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        pendingDisplayImageBase64 = e.target.result;
-        document.getElementById('disp-custom-preview').src = e.target.result;
-        document.getElementById('disp-custom-preview').style.display = 'block';
-        document.getElementById('btn-remove-disp-img').style.display = 'block';
-    };
-    reader.readAsDataURL(file);
-}
-
-function removeDisplayCustomImage() {
-    pendingDisplayImageBase64 = null;
-    document.getElementById('disp-custom-preview').src = '';
-    document.getElementById('disp-custom-preview').style.display = 'none';
-    document.getElementById('btn-remove-disp-img').style.display = 'none';
-    document.getElementById('disp-custom-img').value = '';
-}
+let globalCustomSlides = [];
+let pendingCSFile = null;
+let pendingCSImagePreview = null;
 
 async function loadDisplaySettings() {
     try {
@@ -5668,68 +5649,218 @@ async function loadDisplaySettings() {
             if(document.getElementById('disp-duration')) document.getElementById('disp-duration').value = v.slide_duration || 12;
             if(document.getElementById('disp-color')) document.getElementById('disp-color').value = v.primary_color || '#4F46E5';
             if(document.getElementById('disp-font')) document.getElementById('disp-font').value = v.font_family || 'Plus Jakarta Sans';
-            if(document.getElementById('disp-custom-title')) document.getElementById('disp-custom-title').value = v.custom_title || '';
-            if(document.getElementById('disp-custom-text')) document.getElementById('disp-custom-text').value = v.custom_text || '';
             
             const qrCheck = document.getElementById('disp-show-qr');
             if (qrCheck) { qrCheck.checked = v.show_qr !== false; qrCheck.dispatchEvent(new Event('change')); }
             
-            const customCheck = document.getElementById('disp-custom-enable');
-            if (customCheck) { customCheck.checked = v.custom_enable === true; customCheck.dispatchEvent(new Event('change')); }
-
-            if (v.custom_image) {
-                pendingDisplayImageBase64 = v.custom_image;
-                document.getElementById('disp-custom-preview').src = v.custom_image;
-                document.getElementById('disp-custom-preview').style.display = 'block';
-                document.getElementById('btn-remove-disp-img').style.display = 'block';
-            }
+            // Load custom slides array
+            globalCustomSlides = v.custom_slides || [];
         }
+        renderCustomSlidesList();
         scalePreviewIframe();
     } catch(e) { console.warn("Using default display settings."); }
 }
 
-async function saveDisplaySettings() {
+async function saveDisplaySettings(silent = false) {
+    if(!silent) setLoading('display-control .btn-primary', true);
+    
+    // Fetch current state to avoid overwriting trigger_confetti
+    const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+    let trigger_confetti = data && data.value ? data.value.trigger_confetti : 0;
+
     const payload = {
         slide_duration: parseInt(document.getElementById('disp-duration').value) || 12,
         primary_color: document.getElementById('disp-color').value || '#4F46E5',
         font_family: document.getElementById('disp-font').value || 'Plus Jakarta Sans',
         show_qr: document.getElementById('disp-show-qr').checked,
-        custom_enable: document.getElementById('disp-custom-enable').checked,
-        custom_title: document.getElementById('disp-custom-title').value,
-        custom_text: document.getElementById('disp-custom-text').value,
-        custom_image: pendingDisplayImageBase64,
-        trigger_confetti: 0 // preserve logic
+        custom_slides: globalCustomSlides,
+        trigger_confetti: trigger_confetti
     };
     
-    // Fetch current confetti state to prevent accidental triggers
-    const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
-    if(data && data.value) payload.trigger_confetti = data.value.trigger_confetti || 0;
-
-    setLoading('display-control .btn-primary', true);
     try {
         const { error } = await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
         if (error) throw error;
-        showToast("Display Settings Saved & Synced!");
         
-        // Refresh preview iframe instantly
+        if(!silent) showToast("Display Settings Saved & Synced!");
+        
         const iframe = document.getElementById('display-preview-frame');
         if(iframe) iframe.src = iframe.src; 
 
     } catch(e) {
-        showToast(e.message, 'error');
+        if(!silent) showToast(e.message, 'error');
     } finally {
-        setLoading('display-control .btn-primary', false);
+        if(!silent) setLoading('display-control .btn-primary', false);
     }
+}
+
+// --- CUSTOM SLIDES CRUD ---
+function renderCustomSlidesList() {
+    const container = document.getElementById('custom-slides-list');
+    container.innerHTML = '';
+    
+    if (globalCustomSlides.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem; border: 1px dashed var(--border); border-radius: 8px;">No custom slides created yet. Add one above!</div>`;
+        return;
+    }
+
+    globalCustomSlides.forEach((slide, index) => {
+        const isEnabled = slide.enabled !== false;
+        container.innerHTML += `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: var(--bg-main); border: 1px solid var(--border); border-radius: 12px;">
+                <div style="display: flex; align-items: center; gap: 1rem; flex: 1;">
+                    <img src="${slide.bg_url || 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\'><rect width=\'100%\' height=\'100%\' fill=\'%23CBD5E1\'/></svg>'}" style="width: 60px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border);">
+                    <div>
+                        <div style="font-weight: 800; color: var(--text-main); font-size: 0.95rem;">${slide.title || 'Untitled Slide'}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: flex; gap: 0.75rem; margin-top: 0.2rem;">
+                            ${slide.duration ? `<span><i class="fa-regular fa-clock"></i> ${slide.duration}s</span>` : '<span><i class="fa-regular fa-clock"></i> Default</span>'}
+                            ${slide.qr_url ? `<span><i class="fa-solid fa-qrcode"></i> Custom QR</span>` : ''}
+                            ${slide.ticker ? `<span><i class="fa-solid fa-bolt"></i> Ticker</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 24px; margin-right: 0.5rem;">
+                        <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="toggleCustomSlide(${index}, this.checked)" style="opacity: 0; width: 0; height: 0;">
+                        <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: ${isEnabled ? 'var(--success)' : '#cbd5e1'}; transition: .4s; border-radius: 34px;"></span>
+                        <span style="position: absolute; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; transform: ${isEnabled ? 'translateX(20px)' : 'translateX(0)'};"></span>
+                    </label>
+                    <button class="btn btn-outline" style="padding: 0.35rem 0.6rem;" onclick="openCustomSlideModal(${index})"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn btn-outline" style="padding: 0.35rem 0.6rem; color: var(--danger); border-color: var(--danger);" onclick="deleteCustomSlide(${index})"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </div>
+        `;
+    });
+}
+
+function openCustomSlideModal(index = -1) {
+    pendingCSFile = null;
+    pendingCSImagePreview = null;
+    document.getElementById('cs-bg-preview').style.display = 'none';
+    document.getElementById('cs-bg-remove').style.display = 'none';
+    document.getElementById('cs-bg-upload').value = '';
+
+    if (index >= 0) {
+        const slide = globalCustomSlides[index];
+        document.getElementById('cs-id').value = slide.id;
+        document.getElementById('cs-title').value = slide.title || '';
+        document.getElementById('cs-text').value = slide.text || '';
+        document.getElementById('cs-duration').value = slide.duration || '';
+        document.getElementById('cs-color').value = slide.color || '#4F46E5';
+        document.getElementById('cs-qr-url').value = slide.qr_url || '';
+        document.getElementById('cs-qr-text').value = slide.qr_text || '';
+        document.getElementById('cs-ticker').value = slide.ticker || '';
+
+        if (slide.bg_url) {
+            document.getElementById('cs-bg-preview').src = slide.bg_url;
+            document.getElementById('cs-bg-preview').style.display = 'block';
+            document.getElementById('cs-bg-remove').style.display = 'inline-flex';
+            pendingCSImagePreview = slide.bg_url;
+        }
+    } else {
+        document.getElementById('cs-id').value = 'cs_' + Date.now();
+        document.getElementById('cs-title').value = '';
+        document.getElementById('cs-text').value = '';
+        document.getElementById('cs-duration').value = '';
+        document.getElementById('cs-color').value = document.getElementById('disp-color').value || '#4F46E5';
+        document.getElementById('cs-qr-url').value = '';
+        document.getElementById('cs-qr-text').value = '';
+        document.getElementById('cs-ticker').value = '';
+    }
+
+    document.getElementById('customSlideModal').classList.add('show');
+}
+
+function handleCSImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    pendingCSFile = file;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        pendingCSImagePreview = e.target.result;
+        document.getElementById('cs-bg-preview').src = e.target.result;
+        document.getElementById('cs-bg-preview').style.display = 'block';
+        document.getElementById('cs-bg-remove').style.display = 'inline-flex';
+    };
+    reader.readAsDataURL(file);
+}
+
+function removeCSImage() {
+    pendingCSFile = null;
+    pendingCSImagePreview = null;
+    document.getElementById('cs-bg-preview').src = '';
+    document.getElementById('cs-bg-preview').style.display = 'none';
+    document.getElementById('cs-bg-remove').style.display = 'none';
+    document.getElementById('cs-bg-upload').value = '';
+}
+
+async function saveCustomSlide() {
+    const title = document.getElementById('cs-title').value;
+    if(!title) return showToast("A heading is required.", "error");
+
+    setLoading('btn-save-cs', true);
+
+    try {
+        let finalBgUrl = pendingCSImagePreview;
+
+        // If it's a completely new file, upload it to the 'elements' bucket
+        if (pendingCSFile) {
+            const fileExt = pendingCSFile.name.split('.').pop();
+            const fileName = `slide_bg_${Date.now()}.${fileExt}`;
+            const { data, error } = await supabaseClient.storage.from('elements').upload(fileName, pendingCSFile);
+            if (error) throw error;
+            const { data: urlData } = supabaseClient.storage.from('elements').getPublicUrl(fileName);
+            finalBgUrl = urlData.publicUrl;
+        }
+
+        const id = document.getElementById('cs-id').value;
+        const slideObj = {
+            id: id,
+            enabled: true,
+            title: title,
+            text: document.getElementById('cs-text').value,
+            duration: document.getElementById('cs-duration').value || null,
+            color: document.getElementById('cs-color').value,
+            qr_url: document.getElementById('cs-qr-url').value || null,
+            qr_text: document.getElementById('cs-qr-text').value || null,
+            ticker: document.getElementById('cs-ticker').value || null,
+            bg_url: finalBgUrl
+        };
+
+        const existingIndex = globalCustomSlides.findIndex(s => s.id === id);
+        if (existingIndex >= 0) {
+            // Keep enabled status if editing
+            slideObj.enabled = globalCustomSlides[existingIndex].enabled;
+            globalCustomSlides[existingIndex] = slideObj;
+        } else {
+            globalCustomSlides.push(slideObj);
+        }
+
+        await saveDisplaySettings(false); // Saves to DB and syncs preview
+        document.getElementById('customSlideModal').classList.remove('show');
+
+    } catch(e) {
+        showToast("Error saving slide: " + e.message, "error");
+    } finally {
+        setLoading('btn-save-cs', false);
+    }
+}
+
+async function toggleCustomSlide(index, isEnabled) {
+    globalCustomSlides[index].enabled = isEnabled;
+    await saveDisplaySettings(true); // silent sync
+}
+
+async function deleteCustomSlide(index) {
+    if(!confirm("Remove this custom slide permanently?")) return;
+    globalCustomSlides.splice(index, 1);
+    await saveDisplaySettings(false);
 }
 
 async function triggerManualConfetti() {
     try {
         const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
         let payload = data?.value || { slide_duration: 12, show_qr: true };
-        
-        // Setting it to Date.now() forces all listening displays to recognize it as a new event
-        payload.trigger_confetti = Date.now(); 
-        
+        payload.trigger_confetti = Date.now(); // Forces all listening displays to trigger
         await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
         showToast("Celebration triggered on live displays!", "success");
     } catch(e) {
@@ -5737,56 +5868,15 @@ async function triggerManualConfetti() {
     }
 }
 
-// Ensure the iframe shrinks to fit exactly inside the Admin Card cleanly
 function scalePreviewIframe() {
     const iframe = document.getElementById('display-preview-frame');
     if (iframe && iframe.parentElement) {
         const parent = iframe.parentElement;
         const parentWidth = parent.clientWidth;
-        
-        // Standard 1080p width is 1920
         const scale = parentWidth / 1920;
         iframe.style.transform = `scale(${scale})`;
-        
-        // FIX: Dynamically set the parent height to enforce a perfect 16:9 ratio,
-        // eliminating the black bleeding space at the bottom.
         const calculatedHeight = parentWidth * (1080 / 1920);
         parent.style.height = `${calculatedHeight}px`;
     }
 }
-
 window.addEventListener('resize', scalePreviewIframe);
-
-// NEW: Render Star/Pen Contenders
-function renderSpecialLedger(type) {
-    const tbody = document.getElementById('special-points-tbody');
-    tbody.innerHTML = '';
-    
-    // Filter out people who have 0 points in this specific category, then sort highest to lowest
-    let filteredList = pointsDataList.filter(p => type === 'star' ? p.starPoints > 0 : p.penPoints > 0);
-    filteredList.sort((a, b) => type === 'star' ? b.starPoints - a.starPoints : b.penPoints - a.penPoints);
-
-    if (filteredList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-muted); font-weight: 600;">No points have been awarded in this category yet.</td></tr>`;
-        return;
-    }
-
-    const awardTitle = type === 'star' ? 'Star of the Fest Points' : 'Pen of the Fest Points';
-    document.getElementById('special-pts-header').innerText = awardTitle;
-
-    filteredList.forEach((p, i) => {
-        const pts = type === 'star' ? p.starPoints : p.penPoints;
-        const color = type === 'star' ? '#D97706' : '#4338CA';
-        let rankBadge = i === 0 ? `<i class="fa-solid fa-crown" style="color: ${color}; margin-right: 5px;"></i>` : '';
-        
-        tbody.innerHTML += `
-            <tr>
-                <td style="font-weight: 800; font-size: 1.15rem; color: var(--text-main);">${rankBadge}#${i+1}</td>
-                <td style="font-weight: 700;">${p.name} <br><small style="font-family:monospace; color:var(--text-muted);">${p.unique_id}</small></td>
-                <td><span class="badge" style="background: var(--bg-main); color: var(--text-muted);">${p.teams?.name || 'INDEPENDENT'}</span></td>
-                <td style="font-weight: 900; color: ${color}; font-size: 1.25rem;">${pts} <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">PTS</span></td>
-                <td><button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick="viewParticipantPointDetails('${p.id}')"><i class="fa-solid fa-list"></i> View Ledger</button></td>
-            </tr>
-        `;
-    });
-}
