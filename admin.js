@@ -3105,51 +3105,7 @@ function closeTemplateStudio() {
     document.getElementById('template-library-view').style.display = 'block';
     loadTemplatesList(); 
 }
-function initializeStudioFields() {
-    const type = document.getElementById('studio-template-type').value;
-    studioActiveData.type = type;
-    const requiredFields = TEMPLATE_SCHEMAS[type];
 
-    // Build Data Defaults
-    requiredFields.forEach(field => {
-        const key = field.replace(/\s+/g, '');
-        const isImage = (key.includes('Photo') || key === 'QRCode');        
-        
-        if (!studioActiveData.fields[key]) {
-            if (isImage) {
-                // NEW: Added aspectLocked and aspectRatio to image defaults
-                studioActiveData.fields[key] = { 
-                    enabled: false, 
-                    x: 100, 
-                    y: 150, 
-                    w: 250, 
-                    h: 300, 
-                    radius: 20, 
-                    isImage: true,
-                    aspectLocked: true,
-                    aspectRatio: 250 / 300 
-                };
-            } else {
-                studioActiveData.fields[key] = { 
-                    enabled: false, 
-                    x: 100, 
-                    y: 150, 
-                    size: 40, 
-                    color: '#0F172A', 
-                    align: 'left', 
-                    font: 'Inter, sans-serif', 
-                    weight: 'bold', 
-                    isImage: false 
-                };
-            }
-        }
-        studioActiveData.fields[key].displayName = field;
-    });
-
-    renderLayersPanel();
-    renderPropertiesPanel();
-    drawStudioCanvas();
-}
 
 function renderLayersPanel() {
     const container = document.getElementById('studio-layers-panel');
@@ -3195,63 +3151,7 @@ function toggleLayerVisibility(event, key) {
     drawStudioCanvas();
 }
 
-function renderPropertiesPanel() {
-    const container = document.getElementById('studio-properties-panel');
-    if (!studioActiveField || !studioActiveData.fields[studioActiveField]) {
-        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">Select a layer to edit.</p>`;
-        return;
-    }
 
-    const key = studioActiveField;
-    const data = studioActiveData.fields[key];
-    const fonts = AVAILABLE_FONTS.map(f => `<option value="${f.value}" ${data.font === f.value ? 'selected' : ''}>${f.name}</option>`).join('');
-
-    let specificHTML = '';
-    if (data.isImage) {
-        const lockIcon = data.aspectLocked ? 'fa-lock' : 'fa-lock-open';
-        const deleteBtn = data.isStaticElement 
-            ? `<button class="btn btn-outline" style="grid-column: span 3; border-color: var(--danger); color: var(--danger); margin-top: 0.5rem;" onclick="deleteStudioLayer('${key}')"><i class="fa-solid fa-trash"></i> Delete Element</button>` 
-            : '';
-
-        specificHTML = `
-            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.5rem; margin-top: 1rem; align-items: end;">
-                <div><label style="font-size: 0.75rem; font-weight:700;">WIDTH</label><input type="number" id="prop-w" value="${data.w}" oninput="updateActiveProperty('w', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
-                <button class="btn btn-outline" style="padding: 0.5rem; height: 35px; width: 35px; display: flex; justify-content: center; align-items: center;" onclick="toggleAspectRatioLock('${key}')" title="Toggle Aspect Ratio Lock"><i class="fa-solid ${lockIcon}"></i></button>
-                <div><label style="font-size: 0.75rem; font-weight:700;">HEIGHT</label><input type="number" id="prop-h" value="${data.h}" oninput="updateActiveProperty('h', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
-                <div style="grid-column: span 3;"><label style="font-size: 0.75rem; font-weight:700;">CORNER RADIUS</label><input type="number" id="prop-rad" value="${data.radius || 0}" oninput="updateActiveProperty('radius', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
-                ${deleteBtn}
-            </div>
-        `;
-    } else {
-        // [KEEP YOUR EXISTING TEXT specificHTML BLOCK HERE EXACTLY AS IT WAS]
-        specificHTML = `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem;">
-                <div><label style="font-size: 0.75rem; font-weight:700;">FONT SIZE</label><input type="number" id="prop-sz" value="${data.size}" oninput="updateActiveProperty('size', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
-                <div><label style="font-size: 0.75rem; font-weight:700;">COLOR</label><input type="color" id="prop-cl" value="${data.color}" oninput="updateActiveProperty('color', this.value)" style="width: 100%; height: 35px; border: 1px solid var(--border); border-radius: 4px; padding:0;"></div>
-                <div style="grid-column: span 2;"><label style="font-size: 0.75rem; font-weight:700;">FONT FAMILY</label><select onchange="updateActiveProperty('font', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">${fonts}</select></div>
-                <div><label style="font-size: 0.75rem; font-weight:700;">WEIGHT</label><select onchange="updateActiveProperty('weight', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
-                    <option value="normal" ${data.weight==='normal'?'selected':''}>Normal</option>
-                    <option value="bold" ${data.weight==='bold'?'selected':''}>Bold</option>
-                    <option value="900" ${data.weight==='900'?'selected':''}>Black</option>
-                </select></div>
-                <div><label style="font-size: 0.75rem; font-weight:700;">ALIGN</label><select onchange="updateActiveProperty('align', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
-                    <option value="left" ${data.align==='left'?'selected':''}>Left</option>
-                    <option value="center" ${data.align==='center'?'selected':''}>Center</option>
-                    <option value="right" ${data.align==='right'?'selected':''}>Right</option>
-                </select></div>
-            </div>
-        `;
-    }
-
-    container.innerHTML = `
-        <h4 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 1rem; color: var(--primary);">${data.displayName}</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-            <div><label style="font-size: 0.75rem; font-weight:700;">X POS</label><input type="number" id="prop-x" value="${data.x}" oninput="updateActiveProperty('x', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
-            <div><label style="font-size: 0.75rem; font-weight:700;">Y POS</label><input type="number" id="prop-y" value="${data.y}" oninput="updateActiveProperty('y', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
-        </div>
-        ${specificHTML}
-    `;
-}
 
 let historyTimeout = null;
 
@@ -3306,7 +3206,165 @@ function handleStudioUpload(event) {
     };
     reader.readAsDataURL(file);
 }
-// --- 3. CANVAS ENGINE & DRAWING ---
+function initializeStudioFields() {
+    const type = document.getElementById('studio-template-type').value;
+    studioActiveData.type = type;
+    const requiredFields = TEMPLATE_SCHEMAS[type];
+    
+    const validKeys = new Set();
+
+    // 1. Build Data Defaults for the selected Template Sector
+    requiredFields.forEach(field => {
+        const key = field.replace(/\s+/g, '');
+        validKeys.add(key);
+        const isImage = (key.includes('Photo') || key === 'QRCode');        
+        
+        if (!studioActiveData.fields[key]) {
+            if (isImage) {
+                studioActiveData.fields[key] = { 
+                    enabled: false, x: 100, y: 150, w: 250, h: 300, radius: 20, 
+                    isImage: true, aspectLocked: true, aspectRatio: 250 / 300 
+                };
+            } else {
+                studioActiveData.fields[key] = { 
+                    enabled: false, x: 100, y: 150, size: 40, color: '#0F172A', 
+                    align: 'left', font: 'Inter, sans-serif', weight: 'bold', isImage: false 
+                };
+            }
+        }
+        studioActiveData.fields[key].displayName = field;
+    });
+
+    // 2. Dynamic Purging: Remove layers that don't belong to this sector (but KEEP custom layers)
+    Object.keys(studioActiveData.fields).forEach(key => {
+        const f = studioActiveData.fields[key];
+        if (f.isCustom || f.isStaticElement) {
+            validKeys.add(key); // Protect custom uploads and texts
+        }
+        
+        if (!validKeys.has(key)) {
+            delete studioActiveData.fields[key]; // Purge irrelevant layers
+        }
+    });
+
+    // If the currently selected layer was just purged, unselect it
+    if (studioActiveField && !studioActiveData.fields[studioActiveField]) {
+        studioActiveField = null;
+    }
+
+    renderLayersPanel();
+    renderPropertiesPanel();
+    drawStudioCanvas();
+}
+
+// NEW: Add a Custom Text Layer
+function addCustomTextLayer() {
+    const key = 'CustomText_' + Date.now();
+    studioActiveData.fields[key] = {
+        enabled: true,
+        displayName: "New Custom Text", // Used as the actual text content
+        x: 200,
+        y: 200,
+        size: 60,
+        color: '#0F172A',
+        align: 'center',
+        font: 'Inter, sans-serif',
+        weight: 'bold',
+        isImage: false,
+        isCustom: true // Flags it so it isn't deleted during sector switches
+    };
+
+    saveHistoryState();
+    renderLayersPanel();
+    selectStudioLayer(key);
+}
+
+// UPDATED: Generic Delete function for both Custom Text and Uploaded Images
+function deleteStudioLayer(key) {
+    if (confirm("Delete this layer permanently?")) {
+        saveHistoryState();
+        delete studioActiveData.fields[key];
+        if (studioActiveField === key) studioActiveField = null;
+        renderLayersPanel();
+        renderPropertiesPanel();
+        drawStudioCanvas();
+    }
+}
+
+function renderPropertiesPanel() {
+    const container = document.getElementById('studio-properties-panel');
+    if (!studioActiveField || !studioActiveData.fields[studioActiveField]) {
+        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">Select a layer to edit.</p>`;
+        return;
+    }
+
+    const key = studioActiveField;
+    const data = studioActiveData.fields[key];
+    const fonts = AVAILABLE_FONTS.map(f => `<option value="${f.value}" ${data.font === f.value ? 'selected' : ''}>${f.name}</option>`).join('');
+
+    let specificHTML = '';
+    if (data.isImage) {
+        const lockIcon = data.aspectLocked ? 'fa-lock' : 'fa-lock-open';
+        const deleteBtn = data.isStaticElement 
+            ? `<button class="btn btn-outline" style="grid-column: span 3; border-color: var(--danger); color: var(--danger); margin-top: 0.5rem;" onclick="deleteStudioLayer('${key}')"><i class="fa-solid fa-trash"></i> Delete Element</button>` 
+            : '';
+
+        specificHTML = `
+            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.5rem; margin-top: 1rem; align-items: end;">
+                <div><label style="font-size: 0.75rem; font-weight:700;">WIDTH</label><input type="number" id="prop-w" value="${data.w}" oninput="updateActiveProperty('w', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+                <button class="btn btn-outline" style="padding: 0.5rem; height: 35px; width: 35px; display: flex; justify-content: center; align-items: center;" onclick="toggleAspectRatioLock('${key}')" title="Toggle Aspect Ratio Lock"><i class="fa-solid ${lockIcon}"></i></button>
+                <div><label style="font-size: 0.75rem; font-weight:700;">HEIGHT</label><input type="number" id="prop-h" value="${data.h}" oninput="updateActiveProperty('h', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+                <div style="grid-column: span 3;"><label style="font-size: 0.75rem; font-weight:700;">CORNER RADIUS</label><input type="number" id="prop-rad" value="${data.radius || 0}" oninput="updateActiveProperty('radius', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+                ${deleteBtn}
+            </div>
+        `;
+    } else {
+        // Handle Custom Text Name Changing
+        let customTextHTML = '';
+        if (data.isCustom) {
+            customTextHTML = `
+                <div style="grid-column: span 2;">
+                    <label style="font-size: 0.75rem; font-weight:700;">TEXT CONTENT</label>
+                    <input type="text" value="${data.displayName}" oninput="updateActiveProperty('displayName', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                </div>
+            `;
+        }
+
+        const deleteBtn = data.isCustom 
+            ? `<button class="btn btn-outline" style="grid-column: span 2; border-color: var(--danger); color: var(--danger); margin-top: 0.5rem;" onclick="deleteStudioLayer('${key}')"><i class="fa-solid fa-trash"></i> Delete Layer</button>` 
+            : '';
+
+        specificHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem;">
+                ${customTextHTML}
+                <div><label style="font-size: 0.75rem; font-weight:700;">FONT SIZE</label><input type="number" id="prop-sz" value="${data.size}" oninput="updateActiveProperty('size', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">COLOR</label><input type="color" id="prop-cl" value="${data.color}" oninput="updateActiveProperty('color', this.value)" style="width: 100%; height: 35px; border: 1px solid var(--border); border-radius: 4px; padding:0;"></div>
+                <div style="grid-column: span 2;"><label style="font-size: 0.75rem; font-weight:700;">FONT FAMILY</label><select onchange="updateActiveProperty('font', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">${fonts}</select></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">WEIGHT</label><select onchange="updateActiveProperty('weight', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                    <option value="normal" ${data.weight==='normal'?'selected':''}>Normal</option>
+                    <option value="bold" ${data.weight==='bold'?'selected':''}>Bold</option>
+                    <option value="900" ${data.weight==='900'?'selected':''}>Black</option>
+                </select></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">ALIGN</label><select onchange="updateActiveProperty('align', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                    <option value="left" ${data.align==='left'?'selected':''}>Left</option>
+                    <option value="center" ${data.align==='center'?'selected':''}>Center</option>
+                    <option value="right" ${data.align==='right'?'selected':''}>Right</option>
+                </select></div>
+                ${deleteBtn}
+            </div>
+        `;
+    }
+
+    container.innerHTML = `
+        <h4 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 1rem; color: var(--primary);">${data.displayName}</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <div><label style="font-size: 0.75rem; font-weight:700;">X POS</label><input type="number" id="prop-x" value="${data.x}" oninput="updateActiveProperty('x', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+            <div><label style="font-size: 0.75rem; font-weight:700;">Y POS</label><input type="number" id="prop-y" value="${data.y}" oninput="updateActiveProperty('y', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+        </div>
+        ${specificHTML}
+    `;
+}
+
 function drawStudioCanvas() {
     const canvas = document.getElementById('studio-canvas');
     if(!canvas) return;
@@ -3327,28 +3385,17 @@ function drawStudioCanvas() {
 
         if (data.isImage) {
             if (data.isStaticElement) {
-                // --- RENDER CUSTOM UPLOADED ELEMENTS ---
                 if (data.imgObj && data.imgObj.src) {
                     ctx.drawImage(data.imgObj, data.x, data.y, data.w, data.h);
                 }
-
-                // Draw a selection border if it's currently clicked
                 if (studioActiveField === key) {
-                    ctx.strokeStyle = '#4F46E5'; 
-                    ctx.lineWidth = 4; 
-                    ctx.setLineDash([10, 5]);
-                    ctx.strokeRect(data.x, data.y, data.w, data.h);
-                    ctx.setLineDash([]);
+                    ctx.strokeStyle = '#4F46E5'; ctx.lineWidth = 4; ctx.setLineDash([10, 5]);
+                    ctx.strokeRect(data.x, data.y, data.w, data.h); ctx.setLineDash([]);
                 }
             } else {
-                // --- RENDER DYNAMIC PARTICIPANT PHOTO PLACEHOLDERS ---
-                // Draw Rounded Rectangle
                 ctx.beginPath();
-                if(ctx.roundRect) {
-                    ctx.roundRect(data.x, data.y, data.w, data.h, data.radius || 0);
-                } else {
-                    ctx.rect(data.x, data.y, data.w, data.h); // Fallback
-                }
+                if(ctx.roundRect) ctx.roundRect(data.x, data.y, data.w, data.h, data.radius || 0);
+                else ctx.rect(data.x, data.y, data.w, data.h); 
                 
                 ctx.fillStyle = key.includes('Photo') ? 'rgba(79, 70, 229, 0.2)' : 'rgba(15, 23, 42, 0.1)';            
                 ctx.fill();
@@ -3362,26 +3409,24 @@ function drawStudioCanvas() {
                 ctx.fillText(data.displayName, data.x + (data.w / 2), data.y + (data.h / 2) + 10);
             }
 
-            // --- DRAW RESIZE HANDLE (For both static and dynamic images) ---
             if (studioActiveField === key) {
-                ctx.fillStyle = '#FFFFFF';
-                ctx.strokeStyle = '#4F46E5';
-                ctx.lineWidth = 2;
-                const hSize = 14; // Size of the resize box
+                ctx.fillStyle = '#FFFFFF'; ctx.strokeStyle = '#4F46E5'; ctx.lineWidth = 2;
+                const hSize = 14; 
                 ctx.fillRect(data.x + data.w - (hSize/2), data.y + data.h - (hSize/2), hSize, hSize);
                 ctx.strokeRect(data.x + data.w - (hSize/2), data.y + data.h - (hSize/2), hSize, hSize);
             }
             
         } else {
-            // --- RENDER TEXT ELEMENTS ---
             ctx.textAlign = data.align; ctx.fillStyle = data.color;
             ctx.font = `${data.weight || 'bold'} ${data.size}px ${data.font}`;
-            const mockText = STUDIO_MOCK_DATA[key] || data.displayName.toUpperCase();
+            
+            // Render custom text as the display name, else use the mock data
+            const mockText = data.isCustom ? data.displayName : (STUDIO_MOCK_DATA[key] || data.displayName.toUpperCase());
             
             if (studioActiveField === key) {
                 ctx.shadowColor = 'rgba(79, 70, 229, 0.8)'; ctx.shadowBlur = 15;
                 ctx.fillText(mockText, data.x, data.y);
-                ctx.shadowBlur = 0; // Reset
+                ctx.shadowBlur = 0; 
             } else {
                 ctx.fillText(mockText, data.x, data.y);
             }
@@ -4742,15 +4787,7 @@ async function handleElementUpload(event) {
     }
 }
 
-function deleteStudioLayer(key) {
-    if (confirm("Delete this uploaded element permanently?")) {
-        delete studioActiveData.fields[key];
-        if (studioActiveField === key) studioActiveField = null;
-        renderLayersPanel();
-        renderPropertiesPanel();
-        drawStudioCanvas();
-    }
-}
+
 
 function toggleAspectRatioLock(key) {
     const data = studioActiveData.fields[key];
@@ -5141,15 +5178,20 @@ async function bulkDownloadCertificates(compId) {
             .eq('id', compId)
             .single();
             
+        if (!comp) throw new Error("Competition data could not be found.");
+
         const { data: judgements } = await supabaseClient
             .from('judgements')
             .select('participant_id, awarded_mark, participants(name, unique_id, teams(name))')
             .eq('competition_id', compId);
+            
         if (!judgements || judgements.length === 0) throw new Error("No judgements found for this competition yet.");
 
-        // 3. Group, Average, Drop Outliers
+        // 3. Group, Average, Drop Outliers (FIXED: Skip deleted participants)
         const pMap = {};
         judgements.forEach(j => {
+            if (!j.participants) return; // Prevent crash if participant was deleted
+            
             const pId = j.participant_id;
             if (!pMap[pId]) pMap[pId] = { participant: j.participants, marks: [] };
             pMap[pId].marks.push(parseFloat(j.awarded_mark));
@@ -5165,7 +5207,7 @@ async function bulkDownloadCertificates(compId) {
             return { ...p, avgMark: avg };
         }).sort((a, b) => b.avgMark - a.avgMark).slice(0, 3); // ONLY TOP 3 FOR MERIT CERTS
 
-        if (results.length === 0) throw new Error("Could not calculate top standings.");
+        if (results.length === 0) throw new Error("Could not calculate top standings. No valid participant data.");
 
         // 5. Determine Grades
         await loadPointSettings(); 
@@ -5180,6 +5222,11 @@ async function bulkDownloadCertificates(compId) {
             }
             r.grade = gradeStr;
             r.position = idx === 0 ? 'FIRST PLACE' : idx === 1 ? 'SECOND PLACE' : 'THIRD PLACE';
+            
+            // Add "& PARTY" for Group Events on the Certificate
+            if (comp.is_group && !r.participant.name.endsWith('& PARTY')) {
+                r.participant.name += " & PARTY";
+            }
         });
 
         // 6. Generate PDF via Canvas
@@ -5214,12 +5261,13 @@ async function bulkDownloadCertificates(compId) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0);
 
+            // FIXED: Added fallback placeholders so it never crashes on null data
             const mappedData = {
-                'ParticipantName': entry.participant.name.toUpperCase(),
-                'UniqueID': entry.participant.unique_id || '',
-                'TeamName': (entry.participant.teams?.name || 'INDEPENDENT').toUpperCase(),
+                'ParticipantName': (entry.participant?.name || 'UNKNOWN').toUpperCase(),
+                'UniqueID': entry.participant?.unique_id || '',
+                'TeamName': (entry.participant?.teams?.name || 'INDEPENDENT').toUpperCase(),
                 'Category': (comp.categories?.name || 'GENERAL').toUpperCase(),
-                'Competition': comp.name.toUpperCase(),
+                'Competition': (comp.name || 'EVENT').toUpperCase(),
                 'Position': entry.position,
                 'Grade': entry.grade,
                 'IssueDate': new Date().toLocaleDateString()
