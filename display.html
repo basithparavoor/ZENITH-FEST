@@ -3,115 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FestOS | Spectator Display</title>
+    <title>FestOS | Premium Spectator Display</title>
     <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <!-- Fonts (Includes new Theme Options) -->
+    <!-- Premium Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@500;700;800&family=Bebas+Neue&family=Cinzel:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;700;800&family=Bebas+Neue&family=Cinzel:wght@700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
         :root {
             --primary: #4f46e5;
-            --bg-dark: #070B14;
-            --surface: rgba(15, 23, 42, 0.6);
-            --gold: #FBBF24; --silver: #94A3B8; --bronze: #D97706;
+            --primary-glow: rgba(79, 70, 229, 0.6);
+            --bg-dark: #050810;
+            --surface: rgba(15, 23, 42, 0.65);
+            --surface-border: rgba(255, 255, 255, 0.08);
+            --gold: #FBBF24; --gold-glow: rgba(251, 191, 36, 0.4);
+            --silver: #94A3B8; --bronze: #D97706;
             --slide-duration: 12s; 
         }
         * { margin: 0; padding: 0; box-sizing: border-box; text-transform: uppercase; }
         
         body { background: var(--bg-dark); color: white; overflow: hidden; height: 100vh; display: flex; flex-direction: column; font-family: 'Plus Jakarta Sans', sans-serif; transition: background 1s ease; }
 
-        /* Ambient Background */
+        /* Premium Ambient Background */
         .ambient-bg { position: fixed; inset: 0; z-index: -2; pointer-events: none; }
         .grid-overlay {
             position: fixed; inset: 0; z-index: -1; pointer-events: none;
-            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 50px 50px;
-            mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
-            -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+            background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 60px 60px;
+            mask-image: radial-gradient(circle at center, black 30%, transparent 90%);
+            -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 90%);
         }
-        .orb { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.5; animation: float 25s infinite alternate ease-in-out; transition: background 1s ease;}
-        .orb-1 { background: var(--primary); width: 60vw; height: 60vw; top: -20%; left: -10%; }
-        .orb-2 { background: rgba(236, 72, 153, 0.3); width: 50vw; height: 50vw; bottom: -10%; right: -10%; animation-delay: -5s; }
-        @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(-5%, 10%) scale(1.1); } }
+        .orb { position: absolute; border-radius: 50%; filter: blur(140px); opacity: 0.45; animation: float 25s infinite alternate ease-in-out; transition: background 1s ease;}
+        .orb-1 { background: var(--primary); width: 65vw; height: 65vw; top: -20%; left: -10%; }
+        .orb-2 { background: rgba(236, 72, 153, 0.4); width: 55vw; height: 55vw; bottom: -15%; right: -10%; animation-delay: -5s; }
+        @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(-5%, 10%) scale(1.15); } }
 
-        /* Header */
-        .header { padding: 2rem 4rem; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to bottom, rgba(7, 11, 20, 0.95), transparent); border-bottom: 1px solid rgba(255,255,255,0.05); z-index: 10; }
+        /* Sleek Header */
+        .header { padding: 2rem 4rem; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to bottom, rgba(5, 8, 16, 0.95), transparent); z-index: 10; }
         .header-left { display: flex; align-items: center; gap: 1.5rem; }
-        .header-left img { height: 50px; object-fit: contain; border-radius: 8px; display: none; }
-        .header h1 { font-size: 2.8rem; font-weight: 800; letter-spacing: -1px; text-shadow: 0 0 20px var(--primary); }
+        .header-left img { height: 55px; object-fit: contain; border-radius: 8px; display: none; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5)); }
+        .header h1 { font-size: 3rem; font-weight: 800; letter-spacing: -1px; text-shadow: 0 0 25px var(--primary-glow); }
         .header-right { display: flex; align-items: center; gap: 2rem; }
-        .clock { font-family: 'Inter', sans-serif; font-size: 1.5rem; font-weight: 700; color: rgba(255,255,255,0.8); letter-spacing: 2px; }
-        .live-badge { background: rgba(225, 29, 72, 0.15); color: #FDA4AF; padding: 0.6rem 1.5rem; border-radius: 50px; border: 1px solid rgba(225, 29, 72, 0.4); font-size: 1.2rem; font-weight: 800; display: flex; align-items: center; gap: 0.75rem; }
+        .clock { font-family: 'Inter', sans-serif; font-size: 1.6rem; font-weight: 800; color: rgba(255,255,255,0.9); letter-spacing: 2px; }
+        .live-badge { background: rgba(225, 29, 72, 0.15); color: #FDA4AF; padding: 0.6rem 1.5rem; border-radius: 50px; border: 1px solid rgba(225, 29, 72, 0.4); font-size: 1.2rem; font-weight: 800; display: flex; align-items: center; gap: 0.75rem; box-shadow: 0 0 20px rgba(225, 29, 72, 0.2); }
         .live-dot { width: 12px; height: 12px; background: #FDA4AF; border-radius: 50%; animation: pulse 1.5s infinite; box-shadow: 0 0 10px #FDA4AF; }
         @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.5; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.5; } }
 
         /* Slide Engine */
-        .slide-container { flex: 1; position: relative; padding: 3rem 4rem; }
-        .slide { position: absolute; inset: 0; padding: 2rem 4rem; opacity: 0; transition: opacity 0.8s ease, transform 0.8s ease; display: flex; flex-direction: column; pointer-events: none; transform: scale(0.98); }
+        .slide-container { flex: 1; position: relative; padding: 2rem 4rem 4rem 4rem; }
+        .slide { position: absolute; inset: 0; padding: 1rem 4rem; opacity: 0; transition: opacity 0.8s ease, transform 0.8s ease; display: flex; flex-direction: column; pointer-events: none; transform: scale(0.98); }
         .slide.active { opacity: 1; pointer-events: all; transform: scale(1); }
-        .slide-title { font-size: 3.5rem; color: var(--primary); margin-bottom: 2rem; text-shadow: 0 4px 30px rgba(0,0,0,0.5); letter-spacing: -1px; text-align: center; }
+        .slide-title { font-size: 3.8rem; color: var(--primary); margin-bottom: 2.5rem; text-shadow: 0 10px 30px rgba(0,0,0,0.8); letter-spacing: -1px; text-align: center; }
 
-        /* Podium Spotlight */
-        .podium-container { display: flex; justify-content: center; align-items: flex-end; gap: 2rem; height: 60vh; padding-bottom: 2rem; }
-        .pedestal-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; width: 28%; text-align: center; animation: riseUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(50px); }
-        @keyframes riseUp { to { opacity: 1; transform: translateY(0); } }
-        .slide.active .pedestal-wrapper.p2 { animation-delay: 0.2s; }
-        .slide.active .pedestal-wrapper.p1 { animation-delay: 0.5s; z-index: 5; }
-        .slide.active .pedestal-wrapper.p3 { animation-delay: 0.8s; }
-
-        .pedestal-card { background: var(--surface); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); padding: 1.5rem; border-radius: 20px; width: 100%; margin-bottom: 1.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .p-name { font-size: 2rem; font-weight: 800; color: white; line-height: 1.1; margin-bottom: 0.5rem; }
-        .p-team { font-size: 1.2rem; font-weight: 700; color: rgba(255,255,255,0.6); }
-        
-        .pedestal { width: 100%; border-radius: 12px 12px 0 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 1.5rem; position: relative; overflow: hidden; }
-        .pedestal::after { content:''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 100%); }
-        .p1 .pedestal { height: 280px; background: linear-gradient(to bottom, var(--gold), #B45309); box-shadow: 0 -10px 40px rgba(245,158,11,0.4); }
-        .p2 .pedestal { height: 200px; background: linear-gradient(to bottom, var(--silver), #475569); }
-        .p3 .pedestal { height: 140px; background: linear-gradient(to bottom, var(--bronze), #92400E); }
-        .rank-num { font-size: 5rem; font-weight: 800; color: rgba(255,255,255,0.9); text-shadow: 0 4px 10px rgba(0,0,0,0.3); line-height: 1; z-index: 2; }
-
-        /* Data Boards (Standings & Schedule) */
-        .leaderboard { display: flex; flex-direction: column; gap: 1rem; max-width: 1400px; margin: 0 auto; width: 100%; }
-        .lb-row { background: var(--surface); border: 1px solid rgba(255,255,255,0.05); padding: 1.25rem 3rem; border-radius: 20px; display: flex; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); opacity: 0; transform: translateX(-20px); transition: all 0.5s ease; }
+        /* Premium Cards & Leaderboard */
+        .leaderboard { display: flex; flex-direction: column; gap: 1.2rem; max-width: 1400px; margin: 0 auto; width: 100%; }
+        .lb-row { background: var(--surface); border: 1px solid var(--surface-border); padding: 1.25rem 3rem; border-radius: 20px; display: flex; align-items: center; box-shadow: 0 15px 35px rgba(0,0,0,0.3); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); opacity: 0; transform: translateX(-30px); transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
         .slide.active .lb-row { opacity: 1; transform: translateX(0); }
         .slide.active .lb-row:nth-child(1) { transition-delay: 0.1s; }
         .slide.active .lb-row:nth-child(2) { transition-delay: 0.2s; }
         .slide.active .lb-row:nth-child(3) { transition-delay: 0.3s; }
         .slide.active .lb-row:nth-child(4) { transition-delay: 0.4s; }
         .slide.active .lb-row:nth-child(5) { transition-delay: 0.5s; }
-        .lb-row.gold { border-left: 8px solid var(--gold); background: linear-gradient(90deg, rgba(245,158,11,0.15), var(--surface)); transform: scale(1.02); }
+        
+        .lb-row.gold { border-left: 8px solid var(--gold); background: linear-gradient(90deg, rgba(251,191,36,0.15), var(--surface)); transform: scale(1.03); box-shadow: 0 20px 40px var(--gold-glow); z-index: 10; border-top: 1px solid rgba(251,191,36,0.3); }
         .lb-row.silver { border-left: 8px solid var(--silver); background: linear-gradient(90deg, rgba(148,163,184,0.1), var(--surface)); }
         .lb-row.bronze { border-left: 8px solid var(--bronze); background: linear-gradient(90deg, rgba(217,119,6,0.1), var(--surface)); }
         
-        .lb-rank { font-size: 2.5rem; font-weight: 800; width: 80px; color: rgba(255,255,255,0.3); }
-        .lb-row.gold .lb-rank { color: var(--gold); }
-        .lb-team { flex: 1; font-size: 2.5rem; font-weight: 800; letter-spacing: 1px; }
-        .lb-score { font-size: 3.5rem; font-weight: 800; color: white; display: flex; align-items: baseline; gap: 0.5rem; }
-        .lb-score span { font-size: 1.25rem; color: rgba(255,255,255,0.5); }
+        .lb-rank { font-size: 2.8rem; font-weight: 800; width: 90px; color: rgba(255,255,255,0.2); }
+        .lb-row.gold .lb-rank { color: var(--gold); text-shadow: 0 0 20px var(--gold-glow); }
+        .lb-team { flex: 1; font-size: 2.6rem; font-weight: 800; letter-spacing: 1px; }
+        .lb-score { font-size: 3.8rem; font-weight: 800; color: white; display: flex; align-items: baseline; gap: 0.5rem; text-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .lb-score span { font-size: 1.4rem; color: rgba(255,255,255,0.5); font-weight: 700; }
 
-        /* QR Widget */
-        .qr-widget { position: fixed; bottom: 2rem; right: 2rem; background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.1); padding: 1rem; border-radius: 16px; display: flex; align-items: center; gap: 1rem; backdrop-filter: blur(10px); z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: opacity 0.5s ease;}
-        .qr-widget span { font-size: 0.9rem; font-weight: 800; color: white; max-width: 120px; line-height: 1.3; }
-        #display-qr { background: white; padding: 6px; border-radius: 8px; }
+        /* Podium Spotlight */
+        .podium-container { display: flex; justify-content: center; align-items: flex-end; gap: 2rem; height: 55vh; padding-bottom: 2rem; }
+        .pedestal-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; width: 28%; text-align: center; opacity: 0; transform: translateY(60px); transition: all 1s cubic-bezier(0.16, 1, 0.3, 1); }
+        .slide.active .pedestal-wrapper { opacity: 1; transform: translateY(0); }
+        .slide.active .pedestal-wrapper.p2 { transition-delay: 0.2s; }
+        .slide.active .pedestal-wrapper.p1 { transition-delay: 0.5s; z-index: 5; }
+        .slide.active .pedestal-wrapper.p3 { transition-delay: 0.8s; }
+
+        .pedestal-card { background: var(--surface); border: 1px solid var(--surface-border); backdrop-filter: blur(20px); padding: 2rem; border-radius: 24px; width: 100%; margin-bottom: 1.5rem; box-shadow: 0 15px 35px rgba(0,0,0,0.4); }
+        .p-name { font-size: 2.2rem; font-weight: 800; color: white; line-height: 1.1; margin-bottom: 0.5rem; }
+        .p-team { font-size: 1.3rem; font-weight: 700; color: rgba(255,255,255,0.5); letter-spacing: 2px; }
+        
+        .pedestal { width: 100%; border-radius: 16px 16px 0 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 1.5rem; position: relative; overflow: hidden; box-shadow: inset 0 4px 15px rgba(255,255,255,0.2); }
+        .pedestal::after { content:''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 100%); }
+        .p1 .pedestal { height: 300px; background: linear-gradient(to bottom, var(--gold), #92400E); box-shadow: 0 -10px 50px var(--gold-glow), inset 0 4px 15px rgba(255,255,255,0.4); }
+        .p2 .pedestal { height: 220px; background: linear-gradient(to bottom, var(--silver), #334155); }
+        .p3 .pedestal { height: 160px; background: linear-gradient(to bottom, var(--bronze), #78350F); }
+        .rank-num { font-size: 6rem; font-weight: 800; color: rgba(255,255,255,0.95); text-shadow: 0 10px 20px rgba(0,0,0,0.4); line-height: 1; z-index: 2; }
+
+        /* Dynamic QR Widget */
+        .qr-widget { position: fixed; bottom: 5rem; right: 3rem; background: rgba(15,23,42,0.85); border: 1px solid rgba(255,255,255,0.15); padding: 1.25rem; border-radius: 20px; display: flex; align-items: center; gap: 1.25rem; backdrop-filter: blur(20px); z-index: 100; box-shadow: 0 15px 40px rgba(0,0,0,0.6); transition: all 0.5s ease; animation: floatQR 6s infinite ease-in-out; }
+        @keyframes floatQR { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .qr-text-block { display: flex; flex-direction: column; gap: 0.25rem; max-width: 140px; }
+        .qr-widget span { font-size: 1rem; font-weight: 800; color: white; line-height: 1.2; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .qr-widget small { font-size: 0.75rem; color: var(--primary); font-weight: 700; letter-spacing: 1px; }
+        #display-qr { background: white; padding: 8px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+
+        /* LIVE TICKER TAPE (NEW) */
+        .ticker-wrap { position: fixed; bottom: 0; left: 0; width: 100%; height: 3.5rem; background: #0F172A; border-top: 2px solid var(--primary); z-index: 150; overflow: hidden; display: flex; align-items: center; box-shadow: 0 -10px 30px rgba(0,0,0,0.5); }
+        .ticker-move { display: inline-block; white-space: nowrap; padding-right: 100%; animation: ticker 40s linear infinite; }
+        .ticker-move:hover { animation-play-state: paused; }
+        @keyframes ticker { 0% { transform: translate3d(100vw, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
+        .ticker-item { display: inline-flex; align-items: center; gap: 1rem; font-size: 1.2rem; font-weight: 800; color: white; margin-right: 4rem; letter-spacing: 1px; }
+        .t-badge { padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.9rem; font-weight: 800; }
+        .t-live { background: #10B981; color: #064E3B; }
+        .t-reg { background: #3B82F6; color: #1E3A8A; }
+        .t-val { background: #F59E0B; color: #78350F; }
 
         /* Progress Bar */
-        .progress-bar-container { width: 100%; height: 6px; background: rgba(255,255,255,0.05); position: fixed; bottom: 0; left: 0; z-index: 150; }
-        .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: none; }
+        .progress-bar-container { width: 100%; height: 4px; background: rgba(255,255,255,0.05); position: fixed; top: 0; left: 0; z-index: 200; }
+        .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: none; box-shadow: 0 0 15px var(--primary); }
         .progress-bar.animating { transition: width var(--slide-duration) linear; width: 100%; }
 
-        /* Custom Slide Image BG */
-        #custom-bg { position:absolute; inset:0; background-size: cover; background-position: center; z-index:-1; opacity:0; filter: blur(8px) brightness(0.6); transition: opacity 1s ease; }
+        /* Custom Background */
+        #custom-bg { position:absolute; inset:0; background-size: cover; background-position: center; z-index:-1; opacity:0; filter: blur(8px) brightness(0.5); transition: opacity 1s ease; }
     </style>
 </head>
 <body>
     <div class="ambient-bg"><div class="orb orb-1"></div><div class="orb orb-2"></div></div>
     <div class="grid-overlay"></div>
+
+    <div class="progress-bar-container"><div class="progress-bar" id="progress"></div></div>
 
     <div class="header">
         <div class="header-left">
@@ -126,43 +146,50 @@
 
     <div class="slide-container">
         
-        <!-- NEW: Custom Announcement Slide -->
+        <!-- Custom Announcement Slide -->
         <div id="slide-custom" class="slide">
             <div id="custom-bg"></div>
             <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; z-index: 1;">
-                <h2 id="custom-title" class="theme-font" style="font-size: 6rem; color: var(--primary); text-shadow: 0 10px 40px rgba(0,0,0,0.8); margin-bottom: 2rem;"></h2>
-                <p id="custom-text" style="font-size: 2.5rem; font-family: 'Inter', sans-serif; font-weight: 600; max-width: 80%; line-height: 1.4; text-shadow: 0 4px 20px rgba(0,0,0,0.9); color: white;"></p>
+                <h2 id="custom-title" class="theme-font" style="font-size: 6.5rem; color: var(--primary); text-shadow: 0 10px 50px rgba(0,0,0,0.9); margin-bottom: 2rem;"></h2>
+                <p id="custom-text" style="font-size: 2.8rem; font-family: 'Inter', sans-serif; font-weight: 600; max-width: 80%; line-height: 1.4; text-shadow: 0 4px 20px rgba(0,0,0,0.9); color: white;"></p>
             </div>
         </div>
 
-        <!-- Slide: Podium Spotlight -->
+        <!-- Podium Spotlight -->
         <div id="slide-podium" class="slide">
-            <h2 class="slide-title theme-font">LATEST RESULTS: <span id="podium-comp-name" style="color:white;"></span></h2>
+            <h2 class="slide-title theme-font">OFFICIAL RESULTS: <span id="podium-comp-name" style="color:white;"></span></h2>
             <div class="podium-container" id="podium-board"></div>
         </div>
 
-        <!-- Slide: Standings -->
+        <!-- Standings -->
         <div id="slide-standings" class="slide active">
-            <h2 class="slide-title theme-font">OVERALL CHAMPIONSHIP STANDINGS</h2>
+            <h2 class="slide-title theme-font">CHAMPIONSHIP STANDINGS</h2>
             <div class="leaderboard" id="standings-board">
-                <h3 style="color:rgba(255,255,255,0.5); text-align:center; padding: 4rem;">SYNCING LIVE METRICS...</h3>
+                <h3 style="color:rgba(255,255,255,0.5); text-align:center; padding: 4rem;">SYNCING METRICS...</h3>
             </div>
         </div>
 
-        <!-- NEW: Schedule & Status -->
+        <!-- Schedule / Active Events -->
         <div id="slide-schedule" class="slide">
-            <h2 class="slide-title theme-font">EVENT STATUS & SCHEDULE</h2>
+            <h2 class="slide-title theme-font">EVENT SCHEDULE & STATUS</h2>
             <div class="leaderboard" id="schedule-board"></div>
         </div>
     </div>
 
+    <!-- DYNAMIC QR WIDGET -->
     <div id="qr-widget" class="qr-widget">
         <div id="display-qr"></div>
-        <span class="theme-font">SCAN FOR LIVE RESULTS</span>
+        <div class="qr-text-block">
+            <span id="qr-main-text" class="theme-font">SCAN FOR LIVE DATA</span>
+            <small id="qr-sub-text">POINT YOUR CAMERA</small>
+        </div>
     </div>
 
-    <div class="progress-bar-container">
-        <div class="progress-bar" id="progress"></div>
+    <!-- NEW LIVE NEWS TICKER -->
+    <div class="ticker-wrap">
+        <div class="ticker-move" id="live-ticker-track">
+            <div class="ticker-item">SYNCING LIVE DATA TO FESTOS NETWORK...</div>
+        </div>
     </div>
 
     <script>
@@ -178,16 +205,23 @@
         let currentSlide = 0;
         let lastConfettiTrigger = 0;
         let lastPublishedCount = 0;
+        let currentPodiumCompId = null; // Tracks the ID for the QR code
+        
         const isPreviewMode = new URLSearchParams(window.location.search).get('preview') === 'true';
+
+        // Initialize Base QR Code
+        const qrInstance = new QRCode(document.getElementById('display-qr'), { 
+            text: window.location.origin + '/spectator.html', 
+            width: 90, height: 90, colorDark: "#0F172A", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.L 
+        });
 
         setInterval(() => {
             document.getElementById('live-clock').innerText = new Date().toLocaleTimeString('en-US', { hour12: false });
         }, 1000);
 
-        new QRCode(document.getElementById('display-qr'), { text: window.location.origin + '/live-results.html', width: 70, height: 70, colorDark: "#000", colorLight: "#fff", correctLevel: QRCode.CorrectLevel.L });
-
         async function fetchDisplayData() {
             try {
+                // 1. Branding
                 const { data: brandData } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
                 if (brandData && brandData.value) {
                     if (brandData.value.fest_name) document.getElementById('fest-title').innerText = brandData.value.fest_name.toUpperCase();
@@ -197,6 +231,7 @@
                     }
                 }
 
+                // 2. Settings & Themes
                 const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
                 if (set_data && set_data.value) systemSettings = set_data.value;
 
@@ -208,7 +243,13 @@
                     document.documentElement.style.setProperty('--slide-duration', `${v.slide_duration || 12}s`);
                     document.getElementById('qr-widget').style.opacity = v.show_qr === false ? '0' : '1';
                     
-                    if (v.primary_color) document.documentElement.style.setProperty('--primary', v.primary_color);
+                    if (v.primary_color) {
+                        document.documentElement.style.setProperty('--primary', v.primary_color);
+                        // Make a glowing RGB version
+                        const hex = v.primary_color.replace('#','');
+                        const r = parseInt(hex.substring(0,2), 16), g = parseInt(hex.substring(2,4), 16), b = parseInt(hex.substring(4,6), 16);
+                        document.documentElement.style.setProperty('--primary-glow', `rgba(${r},${g},${b},0.6)`);
+                    }
                     if (v.font_family) {
                         const fontString = `"${v.font_family}", sans-serif`;
                         document.body.style.fontFamily = fontString;
@@ -226,13 +267,14 @@
                         document.getElementById('custom-text').innerText = v.custom_text || '';
                         if (v.custom_image) {
                             document.getElementById('custom-bg').style.backgroundImage = `url(${v.custom_image})`;
-                            document.getElementById('custom-bg').style.opacity = '0.5';
+                            document.getElementById('custom-bg').style.opacity = '0.6';
                         } else {
                             document.getElementById('custom-bg').style.opacity = '0';
                         }
                     }
                 }
 
+                // 3. Teams & Comps
                 const { data: teams } = await supabaseClient.from('teams').select('*');
                 allTeams = teams || [];
                 calculatedTeamScores = {};
@@ -247,17 +289,21 @@
                 if (publishedComps.length > lastPublishedCount && lastPublishedCount !== 0 && !isPreviewMode) fireConfetti();
                 lastPublishedCount = publishedComps.length;
 
-                // Build Active Slides Array Based on Toggles
+                // 4. Build Active Slides Array
                 activeSlides = [];
                 if (customEnabled) activeSlides.push('slide-custom');
                 if (publishedComps.length > 0) activeSlides.push('slide-podium');
                 activeSlides.push('slide-standings');
                 
-                // Add the new schedule slide if there are active events
                 const activeEvents = allComps.filter(c => ['ongoing', 'registration', 'valuation', 'pending'].includes(c.status));
                 if (activeEvents.length > 0) activeSlides.push('slide-schedule');
 
+                // 5. Update Ticker Tape
+                updateLiveTicker(activeEvents, publishedComps);
+
+                // 6. Process Points
                 if (publishedComps.length > 0) {
+                    currentPodiumCompId = publishedComps[0].id; // For QR
                     const compIds = publishedComps.map(c => c.id);
                     const { data: judgements } = await supabaseClient.from('judgements')
                         .select('competition_id, awarded_mark, participants(id, name, team_id, unique_id)')
@@ -270,23 +316,83 @@
                 }
 
                 renderStandings();
-                renderSchedule(allComps);
+                renderSchedule(activeEvents);
 
             } catch (error) { console.error("Display Fetch Error:", error); }
         }
 
+        // --- TICKER TAPE ENGINE ---
+        function updateLiveTicker(activeEvents, publishedComps) {
+            const track = document.getElementById('live-ticker-track');
+            let tickerHtml = '';
+            
+            // Add live/ongoing events
+            activeEvents.filter(c => c.status === 'ongoing').forEach(c => {
+                tickerHtml += `<div class="ticker-item"><span class="t-badge t-live">LIVE ON STAGE</span> ${c.name} (${c.stages?.name || 'GLOBAL'})</div>`;
+            });
+            // Add valuations
+            activeEvents.filter(c => c.status === 'valuation').forEach(c => {
+                tickerHtml += `<div class="ticker-item"><span class="t-badge t-val">IN VALUATION</span> ${c.name}</div>`;
+            });
+            // Add latest result
+            if(publishedComps.length > 0) {
+                tickerHtml += `<div class="ticker-item"><span class="t-badge" style="background:var(--primary); color:white;">LATEST RESULT</span> ${publishedComps[0].name}</div>`;
+            }
+            // Add callings
+            activeEvents.filter(c => c.status === 'registration').forEach(c => {
+                tickerHtml += `<div class="ticker-item"><span class="t-badge t-reg">CALLING NOW</span> ${c.name}</div>`;
+            });
+            
+            if(tickerHtml === '') tickerHtml = '<div class="ticker-item">WELCOME TO FESTOS LIVE • SYNCED WITH DASHBOARD</div>';
+            
+            // Duplicate content to make the scrolling seamless
+            track.innerHTML = tickerHtml + tickerHtml;
+        }
+
+        // --- DYNAMIC QR ENGINE ---
+        function updateDynamicQR(slideId) {
+            const baseUrl = window.location.origin + '/spectator.html';
+            let targetUrl = baseUrl;
+            let mainText = 'SCAN FOR LIVE DATA';
+            let subText = 'MOBILE SPECTATOR APP';
+
+            if (slideId === 'slide-podium' && currentPodiumCompId) {
+                targetUrl = `${baseUrl}?view=results&comp=${currentPodiumCompId}`;
+                mainText = 'SCAN FOR LEADERBOARD';
+                subText = 'VIEW FULL EVENT RESULTS';
+            } else if (slideId === 'slide-schedule') {
+                targetUrl = `${baseUrl}?view=live`;
+                mainText = 'SCAN FOR LIVE STATUS';
+                subText = 'SEE ALL ONGOING EVENTS';
+            } else if (slideId === 'slide-standings') {
+                targetUrl = `${baseUrl}?view=standings`;
+                mainText = 'SCAN FOR STANDINGS';
+                subText = 'VIEW FULL TEAM POINTS';
+            } else {
+                targetUrl = baseUrl;
+            }
+
+            document.getElementById('qr-main-text').innerText = mainText;
+            document.getElementById('qr-sub-text').innerText = subText;
+            
+            qrInstance.clear();
+            qrInstance.makeCode(targetUrl);
+            
+            // Subtle flash animation on update
+            const widget = document.getElementById('qr-widget');
+            widget.style.transform = 'scale(1.05)';
+            setTimeout(() => widget.style.transform = '', 300);
+        }
+
+        // --- RENDERERS ---
         function processScores(judgements, publishedComps) {
             const compGroups = {};
-
             judgements.forEach(j => {
                 if (!j.participants || !j.participants.id) return; 
                 const comp = publishedComps.find(c => c.id === j.competition_id);
                 if(!compGroups[j.competition_id]) compGroups[j.competition_id] = { participants: {}, comp_data: comp };
-                
                 const pId = j.participants.id;
-                if(!compGroups[j.competition_id].participants[pId]) {
-                    compGroups[j.competition_id].participants[pId] = { participant: j.participants, marks_array: [] };
-                }
+                if(!compGroups[j.competition_id].participants[pId]) compGroups[j.competition_id].participants[pId] = { participant: j.participants, marks_array: [] };
                 compGroups[j.competition_id].participants[pId].marks_array.push(parseFloat(j.awarded_mark));
             });
 
@@ -303,10 +409,7 @@
                     if (sortedMarks.length >= 3) sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1); 
                     const sum = sortedMarks.reduce((a, b) => a + b, 0);
                     p.score = sum / sortedMarks.length;
-                    
-                    if (compData.comp_data.is_group && !p.participant.name.endsWith('& PARTY')) {
-                        p.participant.name += " & PARTY";
-                    }
+                    if (compData.comp_data.is_group && !p.participant.name.endsWith('& PARTY')) p.participant.name += " & PARTY";
                     return p;
                 }).sort((a, b) => b.score - a.score);
 
@@ -337,9 +440,7 @@
                     const teamId = entry.participant.team_id;
                     if (teamId && calculatedTeamScores[teamId]) calculatedTeamScores[teamId].score += (gradePts + posPts); 
 
-                    if (currentRank <= 3) {
-                        compPodium.push({ rank: currentRank, name: entry.participant.name, team: allTeams.find(t => t.id === teamId)?.name || 'IND' });
-                    }
+                    if (currentRank <= 3) compPodium.push({ rank: currentRank, name: entry.participant.name, team: allTeams.find(t => t.id === teamId)?.name || 'IND' });
                 });
 
                 if (publishedComps[0] && compId === publishedComps[0].id) latestCompResults = compPodium;
@@ -369,40 +470,39 @@
             const p1 = getPos(1); const p2 = getPos(2); const p3 = getPos(3);
 
             container.innerHTML = `
-                <div class="pedestal-wrapper p2"><div class="pedestal-card"><div class="p-name theme-font" style="font-size: 1.5rem;">${p2.name}</div><div class="p-team">${p2.team}</div></div><div class="pedestal"><div class="rank-num theme-font">2</div></div></div>
-                <div class="pedestal-wrapper p1" style="z-index: 5;"><div class="pedestal-card" style="box-shadow: 0 10px 40px rgba(245,158,11,0.3); border-color: rgba(245,158,11,0.3);"><div class="p-name theme-font">${p1.name}</div><div class="p-team" style="color: var(--gold);">${p1.team}</div></div><div class="pedestal"><div class="rank-num theme-font">1</div></div></div>
-                <div class="pedestal-wrapper p3"><div class="pedestal-card"><div class="p-name theme-font" style="font-size: 1.3rem;">${p3.name}</div><div class="p-team">${p3.team}</div></div><div class="pedestal"><div class="rank-num theme-font">3</div></div></div>
+                <div class="pedestal-wrapper p2"><div class="pedestal-card"><div class="p-name theme-font" style="font-size: 1.8rem;">${p2.name}</div><div class="p-team theme-font">${p2.team}</div></div><div class="pedestal"><div class="rank-num theme-font">2</div></div></div>
+                <div class="pedestal-wrapper p1"><div class="pedestal-card" style="box-shadow: 0 20px 50px var(--gold-glow); border-color: rgba(251,191,36,0.5);"><div class="p-name theme-font" style="font-size: 2.2rem;">${p1.name}</div><div class="p-team theme-font" style="color: var(--gold);">${p1.team}</div></div><div class="pedestal"><div class="rank-num theme-font">1</div></div></div>
+                <div class="pedestal-wrapper p3"><div class="pedestal-card"><div class="p-name theme-font" style="font-size: 1.5rem;">${p3.name}</div><div class="p-team theme-font">${p3.team}</div></div><div class="pedestal"><div class="rank-num theme-font">3</div></div></div>
             `;
         }
 
-        function renderSchedule(allComps) {
+        function renderSchedule(activeComps) {
             const container = document.getElementById('schedule-board');
-            const activeComps = allComps.filter(c => ['pending', 'registration', 'ongoing', 'valuation'].includes(c.status));
-            
-            activeComps.sort((a,b) => {
-                const getW = s => s === 'ongoing' ? 1 : (s === 'valuation' ? 2 : (s === 'registration' ? 3 : 4));
-                return getW(a.status) - getW(b.status);
-            });
-
             if (activeComps.length === 0) {
                 container.innerHTML = `<h3 style="color:rgba(255,255,255,0.5); text-align:center; padding: 4rem;">ALL SCHEDULED EVENTS COMPLETED</h3>`;
                 return;
             }
 
+            // Sort by priority (Ongoing first, Valuation second, Calling third, Pending last)
+            activeComps.sort((a,b) => {
+                const getW = s => s === 'ongoing' ? 1 : (s === 'valuation' ? 2 : (s === 'registration' ? 3 : 4));
+                return getW(a.status) - getW(b.status);
+            });
+
             container.innerHTML = activeComps.slice(0, 5).map(c => {
-                let bText = c.status; let col = "var(--silver)"; let bBg = "rgba(255,255,255,0.1)";
-                if(c.status === 'ongoing') { bText = "HAPPENING NOW"; col = "#10B981"; bBg = "rgba(16,185,129,0.15)"; }
-                if(c.status === 'registration') { bText = "CALLING / REGISTRATION"; col = "#3B82F6"; bBg = "rgba(59,130,246,0.15)"; }
+                let bText = c.status; let col = "var(--silver)"; let bBg = "rgba(255,255,255,0.05)";
+                if(c.status === 'ongoing') { bText = "LIVE NOW"; col = "#10B981"; bBg = "rgba(16,185,129,0.15)"; }
+                if(c.status === 'registration') { bText = "CALLING"; col = "#3B82F6"; bBg = "rgba(59,130,246,0.15)"; }
                 if(c.status === 'valuation') { bText = "IN VALUATION"; col = "#F59E0B"; bBg = "rgba(245,158,11,0.15)"; }
                 if(c.status === 'pending') { bText = "UPCOMING"; col = "#94A3B8"; }
 
                 return `
-                <div class="lb-row" style="border-left: 8px solid ${col};">
+                <div class="lb-row" style="border-left: 6px solid ${col};">
                     <div style="flex:1;">
-                        <div style="font-size: 1.1rem; color: ${col}; font-weight: 800; margin-bottom:0.25rem;">${c.categories?.name || 'GEN'} • ${c.stages?.name || 'GLOBAL STAGE'}</div>
-                        <div class="theme-font" style="font-size: 2.25rem; font-weight: 800; line-height: 1;">${c.name}</div>
+                        <div style="font-size: 1.2rem; color: ${col}; font-weight: 800; margin-bottom:0.4rem; letter-spacing: 1px;">${c.categories?.name || 'GEN'} • ${c.stages?.name || 'GLOBAL STAGE'}</div>
+                        <div class="theme-font" style="font-size: 2.5rem; font-weight: 800; line-height: 1; text-shadow: 0 2px 10px rgba(0,0,0,0.5);">${c.name}</div>
                     </div>
-                    <div style="background: ${bBg}; padding: 0.85rem 1.5rem; border-radius: 12px; font-size: 1.25rem; font-weight: 800; color: ${col}; text-align: center; border: 1px solid ${col};">${bText}</div>
+                    <div style="background: ${bBg}; padding: 1rem 2rem; border-radius: 16px; font-size: 1.4rem; font-weight: 800; color: ${col}; text-align: center; border: 1px solid ${col}; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">${bText}</div>
                 </div>`;
             }).join('');
         }
@@ -421,6 +521,7 @@
             }, 250);
         }
 
+        // --- Engine Loop ---
         function rotateSlides() {
             if (activeSlides.length === 0) return;
             if (currentSlide >= activeSlides.length) currentSlide = 0;
@@ -429,6 +530,9 @@
             const activeSlideId = activeSlides[currentSlide];
             const slideEl = document.getElementById(activeSlideId);
             if (slideEl) slideEl.classList.add('active');
+            
+            // Sync the QR code with the slide
+            updateDynamicQR(activeSlideId);
             
             const progressBar = document.getElementById('progress');
             progressBar.classList.remove('animating');
@@ -447,10 +551,7 @@
             rotateSlides();
             setInterval(rotateSlides, durationMs);
             
-            // Auto scale if in preview iframe
-            if (isPreviewMode) {
-                document.body.style.zoom = "0.5";
-            }
+            if (isPreviewMode) document.body.style.zoom = "0.5";
         });
     </script>
 </body>
