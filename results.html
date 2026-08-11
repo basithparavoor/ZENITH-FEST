@@ -710,9 +710,7 @@ function processJudgements(judgements) {
         const limit = compData.comp_data.max_participants || 1;
         const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
         
-        // Evaluate eligibility based on REGISTERED count, not REPORTED count
-        const registeredCount = compData.comp_data.participant_competitions?.[0]?.count || 0;
-        const eligibleForPosPts = registeredCount >= 3;
+        // EVALUATION RESTRICTION REMOVED FROM HERE
 
         const participantsArr = Object.values(compData.participants).map(p => {
             let sortedMarks = p.marks_array.sort((a, b) => a - b);
@@ -740,17 +738,17 @@ function processJudgements(judgements) {
 
             // 1. Assign Grade Points ONLY if >= 50%
             if (percent >= 50) {
-                if (percent >= SYSTEM_SETTINGS.thresholds.aplus) { gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].aplus; gradeStr = 'A+'; }
-                else if (percent >= SYSTEM_SETTINGS.thresholds.a) { gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].a; gradeStr = 'A'; }
-                else if (percent >= SYSTEM_SETTINGS.thresholds.b) { gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].b; gradeStr = 'B'; }
-                else { gradePts = SYSTEM_SETTINGS[`points_${sizeCat}`].c; gradeStr = 'C'; }
+                if (percent >= SYSTEM_SETTINGS.thresholds.aplus) { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].aplus); gradeStr = 'A+'; }
+                else if (percent >= SYSTEM_SETTINGS.thresholds.a) { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].a); gradeStr = 'A'; }
+                else if (percent >= SYSTEM_SETTINGS.thresholds.b) { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].b); gradeStr = 'B'; }
+                else { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].c); gradeStr = 'C'; }
             }
             
-            // 2. Assign Position Points ALWAYS (if eligible and ranked top 3)
-            if (eligibleForPosPts && currentRank <= 3) {
-                if (currentRank === 1) posPts = SYSTEM_SETTINGS.pos_points.p1;
-                else if (currentRank === 2) posPts = SYSTEM_SETTINGS.pos_points.p2;
-                else if (currentRank === 3) posPts = SYSTEM_SETTINGS.pos_points.p3;
+            // 2. Assign Position Points ALWAYS (Removed the 3-participant limit)
+            if (currentRank <= 3) {
+                if (currentRank === 1) posPts = Number(SYSTEM_SETTINGS.pos_points.p1) || 0;
+                else if (currentRank === 2) posPts = Number(SYSTEM_SETTINGS.pos_points.p2) || 0;
+                else if (currentRank === 3) posPts = Number(SYSTEM_SETTINGS.pos_points.p3) || 0;
             }
             
             entry.grade = gradeStr; // Attach to object for certificates
