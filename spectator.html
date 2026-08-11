@@ -6,79 +6,83 @@
     <title>FestOS | Mobile Spectator</title>
     <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
         :root {
             --primary: #4f46e5;
-            --bg-main: #0F172A;
-            --bg-surface: #1E293B;
-            --text-main: #FFFFFF;
-            --text-muted: #94A3B8;
-            --border: #334155;
-            --gold: #FBBF24; --silver: #CBD5E1; --bronze: #D97706;
+            --bg-main: #F4F7F9;
+            --bg-surface: #FFFFFF;
+            --text-main: #0F172A;
+            --text-muted: #64748B;
+            --border: #E2E8F0;
+            --gold: #F59E0B; --silver: #94A3B8; --bronze: #D97706;
         }
         
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; text-transform: uppercase; }
         body { background: var(--bg-main); color: var(--text-main); padding-top: 80px; padding-bottom: 40px; }
 
-        /* Unified Header */
-        .header { position: fixed; top: 0; left: 0; width: 100%; height: 70px; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 0.75rem; z-index: 100; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        /* Unified Premium Header */
+        .header { position: fixed; top: 0; left: 0; width: 100%; height: 70px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 0.75rem; z-index: 100; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .header img { height: 35px; max-width: 120px; object-fit: contain; border-radius: 4px; display: none; }
-        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; margin: 0; }
+        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.5px; margin: 0; }
 
         .container { padding: 1.25rem; max-width: 600px; margin: 0 auto; }
         
         /* Typography */
-        .page-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.6rem; font-weight: 800; color: white; margin-bottom: 0.25rem; line-height: 1.2; text-align: center; }
-        .page-subtitle { color: var(--primary); font-size: 0.9rem; font-weight: 700; text-align: center; margin-bottom: 2rem; letter-spacing: 1px; }
+        .page-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.25rem; line-height: 1.2; text-align: center; }
+        .page-subtitle { color: var(--text-muted); font-size: 0.85rem; font-weight: 700; text-align: center; margin-bottom: 2rem; letter-spacing: 1px; }
 
         /* Cards */
-        .card { background: var(--bg-surface); border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .card { background: var(--bg-surface); border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04); }
         
         .badge { padding: 0.3rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.05em; }
-        .badge-live { background: rgba(16, 185, 129, 0.15); color: #10B981; border: 1px solid #10B981; }
-        .badge-val { background: rgba(245, 158, 11, 0.15); color: #F59E0B; border: 1px solid #F59E0B; }
-        .badge-call { background: rgba(59, 130, 246, 0.15); color: #3B82F6; border: 1px solid #3B82F6; }
+        .badge-live { background: rgba(16, 185, 129, 0.15); color: #059669; border: 1px solid rgba(16,185,129,0.3); }
+        .badge-val { background: rgba(245, 158, 11, 0.15); color: #D97706; border: 1px solid rgba(245,158,11,0.3); }
+        .badge-call { background: rgba(59, 130, 246, 0.15); color: #2563EB; border: 1px solid rgba(59,130,246,0.3); }
 
-        /* Leaderboard Rows */
+        /* Leaderboard Rows - No Points Displayed! */
         .lb-row { display: flex; align-items: center; padding: 1.25rem 0; border-bottom: 1px dashed var(--border); }
-        .lb-row:last-child { border-bottom: none; }
-        .lb-rank { font-size: 1.8rem; font-weight: 800; width: 45px; color: var(--text-muted); }
+        .lb-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .lb-row:first-child { padding-top: 0; }
+        .lb-rank { font-size: 1.8rem; font-weight: 800; width: 50px; color: var(--text-muted); }
         .lb-details { flex: 1; }
-        .lb-name { font-size: 1.1rem; font-weight: 800; color: white; display: block; margin-bottom: 0.2rem; }
+        .lb-name { font-size: 1.1rem; font-weight: 800; color: var(--text-main); display: block; margin-bottom: 0.2rem; }
         .lb-team { font-size: 0.85rem; color: var(--text-muted); font-weight: 700; }
-        .lb-pts { font-size: 1.4rem; font-weight: 800; color: var(--primary); text-align: right; }
         
-        .rank-1 { color: var(--gold); text-shadow: 0 0 15px rgba(251, 191, 36, 0.4); } 
+        .rank-1 { color: var(--gold); } 
         .rank-2 { color: var(--silver); } 
         .rank-3 { color: var(--bronze); }
 
         /* Buttons */
-        .btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 1rem; border-radius: 12px; font-size: 1rem; font-weight: 800; border: none; cursor: pointer; margin-top: 1rem; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        .btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 1rem; border-radius: 12px; font-size: 0.95rem; font-weight: 800; border: none; cursor: pointer; margin-top: 1rem; box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: 0.2s; }
         .btn-primary { background: var(--primary); color: white; }
-        .btn-outline { background: transparent; border: 2px solid var(--border); color: white; }
+        .btn-outline { background: white; border: 2px solid var(--border); color: var(--text-main); }
+        .btn:active { transform: scale(0.98); }
 
         .loader { text-align: center; padding: 4rem 0; color: var(--text-muted); }
         .loader i { font-size: 2rem; color: var(--primary); margin-bottom: 1rem; }
+
+        /* Secret Canvas for Poster Generation */
+        #poster-canvas { display: none; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <img id="head-logo" src="" alt="Logo">
-        <h1 id="head-title">FESTOS LIVE</h1>
+        <h1 id="head-title">FESTOS</h1>
     </div>
 
     <div class="container" id="main-content">
         <div class="loader">
             <i class="fa-solid fa-spinner fa-spin"></i>
-            <p style="font-weight: 600; margin-top: 10px;">Syncing Secure Data...</p>
+            <p style="font-weight: 600; margin-top: 10px;">Connecting to Secure Data...</p>
         </div>
     </div>
+
+    <canvas id="poster-canvas"></canvas>
 
     <script>
         const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
@@ -88,43 +92,60 @@
         let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_solo: { aplus: 8, a: 7, b: 5, c: 3 }, points_small: { aplus: 12, a: 10, b: 7, c: 5 }, points_large: { aplus: 15, a: 12, b: 10, c: 7 }, pos_points: { p1: 3, p2: 2, p3: 1 } };
         let allTeams = [];
         
-        // Contextual Engine
+        // Contextual Engine - Determines exactly what the spectator sees
         const urlParams = new URLSearchParams(window.location.search);
         let viewContext = urlParams.get('view') || 'live';
         let targetCompId = urlParams.get('comp') || null;
 
+        // Data specifically used for the Poster Generator
+        let currentPosterData = null;
+
         async function init() {
             try {
-                // 1. Fetch Global Branding
+                // Strict Branding Rules
                 const { data: brand } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
                 if(brand && brand.value) {
-                    if(brand.value.fest_name) document.getElementById('head-title').innerText = brand.value.fest_name.toUpperCase();
-                    if(brand.value.fest_logo) {
-                        document.getElementById('head-logo').src = brand.value.fest_logo;
-                        document.getElementById('head-logo').style.display = 'block';
+                    const b = brand.value;
+                    const validName = b.fest_name && b.fest_name.trim() !== '';
+                    const validLogo = b.fest_logo && b.fest_logo.trim() !== '';
+                    const displayMode = b.display_mode || 'both';
+
+                    document.title = validName ? `${b.fest_name} | Spectator` : 'Spectator';
+
+                    if (validLogo) {
+                        let allIcons = document.querySelectorAll("link[rel='icon']");
+                        if (allIcons.length === 0) {
+                            let newIcon = document.createElement('link'); newIcon.rel = 'icon';
+                            document.head.appendChild(newIcon); allIcons = [newIcon];
+                        }
+                        allIcons.forEach(link => { link.href = b.fest_logo; });
                     }
+
+                    const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
+                    const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
+
+                    if (showLogo) {
+                        const logoEl = document.getElementById('head-logo');
+                        logoEl.src = b.fest_logo;
+                        logoEl.style.display = 'block';
+                    }
+                    if (showName && validName) {
+                        document.getElementById('head-title').innerText = b.fest_name.toUpperCase();
+                    } else {
+                        document.getElementById('head-title').innerText = ''; // Blank if no name allowed
+                    }
+                } else {
+                    document.getElementById('head-title').innerText = ''; // No defaults
                 }
 
-                // 2. Fetch Display Settings (Colors/Fonts)
-                const { data: display } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
-                if (display && display.value) {
-                    if (display.value.primary_color) document.documentElement.style.setProperty('--primary', display.value.primary_color);
-                    if (display.value.font_family) {
-                        const fontString = `"${display.value.font_family}", sans-serif`;
-                        document.body.style.fontFamily = fontString;
-                        document.getElementById('head-title').style.fontFamily = fontString;
-                    }
-                }
-
-                // 3. Fetch Matrix
+                // Global Settings
                 const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
                 if (set_data && set_data.value) systemSettings = set_data.value;
 
-                // 4. Fetch Teams
                 const { data: teams } = await supabaseClient.from('teams').select('*');
                 allTeams = teams || [];
 
-                // 5. Route to correct contextual view
+                // Route to correct contextual view
                 if (viewContext === 'results' && targetCompId) await renderSingleResult();
                 else if (viewContext === 'standings') await renderStandings();
                 else await renderLiveSchedule();
@@ -139,7 +160,7 @@
             
             const { data: comp } = await supabaseClient.from('competitions').select('*, categories(name)').eq('id', targetCompId).single();
             if (!comp || comp.status !== 'published') {
-                content.innerHTML = `<h2 class="page-title">Results Not Ready</h2><p style="text-align:center; color: var(--text-muted);">Results for this event are not published yet.</p>`;
+                content.innerHTML = `<h2 class="page-title">Results Unavailable</h2><p class="page-subtitle">Results for this event are not published yet.</p>`;
                 return;
             }
 
@@ -150,28 +171,35 @@
 
             const results = calculateSingleComp(comp, judgements || []);
             
+            // Format data specifically for the Poster Engine
+            currentPosterData = {
+                'Competition': comp.name,
+                'Category': comp.categories?.name || 'GENERAL',
+                'Position1Name': results[0]?.name || '',
+                'Position1Team': results[0]?.team || '',
+                'Position2Name': results[1]?.name || '',
+                'Position2Team': results[1]?.team || '',
+                'Position3Name': results[2]?.name || '',
+                'Position3Team': results[2]?.team || ''
+            };
+            
             content.innerHTML = `
-                <div id="pdf-container">
-                    <h2 class="page-title">${comp.name}</h2>
-                    <p class="page-subtitle">${comp.categories?.name || 'GEN'} • OFFICIAL RESULTS</p>
-                    <div class="card" style="padding: 0 1.25rem;">
-                        ${results.map(r => `
-                            <div class="lb-row">
-                                <div class="lb-rank rank-${r.pos}">#${r.pos}</div>
-                                <div class="lb-details">
-                                    <span class="lb-name">${r.name}</span>
-                                    <span class="lb-team">${r.team}</span>
-                                </div>
-                                <div class="lb-pts">${r.pts} <span style="font-size:0.6rem; color:var(--text-muted);">PTS</span></div>
+                <h2 class="page-title">${comp.name}</h2>
+                <p class="page-subtitle">${comp.categories?.name || 'GEN'} • OFFICIAL RESULTS</p>
+                <div class="card">
+                    ${results.map(r => `
+                        <div class="lb-row">
+                            <div class="lb-rank rank-${r.pos}">#${r.pos}</div>
+                            <div class="lb-details">
+                                <span class="lb-name">${r.name}</span>
+                                <span class="lb-team">${r.team}</span>
                             </div>
-                        `).join('')}
-                    </div>
+                            <!-- POINTS SPECIFICALLY HIDDEN FROM UI -->
+                        </div>
+                    `).join('')}
                 </div>
-                <button class="btn btn-primary" onclick="downloadPDF('${comp.name}')">
-                    <i class="fa-solid fa-download"></i> Save Results PDF
-                </button>
-                <button class="btn btn-outline" onclick="window.location.href='spectator.html'">
-                    <i class="fa-solid fa-home"></i> View Live Schedule
+                <button class="btn btn-primary" onclick="downloadPoster('individual')">
+                    <i class="fa-solid fa-image"></i> Download Result Poster
                 </button>
             `;
         }
@@ -181,7 +209,7 @@
             const { data: publishedComps } = await supabaseClient.from('competitions').select('*, participant_competitions(count)').eq('status', 'published');
             
             if (!publishedComps || publishedComps.length === 0) {
-                content.innerHTML = '<h2 class="page-title">CHAMPIONSHIP STANDINGS</h2><p style="text-align:center; color: var(--text-muted); margin-top:2rem;">No points awarded yet.</p>';
+                content.innerHTML = '<h2 class="page-title">CHAMPIONSHIP STANDINGS</h2><p class="page-subtitle">NO SCORES RECORDED YET</p>';
                 return;
             }
 
@@ -204,25 +232,32 @@
 
             const sortedTeams = Object.values(teamScores).sort((a,b) => b.score - a.score);
 
+            // Format data specifically for the Poster Engine
+            currentPosterData = {
+                'Rank1Team': sortedTeams[0]?.name || '', 'Rank1Points': sortedTeams[0]?.score || '0',
+                'Rank2Team': sortedTeams[1]?.name || '', 'Rank2Points': sortedTeams[1]?.score || '0',
+                'Rank3Team': sortedTeams[2]?.name || '', 'Rank3Points': sortedTeams[2]?.score || '0',
+                'Rank4Team': sortedTeams[3]?.name || '', 'Rank4Points': sortedTeams[3]?.score || '0',
+                'Rank5Team': sortedTeams[4]?.name || '', 'Rank5Points': sortedTeams[4]?.score || '0'
+            };
+
             content.innerHTML = `
-                <div id="pdf-container">
-                    <h2 class="page-title">OVERALL STANDINGS</h2>
-                    <p class="page-subtitle">LIVE TEAM LEADERBOARD</p>
-                    <div class="card" style="padding: 0 1.25rem;">
-                        ${sortedTeams.map((t, i) => {
-                            const rank = i + 1;
-                            return `
-                            <div class="lb-row">
-                                <div class="lb-rank rank-${rank}">#${rank}</div>
-                                <div class="lb-details"><span class="lb-name">${t.name}</span></div>
-                                <div class="lb-pts">${t.score} <span style="font-size:0.6rem; color:var(--text-muted);">PTS</span></div>
-                            </div>
-                            `;
-                        }).join('')}
-                    </div>
+                <h2 class="page-title">OVERALL STANDINGS</h2>
+                <p class="page-subtitle">LIVE CHAMPIONSHIP LEADERBOARD</p>
+                <div class="card">
+                    ${sortedTeams.map((t, i) => {
+                        const rank = i + 1;
+                        return `
+                        <div class="lb-row">
+                            <div class="lb-rank rank-${rank}">#${rank}</div>
+                            <div class="lb-details"><span class="lb-name">${t.name}</span></div>
+                            <!-- POINTS SPECIFICALLY HIDDEN FROM UI -->
+                        </div>
+                        `;
+                    }).join('')}
                 </div>
-                <button class="btn btn-primary" onclick="downloadPDF('Overall_Standings')">
-                    <i class="fa-solid fa-download"></i> Save Standings PDF
+                <button class="btn btn-primary" onclick="downloadPoster('team')">
+                    <i class="fa-solid fa-image"></i> Download Standings Poster
                 </button>
             `;
         }
@@ -236,11 +271,11 @@
                 
             content.innerHTML = `
                 <h2 class="page-title">EVENT SCHEDULE</h2>
-                <p class="page-subtitle">HAPPENING NOW</p>
+                <p class="page-subtitle">HAPPENING RIGHT NOW</p>
             `;
             
             if (!comps || comps.length === 0) {
-                content.innerHTML += `<div class="card"><p style="color: var(--text-muted); text-align: center; font-weight:600;">No active events right now.</p></div>`;
+                content.innerHTML += `<div class="card"><p style="color: var(--text-muted); text-align: center; font-weight:600; margin: 0;">No active events right now.</p></div>`;
                 return;
             }
 
@@ -256,20 +291,14 @@
                             <span style="font-size: 0.8rem; font-weight: 800; color: var(--primary);">${c.categories?.name || 'GEN'}</span>
                             ${badge}
                         </div>
-                        <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 0.5rem; line-height: 1.2;">${c.name}</h3>
-                        <div style="color: var(--text-muted); font-size: 0.9rem; font-weight: 600;"><i class="fa-solid fa-microphone-stage"></i> ${c.stages?.name || 'GLOBAL'}</div>
+                        <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.4rem; line-height: 1.2; color: var(--text-main);">${c.name}</h3>
+                        <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600;"><i class="fa-solid fa-microphone-stage"></i> ${c.stages?.name || 'GLOBAL STAGE'}</div>
                     </div>
                 `;
             });
-            
-            content.innerHTML += `
-                <button class="btn btn-outline" onclick="window.location.href='spectator.html?view=standings'">
-                    <i class="fa-solid fa-trophy"></i> View Overall Standings
-                </button>
-            `;
         }
 
-        // Shared Calculation Engine
+        // Shared Logic for processing scores efficiently
         function calculateSingleComp(comp, judgements) {
             const pMap = {};
             judgements.forEach(j => {
@@ -290,7 +319,6 @@
                 const avg = sorted.reduce((a,b) => a+b, 0) / sorted.length;
                 
                 let name = data.p.name;
-                // Add Group Party logic
                 if(comp.is_group && !name.endsWith('& PARTY')) name += " & PARTY";
 
                 return { avg, name, teamId: data.p.team_id, team: allTeams.find(t=>t.id===data.p.team_id)?.name || 'IND' };
@@ -320,27 +348,95 @@
             });
         }
 
-        // Generate PDF using html2pdf
-        function downloadPDF(filename) {
-            const element = document.getElementById('pdf-container');
-            const opt = {
-                margin: 0.5,
-                filename: `FestOS_${filename.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, backgroundColor: '#0F172A' },
-                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-            };
+        // ==========================================
+        // POSTER GENERATION ENGINE (From Cloud Template)
+        // ==========================================
+        async function downloadPoster(type) {
+            if (!currentPosterData) return alert("Data not ready for poster generation.");
             
-            // Visual feedback
             const btn = event.currentTarget;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
-            
-            html2pdf().set(opt).from(element).save().then(() => {
-                btn.innerHTML = originalText;
-            });
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating Image...`;
+            btn.disabled = true;
+
+            try {
+                // Fetch template from Supabase
+                const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', type).limit(1);
+                if(!templates || templates.length === 0) {
+                    throw new Error("No poster template found. The Admin needs to design one first.");
+                }
+                const template = templates[0];
+
+                // Load custom fonts if any exist in the template
+                if (template.customFonts && template.customFonts.length > 0) {
+                    for (const fontData of template.customFonts) {
+                        try {
+                            const customFont = new FontFace(fontData.family, `url(${fontData.url})`);
+                            const loadedFace = await customFont.load();
+                            document.fonts.add(loadedFace);
+                        } catch (e) { console.error("Could not load template font:", e); }
+                    }
+                }
+
+                // Load Background Image into Canvas
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = () => reject(new Error("Failed to load background template image."));
+                    img.src = template.bg_base64;
+                });
+
+                const canvas = document.getElementById('poster-canvas');
+                canvas.width = img.naturalWidth; 
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+
+                // Draw Text and Elements
+                for (const [key, fieldConfig] of Object.entries(template.fields)) {
+                    if(!fieldConfig.enabled) continue; 
+                    
+                    // Render Custom/Static Elements configured by Admin
+                    if (fieldConfig.isImage && fieldConfig.isStaticElement && fieldConfig.src) {
+                        try {
+                            const staticImg = await new Promise((res) => {
+                                const pImg = new Image(); pImg.crossOrigin = "Anonymous";
+                                pImg.onload = () => res(pImg); pImg.onerror = () => res(null);
+                                pImg.src = fieldConfig.src;
+                            });
+                            if (staticImg) ctx.drawImage(staticImg, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h);
+                        } catch (err) {}
+                        continue;
+                    }
+
+                    // Render Data Text
+                    const text = fieldConfig.isCustom ? fieldConfig.displayName : (currentPosterData[key] || "");
+                    if(!text) continue;
+                    
+                    ctx.textAlign = fieldConfig.align || 'left'; 
+                    ctx.fillStyle = fieldConfig.color || '#000000';
+                    ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
+                    ctx.fillText(text, fieldConfig.x, fieldConfig.y);
+                }
+
+                // Trigger Download
+                const link = document.createElement('a');
+                link.download = `FestOS_${type}_Results.jpg`;
+                link.href = canvas.toDataURL('image/jpeg', 0.95); // High quality JPG export
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
         }
 
+        // Start App
         init();
     </script>
 </body>
