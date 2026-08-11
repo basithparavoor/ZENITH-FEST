@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FestOS | Mobile Spectator</title>
+    <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -19,43 +22,45 @@
             --gold: #FBBF24; --silver: #CBD5E1; --bronze: #D97706;
         }
         
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background: var(--bg-main); color: var(--text-main); padding-top: 70px; padding-bottom: 80px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; text-transform: uppercase; }
+        body { background: var(--bg-main); color: var(--text-main); padding-top: 80px; padding-bottom: 40px; }
 
-        .header { position: fixed; top: 0; left: 0; width: 100%; height: 70px; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: center; z-index: 100; }
-        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.3rem; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
+        /* Unified Header */
+        .header { position: fixed; top: 0; left: 0; width: 100%; height: 70px; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 0.75rem; z-index: 100; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .header img { height: 35px; max-width: 120px; object-fit: contain; border-radius: 4px; display: none; }
+        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; margin: 0; }
 
         .container { padding: 1.25rem; max-width: 600px; margin: 0 auto; }
         
-        /* Mobile Tabs */
-        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 70px; background: var(--bg-surface); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
-        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: 0.2s; flex: 1; }
-        .nav-item i { font-size: 1.3rem; }
-        .nav-item.active { color: var(--primary); }
-        .nav-item.active i { transform: scale(1.1); }
+        /* Typography */
+        .page-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.6rem; font-weight: 800; color: white; margin-bottom: 0.25rem; line-height: 1.2; text-align: center; }
+        .page-subtitle { color: var(--primary); font-size: 0.9rem; font-weight: 700; text-align: center; margin-bottom: 2rem; letter-spacing: 1px; }
 
-        /* Card Styles */
-        .card { background: var(--bg-surface); border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); }
-        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
-        .card-title { font-size: 1.2rem; font-weight: 800; line-height: 1.2; font-family: 'Plus Jakarta Sans', sans-serif; }
+        /* Cards */
+        .card { background: var(--bg-surface); border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         
-        .badge { padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+        .badge { padding: 0.3rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.05em; }
         .badge-live { background: rgba(16, 185, 129, 0.15); color: #10B981; border: 1px solid #10B981; }
         .badge-val { background: rgba(245, 158, 11, 0.15); color: #F59E0B; border: 1px solid #F59E0B; }
         .badge-call { background: rgba(59, 130, 246, 0.15); color: #3B82F6; border: 1px solid #3B82F6; }
 
-        .metric { font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; margin-top: 0.4rem; font-weight: 500; }
-
         /* Leaderboard Rows */
-        .lb-row { display: flex; align-items: center; padding: 1rem 0; border-bottom: 1px dashed var(--border); }
+        .lb-row { display: flex; align-items: center; padding: 1.25rem 0; border-bottom: 1px dashed var(--border); }
         .lb-row:last-child { border-bottom: none; }
-        .lb-rank { font-size: 1.5rem; font-weight: 800; width: 40px; color: var(--text-muted); }
+        .lb-rank { font-size: 1.8rem; font-weight: 800; width: 45px; color: var(--text-muted); }
         .lb-details { flex: 1; }
-        .lb-name { font-size: 1.05rem; font-weight: 700; color: white; display: block; }
-        .lb-team { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
-        .lb-pts { font-size: 1.2rem; font-weight: 800; color: var(--primary); text-align: right; }
+        .lb-name { font-size: 1.1rem; font-weight: 800; color: white; display: block; margin-bottom: 0.2rem; }
+        .lb-team { font-size: 0.85rem; color: var(--text-muted); font-weight: 700; }
+        .lb-pts { font-size: 1.4rem; font-weight: 800; color: var(--primary); text-align: right; }
         
-        .rank-1 { color: var(--gold); } .rank-2 { color: var(--silver); } .rank-3 { color: var(--bronze); }
+        .rank-1 { color: var(--gold); text-shadow: 0 0 15px rgba(251, 191, 36, 0.4); } 
+        .rank-2 { color: var(--silver); } 
+        .rank-3 { color: var(--bronze); }
+
+        /* Buttons */
+        .btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 1rem; border-radius: 12px; font-size: 1rem; font-weight: 800; border: none; cursor: pointer; margin-top: 1rem; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-outline { background: transparent; border: 2px solid var(--border); color: white; }
 
         .loader { text-align: center; padding: 4rem 0; color: var(--text-muted); }
         .loader i { font-size: 2rem; color: var(--primary); margin-bottom: 1rem; }
@@ -64,28 +69,14 @@
 <body>
 
     <div class="header">
-        <h1 id="top-title">FESTOS LIVE</h1>
+        <img id="head-logo" src="" alt="Logo">
+        <h1 id="head-title">FESTOS LIVE</h1>
     </div>
 
     <div class="container" id="main-content">
         <div class="loader">
             <i class="fa-solid fa-spinner fa-spin"></i>
-            <p>Syncing Live Data...</p>
-        </div>
-    </div>
-
-    <div class="bottom-nav">
-        <div class="nav-item active" id="tab-live" onclick="switchView('live')">
-            <i class="fa-solid fa-bolt"></i>
-            <span>Live Stage</span>
-        </div>
-        <div class="nav-item" id="tab-results" onclick="switchView('results')">
-            <i class="fa-solid fa-trophy"></i>
-            <span>Results</span>
-        </div>
-        <div class="nav-item" id="tab-standings" onclick="switchView('standings')">
-            <i class="fa-solid fa-chart-simple"></i>
-            <span>Standings</span>
+            <p style="font-weight: 600; margin-top: 10px;">Syncing Secure Data...</p>
         </div>
     </div>
 
@@ -97,102 +88,73 @@
         let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_solo: { aplus: 8, a: 7, b: 5, c: 3 }, points_small: { aplus: 12, a: 10, b: 7, c: 5 }, points_large: { aplus: 15, a: 12, b: 10, c: 7 }, pos_points: { p1: 3, p2: 2, p3: 1 } };
         let allTeams = [];
         
-        // Parse URL Parameters to know what the user scanned
+        // Contextual Engine
         const urlParams = new URLSearchParams(window.location.search);
-        let currentView = urlParams.get('view') || 'live';
+        let viewContext = urlParams.get('view') || 'live';
         let targetCompId = urlParams.get('comp') || null;
 
         async function init() {
-            // Apply Branding
-            const { data: brand } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
-            if(brand && brand.value && brand.value.fest_name) document.getElementById('top-title').innerText = brand.value.fest_name.toUpperCase() + ' LIVE';
+            try {
+                // 1. Fetch Global Branding
+                const { data: brand } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
+                if(brand && brand.value) {
+                    if(brand.value.fest_name) document.getElementById('head-title').innerText = brand.value.fest_name.toUpperCase();
+                    if(brand.value.fest_logo) {
+                        document.getElementById('head-logo').src = brand.value.fest_logo;
+                        document.getElementById('head-logo').style.display = 'block';
+                    }
+                }
 
-            const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
-            if (set_data && set_data.value) systemSettings = set_data.value;
+                // 2. Fetch Display Settings (Colors/Fonts)
+                const { data: display } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+                if (display && display.value) {
+                    if (display.value.primary_color) document.documentElement.style.setProperty('--primary', display.value.primary_color);
+                    if (display.value.font_family) {
+                        const fontString = `"${display.value.font_family}", sans-serif`;
+                        document.body.style.fontFamily = fontString;
+                        document.getElementById('head-title').style.fontFamily = fontString;
+                    }
+                }
 
-            const { data: teams } = await supabaseClient.from('teams').select('*');
-            allTeams = teams || [];
+                // 3. Fetch Matrix
+                const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
+                if (set_data && set_data.value) systemSettings = set_data.value;
 
-            // If a specific competition was scanned, force the results tab
-            if (targetCompId && !urlParams.get('view')) {
-                currentView = 'results';
+                // 4. Fetch Teams
+                const { data: teams } = await supabaseClient.from('teams').select('*');
+                allTeams = teams || [];
+
+                // 5. Route to correct contextual view
+                if (viewContext === 'results' && targetCompId) await renderSingleResult();
+                else if (viewContext === 'standings') await renderStandings();
+                else await renderLiveSchedule();
+
+            } catch (err) {
+                document.getElementById('main-content').innerHTML = `<p style="color:red; text-align:center;">Connection Error.</p>`;
             }
-
-            switchView(currentView, true);
         }
 
-        function switchView(view, isInitial = false) {
-            currentView = view;
-            if(!isInitial) targetCompId = null; // Clear target if user taps a bottom tab manually
-            
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            document.getElementById(`tab-${view}`).classList.add('active');
-
+        async function renderSingleResult() {
             const content = document.getElementById('main-content');
-            content.innerHTML = `<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading...</p></div>`;
-
-            if (view === 'live') loadLiveEvents();
-            if (view === 'results') loadResults();
-            if (view === 'standings') loadStandings();
-        }
-
-        async function loadLiveEvents() {
-            const { data: comps, error } = await supabaseClient.from('competitions')
-                .select('*, categories(name), stages(name)')
-                .in('status', ['ongoing', 'valuation', 'registration'])
-                .order('status');
-                
-            const content = document.getElementById('main-content');
-            content.innerHTML = '<h2 style="font-size: 1.5rem; margin-bottom: 1rem; font-family: \'Plus Jakarta Sans\';">Event Schedule</h2>';
             
-            if (!comps || comps.length === 0) {
-                content.innerHTML += `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No active events right now.</p>`;
+            const { data: comp } = await supabaseClient.from('competitions').select('*, categories(name)').eq('id', targetCompId).single();
+            if (!comp || comp.status !== 'published') {
+                content.innerHTML = `<h2 class="page-title">Results Not Ready</h2><p style="text-align:center; color: var(--text-muted);">Results for this event are not published yet.</p>`;
                 return;
             }
 
-            comps.forEach(c => {
-                let badge = '';
-                if(c.status === 'ongoing') badge = '<span class="badge badge-live">LIVE ON STAGE</span>';
-                if(c.status === 'valuation') badge = '<span class="badge badge-val">IN VALUATION</span>';
-                if(c.status === 'registration') badge = '<span class="badge badge-call">CALLING NOW</span>';
+            const { data: judgements } = await supabaseClient.from('judgements')
+                .select('awarded_mark, participants(id, name, team_id, unique_id)')
+                .eq('competition_id', targetCompId)
+                .not('awarded_mark', 'is', null);
 
-                content.innerHTML += `
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-title">${c.name}</div>
-                            ${badge}
-                        </div>
-                        <div class="metric"><i class="fa-solid fa-layer-group" style="color:var(--primary)"></i> ${c.categories?.name || 'GEN'}</div>
-                        <div class="metric"><i class="fa-solid fa-microphone-stage" style="color:var(--primary)"></i> ${c.stages?.name || 'GLOBAL'}</div>
-                    </div>
-                `;
-            });
-        }
-
-        async function loadResults() {
-            const content = document.getElementById('main-content');
+            const results = calculateSingleComp(comp, judgements || []);
             
-            // If they scanned a specific competition QR code
-            if (targetCompId) {
-                const { data: comp } = await supabaseClient.from('competitions').select('*, categories(name)').eq('id', targetCompId).single();
-                if (!comp || comp.status !== 'published') {
-                    content.innerHTML = `<p style="text-align:center; padding: 2rem; color: var(--text-muted);">Results for this event are not published yet.</p>`;
-                    return;
-                }
-
-                const { data: judgements } = await supabaseClient.from('judgements')
-                    .select('awarded_mark, participants(id, name, team_id, unique_id)')
-                    .eq('competition_id', targetCompId);
-
-                const results = calculateSingleComp(comp, judgements || []);
-                
-                content.innerHTML = `
-                    <button onclick="targetCompId=null; loadResults();" style="background:none; border:none; color:var(--primary); font-weight:bold; margin-bottom:1rem; cursor:pointer;">
-                        <i class="fa-solid fa-arrow-left"></i> Back to all results
-                    </button>
-                    <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem; font-family: \'Plus Jakarta Sans\';">${comp.name}</h2>
-                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">${comp.categories?.name || 'GEN'}</p>
-                    <div class="card" style="padding: 0 1rem;">
+            content.innerHTML = `
+                <div id="pdf-container">
+                    <h2 class="page-title">${comp.name}</h2>
+                    <p class="page-subtitle">${comp.categories?.name || 'GEN'} • OFFICIAL RESULTS</p>
+                    <div class="card" style="padding: 0 1.25rem;">
                         ${results.map(r => `
                             <div class="lb-row">
                                 <div class="lb-rank rank-${r.pos}">#${r.pos}</div>
@@ -204,42 +166,22 @@
                             </div>
                         `).join('')}
                     </div>
-                `;
-                return;
-            }
-
-            // Otherwise, show list of published results
-            const { data: comps } = await supabaseClient.from('competitions')
-                .select('id, name, categories(name)')
-                .eq('status', 'published').order('updated_at', { ascending: false });
-
-            content.innerHTML = '<h2 style="font-size: 1.5rem; margin-bottom: 1rem; font-family: \'Plus Jakarta Sans\';">Published Results</h2>';
-            if (!comps || comps.length === 0) {
-                content.innerHTML += `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No results published yet.</p>`;
-                return;
-            }
-
-            comps.forEach(c => {
-                content.innerHTML += `
-                    <div class="card" onclick="targetCompId='${c.id}'; loadResults();" style="cursor:pointer;">
-                        <div class="card-header" style="margin-bottom:0;">
-                            <div>
-                                <div class="card-title">${c.name}</div>
-                                <div class="metric"><i class="fa-solid fa-layer-group" style="color:var(--primary)"></i> ${c.categories?.name || 'GEN'}</div>
-                            </div>
-                            <i class="fa-solid fa-chevron-right" style="color: var(--border); margin-top: 5px;"></i>
-                        </div>
-                    </div>
-                `;
-            });
+                </div>
+                <button class="btn btn-primary" onclick="downloadPDF('${comp.name}')">
+                    <i class="fa-solid fa-download"></i> Save Results PDF
+                </button>
+                <button class="btn btn-outline" onclick="window.location.href='spectator.html'">
+                    <i class="fa-solid fa-home"></i> View Live Schedule
+                </button>
+            `;
         }
 
-        async function loadStandings() {
-            const { data: publishedComps } = await supabaseClient.from('competitions').select('*, participant_competitions(count)').eq('status', 'published');
+        async function renderStandings() {
             const content = document.getElementById('main-content');
+            const { data: publishedComps } = await supabaseClient.from('competitions').select('*, participant_competitions(count)').eq('status', 'published');
             
             if (!publishedComps || publishedComps.length === 0) {
-                content.innerHTML = '<h2 style="font-size: 1.5rem; margin-bottom: 1rem; font-family: \'Plus Jakarta Sans\';">Team Standings</h2><p style="text-align:center; padding: 2rem; color: var(--text-muted);">No points awarded yet.</p>';
+                content.innerHTML = '<h2 class="page-title">CHAMPIONSHIP STANDINGS</h2><p style="text-align:center; color: var(--text-muted); margin-top:2rem;">No points awarded yet.</p>';
                 return;
             }
 
@@ -252,7 +194,6 @@
             let teamScores = {};
             allTeams.forEach(t => teamScores[t.id] = { name: t.name, score: 0 });
 
-            // Process all logic identically to display to build global standings
             publishedComps.forEach(comp => {
                 const compJudgements = (judgements || []).filter(j => j.competition_id === comp.id);
                 const results = calculateSingleComp(comp, compJudgements);
@@ -263,18 +204,69 @@
 
             const sortedTeams = Object.values(teamScores).sort((a,b) => b.score - a.score);
 
-            content.innerHTML = '<h2 style="font-size: 1.5rem; margin-bottom: 1rem; font-family: \'Plus Jakarta Sans\';">Overall Standings</h2><div class="card" style="padding: 0 1rem;">';
-            sortedTeams.forEach((t, i) => {
-                const rank = i + 1;
+            content.innerHTML = `
+                <div id="pdf-container">
+                    <h2 class="page-title">OVERALL STANDINGS</h2>
+                    <p class="page-subtitle">LIVE TEAM LEADERBOARD</p>
+                    <div class="card" style="padding: 0 1.25rem;">
+                        ${sortedTeams.map((t, i) => {
+                            const rank = i + 1;
+                            return `
+                            <div class="lb-row">
+                                <div class="lb-rank rank-${rank}">#${rank}</div>
+                                <div class="lb-details"><span class="lb-name">${t.name}</span></div>
+                                <div class="lb-pts">${t.score} <span style="font-size:0.6rem; color:var(--text-muted);">PTS</span></div>
+                            </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="downloadPDF('Overall_Standings')">
+                    <i class="fa-solid fa-download"></i> Save Standings PDF
+                </button>
+            `;
+        }
+
+        async function renderLiveSchedule() {
+            const content = document.getElementById('main-content');
+            const { data: comps } = await supabaseClient.from('competitions')
+                .select('*, categories(name), stages(name)')
+                .in('status', ['ongoing', 'valuation', 'registration'])
+                .order('status');
+                
+            content.innerHTML = `
+                <h2 class="page-title">EVENT SCHEDULE</h2>
+                <p class="page-subtitle">HAPPENING NOW</p>
+            `;
+            
+            if (!comps || comps.length === 0) {
+                content.innerHTML += `<div class="card"><p style="color: var(--text-muted); text-align: center; font-weight:600;">No active events right now.</p></div>`;
+                return;
+            }
+
+            comps.forEach(c => {
+                let badge = '';
+                if(c.status === 'ongoing') badge = '<span class="badge badge-live">LIVE ON STAGE</span>';
+                if(c.status === 'valuation') badge = '<span class="badge badge-val">IN VALUATION</span>';
+                if(c.status === 'registration') badge = '<span class="badge badge-call">CALLING NOW</span>';
+
                 content.innerHTML += `
-                    <div class="lb-row">
-                        <div class="lb-rank rank-${rank}">#${rank}</div>
-                        <div class="lb-details"><span class="lb-name">${t.name}</span></div>
-                        <div class="lb-pts">${t.score} <span style="font-size:0.6rem; color:var(--text-muted);">PTS</span></div>
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+                            <span style="font-size: 0.8rem; font-weight: 800; color: var(--primary);">${c.categories?.name || 'GEN'}</span>
+                            ${badge}
+                        </div>
+                        <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 0.5rem; line-height: 1.2;">${c.name}</h3>
+                        <div style="color: var(--text-muted); font-size: 0.9rem; font-weight: 600;"><i class="fa-solid fa-microphone-stage"></i> ${c.stages?.name || 'GLOBAL'}</div>
                     </div>
                 `;
             });
-            content.innerHTML += '</div>';
+            
+            content.innerHTML += `
+                <button class="btn btn-outline" onclick="window.location.href='spectator.html?view=standings'">
+                    <i class="fa-solid fa-trophy"></i> View Overall Standings
+                </button>
+            `;
         }
 
         // Shared Calculation Engine
@@ -298,6 +290,7 @@
                 const avg = sorted.reduce((a,b) => a+b, 0) / sorted.length;
                 
                 let name = data.p.name;
+                // Add Group Party logic
                 if(comp.is_group && !name.endsWith('& PARTY')) name += " & PARTY";
 
                 return { avg, name, teamId: data.p.team_id, team: allTeams.find(t=>t.id===data.p.team_id)?.name || 'IND' };
@@ -324,6 +317,27 @@
                 }
 
                 return { ...entry, pos: rank, pts };
+            });
+        }
+
+        // Generate PDF using html2pdf
+        function downloadPDF(filename) {
+            const element = document.getElementById('pdf-container');
+            const opt = {
+                margin: 0.5,
+                filename: `FestOS_${filename.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, backgroundColor: '#0F172A' },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+            
+            // Visual feedback
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+            
+            html2pdf().set(opt).from(element).save().then(() => {
+                btn.innerHTML = originalText;
             });
         }
 
