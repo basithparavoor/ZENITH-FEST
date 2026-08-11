@@ -54,7 +54,6 @@ async function loadDashboard() {
         document.getElementById('stage-name').innerText = "Admin Override";
         document.getElementById('master-filter-container').style.display = 'block';
         
-        // Fetch all stages to populate the Master Admin dropdown
         const { data: stages } = await supabaseClient.from('stages').select('id, name').order('stage_no');
         const filterDropdown = document.getElementById('master-stage-filter');
         filterDropdown.innerHTML = '<option value="ALL">-- ALL STAGES (MASTER VIEW) --</option>';
@@ -82,7 +81,6 @@ async function loadDashboard() {
     loadCompetitions(stage.id);
 }
 
-// Automatically adjusts page padding so the fixed header never hides content
 function adjustLayoutPadding() {
     const navbar = document.querySelector('.navbar > div:first-child');
     if (navbar) {
@@ -90,12 +88,9 @@ function adjustLayoutPadding() {
     }
 }
 
-// 3. Load Competitions
 async function loadCompetitions(stageId) {
     let query = supabaseClient.from('competitions')
         .select('*, categories(name), judgements(judge_id, awarded_mark), participant_competitions(participant_id)');
-    
-    // (BROKEN VALIDATION BLOCK WAS REMOVED FROM HERE)
 
     if (stageId && stageId !== 'ALL') {
         query = query.eq('stage_id', stageId);
@@ -132,8 +127,9 @@ async function loadCompetitions(stageId) {
     const statusWeights = {
         'ongoing': 1,
         'registration': 2,
-        'pending': 3,
-        'judgement_complete': 4
+        'valuation': 3,
+        'pending': 4,
+        'judgement_complete': 5
     };
 
     competitions.sort((a, b) => {
@@ -146,7 +142,6 @@ async function loadCompetitions(stageId) {
         return a.name.localeCompare(b.name);
     });
 
-    // Render Competitions
     competitions.forEach(comp => {
         if (comp.status === 'published') return;
 
@@ -156,6 +151,7 @@ async function loadCompetitions(stageId) {
         
         if (comp.status === 'registration') { badgeClass = 'badge-registration'; statusText = 'REGISTRATION'; statusIcon = '<i class="fa-solid fa-qrcode"></i>';}
         if (comp.status === 'ongoing') { badgeClass = 'badge-ongoing'; statusText = 'ONGOING'; statusIcon = '<i class="fa-solid fa-circle-play"></i>';}
+        if (comp.status === 'valuation') { badgeClass = 'badge-pending'; statusText = 'IN VALUATION'; statusIcon = '<i class="fa-solid fa-pen-clip"></i>';}
         if (comp.status === 'judgement_complete') { badgeClass = 'badge-complete'; statusText = 'AWAITING RESULTS'; statusIcon = '<i class="fa-solid fa-flag-checkered"></i>';}
 
         const enrolledCount = comp.participant_competitions ? comp.participant_competitions.length : 0;
@@ -234,7 +230,9 @@ function filterCompetitions() {
         
         const matchesText = compName.includes(textFilter);
         const matchesCategory = (catFilter === 'ALL' || compCat === catFilter);
-        const matchesStatus = (statusFilter === 'ALL' || compStatus === statusFilter);
+        
+        // Ensure 'valuation' is treated correctly under the filter logic
+        const matchesStatus = (statusFilter === 'ALL' || compStatus === statusFilter || (statusFilter === 'pending' && compStatus === 'valuation'));
         
         if (matchesText && matchesCategory && matchesStatus) {
             card.style.display = 'block'; 
@@ -264,15 +262,38 @@ function getButtonsForStatus(comp) {
     }
     
     if (comp.status === 'ongoing') {
+        // --- NEW: OFFSTAGE EVENT WORKFLOW ---
+        if (comp.is_offstage) {
+            return `
+                <div>
+                    <button class="btn btn-outline" onclick="backToRegistration('${comp.id}', this)"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT TO REGISTRATION</button>
+                    <button class="btn btn-warning" onclick="changeCompetitionState('${comp.id}', 'valuation', this, 'ENDING')"><i class="fa-solid fa-file-export"></i> END EVENT & SEND TO VALUATION</button>
+                </div>
+            `;
+        } else {
+            // --- STANDARD EVENT WORKFLOW ---
+            const hasMarks = comp.judgements && comp.judgements.some(j => j.awarded_mark !== null);
+            const endBtn = hasMarks 
+                ? `<button class="btn btn-warning" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'ENDING')"><i class="fa-solid fa-flag-checkered"></i> END COMPETITION</button>`
+                : `<button class="btn btn-outline" style="opacity: 0.6; pointer-events: none;" disabled><i class="fa-solid fa-hourglass-half"></i> AWAITING JUDGES...</button>`;
+
+            return `
+                <div>
+                    <button class="btn btn-outline" onclick="backToRegistration('${comp.id}', this)"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT TO REGISTRATION</button>
+                    ${endBtn}
+                </div>
+            `;
+        }
+    }
+    
+    if (comp.status === 'valuation') {
         const hasMarks = comp.judgements && comp.judgements.some(j => j.awarded_mark !== null);
-
         const endBtn = hasMarks 
-            ? `<button class="btn btn-warning" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'ENDING')"><i class="fa-solid fa-flag-checkered"></i> END COMPETITION</button>`
-            : `<button class="btn btn-outline" style="opacity: 0.6; pointer-events: none;" disabled><i class="fa-solid fa-hourglass-half"></i> AWAITING JUDGES...</button>`;
-
+            ? `<button class="btn btn-success" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'SUBMITTING')"><i class="fa-solid fa-check-double"></i> MARKS RECEIVED - SEND TO MANAGER</button>`
+            : `<button class="btn btn-outline" style="opacity: 0.6; pointer-events: none;" disabled><i class="fa-solid fa-hourglass-half"></i> AWAITING VALUATION MARKS...</button>`;
         return `
             <div>
-                <button class="btn btn-outline" onclick="backToRegistration('${comp.id}', this)"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT TO REGISTRATION</button>
+                <button class="btn btn-outline" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'REVERTING')"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT TO ONGOING</button>
                 ${endBtn}
             </div>
         `;
@@ -316,7 +337,6 @@ function generateCodeLetter(index) {
     return letter;
 }
 
-// THIS IS THE CORRECT PLACEMENT FOR THE SCAN LOGIC
 async function onScanSuccess(decodedText) {
     if (isProcessingScan || !activeScanCompId) return; 
     isProcessingScan = true;
@@ -326,7 +346,6 @@ async function onScanSuccess(decodedText) {
     if (qrId.includes('?id=')) {
         qrId = qrId.split('?id=')[1];
     }
-    console.log("Scanned QR Data:", qrId);
 
     try {
         const { data: participant, error: pError } = await supabaseClient
@@ -355,7 +374,6 @@ async function onScanSuccess(decodedText) {
         }
 
         // --- CORRECTED: STRICT LEADER VERIFICATION ---
-        // Fetch competition to see if it is a group event
         const { data: compData } = await supabaseClient
             .from('competitions')
             .select('is_group')
@@ -412,7 +430,6 @@ async function loadCheckedInList(compId) {
     const listContainer = document.getElementById(`list-${compId}`);
     if (!listContainer) return;
 
-    // Fetch comp info to know if it's a group event
     const { data: comp } = await supabaseClient.from('competitions').select('is_group').eq('id', compId).single();
 
     const { data, error } = await supabaseClient
@@ -436,12 +453,11 @@ async function loadCheckedInList(compId) {
         return 0;
     });
     
-    // Sort Pending List
     let pending = data.filter(d => !d.is_present);
     
     // --- STRICT LEADER FILTER FOR PENDING ARRIVALS ---
     if (comp && comp.is_group) {
-        pending = pending.filter(d => d.is_leader); // Hide regular members
+        pending = pending.filter(d => d.is_leader); 
     }
     
     pending = pending.sort((a, b) => a.participants.name.localeCompare(b.participants.name));
@@ -589,13 +605,11 @@ function applyGlobalBranding(brandingData) {
     const displayMode = brandingData.display_mode || 'both'; // 'both', 'logo', 'name'
     const logoSize = brandingData.logo_size || 32; 
     
-    // 1. Update Document Title dynamically
     const festName = validName ? brandingData.fest_name : 'FestOS';
     const titleParts = document.title.split('|');
     const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
     document.title = `${festName} | ${pageContext}`;
 
-    // 2. Global Favicon Injection
     if (validLogo) {
         let allIcons = document.querySelectorAll("link[rel='icon'], link[rel='shortcut icon']");
         if (allIcons.length === 0) {
@@ -610,21 +624,18 @@ function applyGlobalBranding(brandingData) {
         });
     }
 
-    // 3. UI Header Updates
     const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
     brandContainers.forEach(container => {
         let html = '';
         const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
         const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
         
-        // Dynamic Logo Sizing
         if (showLogo) {
             html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: ${logoSize}px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '8px' : '0'}; display: inline-block; vertical-align: middle; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">`;
         } else if (!validLogo && displayMode !== 'name') {
             html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
         }
         
-        // Dynamic Text
         if (showName) {
             html += `<span style="letter-spacing: -0.5px; display: inline-block; vertical-align: middle; white-space: normal; word-break: break-word;">${validName ? brandingData.fest_name : 'FestOS'}</span>`;
         }
@@ -634,13 +645,11 @@ function applyGlobalBranding(brandingData) {
         container.style.alignItems = 'center';
         container.style.flexWrap = 'nowrap';
         
-        // Centering logic for specific screens
         if (window.location.pathname.includes('scan') || window.location.pathname.includes('login') || window.location.pathname.includes('index') || window.location.pathname === '/') {
             container.style.justifyContent = 'center';
         }
     });
 
-    // Store globally for PDF Generators
     if (typeof window !== 'undefined') window.systemBranding = brandingData;
 }
 

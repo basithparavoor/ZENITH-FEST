@@ -245,6 +245,7 @@ tr:hover td { background: var(--bg-main); }
         <div class="nav-item" onclick="switchTab('poster-templates')"><i class="fa-solid fa-image"></i> Poster Templates</div>
         <div class="nav-item" onclick="switchTab('point-settings')"><i class="fa-solid fa-sliders"></i> Point System</div>
         <div class="nav-item" onclick="switchTab('branding-settings')"><i class="fa-solid fa-palette"></i> Branding & UI</div>
+<div class="nav-item" onclick="switchTab('display-control')"><i class="fa-solid fa-tv"></i> Display Control</div>
 
         <div id="master-admin-portals" style="display: none; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
             <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; padding-left: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Cross-Portal Access</div>
@@ -873,51 +874,98 @@ tr:hover td { background: var(--bg-main); }
         </div>
 
         <div id="participant-points" class="content-section">
-            <div class="action-bar" style="margin-bottom: 1rem;">
-                <div>
-                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Participant Points Ledger</h2>
-                    <p style="color: var(--text-muted); font-size: 0.9rem;">View detailed point breakdowns per student and generate report cards.</p>
-                </div>
-                <div class="bulk-actions">
-                    <button class="btn btn-primary" onclick="bulkExportPointsPDF()"><i class="fa-solid fa-file-pdf"></i> Generate PDF Reports</button>
-                </div>
-            </div>
-            <div class="controls-bar">
-                <div class="search-box">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="searchPointsInput" placeholder="Search name or ID..." onkeyup="filterPointsTable(true)">
-                </div>
-                <div class="filter-box">
-                    <select id="filterPointsCategory" onchange="filterPointsTable(true)">
-                        <option value="">All Categories</option>
-                    </select>
-                </div>
-                <div class="filter-box">
-                    <select id="filterPointsTeam" onchange="filterPointsTable(true)">
-                        <option value="">All Teams</option>
-                    </select>
-                </div>
-                <div class="filter-box">
-                    <input type="date" id="filterPointsDob" onchange="filterPointsTable(true)" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none;">
-                </div>
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th class="checkbox-cell" title="Select for Bulk PDF"><input type="checkbox" onchange="toggleSelectAll('points-tbody', this)"></th>
-                            <th>Unique ID</th>
-                            <th>Participant Name</th>
-                            <th>Team</th>
-                            <th>Total Points Earned</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="points-tbody"></tbody>
-                </table>
-                <div id="points-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border);"></div>
-            </div>
+    <div class="action-bar" style="margin-bottom: 1rem;">
+        <div>
+            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Points Ledger</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">View detailed point breakdowns per student and team, and track special awards.</p>
         </div>
+        <div class="bulk-actions">
+            <button class="btn btn-primary" id="btn-export-points" onclick="bulkExportPointsPDF()"><i class="fa-solid fa-file-pdf"></i> Generate PDF Reports</button>
+        </div>
+    </div>
+
+    <!-- VIEW SWITCHER -->
+    <div class="controls-bar" style="display: flex; gap: 0.75rem; background: transparent; padding: 0; box-shadow: none; border: none; margin-bottom: 1rem; overflow-x: auto; flex-wrap: nowrap;">
+        <button class="btn btn-primary" id="btn-view-ind" onclick="switchPointsView('individual')" style="border-radius: 50px; white-space: nowrap;">Participant Ledger</button>
+        <button class="btn btn-outline" id="btn-view-team" onclick="switchPointsView('team')" style="border-radius: 50px; white-space: nowrap;">Team Ledger</button>
+        
+        <div style="width: 2px; background: var(--border); margin: 0 0.5rem;"></div> <!-- Divider -->
+        
+        <button class="btn btn-outline" id="btn-view-star" onclick="switchPointsView('star')" style="border-radius: 50px; color: #D97706; border-color: #D97706; white-space: nowrap;"><i class="fa-solid fa-star"></i> Star Contenders</button>
+        <button class="btn btn-outline" id="btn-view-pen" onclick="switchPointsView('pen')" style="border-radius: 50px; color: #4338CA; border-color: #4338CA; white-space: nowrap;"><i class="fa-solid fa-pen-nib"></i> Pen Contenders</button>
+    </div>
+
+    <!-- Search/Filters (For Individual View) -->
+    <div class="controls-bar" id="ind-filters">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="searchPointsInput" placeholder="Search name or ID..." onkeyup="filterPointsTable(true)">
+        </div>
+        <div class="filter-box">
+            <select id="filterPointsCategory" onchange="filterPointsTable(true)">
+                <option value="">All Categories</option>
+            </select>
+        </div>
+        <div class="filter-box">
+            <select id="filterPointsTeam" onchange="filterPointsTable(true)">
+                <option value="">All Teams</option>
+            </select>
+        </div>
+        <div class="filter-box">
+            <input type="date" id="filterPointsDob" onchange="filterPointsTable(true)" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none;">
+        </div>
+    </div>
+
+    <!-- Participant Ledger Table -->
+    <div class="table-container" id="ind-points-container">
+        <table>
+            <thead>
+                <tr>
+                    <th class="checkbox-cell" title="Select for Bulk PDF"><input type="checkbox" onchange="toggleSelectAll('points-tbody', this)"></th>
+                    <th>Unique ID</th>
+                    <th>Participant Name</th>
+                    <th>Team</th>
+                    <th>Total Points Earned</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="points-tbody"></tbody>
+        </table>
+        <div id="points-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border);"></div>
+    </div>
+
+    <!-- Team Ledger Table -->
+    <div class="table-container" id="team-points-container" style="display: none;">
+        <table>
+            <thead>
+                <tr>
+                    <th class="checkbox-cell" title="Select for Bulk PDF"><input type="checkbox" onchange="toggleSelectAll('team-points-tbody', this)"></th>
+                    <th>Team Name</th>
+                    <th>Total Participants</th>
+                    <th>Total Points Earned</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="team-points-tbody"></tbody>
+        </table>
+    </div>
+
+    <!-- SPECIAL AWARD LEDGER TABLE -->
+    <div class="table-container" id="special-points-container" style="display: none;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Participant Details</th>
+                    <th>Team</th>
+                    <th id="special-pts-header">Points</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="special-points-tbody"></tbody>
+        </table>
+    </div>
+</div>
 
         <div id="branding-settings" class="content-section">
             <div class="action-bar" style="margin-bottom: 1.5rem;">
@@ -975,6 +1023,47 @@ tr:hover td { background: var(--bg-main); }
         </div>
 
     </div>
+<div id="display-control" class="content-section">
+    <div class="action-bar" style="margin-bottom: 1.5rem;">
+        <div>
+            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Spectator Display Control</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Manage the live projector/TV output and trigger celebrations.</p>
+        </div>
+        <button class="btn btn-success" onclick="window.open('display.html', '_blank')"><i class="fa-solid fa-up-right-from-square"></i> Launch Display</button>
+    </div>
+    
+    <div class="grid-2">
+        <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+            <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-sliders" style="color: var(--primary);"></i> Settings</h3>
+            
+            <div class="form-group">
+                <label>Slide Duration (Seconds)</label>
+                <input type="number" id="setting-slide-duration" value="12" min="5" max="60">
+            </div>
+            
+            <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
+                <div>
+                    <label style="margin: 0; font-weight: 700;">Show QR Code Widget</label>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Display the 'Scan for Live Results' block</p>
+                </div>
+                <label style="position: relative; display: inline-block; width: 50px; height: 26px;">
+                    <input type="checkbox" id="setting-show-qr" style="opacity: 0; width: 0; height: 0;" checked onchange="this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#cbd5e1'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(24px)' : 'translateX(0)';">
+                    <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .4s; border-radius: 34px;"></span>
+                    <span style="position: absolute; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; transform: translateX(24px);"></span>
+                </label>
+            </div>
+            
+            <button class="btn btn-primary" onclick="saveDisplaySettings()" style="width: 100%; margin-top: 1rem;"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
+        </div>
+
+        <div class="card" style="background: white; padding: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+            <i class="fa-solid fa-tv" style="font-size: 4rem; color: var(--primary-light); margin-bottom: 1rem;"></i>
+            <h3 style="margin-bottom: 0.5rem; font-weight: 800;">Live Event Screen</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">Connect your device to a TV or projector via HDMI/Cast, then launch the display. It will run automatically.</p>
+            <button class="btn btn-outline" style="color: var(--warning); border-color: var(--warning); width: 100%;" onclick="triggerManualConfetti()"><i class="fa-solid fa-wand-magic-sparkles"></i> Test Celebration Animation</button>
+        </div>
+    </div>
+</div>
 
 <!-- ================= FULL VIEW MODAL ================= -->
 <div id="fullViewModal" class="modal-overlay" style="z-index: 1050; padding: 2rem; background: rgba(15, 23, 42, 0.9);">

@@ -41,7 +41,7 @@ async function loadDashboard() {
         const { data: allComps, error } = await supabaseClient
             .from('competitions')
             .select('*, categories(name)')
-            .in('status', ['registration', 'ongoing']);
+            .in('status', ['registration', 'ongoing', 'valuation']); // NEW: Added valuation
             
         if (error) return container.innerHTML = `<p style="color: #EF4444; text-align:center; font-weight: 600; padding: 2rem;">Failed to load competitions.</p>`;
         
@@ -61,11 +61,11 @@ async function loadDashboard() {
             .from('judgements')
             .select(`
                 competition_id, 
-                competitions!inner(id, name, max_mark, status, categories(name))
+                competitions!inner(id, name, max_mark, status, is_offstage, categories(name))
             `)
             .eq('judge_id', user.id)
             .is('participant_id', null)
-            .in('competitions.status', ['registration', 'ongoing']); 
+            .in('competitions.status', ['registration', 'ongoing', 'valuation']); // NEW: Added valuation
 
         if (assignError) return container.innerHTML = `<p style="color: #EF4444; text-align:center; font-weight: 600; padding: 2rem;">Failed to load assignments.</p>`;
         
@@ -88,10 +88,13 @@ async function loadDashboard() {
         }
     }
 
-    // Sort by status preference and ID
+    // NEW: Dynamic sorting putting "Ready" events at the top
     globalJudgeComps.sort((a, b) => {
-        if (a.status === 'ongoing' && b.status !== 'ongoing') return -1;
-        if (a.status !== 'ongoing' && b.status === 'ongoing') return 1;
+        const aReady = a.is_offstage ? a.status === 'valuation' : a.status === 'ongoing';
+        const bReady = b.is_offstage ? b.status === 'valuation' : b.status === 'ongoing';
+        
+        if (aReady && !bReady) return -1;
+        if (!aReady && bReady) return 1;
         
         if (a.id < b.id) return -1;
         if (a.id > b.id) return 1;
@@ -142,11 +145,20 @@ function renderDashboard(data) {
     }
 
     data.forEach(comp => {
-        const isOngoing = comp.status === 'ongoing';
-        const badgeColor = isOngoing ? 'var(--success)' : '#D97706';
-        const statusText = isOngoing ? 'Ready to Evaluate' : 'Starts Soon';
-        const btnState = isOngoing ? '' : 'disabled';
-        const btnText = isOngoing ? 'Evaluate Now' : 'Waiting...';
+        // --- NEW: STRICT EVALUATION LOCK LOGIC ---
+        const isReady = comp.is_offstage ? (comp.status === 'valuation') : (comp.status === 'ongoing');
+        
+        let statusText = 'Starts Soon';
+        if (isReady) {
+            statusText = 'Ready to Evaluate';
+        } else if (comp.is_offstage && comp.status === 'ongoing') {
+            statusText = 'Event Ongoing'; // Tell judge to wait for it to end
+        }
+
+        const badgeColor = isReady ? 'var(--success)' : '#D97706';
+        const badgeBg = isReady ? 'var(--success-light)' : 'var(--warning-light)';
+        const btnState = isReady ? '' : 'disabled';
+        const btnText = isReady ? 'Evaluate Now' : 'Waiting...';
         const categoryName = comp.categories?.name || 'UNCATEGORIZED';
         
         const card = document.createElement('div');
@@ -156,7 +168,7 @@ function renderDashboard(data) {
                 <div style="flex: 1;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
                         <span style="font-size: 0.75rem; font-weight: 800; color: var(--primary); letter-spacing: 0.05em; background: var(--primary-light); padding: 0.35rem 0.75rem; border-radius: 6px;">${categoryName}</span>
-                        <span style="display: flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; font-weight: 700; color: ${badgeColor}; background: ${isOngoing ? 'var(--success-light)' : 'var(--warning-light)'}; padding: 0.35rem 0.75rem; border-radius: 6px;">
+                        <span style="display: flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; font-weight: 700; color: ${badgeColor}; background: ${badgeBg}; padding: 0.35rem 0.75rem; border-radius: 6px;">
                             <span style="display: inline-block; width: 6px; height: 6px; background: ${badgeColor}; border-radius: 50%;"></span>
                             ${statusText}
                         </span>
@@ -166,7 +178,7 @@ function renderDashboard(data) {
                         Max Mark: <strong style="color: var(--text-main);">${comp.max_mark}</strong>
                     </p>
                 </div>
-               <button class="btn ${isOngoing ? 'btn-primary' : 'btn-outline'}" ${btnState} onclick="openEvaluation('${comp.id}')" style="margin-top: 1rem; width: 100%;">
+               <button class="btn ${isReady ? 'btn-primary' : 'btn-outline'}" ${btnState} onclick="openEvaluation('${comp.id}')" style="margin-top: 1rem; width: 100%;">
                     ${btnText}
                </button>
             </div>
@@ -174,6 +186,7 @@ function renderDashboard(data) {
         container.appendChild(card);
     });
 }
+
 async function openEvaluation(compId) {
     const comp = globalJudgeComps.find(c => c.id === compId);
     if (!comp) return;

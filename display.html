@@ -4,32 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FestOS | Spectator Display</title>
+    <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
         :root {
             --primary: #4f46e5;
             --bg-dark: #070B14;
             --surface: rgba(15, 23, 42, 0.6);
-            --gold: #F59E0B; --silver: #94A3B8; --bronze: #D97706;
-            --slide-duration: 12s; /* How long each slide stays on screen */
+            --gold: #FBBF24; --silver: #94A3B8; --bronze: #D97706;
+            --slide-duration: 12s; 
         }
         * { margin: 0; padding: 0; box-sizing: border-box; text-transform: uppercase; font-family: 'Plus Jakarta Sans', sans-serif; }
         
-        body { 
-            background: var(--bg-dark); color: white; 
-            overflow: hidden; height: 100vh; display: flex; flex-direction: column;
-        }
+        body { background: var(--bg-dark); color: white; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
 
-        /* --- Ambient Background & Grid --- */
+        /* Ambient Background */
         .ambient-bg { position: fixed; inset: 0; z-index: -2; pointer-events: none; }
         .grid-overlay {
             position: fixed; inset: 0; z-index: -1; pointer-events: none;
-            background-image: 
-                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
             background-size: 50px 50px;
             mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
             -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
@@ -37,105 +38,93 @@
         .orb { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.5; animation: float 25s infinite alternate ease-in-out; }
         .orb-1 { background: rgba(79, 70, 229, 0.5); width: 60vw; height: 60vw; top: -20%; left: -10%; }
         .orb-2 { background: rgba(236, 72, 153, 0.3); width: 50vw; height: 50vw; bottom: -10%; right: -10%; animation-delay: -5s; }
+        @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(-5%, 10%) scale(1.1); } }
 
-        @keyframes float {
-            0% { transform: translate(0, 0) scale(1); }
-            100% { transform: translate(-5%, 10%) scale(1.1); }
-        }
-
-        /* --- Header & Clock --- */
-        .header {
-            padding: 2rem 4rem; display: flex; justify-content: space-between; align-items: center;
-            background: linear-gradient(to bottom, rgba(7, 11, 20, 0.95), transparent);
-            border-bottom: 1px solid rgba(255,255,255,0.05); z-index: 10;
-        }
+        /* Header */
+        .header { padding: 2rem 4rem; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to bottom, rgba(7, 11, 20, 0.95), transparent); border-bottom: 1px solid rgba(255,255,255,0.05); z-index: 10; }
+        .header-left { display: flex; align-items: center; gap: 1.5rem; }
+        .header-left img { height: 50px; object-fit: contain; border-radius: 8px; display: none; }
         .header h1 { font-size: 2.8rem; font-weight: 800; letter-spacing: -1px; text-shadow: 0 0 20px rgba(79, 70, 229, 0.5); }
-        
         .header-right { display: flex; align-items: center; gap: 2rem; }
         .clock { font-family: 'Inter', sans-serif; font-size: 1.5rem; font-weight: 700; color: rgba(255,255,255,0.8); letter-spacing: 2px; }
-        .live-badge { 
-            background: rgba(225, 29, 72, 0.15); color: #FDA4AF; padding: 0.6rem 1.5rem; 
-            border-radius: 50px; border: 1px solid rgba(225, 29, 72, 0.4); 
-            font-size: 1.2rem; font-weight: 800; display: flex; align-items: center; gap: 0.75rem; 
-        }
+        .live-badge { background: rgba(225, 29, 72, 0.15); color: #FDA4AF; padding: 0.6rem 1.5rem; border-radius: 50px; border: 1px solid rgba(225, 29, 72, 0.4); font-size: 1.2rem; font-weight: 800; display: flex; align-items: center; gap: 0.75rem; }
         .live-dot { width: 12px; height: 12px; background: #FDA4AF; border-radius: 50%; animation: pulse 1.5s infinite; box-shadow: 0 0 10px #FDA4AF; }
-        
         @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.5; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.5; } }
 
-        /* --- Slide Engine --- */
+        /* Slide Engine */
         .slide-container { flex: 1; position: relative; padding: 3rem 4rem; }
-        .slide {
-            position: absolute; inset: 0; padding: 3rem 4rem;
-            opacity: 0; transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out; 
-            display: flex; flex-direction: column; pointer-events: none; transform: scale(0.98);
-        }
+        .slide { position: absolute; inset: 0; padding: 2rem 4rem; opacity: 0; transition: opacity 0.8s ease, transform 0.8s ease; display: flex; flex-direction: column; pointer-events: none; transform: scale(0.98); }
         .slide.active { opacity: 1; pointer-events: all; transform: scale(1); }
-        .slide-title { font-size: 3.5rem; color: var(--primary); margin-bottom: 2.5rem; text-shadow: 0 4px 30px rgba(79,70,229,0.5); letter-spacing: -1px; }
+        .slide-title { font-size: 3.5rem; color: var(--primary); margin-bottom: 2rem; text-shadow: 0 4px 30px rgba(79,70,229,0.5); letter-spacing: -1px; text-align: center; }
 
-        /* --- Standings Board --- */
-        .leaderboard { display: flex; flex-direction: column; gap: 1.5rem; }
-        .lb-row { 
-            background: var(--surface); border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(20px);
-            padding: 1.5rem 3rem; border-radius: 20px; display: flex; align-items: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2); opacity: 0; transform: translateX(-20px);
-            transition: all 0.5s ease;
-        }
+        /* General Card Styles */
+        .card { background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.8)); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(20px); border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); position: relative; overflow: hidden; }
+
+        /* Now on Stage (Live) */
+        .live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 2rem; align-items: start; }
+        .live-card { padding: 2rem; animation: slideUpFade 0.6s ease forwards; }
+        .live-card::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 6px; background: #10B981; }
+        @keyframes slideUpFade { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Podium Spotlight */
+        .podium-container { display: flex; justify-content: center; align-items: flex-end; gap: 2rem; height: 60vh; padding-bottom: 2rem; }
+        .pedestal-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; width: 28%; text-align: center; animation: riseUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(50px); }
+        @keyframes riseUp { to { opacity: 1; transform: translateY(0); } }
+        
+        .slide.active .pedestal-wrapper.p2 { animation-delay: 0.2s; }
+        .slide.active .pedestal-wrapper.p1 { animation-delay: 0.5s; z-index: 5; }
+        .slide.active .pedestal-wrapper.p3 { animation-delay: 0.8s; }
+
+        .pedestal-card { background: var(--surface); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); padding: 1.5rem; border-radius: 20px; width: 100%; margin-bottom: 1.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .p-name { font-size: 2rem; font-weight: 800; color: white; line-height: 1.1; margin-bottom: 0.5rem; }
+        .p-team { font-size: 1.2rem; font-weight: 700; color: rgba(255,255,255,0.6); }
+        
+        .pedestal { width: 100%; border-radius: 12px 12px 0 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 1.5rem; position: relative; overflow: hidden; }
+        .pedestal::after { content:''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 100%); }
+        .p1 .pedestal { height: 280px; background: linear-gradient(to bottom, var(--gold), #B45309); box-shadow: 0 -10px 40px rgba(245,158,11,0.4); }
+        .p2 .pedestal { height: 200px; background: linear-gradient(to bottom, var(--silver), #475569); }
+        .p3 .pedestal { height: 140px; background: linear-gradient(to bottom, var(--bronze), #92400E); }
+        .rank-num { font-size: 5rem; font-weight: 800; color: rgba(255,255,255,0.9); text-shadow: 0 4px 10px rgba(0,0,0,0.3); line-height: 1; z-index: 2; }
+
+        /* Standings Board */
+        .leaderboard { display: flex; flex-direction: column; gap: 1rem; max-width: 1200px; margin: 0 auto; width: 100%; }
+        .lb-row { background: var(--surface); border: 1px solid rgba(255,255,255,0.05); padding: 1.25rem 3rem; border-radius: 20px; display: flex; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); opacity: 0; transform: translateX(-20px); transition: all 0.5s ease; }
         .slide.active .lb-row { opacity: 1; transform: translateX(0); }
         .slide.active .lb-row:nth-child(1) { transition-delay: 0.1s; }
         .slide.active .lb-row:nth-child(2) { transition-delay: 0.2s; }
         .slide.active .lb-row:nth-child(3) { transition-delay: 0.3s; }
         .slide.active .lb-row:nth-child(4) { transition-delay: 0.4s; }
         .slide.active .lb-row:nth-child(5) { transition-delay: 0.5s; }
-
-        .lb-row.gold { border-left: 10px solid var(--gold); background: linear-gradient(90deg, rgba(245,158,11,0.15), var(--surface)); transform: scale(1.02); box-shadow: 0 10px 40px rgba(245,158,11,0.15); z-index: 5; position: relative;}
-        .lb-row.silver { border-left: 10px solid var(--silver); background: linear-gradient(90deg, rgba(148,163,184,0.1), var(--surface)); }
-        .lb-row.bronze { border-left: 10px solid var(--bronze); background: linear-gradient(90deg, rgba(217,119,6,0.1), var(--surface)); }
+        .lb-row.gold { border-left: 8px solid var(--gold); background: linear-gradient(90deg, rgba(245,158,11,0.15), var(--surface)); transform: scale(1.02); }
+        .lb-row.silver { border-left: 8px solid var(--silver); background: linear-gradient(90deg, rgba(148,163,184,0.1), var(--surface)); }
+        .lb-row.bronze { border-left: 8px solid var(--bronze); background: linear-gradient(90deg, rgba(217,119,6,0.1), var(--surface)); }
         
-        .lb-rank { font-size: 3rem; font-weight: 800; width: 100px; color: rgba(255,255,255,0.3); }
-        .lb-row.gold .lb-rank { color: var(--gold); text-shadow: 0 0 20px rgba(245,158,11,0.5); }
-        .lb-team { flex: 1; font-size: 3rem; font-weight: 800; letter-spacing: 1px; }
-        .lb-score { font-size: 4rem; font-weight: 800; color: white; display: flex; align-items: baseline; gap: 0.5rem; }
-        .lb-score span { font-size: 1.5rem; color: rgba(255,255,255,0.5); font-weight: 700; letter-spacing: 2px; }
+        .lb-rank { font-size: 2.5rem; font-weight: 800; width: 80px; color: rgba(255,255,255,0.3); }
+        .lb-row.gold .lb-rank { color: var(--gold); }
+        .lb-team { flex: 1; font-size: 2.5rem; font-weight: 800; letter-spacing: 1px; }
+        .lb-score { font-size: 3.5rem; font-weight: 800; color: white; display: flex; align-items: baseline; gap: 0.5rem; }
+        .lb-score span { font-size: 1.25rem; color: rgba(255,255,255,0.5); }
 
-        /* --- Winner Cards --- */
-        .winner-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; }
-        .winner-card {
-            background: linear-gradient(145deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9)); 
-            border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(20px);
-            padding: 3rem 2rem; border-radius: 24px; text-align: center;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
-            position: relative; overflow: hidden;
-            opacity: 0; transform: translateY(20px); transition: all 0.5s ease;
-        }
-        .slide.active .winner-card { opacity: 1; transform: translateY(0); }
-        .slide.active .winner-card:nth-child(1) { transition-delay: 0.1s; }
-        .slide.active .winner-card:nth-child(2) { transition-delay: 0.2s; }
-        .slide.active .winner-card:nth-child(3) { transition-delay: 0.3s; }
-        .slide.active .winner-card:nth-child(4) { transition-delay: 0.4s; }
+        /* QR Widget */
+        .qr-widget { position: fixed; bottom: 2rem; right: 2rem; background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.1); padding: 1rem; border-radius: 16px; display: flex; align-items: center; gap: 1rem; backdrop-filter: blur(10px); z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .qr-widget span { font-size: 0.9rem; font-weight: 800; color: white; max-width: 120px; line-height: 1.3; }
+        #display-qr { background: white; padding: 6px; border-radius: 8px; }
 
-        .winner-card::before {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
-            background: linear-gradient(90deg, transparent, var(--gold), transparent);
-        }
-        
-        .w-comp { font-size: 1.4rem; color: var(--primary); margin-bottom: 1.5rem; font-weight: 800; letter-spacing: 1px; }
-        .w-name { font-size: 2.8rem; font-weight: 800; margin-bottom: 0.75rem; color: white; line-height: 1.1; }
-        .w-team { font-size: 1.3rem; color: var(--gold); letter-spacing: 3px; font-weight: 700; }
-
-        /* --- Progress Bar --- */
-        .progress-bar-container { width: 100%; height: 6px; background: rgba(255,255,255,0.05); position: fixed; bottom: 0; left: 0; z-index: 50; }
+        /* Progress Bar */
+        .progress-bar-container { width: 100%; height: 6px; background: rgba(255,255,255,0.05); position: fixed; bottom: 0; left: 0; z-index: 150; }
         .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: none; }
         .progress-bar.animating { transition: width var(--slide-duration) linear; width: 100%; }
-
     </style>
 </head>
 <body>
-
     <div class="ambient-bg"><div class="orb orb-1"></div><div class="orb orb-2"></div></div>
     <div class="grid-overlay"></div>
 
     <div class="header">
-        <h1 id="fest-title">FestOS Live</h1>
+        <div class="header-left">
+            <img id="fest-logo" src="" alt="Logo">
+            <h1 id="fest-title">FestOS Live</h1>
+        </div>
         <div class="header-right">
             <div class="clock" id="live-clock">00:00:00</div>
             <div class="live-badge"><div class="live-dot"></div> LIVE BROADCAST</div>
@@ -143,7 +132,13 @@
     </div>
 
     <div class="slide-container">
-        <!-- Slide 1: Standings -->
+        <!-- Slide: Podium Spotlight -->
+        <div id="slide-podium" class="slide">
+            <h2 class="slide-title">LATEST RESULTS: <span id="podium-comp-name" style="color:white;"></span></h2>
+            <div class="podium-container" id="podium-board"></div>
+        </div>
+
+        <!-- Slide: Standings -->
         <div id="slide-standings" class="slide active">
             <h2 class="slide-title">OVERALL CHAMPIONSHIP STANDINGS</h2>
             <div class="leaderboard" id="standings-board">
@@ -151,13 +146,16 @@
             </div>
         </div>
 
-        <!-- Slide 2: Recent Winners -->
-        <div id="slide-winners" class="slide">
-            <h2 class="slide-title">RECENT GOLD MEDALISTS</h2>
-            <div class="winner-grid" id="winners-board">
-                <h3 style="color:rgba(255,255,255,0.5); text-align:center; padding: 4rem; grid-column: 1/-1;">SYNCING LATEST RESULTS...</h3>
-            </div>
+        <!-- Slide: Now on Stage -->
+        <div id="slide-live" class="slide">
+            <h2 class="slide-title">HAPPENING NOW</h2>
+            <div class="live-grid" id="live-board"></div>
         </div>
+    </div>
+
+    <div id="qr-widget" class="qr-widget">
+        <div id="display-qr"></div>
+        <span>SCAN FOR LIVE RESULTS</span>
     </div>
 
     <div class="progress-bar-container">
@@ -165,82 +163,105 @@
     </div>
 
     <script>
-        // Supabase Initialization
         const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let systemSettings = {
-            thresholds: { aplus: 90, a: 70, b: 60, c: 50 },
-            points_solo: { aplus: 8, a: 7, b: 5, c: 3 },
-            points_small: { aplus: 12, a: 10, b: 7, c: 5 },
-            points_large: { aplus: 15, a: 12, b: 10, c: 7 },
-            pos_points: { p1: 3, p2: 2, p3: 1 }
-        };
-
+        let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_solo: { aplus: 8, a: 7, b: 5, c: 3 }, points_small: { aplus: 12, a: 10, b: 7, c: 5 }, points_large: { aplus: 15, a: 12, b: 10, c: 7 }, pos_points: { p1: 3, p2: 2, p3: 1 } };
         let allTeams = [];
         let calculatedTeamScores = {};
-        let recentGoldMedalists = [];
+        
+        let activeSlides = ['slide-standings'];
+        let currentSlide = 0;
+        let lastConfettiTrigger = 0;
+        let lastPublishedCount = 0;
 
-        // Update Clock
+        // Clock
         setInterval(() => {
             const now = new Date();
             document.getElementById('live-clock').innerText = now.toLocaleTimeString('en-US', { hour12: false });
         }, 1000);
 
+        // Render QR Code once
+        new QRCode(document.getElementById('display-qr'), { text: window.location.origin + '/live-results.html', width: 70, height: 70, colorDark: "#000", colorLight: "#fff", correctLevel: QRCode.CorrectLevel.L });
+
         async function fetchDisplayData() {
             try {
                 // 1. Fetch Branding & Settings
                 const { data: brandData } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
-                if (brandData && brandData.value.fest_name) {
-                    document.getElementById('fest-title').innerText = brandData.value.fest_name.toUpperCase();
+                if (brandData && brandData.value) {
+                    if (brandData.value.fest_name) document.getElementById('fest-title').innerText = brandData.value.fest_name.toUpperCase();
+                    if (brandData.value.fest_logo) {
+                        const logoEl = document.getElementById('fest-logo');
+                        logoEl.src = brandData.value.fest_logo;
+                        logoEl.style.display = 'block';
+                    }
                 }
 
                 const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
                 if (set_data && set_data.value) systemSettings = set_data.value;
 
-                // 2. Fetch Teams
+                const { data: displayData } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+                if (displayData && displayData.value) {
+                    const duration = displayData.value.slide_duration || 12;
+                    document.documentElement.style.setProperty('--slide-duration', `${duration}s`);
+                    document.getElementById('qr-widget').style.display = displayData.value.show_qr === false ? 'none' : 'flex';
+                    
+                    // Manual Confetti Trigger from Admin
+                    if (displayData.value.trigger_confetti > lastConfettiTrigger) {
+                        fireConfetti();
+                        lastConfettiTrigger = displayData.value.trigger_confetti;
+                    }
+                }
+
+                // 2. Fetch Teams & Reset Scores
                 const { data: teams } = await supabaseClient.from('teams').select('*');
                 allTeams = teams || [];
                 calculatedTeamScores = {};
                 allTeams.forEach(t => calculatedTeamScores[t.id] = { name: t.name, score: 0 });
 
-                // 3. Fetch Published Competitions
+                // 3. Fetch Live/Registration Events
+                const { data: liveComps } = await supabaseClient.from('competitions')
+                    .select('*, categories(name), stages(name), participant_competitions(count)')
+                    .in('status', ['ongoing', 'registration']);
+                
+                // 4. Fetch Published Competitions
                 const { data: publishedComps } = await supabaseClient.from('competitions')
                     .select('*, categories(name, is_general), participant_competitions(count)')
                     .eq('status', 'published')
-                    .order('updated_at', { ascending: false }); // Sort descending to easily grab recent winners
+                    .order('updated_at', { ascending: false });
 
-                if (!publishedComps || publishedComps.length === 0) {
-                    document.getElementById('standings-board').innerHTML = `<h3 style="color:rgba(255,255,255,0.5); text-align:center; padding: 4rem;">AWAITING OFFICIAL RESULTS...</h3>`;
-                    document.getElementById('winners-board').innerHTML = `<h3 style="color:rgba(255,255,255,0.5); text-align:center; padding: 4rem; grid-column: 1/-1;">AWAITING OFFICIAL RESULTS...</h3>`;
-                    return;
+                // Fire Confetti if a NEW result was published
+                if (publishedComps && publishedComps.length > lastPublishedCount && lastPublishedCount !== 0) {
+                    fireConfetti();
+                }
+                lastPublishedCount = publishedComps ? publishedComps.length : 0;
+
+                // Build Active Slides Array
+                activeSlides = ['slide-standings'];
+                if (publishedComps && publishedComps.length > 0) activeSlides.unshift('slide-podium');
+                if (liveComps && liveComps.length > 0) activeSlides.push('slide-live');
+
+                // 5. Fetch Judgements & Process
+                if (publishedComps && publishedComps.length > 0) {
+                    const compIds = publishedComps.map(c => c.id);
+                    const { data: judgements } = await supabaseClient.from('judgements')
+                        .select('competition_id, awarded_mark, participants(id, name, team_id, unique_id)')
+                        .in('competition_id', compIds)
+                        .not('participant_id', 'is', null).not('awarded_mark', 'is', null);
+
+                    processScores(judgements || [], publishedComps);
                 }
 
-                // 4. Fetch Judgements
-                const compIds = publishedComps.map(c => c.id);
-                const { data: judgements } = await supabaseClient.from('judgements')
-                    .select('competition_id, awarded_mark, participants(id, name, team_id, unique_id)')
-                    .in('competition_id', compIds)
-                    .not('participant_id', 'is', null).not('awarded_mark', 'is', null);
-
-                // 5. Process Scores
-                processScores(judgements || [], publishedComps);
-
-                // 6. Render UI
                 renderStandings();
-                renderWinners();
+                renderLiveStage(liveComps || []);
 
-            } catch (error) {
-                console.error("Display Fetch Error:", error);
-            }
+            } catch (error) { console.error("Display Fetch Error:", error); }
         }
 
         function processScores(judgements, publishedComps) {
             const compGroups = {};
-            recentGoldMedalists = [];
 
-            // Group Judgements
             judgements.forEach(j => {
                 if (!j.participants || !j.participants.id) return; 
                 const comp = publishedComps.find(c => c.id === j.competition_id);
@@ -253,7 +274,8 @@
                 compGroups[j.competition_id].participants[pId].marks_array.push(parseFloat(j.awarded_mark));
             });
 
-            // Calculate Math
+            let latestCompResults = [];
+
             for (const [compId, compData] of Object.entries(compGroups)) {
                 const limit = compData.comp_data.max_participants || 1;
                 const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
@@ -262,14 +284,20 @@
 
                 const participantsArr = Object.values(compData.participants).map(p => {
                     let sortedMarks = p.marks_array.sort((a, b) => a - b);
-                    if (sortedMarks.length >= 3) sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1); // Drop Outliers
+                    if (sortedMarks.length >= 3) sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1); 
                     const sum = sortedMarks.reduce((a, b) => a + b, 0);
                     p.score = sum / sortedMarks.length;
+                    
+                    // --- APPEND "& PARTY" FOR GROUP EVENTS ---
+                    if (compData.comp_data.is_group && !p.participant.name.endsWith('& PARTY')) {
+                        p.participant.name += " & PARTY";
+                    }
                     return p;
                 }).sort((a, b) => b.score - a.score);
 
                 let currentRank = 1;
                 let previousScore = -1;
+                let compPodium = [];
 
                 participantsArr.forEach((entry, idx) => {
                     if (entry.score !== previousScore) currentRank = idx + 1; 
@@ -279,45 +307,42 @@
                     let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
                     let gradePts = 0; let posPts = 0;
 
-                    // Grade Logic
                     if (percent >= 50) {
                         if (percent >= systemSettings.thresholds.aplus) gradePts = systemSettings[`points_${sizeCat}`].aplus;
                         else if (percent >= systemSettings.thresholds.a) gradePts = systemSettings[`points_${sizeCat}`].a;
                         else if (percent >= systemSettings.thresholds.b) gradePts = systemSettings[`points_${sizeCat}`].b;
                         else gradePts = systemSettings[`points_${sizeCat}`].c;
                     }
-                    
-                    // Position Logic
                     if (eligibleForPosPts && currentRank <= 3) {
                         if (currentRank === 1) posPts = systemSettings.pos_points.p1;
                         else if (currentRank === 2) posPts = systemSettings.pos_points.p2;
                         else if (currentRank === 3) posPts = systemSettings.pos_points.p3;
                     }
 
-                    // Add to Team Totals
                     const teamId = entry.participant.team_id;
-                    if (teamId && calculatedTeamScores[teamId]) { 
-                        calculatedTeamScores[teamId].score += (gradePts + posPts); 
-                    }
+                    if (teamId && calculatedTeamScores[teamId]) calculatedTeamScores[teamId].score += (gradePts + posPts); 
 
-                    // Log Gold Medalists (Only 1st Place)
-                    if (currentRank === 1) {
-                        recentGoldMedalists.push({
-                            compName: compData.comp_data.name,
-                            catName: compData.comp_data.categories?.name || 'General',
+                    if (currentRank <= 3) {
+                        compPodium.push({
+                            rank: currentRank,
                             name: entry.participant.name,
-                            team: allTeams.find(t => t.id === teamId)?.name || 'Independent',
-                            // Attach the comp's updated_at to ensure we sort the freshest wins
-                            timestamp: new Date(compData.comp_data.updated_at).getTime() 
+                            team: allTeams.find(t => t.id === teamId)?.name || 'IND'
                         });
                     }
                 });
+
+                // Save the podium for the most recently updated competition
+                if (publishedComps[0] && compId === publishedComps[0].id) {
+                    latestCompResults = compPodium;
+                }
             }
+
+            renderPodium(publishedComps[0], latestCompResults);
         }
 
         function renderStandings() {
             const container = document.getElementById('standings-board');
-            const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5); // Show top 5
+            const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5); 
 
             if (sortedTeams.length === 0) return;
 
@@ -333,52 +358,101 @@
             }).join('');
         }
 
-        function renderWinners() {
-            const container = document.getElementById('winners-board');
-            
-            // Sort to ensure the most recently updated comps show first, then grab top 4
-            const sortedWinners = recentGoldMedalists.sort((a, b) => b.timestamp - a.timestamp).slice(0, 4);
+        function renderPodium(comp, podiumData) {
+            const container = document.getElementById('podium-board');
+            if (!comp || podiumData.length === 0) return;
 
-            if (sortedWinners.length === 0) return;
+            document.getElementById('podium-comp-name').innerText = `${comp.name} (${comp.categories?.name || 'GEN'})`;
 
-            container.innerHTML = sortedWinners.map((w) => `
-                <div class="winner-card">
-                    <div class="w-comp">${w.compName} (${w.catName})</div>
-                    <div class="w-name">${w.name}</div>
-                    <div class="w-team">${w.team}</div>
+            const getPos = (rank) => podiumData.find(p => p.rank === rank) || { name: '-', team: '-' };
+            const p1 = getPos(1); const p2 = getPos(2); const p3 = getPos(3);
+
+            container.innerHTML = `
+                <div class="pedestal-wrapper p2">
+                    <div class="pedestal-card">
+                        <div class="p-name" style="font-size: 1.5rem;">${p2.name}</div>
+                        <div class="p-team">${p2.team}</div>
+                    </div>
+                    <div class="pedestal"><div class="rank-num">2</div></div>
                 </div>
-            `).join('');
+                <div class="pedestal-wrapper p1">
+                    <div class="pedestal-card" style="box-shadow: 0 10px 40px rgba(245,158,11,0.3); border-color: rgba(245,158,11,0.3);">
+                        <div class="p-name">${p1.name}</div>
+                        <div class="p-team" style="color: var(--gold);">${p1.team}</div>
+                    </div>
+                    <div class="pedestal"><div class="rank-num">1</div></div>
+                </div>
+                <div class="pedestal-wrapper p3">
+                    <div class="pedestal-card">
+                        <div class="p-name" style="font-size: 1.3rem;">${p3.name}</div>
+                        <div class="p-team">${p3.team}</div>
+                    </div>
+                    <div class="pedestal"><div class="rank-num">3</div></div>
+                </div>
+            `;
         }
 
-        // --- Slide Engine ---
-        let currentSlide = 0;
-        const slides = ['slide-standings', 'slide-winners'];
-        const slideDurationMs = 12000; // Matches CSS var --slide-duration
+        function renderLiveStage(liveComps) {
+            const container = document.getElementById('live-board');
+            if (liveComps.length === 0) return;
 
+            container.innerHTML = liveComps.map(c => {
+                const statusTag = c.status === 'ongoing' ? '<span style="color:#10B981;"><i class="fa-solid fa-circle-play"></i> LIVE</span>' : '<span style="color:#3B82F6;"><i class="fa-solid fa-users"></i> CALLING</span>';
+                return `
+                <div class="card live-card">
+                    <div style="font-size: 0.9rem; font-weight: 800; margin-bottom: 0.5rem; display: flex; justify-content: space-between;">
+                        <span style="color: var(--primary);">${c.categories?.name || 'GEN'}</span>
+                        ${statusTag}
+                    </div>
+                    <h3 style="font-size: 1.8rem; font-weight: 800; line-height: 1.2; margin-bottom: 1rem;">${c.name}</h3>
+                    <div style="color: var(--text-muted); font-size: 1rem; font-weight: 700;"><i class="fa-solid fa-microphone-stage"></i> ${c.stages?.name || 'GLOBAL'}</div>
+                </div>`;
+            }).join('');
+        }
+
+        function fireConfetti() {
+            const duration = 5000; const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+            function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+            const interval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+                const particleCount = 50 * (timeLeft / duration);
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+
+        // --- Slide Rotation Engine ---
         function rotateSlides() {
-            // Manage slide active classes
+            if (activeSlides.length === 0) return;
+            if (currentSlide >= activeSlides.length) currentSlide = 0;
+
             document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
-            document.getElementById(slides[currentSlide]).classList.add('active');
+            const activeSlideId = activeSlides[currentSlide];
+            const slideEl = document.getElementById(activeSlideId);
+            if (slideEl) slideEl.classList.add('active');
             
-            // Animate Progress Bar
             const progressBar = document.getElementById('progress');
             progressBar.classList.remove('animating');
-            void progressBar.offsetWidth; // Force reflow to reset CSS transition
+            void progressBar.offsetWidth; 
             progressBar.classList.add('animating');
             
             currentSlide++;
-            if (currentSlide >= slides.length) {
+            if (currentSlide >= activeSlides.length) {
                 currentSlide = 0;
-                fetchDisplayData(); // Silently sync new database data in the background before the next loop
+                fetchDisplayData(); 
             }
         }
 
         // Boot
         fetchDisplayData().then(() => {
+            // Apply initial duration from settings before starting animation loop
+            const durationStr = getComputedStyle(document.documentElement).getPropertyValue('--slide-duration').trim();
+            const durationMs = parseInt(durationStr) * 1000 || 12000;
             rotateSlides();
-            setInterval(rotateSlides, slideDurationMs);
+            setInterval(rotateSlides, durationMs);
         });
-
     </script>
 </body>
 </html>

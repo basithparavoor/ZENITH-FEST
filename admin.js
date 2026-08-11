@@ -94,6 +94,7 @@ function switchTab(tabId) {
         else if (tabId === 'branding-settings') loadBrandingSettings();
         else if (tabId === 'participant-points') loadParticipantPoints();
         else if (tabId === 'admin-appeals') loadAdminAppeals(); // <--- ADD THIS LINE
+        else if (tabId === 'display-control') loadDisplaySettings();
     } catch (e) {
         showToast("Failed to fetch dashboard data.", "error");
     }
@@ -567,6 +568,8 @@ function openCompModal(editData = null) {
     let catOpts = categoriesList.map(c => `<option value="${c.id}" ${isEdit && editData.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
     let stageOpts = stagesList.map(s => `<option value="${s.id}" ${isEdit && editData.stage_id === s.id ? 'selected' : ''}>${s.name}</option>`).join('');
 
+    const cAwardType = isEdit ? editData.award_type || 'none' : 'none';
+
     openModal(isEdit ? 'Edit Competition' : 'New Competition', `
         <input type="hidden" id="compId" value="${cId}">
         <div class="form-group"><label>Competition Name</label><input type="text" id="compName" value="${cName}"></div>
@@ -576,7 +579,6 @@ function openCompModal(editData = null) {
                 <input type="checkbox" id="compIsGroup" ${cIsGroup ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer;">
                 <label for="compIsGroup" style="margin: 0; color: var(--primary); font-weight: 700; cursor: pointer;">Group Event</label>
             </div>
-            <!-- REMOVED THE ONCHANGE DISABLE LOGIC HERE -->
             <div class="form-group" style="flex: 1; display: flex; align-items: center; gap: 0.5rem; background: #FEF3C7; padding: 1rem; border-radius: var(--radius-md); margin: 0;">
                 <input type="checkbox" id="compIsOffstage" ${cIsOffstage ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: #D97706; cursor: pointer;">
                 <label for="compIsOffstage" style="margin: 0; color: #D97706; font-weight: 700; cursor: pointer;">Offstage Event</label>
@@ -585,12 +587,21 @@ function openCompModal(editData = null) {
 
         <div style="display:flex; gap:1rem;">
             <div class="form-group" style="flex:1;"><label>Category</label><select id="compCategory">${catOpts}</select></div>
-            <!-- REMOVED THE DISABLED TAG HERE -->
             <div class="form-group" style="flex:1;"><label>Stage</label><select id="compStage"><option value="">-- NO STAGE YET --</option>${stageOpts}</select></div>
         </div>
         <div style="display:flex; gap:1rem;">
             <div class="form-group" style="flex:1;"><label>Max Marks</label><input type="number" id="compMarks" value="${cMarks}"></div>
             <div class="form-group" style="flex:1;"><label>Participants / Team</label><input type="number" id="compParticipants" value="${cLimit}"></div>
+        </div>
+        
+        <!-- NEW AWARD CATEGORY SELECTOR -->
+        <div class="form-group" style="margin-top: 0.5rem; padding-top: 1rem; border-top: 1px dashed var(--border);">
+            <label><i class="fa-solid fa-trophy" style="color:var(--primary);"></i> Special Award Eligibility</label>
+            <select id="compAwardType" style="border-color: var(--primary);">
+                <option value="none" ${cAwardType === 'none' ? 'selected' : ''}>Standard Event (No Special Award)</option>
+                <option value="star" ${cAwardType === 'star' ? 'selected' : ''}>⭐ Star of the Fest Event</option>
+                <option value="pen" ${cAwardType === 'pen' ? 'selected' : ''}>🖋️ Pen of the Fest Event</option>
+            </select>
         </div>
     `, saveCompetition);
 }
@@ -602,13 +613,14 @@ async function saveCompetition() {
     const is_offstage = document.getElementById('compIsOffstage').checked; // NEW
 const stage_id = document.getElementById('compStage').value || null;    const max_mark = document.getElementById('compMarks').value;
     const max_participants = document.getElementById('compParticipants').value;
-    const is_group = document.getElementById('compIsGroup').checked; 
+   const is_group = document.getElementById('compIsGroup').checked; 
+    const award_type = document.getElementById('compAwardType').value; // <-- ADD THIS
     
     if(!name) return showToast('Name is required', 'error');
     
     setLoading('modalSaveBtn', true);
     try {
-        const payload = { name, category_id, stage_id, max_mark, max_participants, is_group, is_offstage }; 
+        const payload = { name, category_id, stage_id, max_mark, max_participants, is_group, is_offstage, award_type }; // <-- ADD award_type HERE
         if (id) payload.id = id;
 
         const { error } = await supabaseClient.from('competitions').upsert([payload]);
@@ -4107,32 +4119,47 @@ async function savePointSettings() {
         showToast("Point Settings Saved Successfully!");
     } catch (e) { showToast(e.message, 'error'); }
 }
+let teamPointsList = []; // New Global Array
+
 async function loadParticipantPoints() {
     try {
         await loadPointSettings();
 
+        // Fetch everything needed
         const { data: comps } = await supabaseClient.from('competitions').select('*, categories(name, is_general), participant_competitions(count)');
         const { data: participants } = await supabaseClient.from('participants').select('*, teams(name), categories(name)');
         const { data: judgements } = await supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark');
 
-       // Group & Aggregate marks into arrays
-       let compAverages = {}; 
-       (judgements || []).forEach(j => {
+        // Create mapping for fast participant lookups
+        const pMap = {};
+        (participants || []).forEach(p => pMap[p.id] = p);
+
+        let compAverages = {}; 
+        (judgements || []).forEach(j => {
            if(!compAverages[j.competition_id]) compAverages[j.competition_id] = {};
            if(!compAverages[j.competition_id][j.participant_id]) compAverages[j.competition_id][j.participant_id] = { marks_array: [] };
            compAverages[j.competition_id][j.participant_id].marks_array.push(parseFloat(j.awarded_mark));
-       });
+        });
 
-        // Calculate Ranks, Averages & Points per Comp
         let compResults = {};
+        let teamResults = {};
+
+        // Initialize Team Totals
+        (teamsList || []).forEach(t => {
+            teamResults[t.id] = { team: t, breakdown: [], totalPoints: 0, participantCount: 0 };
+        });
+
+        // Pre-count total participants per team
+        (participants || []).forEach(p => {
+            if (p.team_id && teamResults[p.team_id]) teamResults[p.team_id].participantCount++;
+        });
+
         (comps || []).forEach(comp => {
             if(!compAverages[comp.id]) return;
+            
             const participantsArr = Object.entries(compAverages[comp.id]).map(([pId, data]) => {
-                // OUTLIER DROPPING
                 let sortedMarks = data.marks_array.sort((a, b) => a - b);
-                if (sortedMarks.length >= 3) {
-                    sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
-                }
+                if (sortedMarks.length >= 3) sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
                 const sum = sortedMarks.reduce((a, b) => a + b, 0);
                 return { id: pId, mark: sum / sortedMarks.length };
             }).sort((a, b) => b.mark - a.mark);
@@ -4140,25 +4167,19 @@ async function loadParticipantPoints() {
             const limit = comp.max_participants || 1;
             let sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
             
-            // Evaluate position point eligibility using registered database count
             const registeredCount = comp.participant_competitions?.[0]?.count || 0;
             const eligibleForPosPoints = registeredCount >= 3;
             
-            // TIE-AWARE RANKING LOGIC
             let currentRank = 1;
             let previousScore = -1;
 
             participantsArr.forEach((p, index) => {
-                // Update rank only if the score is different from the previous participant
-                if (p.mark !== previousScore) {
-                    currentRank = index + 1;
-                }
+                if (p.mark !== previousScore) currentRank = index + 1;
                 previousScore = p.mark;
 
                 let percent = (p.mark / (comp.max_mark || 100)) * 100;
                 let grade = '-'; let gradePts = 0; let posPts = 0;
 
-                // 1. Assign Grade Points ONLY if >= 50%
                 if (percent >= 50) {
                     if (percent >= pointsAdminSettings.thresholds.aplus) { grade = 'A+'; gradePts = pointsAdminSettings[`points_${sizeCat}`].aplus; }
                     else if (percent >= pointsAdminSettings.thresholds.a) { grade = 'A'; gradePts = pointsAdminSettings[`points_${sizeCat}`].a; }
@@ -4166,36 +4187,270 @@ async function loadParticipantPoints() {
                     else { grade = 'C'; gradePts = pointsAdminSettings[`points_${sizeCat}`].c; }
                 }
                 
-                // 2. Assign Position Points ALWAYS (if eligible and ranked top 3)
                 if (eligibleForPosPoints && currentRank <= 3) {
                     if (currentRank === 1) posPts = pointsAdminSettings.pos_points.p1;
                     else if (currentRank === 2) posPts = pointsAdminSettings.pos_points.p2;
                     else if (currentRank === 3) posPts = pointsAdminSettings.pos_points.p3;
                 }
                 
-                if(!compResults[p.id]) compResults[p.id] = [];
-                compResults[p.id].push({
-                    compName: comp.name, compCat: comp.categories?.name || 'General',
-                    mark: p.mark.toFixed(2), 
-                    maxMark: comp.max_mark || 100, 
-                    grade: grade, 
-                    totalPts: gradePts + posPts
-                });
+                const totalPts = gradePts + posPts;
+                const pData = pMap[p.id];
+                const tId = pData ? pData.team_id : null;
+                
+                // === THE NEW ROUTING LOGIC WITH AWARD TRACKING ===
+                if (comp.is_group) {
+                    // Group Events: Add ONLY to Team Ledger
+                    if (tId && teamResults[tId]) {
+                        teamResults[tId].breakdown.push({
+                            compName: comp.name,
+                            compCat: comp.categories?.name || 'General',
+                            mark: p.mark.toFixed(2),
+                            maxMark: comp.max_mark || 100,
+                            grade: grade,
+                            totalPts: totalPts,
+                            participantName: (pData?.name || 'Unknown') + " & PARTY",
+                            type: 'Group Event',
+                            awardType: comp.award_type // Track award type
+                        });
+                        teamResults[tId].totalPoints += totalPts;
+                    }
+                } else {
+                    // Individual Events: Add to Participant Ledger
+                    if(!compResults[p.id]) compResults[p.id] = [];
+                    compResults[p.id].push({
+                        compName: comp.name, 
+                        compCat: comp.categories?.name || 'General',
+                        mark: p.mark.toFixed(2), 
+                        maxMark: comp.max_mark || 100, 
+                        grade: grade, 
+                        totalPts: totalPts,
+                        awardType: comp.award_type // Track award type here
+                    });
+
+                    // Individual Events: ALSO add to Team Ledger
+                    if (tId && teamResults[tId]) {
+                        teamResults[tId].breakdown.push({
+                            compName: comp.name,
+                            compCat: comp.categories?.name || 'General',
+                            mark: p.mark.toFixed(2), 
+                            maxMark: comp.max_mark || 100,
+                            grade: grade, 
+                            totalPts: totalPts,
+                            participantName: pData?.name || 'Unknown',
+                            type: 'Individual Event',
+                            awardType: comp.award_type // Track award type
+                        });
+                        teamResults[tId].totalPoints += totalPts;
+                    }
+                }
             });
         });
 
-        // Apply to participant list
+        // Apply to participant list with Star/Pen calculation
         pointsDataList = (participants || []).map(p => {
             const breakdown = compResults[p.id] || [];
             const totalPoints = breakdown.reduce((sum, b) => sum + b.totalPts, 0);
-            return { ...p, totalPoints, breakdown };
+            
+            // NEW: Calculate specific award points
+            const starPoints = breakdown.filter(b => b.awardType === 'star').reduce((sum, b) => sum + b.totalPts, 0);
+            const penPoints = breakdown.filter(b => b.awardType === 'pen').reduce((sum, b) => sum + b.totalPts, 0);
+            
+            return { ...p, totalPoints, starPoints, penPoints, breakdown };
         });
+
+        // Apply to team list and sort highest first
+        teamPointsList = Object.values(teamResults).sort((a, b) => b.totalPoints - a.totalPoints);
 
         populateDropdownSafe('filterPointsCategory', categoriesList);
         populateDropdownSafe('filterPointsTeam', teamsList);
         filterPointsTable(true);
+        renderTeamPointsTable();
+        
+        // Auto-refresh the special ledger if a special tab is currently active
+        const starBtn = document.getElementById('btn-view-star');
+        const penBtn = document.getElementById('btn-view-pen');
+        if (starBtn && starBtn.classList.contains('btn-primary')) renderSpecialLedger('star');
+        if (penBtn && penBtn.classList.contains('btn-primary')) renderSpecialLedger('pen');
+
     } catch (e) { showToast(e.message, 'error'); }
 }
+
+// UI Switcher
+function switchPointsView(view) {
+    if (view === 'individual') {
+        document.getElementById('btn-view-ind').className = 'btn btn-primary';
+        document.getElementById('btn-view-team').className = 'btn btn-outline';
+        document.getElementById('ind-points-container').style.display = 'block';
+        document.getElementById('team-points-container').style.display = 'none';
+        document.getElementById('ind-filters').style.display = 'flex';
+        document.getElementById('btn-export-points').setAttribute('onclick', 'bulkExportPointsPDF()');
+    } else {
+        document.getElementById('btn-view-ind').className = 'btn btn-outline';
+        document.getElementById('btn-view-team').className = 'btn btn-primary';
+        document.getElementById('ind-points-container').style.display = 'none';
+        document.getElementById('team-points-container').style.display = 'block';
+        document.getElementById('ind-filters').style.display = 'none';
+        document.getElementById('btn-export-points').setAttribute('onclick', 'bulkExportTeamPointsPDF()');
+    }
+}
+
+// Render Team Table
+function renderTeamPointsTable() {
+    const tbody = document.getElementById('team-points-tbody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+
+    if (teamPointsList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">No records found.</td></tr>`;
+        return;
+    }
+
+    teamPointsList.forEach((t, i) => {
+        let rankBadge = i === 0 ? '<i class="fa-solid fa-crown" style="color: #F59E0B; margin-right: 5px;"></i>' : '';
+        tbody.innerHTML += `
+            <tr>
+                <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${t.team.id}" ${globalSelections['team-points-tbody']?.has(t.team.id) ? 'checked' : ''} onchange="handleRowSelection('team-points-tbody', this.value, this.checked)"></td>
+                <td style="font-weight: 800; font-size: 1.15rem; color: var(--text-main);">${rankBadge}${t.team.name}</td>
+                <td style="color: var(--text-muted); font-weight: 600;"><i class="fa-solid fa-users" style="margin-right: 5px;"></i>${t.participantCount} Enrolled</td>
+                <td style="font-weight: 900; color: var(--primary); font-size: 1.25rem;">${t.totalPoints} <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">PTS</span></td>
+                <td>
+                    <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" title="View Detail Breakdown" onclick="viewTeamPointDetails('${t.team.id}')"><i class="fa-solid fa-list"></i> View Ledger</button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+// Modal Preview for Team
+function viewTeamPointDetails(teamId) {
+    const t = teamPointsList.find(x => x.team.id === teamId);
+    if (!t) return;
+
+   let trs = t.breakdown.length > 0 ? t.breakdown.map((b, i) => `
+        <tr>
+            <td>
+                <strong style="font-weight: 700;">${b.participantName}</strong><br>
+                <small style="color: var(--text-muted); font-weight: 600;"><i class="fa-solid ${b.type === 'Group Event' ? 'fa-users' : 'fa-user'}" style="margin-right:4px;"></i>${b.type}</small>
+            </td>
+            <td style="font-weight: 600;">${b.compName} <br><span class="badge" style="background:var(--primary-light); font-size:0.65rem; margin-top:4px; display: inline-block;">${b.compCat}</span></td>
+            <td style="text-align: right; color: var(--text-muted); font-weight: 600;">${b.mark} / ${b.maxMark}</td>
+            <td style="text-align: right; font-weight: 800; color: var(--primary); font-size: 1.1rem;">${b.totalPts}</td>
+        </tr>
+    `).join('') : `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem;">No points earned yet.</td></tr>`;
+
+    document.getElementById('listModalTitle').innerText = 'Team Championship Ledger';
+    
+    document.getElementById('listModalTable').innerHTML = `
+        <tbody>
+            <tr>
+                <td colspan="4" style="padding: 0; border: none; padding-bottom: 1rem;">
+                    <div style="background: var(--bg-main); padding: 1.5rem; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 1.4rem; font-weight: 900; line-height: 1.2; color: var(--text-main); text-transform: uppercase;">${t.team.name}</div>
+                            <div style="font-family: monospace; color: var(--text-muted); font-size: 0.95rem; font-weight: 600; margin-top: 0.25rem;">${t.participantCount} STUDENTS ENROLLED</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">TOTAL SCORE</div>
+                            <div style="font-size: 2rem; font-weight: 900; color: var(--primary); line-height: 1;">${t.totalPoints}</div>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            <tr style="background: var(--bg-main); font-size: 0.75rem; color: var(--text-muted);">
+                <th style="padding: 0.75rem 1rem;">Contestant / Group</th>
+                <th style="padding: 0.75rem 1rem;">Program Evaluated</th>
+                <th style="padding: 0.75rem 1rem; text-align: right;">Final Marks</th>
+                <th style="padding: 0.75rem 1rem; text-align: right;">Points</th>
+            </tr>
+            ${trs}
+        </tbody>
+    `;
+    
+    document.getElementById('listModal').classList.add('show');
+}
+
+// PDF Generation for Team
+function bulkExportTeamPointsPDF() {
+    const ids = getSelectedIds('team-points-tbody');
+    let targetList = ids.length > 0 ? teamPointsList.filter(t => ids.includes(t.team.id)) : teamPointsList;
+    
+    if (targetList.length === 0) return showToast("No teams to export", "error");
+    
+    showToast("Generating Team Reports PDF...", "success");
+    const container = document.createElement('div');
+    container.style.fontFamily = 'Inter, sans-serif';
+    container.style.width = '100%';
+    container.style.background = 'white';
+
+    targetList.forEach((t, index) => {
+       let trs = t.breakdown.length > 0 ? t.breakdown.map((b, i) => `
+            <tr style="border-bottom: 1px solid #E2E8F0;">
+                <td style="padding: 12px; font-size: 12px;">${i+1}</td>
+                <td style="padding: 12px; font-size: 12px;">
+                    <strong style="font-weight: 700; color: #0F172A;">${b.participantName.toUpperCase()}</strong><br>
+                    <span style="font-size: 9px; color: #64748B; font-weight: 600;">${b.type.toUpperCase()}</span>
+                </td>
+                <td style="padding: 12px; font-size: 12px; font-weight: 600;">${b.compName.toUpperCase()}</td>
+                <td style="padding: 12px; font-size: 12px;">${b.compCat.toUpperCase()}</td>
+                <td style="padding: 12px; font-size: 12px; text-align: center;">${b.mark} / ${b.maxMark}</td>
+                <td style="padding: 12px; font-size: 14px; text-align: right; font-weight: 800; color: #4F46E5;">${b.totalPts}</td>
+            </tr>
+        `).join('') : `<tr><td colspan="6" style="padding: 20px; text-align: center; color: #64748B; font-weight: 600;">No programs evaluated yet.</td></tr>`;
+
+        container.innerHTML += `
+            <div style="padding: 40px; ${index < targetList.length - 1 ? 'page-break-after: always;' : ''}">
+                <div style="padding-bottom: 20px; border-bottom: 2px solid #E2E8F0; margin-bottom: 30px;">
+                    ${getPDFHeaderHTML('Team Championship Ledger')}
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: 30px; background: #EEF2FF; padding: 20px; border-radius: 12px; border: 1px solid rgba(79, 70, 229, 0.2);">
+                    <div>
+                        <p style="font-size: 10px; color: #4F46E5; font-weight: 800; margin-bottom: 4px;">TEAM DESIGNATION</p>
+                        <h2 style="font-size: 24px; font-weight: 800; color: #0F172A; margin: 0; text-transform: uppercase;">${t.team.name}</h2>
+                        <p style="font-size: 12px; color: #64748B; margin-top: 6px; font-weight: 600;">TOTAL ENROLLED: ${t.participantCount} STUDENTS</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <p style="font-size: 10px; color: #4F46E5; font-weight: 800; margin-bottom: 4px;">TEAM MANAGER</p>
+                        <h2 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0; text-transform: uppercase;">${t.team.manager_name || 'NOT ASSIGNED'}</h2>
+                    </div>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                    <thead>
+                        <tr style="background: #1E293B; color: white; text-align: left;">
+                            <th style="padding: 12px; font-size: 11px;">#</th>
+                            <th style="padding: 12px; font-size: 11px;">CONTESTANT / GROUP</th>
+                            <th style="padding: 12px; font-size: 11px;">PROGRAM EVALUATED</th>
+                            <th style="padding: 12px; font-size: 11px;">CATEGORY</th>
+                            <th style="padding: 12px; font-size: 11px; text-align: center;">FINAL MARKS</th>
+                            <th style="padding: 12px; font-size: 11px; text-align: right;">POINTS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${trs}
+                    </tbody>
+                    <tfoot>
+                        <tr style="background: #F1F5F9; border-top: 2px solid #CBD5E1;">
+                            <td colspan="5" style="padding: 16px; text-align: right; font-weight: 800; font-size: 14px; color: #0F172A;">TOTAL CHAMPIONSHIP POINTS:</td>
+                            <td style="padding: 16px; text-align: right; font-weight: 900; font-size: 20px; color: #4F46E5;">${t.totalPoints}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        `;
+    });
+
+    const opt = { 
+        margin: 0, 
+        filename: `FestOS_Team_Ledger.pdf`, 
+        image: { type: 'jpeg', quality: 0.98 }, 
+        html2canvas: { scale: 2, useCORS: true }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    };
+    
+    html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported Successfully!'));
+}
+
 function populateDropdownSafe(id, list) {
     const el = document.getElementById(id);
     if(el && el.options.length === 1 && list && list.length > 0) {
@@ -5329,4 +5584,130 @@ function getPDFHeaderHTML(reportTitle) {
             <p style="color: #64748B; font-size: 12px; margin-top: 4px;">Generated on: ${new Date().toLocaleString()}</p>
         </div>
     `;
+}
+// ============================================================================
+// SPECTATOR DISPLAY CONTROL ENGINE
+// ============================================================================
+
+async function loadDisplaySettings() {
+    try {
+        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+        if (data && data.value) {
+            if(document.getElementById('setting-slide-duration')) document.getElementById('setting-slide-duration').value = data.value.slide_duration || 12;
+            const qrCheck = document.getElementById('setting-show-qr');
+            if (qrCheck) {
+                qrCheck.checked = data.value.show_qr !== false;
+                qrCheck.dispatchEvent(new Event('change')); // Trigger animation toggle
+            }
+        }
+    } catch(e) { console.warn("Using default display settings."); }
+}
+
+async function saveDisplaySettings() {
+    const duration = parseInt(document.getElementById('setting-slide-duration').value) || 12;
+    const showQr = document.getElementById('setting-show-qr').checked;
+    
+    // We preserve the existing trigger_confetti value so it doesn't accidentally trigger
+    let payload = { slide_duration: duration, show_qr: showQr, trigger_confetti: 0 };
+    const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+    if(data && data.value) payload.trigger_confetti = data.value.trigger_confetti || 0;
+
+    setLoading('display-control .btn-primary', true);
+    try {
+        const { error } = await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
+        if (error) throw error;
+        showToast("Display Settings Saved!");
+    } catch(e) {
+        showToast(e.message, 'error');
+    } finally {
+        setLoading('display-control .btn-primary', false);
+    }
+}
+
+async function triggerManualConfetti() {
+    try {
+        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+        let payload = data?.value || { slide_duration: 12, show_qr: true };
+        
+        // Setting it to Date.now() forces the display to recognize it as a new event
+        payload.trigger_confetti = Date.now(); 
+        
+        await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
+        showToast("Animation triggered on live displays!", "success");
+    } catch(e) {
+        showToast("Failed to trigger animation.", "error");
+    }
+}
+
+// NEW: Advanced View Switcher
+function switchPointsView(view) {
+    // Reset all buttons
+    document.getElementById('btn-view-ind').className = 'btn btn-outline';
+    document.getElementById('btn-view-team').className = 'btn btn-outline';
+    document.getElementById('btn-view-star').className = 'btn btn-outline';
+    document.getElementById('btn-view-pen').className = 'btn btn-outline';
+    
+    document.getElementById('btn-view-star').style.color = '#D97706'; document.getElementById('btn-view-star').style.borderColor = '#D97706'; document.getElementById('btn-view-star').style.background = 'transparent';
+    document.getElementById('btn-view-pen').style.color = '#4338CA'; document.getElementById('btn-view-pen').style.borderColor = '#4338CA'; document.getElementById('btn-view-pen').style.background = 'transparent';
+
+    // Hide all containers
+    document.getElementById('ind-points-container').style.display = 'none';
+    document.getElementById('team-points-container').style.display = 'none';
+    document.getElementById('special-points-container').style.display = 'none';
+    document.getElementById('ind-filters').style.display = 'none';
+
+    if (view === 'individual') {
+        document.getElementById('btn-view-ind').className = 'btn btn-primary';
+        document.getElementById('ind-points-container').style.display = 'block';
+        document.getElementById('ind-filters').style.display = 'flex';
+        document.getElementById('btn-export-points').setAttribute('onclick', 'bulkExportPointsPDF()');
+    } else if (view === 'team') {
+        document.getElementById('btn-view-team').className = 'btn btn-primary';
+        document.getElementById('team-points-container').style.display = 'block';
+        document.getElementById('btn-export-points').setAttribute('onclick', 'bulkExportTeamPointsPDF()');
+    } else if (view === 'star') {
+        document.getElementById('btn-view-star').className = 'btn';
+        document.getElementById('btn-view-star').style.background = '#D97706'; document.getElementById('btn-view-star').style.color = 'white';
+        document.getElementById('special-points-container').style.display = 'block';
+        renderSpecialLedger('star');
+    } else if (view === 'pen') {
+        document.getElementById('btn-view-pen').className = 'btn';
+        document.getElementById('btn-view-pen').style.background = '#4338CA'; document.getElementById('btn-view-pen').style.color = 'white';
+        document.getElementById('special-points-container').style.display = 'block';
+        renderSpecialLedger('pen');
+    }
+}
+
+// NEW: Render Star/Pen Contenders
+function renderSpecialLedger(type) {
+    const tbody = document.getElementById('special-points-tbody');
+    tbody.innerHTML = '';
+    
+    // Filter out people who have 0 points in this specific category, then sort highest to lowest
+    let filteredList = pointsDataList.filter(p => type === 'star' ? p.starPoints > 0 : p.penPoints > 0);
+    filteredList.sort((a, b) => type === 'star' ? b.starPoints - a.starPoints : b.penPoints - a.penPoints);
+
+    if (filteredList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-muted); font-weight: 600;">No points have been awarded in this category yet.</td></tr>`;
+        return;
+    }
+
+    const awardTitle = type === 'star' ? 'Star of the Fest Points' : 'Pen of the Fest Points';
+    document.getElementById('special-pts-header').innerText = awardTitle;
+
+    filteredList.forEach((p, i) => {
+        const pts = type === 'star' ? p.starPoints : p.penPoints;
+        const color = type === 'star' ? '#D97706' : '#4338CA';
+        let rankBadge = i === 0 ? `<i class="fa-solid fa-crown" style="color: ${color}; margin-right: 5px;"></i>` : '';
+        
+        tbody.innerHTML += `
+            <tr>
+                <td style="font-weight: 800; font-size: 1.15rem; color: var(--text-main);">${rankBadge}#${i+1}</td>
+                <td style="font-weight: 700;">${p.name} <br><small style="font-family:monospace; color:var(--text-muted);">${p.unique_id}</small></td>
+                <td><span class="badge" style="background: var(--bg-main); color: var(--text-muted);">${p.teams?.name || 'INDEPENDENT'}</span></td>
+                <td style="font-weight: 900; color: ${color}; font-size: 1.25rem;">${pts} <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">PTS</span></td>
+                <td><button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick="viewParticipantPointDetails('${p.id}')"><i class="fa-solid fa-list"></i> View Ledger</button></td>
+            </tr>
+        `;
+    });
 }
