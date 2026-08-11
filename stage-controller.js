@@ -180,7 +180,7 @@ async function loadCompetitions(stageId) {
                             <i class="fa-solid fa-users" style="color: var(--primary);"></i> Enrolled: <strong style="color: var(--text-main);">${enrolledCount}</strong>
                         </span>
                         <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
-                            <i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Marks: <strong style="color: var(--text-main);">${comp.judgements ? comp.judgements.length : 0}</strong>
+                            <i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Judges: <strong style="color: var(--text-main);">${comp.judgements ? comp.judgements.length : 0}</strong>
                         </span>
                     </div>
                 </div>
