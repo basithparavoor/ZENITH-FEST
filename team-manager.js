@@ -69,7 +69,7 @@ function switchTab(tabId) {
     document.getElementById(tabId).classList.add('active');
     
     // Desktop and Mobile Bottom Nav tracking
-    document.querySelectorAll(`[onclick="switchTab('${tabId}')"], [onclick="switchTab('${tabId}'); toggleMobileMenu();"]`).forEach(el => {
+    document.querySelectorAll(`[onclick*="switchTab('${tabId}')"]`).forEach(el => {
         el.classList.add('active');
     });
 
@@ -247,13 +247,13 @@ function viewStudentEvents(studentId) {
     body.innerHTML = '';
     
     if (assignedComps.length === 0) {
-        body.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem 0; font-weight: 700;">NOT ENROLLED IN ANY EVENTS.</p>`;
+        body.innerHTML = `<p style="color: var(--text-muted); text-align: center; font-weight: 700; padding: 2rem 0;">NO STUDENTS ENROLLED IN THIS EVENT.</p>`;
     } else {
         assignedComps.forEach(compId => {
             const comp = globalComps.find(c => c.id === compId);
             if (comp) {
                 body.innerHTML += `
-                    <div style="padding: 1.25rem; background: var(--bg-surface); border-radius: var(--radius-md); border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-sm);">
+                    <div style="padding: 1.25rem; background: var(--bg-surface); border-radius: var(--radius-md); border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <div style="font-weight: 800; font-size: 1.1rem; margin-bottom: 0.25rem; color: var(--text-main);">${comp.name}</div>
                             <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;"><i class="fa-solid fa-layer-group" style="margin-right: 4px;"></i> ${comp.categories?.name || 'EVENT'}</div>
@@ -580,7 +580,7 @@ function renderBulkAssignmentTable() {
         return;
     }
 
-    // FIX: Changed globalCompetitions to globalComps to prevent ReferenceError
+    // FIX: Using globalComps instead of globalCompetitions
     const comp = globalComps.find(c => c.id === compId);
     if (!comp) return;
 
@@ -623,7 +623,7 @@ function renderBulkAssignmentTable() {
             ? '<span style="color:var(--success); font-weight:800;"><i class="fa-solid fa-check"></i> ENROLLED</span>'
             : '<span style="color:var(--text-muted); font-weight:700;">UNASSIGNED</span>';
 
-        // FIX: Ensure checkbox class is bulk-row-cb
+        // FIX: Re-added the blank data-label for the checkbox cell on mobile
         tbody.innerHTML += `
             <tr>
                 <td class="checkbox-cell" data-label=""><input type="checkbox" class="bulk-row-cb" value="${student.id}"></td>
@@ -636,8 +636,8 @@ function renderBulkAssignmentTable() {
     });
 }
 
+// FIX: Updated class target
 function toggleSelectAllBulk(source) {
-    // FIX: Changed from .bulk-cb to .bulk-row-cb
     const checkboxes = document.querySelectorAll('.bulk-row-cb');
     checkboxes.forEach(cb => cb.checked = source.checked);
 }
@@ -648,7 +648,6 @@ async function executeBulkAction(action) {
     const compId = document.getElementById('bulkAssignComp').value;
     if (!compId) return showToast('Please select a competition.', 'error');
     
-    // FIX: Changed globalCompetitions to globalComps
     const comp = globalComps.find(c => c.id === compId);
     const checkboxes = document.querySelectorAll('.bulk-row-cb:checked');
     const selectedIds = Array.from(checkboxes).map(cb => cb.value);
@@ -887,13 +886,15 @@ async function fetchAndApplyBranding() {
 function applyGlobalBranding(brandingData) {
     const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
     const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
-    const displayMode = brandingData.display_mode || 'both';
+    const displayMode = brandingData.display_mode || 'both'; // 'both', 'logo', 'name'
     
+    // 1. Update Document Title dynamically
     const festName = validName ? brandingData.fest_name : 'FestOS';
     const titleParts = document.title.split('|');
     const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Team Manager';
     document.title = `${festName} | ${pageContext}`;
 
+    // 2. Global Favicon Injection
     if (validLogo) {
         let iconLinks = document.querySelectorAll("link[rel~='icon']");
         if (iconLinks.length === 0) {
@@ -905,10 +906,31 @@ function applyGlobalBranding(brandingData) {
         iconLinks.forEach(link => link.href = brandingData.fest_logo);
     }
 
+    // 3. UI Header Updates
+    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
+    brandContainers.forEach(container => {
+        let html = '';
+        const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
+        const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
+        
+        if (showLogo) {
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">`;
+        } else if (!validLogo && displayMode !== 'name') {
+            html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
+        }
+        
+        if (showName) {
+            html += `<span style="letter-spacing: -0.5px;">${validName ? brandingData.fest_name : 'FestOS'}</span>`;
+        }
+        
+        container.innerHTML = html;
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+    });
+
     if (typeof window !== 'undefined') window.systemBranding = brandingData;
 }
 
-// Dynamic Branded PDF Header Generator
 function getPDFHeaderHTML(reportTitle) {
     const cachedBranding = JSON.parse(localStorage.getItem('festBranding') || JSON.stringify(window.systemBranding || {}));
     const validName = cachedBranding.fest_name && cachedBranding.fest_name.trim() !== '';

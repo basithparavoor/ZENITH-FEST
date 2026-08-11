@@ -73,6 +73,9 @@
         .orb-2 { width: 400px; height: 400px; background: rgba(236, 72, 153, 0.08); bottom: -100px; right: -100px; animation-delay: -7s; }
         @keyframes float { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(60px, 90px) scale(1.15) rotate(15deg); } }
 
+        /* --- DESKTOP HIDES --- */
+        .mobile-drawer, .mobile-overlay { display: none; }
+
         /* --- SIDEBAR --- */
         .sidebar { 
             width: 280px; background: var(--bg-surface); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
@@ -189,9 +192,6 @@
         .toast.error { border-left-color: var(--danger); }
         @keyframes slideInToast { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-/* --- DESKTOP HIDES --- */
-        .mobile-drawer, .mobile-overlay { display: none; }
-
         /* ========================================================================
            SEPARATE MOBILE UI (NATIVE BOTTOM NAVIGATION & CARDS)
            ======================================================================== */
@@ -204,34 +204,34 @@
                 padding: 1rem 1.25rem; background: rgba(255, 255, 255, 0.95); 
                 box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-bottom: none; z-index: 50;
             }
-            .header h1 { font-size: 1.35rem; }
+            .header h1 { font-size: 1.25rem; }
             .header .btn-outline { border: none; background: #F1F5F9; border-radius: 50%; width: 44px; height: 44px; padding: 0; font-size: 0; }
             .header .btn-outline i { font-size: 1.25rem; margin: 0; color: var(--danger); }
             
             /* Convert Sidebar to Native iOS-style Bottom Navigation */
-            .sidebar { 
+            #sidebar.sidebar { 
                 position: fixed; bottom: 0; left: 0; right: 0; width: 100%; height: auto;
                 flex-direction: row; align-items: center; justify-content: space-between;
-                padding: 0.5rem 1rem calc(0.5rem + env(safe-area-inset-bottom)) 1rem; 
+                padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom)) 0.5rem; 
                 background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
                 border-right: none; border-top: 1px solid var(--border);
                 box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.05); z-index: 100; transform: none;
             }
-            .brand { display: none; }
+            #sidebar .brand { display: none; } /* Hide brand logo in bottom nav */
             
             /* Show only primary tabs in bottom nav, hide the rest */
-            .sidebar .nav-item { 
-                flex-direction: column; gap: 0.3rem; padding: 0.5rem; 
+            #sidebar .nav-item { 
+                flex-direction: column; gap: 0.25rem; padding: 0.5rem; 
                 font-size: 0.65rem; text-align: center; border-radius: 12px;
                 flex: 1; justify-content: center; font-weight: 700; margin: 0;
             }
-            .sidebar .nav-item i { font-size: 1.4rem; width: auto; margin-bottom: 2px; }
-            .sidebar .nav-item.active { box-shadow: none; background: transparent; color: var(--primary); }
-            .sidebar .nav-item.active i { transform: scale(1.15); }
+            #sidebar .nav-item i { font-size: 1.35rem; width: auto; margin-bottom: 2px; }
+            #sidebar .nav-item.active { box-shadow: none; background: transparent; color: var(--primary); }
+            #sidebar .nav-item.active i { transform: scale(1.15); }
             /* Hide lower priority tabs from bottom bar */
-            .sidebar .nav-item:nth-child(5), /* Tracking */
-            .sidebar .nav-item:nth-child(7), /* Grievances */
-            .sidebar > div:last-child { display: none; } /* Scan Portal Wrapper */
+            #sidebar .nav-item:nth-child(5), /* Tracking */
+            #sidebar .nav-item:nth-child(7), /* Grievances */
+            #sidebar > div:last-child { display: none; } /* Scan Portal Wrapper */
             
             /* Add Mobile Menu Toggle to Header */
             .menu-toggle { 
@@ -244,12 +244,13 @@
             .mobile-overlay.open { display: block; opacity: 1; }
             
             .mobile-drawer {
-                display: flex; /* Brings it back for mobile */
-                position: fixed; top: 0; left: 0; bottom: 0; width: 280px; background: var(--bg-surface);
+                display: flex; position: fixed; top: 0; left: 0; bottom: 0; width: 280px; background: var(--bg-surface);
                 z-index: 200; transform: translateX(-100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-                padding: 2rem 1.25rem; flex-direction: column; gap: 0.5rem;
+                padding: 1.5rem 1.25rem; flex-direction: column; gap: 0.5rem;
             }
             .mobile-drawer.open { transform: translateX(0); }
+            .mobile-drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+            .mobile-drawer .brand { display: flex; margin: 0; font-size: 1.25rem; }
             
             /* Main Content Adjustments */
             .main-content { padding-bottom: calc(90px + env(safe-area-inset-bottom)); overflow-x: hidden; }
@@ -332,9 +333,12 @@
     <!-- Mobile Drawer Overlay -->
     <div class="mobile-overlay" onclick="toggleMobileMenu()"></div>
     
-    <!-- Mobile Hidden Drawer -->
+    <!-- Mobile Hidden Drawer (Fixed UI) -->
     <div class="mobile-drawer" id="mobile-drawer">
-        <div class="brand"><i class="fa-solid fa-bolt"></i> MORE</div>
+        <div class="mobile-drawer-header">
+            <div class="brand"><i class="fa-solid fa-bolt"></i> MENU</div>
+            <button class="menu-toggle" style="margin: 0; border-radius: 50%; width: 44px; height: 44px; background: var(--bg-main);" onclick="toggleMobileMenu()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
         <div class="nav-item" onclick="switchTab('competitions'); toggleMobileMenu();"><i class="fa-solid fa-satellite-dish"></i> TRACKING</div>
         <div class="nav-item" onclick="switchTab('appeals'); toggleMobileMenu();"><i class="fa-solid fa-scale-balanced"></i> GRIEVANCES</div>
         <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
