@@ -521,10 +521,6 @@ async function previewConvertedPoints(compId, legacyMaxMark, legacyIsGeneral) {
         const maxMark = comp.max_mark || 100;
         const limit = comp.max_participants || 1;
         const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
-        
-        // Evaluate eligibility based on REGISTERED count
-        const registeredCount = comp.participant_competitions?.[0]?.count || 0;
-        const eligibleForPosPts = registeredCount >= 3;
 
         const { data: judgements, error } = await window.db
             .from('judgements')
@@ -573,22 +569,22 @@ async function previewConvertedPoints(compId, legacyMaxMark, legacyIsGeneral) {
 
             // 1. Assign Grade Points ONLY if >= 50%
             if (percent >= 50) {
-                if (percent >= sysSet.thresholds.aplus) { gradePts = sysSet[`points_${sizeCat}`].aplus; gradeStr = 'A+'; }
-                else if (percent >= sysSet.thresholds.a) { gradePts = sysSet[`points_${sizeCat}`].a; gradeStr = 'A'; }
-                else if (percent >= sysSet.thresholds.b) { gradePts = sysSet[`points_${sizeCat}`].b; gradeStr = 'B'; }
-                else { gradePts = sysSet[`points_${sizeCat}`].c; gradeStr = 'C'; }
+                if (percent >= sysSet.thresholds.aplus) { gradePts = Number(sysSet[`points_${sizeCat}`].aplus); gradeStr = 'A+'; }
+                else if (percent >= sysSet.thresholds.a) { gradePts = Number(sysSet[`points_${sizeCat}`].a); gradeStr = 'A'; }
+                else if (percent >= sysSet.thresholds.b) { gradePts = Number(sysSet[`points_${sizeCat}`].b); gradeStr = 'B'; }
+                else { gradePts = Number(sysSet[`points_${sizeCat}`].c); gradeStr = 'C'; }
             }
             
-            // 2. Assign Position Points ALWAYS (if eligible and ranked top 3)
-            if (eligibleForPosPts && currentRank <= 3) {
-                if (currentRank === 1) posPts = sysSet.pos_points.p1;
-                else if (currentRank === 2) posPts = sysSet.pos_points.p2;
-                else if (currentRank === 3) posPts = sysSet.pos_points.p3;
+            // 2. Assign Position Points ALWAYS (Removed the 3-participant limit)
+            if (currentRank <= 3) {
+                if (currentRank === 1) posPts = Number(sysSet.pos_points.p1) || 0;
+                else if (currentRank === 2) posPts = Number(sysSet.pos_points.p2) || 0;
+                else if (currentRank === 3) posPts = Number(sysSet.pos_points.p3) || 0;
             }
             
             const totalPts = gradePts + posPts;
 
-            // --- APPEND "& PARTY" FOR PREVIEW MODAL ---
+            // APPEND "& PARTY" FOR GROUP EVENTS
             let displayName = r.name;
             if (comp.is_group && !displayName.endsWith('& PARTY')) {
                 displayName += ' & PARTY';
