@@ -4212,8 +4212,7 @@ async function loadParticipantPoints() {
             const limit = comp.max_participants || 1;
             let sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
             
-            const registeredCount = comp.participant_competitions?.[0]?.count || 0;
-            const eligibleForPosPoints = registeredCount >= 3;
+            // PARTICIPANT LIMIT RESTRICTION REMOVED HERE
             
             let currentRank = 1;
             let previousScore = -1;
@@ -4225,17 +4224,19 @@ async function loadParticipantPoints() {
                 let percent = (p.mark / (comp.max_mark || 100)) * 100;
                 let grade = '-'; let gradePts = 0; let posPts = 0;
 
+                // 1. Assign Grade Points ONLY if >= 50% (Wrapped in Number() to force math addition)
                 if (percent >= 50) {
-                    if (percent >= pointsAdminSettings.thresholds.aplus) { grade = 'A+'; gradePts = pointsAdminSettings[`points_${sizeCat}`].aplus; }
-                    else if (percent >= pointsAdminSettings.thresholds.a) { grade = 'A'; gradePts = pointsAdminSettings[`points_${sizeCat}`].a; }
-                    else if (percent >= pointsAdminSettings.thresholds.b) { grade = 'B'; gradePts = pointsAdminSettings[`points_${sizeCat}`].b; }
-                    else { grade = 'C'; gradePts = pointsAdminSettings[`points_${sizeCat}`].c; }
+                    if (percent >= pointsAdminSettings.thresholds.aplus) { grade = 'A+'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].aplus) || 0; }
+                    else if (percent >= pointsAdminSettings.thresholds.a) { grade = 'A'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].a) || 0; }
+                    else if (percent >= pointsAdminSettings.thresholds.b) { grade = 'B'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].b) || 0; }
+                    else { grade = 'C'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].c) || 0; }
                 }
                 
-                if (eligibleForPosPoints && currentRank <= 3) {
-                    if (currentRank === 1) posPts = pointsAdminSettings.pos_points.p1;
-                    else if (currentRank === 2) posPts = pointsAdminSettings.pos_points.p2;
-                    else if (currentRank === 3) posPts = pointsAdminSettings.pos_points.p3;
+                // 2. Assign Position Points ALWAYS for Top 3 (Removed the >= 3 limit)
+                if (currentRank <= 3) {
+                    if (currentRank === 1) posPts = Number(pointsAdminSettings.pos_points.p1) || 0;
+                    else if (currentRank === 2) posPts = Number(pointsAdminSettings.pos_points.p2) || 0;
+                    else if (currentRank === 3) posPts = Number(pointsAdminSettings.pos_points.p3) || 0;
                 }
                 
                 const totalPts = gradePts + posPts;
@@ -5260,21 +5261,28 @@ async function bulkDownloadCertificates(compId) {
             pMap[pId].marks.push(parseFloat(j.awarded_mark));
         });
 
-        // 4. Calculate Final Marks and slice Top 3
-        const results = Object.values(pMap).map(p => {
+        // 4. Calculate Final Marks 
+        const allResults = Object.values(pMap).map(p => {
             let sortedMarks = p.marks.sort((a, b) => a - b);
             if (sortedMarks.length >= 3) {
                 sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
             }
             const avg = sortedMarks.reduce((a, b) => a + b, 0) / sortedMarks.length;
             return { ...p, avgMark: avg };
-        }).sort((a, b) => b.avgMark - a.avgMark).slice(0, 3); // ONLY TOP 3 FOR MERIT CERTS
+        }).sort((a, b) => b.avgMark - a.avgMark); 
 
-        if (results.length === 0) throw new Error("Could not calculate top standings. No valid participant data.");
-
-        // 5. Determine Grades
+        // 5. Determine Grades and Positions with Tie Handling
         await loadPointSettings(); 
-        results.forEach((r, idx) => {
+        
+        let currentRank = 1;
+        let previousScore = -1;
+
+        allResults.forEach((r, idx) => {
+            // Increment rank only if the score differs from the previous
+            if (r.avgMark !== previousScore) currentRank = idx + 1;
+            previousScore = r.avgMark;
+            r.numericRank = currentRank;
+
             let percent = (r.avgMark / (comp.max_mark || 100)) * 100;
             let gradeStr = 'N/A';
             if (percent >= 50) {
@@ -5284,7 +5292,9 @@ async function bulkDownloadCertificates(compId) {
                 else gradeStr = 'C';
             }
             r.grade = gradeStr;
-            r.position = idx === 0 ? 'FIRST PLACE' : idx === 1 ? 'SECOND PLACE' : 'THIRD PLACE';
+            
+            // Assign textual position based on the calculated rank
+            r.position = currentRank === 1 ? 'FIRST PLACE' : currentRank === 2 ? 'SECOND PLACE' : currentRank === 3 ? 'THIRD PLACE' : 'PARTICIPANT';
             
             // Add "& PARTY" for Group Events on the Certificate
             if (comp.is_group && !r.participant.name.endsWith('& PARTY')) {
@@ -5292,7 +5302,12 @@ async function bulkDownloadCertificates(compId) {
             }
         });
 
-        // 6. Generate PDF via Canvas
+        // 6. Slice Top 3 Based on Rank (This safely captures all tied participants)
+        const results = allResults.filter(r => r.numericRank <= 3);
+
+        if (results.length === 0) throw new Error("Could not calculate top standings. No valid participant data.");
+
+        // 7. Generate PDF via Canvas
         const { jsPDF } = window.jspdf;
         let pdf = null;
         let pdfConfig = null;
@@ -5414,6 +5429,7 @@ async function viewCompetitionLog(compId) {
     try {
         await loadPointSettings(); // Ensure points settings are loaded for grade calculation
 
+        // Fetch enrollments and participants
         const { data: enrollments, error: enrollErr } = await supabaseClient
             .from('participant_competitions')
             .select('participant_id, is_present, code_letter, is_leader, participants(name, unique_id, teams(name))')
@@ -5421,6 +5437,7 @@ async function viewCompetitionLog(compId) {
 
         if (enrollErr) throw enrollErr;
 
+        // Fetch judgements and judge names
         const { data: judgements, error: judgeErr } = await supabaseClient
             .from('judgements')
             .select('participant_id, awarded_mark, users(username)')
@@ -5428,6 +5445,7 @@ async function viewCompetitionLog(compId) {
 
         if (judgeErr) throw judgeErr;
 
+        // Calculate results (marks, grades, points)
         let compResults = {};
         if (judgements && judgements.length > 0) {
             let pMarks = {};
@@ -5443,27 +5461,31 @@ async function viewCompetitionLog(compId) {
                 return { id: pId, mark: avg };
             }).sort((a, b) => b.mark - a.mark);
 
-            const limit = comp.max_participants || 1;
+           const limit = comp.max_participants || 1;
             const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
+            
+            // REMOVED: const eligibleForPosPts = enrollments.length >= 3;
             
             let currentRank = 1;
             let previousScore = -1;
 
             pAverages.forEach((p, idx) => {
+                // Proper tie handling
                 if (p.mark !== previousScore) currentRank = idx + 1;
                 previousScore = p.mark;
 
                 let percent = (p.mark / (comp.max_mark || 100)) * 100;
                 let grade = '-'; let gradePts = 0; let posPts = 0;
 
+                // 1. Assign Grade Points ONLY if >= 50% (Wrapped in Number() to force math addition)
                 if (percent >= 50) {
-                    if (percent >= pointsAdminSettings.thresholds.aplus) { grade = 'A+'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].aplus); }
-                    else if (percent >= pointsAdminSettings.thresholds.a) { grade = 'A'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].a); }
-                    else if (percent >= pointsAdminSettings.thresholds.b) { grade = 'B'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].b); }
-                    else { grade = 'C'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].c); }
+                    if (percent >= pointsAdminSettings.thresholds.aplus) { grade = 'A+'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].aplus) || 0; }
+                    else if (percent >= pointsAdminSettings.thresholds.a) { grade = 'A'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].a) || 0; }
+                    else if (percent >= pointsAdminSettings.thresholds.b) { grade = 'B'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].b) || 0; }
+                    else { grade = 'C'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].c) || 0; }
                 }
 
-                // REMOVED `eligibleForPosPts` limit
+                // 2. Assign Position Points ALWAYS for Top 3 (Removed the >= 3 limit)
                 if (currentRank <= 3) {
                     if (currentRank === 1) posPts = Number(pointsAdminSettings.pos_points.p1) || 0;
                     else if (currentRank === 2) posPts = Number(pointsAdminSettings.pos_points.p2) || 0;
@@ -5497,12 +5519,14 @@ async function viewCompetitionLog(compId) {
             return;
         }
 
+      // Sort alphabetically by participant name
         enrollments.sort((a, b) => a.participants.name.localeCompare(b.participants.name)).forEach(e => {
             const p = e.participants;
             const statusBadge = e.is_present 
                 ? '<span class="badge" style="background: var(--success-light); color: var(--success); font-size: 0.7rem;">REGISTERED</span>' 
                 : '<span class="badge" style="background: var(--warning-light); color: #D97706; font-size: 0.7rem;">PENDING</span>';
             
+            // Map judgements for this specific participant
             const pJudgements = (judgements || []).filter(j => j.participant_id === e.participant_id);
             let judgeHtml = '';
             if(pJudgements.length > 0) {
@@ -5511,11 +5535,13 @@ async function viewCompetitionLog(compId) {
                 judgeHtml = '<span style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600; background: var(--bg-main); padding: 4px 8px; border-radius: 4px;">Awaiting Marks</span>';
             }
 
+            // Map Results Data
             const res = compResults[e.participant_id];
             const fMark = res ? res.mark : '-';
             const fGrade = res ? `<span style="font-weight: 800; color: var(--text-main);">${res.grade}</span>` : '-';
             const fPoints = res ? `<span style="font-weight: 800; color: var(--primary);">${res.points}</span>` : '-';
 
+            // --- DISPLAY "& PARTY" FOR LEADERS IN ADMIN LOG ---
             let displayName = p.name;
             let roleTag = '';
             if (comp.is_group) {
