@@ -57,8 +57,7 @@
         }
         
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { display: flex; height: 100vh; background-color: var(--bg-main); color: var(--text-main); overflow: hidden; -webkit-font-smoothing: antialiased; }
-
+body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-main); color: var(--text-main); overflow: hidden; -webkit-font-smoothing: antialiased; }
         /* --- PREMIUM BACKGROUND ANIMATIONS --- */
         .ambient-bg { position: fixed; inset: 0; z-index: -2; pointer-events: none; overflow: hidden; }
         .grid-pattern {
@@ -252,7 +251,7 @@
             .mobile-drawer .brand { display: flex; margin: 0; font-size: 1.25rem; }
             
             /* Main Content Adjustments */
-            .main-content { padding-bottom: calc(90px + env(safe-area-inset-bottom)); overflow-x: hidden; }
+.main-content { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
             .content-section { padding: 1.5rem 1.25rem; }
             .content-section h2 { font-size: 1.5rem; }
             
