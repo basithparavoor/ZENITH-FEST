@@ -506,12 +506,14 @@ async function bulkRevokeJudges() {
 async function previewConvertedPoints(compId, legacyMaxMark, legacyIsGeneral) {
     try {
         let sysSet = {
-            thresholds: { aplus: 90, a: 70, b: 60, c: 50 },
-            points_solo: { aplus: 8, a: 7, b: 5, c: 3 },
-            points_small: { aplus: 12, a: 10, b: 7, c: 5 },
-            points_large: { aplus: 15, a: 12, b: 10, c: 7 },
-            pos_points: { p1: 3, p2: 2, p3: 1 }
-        };
+    thresholds: { aplus: 90, a: 70, b: 60, c: 50 },
+    points_solo: { aplus: 8, a: 7, b: 5, c: 3 },
+    points_small: { aplus: 12, a: 10, b: 7, c: 5 },
+    points_large: { aplus: 15, a: 12, b: 10, c: 7 },
+    pos_points: { p1: 3, p2: 2, p3: 1 },
+    poster_interval: 10,
+    tm_access: true
+};
         const { data: settingsData } = await window.db.from('settings').select('value').eq('id', 'point_system').maybeSingle();
         if (settingsData && settingsData.value) sysSet = settingsData.value;
 

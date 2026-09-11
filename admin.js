@@ -4111,7 +4111,6 @@ let pointsAdminSettings = {
     poster_interval: 10,
     tm_access: true
 };
-
 async function loadPointSettings() {
     try {
         const { data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
