@@ -503,18 +503,28 @@
 
             <div id="lock-banner"><i class="fa-solid fa-lock"></i> MASTER ADMIN HAS DISABLED ASSIGNMENTS.</div>
 
-            <div class="controls-bar" style="background: rgba(248, 250, 252, 0.8); border: 2px solid var(--primary-light); display: flex; flex-wrap: wrap; align-items: flex-end;">
-                <div class="filter-box" style="flex: 2; min-width: 250px;">
-                    <label style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem;">1. SELECT COMPETITION</label>
-                    <select id="bulkAssignComp" onchange="renderBulkAssignmentTable()" style="border-color: var(--primary); background: white;">
-                        <option value="">-- CHOOSE A COMPETITION --</option>
-                    </select>
-                </div>
-                <div class="bulk-actions-wrapper" style="display: flex; gap: 0.75rem; flex: 1; justify-content: flex-end; min-width: 200px;">
-                    <button class="btn btn-success" id="btn-bulk-enroll" style="flex: 1;" onclick="executeBulkAction('enroll')"><i class="fa-solid fa-check"></i> ENROLL</button>
-                    <button class="btn btn-danger" id="btn-bulk-remove" style="flex: 1;" onclick="executeBulkAction('remove')"><i class="fa-solid fa-xmark"></i> REMOVE</button>
-                </div>
-            </div>
+           <div class="controls-bar" style="background: rgba(248, 250, 252, 0.8); border: 2px solid var(--primary-light); display: flex; flex-wrap: wrap; align-items: flex-end;">
+    <!-- 1. CATEGORY DROPDOWN -->
+    <div class="filter-box" style="flex: 1; min-width: 200px;">
+        <label style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem;">1. SELECT CATEGORY</label>
+        <select id="bulkAssignCategory" onchange="populateBulkAssignDropdown()" style="border-color: var(--primary); background: white;">
+            <option value="">-- CHOOSE A CATEGORY --</option>
+        </select>
+    </div>
+    
+    <!-- 2. COMPETITION DROPDOWN -->
+    <div class="filter-box" style="flex: 1; min-width: 200px;">
+        <label style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem;">2. SELECT COMPETITION</label>
+        <select id="bulkAssignComp" onchange="renderBulkAssignmentTable()" style="border-color: var(--primary); background: white;" disabled>
+            <option value="">-- CHOOSE CATEGORY FIRST --</option>
+        </select>
+    </div>
+    
+    <div class="bulk-actions-wrapper" style="display: flex; gap: 0.75rem; flex: 1; justify-content: flex-end; min-width: 200px;">
+        <button class="btn btn-success" id="btn-bulk-enroll" style="flex: 1;" onclick="executeBulkAction('enroll')"><i class="fa-solid fa-check"></i> ENROLL</button>
+        <button class="btn btn-danger" id="btn-bulk-remove" style="flex: 1;" onclick="executeBulkAction('remove')"><i class="fa-solid fa-xmark"></i> REMOVE</button>
+    </div>
+</div>
 
             <div class="table-container" id="bulk-table-wrapper" style="display: none;">
                 <div style="padding: 1.25rem 1.5rem; background: rgba(248, 250, 252, 0.8); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">

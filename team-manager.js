@@ -74,7 +74,9 @@ function switchTab(tabId) {
     });
 
     if (tabId === 'appeals') loadAppeals();
-    if (tabId === 'assignments') populateBulkAssignDropdown();
+    
+    // UPDATED: Now calls the category populator instead
+    if (tabId === 'assignments') populateBulkAssignCategoryDropdown();
     
     const mainContent = document.querySelector('.main-content');
     if(mainContent) mainContent.scrollTop = 0;
@@ -557,18 +559,58 @@ function viewEnrolledDetails(compId) {
 }
 
 // ---------------- BULK ASSIGNMENTS ----------------
-function populateBulkAssignDropdown() {
-    const select = document.getElementById('bulkAssignComp');
-    if (!select) return;
-    select.innerHTML = '<option value="">-- CHOOSE A COMPETITION --</option>';
+
+// NEW: Populates the first dropdown with categories
+function populateBulkAssignCategoryDropdown() {
+    const catSelect = document.getElementById('bulkAssignCategory');
+    if (!catSelect) return;
     
-    const eligibleComps = globalComps.filter(c => c.status !== 'published' && c.status !== 'judgement_complete');
-    
-    eligibleComps.forEach(c => {
-        select.innerHTML += `<option value="${c.id}">${c.name} (${c.categories?.name || 'GENERAL'})</option>`;
+    catSelect.innerHTML = '<option value="">-- CHOOSE A CATEGORY --</option>';
+    globalCategories.forEach(c => {
+        catSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
     });
+    
+    // Reset competition dropdown and hide table when initializing/switching tabs
+    const compSelect = document.getElementById('bulkAssignComp');
+    if (compSelect) {
+        compSelect.innerHTML = '<option value="">-- CHOOSE CATEGORY FIRST --</option>';
+        compSelect.disabled = true;
+    }
+    document.getElementById('bulk-table-wrapper').style.display = 'none';
 }
 
+// UPDATED: Populates the second dropdown based on the category chosen
+function populateBulkAssignDropdown() {
+    const categoryId = document.getElementById('bulkAssignCategory').value;
+    const select = document.getElementById('bulkAssignComp');
+    
+    // Hide the workspace table whenever a new category is selected
+    document.getElementById('bulk-table-wrapper').style.display = 'none';
+    
+    if (!select) return;
+    
+    if (!categoryId) {
+        select.innerHTML = '<option value="">-- CHOOSE CATEGORY FIRST --</option>';
+        select.disabled = true;
+        return;
+    }
+    
+    select.innerHTML = '<option value="">-- CHOOSE A COMPETITION --</option>';
+    
+    // Filter competitions by pending statuses AND the selected category
+    const eligibleComps = globalComps.filter(c => 
+        c.status !== 'published' && 
+        c.status !== 'judgement_complete' &&
+        c.category_id === categoryId
+    );
+    
+    eligibleComps.forEach(c => {
+        select.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+    });
+    
+    // Unlock the competition dropdown
+    select.disabled = false;
+}
 function renderBulkAssignmentTable() {
     const compId = document.getElementById('bulkAssignComp').value;
     const tbody = document.getElementById('bulk-assignments-tbody');
