@@ -1009,11 +1009,11 @@ function renderLeaderboard() {
                 };
 
                 for(let i = 0; i < 3; i++) {
-                    const entry = results[i];
-                    mappedData[`Position${i+1}Name`] = entry ? entry.participant.name : "AVAILABLE";
-                    mappedData[`Position${i+1}Team`] = entry ? (allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent') : "";
-                    mappedData[`Position${i+1}Photo`] = entry ? entry.participant.photo_url : null;
-                }
+    const entry = results[i];
+    mappedData[`Position${i+1}Name`] = entry ? entry.participant.name : "";
+    mappedData[`Position${i+1}Team`] = entry ? (allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent') : "";
+    mappedData[`Position${i+1}Photo`] = entry ? entry.participant.photo_url : null;
+}
 
                 if(template.fields) {
                     for (const [key, fieldConfig] of Object.entries(template.fields)) {
@@ -1028,6 +1028,10 @@ function renderLeaderboard() {
                                     if (staticImg) { ctx.drawImage(staticImg, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); }
                                 } catch (err) { console.error("Failed to render static element", err); }
                             } else {
+                                // Skip drawing the photo placeholder if there is no participant
+                                const nameKey = key.replace('Photo', 'Name');
+                                if (key.includes('Photo') && mappedData[nameKey] === "") continue;
+
 const photoSrc = mappedData[key] || 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="600"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="40" font-weight="bold" fill="%236B7280"%3ENO PHOTO%3C/text%3E%3C/svg%3E';                                try {
                                     const pPhoto = await new Promise((resolve) => {
                                         const pImg = new Image(); pImg.crossOrigin = "Anonymous";
