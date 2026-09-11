@@ -152,9 +152,10 @@ async function fetchAllData() {
         const { data: cats } = await supabaseClient.from('categories').select('*');
         globalCategories = cats || [];
 
-       const { data: students } = await supabaseClient.from('participants').select('*, categories(name)').eq('team_id', myTeamId).order('name');
+      const { data: students } = await supabaseClient.from('participants').select('*, categories(name)').eq('team_id', myTeamId).order('name');
+        globalStudents = students || []; // <-- THIS LINE WAS MISSING
 
-        const { data: comps } = await supabaseClient.from('competitions').select('*, categories(id, name, is_general), stages(name)').order('name');
+        const { data: comps } = await supabaseClient.from('competitions').select('*, categories(id, name, is_general, allowed_general_categories), stages(name)').order('name');        
         globalComps = comps || [];
 
         const studentIds = globalStudents.map(s => s.id);
@@ -642,9 +643,8 @@ function populateBulkAssignDropdown() {
     const eligibleComps = globalComps.filter(c => 
         c.status !== 'published' && 
         c.status !== 'judgement_complete' &&
-        c.category_id === categoryId
+        c.category_id == categoryId // Use == to fix String vs Integer mismatch
     );
-    
     eligibleComps.forEach(c => {
         select.innerHTML += `<option value="${c.id}">${c.name}</option>`;
     });
@@ -663,30 +663,51 @@ function renderBulkAssignmentTable() {
         return;
     }
 
-    // FIX: Using globalComps instead of globalCompetitions
-    const comp = globalComps.find(c => c.id === compId);
+    const comp = globalComps.find(c => c.id == compId);
     if (!comp) return;
 
     wrapper.style.display = 'block';
-    
     if (thLeader) thLeader.style.display = comp.is_group ? 'table-cell' : 'none';
 
     tbody.innerHTML = '';
     
-    let eligibleStudents = globalStudents;
-    if (!comp.categories?.is_general) {
-        eligibleStudents = globalStudents.filter(s => s.category_id === comp.category_id);
-    } else {
-        const allowedCats = comp.categories?.allowed_general_categories || [];
-        eligibleStudents = globalStudents.filter(s => s.category_id === comp.category_id || allowedCats.includes(s.category_id));
-    }
+    // Corrected Eligibility Logic: allowed_general_categories belongs to the Student's category, not the Competition's category
+    const eligibleStudents = globalStudents.filter(student => {
+        // 1. Direct match (Works for standard comps, or if student is natively in the general category)
+        if (student.category_id == comp.category_id) return true;
 
-    const enrolledData = globalAssignments.filter(a => a.competition_id === compId);
+        // 2. Cross-category match for General Competitions
+        if (comp.categories?.is_general) {
+            // Find the student's category data from the global catalog
+            const studentCategory = globalCategories.find(c => c.id == student.category_id);
+            if (studentCategory) {
+                let rawAllowed = studentCategory.allowed_general_categories;
+                let allowedCats = [];
+                try {
+                    if (typeof rawAllowed === 'string') allowedCats = JSON.parse(rawAllowed);
+                    else if (Array.isArray(rawAllowed)) allowedCats = rawAllowed;
+                } catch(e) {}
+                
+                // Check if the student's category explicitly allows this general competition's category
+                if (allowedCats.some(id => id == comp.category_id)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    });
+
+    const enrolledData = globalAssignments.filter(a => a.competition_id == compId);
 
     document.getElementById('bulk-comp-info').innerHTML = `<i class="fa-solid fa-users"></i> ${comp.name} <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 10px;">(Max ${comp.max_participants} per team)</span>`;
 
+    if (eligibleStudents.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${comp.is_group ? 5 : 4}" style="text-align:center; padding: 2rem; color: var(--text-muted);">NO ELIGIBLE STUDENTS FOUND FOR THIS CATEGORY.</td></tr>`;
+        return;
+    }
+
     eligibleStudents.forEach(student => {
-        const assignmentRecord = enrolledData.find(a => a.participant_id === student.id);
+        const assignmentRecord = enrolledData.find(a => a.participant_id == student.id);
         const isAssigned = !!assignmentRecord;
         
         let statusBadge = '';
@@ -706,7 +727,6 @@ function renderBulkAssignmentTable() {
             ? '<span style="color:var(--success); font-weight:800;"><i class="fa-solid fa-check"></i> ENROLLED</span>'
             : '<span style="color:var(--text-muted); font-weight:700;">UNASSIGNED</span>';
 
-        // FIX: Re-added the blank data-label for the checkbox cell on mobile
         tbody.innerHTML += `
             <tr>
                 <td class="checkbox-cell" data-label=""><input type="checkbox" class="bulk-row-cb" value="${student.id}"></td>
@@ -731,7 +751,8 @@ async function executeBulkAction(action) {
     const compId = document.getElementById('bulkAssignComp').value;
     if (!compId) return showToast('Please select a competition.', 'error');
     
-    const comp = globalComps.find(c => c.id === compId);
+    // FIX: Loose equality
+    const comp = globalComps.find(c => c.id == compId);
     const checkboxes = document.querySelectorAll('.bulk-row-cb:checked');
     const selectedIds = Array.from(checkboxes).map(cb => cb.value);
     
@@ -741,8 +762,9 @@ async function executeBulkAction(action) {
 
     try {
         if (action === 'enroll') {
-            const currentEnrolledCount = globalAssignments.filter(a => a.competition_id === compId).length;
-            const newIds = selectedIds.filter(id => !globalAssignments.find(a => a.competition_id === compId && a.participant_id === id));
+            // FIX: Loose equality
+            const currentEnrolledCount = globalAssignments.filter(a => a.competition_id == compId).length;
+            const newIds = selectedIds.filter(id => !globalAssignments.find(a => a.competition_id == compId && a.participant_id == id));
             
             if (newIds.length === 0) throw new Error("Selected students are already enrolled.");
             
@@ -764,7 +786,7 @@ async function executeBulkAction(action) {
                     participant_id: pId,
                     competition_id: compId,
                     group_id: groupId,
-                    is_leader: comp.is_group ? (pId === leaderId) : false
+                    is_leader: comp.is_group ? (pId == leaderId) : false // Loose equality
                 });
             });
 
@@ -773,7 +795,8 @@ async function executeBulkAction(action) {
             showToast(`Successfully enrolled ${newIds.length} students!`, 'success');
             
         } else if (action === 'remove') {
-            const removeIds = selectedIds.filter(id => globalAssignments.find(a => a.competition_id === compId && a.participant_id === id));
+            // FIX: Loose equality
+            const removeIds = selectedIds.filter(id => globalAssignments.find(a => a.competition_id == compId && a.participant_id == id));
             if (removeIds.length === 0) throw new Error("Selected students are not enrolled.");
 
             if(!confirm(`Remove ${removeIds.length} students from this event?`)) return;
