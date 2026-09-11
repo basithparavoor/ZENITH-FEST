@@ -152,8 +152,7 @@ async function fetchAllData() {
         const { data: cats } = await supabaseClient.from('categories').select('*');
         globalCategories = cats || [];
 
-        const { data: students } = await supabaseClient.from('participants').select('*').eq('team_id', myTeamId).order('name');
-        globalStudents = students || [];
+       const { data: students } = await supabaseClient.from('participants').select('*, categories(name)').eq('team_id', myTeamId).order('name');
 
         const { data: comps } = await supabaseClient.from('competitions').select('*, categories(id, name, is_general), stages(name)').order('name');
         globalComps = comps || [];
@@ -265,13 +264,14 @@ function renderStudents() {
         
         const photoSrc = student.photo_url ? student.photo_url : 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%236B7280"%3EPHOTO%3C/text%3E%3C/svg%3E';
 
-        tbody.innerHTML += `
+      tbody.innerHTML += `
             <tr>
                 <td data-label="STUDENT NAME" style="display: flex; align-items: center; gap: 0.85rem; justify-content: flex-start; text-align: left;">
                     <img src="${photoSrc}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--border); box-shadow: var(--shadow-sm); flex-shrink: 0;">
                     <span style="font-weight: 800; font-size: 1.05rem; color: var(--text-main);">${student.name}</span>
                 </td>
                 <td data-label="UNIQUE ID" style="font-family: monospace;">${student.unique_id}</td>
+                <td data-label="CATEGORY"><span class="badge badge-gray">${student.categories?.name || 'GENERAL'}</span></td>
                 <td data-label="DOB" style="font-weight: 800; color: var(--text-muted);">${student.dob || 'N/A'}</td>
                 <td data-label="EVENTS ENROLLED">
                     <span class="badge ${badgeClass}" onclick="viewStudentEvents('${student.id}')">${enrollCount} EVENTS <i class="fa-solid fa-arrow-up-right-from-square" style="margin-left: 4px;"></i></span>
