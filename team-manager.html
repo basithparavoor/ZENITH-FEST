@@ -363,6 +363,8 @@
         <nav class="navbar header">
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <button class="menu-toggle" onclick="toggleMobileMenu()"><i class="fa-solid fa-bars"></i></button>
+                <!-- ADDED BRANDING CONTAINER -->
+                <div class="brand" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 800; color: var(--primary);"></div>
                 <div class="user-info">
                     <h1 id="team-name-title">LOADING TEAM...</h1>
                     <p style="color: var(--text-muted); font-size: 0.85rem; display: none; font-weight: 700;" id="desktop-subtitle">TEAM MANAGER DASHBOARD</p>
@@ -379,7 +381,20 @@
         </nav>
 
         <div id="dashboard" class="content-section active">
-            <h2 style="margin-bottom: 1.5rem;">LIVE OVERVIEW</h2>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h2 style="margin-bottom: 0.25rem;">LIVE OVERVIEW</h2>
+                    <!-- ADDED MANAGER NAMES DISPLAY -->
+                    <div id="tm-manager-names" style="color: var(--primary); font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-user-tie"></i> LOADING MANAGERS...
+                    </div>
+                </div>
+                <!-- ADDED LOCK DEADLINE BANNER -->
+                <div id="dashboard-deadline-banner" style="background: var(--primary-light); color: var(--primary); padding: 0.75rem 1.25rem; border-radius: var(--radius-md); font-weight: 800; font-size: 0.85rem; border: 1px solid var(--primary-ring); display: none; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-clock"></i> <span id="deadline-text">NO DEADLINE SET</span>
+                </div>
+            </div>
+            
             <div class="stat-grid">
                 <div class="stat-card">
                     <div class="icon" style="background: var(--primary-light); color: var(--primary);"><i class="fa-solid fa-users"></i></div>

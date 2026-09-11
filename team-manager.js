@@ -16,6 +16,7 @@ let globalComps = [];
 let globalAssignments = [];
 let globalCategories = []; 
 let currentCropper = null;
+let systemSettings = {}; // ADD THIS LINE
 
 // UI Utils
 function showToast(message, type = 'success') {
@@ -87,22 +88,32 @@ function logout() {
     window.location.href = 'index.html';
 }
 
-// Data Fetching
 async function initDashboard() {
     if(window.innerWidth > 768) {
         document.getElementById('desktop-subtitle').style.display = 'block';
     }
 
     try {
-        const { data: teamData } = await supabaseClient.from('teams').select('name').eq('id', myTeamId).single();
+        // Fetch manager names along with team name
+        const { data: teamData } = await supabaseClient.from('teams').select('name, manager_name, assistant_manager_name').eq('id', myTeamId).single();
         document.getElementById('team-name-title').innerText = teamData ? teamData.name : 'MY TEAM';
+        
+        // Inject manager names into UI
+        if (teamData) {
+            const mgr = teamData.manager_name || 'NOT ASSIGNED';
+            const asst = teamData.assistant_manager_name || 'NOT ASSIGNED';
+            document.getElementById('tm-manager-names').innerHTML = `<i class="fa-solid fa-user-tie"></i> MGR: ${mgr} <span style="color:var(--border);">|</span> ASST: ${asst}`;
+        }
 
         const { data: settingsData } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
         if (settingsData && settingsData.value) {
-            isAssignmentLocked = settingsData.value.tm_access === false; 
+            systemSettings = settingsData.value;
+            if (systemSettings.tm_access === false) {
+                isAssignmentLocked = true; 
+            }
         }
 
-        if (isAssignmentLocked) {
+        if (isAssignmentLocked && !systemSettings.lock_date) {
             document.getElementById('lock-banner').style.display = 'flex';
             document.getElementById('btn-bulk-enroll').disabled = true;
             document.getElementById('btn-bulk-remove').disabled = true;
@@ -138,9 +149,6 @@ async function refreshDashboard(btnElement) {
 
 async function fetchAllData() {
     try {
-        const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
-        let systemSettings = set_data && set_data.value ? set_data.value : {};
-
         const { data: cats } = await supabaseClient.from('categories').select('*');
         globalCategories = cats || [];
 
@@ -166,19 +174,36 @@ async function fetchAllData() {
             catSet.forEach(cat => catSelect.innerHTML += `<option value="${cat}">${cat}</option>`);
         }
 
+        // --- ENFORCE DEADLINE AND UPDATE UI ---
         if (systemSettings.lock_date) {
             const deadline = new Date(systemSettings.lock_date);
             const now = new Date();
+            
+            const deadlineBanner = document.getElementById('dashboard-deadline-banner');
+            if (deadlineBanner) {
+                deadlineBanner.style.display = 'flex';
+                document.getElementById('deadline-text').innerText = `REGISTRATION CLOSES: ${deadline.toLocaleString()}`;
+            }
+
             if (now > deadline) {
                 isAssignmentLocked = true;
+                
+                if (deadlineBanner) {
+                    deadlineBanner.style.background = 'var(--danger-light)';
+                    deadlineBanner.style.color = 'var(--danger)';
+                    deadlineBanner.style.borderColor = 'rgba(225, 29, 72, 0.2)';
+                    document.getElementById('deadline-text').innerText = `REGISTRATION CLOSED ON: ${deadline.toLocaleString()}`;
+                }
                 
                 const lockBanner = document.getElementById('lock-banner');
                 if (lockBanner) {
                     lockBanner.style.display = 'flex';
                     lockBanner.innerHTML = `<i class="fa-solid fa-lock"></i> REGISTRATION DEADLINE HAS PASSED. ENROLLMENTS ARE LOCKED.`;
                     
-                    document.getElementById('btn-bulk-enroll').disabled = true;
-                    document.getElementById('btn-bulk-remove').disabled = true;
+                    const btnBulkEnroll = document.getElementById('btn-bulk-enroll');
+                    const btnBulkRemove = document.getElementById('btn-bulk-remove');
+                    if(btnBulkEnroll) btnBulkEnroll.disabled = true;
+                    if(btnBulkRemove) btnBulkRemove.disabled = true;
                 }
 
                 const btnAddMember = document.getElementById('btn-add-member');
@@ -187,6 +212,22 @@ async function fetchAllData() {
                     btnAddMember.innerHTML = `<i class="fa-solid fa-lock"></i> REGISTRATION LOCKED`;
                     btnAddMember.style.opacity = '0.6';
                 }
+            } else if (!isAssignmentLocked) {
+                // Time has been extended by admin, unlock the UI
+                const lockBanner = document.getElementById('lock-banner');
+                if(lockBanner) lockBanner.style.display = 'none';
+                
+                const btnBulkEnroll = document.getElementById('btn-bulk-enroll');
+                const btnBulkRemove = document.getElementById('btn-bulk-remove');
+                if(btnBulkEnroll) btnBulkEnroll.disabled = false;
+                if(btnBulkRemove) btnBulkRemove.disabled = false;
+                
+                const btnAddMember = document.getElementById('btn-add-member');
+                if(btnAddMember) {
+                    btnAddMember.disabled = false;
+                    btnAddMember.innerHTML = `<i class="fa-solid fa-user-plus"></i> ADD NEW MEMBER`;
+                    btnAddMember.style.opacity = '1';
+                }
             }
         }
 
@@ -194,7 +235,7 @@ async function fetchAllData() {
         renderStudents();
         renderCatalog();
         renderLiveTracking();
-        populateBulkAssignDropdown();
+        populateBulkAssignCategoryDropdown();
 
     } catch (e) {
         console.error(e);
