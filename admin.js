@@ -150,7 +150,7 @@ async function loadCategories() {
                     <td><span class="badge-count" onclick="viewRelationalData('participants', 'category_id', '${cat.id}')">${partCount} Students</span></td>
                     <td><span class="badge-count" onclick="viewRelationalData('competitions', 'category_id', '${cat.id}')">${compCount} Competitions</span></td>
                     <td>
-                        <button class="btn btn-outline" onclick='openCategoryModal(${JSON.stringify(cat)})'><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn btn-outline" onclick='openCategoryModal(${JSON.stringify(cat).replace(/'/g, "&apos;").replace(/"/g, "&quot;")})'><i class="fa-solid fa-pen"></i></button>
                         <button class="btn btn-danger" onclick="deleteCategory('${cat.id}')"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
@@ -394,7 +394,7 @@ let stageDisplay = comp.stages?.name || 'Unassigned';
                 </td>
                <td>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openCompModal(${JSON.stringify(comp).replace(/'/g, "&apos;")})' title="Edit"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openCompModal(${JSON.stringify(comp).replace(/'/g, "&apos;").replace(/"/g, "&quot;")})' title="Edit"><i class="fa-solid fa-pen"></i></button>
                         
                         
                         <button class="btn btn-outline" style="padding:0.4rem 0.75rem; color:var(--primary); border-color:var(--primary);" onclick="viewCompetitionLog('${comp.id}')" title="View Master Log"><i class="fa-solid fa-file-invoice"></i></button>
@@ -700,7 +700,7 @@ async function loadStagesAndTeams() {
                     <td>
                         <div style="display: flex; gap: 0.5rem;">
                             <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openStageModal(${JSON.stringify(s).replace(/'/g, "&apos;")})' title="Edit Stage"><i class="fa-solid fa-pen"></i></button>
-                            <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteStage('${s.id}', '${s.name}')" title="Delete Stage"><i class="fa-solid fa-trash"></i></button>
+                            <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteStage('${s.id}', '${s.name.replace(/'/g, "\\'")}')" title="Delete Stage"><i class="fa-solid fa-trash"></i></button>
                         </div>
                     </td>
                 </tr>
@@ -738,7 +738,7 @@ async function loadStagesAndTeams() {
                     <td>
                         <div style="display: flex; gap: 0.5rem;">
                             <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openTeamModal(${JSON.stringify(t).replace(/'/g, "&apos;")})' title="Edit Team"><i class="fa-solid fa-pen"></i></button>
-                            <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteTeam('${t.id}', '${t.name}')" title="Delete Team"><i class="fa-solid fa-trash"></i></button>
+                            <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteTeam('${t.id}', '${t.name.replace(/'/g, "\\'")}')" title="Delete Team"><i class="fa-solid fa-trash"></i></button>
                         </div>
                     </td>
                 </tr>
@@ -1492,7 +1492,7 @@ async function loadUsers() {
                     </td>
                     <td>
                         <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openUserModal(${safeData})' title="Edit User"><i class="fa-solid fa-pen"></i></button>
-                        <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteUser('${u.id}', '${u.username}')" title="Delete User"><i class="fa-solid fa-trash"></i></button>
+                        <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteUser('${u.id}', '${u.username.replace(/'/g, "\\'")}')" title="Delete User"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
             `;
