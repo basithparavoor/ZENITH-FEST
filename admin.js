@@ -6362,35 +6362,6 @@ async function deleteSchedule(compId) {
     } catch(e) { showToast(e.message, 'error'); }
 }
 
-async function exportScheduleCSV() {
-    let dataToExport = [];
-    Object.keys(masterSchedule).forEach(compId => {
-        const comp = competitionsList.find(c => c.id == compId);
-        if(comp) {
-            dataToExport.push({
-                "DATE": masterSchedule[compId].date,
-                "TIME (FROM)": masterSchedule[compId].time,
-                "TIME (TO)": masterSchedule[compId].to_time || '-',
-                "COMPETITION": comp.name,
-                "CATEGORY": comp.categories?.name || 'General',
-                "STAGE": comp.stages?.name || 'TBD',
-                "STATUS": masterSchedule[compId].status.toUpperCase()
-            });
-        }
-    });
-    
-    dataToExport.sort((a,b) => {
-        if (a.DATE !== b.DATE) return a.DATE.localeCompare(b.DATE);
-        return a["TIME (FROM)"].localeCompare(b["TIME (FROM)"]);
-    });
-
-    const blob = new Blob([Papa.unparse(dataToExport)], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a"); 
-    link.href = URL.createObjectURL(blob); 
-    link.setAttribute("download", `FestOS_Schedule.csv`);
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
-}
-
 async function exportSchedulePDF() {
     showToast('Generating Schedule PDF...', 'success');
     try {
@@ -6399,17 +6370,38 @@ async function exportSchedulePDF() {
         container.style.fontFamily = 'Inter, sans-serif';
         container.innerHTML = getPDFHeaderHTML('Master Event Schedule');
 
+        // 1. Get current filter values
+        const search = document.getElementById('searchSchedInput').value.toLowerCase();
+        const catId = document.getElementById('filterSchedCat').value;
+        const stageId = document.getElementById('filterSchedStage').value; 
+        const statusVal = document.getElementById('filterSchedStatus').value;
+
+        // 2. Map items and apply filters
         let scheduledItems = Object.keys(masterSchedule).map(compId => {
             const comp = competitionsList.find(c => c.id == compId);
             return { compId, comp, sched: masterSchedule[compId] };
-        }).filter(item => item.comp);
+        }).filter(item => {
+            if (!item.comp) return false;
+
+            const compCatId = item.comp.category_id;
+            const compStageId = item.comp.stage_id; 
+
+            const matchSearch = item.comp.name.toLowerCase().includes(search);
+            const matchCat = catId === "" || compCatId == catId;
+            const matchStage = stageId === "" || compStageId == stageId; 
+            const matchStatus = statusVal === "" || item.sched.status === statusVal;
+
+            return matchSearch && matchCat && matchStage && matchStatus;
+        });
         
+        // 3. Sort chronologically
         scheduledItems.sort((a,b) => {
             if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
             return a.sched.time.localeCompare(b.sched.time);
         });
 
-        let tableRows = scheduledItems.map((item, index) => `
+        // 4. Generate Rows
+        let tableRows = scheduledItems.map((item) => `
             <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.sched.date}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700;">${item.sched.time}</td>
@@ -6419,6 +6411,10 @@ async function exportSchedulePDF() {
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.comp.stages?.name || 'TBD'}</td>
             </tr>
         `).join('');
+
+        if (scheduledItems.length === 0) {
+            tableRows = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: #64748B;">No scheduled events match your current filters.</td></tr>`;
+        }
 
         container.innerHTML += `
             <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
@@ -6445,6 +6441,58 @@ async function exportSchedulePDF() {
         html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
     } catch (e) { showToast(e.message, 'error'); }
 }
+
+async function exportScheduleCSV() {
+    // 1. Get current filter values
+    const search = document.getElementById('searchSchedInput').value.toLowerCase();
+    const catId = document.getElementById('filterSchedCat').value;
+    const stageId = document.getElementById('filterSchedStage').value; 
+    const statusVal = document.getElementById('filterSchedStatus').value;
+
+    let dataToExport = [];
+    
+    // 2. Map and filter items
+    Object.keys(masterSchedule).forEach(compId => {
+        const comp = competitionsList.find(c => c.id == compId);
+        if(comp) {
+            const sched = masterSchedule[compId];
+            const compCatId = comp.category_id;
+            const compStageId = comp.stage_id; 
+
+            const matchSearch = comp.name.toLowerCase().includes(search);
+            const matchCat = catId === "" || compCatId == catId;
+            const matchStage = stageId === "" || compStageId == stageId; 
+            const matchStatus = statusVal === "" || sched.status === statusVal;
+
+            if (matchSearch && matchCat && matchStage && matchStatus) {
+                dataToExport.push({
+                    "DATE": sched.date,
+                    "TIME (FROM)": sched.time,
+                    "TIME (TO)": sched.to_time || '-',
+                    "COMPETITION": comp.name,
+                    "CATEGORY": comp.categories?.name || 'General',
+                    "STAGE": comp.stages?.name || 'TBD',
+                    "STATUS": sched.status.toUpperCase()
+                });
+            }
+        }
+    });
+    
+    if (dataToExport.length === 0) return showToast("No scheduled events match your filters.", "error");
+
+    dataToExport.sort((a,b) => {
+        if (a.DATE !== b.DATE) return a.DATE.localeCompare(b.DATE);
+        return a["TIME (FROM)"].localeCompare(b["TIME (FROM)"]);
+    });
+
+    const blob = new Blob([Papa.unparse(dataToExport)], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a"); 
+    link.href = URL.createObjectURL(blob); 
+    link.setAttribute("download", `FestOS_Schedule.csv`);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+}
+
+
 
 // ============================================================================
 // COMPETITION VACANCY & UNDER-ENROLLMENT ENGINE
