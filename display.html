@@ -16,8 +16,12 @@
 
         :root {
             --primary: #4F46E5;
+            --primary-glow: rgba(79, 70, 229, 0.4);
             --bg-main: #0F172A;
+            --bg-surface: rgba(30, 41, 59, 0.6);
             --text-main: #FFFFFF;
+            --text-muted: #94A3B8;
+            --border: rgba(255, 255, 255, 0.1);
             --font-main: 'Plus Jakarta Sans', sans-serif;
         }
 
@@ -26,40 +30,62 @@
         body {
             background-color: var(--bg-main); color: var(--text-main); font-family: var(--font-main);
             height: 100vh; width: 100vw; overflow: hidden; display: flex; flex-direction: column;
+            position: relative;
         }
 
-        /* --- BACKGROUND BRANDING --- */
-        #bg-logo {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            height: 60vh; opacity: 0.03; z-index: 0; pointer-events: none; filter: grayscale(100%);
+        /* --- PREMIUM ANIMATED BACKGROUND --- */
+        .grid-pattern {
+            position: absolute; inset: 0; z-index: -2;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.05) 2px, transparent 2px);
+            background-size: 40px 40px;
+            mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, black 10%, transparent 100%);
+            -webkit-mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, black 10%, transparent 100%);
         }
+        .ambient-bg { position: fixed; inset: 0; z-index: -3; pointer-events: none; overflow: hidden; background: #020617; }
+        .orb { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.5; animation: float 25s infinite alternate cubic-bezier(0.45, 0.05, 0.55, 0.95); }
+        .orb-1 { width: 800px; height: 800px; background: var(--primary); top: -200px; left: -200px; }
+        .orb-2 { width: 600px; height: 600px; background: #E11D48; bottom: -150px; right: -150px; animation-delay: -7s; opacity: 0.3; }
+        @keyframes float { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(100px, 150px) scale(1.2) rotate(20deg); } }
+
+        /* --- HEADER & BRANDING --- */
+        #brand-header {
+            position: absolute; top: 3rem; left: 0; width: 100%; z-index: 50; display: flex; justify-content: center; align-items: center; gap: 1.5rem;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
+        }
+        #brand-header img { height: 90px; border-radius: 16px; border: 2px solid rgba(255,255,255,0.2); }
+        #brand-header h1 { font-size: 4rem; font-weight: 900; letter-spacing: -1px; text-shadow: 0 4px 20px rgba(0,0,0,0.8); }
 
         /* --- SLIDE CONTAINER & TRANSITIONS --- */
         #slide-container {
             flex: 1; position: relative; z-index: 10; display: flex; justify-content: center; align-items: center;
-            padding: 2rem; width: 100%; height: calc(100vh - 60px); overflow: hidden;
+            width: 100%; height: 100%; overflow: hidden; padding-top: 8rem; padding-bottom: 80px;
         }
 
-        .slide { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; opacity: 0; pointer-events: none; padding: 3rem; }
+        .slide { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; opacity: 0; pointer-events: none; padding: 4rem; }
         .slide.active { opacity: 1; pointer-events: auto; }
 
-        /* Transition Animations */
         .trans-fade .slide { transition: opacity 1s ease-in-out; }
-        .trans-slide .slide { transform: translateX(100%); transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.8s; opacity: 0; }
+        .trans-slide .slide { transform: translateX(100%); transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.8s; opacity: 0; }
         .trans-slide .slide.active { transform: translateX(0); opacity: 1; }
         .trans-slide .slide.exit { transform: translateX(-100%); opacity: 0; }
-        .trans-zoom .slide { transform: scale(1.1); transition: transform 0.8s ease, opacity 0.8s ease; opacity: 0; }
+        .trans-zoom .slide { transform: scale(1.15); transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.8s; opacity: 0; }
         .trans-zoom .slide.active { transform: scale(1); opacity: 1; }
 
         /* --- GLOBAL TICKER MARQUEE --- */
         #ticker-wrap {
-            width: 100%; height: 60px; background: var(--primary); color: white;
-            display: flex; align-items: center; overflow: hidden; position: relative; z-index: 20;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.5); border-top: 2px solid rgba(255,255,255,0.2);
+            position: absolute; bottom: 0; width: 100%; height: 80px; 
+            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-top: 2px solid var(--primary); display: flex; align-items: center; overflow: hidden; z-index: 100;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
         }
+        .ticker-badge {
+            background: var(--primary); color: white; height: 100%; display: flex; align-items: center; padding: 0 3rem;
+            font-size: 1.5rem; font-weight: 900; letter-spacing: 0.1em; z-index: 101; box-shadow: 10px 0 20px rgba(0,0,0,0.5);
+        }
+        .ticker-content { flex: 1; overflow: hidden; display: flex; align-items: center; }
         .ticker-text {
-            white-space: nowrap; font-size: 1.5rem; font-weight: 800; letter-spacing: 0.1em;
-            display: inline-block; padding-left: 100%; animation: ticker 20s linear infinite;
+            white-space: nowrap; font-size: 2rem; font-weight: 800; color: var(--text-main); letter-spacing: 0.05em;
+            display: inline-block; padding-left: 100%; animation: ticker 25s linear infinite;
         }
         @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
 
@@ -67,57 +93,88 @@
         #flash-alert {
             position: fixed; inset: 0; background: rgba(225, 29, 72, 0.95); z-index: 9999;
             display: none; flex-direction: column; justify-content: center; align-items: center;
-            color: white; text-align: center; padding: 4rem; backdrop-filter: blur(10px);
+            color: white; text-align: center; padding: 4rem; backdrop-filter: blur(20px);
         }
-        .flash-text { font-size: 6rem; font-weight: 900; line-height: 1.1; text-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: pulse 1s infinite alternate; }
+        .flash-text { font-size: 7rem; font-weight: 900; line-height: 1.1; text-shadow: 0 10px 40px rgba(0,0,0,0.6); animation: pulse 1s infinite alternate; }
         @keyframes pulse { from { transform: scale(1); opacity: 1; } to { transform: scale(1.05); opacity: 0.8; } }
 
         /* --- SLIDE TYPES CSS --- */
-        /* Leaderboard */
-        .lb-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; width: 100%; max-width: 1000px; padding: 2rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 2rem; backdrop-filter: blur(10px); }
-        .lb-rank { font-size: 4rem; font-weight: 900; color: var(--primary); width: 80px; text-align: center; line-height: 1; text-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .lb-name { font-size: 3rem; font-weight: 800; flex: 1; }
-        .lb-pts { font-size: 3.5rem; font-weight: 900; color: #10B981; }
-        
-        /* Schedule */
-        .sch-card { background: rgba(255,255,255,0.05); border-left: 8px solid var(--primary); padding: 1.5rem 2rem; border-radius: 0 16px 16px 0; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 1200px; }
-        .sch-time { font-size: 2.5rem; font-weight: 900; color: var(--primary); width: 250px; }
-        .sch-event { font-size: 2.2rem; font-weight: 800; flex: 1; }
-        .sch-stage { font-size: 1.8rem; font-weight: 600; color: #94A3B8; background: rgba(255,255,255,0.1); padding: 0.5rem 1.5rem; border-radius: 50px; }
+        .slide-title { font-size: 3rem; font-weight: 900; color: var(--primary); margin-bottom: 3rem; text-shadow: 0 4px 20px rgba(0,0,0,0.8); letter-spacing: 0.05em; text-align: center; }
+
+        /* Premium Leaderboard */
+        .lb-container { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; max-width: 1400px; }
+        .lb-card { 
+            background: var(--bg-surface); border: 2px solid var(--border); border-radius: 24px; 
+            padding: 2rem 3rem; display: flex; align-items: center; gap: 3rem; 
+            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4); position: relative; overflow: hidden;
+        }
+        .lb-card::before { content: ''; position: absolute; top:0; left:0; width: 8px; height: 100%; background: var(--text-muted); }
+        .lb-card.rank-1 { border-color: #F59E0B; background: rgba(245, 158, 11, 0.1); transform: scale(1.05); z-index: 5; }
+        .lb-card.rank-1::before { background: #F59E0B; box-shadow: 0 0 20px #F59E0B; }
+        .lb-card.rank-2::before { background: #94A3B8; }
+        .lb-card.rank-3::before { background: #B45309; }
+
+        .lb-rank { font-size: 5rem; font-weight: 900; color: var(--text-muted); width: 100px; text-align: center; line-height: 1; }
+        .lb-card.rank-1 .lb-rank { color: #F59E0B; text-shadow: 0 0 30px rgba(245, 158, 11, 0.5); }
+        .lb-name { font-size: 3.5rem; font-weight: 800; flex: 1; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .lb-pts { font-size: 4.5rem; font-weight: 900; color: var(--primary); text-shadow: 0 0 30px var(--primary-glow); }
+
+        /* Premium Schedule */
+        .sch-container { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; width: 100%; max-width: 1600px; }
+        .sch-card { 
+            background: var(--bg-surface); border: 1px solid var(--border); border-left: 8px solid var(--primary); 
+            padding: 2.5rem; border-radius: 20px; display: flex; flex-direction: column; gap: 1rem;
+            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+        }
+        .sch-time { font-size: 2.5rem; font-weight: 900; color: var(--primary); display: flex; align-items: center; gap: 1rem; }
+        .sch-event { font-size: 2.8rem; font-weight: 800; line-height: 1.2; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .sch-stage { font-size: 1.5rem; font-weight: 700; color: var(--text-main); background: rgba(255,255,255,0.1); padding: 0.5rem 1.5rem; border-radius: 50px; align-self: flex-start; border: 1px solid var(--border); }
 
         /* Custom Slide */
-        .cs-bg { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; opacity: 0.4; }
-        .cs-content { text-align: center; z-index: 1; text-shadow: 0 4px 20px rgba(0,0,0,0.8); }
-        .cs-title { font-size: 5rem; font-weight: 900; margin-bottom: 1rem; color: var(--primary); }
-        .cs-text { font-size: 2.5rem; font-weight: 600; line-height: 1.4; max-width: 1400px; }
-        .cs-qr { background: white; padding: 1rem; border-radius: 16px; display: inline-block; margin-top: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .cs-bg { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; opacity: 0.5; filter: brightness(0.6); }
+        .cs-content { text-align: center; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 2rem; }
+        .cs-title { font-size: 6rem; font-weight: 900; color: var(--primary); text-shadow: 0 10px 30px rgba(0,0,0,0.8); line-height: 1.1; }
+        .cs-text { font-size: 3rem; font-weight: 600; line-height: 1.4; max-width: 1400px; text-shadow: 0 4px 20px rgba(0,0,0,0.8); color: #F8FAFC; }
+        .cs-qr { background: white; padding: 1.5rem; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.6); display: flex; flex-direction: column; align-items: center; gap: 1rem; }
 
-        .slide-header { font-size: 3.5rem; font-weight: 900; margin-bottom: 3rem; text-align: center; text-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; gap: 1rem; }
-        .slide-header img { height: 60px; border-radius: 12px; }
     </style>
 </head>
 <body class="trans-fade" id="app-body">
 
-    <!-- Background Fallback Logo -->
-    <img id="bg-logo" src="" alt="">
+    <!-- Premium Background -->
+    <div class="ambient-bg">
+        <div class="grid-pattern"></div>
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+    </div>
+
+    <!-- Dynamic Header -->
+    <div id="brand-header">
+        <!-- JS Injected Logo & Title -->
+    </div>
 
     <!-- Instant Flash Alert Overlay -->
     <div id="flash-alert">
-        <i class="fa-solid fa-triangle-exclamation" style="font-size: 8rem; margin-bottom: 2rem; color: white;"></i>
+        <i class="fa-solid fa-triangle-exclamation" style="font-size: 10rem; margin-bottom: 2rem; color: white;"></i>
         <div class="flash-text" id="flash-msg">ATTENTION PLEASE</div>
     </div>
 
     <!-- Main Dynamic Canvas -->
     <div id="slide-container">
-        <div class="slide active">
-            <i class="fa-solid fa-satellite-dish fa-beat-fade" style="font-size: 5rem; color: var(--primary); margin-bottom: 2rem;"></i>
-            <h1 style="font-size: 3rem; font-weight: 800;">WAITING FOR CONNECTION...</h1>
+        <div class="slide active" style="text-align: center;">
+            <i class="fa-solid fa-satellite-dish fa-beat-fade" style="font-size: 6rem; color: var(--primary); margin-bottom: 2rem;"></i>
+            <h1 style="font-size: 4rem; font-weight: 800;">ESTABLISHING CONNECTION...</h1>
+            <p style="font-size: 2rem; color: var(--text-muted); margin-top: 1rem;">WAITING FOR DATA FROM CONTROL DESK</p>
         </div>
     </div>
 
     <!-- Scrolling Global Ticker -->
     <div id="ticker-wrap" style="display: none;">
-        <div class="ticker-text" id="global-ticker-text"></div>
+        <div class="ticker-badge"><i class="fa-solid fa-bolt" style="margin-right: 15px;"></i> LIVE</div>
+        <div class="ticker-content">
+            <div class="ticker-text" id="global-ticker-text"></div>
+        </div>
     </div>
 
     <!-- Web Audio API Fallbacks -->
@@ -132,6 +189,7 @@
         // State Engine
         let displaySettings = {};
         let systemBranding = {};
+        let pointsAdminSettings = {};
         let lastActionTimestamp = 0;
         
         // Playlist Engine
@@ -147,13 +205,11 @@
 
         async function initDisplay() {
             await fetchBranding();
+            await fetchPointSettings();
             await cycleDataFetch(); // Initial heavy load
             
-            // Start the fast polling loop for live triggers (every 3 seconds)
-            setInterval(pollLiveTriggers, 3000);
-            
-            // Start the slow polling loop for database changes (leaderboard/schedule) every 30s
-            setInterval(cycleDataFetch, 30000);
+            setInterval(pollLiveTriggers, 3000); // 3s Fast poll for actions/settings
+            setInterval(cycleDataFetch, 30000); // 30s Slow poll for DB data
         }
 
         async function fetchBranding() {
@@ -161,21 +217,35 @@
                 const { data } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
                 if (data && data.value) {
                     systemBranding = data.value;
-                    if (systemBranding.fest_logo) {
-                        document.getElementById('bg-logo').src = systemBranding.fest_logo;
-                    }
+                    const header = document.getElementById('brand-header');
+                    let html = '';
+                    if (systemBranding.fest_logo) html += `<img src="${systemBranding.fest_logo}">`;
+                    if (systemBranding.fest_name) html += `<h1>${systemBranding.fest_name}</h1>`;
+                    header.innerHTML = html;
                 }
             } catch (e) { console.error("Branding sync failed"); }
         }
 
-        // --- HEAVY DATA FETCHING (Leaderboards & Schedules) ---
+        async function fetchPointSettings() {
+            try {
+                const { data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
+                // Exact fallback defaults from admin.js
+                pointsAdminSettings = data?.value || {
+                    thresholds: { aplus: 90, a: 70, b: 60, c: 50 },
+                    points_solo: { aplus: 8, a: 7, b: 5, c: 3 },
+                    points_small: { aplus: 12, a: 10, b: 7, c: 5 },
+                    points_large: { aplus: 15, a: 12, b: 10, c: 7 },
+                    pos_points: { p1: 3, p2: 2, p3: 1 }
+                };
+            } catch (e) { console.error("Point settings sync failed"); }
+        }
+
+        // --- HEAVY DATA FETCHING (Accurate Point Engine & Schedules) ---
         async function cycleDataFetch() {
             try {
-                // 1. Fetch Master Schedule
                 const { data: schedReq } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
                 scheduleData = schedReq?.value || {};
 
-                // 2. Fetch Teams & Points calculation data
                 const { data: teams } = await supabaseClient.from('teams').select('*');
                 teamsData = teams || [];
                 
@@ -185,27 +255,69 @@
                 const { data: judgements } = await supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark');
                 const { data: participants } = await supabaseClient.from('participants').select('id, team_id');
 
-                // Basic Point Calculator (Simplified for Display)
-                let tPoints = {};
-                teamsData.forEach(t => tPoints[t.id] = { name: t.name, score: 0 });
+                // --- ACCURATE POINT ENGINE (Mirrors Admin.js) ---
+                let teamScores = {};
+                teamsData.forEach(t => teamScores[t.id] = { name: t.name, score: 0 });
 
-                if (judgements && judgements.length > 0) {
-                    const pMap = {}; participants.forEach(p => pMap[p.id] = p.team_id);
-                    // *In a production environment with heavy data, the backend points engine logic should write directly to a `team_scores` table.
-                    // For the display, we will use a basic sum of raw marks as a placeholder leaderboard to ensure it renders instantly.
-                    judgements.forEach(j => {
-                        const tId = pMap[j.participant_id];
-                        if (tId && tPoints[tId]) {
-                            tPoints[tId].score += parseFloat(j.awarded_mark || 0);
+                let compAverages = {};
+                (judgements || []).forEach(j => {
+                    if(!compAverages[j.competition_id]) compAverages[j.competition_id] = {};
+                    if(!compAverages[j.competition_id][j.participant_id]) compAverages[j.competition_id][j.participant_id] = { marks: [] };
+                    compAverages[j.competition_id][j.participant_id].marks.push(parseFloat(j.awarded_mark));
+                });
+
+                const pMap = {}; participants.forEach(p => pMap[p.id] = p.team_id);
+
+                compsList.forEach(comp => {
+                    if(!compAverages[comp.id]) return;
+                    
+                    // 1. Average Marks and drop outliers
+                    let pAvg = Object.keys(compAverages[comp.id]).map(pId => {
+                        let m = compAverages[comp.id][pId].marks.sort((a,b) => a - b);
+                        if (m.length >= 3) m = m.slice(1, m.length - 1); // Drop highest/lowest
+                        let avg = m.reduce((a, b) => a + b, 0) / m.length;
+                        return { id: pId, mark: avg };
+                    }).sort((a, b) => b.mark - a.mark);
+
+                    const limit = comp.max_participants || 1;
+                    const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
+
+                    let currentRank = 1;
+                    let previousScore = -1;
+
+                    // 2. Assign Grades & Positions
+                    pAvg.forEach((p, idx) => {
+                        if (p.mark !== previousScore) currentRank = idx + 1;
+                        previousScore = p.mark;
+
+                        let percent = (p.mark / (comp.max_mark || 100)) * 100;
+                        let gradePts = 0; let posPts = 0;
+
+                        if (percent >= 50) {
+                            if (percent >= pointsAdminSettings.thresholds.aplus) gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].aplus) || 0;
+                            else if (percent >= pointsAdminSettings.thresholds.a) gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].a) || 0;
+                            else if (percent >= pointsAdminSettings.thresholds.b) gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].b) || 0;
+                            else gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].c) || 0;
+                        }
+
+                        if (currentRank <= 3) {
+                            if (currentRank === 1) posPts = Number(pointsAdminSettings.pos_points.p1) || 0;
+                            else if (currentRank === 2) posPts = Number(pointsAdminSettings.pos_points.p2) || 0;
+                            else if (currentRank === 3) posPts = Number(pointsAdminSettings.pos_points.p3) || 0;
+                        }
+
+                        const tId = pMap[p.id];
+                        if (tId && teamScores[tId]) {
+                            teamScores[tId].score += (gradePts + posPts);
                         }
                     });
-                }
-                
-                pointsData = Object.values(tPoints)
-                    .sort((a,b) => b.score - a.score)
-                    .slice(0, 5); // Top 5 teams
+                });
 
-                // Update the playlist if we have settings
+                // Top 5 Teams
+                pointsData = Object.values(teamScores)
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 5);
+
                 if (Object.keys(displaySettings).length > 0) buildPlaylist();
 
             } catch (e) { console.error("Data cycle failed", e); }
@@ -225,7 +337,6 @@
                 displaySettings = newSettings;
                 applyDisplayStyles();
 
-                // Check for Live Action Interrupts
                 if (displaySettings.live_action && displaySettings.live_action.timestamp > lastActionTimestamp) {
                     lastActionTimestamp = displaySettings.live_action.timestamp;
                     executeLiveAction(displaySettings.live_action);
@@ -239,6 +350,7 @@
         function applyDisplayStyles() {
             const root = document.documentElement;
             root.style.setProperty('--primary', displaySettings.primary_color || '#4F46E5');
+            root.style.setProperty('--primary-glow', `${displaySettings.primary_color || '#4F46E5'}66`); // 40% opacity
             root.style.setProperty('--font-main', displaySettings.font_family || "'Plus Jakarta Sans', sans-serif");
             
             document.getElementById('app-body').className = `trans-${displaySettings.transition || 'fade'}`;
@@ -258,8 +370,8 @@
                 document.getElementById('sfx-applause').play().catch(()=>{});
                 const duration = 5000; const end = Date.now() + duration;
                 (function frame() {
-                    confetti({ particleCount: 10, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#4F46E5', '#10B981', '#F59E0B'] });
-                    confetti({ particleCount: 10, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#E11D48', '#FFFFFF', '#F59E0B'] });
+                    confetti({ particleCount: 15, angle: 60, spread: 55, origin: { x: 0 }, colors: [displaySettings.primary_color || '#4F46E5', '#10B981', '#F59E0B'] });
+                    confetti({ particleCount: 15, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#E11D48', '#FFFFFF', '#F59E0B'] });
                     if (Date.now() < end) requestAnimationFrame(frame);
                 }());
             } 
@@ -271,14 +383,11 @@
                 const alertDiv = document.getElementById('flash-alert');
                 document.getElementById('flash-msg').innerText = action.message || "ATTENTION";
                 alertDiv.style.display = 'flex';
+                clearTimeout(slideTimer); // Pause loop
                 
-                // Pause playlist
-                clearTimeout(slideTimer);
-                
-                // Auto hide after 15 seconds
                 setTimeout(() => {
                     alertDiv.style.display = 'none';
-                    startSlideShow(); // Resume
+                    startSlideShow(); // Resume loop
                 }, 15000);
             }
         }
@@ -286,17 +395,19 @@
         // --- DYNAMIC PLAYLIST BUILDER ---
         function buildPlaylist() {
             playlist = [];
-            const logoHtml = systemBranding.fest_logo ? `<img src="${systemBranding.fest_logo}">` : '';
 
-            // 1. Leaderboard Slide
+            // 1. Premium Leaderboard Slide
             if (displaySettings.show_leaderboard !== false && pointsData.length > 0) {
-                let lbHtml = `<div class="slide-header">${logoHtml} LIVE CHAMPIONSHIP STANDINGS</div><div style="width: 100%; display: flex; flex-direction: column; align-items: center;">`;
+                let lbHtml = `<div class="slide-title">CHAMPIONSHIP STANDINGS</div><div class="lb-container">`;
                 pointsData.forEach((team, i) => {
+                    let rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : '';
+                    let crownHtml = i === 0 ? '<i class="fa-solid fa-crown" style="position:absolute; top:-25px; left:50%; transform:translateX(-50%); font-size:4rem; color:#F59E0B; text-shadow:0 0 20px rgba(245,158,11,0.8);"></i>' : '';
                     lbHtml += `
-                        <div class="lb-card" style="transform: scale(${1 - (i * 0.05)}); opacity: ${1 - (i * 0.1)};">
+                        <div class="lb-card ${rankClass}">
+                            ${crownHtml}
                             <div class="lb-rank">#${i + 1}</div>
                             <div class="lb-name">${team.name}</div>
-                            <div class="lb-pts">${team.score}</div>
+                            <div class="lb-pts">${team.score} <span style="font-size:2rem; color:var(--text-muted);">PTS</span></div>
                         </div>
                     `;
                 });
@@ -304,20 +415,23 @@
                 playlist.push({ html: lbHtml, duration: displaySettings.slide_duration || 12 });
             }
 
-            // 2. Schedule Slide
+            // 2. Premium Schedule Slide
             if (displaySettings.show_schedule !== false && Object.keys(scheduleData).length > 0) {
                 let upcoming = Object.keys(scheduleData)
                     .map(cId => ({ comp: compsList.find(c => c.id == cId), sched: scheduleData[cId] }))
                     .filter(item => item.comp && item.sched.status === 'published')
-                    .sort((a,b) => a.sched.time.localeCompare(b.sched.time))
-                    .slice(0, 4); // Next 4 events
+                    .sort((a,b) => {
+                        if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
+                        return a.sched.time.localeCompare(b.sched.time);
+                    })
+                    .slice(0, 6); // Next 6 events (Grid layout)
 
                 if (upcoming.length > 0) {
-                    let schHtml = `<div class="slide-header">${logoHtml} UPCOMING EVENTS SCHEDULE</div><div style="width: 100%; display: flex; flex-direction: column; align-items: center;">`;
+                    let schHtml = `<div class="slide-title">UPCOMING SCHEDULE</div><div class="sch-container">`;
                     upcoming.forEach(u => {
                         schHtml += `
                             <div class="sch-card">
-                                <div class="sch-time">${u.sched.time} ${u.sched.to_time ? `<span style="font-size:1.5rem; color:#94A3B8;">- ${u.sched.to_time}</span>` : ''}</div>
+                                <div class="sch-time"><i class="fa-regular fa-clock"></i> ${u.sched.time} ${u.sched.to_time ? `<span style="font-size:1.8rem; color:var(--text-muted);">- ${u.sched.to_time}</span>` : ''}</div>
                                 <div class="sch-event">${u.comp.name}</div>
                                 <div class="sch-stage">${u.comp.stages?.name || 'TBD'}</div>
                             </div>
@@ -336,7 +450,7 @@
                     csHtml += `<div class="cs-content">`;
                     if (cs.title) csHtml += `<div class="cs-title" style="color: ${cs.color || 'var(--primary)'};">${cs.title}</div>`;
                     if (cs.text) csHtml += `<div class="cs-text">${cs.text}</div>`;
-                    if (cs.qr_url) csHtml += `<div class="cs-qr"><div id="qr-${cs.id}"></div><div style="font-size:1rem; font-weight:800; color:#0F172A; margin-top:0.5rem;">${cs.qr_text || 'SCAN ME'}</div></div>`;
+                    if (cs.qr_url) csHtml += `<div class="cs-qr"><div id="qr-${cs.id}"></div><div style="font-size:1.2rem; font-weight:900; color:#0F172A; margin-top:0.5rem; letter-spacing:0.05em;">${cs.qr_text || 'SCAN ME'}</div></div>`;
                     csHtml += `</div>`;
                     
                     playlist.push({ 
@@ -347,21 +461,21 @@
                 });
             }
 
-            // Fallback if empty
+            // Fallback Idle Screen
             if (playlist.length === 0) {
                 playlist.push({
                     html: `
                         <div style="text-align:center;">
-                            <img src="${systemBranding.fest_logo || ''}" style="height: 150px; margin-bottom: 2rem; border-radius: 20px;">
-                            <h1 style="font-size: 5rem; font-weight: 900;">${systemBranding.fest_name || 'FestOS'}</h1>
-                            <p style="font-size: 2rem; color: #94A3B8; margin-top: 1rem;">NEXT UPDATES COMING SOON</p>
+                            <i class="fa-solid fa-hourglass-half fa-spin-pulse" style="font-size: 6rem; color: var(--primary); margin-bottom: 2rem;"></i>
+                            <h1 style="font-size: 5rem; font-weight: 900;">NEXT UPDATES SHORTLY</h1>
+                            <p style="font-size: 2.5rem; color: var(--text-muted); margin-top: 1rem;">STAY TUNED</p>
                         </div>
                     `,
                     duration: 20
                 });
             }
 
-            // Restart slideshow to pick up new slides smoothly
+            // Restart slideshow safely
             clearTimeout(slideTimer);
             if (currentSlideIndex >= playlist.length) currentSlideIndex = 0;
             startSlideShow();
@@ -370,15 +484,13 @@
         function startSlideShow() {
             const container = document.getElementById('slide-container');
             const slideData = playlist[currentSlideIndex];
-            
             if (!slideData) return;
 
-            // DOM transition logic
             const oldSlide = container.querySelector('.slide.active');
             if (oldSlide) {
                 oldSlide.classList.remove('active');
                 oldSlide.classList.add('exit');
-                setTimeout(() => oldSlide.remove(), 1000); // Cleanup after css transition
+                setTimeout(() => oldSlide.remove(), 1000); 
             }
 
             const newSlide = document.createElement('div');
@@ -386,33 +498,24 @@
             newSlide.innerHTML = slideData.html;
             container.appendChild(newSlide);
             
-            // Render QR Code if it exists in this slide
             if (slideData.qrData) {
                 setTimeout(() => {
                     new QRCode(document.getElementById(`qr-${slideData.qrData.id}`), {
-                        text: slideData.qrData.url, width: 200, height: 200,
+                        text: slideData.qrData.url, width: 250, height: 250,
                         colorDark: "#0F172A", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H
                     });
                 }, 50);
             }
 
-            // Trigger animation frame
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    newSlide.classList.add('active');
-                });
-            });
+            requestAnimationFrame(() => requestAnimationFrame(() => newSlide.classList.add('active')));
 
-            // Loop to next slide
             currentSlideIndex++;
             if (currentSlideIndex >= playlist.length) currentSlideIndex = 0;
             
             slideTimer = setTimeout(startSlideShow, slideData.duration * 1000);
         }
 
-        // Boot
         document.addEventListener('DOMContentLoaded', initDisplay);
-
     </script>
 </body>
 </html>
