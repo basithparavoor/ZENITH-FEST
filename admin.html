@@ -1034,118 +1034,87 @@ tr:hover td { background: var(--bg-main); }
 
         <!-- ================= DISPLAY CONTROL SECTION ================= -->
 <div id="display-control" class="content-section">
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
-                <div>
-                    <h2 style="margin-bottom: 0.5rem;">Live Display Control Desk</h2>
-                    <p style="color: var(--text-muted); font-weight: 600;">Manage spectator screens, leaderboards, and instant live actions.</p>
+    <div class="action-bar" style="margin-bottom: 1.5rem;">
+        <div>
+            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Spectator Display Hub</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Total control over the live projector feed. Themes, custom slides, and preview.</p>
+        </div>
+        <div class="bulk-actions">
+            <button class="btn btn-outline" style="color: var(--warning); border-color: var(--warning);" onclick="triggerManualConfetti()"><i class="fa-solid fa-wand-magic-sparkles"></i> Trigger Celebration</button>
+            <button class="btn btn-success" onclick="window.open('display.html', '_blank')"><i class="fa-solid fa-up-right-from-square"></i> Launch Display</button>
+        </div>
+    </div>
+    
+    <div class="grid-2" style="grid-template-columns: 1fr 1fr; gap: 2rem;">
+        <!-- Left: Controls -->
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <!-- Settings & Theme -->
+            <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0; font-weight: 800; color: var(--text-main);"><i class="fa-solid fa-palette" style="color: var(--primary);"></i> Theme & Engine</h3>
+                    <button class="btn btn-primary" onclick="saveDisplaySettings()" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;"><i class="fa-solid fa-cloud-arrow-up"></i> Sync Changes</button>
                 </div>
-                <button class="btn btn-primary" id="btnSaveDisplaySettings" onclick="saveDisplaySettings()"><i class="fa-solid fa-cloud-arrow-up"></i> Push to Live Displays</button>
+                
+                <div class="grid-2" style="gap: 1rem;">
+                    <div class="form-group">
+                        <label>Default Slide Duration (Secs)</label>
+                        <input type="number" id="disp-duration" value="12" min="5" max="60" style="width: 100%;">
+                    </div>
+                    <div class="form-group">
+                        <label>Primary Highlight Color</label>
+                        <input type="color" id="disp-color" value="#4F46E5" style="width: 100%; height: 42px; padding: 0; border: 1px solid var(--border); border-radius: 8px;">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Display Font Architecture</label>
+                    <select id="disp-font" style="width: 100%;">
+                        <option value="Plus Jakarta Sans">Plus Jakarta Sans (Modern Default)</option>
+                        <option value="Inter">Inter (Clean & Flat)</option>
+                        <option value="Bebas Neue">Bebas Neue (Cinematic & Bold)</option>
+                        <option value="Cinzel">Cinzel (Elegant & Classic)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); margin-top: 1rem;">
+                    <div>
+                        <label style="margin: 0; font-weight: 700; color: var(--text-main);">Show Default QR Code</label>
+                    </div>
+                    <label style="position: relative; display: inline-block; width: 50px; height: 26px;">
+                        <input type="checkbox" id="disp-show-qr" style="opacity: 0; width: 0; height: 0;" checked onchange="this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#cbd5e1'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(24px)' : 'translateX(0)';">
+                        <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .4s; border-radius: 34px;"></span>
+                        <span style="position: absolute; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; transform: translateX(24px);"></span>
+                    </label>
+                </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; align-items: start;">
-
-                <!-- LEFT COLUMN: CONFIGURATION -->
-                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-
-                    <!-- Core Settings Card -->
-                    <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-                        <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--primary); margin-bottom: 1rem;"><i class="fa-solid fa-sliders"></i> Core Configuration</h3>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
-                            <div class="form-group" style="margin:0;">
-                                <label>Primary Accent Color</label>
-                                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                    <input type="color" id="disp-color" style="height: 40px; width: 50px; padding: 0; border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">
-                                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">HEX Accent</span>
-                                </div>
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label>Slide Duration (Secs)</label>
-                                <input type="number" id="disp-duration" value="12" style="font-weight: 800;">
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label>Typography Style</label>
-                                <select id="disp-font" style="font-weight: 700;">
-                                    <option value="Plus Jakarta Sans">Plus Jakarta Sans (Modern)</option>
-                                    <option value="Inter">Inter (Clean)</option>
-                                    <option value="'Bebas Neue', cursive">Bebas Neue (Impact)</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label>Slide Transition</label>
-                                <select id="disp-transition" style="font-weight: 700;">
-                                    <option value="fade">Smooth Fade</option>
-                                    <option value="slide">Horizontal Slide</option>
-                                    <option value="zoom">Zoom Reveal</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div style="padding-top: 1rem; border-top: 1px dashed var(--border); display: flex; gap: 1.5rem; flex-wrap: wrap;">
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.9rem; font-weight:700; cursor:pointer;">
-                                <input type="checkbox" id="disp-show-leaderboard" style="width:18px; height:18px; accent-color:var(--primary);"> Auto-Leaderboard
-                            </label>
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.9rem; font-weight:700; cursor:pointer;">
-                                <input type="checkbox" id="disp-show-schedule" style="width:18px; height:18px; accent-color:var(--primary);"> Auto-Schedule
-                            </label>
-                            <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.9rem; font-weight:700; cursor:pointer;">
-                                <input type="checkbox" id="disp-show-qr" style="width:18px; height:18px; accent-color:var(--primary);"> Scan Portal QR
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Global Ticker Card -->
-                    <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-                        <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem;"><i class="fa-solid fa-bolt"></i> Global Ticker Marquee</h3>
-                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem; font-weight: 600;">Text entered here will scroll continuously across the bottom of all displays.</p>
-                        <input type="text" id="disp-global-ticker" placeholder="E.G. WELCOME TO THE FESTIVAL! NEXT EVENT AT STAGE 2..." style="width: 100%; padding: 1rem; font-weight: 700; border-radius: var(--radius-md); border: 2px solid var(--border); outline: none;">
-                    </div>
-
-                    <!-- Custom Slides Card -->
-                    <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                            <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--primary); margin: 0;"><i class="fa-regular fa-images"></i> Custom Slides</h3>
-                            <button class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="openCustomSlideModal()"><i class="fa-solid fa-plus"></i> ADD SLIDE</button>
-                        </div>
-                        <div id="custom-slides-list" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
-                            <!-- JS injected -->
-                        </div>
-                    </div>
-
+            <!-- Custom Slides Manager -->
+            <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="font-weight: 800; color: var(--text-main); margin: 0;"><i class="fa-solid fa-images" style="color: var(--primary);"></i> Custom Slides Hub</h3>
+                    <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;" onclick="openCustomSlideModal()">
+                        <i class="fa-solid fa-plus"></i> New Slide
+                    </button>
                 </div>
-
-                <!-- RIGHT COLUMN: LIVE DESK -->
-                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-
-                    <!-- Quick Action Triggers -->
-                    <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 2px solid var(--danger); box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.15);">
-                        <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--danger); margin-bottom: 0.5rem;"><i class="fa-solid fa-tower-broadcast"></i> Live Action Desk</h3>
-                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.25rem; font-weight: 600;">Instantly override live screens.</p>
-
-                        <div style="display: flex; flex-direction: column; gap: 1rem;">
-                            <div style="display: flex; gap: 0.5rem;">
-                                <input type="text" id="flashAlertText" placeholder="URGENT MESSAGE..." style="flex: 1; padding: 0.75rem; font-weight: 800; border-radius: var(--radius-md); border: 2px solid var(--danger); outline: none; background: #FFF1F2;">
-                                <button class="btn btn-danger" onclick="triggerDisplayAction('flash_alert')" style="padding: 0 1.5rem;"><i class="fa-solid fa-triangle-exclamation"></i> SEND ALERT</button>
-                            </div>
-
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                                <button class="btn" style="background: #F59E0B; color: white; border: none; font-size: 0.9rem;" onclick="triggerDisplayAction('confetti')"><i class="fa-solid fa-wand-magic-sparkles"></i> Confetti Drop</button>
-                                <button class="btn" style="background: #10B981; color: white; border: none; font-size: 0.9rem;" onclick="triggerDisplayAction('applause')"><i class="fa-solid fa-hands-clapping"></i> SFX: Applause</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Live Preview Frame -->
-                    <div style="background: #0F172A; border-radius: var(--radius-lg); border: 4px solid var(--primary-light); overflow: hidden; position: relative; box-shadow: var(--shadow-card);">
-                        <div style="background: rgba(0,0,0,0.5); padding: 0.5rem; text-align: center; color: white; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.1em; position: absolute; top:0; width:100%; z-index:10; backdrop-filter: blur(5px);">LIVE PREVIEW</div>
-                        <div style="width: 100%; aspect-ratio: 16/9; position: relative; overflow: hidden; margin-top: 25px;">
-                            <iframe id="display-preview-frame" src="display.html" style="width: 1920px; height: 1080px; transform-origin: top left; border: none; position: absolute; top: 0; left: 0; pointer-events: none;"></iframe>
-                        </div>
-                    </div>
-
+                
+                <div id="custom-slides-list" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 350px; overflow-y: auto; padding-right: 0.5rem;">
+                    <!-- Rendered by JS -->
                 </div>
             </div>
         </div>
+
+        <!-- Right: Live Preview -->
+        <div class="card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; background: #0F172A; border-radius: var(--radius-lg); border: 4px solid #CBD5E1; box-shadow: var(--shadow-lg);">
+            <div style="background: #1E293B; padding: 0.75rem 1rem; color: white; font-size: 0.85rem; font-weight: 700; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fa-solid fa-tv" style="margin-right: 0.5rem;"></i> LIVE OUTPUT PREVIEW</span>
+                <span style="color: var(--success); font-size: 0.75rem;"><i class="fa-solid fa-circle-dot fa-fade" style="margin-right: 0.25rem;"></i> SYNCED</span>
+            </div>
+            <div style="flex: 1; position: relative; width: 100%; aspect-ratio: 16/9; overflow: hidden; background: #000;">
+                <iframe id="display-preview-frame" src="display.html?preview=true" style="width: 1920px; height: 1080px; border: none; transform-origin: top left; position: absolute; top: 0; left: 0; pointer-events: none;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- ================= NEW CUSTOM SLIDE MODAL ================= -->
 <div id="customSlideModal" class="modal-overlay" style="z-index: 1050;">
