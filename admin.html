@@ -307,6 +307,10 @@ tr:hover td { background: var(--bg-main); }
             <div class="action-bar">
                 <button class="btn btn-primary" onclick="openCompModal()"><i class="fa-solid fa-plus"></i> New Competition</button>
                 <div class="bulk-actions" style="flex-wrap: wrap; gap: 0.5rem;">
+                    <!-- NEW: Vacancy Audit Button -->
+                    <button class="btn btn-outline" style="border-color: #D97706; color: #D97706; font-weight: 700;" onclick="openVacancyReportModal()">
+                        <i class="fa-solid fa-user-clock"></i> Vacancy Audit
+                    </button>
                     <button class="btn btn-primary" onclick="exportCompetitionsPDF()"><i class="fa-solid fa-file-pdf"></i> Premium PDF</button>
                     <button class="btn btn-outline" onclick="downloadCSV('competitions')"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
                 </div>
@@ -1076,6 +1080,22 @@ tr:hover td { background: var(--bg-main); }
                     </select>
                 </div>
                 
+                <!-- NEW MISSING INPUTS ADDED HERE -->
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label>Slide Transition Animation</label>
+                    <select id="disp-transition" style="width: 100%;">
+                        <option value="fade">Smooth Fade</option>
+                        <option value="slide">Horizontal Slide</option>
+                        <option value="zoom">Zoom Reveal</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label>Global Ticker Marquee (Scrolling Text)</label>
+                    <input type="text" id="disp-global-ticker" placeholder="e.g. WELCOME TO FESTOS! NEXT EVENT AT STAGE 2..." style="width: 100%; border: 1px solid var(--border); border-radius: 8px;">
+                </div>
+                <!-- END OF MISSING INPUTS -->
+
                 <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); margin-top: 1rem;">
                     <div>
                         <label style="margin: 0; font-weight: 700; color: var(--text-main);">Show Default QR Code</label>
@@ -1372,6 +1392,53 @@ tr:hover td { background: var(--bg-main); }
             <button class="btn btn-primary" id="btn-download-log" onclick="downloadCompLogPDF()">
                 <i class="fa-solid fa-file-pdf"></i> Download PDF Report
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= VACANCY AUDIT MODAL ================= -->
+<div id="vacancyModal" class="modal-overlay" style="z-index: 1050;">
+    <div class="modal" style="max-width: 1050px; width: 95%;">
+        <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
+            <div>
+                <span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:800; font-size:0.75rem;"><i class="fa-solid fa-triangle-exclamation"></i> PARTICIPATION AUDIT</span>
+                <h2 style="margin-top: 0.35rem; font-size: 1.4rem;">Under-Enrolled Competitions</h2>
+            </div>
+            <button class="close-btn" onclick="document.getElementById('vacancyModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="controls-bar" style="margin: 1.25rem 0; padding: 0.75rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+            <div class="search-box" style="flex: 2; min-width: 200px;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="vacancySearchInput" placeholder="Filter competition name..." onkeyup="renderVacancyTable()">
+            </div>
+            <div class="filter-box" style="flex: 1; min-width: 180px;">
+                <select id="vacancyCategoryFilter" onchange="renderVacancyTable()">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="exportVacancyPDF()">
+                <i class="fa-solid fa-file-pdf"></i> Download PDF Report
+            </button>
+        </div>
+
+        <div class="table-container" style="max-height: 55vh; overflow-y: auto;">
+            <table>
+                <thead style="position: sticky; top: 0; z-index: 10;">
+                    <tr>
+                        <th>COMPETITION</th>
+                        <th>CATEGORY</th>
+                        <th>ENROLLED / TOTAL</th>
+                        <th>TEAMS WITH VACANCIES</th>
+                    </tr>
+                </thead>
+                <tbody id="vacancy-tbody"></tbody>
+            </table>
+        </div>
+
+        <div class="modal-footer" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <span id="vacancy-summary-count" style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted);">Calculating...</span>
+            <button class="btn btn-outline" onclick="document.getElementById('vacancyModal').classList.remove('show')">Close</button>
         </div>
     </div>
 </div>

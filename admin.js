@@ -5834,7 +5834,7 @@ function getPDFHeaderHTML(reportTitle) {
     `;
 }
 // ============================================================================
-// SPECTATOR DISPLAY CONTROL ENGINE (PRO ADVANCED)
+// SPECTATOR DISPLAY CONTROL ENGINE
 // ============================================================================
 
 let globalCustomSlides = [];
@@ -5849,18 +5849,11 @@ async function loadDisplaySettings() {
             if(document.getElementById('disp-duration')) document.getElementById('disp-duration').value = v.slide_duration || 12;
             if(document.getElementById('disp-color')) document.getElementById('disp-color').value = v.primary_color || '#4F46E5';
             if(document.getElementById('disp-font')) document.getElementById('disp-font').value = v.font_family || 'Plus Jakarta Sans';
-            if(document.getElementById('disp-transition')) document.getElementById('disp-transition').value = v.transition || 'fade';
-            if(document.getElementById('disp-global-ticker')) document.getElementById('disp-global-ticker').value = v.global_ticker || '';
             
             const qrCheck = document.getElementById('disp-show-qr');
-            if (qrCheck) qrCheck.checked = v.show_qr !== false;
+            if (qrCheck) { qrCheck.checked = v.show_qr !== false; qrCheck.dispatchEvent(new Event('change')); }
             
-            const leaderboardCheck = document.getElementById('disp-show-leaderboard');
-            if (leaderboardCheck) leaderboardCheck.checked = v.show_leaderboard !== false;
-            
-            const scheduleCheck = document.getElementById('disp-show-schedule');
-            if (scheduleCheck) scheduleCheck.checked = v.show_schedule !== false;
-            
+            // Load custom slides array
             globalCustomSlides = v.custom_slides || [];
         }
         renderCustomSlidesList();
@@ -5869,70 +5862,40 @@ async function loadDisplaySettings() {
 }
 
 async function saveDisplaySettings(silent = false) {
-    if(!silent) setLoading('btnSaveDisplaySettings', true);
+    if(!silent) setLoading('display-control .btn-primary', true);
     
-    // Fetch current state to preserve any active live triggers so they don't break during a normal save
+    // Fetch current state to avoid overwriting trigger_confetti
     const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
-    let currentSettings = data?.value || {};
+    let trigger_confetti = data && data.value ? data.value.trigger_confetti : 0;
 
     const payload = {
         slide_duration: parseInt(document.getElementById('disp-duration').value) || 12,
         primary_color: document.getElementById('disp-color').value || '#4F46E5',
         font_family: document.getElementById('disp-font').value || 'Plus Jakarta Sans',
-        transition: document.getElementById('disp-transition').value || 'fade',
-        global_ticker: document.getElementById('disp-global-ticker').value || '',
         show_qr: document.getElementById('disp-show-qr').checked,
-        show_leaderboard: document.getElementById('disp-show-leaderboard').checked,
-        show_schedule: document.getElementById('disp-show-schedule').checked,
         custom_slides: globalCustomSlides,
-        live_action: currentSettings.live_action || null 
+        trigger_confetti: trigger_confetti
     };
     
     try {
         const { error } = await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
         if (error) throw error;
         
-        if(!silent) showToast("Display Engine Synced Successfully!", "success");
+        if(!silent) showToast("Display Settings Saved & Synced!");
         
-        // Refresh preview iframe
         const iframe = document.getElementById('display-preview-frame');
         if(iframe) iframe.src = iframe.src; 
 
     } catch(e) {
         if(!silent) showToast(e.message, 'error');
     } finally {
-        if(!silent) setLoading('btnSaveDisplaySettings', false);
-    }
-}
-
-// ADVANCED LIVE TRIGGER SYSTEM
-async function triggerDisplayAction(actionType) {
-    try {
-        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
-        let payload = data?.value || {};
-        
-        let actionData = { type: actionType, timestamp: Date.now() };
-
-        if (actionType === 'flash_alert') {
-            const text = document.getElementById('flashAlertText').value;
-            if (!text) return showToast("Please enter an alert message.", "error");
-            actionData.message = text;
-            document.getElementById('flashAlertText').value = ''; // clear field after sending
-        }
-
-        payload.live_action = actionData;
-        
-        await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
-        showToast(`Live Action (${actionType.toUpperCase()}) Broadcasted!`, "success");
-    } catch(e) {
-        showToast("Failed to trigger live action.", "error");
+        if(!silent) setLoading('display-control .btn-primary', false);
     }
 }
 
 // --- CUSTOM SLIDES CRUD ---
 function renderCustomSlidesList() {
     const container = document.getElementById('custom-slides-list');
-    if(!container) return;
     container.innerHTML = '';
     
     if (globalCustomSlides.length === 0) {
@@ -6039,6 +6002,7 @@ async function saveCustomSlide() {
     try {
         let finalBgUrl = pendingCSImagePreview;
 
+        // If it's a completely new file, upload it to the 'elements' bucket
         if (pendingCSFile) {
             const fileExt = pendingCSFile.name.split('.').pop();
             const fileName = `slide_bg_${Date.now()}.${fileExt}`;
@@ -6064,13 +6028,14 @@ async function saveCustomSlide() {
 
         const existingIndex = globalCustomSlides.findIndex(s => s.id === id);
         if (existingIndex >= 0) {
+            // Keep enabled status if editing
             slideObj.enabled = globalCustomSlides[existingIndex].enabled;
             globalCustomSlides[existingIndex] = slideObj;
         } else {
             globalCustomSlides.push(slideObj);
         }
 
-        await saveDisplaySettings(false); 
+        await saveDisplaySettings(false); // Saves to DB and syncs preview
         document.getElementById('customSlideModal').classList.remove('show');
 
     } catch(e) {
@@ -6082,7 +6047,7 @@ async function saveCustomSlide() {
 
 async function toggleCustomSlide(index, isEnabled) {
     globalCustomSlides[index].enabled = isEnabled;
-    await saveDisplaySettings(true); 
+    await saveDisplaySettings(true); // silent sync
 }
 
 async function deleteCustomSlide(index) {
@@ -6091,7 +6056,18 @@ async function deleteCustomSlide(index) {
     await saveDisplaySettings(false);
 }
 
-// Maintains proper 16:9 ratio for the preview iframe
+async function triggerManualConfetti() {
+    try {
+        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+        let payload = data?.value || { slide_duration: 12, show_qr: true };
+        payload.trigger_confetti = Date.now(); // Forces all listening displays to trigger
+        await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
+        showToast("Celebration triggered on live displays!", "success");
+    } catch(e) {
+        showToast("Failed to trigger animation.", "error");
+    }
+}
+
 function scalePreviewIframe() {
     const iframe = document.getElementById('display-preview-frame');
     if (iframe && iframe.parentElement) {
@@ -6441,4 +6417,228 @@ async function exportSchedulePDF() {
         };
         html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
     } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ============================================================================
+// COMPETITION VACANCY & UNDER-ENROLLMENT ENGINE
+// ============================================================================
+
+let vacancyAuditData = [];
+
+async function openVacancyReportModal() {
+    showToast('Auditing competition enrollments...', 'success');
+    try {
+        // Ensure dependencies are loaded
+        if (categoriesList.length === 0) await loadCategories();
+        if (teamsList.length === 0) await loadStagesAndTeams();
+        if (competitionsList.length === 0) await loadCompetitions();
+
+        // Populate Category Filter dropdown
+        const catFilter = document.getElementById('vacancyCategoryFilter');
+        if (catFilter) {
+            catFilter.innerHTML = '<option value="">All Categories</option>';
+            categoriesList.forEach(c => catFilter.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+        }
+
+        // Fetch all assignments with team information
+        const { data: enrollments, error } = await supabaseClient
+            .from('participant_competitions')
+            .select('competition_id, participant_id, participants(id, team_id, teams(name))');
+
+        if (error) throw error;
+
+        // Group enrollments by competition and team
+        const compEnrollmentMap = {};
+        (enrollments || []).forEach(row => {
+            const cId = row.competition_id;
+            const tId = row.participants?.team_id || 'unassigned';
+            const tName = row.participants?.teams?.name || 'INDEPENDENT';
+
+            if (!compEnrollmentMap[cId]) compEnrollmentMap[cId] = { total: 0, byTeam: {} };
+            compEnrollmentMap[cId].total++;
+            compEnrollmentMap[cId].byTeam[tId] = (compEnrollmentMap[cId].byTeam[tId] || 0) + 1;
+        });
+
+        // Calculate vacancies for every competition
+        vacancyAuditData = [];
+
+        competitionsList.forEach(comp => {
+            const maxPerTeam = comp.max_participants || 1;
+            const totalCapacity = maxPerTeam * (teamsList.length || 0);
+            const enrolledTotal = compEnrollmentMap[comp.id]?.total || 0;
+            const teamCounts = compEnrollmentMap[comp.id]?.byTeam || {};
+
+            const teamVacancies = [];
+
+            teamsList.forEach(team => {
+                const filled = teamCounts[team.id] || 0;
+                const remaining = maxPerTeam - filled;
+
+                if (remaining > 0) {
+                    teamVacancies.push({
+                        teamId: team.id,
+                        teamName: team.name,
+                        enrolled: filled,
+                        max: maxPerTeam,
+                        missing: remaining
+                    });
+                }
+            });
+
+            // If any team hasn't filled its quota, flag this competition
+            if (teamVacancies.length > 0) {
+                vacancyAuditData.push({
+                    id: comp.id,
+                    name: comp.name,
+                    category_id: comp.category_id,
+                    categoryName: comp.categories?.name || 'General',
+                    maxPerTeam: maxPerTeam,
+                    enrolledTotal: enrolledTotal,
+                    totalCapacity: totalCapacity,
+                    vacanciesCount: totalCapacity - enrolledTotal,
+                    teamVacancies: teamVacancies
+                });
+            }
+        });
+
+        // Open modal & render table
+        document.getElementById('vacancyModal').classList.add('show');
+        renderVacancyTable();
+
+    } catch (e) {
+        showToast("Error generating vacancy audit: " + e.message, 'error');
+    }
+}
+
+function renderVacancyTable() {
+    const search = (document.getElementById('vacancySearchInput')?.value || '').toLowerCase();
+    const catId = document.getElementById('vacancyCategoryFilter')?.value || '';
+    const tbody = document.getElementById('vacancy-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    const filtered = vacancyAuditData.filter(item => {
+        const matchName = item.name.toLowerCase().includes(search);
+        const matchCat = catId === '' || String(item.category_id) === String(catId);
+        return matchName && matchCat;
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 2rem; color:var(--text-muted); font-weight:600;">No under-enrolled competitions found matching your criteria. All quotas are filled!</td></tr>`;
+        document.getElementById('vacancy-summary-count').innerText = `0 competitions with vacancies.`;
+        return;
+    }
+
+    filtered.forEach(item => {
+        // Build team badges showing enrolled / max
+        const teamBadges = item.teamVacancies.map(tv => `
+            <span class="badge" style="background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; margin: 2px; display: inline-block; font-size: 0.75rem; padding: 4px 8px;">
+                <strong>${tv.teamName}</strong>: ${tv.enrolled}/${tv.max} (${tv.missing} slot${tv.missing > 1 ? 's' : ''} left)
+            </span>
+        `).join('');
+
+        tbody.innerHTML += `
+            <tr>
+                <td style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">${item.name}</td>
+                <td><span class="badge badge-primary">${item.categoryName}</span></td>
+                <td>
+                    <span style="font-weight: 800; color: var(--danger); font-size: 0.95rem;">${item.enrolledTotal} / ${item.totalCapacity}</span>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">Limit: ${item.maxPerTeam} per team</div>
+                </td>
+                <td>
+                    <div style="display: flex; flex-wrap: wrap; gap: 4px; max-width: 480px;">
+                        ${teamBadges}
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+
+    document.getElementById('vacancy-summary-count').innerText = `Showing ${filtered.length} competition(s) with available slots.`;
+}
+
+// Generate an A4 PDF Report of all vacancies grouped by Category
+async function exportVacancyPDF() {
+    if (vacancyAuditData.length === 0) return showToast('No vacancy data to export.', 'error');
+    showToast('Generating Vacancy Audit PDF...', 'success');
+
+    try {
+        const catId = document.getElementById('vacancyCategoryFilter')?.value || '';
+        const search = (document.getElementById('vacancySearchInput')?.value || '').toLowerCase();
+
+        const filtered = vacancyAuditData.filter(item => {
+            const matchName = item.name.toLowerCase().includes(search);
+            const matchCat = catId === '' || String(item.category_id) === String(catId);
+            return matchName && matchCat;
+        });
+
+        // Group filtered competitions by category
+        const grouped = {};
+        filtered.forEach(item => {
+            if (!grouped[item.categoryName]) grouped[item.categoryName] = [];
+            grouped[item.categoryName].push(item);
+        });
+
+        const container = document.createElement('div');
+        container.style.padding = '35px';
+        container.style.fontFamily = 'Inter, sans-serif';
+        container.innerHTML = getPDFHeaderHTML('Under-Enrolled Competitions & Vacancy Audit');
+
+        for (const catName in grouped) {
+            const comps = grouped[catName];
+
+            let tableRows = comps.map((item, idx) => {
+                const teamsListStr = item.teamVacancies
+                    .map(tv => `${tv.teamName} (${tv.enrolled}/${tv.max})`)
+                    .join(', ');
+
+                return `
+                    <tr style="border-bottom: 1px solid #E2E8F0;">
+                        <td style="padding: 9px 10px; font-size: 11px;">${idx + 1}</td>
+                        <td style="padding: 9px 10px; font-size: 11px; font-weight: 700; color: #0F172A;">${item.name}</td>
+                        <td style="padding: 9px 10px; font-size: 11px; text-align: center;">${item.maxPerTeam}</td>
+                        <td style="padding: 9px 10px; font-size: 11px; font-weight: 800; color: #E11D48; text-align: center;">${item.enrolledTotal} / ${item.totalCapacity}</td>
+                        <td style="padding: 9px 10px; font-size: 10px; color: #475569; line-height: 1.4;">${teamsListStr}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            container.innerHTML += `
+                <div style="margin-bottom: 25px; page-break-inside: avoid;">
+                    <div style="background: #1E293B; color: white; padding: 8px 12px; border-radius: 6px 6px 0 0; font-size: 12px; font-weight: 800; display: flex; justify-content: space-between; align-items: center;">
+                        <span>CATEGORY: ${catName.toUpperCase()}</span>
+                        <span style="font-size: 10px; color: #94A3B8;">${comps.length} UNDER-ENROLLED EVENT(S)</span>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; border-top: none;">
+                        <thead>
+                            <tr style="background: #F8FAFC; text-align: left; font-size: 10px; color: #64748B; border-bottom: 1px solid #E2E8F0;">
+                                <th style="padding: 8px 10px; width: 30px;">#</th>
+                                <th style="padding: 8px 10px; width: 220px;">COMPETITION</th>
+                                <th style="padding: 8px 10px; text-align: center; width: 90px;">QUOTA/TEAM</th>
+                                <th style="padding: 8px 10px; text-align: center; width: 90px;">ENROLLED</th>
+                                <th style="padding: 8px 10px;">TEAMS WITH OPEN SLOTS (FILLED/MAX)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        const opt = {
+            margin: [10, 10, 10, 10],
+            filename: `FestOS_Vacancy_Audit_${new Date().toISOString().split('T')[0]}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+            pagebreak: { mode: ['css', 'legacy'] }
+        };
+
+        html2pdf().set(opt).from(container).save().then(() => showToast('Vacancy PDF Exported!'));
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
 }
