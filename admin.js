@@ -570,6 +570,7 @@ function openCompModal(editData = null) {
     const cMarks = isEdit ? editData.max_mark : '100';
     const cLimit = isEdit ? editData.max_participants : '1';
     const cIsGroup = isEdit ? editData.is_group : false; 
+    const cTime = isEdit ? editData.time_per_student || 0 : 0;
     const cIsOffstage = isEdit ? editData.is_offstage : false; // NEW: Offstage Flag
 
     let catOpts = categoriesList.map(c => `<option value="${c.id}" ${isEdit && editData.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
@@ -599,6 +600,7 @@ function openCompModal(editData = null) {
         <div style="display:flex; gap:1rem;">
             <div class="form-group" style="flex:1;"><label>Max Marks</label><input type="number" id="compMarks" value="${cMarks}"></div>
             <div class="form-group" style="flex:1;"><label>Participants / Team</label><input type="number" id="compParticipants" value="${cLimit}"></div>
+            <div class="form-group" style="flex:1;"><label>Mins / Student</label><input type="number" id="compTimePerStudent" value="${cTime}"></div>
         </div>
         
         <!-- NEW AWARD CATEGORY SELECTOR -->
@@ -620,14 +622,15 @@ async function saveCompetition() {
     const is_offstage = document.getElementById('compIsOffstage').checked; // NEW
 const stage_id = document.getElementById('compStage').value || null;    const max_mark = document.getElementById('compMarks').value;
     const max_participants = document.getElementById('compParticipants').value;
-   const is_group = document.getElementById('compIsGroup').checked; 
-    const award_type = document.getElementById('compAwardType').value; // <-- ADD THIS
+    const is_group = document.getElementById('compIsGroup').checked; 
+    const award_type = document.getElementById('compAwardType').value; 
+    const time_per_student = parseInt(document.getElementById('compTimePerStudent').value) || 0;
     
     if(!name) return showToast('Name is required', 'error');
     
     setLoading('modalSaveBtn', true);
     try {
-        const payload = { name, category_id, stage_id, max_mark, max_participants, is_group, is_offstage, award_type }; // <-- ADD award_type HERE
+const payload = { name, category_id, stage_id, max_mark, max_participants, is_group, is_offstage, award_type, time_per_student };
         if (id) payload.id = id;
 
         const { error } = await supabaseClient.from('competitions').upsert([payload]);
@@ -6081,12 +6084,12 @@ window.addEventListener('resize', scalePreviewIframe);
 // ==========================================
 // EVENT SCHEDULE ENGINE
 // ==========================================
-let masterSchedule = {};
+let masterSchedule = {}; // <-- THIS WAS MISSING
 
-async function loadSchedules() {
+async function loadSchedules() { // <-- THIS FUNCTION WAS MISSING
     try {
         if (competitionsList.length === 0) await loadCompetitions();
-        if (stagesList.length === 0) await loadStagesAndTeams(); // Ensure stages exist
+        if (stagesList.length === 0) await loadStagesAndTeams(); 
 
         const { data, error } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
         masterSchedule = data?.value || {};
@@ -6108,7 +6111,7 @@ async function loadSchedules() {
 function filterScheduleTable() {
     const search = document.getElementById('searchSchedInput').value.toLowerCase();
     const catId = document.getElementById('filterSchedCat').value;
-    const stageId = document.getElementById('filterSchedStage').value; // NEW
+    const stageId = document.getElementById('filterSchedStage').value; 
     const statusVal = document.getElementById('filterSchedStatus').value;
     
     const tbody = document.getElementById('schedule-tbody');
@@ -6128,12 +6131,12 @@ function filterScheduleTable() {
     scheduledItems.forEach(item => {
         const compCatId = item.comp.category_id;
         const compCatName = item.comp.categories?.name || 'General';
-        const compStageId = item.comp.stage_id; // NEW
-        const compStageName = item.comp.stages?.name || 'TBD'; // NEW
+        const compStageId = item.comp.stage_id; 
+        const compStageName = item.comp.stages?.name || 'TBD'; 
         
         const matchSearch = item.comp.name.toLowerCase().includes(search);
         const matchCat = catId === "" || compCatId == catId;
-        const matchStage = stageId === "" || compStageId == stageId; // NEW
+        const matchStage = stageId === "" || compStageId == stageId; 
         const matchStatus = statusVal === "" || item.sched.status === statusVal;
         
         if (!(matchSearch && matchCat && matchStage && matchStatus)) return;
@@ -6151,9 +6154,10 @@ function filterScheduleTable() {
             <tr>
                 <td style="font-weight: 700;">${item.comp.name}</td>
                 <td>${compCatName}</td>
-                <td>${compStageName}</td> <!-- NEW -->
+                <td>${compStageName}</td>
                 <td style="font-weight: 700; color: var(--primary);">${item.sched.date}</td>
                 <td style="font-weight: 700;">${item.sched.time}</td>
+                <td style="font-weight: 700;">${item.sched.to_time || '-'}</td>
                 <td>${badge}</td>
                 <td>
                     <div style="display: flex; gap: 0.5rem;">
@@ -6167,9 +6171,48 @@ function filterScheduleTable() {
     });
     
     if(tbody.innerHTML === '') {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">No scheduled events found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">No scheduled events found.</td></tr>`;
     }
 }
+
+// NEW: Global Calculator Function
+window.updateScheduleTimeCalc = function() {
+    const compId = document.getElementById('modSchedComp').value;
+    if(!compId) return;
+    const comp = competitionsList.find(c => c.id == compId);
+    
+    const enrolled = comp?.participant_competitions?.[0]?.count || 0;
+    const timePerStudent = comp?.time_per_student || 0;
+    
+    // STRICT OFFSTAGE LOGIC
+    let estTime = 0;
+    if (comp?.is_offstage) {
+        // Offstage events happen simultaneously, so the entered time IS the total time
+        estTime = timePerStudent; 
+    } else {
+        // Onstage events scale with the number of enrolled students
+        estTime = enrolled * timePerStudent; 
+    }
+    
+    document.getElementById('modSchedEstTime').value = estTime;
+    
+    const manualTime = parseInt(document.getElementById('modSchedManualTime').value);
+    const finalTimeToAdd = isNaN(manualTime) || manualTime <= 0 ? estTime : manualTime;
+    
+    const fromTimeStr = document.getElementById('modSchedTime').value;
+    if(fromTimeStr && finalTimeToAdd > 0) {
+        const [hours, minutes] = fromTimeStr.split(':').map(Number);
+        const dateObj = new Date();
+        dateObj.setHours(hours, minutes, 0, 0);
+        dateObj.setMinutes(dateObj.getMinutes() + finalTimeToAdd);
+        
+        const toHours = String(dateObj.getHours()).padStart(2, '0');
+        const toMins = String(dateObj.getMinutes()).padStart(2, '0');
+        document.getElementById('modSchedToTime').value = `${toHours}:${toMins}`;
+    } else {
+        document.getElementById('modSchedToTime').value = '';
+    }
+};
 
 function openScheduleModal(editCompId = null) {
     const isEdit = !!editCompId;
@@ -6186,18 +6229,32 @@ function openScheduleModal(editCompId = null) {
         </div>
         <div class="form-group">
             <label>2. Select Competition</label>
-            <select id="modSchedComp" ${isEdit ? 'disabled' : ''}>
+            <select id="modSchedComp" onchange="window.updateScheduleTimeCalc()" ${isEdit ? 'disabled' : ''}>
                 <option value="">-- CHOOSE CATEGORY FIRST --</option>
             </select>
         </div>
         <div class="grid-2" style="gap: 1rem;">
             <div class="form-group">
-                <label>Date</label>
-                <input type="date" id="modSchedDate" style="text-transform: none;" value="${schedData ? schedData.date : ''}">
+                <label>System Est. Time (Mins)</label>
+                <input type="number" id="modSchedEstTime" disabled style="background: var(--bg-main);">
             </div>
             <div class="form-group">
-                <label>Time</label>
-                <input type="time" id="modSchedTime" style="text-transform: none;" value="${schedData ? schedData.time : ''}">
+                <label>Manual Total Time (Mins)</label>
+                <input type="number" id="modSchedManualTime" oninput="window.updateScheduleTimeCalc()" value="${schedData?.manual_time || ''}">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="modSchedDate" style="text-transform: none;" value="${schedData ? schedData.date : ''}">
+        </div>
+        <div class="grid-2" style="gap: 1rem;">
+            <div class="form-group">
+                <label>From Time</label>
+                <input type="time" id="modSchedTime" style="text-transform: none;" value="${schedData ? schedData.time : ''}" oninput="window.updateScheduleTimeCalc()">
+            </div>
+            <div class="form-group">
+                <label>To Time (Auto-calculated)</label>
+                <input type="time" id="modSchedToTime" style="text-transform: none;" value="${schedData?.to_time || ''}" readonly style="background: var(--bg-main);">
             </div>
         </div>
     `, () => saveSchedule(editCompId));
@@ -6208,6 +6265,7 @@ function openScheduleModal(editCompId = null) {
             document.getElementById('modSchedCat').value = comp.category_id;
             document.getElementById('modSchedComp').innerHTML = `<option value="${comp.id}">${comp.name}</option>`;
             document.getElementById('modSchedComp').value = comp.id;
+            setTimeout(() => window.updateScheduleTimeCalc(), 100);
         }
     }
 }
@@ -6217,13 +6275,16 @@ function loadModSchedComps() {
     const compSelect = document.getElementById('modSchedComp');
     compSelect.innerHTML = '<option value="">-- SELECT COMPETITION --</option>';
     
-    if(!catId) return;
+    if(!catId) {
+        window.updateScheduleTimeCalc();
+        return;
+    }
     
-    // Only show competitions that haven't been scheduled yet
     const eligibleComps = competitionsList.filter(c => c.category_id == catId && !masterSchedule[c.id]);
     eligibleComps.forEach(c => {
         compSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
     });
+    window.updateScheduleTimeCalc();
 }
 
 async function saveSchedule(editCompId) {
@@ -6238,6 +6299,8 @@ async function saveSchedule(editCompId) {
     masterSchedule[compId] = {
         date: date,
         time: time,
+        to_time: document.getElementById('modSchedToTime').value,
+        manual_time: document.getElementById('modSchedManualTime').value,
         status: masterSchedule[compId]?.status || 'draft'
     };
     
@@ -6279,18 +6342,19 @@ async function exportScheduleCSV() {
         if(comp) {
             dataToExport.push({
                 "DATE": masterSchedule[compId].date,
-                "TIME": masterSchedule[compId].time,
+                "TIME (FROM)": masterSchedule[compId].time,
+                "TIME (TO)": masterSchedule[compId].to_time || '-',
                 "COMPETITION": comp.name,
                 "CATEGORY": comp.categories?.name || 'General',
+                "STAGE": comp.stages?.name || 'TBD',
                 "STATUS": masterSchedule[compId].status.toUpperCase()
             });
         }
     });
     
-    // Sort chronologically
     dataToExport.sort((a,b) => {
         if (a.DATE !== b.DATE) return a.DATE.localeCompare(b.DATE);
-        return a.TIME.localeCompare(b.TIME);
+        return a["TIME (FROM)"].localeCompare(b["TIME (FROM)"]);
     });
 
     const blob = new Blob([Papa.unparse(dataToExport)], { type: 'text/csv;charset=utf-8;' });
@@ -6313,7 +6377,6 @@ async function exportSchedulePDF() {
             return { compId, comp, sched: masterSchedule[compId] };
         }).filter(item => item.comp);
         
-        // STRICT SORT: Chronologically by Date, then Time
         scheduledItems.sort((a,b) => {
             if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
             return a.sched.time.localeCompare(b.sched.time);
@@ -6323,6 +6386,7 @@ async function exportSchedulePDF() {
             <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.sched.date}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700;">${item.sched.time}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700;">${item.sched.to_time || '-'}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${item.comp.name}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.comp.categories?.name || 'GEN'}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.comp.stages?.name || 'TBD'}</td>
@@ -6334,7 +6398,8 @@ async function exportSchedulePDF() {
                 <thead>
                     <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;">
                         <th style="padding: 10px;">DATE</th>
-                        <th style="padding: 10px;">TIME</th>
+                        <th style="padding: 10px;">FROM TIME</th>
+                        <th style="padding: 10px;">TO TIME</th>
                         <th style="padding: 10px;">COMPETITION</th>
                         <th style="padding: 10px;">CATEGORY</th>
                         <th style="padding: 10px;">STAGE</th>

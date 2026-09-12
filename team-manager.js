@@ -1242,7 +1242,8 @@ function renderTMSchedule() {
         tbody.innerHTML += `
             <tr>
                 <td data-label="DATE" style="font-weight: 700; color: var(--primary);">${sched.date}</td>
-                <td data-label="TIME" style="font-weight: 700;">${sched.time}</td>
+                <td data-label="FROM TIME" style="font-weight: 700;">${sched.time}</td>
+                <td data-label="TO TIME" style="font-weight: 700;">${sched.to_time || '-'}</td>
                 <td data-label="EVENT NAME" style="font-weight: 800; color: var(--text-main);">${comp.name}</td>
                 <td data-label="CATEGORY"><span class="badge badge-gray">${catName}</span></td>
             </tr>
