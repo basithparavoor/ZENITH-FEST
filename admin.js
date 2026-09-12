@@ -95,6 +95,7 @@ function switchTab(tabId) {
         else if (tabId === 'participant-points') loadParticipantPoints();
         else if (tabId === 'admin-appeals') loadAdminAppeals(); // <--- ADD THIS LINE
         else if (tabId === 'display-control') loadDisplaySettings();
+        else if (tabId === 'schedule-mgmt') loadSchedules();
     } catch (e) {
         showToast("Failed to fetch dashboard data.", "error");
     }
@@ -4320,23 +4321,114 @@ async function loadParticipantPoints() {
     } catch (e) { showToast(e.message, 'error'); }
 }
 
-// UI Switcher
+// VIEW SWITCHER
 function switchPointsView(view) {
+    // Reset all buttons to outline
+    document.getElementById('btn-view-ind').className = 'btn btn-outline';
+    document.getElementById('btn-view-team').className = 'btn btn-outline';
+    document.getElementById('btn-view-star').className = 'btn btn-outline';
+    document.getElementById('btn-view-pen').className = 'btn btn-outline';
+    
+    // Re-apply special colors to outline state for star/pen
+    document.getElementById('btn-view-star').style.color = '#D97706';
+    document.getElementById('btn-view-star').style.borderColor = '#D97706';
+    document.getElementById('btn-view-star').style.background = 'transparent';
+    
+    document.getElementById('btn-view-pen').style.color = '#4338CA';
+    document.getElementById('btn-view-pen').style.borderColor = '#4338CA';
+    document.getElementById('btn-view-pen').style.background = 'transparent';
+
+    // Hide all containers
+    document.getElementById('ind-points-container').style.display = 'none';
+    document.getElementById('team-points-container').style.display = 'none';
+    document.getElementById('special-points-container').style.display = 'none';
+    document.getElementById('ind-filters').style.display = 'none';
+    
+    // Manage Export Button Visibility
+    const exportBtn = document.getElementById('btn-export-points');
+
     if (view === 'individual') {
         document.getElementById('btn-view-ind').className = 'btn btn-primary';
-        document.getElementById('btn-view-team').className = 'btn btn-outline';
         document.getElementById('ind-points-container').style.display = 'block';
-        document.getElementById('team-points-container').style.display = 'none';
         document.getElementById('ind-filters').style.display = 'flex';
-        document.getElementById('btn-export-points').setAttribute('onclick', 'bulkExportPointsPDF()');
-    } else {
-        document.getElementById('btn-view-ind').className = 'btn btn-outline';
+        exportBtn.style.display = 'inline-flex';
+        exportBtn.setAttribute('onclick', 'bulkExportPointsPDF()');
+        
+    } else if (view === 'team') {
         document.getElementById('btn-view-team').className = 'btn btn-primary';
-        document.getElementById('ind-points-container').style.display = 'none';
         document.getElementById('team-points-container').style.display = 'block';
-        document.getElementById('ind-filters').style.display = 'none';
-        document.getElementById('btn-export-points').setAttribute('onclick', 'bulkExportTeamPointsPDF()');
+        exportBtn.style.display = 'inline-flex';
+        exportBtn.setAttribute('onclick', 'bulkExportTeamPointsPDF()');
+        
+    } else if (view === 'star') {
+        const btn = document.getElementById('btn-view-star');
+        btn.className = 'btn'; 
+        btn.style.background = '#D97706';
+        btn.style.color = 'white';
+        
+        document.getElementById('special-points-container').style.display = 'block';
+        exportBtn.style.display = 'none'; // No checkboxes in this view
+        renderSpecialLedger('star');
+        
+    } else if (view === 'pen') {
+        const btn = document.getElementById('btn-view-pen');
+        btn.className = 'btn'; 
+        btn.style.background = '#4338CA';
+        btn.style.color = 'white';
+
+        document.getElementById('special-points-container').style.display = 'block';
+        exportBtn.style.display = 'none'; // No checkboxes in this view
+        renderSpecialLedger('pen');
     }
+}
+
+// SPECIAL AWARD LEDGER RENDERER
+function renderSpecialLedger(type) {
+    const tbody = document.getElementById('special-points-tbody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+
+    // Determine the correct data key based on the button clicked
+    const filterKey = type === 'star' ? 'starPoints' : 'penPoints';
+    
+    // Filter participants who actually have points for this specific award
+    const contenders = pointsDataList.filter(p => p[filterKey] > 0);
+    
+    // Sort by those specific points descending
+    contenders.sort((a, b) => b[filterKey] - a[filterKey]);
+
+    // Update table header text
+    document.getElementById('special-pts-header').innerText = type === 'star' ? 'Star Points' : 'Pen Points';
+
+    if (contenders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">No points awarded yet for this category.</td></tr>`;
+        return;
+    }
+
+    contenders.forEach((p, index) => {
+        let rankBadge = '';
+        if(index === 0) rankBadge = '<i class="fa-solid fa-crown" style="color: #F59E0B; font-size: 1.25rem;"></i>';
+        else if(index === 1) rankBadge = '<i class="fa-solid fa-medal" style="color: #94A3B8; font-size: 1.25rem;"></i>';
+        else if(index === 2) rankBadge = '<i class="fa-solid fa-medal" style="color: #B45309; font-size: 1.25rem;"></i>';
+        else rankBadge = `<span style="font-weight: 800; font-size: 1.1rem; color: var(--text-muted);">#${index + 1}</span>`;
+
+        const pointsColor = type === 'star' ? '#D97706' : '#4338CA';
+        
+        tbody.innerHTML += `
+            <tr>
+                <td style="text-align: center;">${rankBadge}</td>
+                <td>
+                    <strong style="font-size: 1.05rem;">${p.name}</strong><br>
+                    <small style="font-family: monospace; color: var(--text-muted);">${p.unique_id}</small>
+                </td>
+                <td><span class="badge" style="background:var(--bg-main); color:var(--text-main); border: 1px solid var(--border);">${p.teams?.name || 'INDEPENDENT'}</span></td>
+                <td style="font-weight: 900; color: ${pointsColor}; font-size: 1.25rem;">${p[filterKey]}</td>
+                <td>
+                    <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" title="View Detail Breakdown" onclick="viewParticipantPointDetails('${p.id}')"><i class="fa-solid fa-list"></i> View Details</button>
+                </td>
+            </tr>
+        `;
+    });
 }
 
 // Render Team Table
@@ -5961,3 +6053,267 @@ function scalePreviewIframe() {
     }
 }
 window.addEventListener('resize', scalePreviewIframe);
+
+// ==========================================
+// EVENT SCHEDULE ENGINE
+// ==========================================
+let masterSchedule = {};
+
+async function loadSchedules() {
+    try {
+        if (competitionsList.length === 0) await loadCompetitions();
+
+        const { data, error } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
+        masterSchedule = data?.value || {};
+        
+        const filterCat = document.getElementById('filterSchedCat');
+        if(filterCat && filterCat.options.length === 1) {
+            categoriesList.forEach(c => filterCat.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+        }
+        
+        filterScheduleTable();
+    } catch(e) { showToast(e.message, 'error'); }
+}
+
+function filterScheduleTable() {
+    const search = document.getElementById('searchSchedInput').value.toLowerCase();
+    const catId = document.getElementById('filterSchedCat').value;
+    const statusVal = document.getElementById('filterSchedStatus').value;
+    
+    const tbody = document.getElementById('schedule-tbody');
+    tbody.innerHTML = '';
+    
+    let scheduledItems = Object.keys(masterSchedule).map(compId => {
+        const comp = competitionsList.find(c => c.id == compId);
+        return { compId, comp, sched: masterSchedule[compId] };
+    }).filter(item => item.comp); // Only include if comp exists
+    
+    // Sort chronologically
+    scheduledItems.sort((a,b) => {
+        if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
+        return a.sched.time.localeCompare(b.sched.time);
+    });
+
+    scheduledItems.forEach(item => {
+        const compCatId = item.comp.category_id;
+        const compCatName = item.comp.categories?.name || 'General';
+        
+        const matchSearch = item.comp.name.toLowerCase().includes(search);
+        const matchCat = catId === "" || compCatId == catId;
+        const matchStatus = statusVal === "" || item.sched.status === statusVal;
+        
+        if (!(matchSearch && matchCat && matchStatus)) return;
+        
+        const isPub = item.sched.status === 'published';
+        const badge = isPub 
+            ? `<span class="badge" style="background:var(--success-light); color:var(--success);"><i class="fa-solid fa-globe"></i> Published</span>` 
+            : `<span class="badge" style="background:var(--warning-light); color:var(--warning);"><i class="fa-solid fa-lock"></i> Draft</span>`;
+            
+        const actionBtn = isPub
+            ? `<button class="btn btn-outline" style="padding:0.4rem 0.75rem; color:var(--warning); border-color:var(--warning);" onclick="toggleScheduleStatus('${item.compId}', 'draft')" title="Unpublish"><i class="fa-solid fa-eye-slash"></i></button>`
+            : `<button class="btn btn-success" style="padding:0.4rem 0.75rem;" onclick="toggleScheduleStatus('${item.compId}', 'published')" title="Publish Live"><i class="fa-solid fa-upload"></i></button>`;
+
+        tbody.innerHTML += `
+            <tr>
+                <td style="font-weight: 700;">${item.comp.name}</td>
+                <td>${compCatName}</td>
+                <td style="font-weight: 700; color: var(--primary);">${item.sched.date}</td>
+                <td style="font-weight: 700;">${item.sched.time}</td>
+                <td>${badge}</td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem;">
+                        ${actionBtn}
+                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick="openScheduleModal('${item.compId}')" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteSchedule('${item.compId}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    if(tbody.innerHTML === '') {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">No scheduled events found.</td></tr>`;
+    }
+}
+
+function openScheduleModal(editCompId = null) {
+    const isEdit = !!editCompId;
+    const schedData = isEdit ? masterSchedule[editCompId] : null;
+    
+    let catOpts = `<option value="">-- SELECT CATEGORY --</option>` + categoriesList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    
+    openModal(isEdit ? 'Edit Schedule' : 'Schedule Event', `
+        <div class="form-group">
+            <label>1. Select Category</label>
+            <select id="modSchedCat" onchange="loadModSchedComps()" ${isEdit ? 'disabled' : ''}>
+                ${catOpts}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>2. Select Competition</label>
+            <select id="modSchedComp" ${isEdit ? 'disabled' : ''}>
+                <option value="">-- CHOOSE CATEGORY FIRST --</option>
+            </select>
+        </div>
+        <div class="grid-2" style="gap: 1rem;">
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="modSchedDate" style="text-transform: none;" value="${schedData ? schedData.date : ''}">
+            </div>
+            <div class="form-group">
+                <label>Time</label>
+                <input type="time" id="modSchedTime" style="text-transform: none;" value="${schedData ? schedData.time : ''}">
+            </div>
+        </div>
+    `, () => saveSchedule(editCompId));
+    
+    if (isEdit) {
+        const comp = competitionsList.find(c => c.id == editCompId);
+        if (comp) {
+            document.getElementById('modSchedCat').value = comp.category_id;
+            document.getElementById('modSchedComp').innerHTML = `<option value="${comp.id}">${comp.name}</option>`;
+            document.getElementById('modSchedComp').value = comp.id;
+        }
+    }
+}
+
+function loadModSchedComps() {
+    const catId = document.getElementById('modSchedCat').value;
+    const compSelect = document.getElementById('modSchedComp');
+    compSelect.innerHTML = '<option value="">-- SELECT COMPETITION --</option>';
+    
+    if(!catId) return;
+    
+    // Only show competitions that haven't been scheduled yet
+    const eligibleComps = competitionsList.filter(c => c.category_id == catId && !masterSchedule[c.id]);
+    eligibleComps.forEach(c => {
+        compSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+    });
+}
+
+async function saveSchedule(editCompId) {
+    const compId = editCompId || document.getElementById('modSchedComp').value;
+    const date = document.getElementById('modSchedDate').value;
+    const time = document.getElementById('modSchedTime').value;
+    
+    if(!compId || !date || !time) return showToast("All fields are required", "error");
+    
+    setLoading('modalSaveBtn', true);
+    
+    masterSchedule[compId] = {
+        date: date,
+        time: time,
+        status: masterSchedule[compId]?.status || 'draft'
+    };
+    
+    try {
+        const { error } = await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+        if (error) throw error;
+        showToast("Schedule Saved!");
+        closeModal();
+        filterScheduleTable();
+    } catch(e) { showToast(e.message, 'error'); }
+    finally { setLoading('modalSaveBtn', false); }
+}
+
+async function toggleScheduleStatus(compId, newStatus) {
+    masterSchedule[compId].status = newStatus;
+    try {
+        const { error } = await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+        if (error) throw error;
+        showToast(`Schedule ${newStatus}!`);
+        filterScheduleTable();
+    } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function deleteSchedule(compId) {
+    if(!confirm("Remove this event from the schedule?")) return;
+    delete masterSchedule[compId];
+    try {
+        const { error } = await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+        if (error) throw error;
+        showToast(`Schedule deleted.`);
+        filterScheduleTable();
+    } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function exportScheduleCSV() {
+    let dataToExport = [];
+    Object.keys(masterSchedule).forEach(compId => {
+        const comp = competitionsList.find(c => c.id == compId);
+        if(comp) {
+            dataToExport.push({
+                "DATE": masterSchedule[compId].date,
+                "TIME": masterSchedule[compId].time,
+                "COMPETITION": comp.name,
+                "CATEGORY": comp.categories?.name || 'General',
+                "STATUS": masterSchedule[compId].status.toUpperCase()
+            });
+        }
+    });
+    
+    // Sort chronologically
+    dataToExport.sort((a,b) => {
+        if (a.DATE !== b.DATE) return a.DATE.localeCompare(b.DATE);
+        return a.TIME.localeCompare(b.TIME);
+    });
+
+    const blob = new Blob([Papa.unparse(dataToExport)], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a"); 
+    link.href = URL.createObjectURL(blob); 
+    link.setAttribute("download", `FestOS_Schedule.csv`);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+}
+
+async function exportSchedulePDF() {
+    showToast('Generating Schedule PDF...', 'success');
+    try {
+        const container = document.createElement('div');
+        container.style.padding = '40px';
+        container.style.fontFamily = 'Inter, sans-serif';
+        container.innerHTML = getPDFHeaderHTML('Master Event Schedule');
+
+        let scheduledItems = Object.keys(masterSchedule).map(compId => {
+            const comp = competitionsList.find(c => c.id == compId);
+            return { compId, comp, sched: masterSchedule[compId] };
+        }).filter(item => item.comp);
+        
+        scheduledItems.sort((a,b) => {
+            if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
+            return a.sched.time.localeCompare(b.sched.time);
+        });
+
+        let tableRows = scheduledItems.map((item, index) => `
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.sched.date}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700;">${item.sched.time}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${item.comp.name}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.comp.categories?.name || 'GEN'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.sched.status.toUpperCase()}</td>
+            </tr>
+        `).join('');
+
+        container.innerHTML += `
+            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
+                <thead>
+                    <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;">
+                        <th style="padding: 10px;">DATE</th>
+                        <th style="padding: 10px;">TIME</th>
+                        <th style="padding: 10px;">COMPETITION</th>
+                        <th style="padding: 10px;">CATEGORY</th>
+                        <th style="padding: 10px;">STATUS</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size: 12px; color: #334155;">
+                    ${tableRows}
+                </tbody>
+            </table>
+        `;
+
+        const opt = { 
+            margin: 10, filename: `FestOS_Master_Schedule.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
+            html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+        };
+        html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+    } catch (e) { showToast(e.message, 'error'); }
+}

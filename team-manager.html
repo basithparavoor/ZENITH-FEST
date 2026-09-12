@@ -338,6 +338,7 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
             <button class="menu-toggle" style="margin: 0; border-radius: 50%; width: 44px; height: 44px; background: var(--bg-main);" onclick="toggleMobileMenu()"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="nav-item" onclick="switchTab('competitions'); toggleMobileMenu();"><i class="fa-solid fa-satellite-dish"></i> TRACKING</div>
+        <div class="nav-item" onclick="switchTab('schedule'); toggleMobileMenu();"><i class="fa-solid fa-calendar-days"></i> SCHEDULE</div>
         <div class="nav-item" onclick="switchTab('appeals'); toggleMobileMenu();"><i class="fa-solid fa-scale-balanced"></i> GRIEVANCES</div>
         <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
             <div class="nav-item" onclick="openScanModal(); toggleMobileMenu();"><i class="fa-solid fa-qrcode"></i> SCAN PORTAL</div>
@@ -350,6 +351,7 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
         <div class="nav-item active" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i> <span class="nav-label">DASHBOARD</span></div>
         <div class="nav-item" onclick="switchTab('my-team')"><i class="fa-solid fa-users"></i> <span class="nav-label">DIRECTORY</span></div>
         <div class="nav-item" onclick="switchTab('event-catalog')"><i class="fa-solid fa-book-open"></i> <span class="nav-label">CATALOG</span></div>
+        <div class="nav-item" onclick="switchTab('schedule')"><i class="fa-solid fa-calendar-days"></i> <span class="nav-label">SCHEDULE</span></div>
         <div class="nav-item desktop-only" onclick="switchTab('competitions')"><i class="fa-solid fa-satellite-dish"></i> <span class="nav-label">TRACKING</span></div>
         <div class="nav-item" onclick="switchTab('assignments')"><i class="fa-solid fa-clipboard-check"></i> <span class="nav-label">ASSIGN</span></div>
         <div class="nav-item desktop-only" onclick="switchTab('appeals')" style="border:none; background:transparent; width:100%; text-align:left;"><i class="fa-solid fa-scale-balanced"></i> <span class="nav-label">GRIEVANCES</span></div>
@@ -505,6 +507,30 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
                 <table>
                     <thead><tr><th>EVENT NAME</th><th>CATEGORY</th><th>STAGE</th><th>STATUS</th><th>OUR ENROLLED</th></tr></thead>
                     <tbody id="competitions-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="schedule" class="content-section">
+            <h2 style="margin-bottom: 0.5rem;">EVENT SCHEDULE</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 600;">VIEW TIMINGS AND DATES FOR PUBLISHED COMPETITIONS.</p>
+            
+            <div class="controls-bar">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="search-schedule" placeholder="SEARCH SCHEDULE..." onkeyup="renderTMSchedule()">
+                </div>
+                <div class="filter-box">
+                    <select id="filter-schedule-cat" onchange="renderTMSchedule()">
+                        <option value="all">ALL CATEGORIES</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>DATE</th><th>TIME</th><th>EVENT NAME</th><th>CATEGORY</th></tr></thead>
+                    <tbody id="tm-schedule-tbody"></tbody>
                 </table>
             </div>
         </div>

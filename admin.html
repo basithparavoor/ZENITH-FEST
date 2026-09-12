@@ -246,6 +246,7 @@ tr:hover td { background: var(--bg-main); }
         <div class="nav-item" onclick="switchTab('point-settings')"><i class="fa-solid fa-sliders"></i> Point System</div>
         <div class="nav-item" onclick="switchTab('branding-settings')"><i class="fa-solid fa-palette"></i> Branding & UI</div>
 <div class="nav-item" onclick="switchTab('display-control')"><i class="fa-solid fa-tv"></i> Display Control</div>
+<div class="nav-item" onclick="switchTab('schedule-mgmt')"><i class="fa-solid fa-calendar-days"></i> Event Schedule</div>
 
         <div id="master-admin-portals" style="display: none; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
             <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; padding-left: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Cross-Portal Access</div>
@@ -1176,6 +1177,55 @@ tr:hover td { background: var(--bg-main); }
         </div>
     </div>
 </div>
+
+<div id="schedule-mgmt" class="content-section">
+            <div class="action-bar">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Event Schedule</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Plan event timings and publish schedules to Team Managers.</p>
+                </div>
+                <div class="bulk-actions" style="flex-wrap: wrap; gap: 0.5rem;">
+                    <button class="btn btn-primary" onclick="openScheduleModal()"><i class="fa-solid fa-plus"></i> Schedule Event</button>
+                    <button class="btn btn-outline" onclick="exportSchedulePDF()"><i class="fa-solid fa-file-pdf"></i> Export PDF</button>
+                    <button class="btn btn-outline" onclick="exportScheduleCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+                </div>
+            </div>
+            
+            <div class="controls-bar">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="searchSchedInput" placeholder="Search scheduled events..." onkeyup="filterScheduleTable()">
+                </div>
+                <div class="filter-box">
+                    <select id="filterSchedCat" onchange="filterScheduleTable()">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+                <div class="filter-box">
+                    <select id="filterSchedStatus" onchange="filterScheduleTable()">
+                        <option value="">All Statuses</option>
+                        <option value="draft">Draft (Hidden)</option>
+                        <option value="published">Published (Visible)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Competition</th>
+                            <th>Category</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-tbody"></tbody>
+                </table>
+            </div>
+        </div>
 
     </div> <!-- THIS PROPERLY CLOSES .main-content -->
 

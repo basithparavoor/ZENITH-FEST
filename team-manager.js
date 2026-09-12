@@ -16,7 +16,8 @@ let globalComps = [];
 let globalAssignments = [];
 let globalCategories = []; 
 let currentCropper = null;
-let systemSettings = {}; // ADD THIS LINE
+let systemSettings = {}; 
+let tmScheduleData = {};
 
 // UI Utils
 function showToast(message, type = 'success') {
@@ -75,9 +76,10 @@ function switchTab(tabId) {
     });
 
     if (tabId === 'appeals') loadAppeals();
-    
-    // UPDATED: Now calls the category populator instead
     if (tabId === 'assignments') populateBulkAssignCategoryDropdown();
+    // ADD THIS NEW ROUTE:
+    if (tabId === 'schedule') { populateSchedCatFilter(); renderTMSchedule(); }
+
     
     const mainContent = document.querySelector('.main-content');
     if(mainContent) mainContent.scrollTop = 0;
@@ -149,6 +151,9 @@ async function refreshDashboard(btnElement) {
 
 async function fetchAllData() {
     try {
+        const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
+        tmScheduleData = schedData?.value || {};
+
         const { data: cats } = await supabaseClient.from('categories').select('*');
         globalCategories = cats || [];
 
@@ -1182,3 +1187,65 @@ function openAppealModal() {
 
 // Boot
 document.addEventListener('DOMContentLoaded', initDashboard);
+
+// ==========================================
+// TM SCHEDULE VIEWER
+// ==========================================
+function populateSchedCatFilter() {
+    const filter = document.getElementById('filter-schedule-cat');
+    if(!filter || filter.options.length > 1) return;
+    
+    const catSet = new Set();
+    globalComps.forEach(c => {
+        if(tmScheduleData[c.id] && tmScheduleData[c.id].status === 'published') {
+            catSet.add({ id: c.category_id, name: c.categories?.name || 'UNCATEGORIZED' });
+        }
+    });
+    
+    const uniqueArray = Array.from(new Set(Array.from(catSet).map(JSON.stringify))).map(JSON.parse);
+    uniqueArray.forEach(cat => filter.innerHTML += `<option value="${cat.id}">${cat.name}</option>`);
+}
+
+function renderTMSchedule() {
+    const search = document.getElementById('search-schedule').value.toLowerCase();
+    const catFilter = document.getElementById('filter-schedule-cat').value;
+    const tbody = document.getElementById('tm-schedule-tbody');
+    tbody.innerHTML = '';
+
+    const scheduledComps = globalComps.filter(c => {
+        const sched = tmScheduleData[c.id];
+        if (!sched || sched.status !== 'published') return false;
+        
+        const catName = c.categories?.name || 'UNCATEGORIZED';
+        if (catFilter !== 'all' && c.category_id != catFilter) return false;
+        if (search && !c.name.toLowerCase().includes(search) && !catName.toLowerCase().includes(search)) return false;
+        
+        return true;
+    });
+
+    scheduledComps.sort((a,b) => {
+        const sA = tmScheduleData[a.id];
+        const sB = tmScheduleData[b.id];
+        if (sA.date !== sB.date) return sA.date.localeCompare(sB.date);
+        return sA.time.localeCompare(sB.time);
+    });
+
+    if(scheduledComps.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted);">NO PUBLISHED SCHEDULES FOUND.</td></tr>`;
+        return;
+    }
+
+    scheduledComps.forEach(comp => {
+        const sched = tmScheduleData[comp.id];
+        const catName = comp.categories?.name || 'UNCATEGORIZED';
+        
+        tbody.innerHTML += `
+            <tr>
+                <td data-label="DATE" style="font-weight: 700; color: var(--primary);">${sched.date}</td>
+                <td data-label="TIME" style="font-weight: 700;">${sched.time}</td>
+                <td data-label="EVENT NAME" style="font-weight: 800; color: var(--text-main);">${comp.name}</td>
+                <td data-label="CATEGORY"><span class="badge badge-gray">${catName}</span></td>
+            </tr>
+        `;
+    });
+}
