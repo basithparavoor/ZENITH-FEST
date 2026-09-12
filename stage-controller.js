@@ -315,7 +315,8 @@ async function openScannerModal(compId, compName) {
     
     currentPresentCount = count || 0;
 
-    html5QrcodeScanner = new Html5QrcodeScanner("global-reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+    // Removed qrbox to scan full-frame and boosted fps to 20 for instant reads
+    html5QrcodeScanner = new Html5QrcodeScanner("global-reader", { fps: 20 }, false);
     html5QrcodeScanner.render(onScanSuccess, onScanFailure);
 }
 
