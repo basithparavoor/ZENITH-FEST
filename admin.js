@@ -5834,7 +5834,7 @@ function getPDFHeaderHTML(reportTitle) {
     `;
 }
 // ============================================================================
-// SPECTATOR DISPLAY CONTROL ENGINE
+// SPECTATOR DISPLAY CONTROL ENGINE (PRO ADVANCED)
 // ============================================================================
 
 let globalCustomSlides = [];
@@ -5849,11 +5849,18 @@ async function loadDisplaySettings() {
             if(document.getElementById('disp-duration')) document.getElementById('disp-duration').value = v.slide_duration || 12;
             if(document.getElementById('disp-color')) document.getElementById('disp-color').value = v.primary_color || '#4F46E5';
             if(document.getElementById('disp-font')) document.getElementById('disp-font').value = v.font_family || 'Plus Jakarta Sans';
+            if(document.getElementById('disp-transition')) document.getElementById('disp-transition').value = v.transition || 'fade';
+            if(document.getElementById('disp-global-ticker')) document.getElementById('disp-global-ticker').value = v.global_ticker || '';
             
             const qrCheck = document.getElementById('disp-show-qr');
-            if (qrCheck) { qrCheck.checked = v.show_qr !== false; qrCheck.dispatchEvent(new Event('change')); }
+            if (qrCheck) qrCheck.checked = v.show_qr !== false;
             
-            // Load custom slides array
+            const leaderboardCheck = document.getElementById('disp-show-leaderboard');
+            if (leaderboardCheck) leaderboardCheck.checked = v.show_leaderboard !== false;
+            
+            const scheduleCheck = document.getElementById('disp-show-schedule');
+            if (scheduleCheck) scheduleCheck.checked = v.show_schedule !== false;
+            
             globalCustomSlides = v.custom_slides || [];
         }
         renderCustomSlidesList();
@@ -5862,40 +5869,70 @@ async function loadDisplaySettings() {
 }
 
 async function saveDisplaySettings(silent = false) {
-    if(!silent) setLoading('display-control .btn-primary', true);
+    if(!silent) setLoading('btnSaveDisplaySettings', true);
     
-    // Fetch current state to avoid overwriting trigger_confetti
+    // Fetch current state to preserve any active live triggers so they don't break during a normal save
     const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
-    let trigger_confetti = data && data.value ? data.value.trigger_confetti : 0;
+    let currentSettings = data?.value || {};
 
     const payload = {
         slide_duration: parseInt(document.getElementById('disp-duration').value) || 12,
         primary_color: document.getElementById('disp-color').value || '#4F46E5',
         font_family: document.getElementById('disp-font').value || 'Plus Jakarta Sans',
+        transition: document.getElementById('disp-transition').value || 'fade',
+        global_ticker: document.getElementById('disp-global-ticker').value || '',
         show_qr: document.getElementById('disp-show-qr').checked,
+        show_leaderboard: document.getElementById('disp-show-leaderboard').checked,
+        show_schedule: document.getElementById('disp-show-schedule').checked,
         custom_slides: globalCustomSlides,
-        trigger_confetti: trigger_confetti
+        live_action: currentSettings.live_action || null 
     };
     
     try {
         const { error } = await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
         if (error) throw error;
         
-        if(!silent) showToast("Display Settings Saved & Synced!");
+        if(!silent) showToast("Display Engine Synced Successfully!", "success");
         
+        // Refresh preview iframe
         const iframe = document.getElementById('display-preview-frame');
         if(iframe) iframe.src = iframe.src; 
 
     } catch(e) {
         if(!silent) showToast(e.message, 'error');
     } finally {
-        if(!silent) setLoading('display-control .btn-primary', false);
+        if(!silent) setLoading('btnSaveDisplaySettings', false);
+    }
+}
+
+// ADVANCED LIVE TRIGGER SYSTEM
+async function triggerDisplayAction(actionType) {
+    try {
+        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+        let payload = data?.value || {};
+        
+        let actionData = { type: actionType, timestamp: Date.now() };
+
+        if (actionType === 'flash_alert') {
+            const text = document.getElementById('flashAlertText').value;
+            if (!text) return showToast("Please enter an alert message.", "error");
+            actionData.message = text;
+            document.getElementById('flashAlertText').value = ''; // clear field after sending
+        }
+
+        payload.live_action = actionData;
+        
+        await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
+        showToast(`Live Action (${actionType.toUpperCase()}) Broadcasted!`, "success");
+    } catch(e) {
+        showToast("Failed to trigger live action.", "error");
     }
 }
 
 // --- CUSTOM SLIDES CRUD ---
 function renderCustomSlidesList() {
     const container = document.getElementById('custom-slides-list');
+    if(!container) return;
     container.innerHTML = '';
     
     if (globalCustomSlides.length === 0) {
@@ -6002,7 +6039,6 @@ async function saveCustomSlide() {
     try {
         let finalBgUrl = pendingCSImagePreview;
 
-        // If it's a completely new file, upload it to the 'elements' bucket
         if (pendingCSFile) {
             const fileExt = pendingCSFile.name.split('.').pop();
             const fileName = `slide_bg_${Date.now()}.${fileExt}`;
@@ -6028,14 +6064,13 @@ async function saveCustomSlide() {
 
         const existingIndex = globalCustomSlides.findIndex(s => s.id === id);
         if (existingIndex >= 0) {
-            // Keep enabled status if editing
             slideObj.enabled = globalCustomSlides[existingIndex].enabled;
             globalCustomSlides[existingIndex] = slideObj;
         } else {
             globalCustomSlides.push(slideObj);
         }
 
-        await saveDisplaySettings(false); // Saves to DB and syncs preview
+        await saveDisplaySettings(false); 
         document.getElementById('customSlideModal').classList.remove('show');
 
     } catch(e) {
@@ -6047,7 +6082,7 @@ async function saveCustomSlide() {
 
 async function toggleCustomSlide(index, isEnabled) {
     globalCustomSlides[index].enabled = isEnabled;
-    await saveDisplaySettings(true); // silent sync
+    await saveDisplaySettings(true); 
 }
 
 async function deleteCustomSlide(index) {
@@ -6056,18 +6091,7 @@ async function deleteCustomSlide(index) {
     await saveDisplaySettings(false);
 }
 
-async function triggerManualConfetti() {
-    try {
-        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
-        let payload = data?.value || { slide_duration: 12, show_qr: true };
-        payload.trigger_confetti = Date.now(); // Forces all listening displays to trigger
-        await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
-        showToast("Celebration triggered on live displays!", "success");
-    } catch(e) {
-        showToast("Failed to trigger animation.", "error");
-    }
-}
-
+// Maintains proper 16:9 ratio for the preview iframe
 function scalePreviewIframe() {
     const iframe = document.getElementById('display-preview-frame');
     if (iframe && iframe.parentElement) {
