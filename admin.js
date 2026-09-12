@@ -6220,15 +6220,27 @@ function openScheduleModal(editCompId = null) {
     
     let catOpts = `<option value="">-- SELECT CATEGORY --</option>` + categoriesList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     
+    // NEW: Generate Stage Options
+    let stageOpts = `<option value="">-- ALL STAGES --</option>` + stagesList.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    
     openModal(isEdit ? 'Edit Schedule' : 'Schedule Event', `
-        <div class="form-group">
-            <label>1. Select Category</label>
-            <select id="modSchedCat" onchange="loadModSchedComps()" ${isEdit ? 'disabled' : ''}>
-                ${catOpts}
-            </select>
+        <div class="grid-2" style="gap: 1rem;">
+            <div class="form-group">
+                <label>1. Select Category</label>
+                <select id="modSchedCat" onchange="loadModSchedComps()" ${isEdit ? 'disabled' : ''}>
+                    ${catOpts}
+                </select>
+            </div>
+            <!-- NEW: Stage Dropdown -->
+            <div class="form-group">
+                <label>2. Select Stage</label>
+                <select id="modSchedStage" onchange="loadModSchedComps()" ${isEdit ? 'disabled' : ''}>
+                    ${stageOpts}
+                </select>
+            </div>
         </div>
         <div class="form-group">
-            <label>2. Select Competition</label>
+            <label>3. Select Competition</label>
             <select id="modSchedComp" onchange="window.updateScheduleTimeCalc()" ${isEdit ? 'disabled' : ''}>
                 <option value="">-- CHOOSE CATEGORY FIRST --</option>
             </select>
@@ -6263,6 +6275,12 @@ function openScheduleModal(editCompId = null) {
         const comp = competitionsList.find(c => c.id == editCompId);
         if (comp) {
             document.getElementById('modSchedCat').value = comp.category_id;
+            
+            // NEW: Pre-select the stage if editing
+            if (document.getElementById('modSchedStage') && comp.stage_id) {
+                document.getElementById('modSchedStage').value = comp.stage_id;
+            }
+            
             document.getElementById('modSchedComp').innerHTML = `<option value="${comp.id}">${comp.name}</option>`;
             document.getElementById('modSchedComp').value = comp.id;
             setTimeout(() => window.updateScheduleTimeCalc(), 100);
@@ -6272,7 +6290,9 @@ function openScheduleModal(editCompId = null) {
 
 function loadModSchedComps() {
     const catId = document.getElementById('modSchedCat').value;
+    const stageId = document.getElementById('modSchedStage')?.value; // NEW: Grab stage value
     const compSelect = document.getElementById('modSchedComp');
+    
     compSelect.innerHTML = '<option value="">-- SELECT COMPETITION --</option>';
     
     if(!catId) {
@@ -6280,13 +6300,20 @@ function loadModSchedComps() {
         return;
     }
     
-    const eligibleComps = competitionsList.filter(c => c.category_id == catId && !masterSchedule[c.id]);
+    // Filter by Category and exclude already scheduled competitions
+    let eligibleComps = competitionsList.filter(c => c.category_id == catId && !masterSchedule[c.id]);
+    
+    // NEW: Further filter by Stage if a stage is selected in the dropdown
+    if (stageId) {
+        eligibleComps = eligibleComps.filter(c => String(c.stage_id) === String(stageId));
+    }
+    
     eligibleComps.forEach(c => {
         compSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
     });
+    
     window.updateScheduleTimeCalc();
 }
-
 async function saveSchedule(editCompId) {
     const compId = editCompId || document.getElementById('modSchedComp').value;
     const date = document.getElementById('modSchedDate').value;
