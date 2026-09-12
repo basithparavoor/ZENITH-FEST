@@ -449,25 +449,31 @@ function changeCompPage(direction) {
 }
 
 // Generates a Premium PDF Directory for Competitions
+// Generates a Premium PDF Directory for Competitions
 async function exportCompetitionsPDF() {
     showToast('Generating Competitions PDF...', 'success');
     try {
         const container = document.createElement('div');
         container.style.padding = '40px';
         container.style.fontFamily = 'Inter, sans-serif';
-       container.innerHTML = getPDFHeaderHTML('Competitions Directory');
+        container.innerHTML = getPDFHeaderHTML('Competitions Directory');
 
         // Map over the filtered list to respect any current search criteria
-        let tableRows = filteredCompetitionsList.map((comp, index) => `
+        let tableRows = filteredCompetitionsList.map((comp, index) => {
+            // Extract the total enrolled participant count
+            const studentCount = comp.participant_competitions?.[0]?.count || 0;
+            
+            return `
             <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${index + 1}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${comp.name}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${comp.categories?.name || 'N/A'}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${comp.stages?.name || 'Unassigned'}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${comp.max_mark || '0'}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${comp.max_participants || '0'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700;">${studentCount}</td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
 
         container.innerHTML += `
             <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
@@ -478,7 +484,7 @@ async function exportCompetitionsPDF() {
                         <th style="padding: 10px;">CATEGORY</th>
                         <th style="padding: 10px;">STAGE</th>
                         <th style="padding: 10px;">MAX MARKS</th>
-                        <th style="padding: 10px;">LIMIT</th>
+                        <th style="padding: 10px;">ENROLLED</th>
                     </tr>
                 </thead>
                 <tbody style="font-size: 12px; color: #334155;">
@@ -2413,43 +2419,60 @@ async function exportAssignmentsCSV() {
 }
 
 // Generate a Branded Premium PDF Document
+// Generate a Branded Premium PDF Document
 async function exportAssignmentsPDF() {
     showToast('Generating Premium PDF...', 'success');
     try {
+        // Updated query to fetch both student category and competition category
         const { data, error } = await supabaseClient
             .from('participant_competitions')
-            .select(`participants(name, unique_id, teams(name)), competitions(name, categories(name))`)
+            .select(`participants(name, unique_id, teams(name), categories(name)), competitions(name, categories(name))`)
             .order('competition_id');
             
         if(error) throw error;
 
-        // Group data by Competition for a clean layout
+        // Group data by Competition and its Category for a clean layout
         const grouped = {};
         (data || []).forEach(row => {
-            const compName = row.competitions?.name || 'Unknown';
-            if(!grouped[compName]) grouped[compName] = [];
-            grouped[compName].push(row.participants);
+            const compName = row.competitions?.name || 'Unknown Competition';
+            const compCat = row.competitions?.categories?.name || 'General Category';
+            const key = `${compName}_${compCat}`; // Composite key to keep them distinct
+            
+            if(!grouped[key]) {
+                grouped[key] = {
+                    name: compName,
+                    category: compCat,
+                    students: []
+                };
+            }
+            grouped[key].students.push(row.participants);
         });
 
         const container = document.createElement('div');
         container.style.padding = '40px';
         container.style.fontFamily = 'Inter, sans-serif';
-       container.innerHTML = getPDFHeaderHTML('Master Assignment Ledger');
+        container.innerHTML = getPDFHeaderHTML('Master Assignment Ledger');
 
-        for (const [comp, students] of Object.entries(grouped)) {
-            let tableRows = students.map((s, index) => `
+        for (const key in grouped) {
+            const compData = grouped[key];
+            
+            // Added Student Category to the rows
+            let tableRows = compData.students.map((s, index) => `
                 <tr>
                     <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${index + 1}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-family: monospace;">${s?.unique_id}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${s?.name}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-family: monospace;">${s?.unique_id || 'N/A'}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${s?.name || 'UNKNOWN'}</td>
                     <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${s?.teams?.name || 'INDEPENDENT'}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${s?.categories?.name || 'N/A'}</td>
                 </tr>
             `).join('');
 
+            // Added Competition Category to Header & Student Category to Table Head
             container.innerHTML += `
                 <div style="margin-bottom: 30px; page-break-inside: avoid;">
                     <h3 style="background: #1E293B; color: white; padding: 12px; border-radius: 8px 8px 0 0; margin: 0; font-size: 14px; text-transform: uppercase;">
-                        ${comp} <span style="float:right; font-weight: normal; font-size: 12px;">${students.length} ENROLLED</span>
+                        ${compData.name} <span style="font-size: 11px; color: #94A3B8; margin-left: 8px; font-weight: 600;">(${compData.category})</span>
+                        <span style="float:right; font-weight: normal; font-size: 12px;">${compData.students.length} ENROLLED</span>
                     </h3>
                     <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; border-top: none;">
                         <thead>
@@ -2458,6 +2481,7 @@ async function exportAssignmentsPDF() {
                                 <th style="padding: 10px;">ID</th>
                                 <th style="padding: 10px;">NAME</th>
                                 <th style="padding: 10px;">TEAM</th>
+                                <th style="padding: 10px;">STUDENT CATEGORY</th>
                             </tr>
                         </thead>
                         <tbody style="font-size: 12px; color: #334155;">
@@ -6062,6 +6086,7 @@ let masterSchedule = {};
 async function loadSchedules() {
     try {
         if (competitionsList.length === 0) await loadCompetitions();
+        if (stagesList.length === 0) await loadStagesAndTeams(); // Ensure stages exist
 
         const { data, error } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
         masterSchedule = data?.value || {};
@@ -6069,6 +6094,11 @@ async function loadSchedules() {
         const filterCat = document.getElementById('filterSchedCat');
         if(filterCat && filterCat.options.length === 1) {
             categoriesList.forEach(c => filterCat.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+        }
+
+        const filterStage = document.getElementById('filterSchedStage');
+        if(filterStage && filterStage.options.length === 1) {
+            stagesList.forEach(s => filterStage.innerHTML += `<option value="${s.id}">${s.name}</option>`);
         }
         
         filterScheduleTable();
@@ -6078,6 +6108,7 @@ async function loadSchedules() {
 function filterScheduleTable() {
     const search = document.getElementById('searchSchedInput').value.toLowerCase();
     const catId = document.getElementById('filterSchedCat').value;
+    const stageId = document.getElementById('filterSchedStage').value; // NEW
     const statusVal = document.getElementById('filterSchedStatus').value;
     
     const tbody = document.getElementById('schedule-tbody');
@@ -6086,9 +6117,9 @@ function filterScheduleTable() {
     let scheduledItems = Object.keys(masterSchedule).map(compId => {
         const comp = competitionsList.find(c => c.id == compId);
         return { compId, comp, sched: masterSchedule[compId] };
-    }).filter(item => item.comp); // Only include if comp exists
+    }).filter(item => item.comp); 
     
-    // Sort chronologically
+    // STRICT SORT: Chronologically by Date, then Time
     scheduledItems.sort((a,b) => {
         if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
         return a.sched.time.localeCompare(b.sched.time);
@@ -6097,12 +6128,15 @@ function filterScheduleTable() {
     scheduledItems.forEach(item => {
         const compCatId = item.comp.category_id;
         const compCatName = item.comp.categories?.name || 'General';
+        const compStageId = item.comp.stage_id; // NEW
+        const compStageName = item.comp.stages?.name || 'TBD'; // NEW
         
         const matchSearch = item.comp.name.toLowerCase().includes(search);
         const matchCat = catId === "" || compCatId == catId;
+        const matchStage = stageId === "" || compStageId == stageId; // NEW
         const matchStatus = statusVal === "" || item.sched.status === statusVal;
         
-        if (!(matchSearch && matchCat && matchStatus)) return;
+        if (!(matchSearch && matchCat && matchStage && matchStatus)) return;
         
         const isPub = item.sched.status === 'published';
         const badge = isPub 
@@ -6117,6 +6151,7 @@ function filterScheduleTable() {
             <tr>
                 <td style="font-weight: 700;">${item.comp.name}</td>
                 <td>${compCatName}</td>
+                <td>${compStageName}</td> <!-- NEW -->
                 <td style="font-weight: 700; color: var(--primary);">${item.sched.date}</td>
                 <td style="font-weight: 700;">${item.sched.time}</td>
                 <td>${badge}</td>
@@ -6132,7 +6167,7 @@ function filterScheduleTable() {
     });
     
     if(tbody.innerHTML === '') {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">No scheduled events found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">No scheduled events found.</td></tr>`;
     }
 }
 
@@ -6278,6 +6313,7 @@ async function exportSchedulePDF() {
             return { compId, comp, sched: masterSchedule[compId] };
         }).filter(item => item.comp);
         
+        // STRICT SORT: Chronologically by Date, then Time
         scheduledItems.sort((a,b) => {
             if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
             return a.sched.time.localeCompare(b.sched.time);
@@ -6289,7 +6325,7 @@ async function exportSchedulePDF() {
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700;">${item.sched.time}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${item.comp.name}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.comp.categories?.name || 'GEN'}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.sched.status.toUpperCase()}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.comp.stages?.name || 'TBD'}</td>
             </tr>
         `).join('');
 
@@ -6301,7 +6337,7 @@ async function exportSchedulePDF() {
                         <th style="padding: 10px;">TIME</th>
                         <th style="padding: 10px;">COMPETITION</th>
                         <th style="padding: 10px;">CATEGORY</th>
-                        <th style="padding: 10px;">STATUS</th>
+                        <th style="padding: 10px;">STAGE</th>
                     </tr>
                 </thead>
                 <tbody style="font-size: 12px; color: #334155;">

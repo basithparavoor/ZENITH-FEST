@@ -1201,6 +1201,12 @@ tr:hover td { background: var(--bg-main); }
                         <option value="">All Categories</option>
                     </select>
                 </div>
+                <!-- NEW: Stage Filter -->
+                <div class="filter-box">
+                    <select id="filterSchedStage" onchange="filterScheduleTable()">
+                        <option value="">All Stages</option>
+                    </select>
+                </div>
                 <div class="filter-box">
                     <select id="filterSchedStatus" onchange="filterScheduleTable()">
                         <option value="">All Statuses</option>
@@ -1216,6 +1222,7 @@ tr:hover td { background: var(--bg-main); }
                         <tr>
                             <th>Competition</th>
                             <th>Category</th>
+                            <th>Stage</th> <!-- NEW: Stage Column -->
                             <th>Date</th>
                             <th>Time</th>
                             <th>Status</th>
