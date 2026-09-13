@@ -484,17 +484,17 @@ async function fetchData() {
                 publishedComps = pubData || [];
                 
                 // 4. Fetch Judgements to determine Judges
-                const allCompIds = [...(activeComps || []), ...publishedComps].map(c => c.id);
-                let globalJudgements = [];
-                
-                if (allCompIds.length > 0) {
-                    const { data: judgements } = await supabaseClient
-                        .from('judgements')
-                        .select(`competition_id, awarded_mark, participants(id, name, team_id, unique_id), users(username)`)
-                        .in('competition_id', allCompIds)
-                        .not('participant_id', 'is', null);
-                    globalJudgements = judgements || [];
-                }
+const allCompIds = [...(activeComps || []), ...publishedComps].map(c => c.id);
+let globalJudgements = [];
+
+if (allCompIds.length > 0) {
+    const { data: judgements } = await supabaseClient
+        .from('judgements')
+        .select(`competition_id, awarded_mark, participants(id, name, team_id, unique_id), users(username)`)
+        .in('competition_id', allCompIds); // <-- Removed the .not() filter here
+
+    globalJudgements = judgements || [];
+}
 
                 // Group judges per competition
                 const compJudges = {};
