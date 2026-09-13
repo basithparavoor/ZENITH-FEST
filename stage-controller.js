@@ -481,7 +481,7 @@ async function loadCheckedInList(compId) {
 
     const { data, error } = await supabaseClient
         .from('participant_competitions')
-        .select('code_letter, is_present, is_leader, participants(name, unique_id)')
+        .select('code_letter, is_present, is_leader, participants(name, unique_id, teams(name))') // Updated line
         .eq('competition_id', compId);
 
     if (error) {
@@ -516,10 +516,14 @@ async function loadCheckedInList(compId) {
             let displayName = reg.participants.name;
             if (comp && comp.is_group && reg.is_leader) displayName += " & PARTY";
             
+            // Extract team name with a fallback
+            let teamName = reg.participants.teams?.name || 'IND'; 
+            
             return `
             <div class="participant-item" style="border-left: 4px solid var(--success);">
                 <div>
                     <span style="font-weight: 700; font-size: 1rem; color: var(--text-main); display: block;">${displayName}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-top: 0.15rem;">${teamName}</span>
                     <span style="font-size: 0.8rem; font-weight: 700; color: var(--success); display: flex; align-items: center; gap: 0.3rem; margin-top: 0.25rem;">
                         <i class="fa-solid fa-circle-check"></i> CHECKED IN
                     </span>
@@ -544,11 +548,14 @@ async function loadCheckedInList(compId) {
             let displayName = reg.participants.name;
             if (comp && comp.is_group && reg.is_leader) displayName += " & PARTY";
 
+            // Extract team name with a fallback
+            let teamName = reg.participants.teams?.name || 'IND';
+
             return `
             <div class="participant-item" style="opacity: 0.75; background: var(--bg-main); border-left: 4px solid var(--warning);">
                 <div>
                     <span style="font-weight: 600; font-size: 0.95rem; color: var(--text-main); display: block;">${displayName}</span>
-                    <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace; font-weight: 600; margin-top: 0.25rem; display: block;">${reg.participants.unique_id}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace; font-weight: 600; margin-top: 0.25rem; display: block;">${reg.participants.unique_id} • ${teamName}</span>
                 </div>
                 <span style="font-size: 0.75rem; font-weight: 800; color: var(--warning); background: var(--warning-light); padding: 0.35rem 0.75rem; border-radius: 6px;">ABSENT</span>
             </div>
