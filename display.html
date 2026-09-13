@@ -54,6 +54,34 @@
         .slide-title { font-size: 3.2rem; color: #FFFFFF; margin-bottom: 1.5rem; text-shadow: 0 10px 30px rgba(0,0,0,0.8); letter-spacing: -1px; text-align: center; flex-shrink: 0; z-index: 10; position: relative; }
         .page-indicator { font-size: 1.5rem; color: rgba(255,255,255,0.4); vertical-align: middle; margin-left: 1rem; font-weight: 600; }
 
+        /* --- VERTICAL PODIUM LAYOUT --- */
+        .results-layout { display: flex; align-items: center; justify-content: flex-start; width: 100%; height: 100%; padding-left: 5rem; }
+        .v-podium-stack { display: flex; flex-direction: column; gap: 1.5rem; width: 600px; }
+        
+        .v-podium-card { display: flex; flex-direction: column; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.4); transform: scale(1); transition: transform 0.5s; opacity: 0; transform: translateX(-50px); }
+        .slide.active .v-podium-card { opacity: 1; transform: translateX(0); }
+        
+        .v-podium-card.p1 { transform: scale(1.05); z-index: 10; box-shadow: 0 20px 50px var(--gold-glow); border: 2px solid rgba(251,191,36,0.6); }
+        .v-podium-card.p2 { border: 1px solid rgba(148,163,184,0.4); }
+        .v-podium-card.p3 { border: 1px solid rgba(217,119,6,0.4); }
+        
+        .slide.active .v-podium-card.p2 { transition-delay: 0.1s; }
+        .slide.active .v-podium-card.p1 { transition-delay: 0.4s; transform: scale(1.05); }
+        .slide.active .v-podium-card.p3 { transition-delay: 0.7s; }
+
+        .v-card-top { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); padding: 1.5rem; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .v-card-bottom { padding: 1rem; text-align: center; display: flex; justify-content: center; align-items: center; gap: 1rem; }
+        
+        .p1 .v-card-bottom { background: linear-gradient(90deg, #92400E, var(--gold), #92400E); }
+        .p2 .v-card-bottom { background: linear-gradient(90deg, #334155, var(--silver), #334155); }
+        .p3 .v-card-bottom { background: linear-gradient(90deg, #78350F, var(--bronze), #78350F); }
+        
+        .v-rank-num { font-size: 3.5rem; font-weight: 900; color: white; line-height: 1; text-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .v-name { font-size: 1.6rem; font-weight: 800; color: white; margin-bottom: 0.25rem; }
+        .v-team { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.6); letter-spacing: 1px; }
+        .p1 .v-name { font-size: 2.2rem; }
+        
+        /* --- LEADERBOARD & SCHEDULE --- */
         .leaderboard { display: flex; flex-direction: column; gap: 1rem; max-width: 1300px; margin: 0 auto; width: 100%; }
         .lb-row { background: var(--surface); border: 1px solid var(--surface-border); padding: 1rem 2.5rem; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 15px 35px rgba(0,0,0,0.3); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); opacity: 0; transform: translateX(-30px); transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
         .slide.active .lb-row { opacity: 1; transform: translateX(0); }
@@ -70,30 +98,6 @@
         .lb-team { flex: 1; font-size: 2.2rem; font-weight: 800; letter-spacing: 1px; color: #FFFFFF; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
         .lb-score { font-size: 3.2rem; font-weight: 800; color: white; display: flex; align-items: baseline; gap: 0.5rem; text-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         .lb-score span { font-size: 1.2rem; color: rgba(255,255,255,0.6); font-weight: 700; }
-
-        .podium-container { display: flex; justify-content: center; align-items: flex-end; gap: 1.5rem; flex: 1; min-height: 0; padding-bottom: 1.5rem; }
-        .pedestal-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; width: 30%; text-align: center; opacity: 0; transform: translateY(60px); transition: all 1s cubic-bezier(0.16, 1, 0.3, 1); }
-        .slide.active .pedestal-wrapper { opacity: 1; transform: translateY(0); }
-        .slide.active .pedestal-wrapper.p2 { transition-delay: 0.2s; }
-        .slide.active .pedestal-wrapper.p1 { transition-delay: 0.5s; z-index: 5; }
-        .slide.active .pedestal-wrapper.p3 { transition-delay: 0.8s; }
-
-        .pedestal-card { background: var(--surface); border: 1px solid var(--surface-border); backdrop-filter: blur(20px); padding: 1.25rem; border-radius: 20px; width: 100%; margin-bottom: 1rem; box-shadow: 0 15px 35px rgba(0,0,0,0.4); display: flex; flex-direction: column; justify-content: center; min-height: 140px; position: relative; margin-top: 50px; }
-        .p-photo { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin: -70px auto 10px auto; border: 4px solid white; background: var(--bg-dark); box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
-        .p1 .p-photo { width: 140px; height: 140px; margin-top: -90px; border-color: var(--gold); border-width: 6px; box-shadow: 0 10px 30px var(--gold-glow); }
-        .p2 .p-photo { border-color: var(--silver); }
-        .p3 .p-photo { border-color: var(--bronze); }
-        
-        .p-name { font-size: 1.6rem; font-weight: 800; color: white; line-height: 1.1; margin-bottom: 0.4rem; }
-        .p1 .p-name { font-size: 2rem; }
-        .p-team { font-size: 1.1rem; font-weight: 700; color: rgba(255,255,255,0.6); letter-spacing: 1px; }
-        
-        .pedestal { width: 100%; border-radius: 12px 12px 0 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 1rem; position: relative; overflow: hidden; box-shadow: inset 0 4px 15px rgba(255,255,255,0.2); }
-        .pedestal::after { content:''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 100%); }
-        .p1 .pedestal { height: 220px; background: linear-gradient(to bottom, var(--gold), #92400E); box-shadow: 0 -10px 50px var(--gold-glow), inset 0 4px 15px rgba(255,255,255,0.4); }
-        .p2 .pedestal { height: 160px; background: linear-gradient(to bottom, var(--silver), #334155); }
-        .p3 .pedestal { height: 110px; background: linear-gradient(to bottom, var(--bronze), #78350F); }
-        .rank-num { font-size: 4.5rem; font-weight: 800; color: rgba(255,255,255,0.95); text-shadow: 0 10px 20px rgba(0,0,0,0.4); line-height: 1; z-index: 2; }
 
         .qr-widget { position: fixed; bottom: 4.5rem; right: 2rem; background: rgba(15,23,42,0.85); border: 1px solid rgba(255,255,255,0.15); padding: 1rem; border-radius: 16px; display: flex; align-items: center; gap: 1rem; backdrop-filter: blur(20px); z-index: 100; box-shadow: 0 15px 40px rgba(0,0,0,0.6); transition: all 0.5s ease; animation: floatQR 6s infinite ease-in-out; }
         @keyframes floatQR { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
@@ -162,7 +166,6 @@
 
     <!-- PLAYLIST CONTAINER -->
     <div class="slide-container" id="slide-container">
-        <!-- Defaults wiped by Javascript on load -->
         <div class="slide active" style="text-align: center; align-items: center; justify-content: center;">
             <i class="fa-solid fa-satellite-dish fa-beat-fade" style="font-size: 6rem; color: var(--primary); margin-bottom: 2rem;"></i>
             <h1 style="font-size: 4rem; font-weight: 800;">ESTABLISHING CONNECTION...</h1>
@@ -203,13 +206,12 @@
         let activeSlides = [];
         let currentSlide = 0;
         
-        let lastConfettiTrigger = 0;
         let lastActionTimestamp = 0;
         let lastPublishedCount = 0;
+        let currentPodiumCompId = null;
         
         let globalActiveEvents = [];
         let globalPublishedComps = [];
-        let rotationTimeout = null;
         let latestCompResults = [];
         
         const isPreviewMode = new URLSearchParams(window.location.search).get('preview') === 'true';
@@ -305,9 +307,8 @@
                 const { data: schedReq } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
                 const scheduleData = schedReq?.value || {};
                 
-                // Fetch photo_url alongside judgments for the Poster Generator
                 const { data: judgements } = await supabaseClient.from('judgements')
-                    .select('competition_id, awarded_mark, participant_id, participants(id, name, team_id, unique_id, photo_url)')
+                    .select('competition_id, awarded_mark, participant_id, participants(id, name, team_id, unique_id)')
                     .not('participant_id', 'is', null).not('awarded_mark', 'is', null);
 
                 // Core Point Engine
@@ -315,7 +316,7 @@
                 (judgements || []).forEach(j => {
                     if (!j.participants || !j.participants.id) return; 
                     const comp = globalPublishedComps.find(c => c.id === j.competition_id);
-                    if(!comp) return; // Only score published comps
+                    if(!comp) return; 
                     if(!compGroups[j.competition_id]) compGroups[j.competition_id] = { participants: {}, comp_data: comp };
                     const pId = j.participants.id;
                     if(!compGroups[j.competition_id].participants[pId]) compGroups[j.competition_id].participants[pId] = { participant: j.participants, marks_array: [] };
@@ -364,19 +365,22 @@
                         }
 
                         const teamId = entry.participant.team_id;
-                        if (teamId && calculatedTeamScores[teamId]) calculatedTeamScores[teamId].score += (gradePts + posPts); 
+                        if (teamId && calculatedTeamScores[teamId]) {
+                            calculatedTeamScores[teamId].score += (Number(gradePts) + Number(posPts)); 
+                        }
 
-                        // Capture photo_url directly from the participant object
-                        if (currentRank <= 3) compPodium.push({ 
-                            rank: currentRank, 
-                            name: entry.participant.name, 
-                            team: allTeams.find(t => t.id === teamId)?.name || 'IND',
-                            photo: entry.participant.photo_url || null
-                        });
+                        if (currentRank <= 3) {
+                            compPodium.push({ 
+                                rank: currentRank, 
+                                name: entry.participant.name, 
+                                team: allTeams.find(t => t.id === teamId)?.name || 'IND'
+                            });
+                        }
                     });
 
                     if (globalPublishedComps[0] && compId === globalPublishedComps[0].id) {
                         latestCompResults = compPodium;
+                        currentPodiumCompId = compId;
                     }
                 }
 
@@ -392,45 +396,53 @@
             const container = document.getElementById('slide-container');
             container.innerHTML = ''; // Wipe DOM
 
-            // 1. POSTER PODIUM SLIDE (Only for the latest published result)
+            // 1. VERTICAL STACKED RESULTS SLIDE (Matches Attached Image)
             if (globalPublishedComps.length > 0 && latestCompResults && latestCompResults.length > 0) {
                 const comp = globalPublishedComps[0];
-                const getPos = (r) => latestCompResults.find(p => p.rank === r) || { name: '-', team: '-', photo: null };
+                const getPos = (r) => latestCompResults.find(p => p.rank === r) || { name: '-', team: '-' };
                 const p1 = getPos(1); const p2 = getPos(2); const p3 = getPos(3);
                 
-                // Native fallback SVG if no photo uploaded
-                const defPhoto = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Crect width='100%25' height='100%25' fill='%231E293B'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='20' font-weight='bold' fill='%2364748B'%3ENO PHOTO%3C/text%3E%3C/svg%3E";
-
                 let podiumHtml = `
                     <div class="slide" id="slide-podium" data-qr-type="results" data-qr-comp="${comp.id}">
-                        <h2 class="slide-title theme-font" style="margin-bottom: 5rem; z-index: 10;">OFFICIAL RESULTS: <span style="color:var(--gold);">${comp.name}</span></h2>
-                        <div class="poster-podium">
-                            <div class="pedestal-wrapper p2">
-                                <div class="pedestal-card">
-                                    <img class="p-photo" src="${p2.photo || defPhoto}">
-                                    <div class="p-name theme-font">${p2.name}</div>
-                                    <div class="p-team theme-font">${p2.team}</div>
+                        <h2 class="slide-title theme-font" style="margin-bottom: 3rem; z-index: 10;">OFFICIAL RESULTS: <span style="color:var(--gold);">${comp.name}</span></h2>
+                        
+                        <div class="results-layout">
+                            <div class="v-podium-stack">
+                                
+                                <!-- RANK 2 (TOP) -->
+                                <div class="v-podium-card p2">
+                                    <div class="v-card-top">
+                                        <div class="v-name theme-font">${p2.name}</div>
+                                        <div class="v-team theme-font">${p2.team}</div>
+                                    </div>
+                                    <div class="v-card-bottom">
+                                        <span class="v-rank-num theme-font">2</span>
+                                    </div>
                                 </div>
-                                <div class="pedestal"><div class="rank-num theme-font">2</div></div>
-                            </div>
-                            
-                            <div class="pedestal-wrapper p1">
-                                <div class="pedestal-card" style="box-shadow: 0 20px 50px var(--gold-glow); border-color: rgba(251,191,36,0.5);">
-                                    <i class="fa-solid fa-crown" style="position:absolute; top:-140px; left:50%; transform:translateX(-50%); font-size:4rem; color:var(--gold); text-shadow:0 0 20px var(--gold-glow);"></i>
-                                    <img class="p-photo" src="${p1.photo || defPhoto}">
-                                    <div class="p-name theme-font">${p1.name}</div>
-                                    <div class="p-team theme-font" style="color: var(--gold);">${p1.team}</div>
+                                
+                                <!-- RANK 1 (MIDDLE) -->
+                                <div class="v-podium-card p1">
+                                    <div class="v-card-top">
+                                        <div class="v-name theme-font">${p1.name}</div>
+                                        <div class="v-team theme-font" style="color: var(--gold);">${p1.team}</div>
+                                    </div>
+                                    <div class="v-card-bottom">
+                                        <i class="fa-solid fa-crown" style="font-size: 2.5rem; color: white; text-shadow: 0 2px 10px rgba(0,0,0,0.3);"></i>
+                                        <span class="v-rank-num theme-font">1</span>
+                                    </div>
                                 </div>
-                                <div class="pedestal"><div class="rank-num theme-font">1</div></div>
-                            </div>
 
-                            <div class="pedestal-wrapper p3">
-                                <div class="pedestal-card">
-                                    <img class="p-photo" src="${p3.photo || defPhoto}">
-                                    <div class="p-name theme-font">${p3.name}</div>
-                                    <div class="p-team theme-font">${p3.team}</div>
+                                <!-- RANK 3 (BOTTOM) -->
+                                <div class="v-podium-card p3">
+                                    <div class="v-card-top">
+                                        <div class="v-name theme-font">${p3.name}</div>
+                                        <div class="v-team theme-font">${p3.team}</div>
+                                    </div>
+                                    <div class="v-card-bottom">
+                                        <span class="v-rank-num theme-font">3</span>
+                                    </div>
                                 </div>
-                                <div class="pedestal"><div class="rank-num theme-font">3</div></div>
+
                             </div>
                         </div>
                     </div>
@@ -439,10 +451,10 @@
                 activeSlides.push('slide-podium');
             }
 
-            // 2. PAGINATED STANDINGS SLIDES (SINGLE COLUMN, MAX 6)
+            // 2. PAGINATED TEAM LEADERBOARD SLIDES
             const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score);
-            if (displaySettings.show_leaderboard !== false && sortedTeams.length > 0) {
-                const CHUNK = 6; // Fits perfectly without squishing or clipping
+            if (sortedTeams.length > 0) {
+                const CHUNK = 6; 
                 for (let i = 0; i < sortedTeams.length; i += CHUNK) {
                     const chunk = sortedTeams.slice(i, i + CHUNK);
                     const pageInfo = sortedTeams.length > CHUNK ? `<span class="page-indicator">(PAGE ${Math.floor(i/CHUNK)+1})</span>` : '';
@@ -468,8 +480,8 @@
                 }
             }
 
-            // 3. PAGINATED SCHEDULE SLIDES (SINGLE COLUMN, MAX 5)
-            if (displaySettings.show_schedule !== false && globalActiveEvents.length > 0) {
+            // 3. PAGINATED EVENT SCHEDULE SLIDES
+            if (globalActiveEvents.length > 0) {
                 let upcoming = [...globalActiveEvents].sort((a,b) => {
                     const getW = s => s === 'ongoing' ? 1 : (s === 'valuation' ? 2 : (s === 'registration' ? 3 : 4));
                     return getW(a.status) - getW(b.status);
@@ -492,7 +504,6 @@
                         else if(cStatus === 'registration') { bText = "CALLING NOW"; col = "#3B82F6"; bBg = "rgba(59,130,246,0.15)"; }
                         else if(cStatus === 'valuation') { bText = "IN VALUATION"; col = "#F59E0B"; bBg = "rgba(245,158,11,0.15)"; }
 
-                        // Extract time from scheduleData if available
                         let sTime = scheduleData[comp.id]?.time || '--:--';
                         let sToTime = scheduleData[comp.id]?.to_time ? `<span style="font-size:1.5rem; color:var(--text-muted);">- ${scheduleData[comp.id].to_time}</span>` : '';
 
@@ -551,7 +562,6 @@
             rotateSlides();
         }
 
-        // --- MISSING QR & TICKER ENGINE RESTORED ---
         function updateLiveTicker(activeEvents, publishedComps) {
             const track = document.getElementById('live-ticker-track');
             let tickerHtml = '';
@@ -602,16 +612,14 @@
             }
         }
 
-        // --- FAST POLLING (Live Triggers & Settings) ---
+        // --- FAST POLLING ---
         async function pollLiveTriggers() {
             try {
                 const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
                 if (!data || !data.value) return;
                 
                 const newSettings = data.value;
-                const requiresPlaylistRebuild = JSON.stringify(displaySettings.custom_slides) !== JSON.stringify(newSettings.custom_slides) 
-                                                || displaySettings.show_leaderboard !== newSettings.show_leaderboard
-                                                || displaySettings.show_schedule !== newSettings.show_schedule;
+                const requiresPlaylistRebuild = JSON.stringify(displaySettings.custom_slides) !== JSON.stringify(newSettings.custom_slides);
 
                 displaySettings = newSettings;
                 
@@ -644,14 +652,32 @@
                         
                         setTimeout(() => {
                             alertDiv.style.display = 'none';
-                            rotateSlides(); // Resume
+                            rotateSlides(); 
                         }, 15000);
                     }
                 }
 
-                if (requiresPlaylistRebuild) fetchDisplayData(); // Full refresh
+                if (requiresPlaylistRebuild) fetchDisplayData(); 
 
             } catch (e) { console.error("Polling error"); }
+        }
+
+        function fireConfetti() {
+            var duration = 3 * 1000;
+            var end = Date.now() + duration;
+
+            (function frame() {
+                confetti({
+                    particleCount: 5, angle: 60, spread: 55, origin: { x: 0 },
+                    colors: ['#FBBF24', '#4F46E5', '#FFFFFF']
+                });
+                confetti({
+                    particleCount: 5, angle: 120, spread: 55, origin: { x: 1 },
+                    colors: ['#FBBF24', '#4F46E5', '#FFFFFF']
+                });
+
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
         }
 
         // --- NEW SLIDE ROTATION ENGINE ---
@@ -683,7 +709,7 @@
                 updateDynamicQR(activeSlideId);
             }
 
-            // Render Ticker Data (Fix: Strictly check against displaySettings.global_ticker string)
+            // Render Ticker Data
             const track = document.getElementById('live-ticker-track');
             if (customTicker && customTicker.trim() !== '') {
                 const html = `<div class="ticker-item"><span class="t-badge" style="background:var(--primary); color:white;">ANNOUNCEMENT</span> ${customTicker}</div>`;
@@ -705,9 +731,8 @@
             currentSlide++;
             if (currentSlide >= activeSlides.length) {
                 currentSlide = 0;
-                // Fetch fresh DB data at the end of every complete loop
                 fetchDisplayData(); 
-                return; // fetchDisplayData will call rotateSlides when done
+                return;
             }
 
             clearTimeout(slideTimer);
