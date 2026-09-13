@@ -1072,6 +1072,126 @@ const photoSrc = mappedData[key] || 'data:image/svg+xml;charset=UTF-8,%3Csvg xml
             link.href = canvas.toDataURL("image/jpeg", 1.0); link.click();
         }
 
+
+     // ==========================================
+        // new functions added
+        // ==========================================
+async function renderSingleResult() {
+            const content = document.getElementById('main-content');
+            
+            const { data: comp } = await supabaseClient.from('competitions').select('*, categories(name), participant_competitions(count)').eq('id', targetCompId).single();
+            if (!comp || comp.status !== 'published') {
+                content.innerHTML = `<h2 class="page-title">Results Unavailable</h2><p class="page-subtitle">Results for this event are not published yet.</p>`;
+                return;
+            }
+
+            const { data: judgements } = await supabaseClient.from('judgements')
+                .select('awarded_mark, participants(id, name, team_id, unique_id)')
+                .eq('competition_id', targetCompId)
+                .not('awarded_mark', 'is', null);
+
+            const results = calculateSingleComp(comp, judgements || []);
+            
+            currentPosterData = {
+                'Competition': comp.name,
+                'Category': comp.categories?.name || 'GENERAL',
+                'Position1Name': results[0]?.name || '',
+                'Position1Team': results[0]?.team || '',
+                'Position1Number': results[0] ? results[0].pos.toString() : '',
+                'Position2Name': results[1]?.name || '',
+                'Position2Team': results[1]?.team || '',
+                'Position2Number': results[1] ? results[1].pos.toString() : '',
+                'Position3Name': results[2]?.name || '',
+                'Position3Team': results[2]?.team || '',
+                'Position3Number': results[2] ? results[2].pos.toString() : ''
+            };
+            
+            content.innerHTML = `
+                <h2 class="page-title">${comp.name}</h2>
+                <p class="page-subtitle">${comp.categories?.name || 'GEN'} • OFFICIAL RESULTS</p>
+                <div class="card">
+                    ${results.map(r => `
+                        <div class="lb-row">
+                            <div class="lb-rank rank-${r.pos}">#${r.pos}</div>
+                            <div class="lb-details">
+                                <span class="lb-name">${r.name}</span>
+                                <span class="lb-team">${r.team}</span>
+                            </div>
+                            <div class="lb-score">
+                                <span class="score-val">${r.pts}</span>
+                                <span class="score-unit">PTS</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <button class="btn btn-primary" onclick="downloadPoster('individual')">
+                    <i class="fa-solid fa-image"></i> Download Result Poster
+                </button>
+            `;
+        }
+
+        function filterStandingsData(filterVal) {
+            const totalPublished = rawPublishedComps.length;
+            let activeComps = rawPublishedComps;
+            let activeCount = totalPublished;
+
+            if (filterVal !== 'all') {
+                const limit = parseInt(filterVal);
+                activeComps = rawPublishedComps.slice(0, limit);
+                activeCount = limit;
+            }
+
+            // Calculate points for the active set
+            let teamScores = {};
+            allTeams.forEach(t => teamScores[t.id] = { name: t.name, score: 0 });
+
+            activeComps.forEach(comp => {
+                const compJudgements = allJudgements.filter(j => j.competition_id === comp.id);
+                const results = calculateSingleComp(comp, compJudgements);
+                results.forEach(r => {
+                    if (r.teamId && teamScores[r.teamId]) {
+                        teamScores[r.teamId].score += Number(r.pts) || 0;
+                    }
+                });
+            });
+
+            const sortedTeams = Object.values(teamScores).sort((a,b) => b.score - a.score);
+
+            // Update Subtitle
+            const subtitle = document.getElementById('standings-subtitle');
+            if (subtitle) {
+                subtitle.innerText = `POINTS AFTER ${activeCount} PUBLISHED EVENT${activeCount === 1 ? '' : 'S'}`;
+            }
+
+            // Store for Poster Generator
+            currentPosterData = {
+                'ResultsCountText': `AFTER ${activeCount}`,
+                'Rank1Team': sortedTeams[0]?.name || '', 'Rank1Points': sortedTeams[0]?.score.toString() || '0', 'Rank1Number': sortedTeams[0] ? '1' : '',
+                'Rank2Team': sortedTeams[1]?.name || '', 'Rank2Points': sortedTeams[1]?.score.toString() || '0', 'Rank2Number': sortedTeams[1] ? '2' : '',
+                'Rank3Team': sortedTeams[2]?.name || '', 'Rank3Points': sortedTeams[2]?.score.toString() || '0', 'Rank3Number': sortedTeams[2] ? '3' : '',
+                'Rank4Team': sortedTeams[3]?.name || '', 'Rank4Points': sortedTeams[3]?.score.toString() || '0', 'Rank4Number': sortedTeams[3] ? '4' : '',
+                'Rank5Team': sortedTeams[4]?.name || '', 'Rank5Points': sortedTeams[4]?.score.toString() || '0', 'Rank5Number': sortedTeams[4] ? '5' : ''
+            };
+
+            const container = document.getElementById('standings-card-container');
+            if (container) {
+                container.innerHTML = sortedTeams.map((t, i) => {
+                    const rank = i + 1;
+                    return `
+                    <div class="lb-row">
+                        <div class="lb-rank rank-${rank}">#${rank}</div>
+                        <div class="lb-details"><span class="lb-name">${t.name}</span></div>
+                        <div class="lb-score">
+                            <span class="score-val">${t.score}</span>
+                            <span class="score-unit">PTS</span>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            }
+        }
+
+
         // ==========================================
         // UNIFIED GLOBAL BRANDING ENGINE
         // ==========================================
