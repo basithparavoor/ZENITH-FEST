@@ -6,12 +6,13 @@
     <title>FestOS | Mobile Spectator</title>
     <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
         :root {
             --primary: #4f46e5;
+            --primary-light: #EEF2FF;
             --bg-main: #F4F7F9;
             --bg-surface: #FFFFFF;
             --text-main: #0F172A;
@@ -21,18 +22,27 @@
         }
         
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; text-transform: uppercase; }
-        body { background: var(--bg-main); color: var(--text-main); padding-top: 80px; padding-bottom: 40px; }
+        body { background: var(--bg-main); color: var(--text-main); padding-top: 135px; padding-bottom: 40px; }
 
         /* Unified Premium Header */
-        .header { position: fixed; top: 0; left: 0; width: 100%; height: 70px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 0.75rem; z-index: 100; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .header img { height: 35px; max-width: 120px; object-fit: contain; border-radius: 4px; display: none; }
-        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.5px; margin: 0; }
+        .header { position: fixed; top: 0; left: 0; width: 100%; height: 65px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 0.75rem; z-index: 100; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+        .header img { height: 32px; max-width: 120px; object-fit: contain; border-radius: 4px; display: none; }
+        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.3rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.5px; margin: 0; }
+
+        /* Spectator View Navigation Tabs */
+        .tabs-bar { position: fixed; top: 65px; left: 0; width: 100%; height: 55px; background: var(--bg-surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.5rem 1rem; z-index: 99; }
+        .tab-btn { flex: 1; max-width: 250px; height: 100%; border: none; border-radius: 8px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: 0.2s; background: transparent; color: var(--text-muted); }
+        .tab-btn.active { background: var(--primary-light); color: var(--primary); }
 
         .container { padding: 1.25rem; max-width: 600px; margin: 0 auto; }
         
         /* Typography */
-        .page-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.25rem; line-height: 1.2; text-align: center; }
-        .page-subtitle { color: var(--text-muted); font-size: 0.85rem; font-weight: 700; text-align: center; margin-bottom: 2rem; letter-spacing: 1px; }
+        .page-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.25rem; line-height: 1.2; text-align: center; }
+        .page-subtitle { color: var(--text-muted); font-size: 0.8rem; font-weight: 700; text-align: center; margin-bottom: 1.5rem; letter-spacing: 0.5px; }
+
+        /* Controls */
+        .milestone-bar { margin-bottom: 1.25rem; display: flex; justify-content: center; }
+        .milestone-select { width: 100%; padding: 0.75rem 1rem; border-radius: 10px; border: 1.5px solid var(--primary); background: var(--bg-surface); font-weight: 700; font-size: 0.85rem; color: var(--primary); outline: none; }
 
         /* Cards */
         .card { background: var(--bg-surface); border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04); }
@@ -42,15 +52,19 @@
         .badge-val { background: rgba(245, 158, 11, 0.15); color: #D97706; border: 1px solid rgba(245,158,11,0.3); }
         .badge-call { background: rgba(59, 130, 246, 0.15); color: #2563EB; border: 1px solid rgba(59,130,246,0.3); }
 
-        /* Leaderboard Rows - No Points Displayed! */
-        .lb-row { display: flex; align-items: center; padding: 1.25rem 0; border-bottom: 1px dashed var(--border); }
+        /* Leaderboard Rows - WITH POINTS */
+        .lb-row { display: flex; align-items: center; justify-content: space-between; padding: 1.15rem 0.5rem; border-bottom: 1px dashed var(--border); }
         .lb-row:last-child { border-bottom: none; padding-bottom: 0; }
         .lb-row:first-child { padding-top: 0; }
-        .lb-rank { font-size: 1.8rem; font-weight: 800; width: 50px; color: var(--text-muted); }
-        .lb-details { flex: 1; }
-        .lb-name { font-size: 1.1rem; font-weight: 800; color: var(--text-main); display: block; margin-bottom: 0.2rem; }
-        .lb-team { font-size: 0.85rem; color: var(--text-muted); font-weight: 700; }
+        .lb-rank { font-size: 1.6rem; font-weight: 900; width: 45px; color: var(--text-muted); line-height: 1; }
+        .lb-details { flex: 1; padding-right: 0.75rem; }
+        .lb-name { font-size: 1.05rem; font-weight: 800; color: var(--text-main); display: block; margin-bottom: 0.2rem; }
+        .lb-team { font-size: 0.8rem; color: var(--text-muted); font-weight: 700; }
         
+        .lb-score { text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; }
+        .lb-score .score-val { font-size: 1.35rem; font-weight: 900; color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1; }
+        .lb-score .score-unit { font-size: 0.65rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.05em; margin-top: 3px; }
+
         .rank-1 { color: var(--gold); } 
         .rank-2 { color: var(--silver); } 
         .rank-3 { color: var(--bronze); }
@@ -64,7 +78,6 @@
         .loader { text-align: center; padding: 4rem 0; color: var(--text-muted); }
         .loader i { font-size: 2rem; color: var(--primary); margin-bottom: 1rem; }
 
-        /* Secret Canvas for Poster Generation */
         #poster-canvas { display: none; }
     </style>
 </head>
@@ -73,6 +86,16 @@
     <div class="header">
         <img id="head-logo" src="" alt="Logo">
         <h1 id="head-title">FESTOS</h1>
+    </div>
+
+    <!-- Spectator View Switcher -->
+    <div class="tabs-bar">
+        <button class="tab-btn" id="btn-tab-live" onclick="switchView('live')">
+            <i class="fa-solid fa-clock"></i> Schedule
+        </button>
+        <button class="tab-btn" id="btn-tab-standings" onclick="switchView('standings')">
+            <i class="fa-solid fa-trophy"></i> Standings
+        </button>
     </div>
 
     <div class="container" id="main-content">
@@ -89,19 +112,30 @@
         const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_solo: { aplus: 8, a: 7, b: 5, c: 3 }, points_small: { aplus: 12, a: 10, b: 7, c: 5 }, points_large: { aplus: 15, a: 12, b: 10, c: 7 }, pos_points: { p1: 3, p2: 2, p3: 1 }, poster_interval: 10, tm_access: true };        let allTeams = [];
+        let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_solo: { aplus: 8, a: 7, b: 5, c: 3 }, points_small: { aplus: 12, a: 10, b: 7, c: 5 }, points_large: { aplus: 15, a: 12, b: 10, c: 7 }, pos_points: { p1: 3, p2: 2, p3: 1 }, poster_interval: 10, tm_access: true };
+        let allTeams = [];
+        let rawPublishedComps = [];
+        let allJudgements = [];
         
-        // Contextual Engine - Determines exactly what the spectator sees
         const urlParams = new URLSearchParams(window.location.search);
         let viewContext = urlParams.get('view') || 'live';
         let targetCompId = urlParams.get('comp') || null;
 
-        // Data specifically used for the Poster Generator
         let currentPosterData = null;
+
+        function switchView(view) {
+            viewContext = view;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            if (view === 'live') document.getElementById('btn-tab-live')?.classList.add('active');
+            if (view === 'standings') document.getElementById('btn-tab-standings')?.classList.add('active');
+
+            if (view === 'standings') renderStandings();
+            else renderLiveSchedule();
+        }
 
         async function init() {
             try {
-                // Strict Branding Rules
+                // Branding
                 const { data: brand } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
                 if(brand && brand.value) {
                     const b = brand.value;
@@ -131,10 +165,8 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
                     if (showName && validName) {
                         document.getElementById('head-title').innerText = b.fest_name.toUpperCase();
                     } else {
-                        document.getElementById('head-title').innerText = ''; // Blank if no name allowed
+                        document.getElementById('head-title').innerText = '';
                     }
-                } else {
-                    document.getElementById('head-title').innerText = ''; // No defaults
                 }
 
                 // Global Settings
@@ -144,7 +176,11 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
                 const { data: teams } = await supabaseClient.from('teams').select('*');
                 allTeams = teams || [];
 
-                // Route to correct contextual view
+                // Update active tab UI
+                if (viewContext === 'standings') document.getElementById('btn-tab-standings')?.classList.add('active');
+                else if (viewContext === 'live') document.getElementById('btn-tab-live')?.classList.add('active');
+
+                // Route
                 if (viewContext === 'results' && targetCompId) await renderSingleResult();
                 else if (viewContext === 'standings') await renderStandings();
                 else await renderLiveSchedule();
@@ -157,7 +193,7 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
         async function renderSingleResult() {
             const content = document.getElementById('main-content');
             
-            const { data: comp } = await supabaseClient.from('competitions').select('*, categories(name)').eq('id', targetCompId).single();
+            const { data: comp } = await supabaseClient.from('competitions').select('*, categories(name), participant_competitions(count)').eq('id', targetCompId).single();
             if (!comp || comp.status !== 'published') {
                 content.innerHTML = `<h2 class="page-title">Results Unavailable</h2><p class="page-subtitle">Results for this event are not published yet.</p>`;
                 return;
@@ -170,7 +206,6 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
 
             const results = calculateSingleComp(comp, judgements || []);
             
-            // Format data specifically for the Poster Engine
             currentPosterData = {
                 'Competition': comp.name,
                 'Category': comp.categories?.name || 'GENERAL',
@@ -193,7 +228,10 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
                                 <span class="lb-name">${r.name}</span>
                                 <span class="lb-team">${r.team}</span>
                             </div>
-                            <!-- POINTS SPECIFICALLY HIDDEN FROM UI -->
+                            <div class="lb-score">
+                                <span class="score-val">${r.pts}</span>
+                                <span class="score-unit">PTS</span>
+                            </div>
                         </div>
                     `).join('')}
                 </div>
@@ -205,60 +243,126 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
 
         async function renderStandings() {
             const content = document.getElementById('main-content');
-            const { data: publishedComps } = await supabaseClient.from('competitions').select('*, participant_competitions(count)').eq('status', 'published');
+            content.innerHTML = `<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:10px;">Calculating Points...</p></div>`;
+
+            // Fetch published competitions ordered by completion
+            const { data: publishedComps } = await supabaseClient
+                .from('competitions')
+                .select('*, categories(name), participant_competitions(count)')
+                .eq('status', 'published')
+                .order('updated_at', { ascending: true });
             
-            if (!publishedComps || publishedComps.length === 0) {
+            rawPublishedComps = publishedComps || [];
+
+            if (rawPublishedComps.length === 0) {
                 content.innerHTML = '<h2 class="page-title">CHAMPIONSHIP STANDINGS</h2><p class="page-subtitle">NO SCORES RECORDED YET</p>';
                 return;
             }
 
-            const compIds = publishedComps.map(c => c.id);
+            const compIds = rawPublishedComps.map(c => c.id);
             const { data: judgements } = await supabaseClient.from('judgements')
                 .select('competition_id, awarded_mark, participants(id, name, team_id, unique_id)')
                 .in('competition_id', compIds)
                 .not('awarded_mark', 'is', null);
 
+            allJudgements = judgements || [];
+
+            // Calculate milestone options based on system interval
+            const interval = parseInt(systemSettings.poster_interval) || 10;
+            const totalPublished = rawPublishedComps.length;
+            const lastMilestone = Math.floor(totalPublished / interval) * interval;
+
+            // Default to last milestone if at least one milestone passed; otherwise show all published
+            let defaultFilter = (lastMilestone > 0) ? lastMilestone.toString() : 'all';
+
+            // Milestone dropdown selector
+            let milestoneOptions = '';
+            if (lastMilestone > 0) {
+                milestoneOptions += `<option value="${lastMilestone}">LAST PUBLISHED MILESTONE (AFTER ${lastMilestone} EVENTS)</option>`;
+                milestoneOptions += `<option value="all">ALL PUBLISHED (${totalPublished} EVENTS)</option>`;
+                for (let i = lastMilestone - interval; i >= interval; i -= interval) {
+                    milestoneOptions += `<option value="${i}">AFTER ${i} EVENTS</option>`;
+                }
+            } else {
+                milestoneOptions += `<option value="all">ALL PUBLISHED (${totalPublished} EVENTS)</option>`;
+            }
+
+            content.innerHTML = `
+                <h2 class="page-title">CHAMPIONSHIP STANDINGS</h2>
+                <p class="page-subtitle" id="standings-subtitle">POINTS FROM LAST PUBLISHED EVENTS</p>
+                <div class="milestone-bar">
+                    <select id="milestone-select" class="milestone-select" onchange="filterStandingsData(this.value)">
+                        ${milestoneOptions}
+                    </select>
+                </div>
+                <div class="card" id="standings-card-container"></div>
+                <button class="btn btn-primary" onclick="downloadPoster('team')">
+                    <i class="fa-solid fa-image"></i> Download Standings Poster
+                </button>
+            `;
+
+            filterStandingsData(defaultFilter);
+        }
+
+        function filterStandingsData(filterVal) {
+            const totalPublished = rawPublishedComps.length;
+            let activeComps = rawPublishedComps;
+            let activeCount = totalPublished;
+
+            if (filterVal !== 'all') {
+                const limit = parseInt(filterVal);
+                activeComps = rawPublishedComps.slice(0, limit);
+                activeCount = limit;
+            }
+
+            // Calculate points for the active set
             let teamScores = {};
             allTeams.forEach(t => teamScores[t.id] = { name: t.name, score: 0 });
 
-            publishedComps.forEach(comp => {
-                const compJudgements = (judgements || []).filter(j => j.competition_id === comp.id);
+            activeComps.forEach(comp => {
+                const compJudgements = allJudgements.filter(j => j.competition_id === comp.id);
                 const results = calculateSingleComp(comp, compJudgements);
                 results.forEach(r => {
-                    if (r.teamId && teamScores[r.teamId]) teamScores[r.teamId].score += r.pts;
+                    if (r.teamId && teamScores[r.teamId]) {
+                        teamScores[r.teamId].score += Number(r.pts) || 0;
+                    }
                 });
             });
 
             const sortedTeams = Object.values(teamScores).sort((a,b) => b.score - a.score);
 
-            // Format data specifically for the Poster Engine
+            // Update Subtitle
+            const subtitle = document.getElementById('standings-subtitle');
+            if (subtitle) {
+                subtitle.innerText = `POINTS AFTER ${activeCount} PUBLISHED EVENT${activeCount === 1 ? '' : 'S'}`;
+            }
+
+            // Store for Poster Generator
             currentPosterData = {
-                'Rank1Team': sortedTeams[0]?.name || '', 'Rank1Points': sortedTeams[0]?.score || '0',
-                'Rank2Team': sortedTeams[1]?.name || '', 'Rank2Points': sortedTeams[1]?.score || '0',
-                'Rank3Team': sortedTeams[2]?.name || '', 'Rank3Points': sortedTeams[2]?.score || '0',
-                'Rank4Team': sortedTeams[3]?.name || '', 'Rank4Points': sortedTeams[3]?.score || '0',
-                'Rank5Team': sortedTeams[4]?.name || '', 'Rank5Points': sortedTeams[4]?.score || '0'
+                'ResultsCountText': `AFTER ${activeCount}`,
+                'Rank1Team': sortedTeams[0]?.name || '', 'Rank1Points': sortedTeams[0]?.score.toString() || '0',
+                'Rank2Team': sortedTeams[1]?.name || '', 'Rank2Points': sortedTeams[1]?.score.toString() || '0',
+                'Rank3Team': sortedTeams[2]?.name || '', 'Rank3Points': sortedTeams[2]?.score.toString() || '0',
+                'Rank4Team': sortedTeams[3]?.name || '', 'Rank4Points': sortedTeams[3]?.score.toString() || '0',
+                'Rank5Team': sortedTeams[4]?.name || '', 'Rank5Points': sortedTeams[4]?.score.toString() || '0'
             };
 
-            content.innerHTML = `
-                <h2 class="page-title">OVERALL STANDINGS</h2>
-                <p class="page-subtitle">LIVE CHAMPIONSHIP LEADERBOARD</p>
-                <div class="card">
-                    ${sortedTeams.map((t, i) => {
-                        const rank = i + 1;
-                        return `
-                        <div class="lb-row">
-                            <div class="lb-rank rank-${rank}">#${rank}</div>
-                            <div class="lb-details"><span class="lb-name">${t.name}</span></div>
-                            <!-- POINTS SPECIFICALLY HIDDEN FROM UI -->
+            const container = document.getElementById('standings-card-container');
+            if (container) {
+                container.innerHTML = sortedTeams.map((t, i) => {
+                    const rank = i + 1;
+                    return `
+                    <div class="lb-row">
+                        <div class="lb-rank rank-${rank}">#${rank}</div>
+                        <div class="lb-details"><span class="lb-name">${t.name}</span></div>
+                        <div class="lb-score">
+                            <span class="score-val">${t.score}</span>
+                            <span class="score-unit">PTS</span>
                         </div>
-                        `;
-                    }).join('')}
-                </div>
-                <button class="btn btn-primary" onclick="downloadPoster('team')">
-                    <i class="fa-solid fa-image"></i> Download Standings Poster
-                </button>
-            `;
+                    </div>
+                    `;
+                }).join('');
+            }
         }
 
         async function renderLiveSchedule() {
@@ -290,14 +394,14 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
                             <span style="font-size: 0.8rem; font-weight: 800; color: var(--primary);">${c.categories?.name || 'GEN'}</span>
                             ${badge}
                         </div>
-                        <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.4rem; line-height: 1.2; color: var(--text-main);">${c.name}</h3>
+                        <h3 style="font-size: 1.2rem; font-weight: 800; margin-bottom: 0.4rem; line-height: 1.2; color: var(--text-main);">${c.name}</h3>
                         <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600;"><i class="fa-solid fa-microphone-stage"></i> ${c.stages?.name || 'GLOBAL STAGE'}</div>
                     </div>
                 `;
             });
         }
 
-        // Shared Logic for processing scores efficiently
+        // Shared Logic for calculating points
         function calculateSingleComp(comp, judgements) {
             const pMap = {};
             judgements.forEach(j => {
@@ -309,8 +413,6 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
 
             const limit = comp.max_participants || 1;
             const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
-            const registeredCount = comp.participant_competitions?.[0]?.count || 0;
-            const eligibleForPosPts = registeredCount >= 3;
 
             const arr = Object.values(pMap).map(data => {
                 let sorted = data.marks.sort((a,b) => a-b);
@@ -332,15 +434,15 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
                 let pts = 0;
 
                 if (pct >= 50) {
-                    if (pct >= systemSettings.thresholds.aplus) pts += systemSettings[`points_${sizeCat}`].aplus;
-                    else if (pct >= systemSettings.thresholds.a) pts += systemSettings[`points_${sizeCat}`].a;
-                    else if (pct >= systemSettings.thresholds.b) pts += systemSettings[`points_${sizeCat}`].b;
-                    else pts += systemSettings[`points_${sizeCat}`].c;
+                    if (pct >= systemSettings.thresholds.aplus) pts += Number(systemSettings[`points_${sizeCat}`].aplus) || 0;
+                    else if (pct >= systemSettings.thresholds.a) pts += Number(systemSettings[`points_${sizeCat}`].a) || 0;
+                    else if (pct >= systemSettings.thresholds.b) pts += Number(systemSettings[`points_${sizeCat}`].b) || 0;
+                    else pts += Number(systemSettings[`points_${sizeCat}`].c) || 0;
                 }
-                if (eligibleForPosPts && rank <= 3) {
-                    if (rank === 1) pts += systemSettings.pos_points.p1;
-                    else if (rank === 2) pts += systemSettings.pos_points.p2;
-                    else if (rank === 3) pts += systemSettings.pos_points.p3;
+                if (rank <= 3) {
+                    if (rank === 1) pts += Number(systemSettings.pos_points.p1) || 0;
+                    else if (rank === 2) pts += Number(systemSettings.pos_points.p2) || 0;
+                    else if (rank === 3) pts += Number(systemSettings.pos_points.p3) || 0;
                 }
 
                 return { ...entry, pos: rank, pts };
@@ -348,7 +450,7 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
         }
 
         // ==========================================
-        // POSTER GENERATION ENGINE (From Cloud Template)
+        // POSTER GENERATION ENGINE
         // ==========================================
         async function downloadPoster(type) {
             if (!currentPosterData) return alert("Data not ready for poster generation.");
@@ -359,14 +461,12 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
             btn.disabled = true;
 
             try {
-                // Fetch template from Supabase
                 const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', type).limit(1);
                 if(!templates || templates.length === 0) {
                     throw new Error("No poster template found. The Admin needs to design one first.");
                 }
                 const template = templates[0];
 
-                // Load custom fonts if any exist in the template
                 if (template.customFonts && template.customFonts.length > 0) {
                     for (const fontData of template.customFonts) {
                         try {
@@ -377,7 +477,6 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
                     }
                 }
 
-                // Load Background Image into Canvas
                 const img = new Image();
                 img.crossOrigin = "Anonymous";
                 await new Promise((resolve, reject) => {
@@ -392,11 +491,9 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0);
 
-                // Draw Text and Elements
                 for (const [key, fieldConfig] of Object.entries(template.fields)) {
                     if(!fieldConfig.enabled) continue; 
                     
-                    // Render Custom/Static Elements configured by Admin
                     if (fieldConfig.isImage && fieldConfig.isStaticElement && fieldConfig.src) {
                         try {
                             const staticImg = await new Promise((res) => {
@@ -409,7 +506,6 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
                         continue;
                     }
 
-                    // Render Data Text
                     const text = fieldConfig.isCustom ? fieldConfig.displayName : (currentPosterData[key] || "");
                     if(!text) continue;
                     
@@ -419,10 +515,9 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
                     ctx.fillText(text, fieldConfig.x, fieldConfig.y);
                 }
 
-                // Trigger Download
                 const link = document.createElement('a');
                 link.download = `FestOS_${type}_Results.jpg`;
-                link.href = canvas.toDataURL('image/jpeg', 0.95); // High quality JPG export
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -435,7 +530,6 @@ let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_so
             }
         }
 
-        // Start App
         init();
     </script>
 </body>
