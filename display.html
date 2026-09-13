@@ -54,32 +54,36 @@
         .slide-title { font-size: 3.2rem; color: #FFFFFF; margin-bottom: 1.5rem; text-shadow: 0 10px 30px rgba(0,0,0,0.8); letter-spacing: -1px; text-align: center; flex-shrink: 0; z-index: 10; position: relative; }
         .page-indicator { font-size: 1.5rem; color: rgba(255,255,255,0.4); vertical-align: middle; margin-left: 1rem; font-weight: 600; }
 
-        /* --- VERTICAL PODIUM LAYOUT --- */
-        .results-layout { display: flex; align-items: center; justify-content: flex-start; width: 100%; height: 100%; padding-left: 5rem; }
-        .v-podium-stack { display: flex; flex-direction: column; gap: 1.5rem; width: 600px; }
+        /* --- LANDSCAPE RESULTS LAYOUT (RIGHT TO LEFT FLOW) --- */
+.results-layout { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 0; }        .v-podium-stack { display: flex; flex-direction: column; gap: 1.5rem; width: 850px; }
         
-        .v-podium-card { display: flex; flex-direction: column; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.4); transform: scale(1); transition: transform 0.5s; opacity: 0; transform: translateX(-50px); }
+        .v-podium-card { display: flex; flex-direction: row; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.4); opacity: 0; transform: translateX(100px); transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s; height: 140px; }
         .slide.active .v-podium-card { opacity: 1; transform: translateX(0); }
         
-        .v-podium-card.p1 { transform: scale(1.05); z-index: 10; box-shadow: 0 20px 50px var(--gold-glow); border: 2px solid rgba(251,191,36,0.6); }
+        .v-podium-card.p1 { transform: scale(1.05) translateX(100px); z-index: 10; box-shadow: 0 20px 50px var(--gold-glow); border: 2px solid rgba(251,191,36,0.6); height: 160px; }
+        .slide.active .v-podium-card.p1 { transform: scale(1.05) translateX(0); }
+        
         .v-podium-card.p2 { border: 1px solid rgba(148,163,184,0.4); }
         .v-podium-card.p3 { border: 1px solid rgba(217,119,6,0.4); }
         
-        .slide.active .v-podium-card.p2 { transition-delay: 0.1s; }
-        .slide.active .v-podium-card.p1 { transition-delay: 0.4s; transform: scale(1.05); }
+        .slide.active .v-podium-card.p1 { transition-delay: 0.1s; }
+        .slide.active .v-podium-card.p2 { transition-delay: 0.4s; }
         .slide.active .v-podium-card.p3 { transition-delay: 0.7s; }
 
-        .v-card-top { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); padding: 1.5rem; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .v-card-bottom { padding: 1rem; text-align: center; display: flex; justify-content: center; align-items: center; gap: 1rem; }
+.v-card-info { flex: 1; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); padding: 0 2.5rem; display: flex; flex-direction: column; justify-content: center; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05); border-left: 1px solid rgba(255,255,255,0.05); }        .v-card-rank { width: 160px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 0.5rem; padding: 1rem; }
         
-        .p1 .v-card-bottom { background: linear-gradient(90deg, #92400E, var(--gold), #92400E); }
-        .p2 .v-card-bottom { background: linear-gradient(90deg, #334155, var(--silver), #334155); }
-        .p3 .v-card-bottom { background: linear-gradient(90deg, #78350F, var(--bronze), #78350F); }
+        .p1 .v-card-rank { background: linear-gradient(135deg, #92400E, var(--gold), #92400E); }
+        .p2 .v-card-rank { background: linear-gradient(135deg, #334155, var(--silver), #334155); }
+        .p3 .v-card-rank { background: linear-gradient(135deg, #78350F, var(--bronze), #78350F); }
         
-        .v-rank-num { font-size: 3.5rem; font-weight: 900; color: white; line-height: 1; text-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        .v-name { font-size: 1.6rem; font-weight: 800; color: white; margin-bottom: 0.25rem; }
-        .v-team { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.6); letter-spacing: 1px; }
-        .p1 .v-name { font-size: 2.2rem; }
+        .v-rank-num { font-size: 4rem; font-weight: 900; color: white; line-height: 1; text-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .p1 .v-rank-num { font-size: 4.5rem; }
+        
+        .v-name { font-size: 2.2rem; font-weight: 800; color: white; margin-bottom: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+        .p1 .v-name { font-size: 2.6rem; }
+        
+        .v-team { font-size: 1.1rem; font-weight: 700; color: rgba(255,255,255,0.6); letter-spacing: 2px; }
+        .p1 .v-team { color: var(--gold); font-size: 1.3rem; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
         
         /* --- LEADERBOARD & SCHEDULE --- */
         .leaderboard { display: flex; flex-direction: column; gap: 1rem; max-width: 1300px; margin: 0 auto; width: 100%; }
@@ -107,7 +111,8 @@
         #display-qr { background: white; padding: 6px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
 
         .ticker-wrap { position: fixed; bottom: 0; left: 0; width: 100%; height: 3rem; background: #0F172A; border-top: 2px solid var(--primary); z-index: 150; overflow: hidden; display: flex; align-items: center; box-shadow: 0 -10px 30px rgba(0,0,0,0.5); }
-        .ticker-move { display: inline-block; white-space: nowrap; padding-right: 100%; animation: ticker 40s linear infinite; }
+        /* SLOWED DOWN TICKER FROM 40s to 80s */
+        .ticker-move { display: inline-block; white-space: nowrap; padding-right: 100%; animation: ticker 80s linear infinite; }
         .ticker-move:hover { animation-play-state: paused; }
         @keyframes ticker { 0% { transform: translate3d(100vw, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
         .ticker-item { display: inline-flex; align-items: center; gap: 0.75rem; font-size: 1rem; font-weight: 800; color: white; margin-right: 3rem; letter-spacing: 1px; }
@@ -366,6 +371,7 @@
 
                         const teamId = entry.participant.team_id;
                         if (teamId && calculatedTeamScores[teamId]) {
+                            // Ensure numeric addition to prevent string concatenation
                             calculatedTeamScores[teamId].score += (Number(gradePts) + Number(posPts)); 
                         }
 
@@ -396,7 +402,7 @@
             const container = document.getElementById('slide-container');
             container.innerHTML = ''; // Wipe DOM
 
-            // 1. VERTICAL STACKED RESULTS SLIDE (Matches Attached Image)
+            // 1. HORIZONTAL LANDSCAPE RESULTS SLIDE (Matches Right-To-Left Flow)
             if (globalPublishedComps.length > 0 && latestCompResults && latestCompResults.length > 0) {
                 const comp = globalPublishedComps[0];
                 const getPos = (r) => latestCompResults.find(p => p.rank === r) || { name: '-', team: '-' };
@@ -404,41 +410,40 @@
                 
                 let podiumHtml = `
                     <div class="slide" id="slide-podium" data-qr-type="results" data-qr-comp="${comp.id}">
-                        <h2 class="slide-title theme-font" style="margin-bottom: 3rem; z-index: 10;">OFFICIAL RESULTS: <span style="color:var(--gold);">${comp.name}</span></h2>
-                        
+<h2 class="slide-title theme-font" style="margin-bottom: 3rem; z-index: 10; text-align: center;">OFFICIAL RESULTS: <span style="color:var(--gold);">${comp.name}</span></h2>                        
                         <div class="results-layout">
                             <div class="v-podium-stack">
                                 
-                                <!-- RANK 2 (TOP) -->
-                                <div class="v-podium-card p2">
-                                    <div class="v-card-top">
-                                        <div class="v-name theme-font">${p2.name}</div>
-                                        <div class="v-team theme-font">${p2.team}</div>
+                                <!-- RANK 1 (TOP) -->
+                                <div class="v-podium-card p1">
+                                    <div class="v-card-info">
+                                        <div class="v-name theme-font">${p1.name}</div>
+                                        <div class="v-team theme-font">${p1.team}</div>
                                     </div>
-                                    <div class="v-card-bottom">
-                                        <span class="v-rank-num theme-font">2</span>
+                                    <div class="v-card-rank">
+                                        <i class="fa-solid fa-crown" style="font-size: 2.5rem; color: white; text-shadow: 0 2px 10px rgba(0,0,0,0.3);"></i>
+                                        <span class="v-rank-num theme-font">1</span>
                                     </div>
                                 </div>
                                 
-                                <!-- RANK 1 (MIDDLE) -->
-                                <div class="v-podium-card p1">
-                                    <div class="v-card-top">
-                                        <div class="v-name theme-font">${p1.name}</div>
-                                        <div class="v-team theme-font" style="color: var(--gold);">${p1.team}</div>
+                                <!-- RANK 2 (MIDDLE) -->
+                                <div class="v-podium-card p2">
+                                    <div class="v-card-info">
+                                        <div class="v-name theme-font">${p2.name}</div>
+                                        <div class="v-team theme-font">${p2.team}</div>
                                     </div>
-                                    <div class="v-card-bottom">
-                                        <i class="fa-solid fa-crown" style="font-size: 2.5rem; color: white; text-shadow: 0 2px 10px rgba(0,0,0,0.3);"></i>
-                                        <span class="v-rank-num theme-font">1</span>
+                                    <div class="v-card-rank">
+                                        <span class="v-rank-num theme-font">2</span>
                                     </div>
                                 </div>
 
                                 <!-- RANK 3 (BOTTOM) -->
                                 <div class="v-podium-card p3">
-                                    <div class="v-card-top">
+                                    <div class="v-card-info">
                                         <div class="v-name theme-font">${p3.name}</div>
                                         <div class="v-team theme-font">${p3.team}</div>
                                     </div>
-                                    <div class="v-card-bottom">
+                                    <div class="v-card-rank">
                                         <span class="v-rank-num theme-font">3</span>
                                     </div>
                                 </div>
