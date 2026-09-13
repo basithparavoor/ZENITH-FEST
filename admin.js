@@ -4191,11 +4191,19 @@ async function savePointSettings() {
     } catch (e) { showToast(e.message, 'error'); }
 }
 
-let teamPointsList = []; // New Global Array
+let teamPointsList = []; 
+let pointsDataList = []; 
+let filteredPointsList = []; 
+let pointsCurrentPage = 1;
+let pointsRowsPerPage = 10;
 
 async function loadParticipantPoints() {
     try {
         await loadPointSettings();
+
+        // --- ADD THESE TWO LINES TO FIX THE TEAM LEDGER ---
+        if (teamsList.length === 0) { const { data } = await supabaseClient.from('teams').select('*'); teamsList = data || []; }
+        if (categoriesList.length === 0) { const { data } = await supabaseClient.from('categories').select('*'); categoriesList = data || []; }
 
         // Fetch everything needed
         const { data: comps } = await supabaseClient.from('competitions').select('*, categories(name, is_general), participant_competitions(count)');
