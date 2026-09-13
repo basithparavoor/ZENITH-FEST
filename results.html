@@ -884,10 +884,11 @@ function renderLeaderboard() {
                         mappedData['ResultsCountText'] = `AFTER ALL`; mappedData['TotalCompetitionsCount'] = `FINAL STANDINGS`;
                     }
 
-                    const top5 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5);
+                   const top5 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5);
                     for(let i = 0; i < 5; i++) {
                         mappedData[`Rank${i+1}Team`] = top5[i] ? top5[i].name : "";
                         mappedData[`Rank${i+1}Points`] = top5[i] ? `${top5[i].score}` : "";
+                        mappedData[`Rank${i+1}Number`] = top5[i] ? `${i+1}` : "";
                     }
 
                     if(template.fields) {
@@ -905,8 +906,9 @@ function renderLeaderboard() {
                                     } catch(e) { console.error("Failed to load element", e); }
                                 }
                                 continue;
-                            }
-                            const text = mappedData[key] || ""; if (!text) continue;
+                          }
+                            const text = fieldConfig.isCustom ? fieldConfig.displayName : (mappedData[key] || ""); 
+                            if (!text) continue;
                             ctx.textAlign = fieldConfig.align || 'left'; ctx.fillStyle = fieldConfig.color || '#000000';
                             ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
                             ctx.fillText(text, fieldConfig.x, fieldConfig.y);
@@ -1009,11 +1011,12 @@ function renderLeaderboard() {
                 };
 
                 for(let i = 0; i < 3; i++) {
-    const entry = results[i];
-    mappedData[`Position${i+1}Name`] = entry ? entry.participant.name : "";
-    mappedData[`Position${i+1}Team`] = entry ? (allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent') : "";
-    mappedData[`Position${i+1}Photo`] = entry ? entry.participant.photo_url : null;
-}
+                    const entry = results[i];
+                    mappedData[`Position${i+1}Name`] = entry ? entry.participant.name : "";
+                    mappedData[`Position${i+1}Team`] = entry ? (allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent') : "";
+                    mappedData[`Position${i+1}Photo`] = entry ? entry.participant.photo_url : null;
+                    mappedData[`Position${i+1}Number`] = entry ? entry.position.toString() : "";
+                }
 
                 if(template.fields) {
                     for (const [key, fieldConfig] of Object.entries(template.fields)) {
@@ -1046,7 +1049,9 @@ const photoSrc = mappedData[key] || 'data:image/svg+xml;charset=UTF-8,%3Csvg xml
                                 } catch (err) { console.error("Failed to render photo:", err); }
                             }
                         } else {
-                            const text = mappedData[key] || ""; if (!text) continue;
+                            const text = fieldConfig.isCustom ? fieldConfig.displayName : (mappedData[key] || ""); 
+                            if (!text) continue;
+                            
                             ctx.textAlign = fieldConfig.align || 'left'; ctx.fillStyle = fieldConfig.color || '#000000';
                             ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
                             ctx.fillText(text, fieldConfig.x, fieldConfig.y);

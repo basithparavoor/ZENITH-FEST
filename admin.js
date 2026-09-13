@@ -2601,8 +2601,8 @@ async function generateParticipantIDCanvas(participant, template) {
             }
         } 
         else {
-            // Render Typography
-            const textToDraw = mappedData[key] || "";
+           // Render Typography
+            const textToDraw = field.isCustom ? field.displayName : (mappedData[key] || "");
             if (!textToDraw) continue;
 
             ctx.textAlign = field.align;
@@ -2942,22 +2942,25 @@ let resizeStartX = 0;
 let resizeStartY = 0;
 
 const TEMPLATE_SCHEMAS = {
-    individual: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 1 Team', 'Position 1 Photo', 'Position 2 Name', 'Position 2 Team', 'Position 2 Photo', 'Position 3 Name', 'Position 3 Team', 'Position 3 Photo'],
-    team: ['Results Count Text', 'Rank 1 Team', 'Rank 1 Points', 'Rank 2 Team', 'Rank 2 Points', 'Rank 3 Team', 'Rank 3 Points', 'Rank 4 Team', 'Rank 4 Points', 'Rank 5 Team', 'Rank 5 Points'],
-    final: ['Total Competitions Count', 'Rank 1 Team', 'Rank 1 Points', 'Rank 2 Team', 'Rank 2 Points', 'Rank 3 Team', 'Rank 3 Points', 'Rank 4 Team', 'Rank 4 Points', 'Rank 5 Team', 'Rank 5 Points'],
+    individual: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 1 Team', 'Position 1 Photo', 'Position 1 Number', 'Position 2 Name', 'Position 2 Team', 'Position 2 Photo', 'Position 2 Number', 'Position 3 Name', 'Position 3 Team', 'Position 3 Photo', 'Position 3 Number'],
+    team: ['Results Count Text', 'Rank 1 Team', 'Rank 1 Points', 'Rank 1 Number', 'Rank 2 Team', 'Rank 2 Points', 'Rank 2 Number', 'Rank 3 Team', 'Rank 3 Points', 'Rank 3 Number', 'Rank 4 Team', 'Rank 4 Points', 'Rank 4 Number', 'Rank 5 Team', 'Rank 5 Points', 'Rank 5 Number'],
+    final: ['Total Competitions Count', 'Rank 1 Team', 'Rank 1 Points', 'Rank 1 Number', 'Rank 2 Team', 'Rank 2 Points', 'Rank 2 Number', 'Rank 3 Team', 'Rank 3 Points', 'Rank 3 Number', 'Rank 4 Team', 'Rank 4 Points', 'Rank 4 Number', 'Rank 5 Team', 'Rank 5 Points', 'Rank 5 Number'],
     id_card: ['Participant Name', 'Unique ID', 'Team Name', 'Category', 'Date of Birth', 'Photo', 'QR Code'],
-    certificate: ['Participant Name', 'Unique ID', 'Team Name', 'Category', 'Competition', 'Position', 'Grade', 'Issue Date', 'QR Code'] // NEW: Certificate Schema
+    certificate: ['Participant Name', 'Unique ID', 'Team Name', 'Category', 'Competition', 'Position', 'Grade', 'Issue Date', 'QR Code']
 };
 
 const STUDIO_MOCK_DATA = {
     'ResultNumber': '#42', 'Category': 'GENERAL', 'Competition': 'DANCE OFF',
-    'Position1Name': 'JOHN DOE', 'Position1Team': 'FALCONS', 
-    'Position2Name': 'JANE SMITH', 'Position2Team': 'EAGLES',
-    'Position3Name': 'MIKE TYSON', 'Position3Team': 'HAWKS',
+    'Position1Name': 'JOHN DOE', 'Position1Team': 'FALCONS', 'Position1Number': '1',
+    'Position2Name': 'JANE SMITH', 'Position2Team': 'EAGLES', 'Position2Number': '2',
+    'Position3Name': 'MIKE TYSON', 'Position3Team': 'HAWKS', 'Position3Number': '3',
     'ResultsCountText': 'AFTER 40',
     'TotalCompetitionsCount': 'FINAL OVERALL', 
-    'Rank1Team': 'FALCONS', 'Rank1Points': '450',
-    'Rank2Team': 'EAGLES', 'Rank2Points': '380',
+    'Rank1Team': 'FALCONS', 'Rank1Points': '450', 'Rank1Number': '1',
+    'Rank2Team': 'EAGLES', 'Rank2Points': '380', 'Rank2Number': '2',
+    'Rank3Team': 'HAWKS', 'Rank3Points': '310', 'Rank3Number': '3',
+    'Rank4Team': 'TIGERS', 'Rank4Points': '280', 'Rank4Number': '4',
+    'Rank5Team': 'LIONS', 'Rank5Points': '250', 'Rank5Number': '5',
     'ParticipantName': 'JOHN DOE', 'UniqueID': 'FEST-26-987654', 'BatchNo': 'BATCH 1',
     'Position': 'FIRST PLACE', 'Grade': 'A+ GRADE', 'IssueDate': new Date().toLocaleDateString()
 };
@@ -5501,8 +5504,9 @@ async function bulkDownloadCertificates(compId) {
                             } catch (err) {}
                         }
                         continue;
-                    }
-                    const text = mappedData[key] || ""; if (!text) continue;
+                   }
+                    const text = fieldConfig.isCustom ? fieldConfig.displayName : (mappedData[key] || ""); 
+                    if (!text) continue;
                     ctx.textAlign = fieldConfig.align || 'left'; 
                     ctx.fillStyle = fieldConfig.color || '#000000';
                     ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
