@@ -90,17 +90,27 @@ function adjustLayoutPadding() {
 
 async function loadCompetitions(stageId) {
     let query = supabaseClient.from('competitions')
-        .select('*, categories(name), judgements(judge_id, awarded_mark), participant_competitions(participant_id)');
+        // Ensure we fetch stages(id, name, stage_no) and judgements
+        .select('*, categories(name), stages(id, name, stage_no), judgements(judge_id, awarded_mark, users(username)), participant_competitions(participant_id)');
 
     if (stageId && stageId !== 'ALL') {
         query = query.eq('stage_id', stageId);
     }
     
-    const { data: competitions, error } = await query;
+    const { data: competitionsData, error } = await query;
+    
+    // Fetch Master Schedule
+    const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
+    const masterSchedule = schedData?.value || {};
+    
+    // Fetch Offset Setting
+    const { data: pointData } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
+    const announcerOffset = pointData?.value?.announcer_offset !== undefined ? parseInt(pointData.value.announcer_offset) : 30;
+
     const container = document.getElementById('competitions-container');
     container.innerHTML = '';
 
-    if (error || !competitions || competitions.length === 0) {
+    if (error || !competitionsData || competitionsData.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; padding: 3rem 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 2px dashed var(--border);">
                 <i class="fa-solid fa-clipboard-check" style="font-size: 3rem; color: #CBD5E1; margin-bottom: 1rem;"></i>
@@ -110,7 +120,47 @@ async function loadCompetitions(stageId) {
         return;
     }
 
-    const uniqueCategories = [...new Set(competitions.map(c => c.categories?.name || 'Uncategorized'))].sort();
+    const now = new Date();
+    
+    // Filter out Completed Events and Future Events beyond the offset limit
+    const visibleComps = competitionsData.filter(comp => {
+        // Goal: Remove it entirely once it hits judgement_complete (or published)
+        if (comp.status === 'published' || comp.status === 'judgement_complete') return false; 
+        
+        // Show ongoing, registration, and valuation immediately without time bounds
+        if (comp.status !== 'pending') return true; 
+        
+        const sched = masterSchedule[comp.id];
+        if (!sched || sched.status !== 'published') return false; 
+        
+        const schedDate = new Date(`${sched.date}T${sched.time}`);
+        if (isNaN(schedDate)) return true; // Failsafe: show it if the date format is corrupt
+        
+        // Check if the scheduled time is within the offset window
+        const diffMins = (schedDate - now) / 60000;
+        return diffMins <= announcerOffset;
+    });
+
+    // Goal: Order chronologically by Scheduled Time
+    visibleComps.sort((a, b) => {
+        const schedA = masterSchedule[a.id];
+        const schedB = masterSchedule[b.id];
+        const timeA = schedA && schedA.date && schedA.time ? new Date(`${schedA.date}T${schedA.time}`).getTime() : Infinity;
+        const timeB = schedB && schedB.date && schedB.time ? new Date(`${schedB.date}T${schedB.time}`).getTime() : Infinity;
+        return timeA - timeB;
+    });
+
+    if (visibleComps.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 3rem 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 2px dashed var(--border);">
+                <i class="fa-solid fa-calendar-check" style="font-size: 3rem; color: #CBD5E1; margin-bottom: 1rem;"></i>
+                <p style="color: var(--text-muted); font-size: 1.05rem; font-weight: 600;">No active or upcoming events within the time limit.</p>
+            </div>`;
+        adjustLayoutPadding(); 
+        return;
+    }
+
+    const uniqueCategories = [...new Set(visibleComps.map(c => c.categories?.name || 'Uncategorized'))].sort();
     const catDropdown = document.getElementById('category-filter');
     if (catDropdown) {
         const currentSelection = catDropdown.value; 
@@ -124,38 +174,31 @@ async function loadCompetitions(stageId) {
         }
     }
 
-    const statusWeights = {
-        'ongoing': 1,
-        'registration': 2,
-        'valuation': 3,
-        'pending': 4,
-        'judgement_complete': 5
-    };
-
-    competitions.sort((a, b) => {
-        const weightA = statusWeights[a.status] || 99;
-        const weightB = statusWeights[b.status] || 99;
-        
-        if (weightA !== weightB) {
-            return weightA - weightB;
-        }
-        return a.name.localeCompare(b.name);
-    });
-
-    competitions.forEach(comp => {
-        if (comp.status === 'published') return;
-
+    // Render the chronological list
+    visibleComps.forEach(comp => {
         let badgeClass = 'badge-pending';
-        let statusText = 'AWAITING'; 
+        let statusText = 'UPCOMING'; 
         let statusIcon = '<i class="fa-regular fa-clock"></i>';
         
         if (comp.status === 'registration') { badgeClass = 'badge-registration'; statusText = 'REGISTRATION'; statusIcon = '<i class="fa-solid fa-qrcode"></i>';}
         if (comp.status === 'ongoing') { badgeClass = 'badge-ongoing'; statusText = 'ONGOING'; statusIcon = '<i class="fa-solid fa-circle-play"></i>';}
         if (comp.status === 'valuation') { badgeClass = 'badge-pending'; statusText = 'IN VALUATION'; statusIcon = '<i class="fa-solid fa-pen-clip"></i>';}
-        if (comp.status === 'judgement_complete') { badgeClass = 'badge-complete'; statusText = 'AWAITING RESULTS'; statusIcon = '<i class="fa-solid fa-flag-checkered"></i>';}
 
         const enrolledCount = comp.participant_competitions ? comp.participant_competitions.length : 0;
         const categoryName = comp.categories?.name || 'Uncategorized';
+        
+        // Extract Judges
+        const uniqueJudges = [...new Set((comp.judgements || []).map(j => j.users?.username).filter(Boolean))];
+        const judgesStr = uniqueJudges.length > 0 ? uniqueJudges.join(', ') : 'AWAITING';
+
+        // Extract Schedule
+        let schedBadge = '';
+        const sched = masterSchedule[comp.id];
+        if (sched) {
+            const timeObj = new Date(`${sched.date}T${sched.time}`);
+            const timeStr = isNaN(timeObj) ? sched.time : timeObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            schedBadge = `<span style="display: inline-flex; align-items: center; gap: 0.4rem;"><i class="fa-regular fa-clock" style="color: var(--primary);"></i> Sched: <strong style="color: var(--text-main);">${sched.date} @ ${timeStr}</strong></span>`;
+        }
 
         const card = document.createElement('div');
         card.className = 'card comp-card';
@@ -175,13 +218,16 @@ async function loadCompetitions(stageId) {
                     
                     <h2 class="card-title" style="margin-top: 0.75rem;">${comp.name}</h2>
                     
-                    <div style="display: flex; gap: 1.25rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600; margin-top: 0.25rem;">
-                        <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
-                            <i class="fa-solid fa-users" style="color: var(--primary);"></i> Enrolled: <strong style="color: var(--text-main);">${enrolledCount}</strong>
-                        </span>
-                        <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
-                            <i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Judges: <strong style="color: var(--text-main);">${comp.judgements ? comp.judgements.length : 0}</strong>
-                        </span>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600; margin-top: 0.5rem;">
+                        ${schedBadge}
+                        <div style="display: flex; gap: 1.25rem;">
+                            <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                                <i class="fa-solid fa-users" style="color: var(--primary);"></i> Enrolled: <strong style="color: var(--text-main);">${enrolledCount}</strong>
+                            </span>
+                            <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                                <i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Judges: <strong style="color: var(--text-main);">${judgesStr}</strong>
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>

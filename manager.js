@@ -59,45 +59,7 @@ function showToast(message, type = 'success') {
     setTimeout(() => { toast.style.animation = 'slideOut 0.3s ease forwards'; setTimeout(() => toast.remove(), 300); }, 3000);
 }
 
-async function loadAssignments() {
-    const grid = document.getElementById('comps-grid');
-    grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1; color: var(--text-muted);"><i class="ph ph-spinner-gap" style="font-size:2rem; animation: spin 1s linear infinite;"></i><p>Loading records...</p></div>`;
 
-    try {
-        if (availableJudges.length === 0) {
-            // FIXED: Changed window.db to supabaseClient
-            const { data: judges } = await supabaseClient.from('users').select('id, username').eq('role', 'judge');
-            availableJudges = judges || [];
-        }
-
-        // NEW: Fetch all official stages created by Admin
-        if (allStages.length === 0) {
-            // FIXED: Changed window.db to supabaseClient
-            const { data: stages } = await supabaseClient.from('stages').select('id, name, stage_no').order('stage_no');
-            allStages = stages || [];
-        }
-
-        // UPDATED: Added 'stages(name)' to the select query to get the stage name for each competition
-        // FIXED: Changed window.db to supabaseClient
-        const { data: comps } = await supabaseClient.from('competitions')
-            .select('*, categories(name), stages(name)') 
-            .in('status', ['pending', 'registration', 'ongoing'])
-            .order('name');
-        allCompetitions = comps || [];
-
-        // FIXED: Changed window.db to supabaseClient
-        const { data: assignments } = await supabaseClient.from('judgements').select('competition_id, judge_id, users(username)').is('awarded_mark', null);
-        allAssignments = assignments || [];
-
-        populateCategoryFilter();
-        populateStageFilter();
-        
-        filterCompetitions();
-    } catch (error) {
-        console.error("SUPABASE ERROR:", error);
-        showToast('Error loading data', 'error');
-    }
-}
 function populateCategoryFilter() {
     const filter = document.getElementById('categoryFilter');
     const categories = new Set(allCompetitions.map(c => c.categories?.name || 'Uncategorized'));
@@ -147,6 +109,76 @@ function filterCompetitions() {
     renderGrid(filteredComps);
 }
 
+async function loadAssignments() {
+    const grid = document.getElementById('comps-grid');
+    grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1; color: var(--text-muted);"><i class="ph ph-spinner-gap" style="font-size:2rem; animation: spin 1s linear infinite;"></i><p>Loading records...</p></div>`;
+
+    try {
+        if (availableJudges.length === 0) {
+            const { data: judges } = await supabaseClient.from('users').select('id, username').eq('role', 'judge');
+            availableJudges = judges || [];
+        }
+
+        if (allStages.length === 0) {
+            const { data: stages } = await supabaseClient.from('stages').select('id, name, stage_no').order('stage_no');
+            allStages = stages || [];
+        }
+
+        // 1. Fetch Competitions, grabbing the stage_no alongside the name
+        const { data: comps } = await supabaseClient.from('competitions')
+            .select('*, categories(name), stages(name, stage_no)') 
+            .in('status', ['pending', 'registration', 'ongoing']);
+            
+        // 2. Fetch Master Schedule
+        const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
+        const masterSchedule = schedData?.value || {};
+        
+        // 3. Fetch Visibility Offset Setting
+        const { data: pointData } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
+        const announcerOffset = pointData?.value?.announcer_offset !== undefined ? parseInt(pointData.value.announcer_offset) : 30;
+
+        const now = new Date();
+        
+        // 4. Filter Competitions based on Status and Schedule (Applying the Offset limit)
+        let activeComps = (comps || []).filter(comp => {
+            if (comp.status !== 'pending') return true; 
+            const sched = masterSchedule[comp.id];
+            if (!sched || sched.status !== 'published') return false; 
+            
+            const schedDate = new Date(`${sched.date}T${sched.time}`);
+            if (isNaN(schedDate)) return true;
+            
+            const diffMins = (schedDate - now) / 60000;
+            return diffMins <= announcerOffset;
+        });
+
+        // 5. Chronological Sorting (Order by Time)
+        activeComps.sort((a, b) => {
+            const schedA = masterSchedule[a.id];
+            const schedB = masterSchedule[b.id];
+            const timeA = schedA && schedA.date && schedA.time ? new Date(`${schedA.date}T${schedA.time}`).getTime() : Infinity;
+            const timeB = schedB && schedB.date && schedB.time ? new Date(`${schedB.date}T${schedB.time}`).getTime() : Infinity;
+            return timeA - timeB;
+        });
+
+        // Attach schedule to object for rendering
+        activeComps.forEach(c => c.schedule = masterSchedule[c.id]);
+        allCompetitions = activeComps;
+
+        // 6. Fetch Assignments
+        const { data: assignments } = await supabaseClient.from('judgements').select('competition_id, judge_id, users(username)').is('awarded_mark', null);
+        allAssignments = assignments || [];
+
+        populateCategoryFilter();
+        populateStageFilter();
+        
+        filterCompetitions();
+    } catch (error) {
+        console.error("SUPABASE ERROR:", error);
+        showToast('Error loading data', 'error');
+    }
+}
+
 function renderGrid(competitions) {
     const grid = document.getElementById('comps-grid');
     const selectAllContainer = document.getElementById('select-all-container');
@@ -155,7 +187,7 @@ function renderGrid(competitions) {
 
     if (competitions.length === 0) {
         if (selectAllContainer) selectAllContainer.style.display = 'none'; // Hide Select All
-        grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1; color: var(--text-muted);"><i class="ph ph-magnifying-glass" style="font-size:2rem; margin-bottom:1rem;"></i><p>No competitions match your filters.</p></div>`;
+        grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1; color: var(--text-muted);"><i class="ph ph-magnifying-glass" style="font-size:2rem; margin-bottom:1rem;"></i><p>No active/upcoming competitions match your filters.</p></div>`;
         return;
     }
 
@@ -167,7 +199,6 @@ function renderGrid(competitions) {
 
     let judgeOptions = availableJudges.map(j => `<option value="${j.id}">${j.username}</option>`).join('');
 
-    // THIS is the loop where 'comp' is defined. Everything referencing 'comp' MUST stay inside here.
     competitions.forEach(comp => {
         const compAssignments = allAssignments.filter(a => a.competition_id === comp.id);
         const badgeClass = comp.status === 'pending' ? 'badge-pending' : 'badge-ongoing';
@@ -187,7 +218,17 @@ function renderGrid(competitions) {
                 `).join('') + `</div>`;
         }
 
-        // Card HTML rendering (now with the bulk action checkbox safely inside the loop)
+        // Format Stage ID & Name
+        const compStage = comp.stages ? `Stage ${comp.stages.stage_no || 'TBD'} - ${comp.stages.name}` : 'Unstaged';
+        
+        // Format Time Schedule
+        let schedBadge = '';
+        if (comp.schedule) {
+            const timeObj = new Date(`${comp.schedule.date}T${comp.schedule.time}`);
+            const timeStr = isNaN(timeObj) ? comp.schedule.time : timeObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            schedBadge = `<div class="card-meta" style="color: var(--primary); font-weight: 700; margin-bottom: 1rem;"><i class="ph ph-clock"></i> ${comp.schedule.date} @ ${timeStr}</div>`;
+        }
+
         grid.innerHTML += `
             <div class="card">
                 <div class="card-header">
@@ -197,7 +238,10 @@ function renderGrid(competitions) {
                     </div>
                     <span class="badge ${badgeClass}">${comp.status}</span>
                 </div>
-                <div class="card-meta"><i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}</div>
+                
+                <div class="card-meta" style="margin-bottom: 0.25rem;"><i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}</div>
+                <div class="card-meta" style="margin-bottom: ${schedBadge ? '0.25rem' : '1rem'};"><i class="ph ph-microphone-stage"></i> ${compStage}</div>
+                ${schedBadge}
                 
                 <div class="assigned-judges">
                     <strong>Assigned Judges:</strong><br>
@@ -212,6 +256,7 @@ function renderGrid(competitions) {
         `;
     });
 }
+
 async function assignJudge(compId, btnElement) {
     const judgeId = document.getElementById(`judge-select-${compId}`).value;
     if (!judgeId) return showToast('Please select a judge.', 'error');

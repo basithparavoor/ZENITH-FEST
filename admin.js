@@ -4123,13 +4123,7 @@ function applyGlobalBranding(brandingData) {
 
     if (typeof window !== 'undefined') window.systemBranding = brandingData;
 }
-// ============================================================================
-// PARTICIPANT POINTS LEDGER ENGINE
-// ============================================================================
-let pointsDataList = [];
-let filteredPointsList = [];
-let pointsCurrentPage = 1;
-let pointsRowsPerPage = 10;
+
 let pointsAdminSettings = {
     thresholds: { aplus: 90, a: 70, b: 60, c: 50 },
     points_solo: { aplus: 8, a: 7, b: 5, c: 3 },
@@ -4137,8 +4131,10 @@ let pointsAdminSettings = {
     points_large: { aplus: 15, a: 12, b: 10, c: 7 },
     pos_points: { p1: 3, p2: 2, p3: 1 },
     poster_interval: 10,
+    announcer_offset: 30, // NEW DEFAULT
     tm_access: true
 };
+
 async function loadPointSettings() {
     try {
         const { data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
@@ -4158,7 +4154,9 @@ async function loadPointSettings() {
             if(document.getElementById('pos-3')) document.getElementById('pos-3').value = v.pos_points.p3;
             if(document.getElementById('setting-poster-interval')) document.getElementById('setting-poster-interval').value = v.poster_interval;
             
-            // ADDED: Load Lock Date
+            // NEW: Load Announcer Offset
+            if(document.getElementById('setting-announcer-offset')) document.getElementById('setting-announcer-offset').value = v.announcer_offset !== undefined ? v.announcer_offset : 30;
+            
             if(document.getElementById('setting-lock-date')) document.getElementById('setting-lock-date').value = v.lock_date || '';
             
             if(document.getElementById('setting-tm-access')) {
@@ -4179,7 +4177,8 @@ async function savePointSettings() {
         points_large: { aplus: getVal('pt-large-aplus'), a: getVal('pt-large-a'), b: getVal('pt-large-b'), c: getVal('pt-large-c') },
         pos_points: { p1: getVal('pos-1'), p2: getVal('pos-2'), p3: getVal('pos-3') },
         poster_interval: getVal('setting-poster-interval'),
-        // ADDED: Save Lock Date
+        // NEW: Save Announcer Offset
+        announcer_offset: getVal('setting-announcer-offset'),
         lock_date: document.getElementById('setting-lock-date') ? document.getElementById('setting-lock-date').value : null,
         tm_access: document.getElementById('setting-tm-access') ? document.getElementById('setting-tm-access').checked : true
     };
@@ -4191,6 +4190,7 @@ async function savePointSettings() {
         showToast("Point Settings Saved Successfully!");
     } catch (e) { showToast(e.message, 'error'); }
 }
+
 let teamPointsList = []; // New Global Array
 
 async function loadParticipantPoints() {

@@ -359,58 +359,6 @@
             setInterval(fetchData, 15000); 
         }
 
-        async function fetchData() {
-            try {
-                // 1. Fetch Registrations & Ongoing
-                const { data: regData } = await supabaseClient
-                    .from('competitions')
-                    .select(`*, categories(id, name), stages(id, name),
-                        participant_competitions ( participants ( name, unique_id, teams(name) ) )`)
-                    .eq('status', 'registration');
-                
-                const { data: ongoingData } = await supabaseClient
-                    .from('competitions')
-                    .select('*, stages(id, name), categories(id, name)')
-                    .eq('status', 'ongoing');
-
-                // 2. Fetch Published Competitions
-                const { data: pubData } = await supabaseClient
-                  .from('competitions')
-                    // FIX: Added participant_competitions(count) to fetch the registered count
-                    .select('*, stages(id, name), categories(id, name, is_general), participant_competitions(count)')
-                    .eq('status', 'published');
-                
-                publishedComps = pubData || [];
-                
-                // 3. Fetch Judgements
-                let globalJudgements = [];
-                if (publishedComps.length > 0) {
-                    const compIds = publishedComps.map(c => c.id);
-                    const { data: judgements } = await supabaseClient
-                        .from('judgements')
-                        .select(`competition_id, awarded_mark, participants(id, name, team_id, unique_id)`)
-                        .in('competition_id', compIds)
-                        .not('participant_id', 'is', null)
-                        .not('awarded_mark', 'is', null);
-                    globalJudgements = judgements || [];
-                }
-
-                // 4. Fetch the existing Award tracking table
-                const { data: savedAwards } = await supabaseClient
-                    .from('results')
-                    .select('competition_id, participant_id, award_given');
-
-                rawRegData = regData || [];
-                rawOngoingData = ongoingData || [];
-                
-                // 5. Calculate Results
-                calculateResults(globalJudgements, savedAwards || []);
-
-                applyFilters(); 
-            } catch (e) {
-                console.error("Data Sync Error:", e);
-            }
-        }
 function calculateResults(judgements, savedAwards) {
     computedResults = {};
     const compGroups = {};
@@ -515,26 +463,106 @@ function calculateResults(judgements, savedAwards) {
             renderAwards(publishedComps.filter(filterFn), awardStatus, positionStatus);
         }
 
-        function switchTab(tabId) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => {
-        c.classList.add('hidden');
-        if(c.id === 'view-awards' || c.id === 'view-reg' || c.id === 'view-results') { c.style.display = 'none'; } 
-    });
-    
-    event.currentTarget.classList.add('active');
-    const activeTab = document.getElementById(`view-${tabId}`);
-    activeTab.classList.remove('hidden');
-    if(tabId === 'awards' || tabId === 'reg' || tabId === 'results') { activeTab.style.display = 'block'; } 
-}
+async function fetchData() {
+            try {
+                // 1. Fetch Master Schedule from settings
+                const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
+                const masterSchedule = schedData?.value || {};
+
+                // 2. Fetch Active & Pending Competitions (Added stage_no)
+                const { data: activeComps } = await supabaseClient
+                    .from('competitions')
+                    .select(`*, categories(id, name, is_general), stages(id, name, stage_no), participant_competitions ( participants ( name, unique_id, teams(name) ) )`)
+                    .in('status', ['pending', 'registration', 'ongoing']);
+                
+                // 3. Fetch Published Competitions (Added stage_no)
+                const { data: pubData } = await supabaseClient
+                    .from('competitions')
+                    .select('*, stages(id, name, stage_no), categories(id, name, is_general), participant_competitions(count)')
+                    .eq('status', 'published');
+                
+                publishedComps = pubData || [];
+                
+                // 4. Fetch Judgements to determine Judges
+                const allCompIds = [...(activeComps || []), ...publishedComps].map(c => c.id);
+                let globalJudgements = [];
+                
+                if (allCompIds.length > 0) {
+                    const { data: judgements } = await supabaseClient
+                        .from('judgements')
+                        .select(`competition_id, awarded_mark, participants(id, name, team_id, unique_id), users(username)`)
+                        .in('competition_id', allCompIds)
+                        .not('participant_id', 'is', null);
+                    globalJudgements = judgements || [];
+                }
+
+                // Group judges per competition
+                const compJudges = {};
+                globalJudgements.forEach(j => {
+                    if(!compJudges[j.competition_id]) compJudges[j.competition_id] = new Set();
+                    if(j.users?.username) compJudges[j.competition_id].add(j.users.username);
+                });
+
+                const now = new Date();
+                const offsetMins = systemSettings.announcer_offset !== undefined ? parseInt(systemSettings.announcer_offset) : 30;
+
+                let visibleActiveComps = [];
+
+                // 5. Filter Competitions based on Status and Schedule
+                (activeComps || []).forEach(c => {
+                    c.uniqueJudges = Array.from(compJudges[c.id] || []);
+                    c.schedule = masterSchedule[c.id] || null;
+
+                    if (c.status === 'ongoing' || c.status === 'registration') {
+                        visibleActiveComps.push(c);
+                    } else if (c.status === 'pending' && c.schedule && c.schedule.status === 'published') {
+                        // Check if the scheduled time is within the visibility offset window
+                        const schedDate = new Date(`${c.schedule.date}T${c.schedule.time}`);
+                        if (!isNaN(schedDate)) {
+                            const diffMins = (schedDate - now) / 60000;
+                            if (diffMins <= offsetMins) {
+                                visibleActiveComps.push(c); // Add to calling screen
+                            }
+                        }
+                    }
+                });
+
+                // 6. Chronological Sorting (Order by Time)
+                visibleActiveComps.sort((a, b) => {
+                    const timeA = a.schedule && a.schedule.date && a.schedule.time ? new Date(`${a.schedule.date}T${a.schedule.time}`).getTime() : Infinity;
+                    const timeB = b.schedule && b.schedule.date && b.schedule.time ? new Date(`${b.schedule.date}T${b.schedule.time}`).getTime() : Infinity;
+                    return timeA - timeB;
+                });
+
+                rawRegData = visibleActiveComps.filter(c => c.status === 'pending' || c.status === 'registration');
+                rawOngoingData = visibleActiveComps.filter(c => c.status === 'ongoing');
+
+                publishedComps.forEach(c => {
+                    c.uniqueJudges = Array.from(compJudges[c.id] || []);
+                    c.schedule = masterSchedule[c.id] || null;
+                });
+
+                // 7. Fetch the existing Award tracking table
+                const { data: savedAwards } = await supabaseClient
+                    .from('results')
+                    .select('competition_id, participant_id, award_given');
+                
+                // 8. Calculate Results
+                calculateResults(globalJudgements.filter(j => j.awarded_mark !== null), savedAwards || []);
+
+                applyFilters(); 
+            } catch (e) {
+                console.error("Data Sync Error:", e);
+            }
+        }
 
         // --- RENDERERS ---
-      function renderRegistrations(data) {
-    const container = document.getElementById('reg-container'); // Updated ID
-    if (data.length === 0) {
-        container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No open registrations for selected filters.</div>';
-        return;
-    }
+        function renderRegistrations(data) {
+            const container = document.getElementById('reg-container');
+            if (data.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No open registrations or upcoming events within the time limit.</div>';
+                return;
+            }
             container.innerHTML = data.map(comp => {
                 const enrollments = comp.participant_competitions || [];
                 let participantsHtml = enrollments.length > 0 ? `
@@ -549,15 +577,128 @@ function calculateResults(judgements, savedAwards) {
                             </div>`).join('')}
                     </div>` : `<div style="margin-top:1rem; padding: 1.5rem; text-align:center; font-size:0.9rem; font-weight: 600; color:var(--text-muted); border: 2px dashed var(--border); border-radius: 12px;">No participants registered yet.</div>`;
                 
-                return `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><span class="badge badge-reg">CALLING</span></div><div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${comp.stages?.name || 'Global Stage'}</div>${participantsHtml}</div>`;
+                // Display Upcoming Schedule
+                let schedBadge = '';
+                if (comp.schedule) {
+                    const timeObj = new Date(`${comp.schedule.date}T${comp.schedule.time}`);
+                    const timeStr = isNaN(timeObj) ? comp.schedule.time : timeObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    schedBadge = `<div class="metric"><i class="fa-regular fa-clock" style="color: var(--primary);"></i> Sched: ${comp.schedule.date} @ ${timeStr}</div>`;
+                }
+                
+                let judgesStr = comp.uniqueJudges && comp.uniqueJudges.length > 0 ? comp.uniqueJudges.join(', ') : 'Awaiting';
+                const stageDisplay = `Stage ${comp.stages?.stage_no || 'TBD'} - ${comp.stages?.name || 'Global Stage'}`;
+
+                return `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><span class="badge badge-reg">${comp.status === 'pending' ? 'UPCOMING' : 'CALLING'}</span></div><div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${stageDisplay}</div>${schedBadge}<div class="metric"><i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Judges: ${judgesStr}</div>${participantsHtml}</div>`;
             }).join('');
         }
 
         function renderOngoing(data) {
             const container = document.getElementById('view-ongoing');
             if (data.length === 0) return container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No ongoing events.</div>';
-            container.innerHTML = data.map(comp => `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><span class="badge badge-live"><i class="fa-solid fa-satellite-dish fa-fade"></i> LIVE</span></div><div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${comp.stages?.name || 'Global Stage'}</div></div>`).join('');
+            
+            container.innerHTML = data.map(comp => {
+                let schedBadge = '';
+                if (comp.schedule) {
+                    const timeObj = new Date(`${comp.schedule.date}T${comp.schedule.time}`);
+                    const timeStr = isNaN(timeObj) ? comp.schedule.time : timeObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    schedBadge = `<div class="metric"><i class="fa-regular fa-clock" style="color: var(--primary);"></i> Sched: ${comp.schedule.date} @ ${timeStr}</div>`;
+                }
+                let judgesStr = comp.uniqueJudges && comp.uniqueJudges.length > 0 ? comp.uniqueJudges.join(', ') : 'Awaiting Marks';
+                const stageDisplay = `Stage ${comp.stages?.stage_no || 'TBD'} - ${comp.stages?.name || 'Global Stage'}`;
+
+                return `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><span class="badge badge-live"><i class="fa-solid fa-satellite-dish fa-fade"></i> LIVE</span></div><div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${stageDisplay}</div>${schedBadge}<div class="metric"><i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Judges: ${judgesStr}</div></div>`;
+            }).join('');
         }
+
+        function renderResults(data) {
+            const container = document.getElementById('results-container'); 
+            const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
+            const visibleData = data.filter(comp => !announcedComps.includes(comp.id));
+
+            // Sort results chronologically too
+            visibleData.sort((a, b) => {
+                const timeA = a.schedule && a.schedule.date && a.schedule.time ? new Date(`${a.schedule.date}T${a.schedule.time}`).getTime() : Infinity;
+                const timeB = b.schedule && b.schedule.date && b.schedule.time ? new Date(`${b.schedule.date}T${b.schedule.time}`).getTime() : Infinity;
+                return timeA - timeB;
+            });
+
+            if (visibleData.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 3rem; background: var(--bg-surface); border-radius: var(--radius-xl); border: 2px dashed var(--border); font-weight: 600;"><i class="fa-solid fa-clipboard-check" style="font-size: 3rem; color: #CBD5E1; margin-bottom: 1rem; display: block;"></i>No new results pending announcement.</div>';
+                return;
+            }
+            
+            container.innerHTML = visibleData.map(comp => {
+                const resultsList = computedResults[comp.id] || [];
+                let tableHtml = '';
+                
+                let schedBadge = '';
+                if (comp.schedule) {
+                    const timeObj = new Date(`${comp.schedule.date}T${comp.schedule.time}`);
+                    const timeStr = isNaN(timeObj) ? comp.schedule.time : timeObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    schedBadge = `<div class="metric"><i class="fa-regular fa-clock" style="color: var(--primary);"></i> Sched: ${comp.schedule.date} @ ${timeStr}</div>`;
+                }
+                let judgesStr = comp.uniqueJudges && comp.uniqueJudges.length > 0 ? comp.uniqueJudges.join(', ') : 'None';
+                const stageDisplay = `Stage ${comp.stages?.stage_no || 'TBD'} - ${comp.stages?.name || 'Global Stage'}`;
+
+                if(resultsList.length > 0) {
+                    const rows = resultsList.map(r => `
+                        <div class="data-item">
+                            <div style="display:flex; gap: 1rem; align-items:center;">
+                                <span class="pos-${r.position <= 3 ? r.position : '0'}">#${r.position}</span>
+                                <div><strong style="color: var(--text-main); font-size: 1.05rem;">${r.participant.name}</strong><br><small style="color:var(--text-muted); font-family: monospace; font-weight: 600;">${r.participant.teams?.name || 'IND'}</small></div>
+                            </div>
+                            <div style="text-align: right;">
+                                <span style="font-weight: 800; color: var(--primary); font-size: 1.25rem; margin-right: 10px;">${r.grade}</span>
+                                <span style="font-size:0.8rem; font-weight:800; background: var(--input-bg); color: var(--text-muted); padding: 0.35rem 0.65rem; border-radius: 6px; border: 1px solid var(--border);">${r.points} PTS</span>
+                            </div>
+                        </div>`).join('');
+
+                    tableHtml = `
+                        <div class="data-list">
+                            <div class="data-list-header">
+                                FINAL STANDINGS
+                                <button class="btn-pdf-small" onclick="downloadResultsPDF('${comp.id}')"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                            </div>
+                            ${rows}
+                        </div>`;
+                } else {
+                    tableHtml = `<div style="margin-top:1rem; padding: 1.5rem; text-align:center; font-size:0.9rem; font-weight: 600; color:var(--warning); border: 2px dashed var(--warning-light); border-radius: 12px; background: var(--warning-light);">Awaiting Judging Marks...</div>`;
+                }
+
+                return `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">${comp.name}</div>
+                        <span class="badge badge-results">PUBLISHED</span>
+                    </div>
+                    <div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div>
+                    <div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${stageDisplay}</div>
+                    ${schedBadge}
+                    <div class="metric"><i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Evaluated by: ${judgesStr}</div>
+                    ${tableHtml}
+                    <button class="btn-main" onclick="markAnnounced('${comp.id}')">
+                        <i class="fa-solid fa-check-double"></i> Mark as Announced
+                    </button>
+                </div>`;
+            }).join('');
+        }
+
+        function switchTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => {
+        c.classList.add('hidden');
+        if(c.id === 'view-awards' || c.id === 'view-reg' || c.id === 'view-results') { c.style.display = 'none'; } 
+    });
+    
+    event.currentTarget.classList.add('active');
+    const activeTab = document.getElementById(`view-${tabId}`);
+    activeTab.classList.remove('hidden');
+    if(tabId === 'awards' || tabId === 'reg' || tabId === 'results') { activeTab.style.display = 'block'; } 
+}
+
+      
+
+    
 
       function renderResults(data) {
             const container = document.getElementById('results-container'); 
