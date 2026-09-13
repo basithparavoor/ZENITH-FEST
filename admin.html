@@ -1237,9 +1237,21 @@ tr:hover td { background: var(--bg-main); }
                 </div>
                 <div class="filter-box">
                     <select id="filterSchedStatus" onchange="filterScheduleTable()">
-                        <option value="">All Statuses</option>
+                        <option value="">All Publish Statuses</option>
                         <option value="draft">Draft (Hidden)</option>
                         <option value="published">Published (Visible)</option>
+                    </select>
+                </div>
+                <!-- NEW: Event Status Filter -->
+                <div class="filter-box">
+                    <select id="filterSchedCompStatus" onchange="filterScheduleTable()">
+                        <option value="">All Event Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="registration">Registration</option>
+                        <option value="ongoing">Ongoing</option>
+                        <option value="valuation">In Valuation</option>
+                        <option value="judgement_complete">Judgement Complete</option>
+                        <option value="published">Results Published</option>
                     </select>
                 </div>
             </div>

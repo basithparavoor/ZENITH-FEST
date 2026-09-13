@@ -6109,10 +6109,11 @@ async function loadSchedules() { // <-- THIS FUNCTION WAS MISSING
 }
 
 function filterScheduleTable() {
-    const search = document.getElementById('searchSchedInput').value.toLowerCase();
+   const search = document.getElementById('searchSchedInput').value.toLowerCase();
     const catId = document.getElementById('filterSchedCat').value;
     const stageId = document.getElementById('filterSchedStage').value; 
     const statusVal = document.getElementById('filterSchedStatus').value;
+    const compStatusVal = document.getElementById('filterSchedCompStatus') ? document.getElementById('filterSchedCompStatus').value : ""; // NEW
     
     const tbody = document.getElementById('schedule-tbody');
     tbody.innerHTML = '';
@@ -6138,14 +6139,26 @@ function filterScheduleTable() {
         const matchCat = catId === "" || compCatId == catId;
         const matchStage = stageId === "" || compStageId == stageId; 
         const matchStatus = statusVal === "" || item.sched.status === statusVal;
+        const matchCompStatus = compStatusVal === "" || item.comp.status === compStatusVal; // NEW
         
-        if (!(matchSearch && matchCat && matchStage && matchStatus)) return;
+        if (!(matchSearch && matchCat && matchStage && matchStatus && matchCompStatus)) return; // UPDATED
         
         const isPub = item.sched.status === 'published';
-        const badge = isPub 
+        const publishBadge = isPub 
             ? `<span class="badge" style="background:var(--success-light); color:var(--success);"><i class="fa-solid fa-globe"></i> Published</span>` 
             : `<span class="badge" style="background:var(--warning-light); color:var(--warning);"><i class="fa-solid fa-lock"></i> Draft</span>`;
             
+        let compStateStr = item.comp.status.toUpperCase().replace('_', ' ');
+        let compStateColor = '#64748B'; // Default muted gray
+        if (item.comp.status === 'registration') compStateColor = '#1D4ED8';
+        if (item.comp.status === 'ongoing') compStateColor = '#059669';
+        if (item.comp.status === 'valuation') compStateColor = '#D97706';
+        if (item.comp.status === 'judgement_complete') compStateColor = '#7E22CE';
+
+        const stateBadge = `<br><span style="font-size: 0.7rem; font-weight: 800; color: ${compStateColor}; margin-top: 4px; display: inline-block;">${compStateStr}</span>`;
+        
+        const badge = publishBadge + stateBadge;
+
         const actionBtn = isPub
             ? `<button class="btn btn-outline" style="padding:0.4rem 0.75rem; color:var(--warning); border-color:var(--warning);" onclick="toggleScheduleStatus('${item.compId}', 'draft')" title="Unpublish"><i class="fa-solid fa-eye-slash"></i></button>`
             : `<button class="btn btn-success" style="padding:0.4rem 0.75rem;" onclick="toggleScheduleStatus('${item.compId}', 'published')" title="Publish Live"><i class="fa-solid fa-upload"></i></button>`;
@@ -6375,6 +6388,7 @@ async function exportSchedulePDF() {
         const catId = document.getElementById('filterSchedCat').value;
         const stageId = document.getElementById('filterSchedStage').value; 
         const statusVal = document.getElementById('filterSchedStatus').value;
+        const compStatusVal = document.getElementById('filterSchedCompStatus') ? document.getElementById('filterSchedCompStatus').value : ""; // NEW
 
         // 2. Map items and apply filters
         let scheduledItems = Object.keys(masterSchedule).map(compId => {
@@ -6390,8 +6404,9 @@ async function exportSchedulePDF() {
             const matchCat = catId === "" || compCatId == catId;
             const matchStage = stageId === "" || compStageId == stageId; 
             const matchStatus = statusVal === "" || item.sched.status === statusVal;
+            const matchCompStatus = compStatusVal === "" || item.comp.status === compStatusVal; // NEW
 
-            return matchSearch && matchCat && matchStage && matchStatus;
+            return matchSearch && matchCat && matchStage && matchStatus && matchCompStatus; // UPDATED
         });
         
         // 3. Sort chronologically
@@ -6409,6 +6424,7 @@ async function exportSchedulePDF() {
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${item.comp.name}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.comp.categories?.name || 'GEN'}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.comp.stages?.name || 'TBD'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #4F46E5;">${item.comp.status.toUpperCase().replace('_', ' ')}</td>
             </tr>
         `).join('');
 
@@ -6426,6 +6442,7 @@ async function exportSchedulePDF() {
                         <th style="padding: 10px;">COMPETITION</th>
                         <th style="padding: 10px;">CATEGORY</th>
                         <th style="padding: 10px;">STAGE</th>
+                        <th style="padding: 10px;">EVENT STATUS</th>
                     </tr>
                 </thead>
                 <tbody style="font-size: 12px; color: #334155;">
@@ -6448,6 +6465,7 @@ async function exportScheduleCSV() {
     const catId = document.getElementById('filterSchedCat').value;
     const stageId = document.getElementById('filterSchedStage').value; 
     const statusVal = document.getElementById('filterSchedStatus').value;
+    const compStatusVal = document.getElementById('filterSchedCompStatus') ? document.getElementById('filterSchedCompStatus').value : ""; // NEW
 
     let dataToExport = [];
     
@@ -6463,8 +6481,9 @@ async function exportScheduleCSV() {
             const matchCat = catId === "" || compCatId == catId;
             const matchStage = stageId === "" || compStageId == stageId; 
             const matchStatus = statusVal === "" || sched.status === statusVal;
+            const matchCompStatus = compStatusVal === "" || comp.status === compStatusVal; // NEW
 
-            if (matchSearch && matchCat && matchStage && matchStatus) {
+            if (matchSearch && matchCat && matchStage && matchStatus && matchCompStatus) { // UPDATED
                 dataToExport.push({
                     "DATE": sched.date,
                     "TIME (FROM)": sched.time,
