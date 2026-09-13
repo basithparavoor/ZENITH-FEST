@@ -203,7 +203,7 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
                 padding: 1rem 1.25rem; background: rgba(255, 255, 255, 0.95); 
                 box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-bottom: none; z-index: 50;
             }
-            .header h1 { font-size: 1.25rem; }
+            .header h1 { font-size: 1.15rem; }
             .header .btn-outline { border: none; background: #F1F5F9; border-radius: 50%; width: 44px; height: 44px; padding: 0; font-size: 0; }
             .header .btn-outline i { font-size: 1.25rem; margin: 0; color: var(--danger); }
             
@@ -211,25 +211,27 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
             #sidebar.sidebar { 
                 position: fixed; bottom: 0; left: 0; right: 0; width: 100%; height: auto;
                 flex-direction: row; align-items: center; justify-content: space-between;
-                padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom)) 0.5rem; 
-                background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+                padding: 0.5rem 0.25rem calc(0.5rem + env(safe-area-inset-bottom)) 0.25rem; 
+                background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
                 border-right: none; border-top: 1px solid var(--border);
-                box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.05); z-index: 100; transform: none;
+                box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.08); z-index: 100; transform: none;
             }
-#sidebar .brand { display: none !important; } /* Hide brand logo in bottom nav */            
-            /* Show only primary tabs in bottom nav, hide the rest */
+            #sidebar .brand { display: none !important; } 
+            
+            /* Show only primary tabs in bottom nav, fit them evenly */
             #sidebar .nav-item { 
-                flex-direction: column; gap: 0.25rem; padding: 0.5rem; 
-                font-size: 0.65rem; text-align: center; border-radius: 12px;
-                flex: 1; justify-content: center; font-weight: 700; margin: 0;
+                flex-direction: column; gap: 0.25rem; padding: 0.4rem 0.2rem; 
+                font-size: 0.6rem; text-align: center; border-radius: 12px;
+                flex: 1; justify-content: center; font-weight: 800; margin: 0;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             }
             #sidebar .nav-item i { font-size: 1.35rem; width: auto; margin-bottom: 2px; }
             #sidebar .nav-item.active { box-shadow: none; background: transparent; color: var(--primary); }
             #sidebar .nav-item.active i { transform: scale(1.15); }
-            /* Hide lower priority tabs from bottom bar */
+            
             #sidebar .nav-item:nth-child(5), /* Tracking */
             #sidebar .nav-item:nth-child(7), /* Grievances */
-            #sidebar > div:last-child { display: none; } /* Scan Portal Wrapper */
+            #sidebar > div:last-child { display: none; } 
             
             /* Add Mobile Menu Toggle to Header */
             .menu-toggle { 
@@ -237,7 +239,7 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
                 color: var(--text-main); font-size: 1.5rem; width: auto; height: auto; padding: 0.5rem;
             }
             
-            /* Create a slide-over mobile menu for the hidden items */
+            /* Slide-over mobile menu for the hidden items */
             .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 150; opacity: 0; transition: opacity 0.3s; }
             .mobile-overlay.open { display: block; opacity: 1; }
             
@@ -251,18 +253,18 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
             .mobile-drawer .brand { display: flex; margin: 0; font-size: 1.25rem; }
             
             /* Main Content Adjustments */
-.main-content { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
-            .content-section { padding: 1.5rem 1.25rem; }
-            .content-section h2 { font-size: 1.5rem; }
+            .main-content { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+            .content-section { padding: 1.25rem 1rem; }
+            .content-section h2 { font-size: 1.4rem; }
             
             /* Toolbar Stacking */
             .controls-bar { flex-direction: column; align-items: stretch; padding: 1.25rem; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border-radius: var(--radius-xl); gap: 1rem; background: var(--bg-surface); }
-            .search-box, .filter-box, .controls-bar input, .controls-bar select { width: 100%; min-width: 100%; min-height: 54px; font-size: 16px !important; }
+            .search-box, .filter-box, .controls-bar input, .controls-bar select { width: 100%; min-width: 100%; min-height: 52px; font-size: 15px !important; }
             
             /* Buttons */
-            .btn { min-height: 54px; width: 100%; font-size: 1.05rem; }
-            .bulk-actions-wrapper { flex-direction: column; width: 100%; }
-            .bulk-actions-wrapper .btn { margin-top: 0.5rem; }
+            .btn { min-height: 52px; width: 100%; font-size: 1rem; }
+            .bulk-actions-wrapper { flex-direction: column; width: 100%; gap: 0.75rem !important; }
+            .bulk-actions-wrapper .btn { margin-top: 0; }
             
             /* --- NATIVE MOBILE CARDS INSTEAD OF TABLES --- */
             .table-container { background: transparent; border: none; box-shadow: none; overflow: visible; }
@@ -272,7 +274,7 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
             tbody tr { 
                 background: var(--bg-surface); border-radius: var(--radius-xl); 
                 padding: 1.25rem; margin-bottom: 1.25rem; box-shadow: 0 4px 15px rgba(15, 23, 42, 0.04); 
-                border: 1px solid rgba(226, 232, 240, 0.8); position: relative; 
+                border: 1px solid var(--border); position: relative; 
             }
             
             td { 
@@ -280,19 +282,25 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
                 padding: 0.85rem 0; border-bottom: 1px solid var(--bg-main); 
                 text-align: right; font-size: 0.95rem; gap: 1rem; min-height: 44px;
             }
-            td:last-child { 
-                border-bottom: none; padding-bottom: 0; padding-top: 1.25rem; 
-                margin-top: 0.25rem; justify-content: center; flex-direction: column; gap: 0.75rem;
-            }
-            td:last-child .btn { width: 100%; margin: 0; }
             
             td::before { 
-                font-weight: 800; color: var(--text-muted); font-size: 0.8rem; 
+                font-weight: 800; color: var(--text-muted); font-size: 0.75rem; 
                 text-align: left; content: attr(data-label); letter-spacing: 0.05em; 
-                flex-shrink: 0;
+                flex-shrink: 0; width: 35%; line-height: 1.3;
             }
             
-            td > span, td > div { justify-content: flex-end; text-align: right; }
+            td > span, td > div { 
+                flex: 1; justify-content: flex-end; text-align: right; word-break: break-word; display: flex; align-items: center;
+            }
+            
+            /* The last row (Action row) styling */
+            td:last-child { 
+                border-bottom: none; padding-bottom: 0; padding-top: 1.25rem; 
+                margin-top: 0.5rem; justify-content: center; flex-direction: column; gap: 0.75rem;
+                align-items: stretch; border-top: 1px dashed var(--border);
+            }
+            td:last-child::before { display: none !important; }
+            td:last-child .btn, td:last-child .badge { width: 100%; margin: 0; display: flex; justify-content: center; padding: 0.85rem; }
             
             /* Checkbox Targeting Fix */
             .checkbox-cell { position: absolute; top: 1.25rem; left: 1.25rem; padding: 0 !important; border: none !important; width: auto; min-height: auto; }
