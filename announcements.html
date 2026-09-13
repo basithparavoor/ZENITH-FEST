@@ -472,7 +472,7 @@ async function fetchData() {
                 // 2. Fetch Active & Pending Competitions (Added stage_no)
                 const { data: activeComps } = await supabaseClient
                     .from('competitions')
-                    .select(`*, categories(id, name, is_general), stages(id, name, stage_no), participant_competitions ( participants ( name, unique_id, teams(name) ) )`)
+                    .select(`*, categories(id, name, is_general), stages(id, name, stage_no), participant_competitions ( is_present, code_letter, participants ( name, unique_id, teams(name) ) )`)
                     .in('status', ['pending', 'registration', 'ongoing']);
                 
                 // 3. Fetch Published Competitions (Added stage_no)
@@ -565,17 +565,42 @@ if (allCompIds.length > 0) {
             }
             container.innerHTML = data.map(comp => {
                 const enrollments = comp.participant_competitions || [];
-                let participantsHtml = enrollments.length > 0 ? `
-                    <div class="data-list">
-                        <div class="data-list-header">
-                            Calling List (${enrollments.length})
-                        </div>
-                        ${enrollments.map(e => `
-                            <div class="data-item">
-                                <div><strong style="color: var(--text-main); font-size: 1.05rem;">${e.participants.name}</strong><br><small style="color:var(--text-muted); font-family: monospace;">${e.participants.unique_id}</small></div>
-                                <span style="font-size:0.85rem; font-weight:700; color:var(--primary); background: var(--primary-light); padding: 0.25rem 0.75rem; border-radius: 50px;">${e.participants.teams?.name || 'IND'}</span>
-                            </div>`).join('')}
-                    </div>` : `<div style="margin-top:1rem; padding: 1.5rem; text-align:center; font-size:0.9rem; font-weight: 600; color:var(--text-muted); border: 2px dashed var(--border); border-radius: 12px;">No participants registered yet.</div>`;
+                let participantsHtml = '';
+                if (enrollments.length > 0) {
+                    let checkedIn = enrollments.filter(e => e.is_present).sort((a, b) => (a.code_letter > b.code_letter) ? 1 : -1);
+                    let pending = enrollments.filter(e => !e.is_present);
+                    
+                    let listHtml = '';
+                    
+                    if (checkedIn.length > 0) {
+                        listHtml += checkedIn.map(e => `
+                            <div class="data-item" style="border-left: 4px solid var(--success);">
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <span style="font-weight: 800; color: var(--primary); background: var(--primary-light); width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 1.1rem; border: 1px solid rgba(79,70,229,0.2);">${e.code_letter}</span>
+                                    <div><strong style="color: var(--text-main); font-size: 1.05rem;">${e.participants.name}</strong><br><small style="color:var(--text-muted); font-family: monospace; font-weight: 600;">${e.participants.unique_id} • ${e.participants.teams?.name || 'IND'}</small></div>
+                                </div>
+                                <span style="font-size: 0.75rem; font-weight: 800; color: var(--success); background: #D1FAE5; padding: 0.35rem 0.75rem; border-radius: 6px;"><i class="fa-solid fa-check"></i> IN</span>
+                            </div>
+                        `).join('');
+                    }
+                    
+                    if (pending.length > 0) {
+                        listHtml += pending.map(e => `
+                            <div class="data-item" style="opacity: 0.75; background: var(--bg-main); border-left: 4px solid var(--warning);">
+                                <div><strong style="color: var(--text-main); font-size: 1.05rem;">${e.participants.name}</strong><br><small style="color:var(--text-muted); font-family: monospace; font-weight: 600;">${e.participants.unique_id} • ${e.participants.teams?.name || 'IND'}</small></div>
+                                <span style="font-size: 0.75rem; font-weight: 800; color: var(--warning); background: var(--warning-light); padding: 0.35rem 0.75rem; border-radius: 6px;">PENDING</span>
+                            </div>
+                        `).join('');
+                    }
+
+                    participantsHtml = `
+                        <div class="data-list">
+                            <div class="data-list-header">Calling List (${enrollments.length})</div>
+                            ${listHtml}
+                        </div>`;
+                } else {
+                    participantsHtml = `<div style="margin-top:1rem; padding: 1.5rem; text-align:center; font-size:0.9rem; font-weight: 600; color:var(--text-muted); border: 2px dashed var(--border); border-radius: 12px;">No participants registered yet.</div>`;
+                }
                 
                 // Display Upcoming Schedule
                 let schedBadge = '';
