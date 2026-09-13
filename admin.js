@@ -2943,8 +2943,8 @@ let resizeStartY = 0;
 
 const TEMPLATE_SCHEMAS = {
     individual: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 1 Team', 'Position 1 Photo', 'Position 1 Number', 'Position 2 Name', 'Position 2 Team', 'Position 2 Photo', 'Position 2 Number', 'Position 3 Name', 'Position 3 Team', 'Position 3 Photo', 'Position 3 Number'],
-    team: ['Results Count Text', 'Rank 1 Team', 'Rank 1 Points', 'Rank 1 Number', 'Rank 2 Team', 'Rank 2 Points', 'Rank 2 Number', 'Rank 3 Team', 'Rank 3 Points', 'Rank 3 Number', 'Rank 4 Team', 'Rank 4 Points', 'Rank 4 Number', 'Rank 5 Team', 'Rank 5 Points', 'Rank 5 Number'],
-    final: ['Total Competitions Count', 'Rank 1 Team', 'Rank 1 Points', 'Rank 1 Number', 'Rank 2 Team', 'Rank 2 Points', 'Rank 2 Number', 'Rank 3 Team', 'Rank 3 Points', 'Rank 3 Number', 'Rank 4 Team', 'Rank 4 Points', 'Rank 4 Number', 'Rank 5 Team', 'Rank 5 Points', 'Rank 5 Number'],
+    team: ['Results Count Text', 'Rank 1 Team', 'Rank 1 Points', 'Rank 1 Number', 'Rank 2 Team', 'Rank 2 Points', 'Rank 2 Number', 'Rank 3 Team', 'Rank 3 Points', 'Rank 3 Number', 'Rank 4 Team', 'Rank 4 Points', 'Rank 4 Number', 'Rank 5 Team', 'Rank 5 Points', 'Rank 5 Number', 'Rank 6 Team', 'Rank 6 Points', 'Rank 6 Number', 'Rank 7 Team', 'Rank 7 Points', 'Rank 7 Number', 'Rank 8 Team', 'Rank 8 Points', 'Rank 8 Number', 'Rank 9 Team', 'Rank 9 Points', 'Rank 9 Number', 'Rank 10 Team', 'Rank 10 Points', 'Rank 10 Number'],
+    final: ['Total Competitions Count', 'Rank 1 Team', 'Rank 1 Points', 'Rank 1 Number', 'Rank 2 Team', 'Rank 2 Points', 'Rank 2 Number', 'Rank 3 Team', 'Rank 3 Points', 'Rank 3 Number', 'Rank 4 Team', 'Rank 4 Points', 'Rank 4 Number', 'Rank 5 Team', 'Rank 5 Points', 'Rank 5 Number', 'Rank 6 Team', 'Rank 6 Points', 'Rank 6 Number', 'Rank 7 Team', 'Rank 7 Points', 'Rank 7 Number', 'Rank 8 Team', 'Rank 8 Points', 'Rank 8 Number', 'Rank 9 Team', 'Rank 9 Points', 'Rank 9 Number', 'Rank 10 Team', 'Rank 10 Points', 'Rank 10 Number'],
     id_card: ['Participant Name', 'Unique ID', 'Team Name', 'Category', 'Date of Birth', 'Photo', 'QR Code'],
     certificate: ['Participant Name', 'Unique ID', 'Team Name', 'Category', 'Competition', 'Position', 'Grade', 'Issue Date', 'QR Code']
 };
@@ -2961,6 +2961,11 @@ const STUDIO_MOCK_DATA = {
     'Rank3Team': 'HAWKS', 'Rank3Points': '310', 'Rank3Number': '3',
     'Rank4Team': 'TIGERS', 'Rank4Points': '280', 'Rank4Number': '4',
     'Rank5Team': 'LIONS', 'Rank5Points': '250', 'Rank5Number': '5',
+    'Rank6Team': 'PANTHERS', 'Rank6Points': '220', 'Rank6Number': '6',
+    'Rank7Team': 'WOLVES', 'Rank7Points': '190', 'Rank7Number': '7',
+    'Rank8Team': 'BEARS', 'Rank8Points': '150', 'Rank8Number': '8',
+    'Rank9Team': 'SHARKS', 'Rank9Points': '120', 'Rank9Number': '9',
+    'Rank10Team': 'COBRAS', 'Rank10Points': '90', 'Rank10Number': '10',
     'ParticipantName': 'JOHN DOE', 'UniqueID': 'FEST-26-987654', 'BatchNo': 'BATCH 1',
     'Position': 'FIRST PLACE', 'Grade': 'A+ GRADE', 'IssueDate': new Date().toLocaleDateString()
 };

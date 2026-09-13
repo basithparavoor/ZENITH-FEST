@@ -884,11 +884,11 @@ function renderLeaderboard() {
                         mappedData['ResultsCountText'] = `AFTER ALL`; mappedData['TotalCompetitionsCount'] = `FINAL STANDINGS`;
                     }
 
-                   const top5 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 5);
-                    for(let i = 0; i < 5; i++) {
-                        mappedData[`Rank${i+1}Team`] = top5[i] ? top5[i].name : "";
-                        mappedData[`Rank${i+1}Points`] = top5[i] ? `${top5[i].score}` : "";
-                        mappedData[`Rank${i+1}Number`] = top5[i] ? `${i+1}` : "";
+                   const top10 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 15);
+                    for(let i = 0; i < 15; i++) {
+                        mappedData[`Rank${i+1}Team`] = top10[i] ? top10[i].name : "";
+                        mappedData[`Rank${i+1}Points`] = top10[i] ? `${top10[i].score}` : "";
+                        mappedData[`Rank${i+1}Number`] = top10[i] ? `${i+1}` : "";
                     }
 
                     if(template.fields) {
@@ -1130,68 +1130,69 @@ async function renderSingleResult() {
             `;
         }
 
-        function filterStandingsData(filterVal) {
-            const totalPublished = rawPublishedComps.length;
-            let activeComps = rawPublishedComps;
-            let activeCount = totalPublished;
+     function filterStandingsData(filterVal) {
+    const totalPublished = rawPublishedComps.length;
+    let activeComps = rawPublishedComps;
+    let activeCount = totalPublished;
 
-            if (filterVal !== 'all') {
-                const limit = parseInt(filterVal);
-                activeComps = rawPublishedComps.slice(0, limit);
-                activeCount = limit;
+    if (filterVal !== 'all') {
+        const limit = parseInt(filterVal);
+        activeComps = rawPublishedComps.slice(0, limit);
+        activeCount = limit;
+    }
+
+    // Calculate points for the active set
+    let teamScores = {};
+    allTeams.forEach(t => teamScores[t.id] = { name: t.name, score: 0 });
+
+    activeComps.forEach(comp => {
+        const compJudgements = allJudgements.filter(j => j.competition_id === comp.id);
+        const results = calculateSingleComp(comp, compJudgements);
+        results.forEach(r => {
+            if (r.teamId && teamScores[r.teamId]) {
+                teamScores[r.teamId].score += Number(r.pts) || 0;
             }
+        });
+    });
 
-            // Calculate points for the active set
-            let teamScores = {};
-            allTeams.forEach(t => teamScores[t.id] = { name: t.name, score: 0 });
+    const sortedTeams = Object.values(teamScores).sort((a,b) => b.score - a.score);
 
-            activeComps.forEach(comp => {
-                const compJudgements = allJudgements.filter(j => j.competition_id === comp.id);
-                const results = calculateSingleComp(comp, compJudgements);
-                results.forEach(r => {
-                    if (r.teamId && teamScores[r.teamId]) {
-                        teamScores[r.teamId].score += Number(r.pts) || 0;
-                    }
-                });
-            });
+    // Update Subtitle
+    const subtitle = document.getElementById('standings-subtitle');
+    if (subtitle) {
+        subtitle.innerText = `POINTS AFTER ${activeCount} PUBLISHED EVENT${activeCount === 1 ? '' : 'S'}`;
+    }
 
-            const sortedTeams = Object.values(teamScores).sort((a,b) => b.score - a.score);
+    // Store for Poster Generator
+    currentPosterData = {
+        'ResultsCountText': `AFTER ${activeCount}`,
+        'TotalCompetitionsCount': `FINAL STANDINGS`
+    };
+    
+    // UPDATED: Increased the loop limit to 15 to map more teams for the poster
+    for (let i = 0; i < 15; i++) {
+        currentPosterData[`Rank${i+1}Team`] = sortedTeams[i]?.name || '';
+        currentPosterData[`Rank${i+1}Points`] = sortedTeams[i] ? sortedTeams[i].score.toString() : '';
+        currentPosterData[`Rank${i+1}Number`] = sortedTeams[i] ? (i+1).toString() : '';
+    }
 
-            // Update Subtitle
-            const subtitle = document.getElementById('standings-subtitle');
-            if (subtitle) {
-                subtitle.innerText = `POINTS AFTER ${activeCount} PUBLISHED EVENT${activeCount === 1 ? '' : 'S'}`;
-            }
-
-            // Store for Poster Generator
-            currentPosterData = {
-                'ResultsCountText': `AFTER ${activeCount}`,
-                'Rank1Team': sortedTeams[0]?.name || '', 'Rank1Points': sortedTeams[0]?.score.toString() || '0', 'Rank1Number': sortedTeams[0] ? '1' : '',
-                'Rank2Team': sortedTeams[1]?.name || '', 'Rank2Points': sortedTeams[1]?.score.toString() || '0', 'Rank2Number': sortedTeams[1] ? '2' : '',
-                'Rank3Team': sortedTeams[2]?.name || '', 'Rank3Points': sortedTeams[2]?.score.toString() || '0', 'Rank3Number': sortedTeams[2] ? '3' : '',
-                'Rank4Team': sortedTeams[3]?.name || '', 'Rank4Points': sortedTeams[3]?.score.toString() || '0', 'Rank4Number': sortedTeams[3] ? '4' : '',
-                'Rank5Team': sortedTeams[4]?.name || '', 'Rank5Points': sortedTeams[4]?.score.toString() || '0', 'Rank5Number': sortedTeams[4] ? '5' : ''
-            };
-
-            const container = document.getElementById('standings-card-container');
-            if (container) {
-                container.innerHTML = sortedTeams.map((t, i) => {
-                    const rank = i + 1;
-                    return `
-                    <div class="lb-row">
-                        <div class="lb-rank rank-${rank}">#${rank}</div>
-                        <div class="lb-details"><span class="lb-name">${t.name}</span></div>
-                        <div class="lb-score">
-                            <span class="score-val">${t.score}</span>
-                            <span class="score-unit">PTS</span>
-                        </div>
-                    </div>
-                    `;
-                }).join('');
-            }
-        }
-
-
+    const container = document.getElementById('standings-card-container');
+    if (container) {
+        container.innerHTML = sortedTeams.map((t, i) => {
+            const rank = i + 1;
+            return `
+            <div class="lb-row">
+                <div class="lb-rank rank-${rank}">#${rank}</div>
+                <div class="lb-details"><span class="lb-name">${t.name}</span></div>
+                <div class="lb-score">
+                    <span class="score-val">${t.score}</span>
+                    <span class="score-unit">PTS</span>
+                </div>
+            </div>
+            `;
+        }).join('');
+    }
+}
         // ==========================================
         // UNIFIED GLOBAL BRANDING ENGINE
         // ==========================================
