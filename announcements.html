@@ -183,6 +183,59 @@
             #view-results .data-item { flex-direction: column; align-items: stretch; gap: 0.75rem; }
             #view-results .data-item > div:last-child { display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border); padding-top: 0.75rem; width: 100%; }
         }
+
+        /* Multi-Select Enhancements */
+        .filter-bar select[multiple] {
+            height: 100px; /* Allows showing multiple options at once */
+            padding: 0.5rem;
+            background-image: none; /* Remove custom arrow for multi-selects */
+            scrollbar-width: thin;
+        }
+        .filter-bar select[multiple] option {
+            padding: 0.5rem;
+            margin-bottom: 2px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .filter-bar select[multiple] option:checked {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+
+/* Multi-Select Position Pills */
+        .pos-filter-group { 
+            display: flex; 
+            gap: 0.5rem; 
+            flex: 1; 
+            min-width: 200px; 
+        }
+        .pos-filter-group label {
+            flex: 1; 
+            text-align: center; 
+            background: var(--input-bg); 
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md); 
+            padding: 0.85rem 0.5rem; 
+            font-weight: 700; 
+            font-size: 0.85rem;
+            color: var(--text-muted); 
+            cursor: pointer; 
+            transition: var(--transition);
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .pos-filter-group input[type="checkbox"]:checked + label {
+            background: var(--primary-light); 
+            border-color: var(--primary); 
+            color: var(--primary);
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.1);
+        }
+        
+
     </style>
 </head>
 <body>
@@ -202,11 +255,11 @@
         <div class="container">
             
             <div class="filter-bar">
-                <select id="filter-stage" onchange="applyFilters()">
-                    <option value="all">All Stages</option>
+                <select id="filter-stage" multiple onchange="applyFilters()">
+                    <option value="all" selected>All Stages</option>
                 </select>
-                <select id="filter-category" onchange="applyFilters()">
-                    <option value="all">All Categories</option>
+                <select id="filter-category" multiple onchange="applyFilters()">
+                    <option value="all" selected>All Categories</option>
                 </select>
             </div>
 
@@ -249,12 +302,19 @@
                         <option value="pending">Awards Pending</option>
                         <option value="given">Awards Given</option>
                     </select>
-                    <select id="filter-position" onchange="applyFilters()">
-                        <option value="all">All Positions</option>
-                        <option value="1">1st Place Only</option>
-                        <option value="2">2nd Place Only</option>
-                        <option value="3">3rd Place Only</option>
-                    </select>
+                    
+                    <!-- NEW: Multi-Select Position Pills -->
+                    <div class="pos-filter-group">
+                        <input type="checkbox" id="pos1" value="1" onchange="applyFilters()" hidden>
+                        <label for="pos1">1st</label>
+                        
+                        <input type="checkbox" id="pos2" value="2" onchange="applyFilters()" hidden>
+                        <label for="pos2">2nd</label>
+                        
+                        <input type="checkbox" id="pos3" value="3" onchange="applyFilters()" hidden>
+                        <label for="pos3">3rd</label>
+                    </div>
+
                     <button class="btn-pdf-small" onclick="downloadAllAwardsCSV()" style="flex: 1; justify-content: center; color: #10B981; border-color: #10B981;">
                         <i class="fa-solid fa-file-csv"></i> CSV
                     </button>
@@ -450,24 +510,8 @@ function calculateResults(judgements, savedAwards) {
         });
     }
 }
-// --- FILTERING LOGIC ---
-        function applyFilters() {
-            const stageId = document.getElementById('filter-stage').value;
-            const catId = document.getElementById('filter-category').value;
-            const awardStatus = document.getElementById('filter-award-status')?.value || 'all';
-            const positionStatus = document.getElementById('filter-position')?.value || 'all';
 
-            const filterFn = (comp) => {
-                const matchStage = stageId === 'all' || comp.stage_id === stageId;
-                const matchCat = catId === 'all' || comp.category_id === catId;
-                return matchStage && matchCat;
-            };
 
-            renderRegistrations(rawRegData.filter(filterFn));
-            renderOngoing(rawOngoingData.filter(filterFn));
-            renderResults(publishedComps.filter(filterFn));
-            renderAwards(publishedComps.filter(filterFn), awardStatus, positionStatus);
-        }
 
 async function fetchData() {
             try {
@@ -799,18 +843,45 @@ if (allCompIds.length > 0) {
             }).join('');
         }
         
-        function renderAwards(data, statusFilter, positionFilter) {
+ // Helper to get checked positions
+        function getSelectedPositions() {
+            const checkboxes = document.querySelectorAll('.pos-filter-group input[type="checkbox"]:checked');
+            // If nothing is checked, default to showing 'all'
+            if (checkboxes.length === 0) return ['all'];
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        function applyFilters() {
+            const stageId = document.getElementById('filter-stage').value;
+            const catId = document.getElementById('filter-category').value;
+            const awardStatus = document.getElementById('filter-award-status')?.value || 'all';
+            
+            // Fetch array of selected positions
+            const positionStatuses = getSelectedPositions();
+
+            const filterFn = (comp) => {
+                const matchStage = stageId === 'all' || comp.stage_id === stageId;
+                const matchCat = catId === 'all' || comp.category_id === catId;
+                return matchStage && matchCat;
+            };
+
+            renderRegistrations(rawRegData.filter(filterFn));
+            renderOngoing(rawOngoingData.filter(filterFn));
+            renderResults(publishedComps.filter(filterFn));
+            renderAwards(publishedComps.filter(filterFn), awardStatus, positionStatuses);
+        }
+
+        function renderAwards(data, statusFilter, positionStatuses) {
             const container = document.getElementById('awards-container');
             
-            // Filter Comps that have results matching the criteria
             let filteredComps = data.filter(comp => {
                 let results = computedResults[comp.id] || [];
                 if(results.length === 0) return false;
                 
-                // Check if at least one result in this comp matches the filters
                 return results.some(r => {
                     const matchStatus = statusFilter === 'all' || r.award_given === (statusFilter === 'given');
-                    const matchPos = positionFilter === 'all' || r.position.toString() === positionFilter;
+                    // Check if the result's position is inside the array of selected positions
+                    const matchPos = positionStatuses.includes('all') || positionStatuses.includes(r.position.toString());
                     return matchStatus && matchPos;
                 });
             });
@@ -823,14 +894,15 @@ if (allCompIds.length > 0) {
             container.innerHTML = filteredComps.map(comp => {
                 let results = computedResults[comp.id];
                 
-                // Filter the individual rows for display
                 if(statusFilter !== 'all') {
                     const wantsGiven = statusFilter === 'given';
                     results = results.filter(r => r.award_given === wantsGiven);
                 }
-                if(positionFilter !== 'all') {
-                    results = results.filter(r => r.position.toString() === positionFilter);
-                }
+                
+                // Filter individual rows against the selected positions array
+               if(!positionStatuses.includes('all')) {
+            results = results.filter(r => positionStatuses.includes(r.position.toString()));
+        }
 
                 if(results.length === 0) return '';
 
@@ -862,7 +934,7 @@ if (allCompIds.length > 0) {
                     </div>`;
             }).join('');
         }
-
+    
         // --- INTERACTIONS ---
         function markAnnounced(compId) {
             let announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
@@ -1015,22 +1087,19 @@ if (allCompIds.length > 0) {
         }
 
         function downloadAllResultsPDF() {
-            const stageId = document.getElementById('filter-stage') ? document.getElementById('filter-stage').value : 'all';
-            const catId = document.getElementById('filter-category') ? document.getElementById('filter-category').value : 'all';
-            const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
+            const stageIds = getSelectedValues('filter-stage');
+    const catIds = getSelectedValues('filter-category');
+    const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
 
-            // Automatically detect which portal we are in
-            const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
-            const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
+    const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
+    const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
 
-            // Applies the UI filters AND ensures results that have been "ticked" are excluded
-            const filteredComps = compsList.filter(comp => {
-                const matchStage = stageId === 'all' || comp.stage_id === stageId;
-                const matchCat = catId === 'all' || comp.category_id === catId;
-                const notAnnounced = !announcedComps.includes(comp.id);
-                
-                return matchStage && matchCat && notAnnounced;
-            });
+    const filteredComps = compsList.filter(comp => {
+        const matchStage = stageIds.includes('all') || stageIds.includes(comp.stage_id);
+        const matchCat = catIds.includes('all') || catIds.includes(comp.category_id);
+        const notAnnounced = !announcedComps.includes(comp.id);
+        return matchStage && matchCat && notAnnounced;
+    });
 
             if (filteredComps.length === 0) {
                 alert("No results match the current filters to download.");
@@ -1369,28 +1438,26 @@ function downloadAllResultsCSV() {
 
 // Function to download awards list as CSV
 function downloadAllAwardsCSV() {
-    const statusFilter = document.getElementById('filter-award-status').value;
-    const positionFilter = document.getElementById('filter-position').value;
-    const stageId = document.getElementById('filter-stage').value;
-    const catId = document.getElementById('filter-category').value;
+    const awardStatuses = getSelectedValues('filter-award-status');
+    const positionStatuses = getSelectedPositions();
+    const stageIds = getSelectedValues('filter-stage');
+    const catIds = getSelectedValues('filter-category');
 
-    let csvData = [['Competition', 'Category', 'Pos', 'ID', 'Name', 'Team', 'Status']];
-    
     const filteredComps = publishedComps.filter(comp => {
-        const matchStage = stageId === 'all' || comp.stage_id === stageId;
-        const matchCat = catId === 'all' || comp.category_id === catId;
+        const matchStage = stageIds.includes('all') || stageIds.includes(comp.stage_id);
+        const matchCat = catIds.includes('all') || catIds.includes(comp.category_id);
         return matchStage && matchCat;
     });
 
+    // When looping through filteredComps, apply the inner array filters:
     filteredComps.forEach(comp => {
         let results = computedResults[comp.id] || [];
         
-        if(statusFilter !== 'all') {
-            const wantsGiven = statusFilter === 'given';
-            results = results.filter(r => r.award_given === wantsGiven);
+        if(!awardStatuses.includes('all')) {
+            results = results.filter(r => awardStatuses.includes(r.award_given ? 'given' : 'pending'));
         }
-        if(positionFilter !== 'all') {
-            results = results.filter(r => r.position.toString() === positionFilter);
+        if(!positionStatuses.includes('all')) {
+            results = results.filter(r => positionStatuses.includes(r.position.toString()));
         }
 
         results.forEach(r => {
@@ -1413,6 +1480,14 @@ function downloadAllAwardsCSV() {
 
     exportToCSV(`FestOS_Awards_Report_${new Date().getTime()}.csv`, csvData);
 }
+
+
+function getSelectedValues(elementId) {
+            const el = document.getElementById(elementId);
+            if (!el) return ['all'];
+            const values = Array.from(el.selectedOptions).map(opt => opt.value);
+            return values.length === 0 || values.includes('all') ? ['all'] : values;
+        }
 
     </script>
 </body>
