@@ -230,7 +230,10 @@
             <div id="view-ongoing" class="tab-content grid-layout hidden"></div>
 
             <div id="view-results" class="tab-content hidden">
-                <div class="filter-bar" style="margin-bottom: 1.5rem; justify-content: flex-end;">
+                <div class="filter-bar" style="margin-bottom: 1.5rem; justify-content: flex-end; gap: 0.75rem;">
+                    <button class="btn-pdf-small" onclick="downloadAllResultsCSV()" style="color: #10B981; border-color: #10B981;">
+                        <i class="fa-solid fa-file-csv"></i> Download CSV
+                    </button>
                     <button class="btn-pdf-small" onclick="downloadAllResultsPDF()">
                         <i class="fa-solid fa-file-pdf"></i> Download Bulk Results
                     </button>
@@ -240,7 +243,7 @@
             
             <!-- Awards View -->
             <div id="view-awards" class="tab-content hidden">
-                <div class="filter-bar" style="margin-bottom: 1.5rem;">
+                <div class="filter-bar" style="margin-bottom: 1.5rem; gap: 0.75rem;">
                     <select id="filter-award-status" onchange="applyFilters()">
                         <option value="all">All Award Statuses</option>
                         <option value="pending">Awards Pending</option>
@@ -252,8 +255,11 @@
                         <option value="2">2nd Place Only</option>
                         <option value="3">3rd Place Only</option>
                     </select>
+                    <button class="btn-pdf-small" onclick="downloadAllAwardsCSV()" style="flex: 1; justify-content: center; color: #10B981; border-color: #10B981;">
+                        <i class="fa-solid fa-file-csv"></i> CSV
+                    </button>
                     <button class="btn-pdf-small" onclick="downloadAllAwardsPDF()" style="flex: 1; justify-content: center;">
-                        <i class="fa-solid fa-download"></i> Download Report
+                        <i class="fa-solid fa-file-pdf"></i> PDF
                     </button>
                 </div>
                 <div id="awards-container" class="grid-layout"></div>
@@ -1279,6 +1285,135 @@ function downloadAllCallListsPDF() {
 
     doc.save(`FestOS_Bulk_Calling_Lists.pdf`);
 }
+
+// ==========================================
+// CSV GENERATION ENGINE
+// ==========================================
+
+// Helper function to process and download CSV files
+function exportToCSV(filename, rows) {
+    const processRow = function (row) {
+        let finalVal = '';
+        for (let j = 0; j < row.length; j++) {
+            let innerValue = row[j] === null ? '' : row[j].toString();
+            if (row[j] instanceof Date) {
+                innerValue = row[j].toLocaleString();
+            }
+            let result = innerValue.replace(/"/g, '""');
+            if (result.search(/("|,|\n)/g) >= 0) result = '"' + result + '"';
+            if (j > 0) finalVal += ',';
+            finalVal += result;
+        }
+        return finalVal + '\n';
+    };
+
+    let csvFile = '';
+    for (let i = 0; i < rows.length; i++) {
+        csvFile += processRow(rows[i]);
+    }
+
+    const blob = new Blob([csvFile], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+// Function to download pending results as CSV
+function downloadAllResultsCSV() {
+    const stageId = document.getElementById('filter-stage') ? document.getElementById('filter-stage').value : 'all';
+    const catId = document.getElementById('filter-category') ? document.getElementById('filter-category').value : 'all';
+    const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
+
+    const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
+    const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
+
+    const filteredComps = compsList.filter(comp => {
+        const matchStage = stageId === 'all' || comp.stage_id === stageId;
+        const matchCat = catId === 'all' || comp.category_id === catId;
+        const notAnnounced = !announcedComps.includes(comp.id);
+        return matchStage && matchCat && notAnnounced;
+    });
+
+    if (filteredComps.length === 0) {
+        alert("No results match the current filters to download.");
+        return;
+    }
+
+    let csvData = [['Competition', 'Category', 'Pos', 'Code Letter', 'Participant/Group Name', 'Team', 'Grade', 'Points']];
+
+    filteredComps.forEach((comp) => {
+        const results = resList[comp.id] || [];
+        results.forEach(r => {
+            csvData.push([
+                comp.name.toUpperCase(),
+                (comp.categories?.name || 'GENERAL').toUpperCase(),
+                r.position.toString(),
+                r.participant.unique_id || 'GROUP',
+                r.participant.name.toUpperCase(),
+                (r.participant.teams?.name || 'IND').toUpperCase(),
+                r.grade || '-',
+                (r.points || 0).toString()
+            ]);
+        });
+    });
+
+    exportToCSV(`FestOS_Bulk_Results_${new Date().getTime()}.csv`, csvData);
+}
+
+// Function to download awards list as CSV
+function downloadAllAwardsCSV() {
+    const statusFilter = document.getElementById('filter-award-status').value;
+    const positionFilter = document.getElementById('filter-position').value;
+    const stageId = document.getElementById('filter-stage').value;
+    const catId = document.getElementById('filter-category').value;
+
+    let csvData = [['Competition', 'Category', 'Pos', 'ID', 'Name', 'Team', 'Status']];
+    
+    const filteredComps = publishedComps.filter(comp => {
+        const matchStage = stageId === 'all' || comp.stage_id === stageId;
+        const matchCat = catId === 'all' || comp.category_id === catId;
+        return matchStage && matchCat;
+    });
+
+    filteredComps.forEach(comp => {
+        let results = computedResults[comp.id] || [];
+        
+        if(statusFilter !== 'all') {
+            const wantsGiven = statusFilter === 'given';
+            results = results.filter(r => r.award_given === wantsGiven);
+        }
+        if(positionFilter !== 'all') {
+            results = results.filter(r => r.position.toString() === positionFilter);
+        }
+
+        results.forEach(r => {
+            csvData.push([
+                comp.name.toUpperCase(),
+                (comp.categories?.name || 'General').toUpperCase(),
+                r.position.toString(),
+                r.participant.unique_id || 'GROUP',
+                r.participant.name.toUpperCase(),
+                (r.participant.teams?.name || 'IND').toUpperCase(),
+                r.award_given ? 'GIVEN' : 'PENDING'
+            ]);
+        });
+    });
+
+    if (csvData.length === 1) { 
+        alert("No awards match the current filters to download.");
+        return;
+    }
+
+    exportToCSV(`FestOS_Awards_Report_${new Date().getTime()}.csv`, csvData);
+}
+
     </script>
 </body>
 </html>
