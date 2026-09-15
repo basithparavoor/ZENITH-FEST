@@ -451,7 +451,8 @@ function calculateResults(judgements, savedAwards) {
         const limit = compData.comp_data.max_participants || 1;
         const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
         
-        const registeredCount = compData.comp_data.participant_competitions?.[0]?.count || 3;
+        // UPDATED: Count array length instead of using the count aggregate
+        const registeredCount = compData.comp_data.participant_competitions?.length || 3;
         const eligibleForPosPts = registeredCount >= 3;
 
         const participantsArr = Object.values(compData.participants).map(p => {
@@ -525,10 +526,10 @@ async function fetchData() {
                     .select(`*, categories(id, name, is_general), stages(id, name, stage_no), participant_competitions ( is_present, code_letter, is_leader, participants ( name, unique_id, teams(name) ) )`) // Added is_leader
                     .in('status', ['pending', 'registration', 'ongoing']);
                 
-                // 3. Fetch Published Competitions (Added stage_no)
+                // 3. Fetch Published Competitions (Updated to include code_letter for accurate grouping)
                 const { data: pubData } = await supabaseClient
                     .from('competitions')
-                    .select('*, stages(id, name, stage_no), categories(id, name, is_general), participant_competitions(count)')
+                    .select('*, stages(id, name, stage_no), categories(id, name, is_general), participant_competitions(code_letter, is_leader, participants(id, name, team_id))')
                     .eq('status', 'published');
                 
                 publishedComps = pubData || [];
@@ -871,7 +872,7 @@ if (allCompIds.length > 0) {
             renderAwards(publishedComps.filter(filterFn), awardStatus, positionStatuses);
         }
 
-        function renderAwards(data, statusFilter, positionStatuses) {
+      function renderAwards(data, statusFilter, positionStatuses) {
             const container = document.getElementById('awards-container');
             
             let filteredComps = data.filter(comp => {
@@ -901,8 +902,8 @@ if (allCompIds.length > 0) {
                 
                 // Filter individual rows against the selected positions array
                if(!positionStatuses.includes('all')) {
-            results = results.filter(r => positionStatuses.includes(r.position.toString()));
-        }
+                    results = results.filter(r => positionStatuses.includes(r.position.toString()));
+                }
 
                 if(results.length === 0) return '';
 
@@ -911,16 +912,45 @@ if (allCompIds.length > 0) {
                     const btnClass = r.award_given ? 'given' : 'pending';
                     const btnText = r.award_given ? '<i class="fa-solid fa-check-double"></i> GIVEN' : 'MARK GIVEN';
                     
+                    let membersHtml = '';
+                    if (comp.is_group && comp.participant_competitions) {
+                        // Get the leader's code_letter 
+                        const leaderPc = comp.participant_competitions.find(pc => pc.participants?.id === p.id);
+                        let teamMembers = [];
+                        
+                        if (leaderPc && leaderPc.code_letter) {
+                            // Primary match: Safely link by shared code_letter
+                            teamMembers = comp.participant_competitions
+                                .filter(pc => pc.code_letter === leaderPc.code_letter && pc.participants?.id !== p.id)
+                                .map(pc => pc.participants?.name)
+                                .filter(Boolean);
+                        } else if (p.team_id) {
+                            // Fallback match: By team ID (if code_letters are empty)
+                            teamMembers = comp.participant_competitions
+                                .filter(pc => pc.participants?.team_id === p.team_id && pc.participants?.id !== p.id)
+                                .map(pc => pc.participants?.name)
+                                .filter(Boolean);
+                        }
+                        
+                        if (teamMembers.length > 0) {
+                            membersHtml = `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; line-height: 1.4;"><strong>MEMBERS:</strong> ${teamMembers.join(', ')}</div>`;
+                        }
+                    }
                     return `
                         <div class="data-item">
-                            <div style="display:flex; gap: 1rem; align-items:center; min-width: 200px;">
+                            <div style="display:flex; gap: 1rem; align-items:flex-start; min-width: 200px;">
                                 <span class="pos-${r.position}">#${r.position}</span>
-                                <div><strong style="color: var(--text-main); font-size: 1.05rem;">${p.name}</strong><br><small style="color:var(--text-muted); font-weight: 600;">${p.unique_id || 'Group'} | ${p.teams?.name || 'IND'}</small></div>
+                                <div>
+                                    <strong style="color: var(--text-main); font-size: 1.05rem;">${p.name}</strong><br>
+                                    <small style="color:var(--text-muted); font-weight: 600;">${p.unique_id || 'Group'} | ${p.teams?.name || 'IND'}</small>
+                                    ${membersHtml}
+                                </div>
                             </div>
-                            <button class="btn-award ${btnClass}" onclick="toggleAward('${comp.id}', '${p.id}')">${btnText}</button>
+                            <button class="btn-award ${btnClass}" onclick="toggleAward('${comp.id}', '${p.id}')" style="align-self: center;">${btnText}</button>
                         </div>`;
                 }).join('');
 
+                // THIS BLOCK WAS MISSING
                 return `
                     <div class="card">
                         <div class="card-header" style="margin-bottom:0.5rem;">
@@ -1154,72 +1184,176 @@ if (allCompIds.length > 0) {
             doc.save(`FestOS_Bulk_Results_Table.pdf`);
         }
 
-       function downloadAllAwardsPDF() {
-            // Get all current active filters for WYSIWYG printing
-            const statusFilter = document.getElementById('filter-award-status').value;
-            const positionFilter = document.getElementById('filter-position').value;
-            const stageId = document.getElementById('filter-stage').value;
-            const catId = document.getElementById('filter-category').value;
+ // Function to download awards list as CSV
+function downloadAllAwardsCSV() {
+    // 1. Get Filters
+    const statusFilter = document.getElementById('filter-award-status').value;
+    const positionStatuses = getSelectedPositions(); // Uses the new pills helper
+    const stageId = document.getElementById('filter-stage').value;
+    const catId = document.getElementById('filter-category').value;
 
-            // Prepare subtitle based on filters
-            let filterNames = [];
-            if (statusFilter !== 'all') filterNames.push(statusFilter === 'given' ? 'GIVEN' : 'PENDING');
-            if (positionFilter !== 'all') filterNames.push(`POSITION ${positionFilter}`);
-            const subtitleText = filterNames.length > 0 ? `Filters: ${filterNames.join(' | ')}` : `All Awards Generated: ${new Date().toLocaleString()}`;
+    // 2. Initialize the array (This was missing!)
+    let csvData = [['Competition', 'Category', 'Pos', 'ID', 'Name', 'Team', 'Status']];
+    
+    // 3. Filter Competitions
+    const filteredComps = publishedComps.filter(comp => {
+        const matchStage = stageId === 'all' || comp.stage_id === stageId;
+        const matchCat = catId === 'all' || comp.category_id === catId;
+        return matchStage && matchCat;
+    });
 
-            const doc = setupPDFDoc(`Master Awards Report`, subtitleText);
-
-            let tableData = [];
-            
-            // Pre-filter the competitions to match the main stage/cat filters
-            const filteredComps = publishedComps.filter(comp => {
-                const matchStage = stageId === 'all' || comp.stage_id === stageId;
-                const matchCat = catId === 'all' || comp.category_id === catId;
-                return matchStage && matchCat;
-            });
-
-            filteredComps.forEach(comp => {
-                let results = computedResults[comp.id] || [];
-                
-                // Apply specific row filters matching the UI
-                if(statusFilter !== 'all') {
-                    const wantsGiven = statusFilter === 'given';
-                    results = results.filter(r => r.award_given === wantsGiven);
-                }
-                if(positionFilter !== 'all') {
-                    results = results.filter(r => r.position.toString() === positionFilter);
-                }
-
-                results.forEach(r => {
-                    tableData.push([
-                        comp.name.toUpperCase(),
-                        (comp.categories?.name || 'General').toUpperCase(),
-                        r.position.toString(),
-                        r.participant.unique_id || 'GROUP',
-                        r.participant.name.toUpperCase(),
-                        (r.participant.teams?.name || 'IND').toUpperCase(), // Added Team Data
-                        r.award_given ? 'GIVEN' : 'PENDING'
-                    ]);
-                });
-            });
-
-            if (tableData.length === 0) {
-                alert("No awards match the current filters to download.");
-                return;
-            }
-
-            doc.autoTable({
-                startY: 45,
-                head: [['Competition', 'Category', 'Pos', 'ID', 'Name', 'Team', 'Status']], // Added Team Header
-                body: tableData,
-                theme: 'grid',
-                headStyles: { fillColor: [126, 34, 206] }, 
-                styles: { fontSize: 8, cellPadding: 3 }
-            });
-
-            doc.save(`FestOS_Awards_Report.pdf`);
+    // 4. Populate Data
+    filteredComps.forEach(comp => {
+        let results = computedResults[comp.id] || [];
+        
+        if(statusFilter !== 'all') {
+            const wantsGiven = statusFilter === 'given';
+            results = results.filter(r => r.award_given === wantsGiven);
+        }
+        
+        // Filter by multiple positions
+        if(!positionStatuses.includes('all')) {
+            results = results.filter(r => positionStatuses.includes(r.position.toString()));
         }
 
+      results.forEach(r => {
+            let memberString = '';
+            if (comp.is_group && comp.participant_competitions) {
+                const leaderPc = comp.participant_competitions.find(pc => pc.participants?.id === r.participant.id);
+                let teamMembers = [];
+                
+                if (leaderPc && leaderPc.code_letter) {
+                    teamMembers = comp.participant_competitions
+                        .filter(pc => pc.code_letter === leaderPc.code_letter && pc.participants?.id !== r.participant.id)
+                        .map(pc => pc.participants?.name)
+                        .filter(Boolean);
+                } else if (r.participant.team_id) {
+                    teamMembers = comp.participant_competitions
+                        .filter(pc => pc.participants?.team_id === r.participant.team_id && pc.participants?.id !== r.participant.id)
+                        .map(pc => pc.participants?.name)
+                        .filter(Boolean);
+                }
+                
+                if (teamMembers.length > 0) {
+                    memberString = `\n(MEMBERS: ${teamMembers.join(', ')})`;
+                }
+            }
+
+            const finalName = r.participant.name.toUpperCase() + memberString.toUpperCase();
+
+            csvData.push([
+                comp.name.toUpperCase(),
+                (comp.categories?.name || 'General').toUpperCase(),
+                r.position.toString(),
+                r.participant.unique_id || 'GROUP',
+                finalName,
+                (r.participant.teams?.name || 'IND').toUpperCase(),
+                r.award_given ? 'GIVEN' : 'PENDING'
+            ]);
+        });
+    });
+
+    if (csvData.length === 1) { 
+        alert("No awards match the current filters to download.");
+        return;
+    }
+
+    exportToCSV(`FestOS_Awards_Report_${new Date().getTime()}.csv`, csvData);
+}
+
+// Function to download awards list as PDF
+function downloadAllAwardsPDF() {
+    // 1. Get Filters
+    const statusFilter = document.getElementById('filter-award-status').value;
+    const positionStatuses = getSelectedPositions(); // Uses the new pills helper
+    const stageId = document.getElementById('filter-stage').value;
+    const catId = document.getElementById('filter-category').value;
+
+    // 2. Prepare Subtitle
+    let filterNames = [];
+    if (statusFilter !== 'all') filterNames.push(statusFilter === 'given' ? 'GIVEN' : 'PENDING');
+    if (!positionStatuses.includes('all')) filterNames.push(`POSITIONS: ${positionStatuses.join(', ')}`);
+    const subtitleText = filterNames.length > 0 ? `Filters: ${filterNames.join(' | ')}` : `All Awards Generated: ${new Date().toLocaleString()}`;
+
+    const doc = setupPDFDoc(`Master Awards Report`, subtitleText);
+
+    // 3. Initialize the array
+    let tableData = []; 
+    
+    // 4. Filter Competitions
+    const filteredComps = publishedComps.filter(comp => {
+        const matchStage = stageId === 'all' || comp.stage_id === stageId;
+        const matchCat = catId === 'all' || comp.category_id === catId;
+        return matchStage && matchCat;
+    });
+
+    // 5. Populate Data
+    filteredComps.forEach(comp => {
+        let results = computedResults[comp.id] || [];
+        
+        if(statusFilter !== 'all') {
+            const wantsGiven = statusFilter === 'given';
+            results = results.filter(r => r.award_given === wantsGiven);
+        }
+        
+        // Filter by multiple positions
+        if(!positionStatuses.includes('all')) {
+            results = results.filter(r => positionStatuses.includes(r.position.toString()));
+        }
+
+       results.forEach(r => {
+            let memberString = '';
+            if (comp.is_group && comp.participant_competitions) {
+                const leaderPc = comp.participant_competitions.find(pc => pc.participants?.id === r.participant.id);
+                let teamMembers = [];
+                
+                if (leaderPc && leaderPc.code_letter) {
+                    teamMembers = comp.participant_competitions
+                        .filter(pc => pc.code_letter === leaderPc.code_letter && pc.participants?.id !== r.participant.id)
+                        .map(pc => pc.participants?.name)
+                        .filter(Boolean);
+                } else if (r.participant.team_id) {
+                    teamMembers = comp.participant_competitions
+                        .filter(pc => pc.participants?.team_id === r.participant.team_id && pc.participants?.id !== r.participant.id)
+                        .map(pc => pc.participants?.name)
+                        .filter(Boolean);
+                }
+                
+                if (teamMembers.length > 0) {
+                    memberString = `\n(MEMBERS: ${teamMembers.join(', ')})`;
+                }
+            }
+
+            const finalName = r.participant.name.toUpperCase() + memberString.toUpperCase();
+
+            tableData.push([
+                comp.name.toUpperCase(),
+                (comp.categories?.name || 'General').toUpperCase(),
+                r.position.toString(),
+                r.participant.unique_id || 'GROUP',
+                finalName,
+                (r.participant.teams?.name || 'IND').toUpperCase(),
+                r.award_given ? 'GIVEN' : 'PENDING'
+            ]);
+        });
+    });
+
+    if (tableData.length === 0) {
+        alert("No awards match the current filters to download.");
+        return;
+    }
+
+    doc.autoTable({
+        startY: 45,
+        head: [['Competition', 'Category', 'Pos', 'ID', 'Name', 'Team', 'Status']], 
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [126, 34, 206] }, 
+        styles: { fontSize: 8, cellPadding: 3 }
+    });
+
+    doc.save(`FestOS_Awards_Report.pdf`);
+}
 
 // ==========================================
 // UNIFIED GLOBAL BRANDING ENGINE
@@ -1436,50 +1570,6 @@ function downloadAllResultsCSV() {
     exportToCSV(`FestOS_Bulk_Results_${new Date().getTime()}.csv`, csvData);
 }
 
-// Function to download awards list as CSV
-function downloadAllAwardsCSV() {
-    const awardStatuses = getSelectedValues('filter-award-status');
-    const positionStatuses = getSelectedPositions();
-    const stageIds = getSelectedValues('filter-stage');
-    const catIds = getSelectedValues('filter-category');
-
-    const filteredComps = publishedComps.filter(comp => {
-        const matchStage = stageIds.includes('all') || stageIds.includes(comp.stage_id);
-        const matchCat = catIds.includes('all') || catIds.includes(comp.category_id);
-        return matchStage && matchCat;
-    });
-
-    // When looping through filteredComps, apply the inner array filters:
-    filteredComps.forEach(comp => {
-        let results = computedResults[comp.id] || [];
-        
-        if(!awardStatuses.includes('all')) {
-            results = results.filter(r => awardStatuses.includes(r.award_given ? 'given' : 'pending'));
-        }
-        if(!positionStatuses.includes('all')) {
-            results = results.filter(r => positionStatuses.includes(r.position.toString()));
-        }
-
-        results.forEach(r => {
-            csvData.push([
-                comp.name.toUpperCase(),
-                (comp.categories?.name || 'General').toUpperCase(),
-                r.position.toString(),
-                r.participant.unique_id || 'GROUP',
-                r.participant.name.toUpperCase(),
-                (r.participant.teams?.name || 'IND').toUpperCase(),
-                r.award_given ? 'GIVEN' : 'PENDING'
-            ]);
-        });
-    });
-
-    if (csvData.length === 1) { 
-        alert("No awards match the current filters to download.");
-        return;
-    }
-
-    exportToCSV(`FestOS_Awards_Report_${new Date().getTime()}.csv`, csvData);
-}
 
 
 function getSelectedValues(elementId) {
