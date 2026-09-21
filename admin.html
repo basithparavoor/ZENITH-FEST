@@ -19,136 +19,140 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     
     <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
 
 :root {
-    --primary: #4F46E5;
-    --primary-hover: #4338CA;
-    --primary-light: #EEF2FF;
-    --primary-ring: rgba(79, 70, 229, 0.2);
-    --primary-gradient: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+    /* Refined Premium Palette */
+    --primary: #3B82F6;
+    --primary-hover: #2563EB;
+    --primary-light: #EFF6FF;
+    --primary-ring: rgba(59, 130, 246, 0.2);
+    --primary-gradient: linear-gradient(135deg, #3B82F6 0%, #6366F1 100%);
     
-    --danger: #E11D48;
-    --danger-hover: #BE123C;
-    --danger-light: #FFF1F2;
+    --danger: #EF4444;
+    --danger-hover: #DC2626;
+    --danger-light: #FEF2F2;
     
     --success: #10B981;
     --success-hover: #059669;
     --success-light: #ECFDF5;
     
-    --bg-main: #F8FAFC; 
+    --bg-main: #F9FAFB; 
     --bg-surface: #FFFFFF;
-    --text-main: #0F172A;
-    --text-muted: #64748B;
-    --border: #E2E8F0;
-    --border-hover: #CBD5E1;
+    --text-main: #1F2937;
+    --text-muted: #6B7280;
+    --border: #E5E7EB;
+    --border-hover: #D1D5DB;
     
-    --shadow-sm: 0 2px 4px rgba(15, 23, 42, 0.02), 0 1px 2px rgba(15, 23, 42, 0.02);
-    --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.04), 0 2px 4px rgba(15, 23, 42, 0.02);
-    --shadow-lg: 0 16px 32px rgba(15, 23, 42, 0.06), 0 8px 16px rgba(15, 23, 42, 0.03);
-    --shadow-float: 0 20px 40px -10px rgba(79, 70, 229, 0.15);
+    /* Smooth, Deep Layered Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+    --shadow-float: 0 20px 25px -5px rgba(59, 130, 246, 0.15), 0 10px 10px -5px rgba(59, 130, 246, 0.05);
     
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
+    /* Elegant Radii */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
     
-    --transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    --transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; -webkit-tap-highlight-color: transparent; }
 
-body { display: flex; height: 100vh; background-color: var(--bg-main); color: var(--text-main); overflow: hidden; -webkit-font-smoothing: antialiased; }
+body { display: flex; height: 100vh; background-color: var(--bg-main); color: var(--text-main); overflow: hidden; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
 input, select, textarea, table td:not(.checkbox-cell) { text-transform: uppercase !important; }
 input[type="password"], input[type="file"], .file-input, textarea[style*="text-transform: none"] { text-transform: none !important; }
-::placeholder { text-transform: uppercase; opacity: 0.4; font-size: 0.85rem; font-weight: 500; }
+::placeholder { text-transform: uppercase; opacity: 0.5; font-size: 0.85rem; font-weight: 500; }
 
-.sidebar { width: 280px; background: var(--bg-surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 2rem 1.25rem; z-index: 40; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); overflow-y: auto; }
+.sidebar { width: 280px; background: var(--bg-surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 2rem 1.25rem; z-index: 40; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); overflow-y: auto; }
 
-.brand { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; font-weight: 800; color: var(--primary); margin-bottom: 2.5rem; display: flex; align-items: center; gap: 0.75rem; padding-left: 0.75rem; flex-wrap: nowrap; line-height: 1.2; word-break: break-word; }
+.brand { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.35rem; font-weight: 700; color: var(--primary); margin-bottom: 2.5rem; display: flex; align-items: center; gap: 0.75rem; padding-left: 0.75rem; flex-wrap: nowrap; line-height: 1.2; word-break: break-word; letter-spacing: -0.02em; }
 
-.nav-item { padding: 0.875rem 1.25rem; margin-bottom: 0.5rem; border-radius: var(--radius-md); cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 0.95rem; transition: var(--transition); display: flex; align-items: center; gap: 1rem; }
-.nav-item i { width: 22px; text-align: center; font-size: 1.15rem; color: #94A3B8; transition: var(--transition); }
+.nav-item { padding: 0.85rem 1.25rem; margin-bottom: 0.4rem; border-radius: var(--radius-md); cursor: pointer; color: var(--text-muted); font-weight: 500; font-size: 0.95rem; transition: var(--transition); display: flex; align-items: center; gap: 1rem; }
+.nav-item i { width: 22px; text-align: center; font-size: 1.1rem; color: #9CA3AF; transition: var(--transition); }
 .nav-item:hover { background: var(--bg-main); color: var(--text-main); }
-.nav-item.active { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); }
-.nav-item.active i { color: white; }
+.nav-item.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+.nav-item.active i { color: var(--primary); }
 
 .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; scroll-behavior: smooth; }
-.content-section { display: none; padding: 2rem 2.5rem; animation: fadeUp 0.3s ease forwards; opacity: 0; }
+.content-section { display: none; padding: 2rem 2.5rem; animation: fadeUp 0.4s ease forwards; opacity: 0; }
 .content-section.active { display: block; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-/* FIX: Header constraints applied */
+/* Header adjustments */
 .header { background: rgba(255, 255, 255, 0.85); padding: 1.25rem 2.5rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 20; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); gap: 1rem; flex-wrap: nowrap; }
-.header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
+.header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.3rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; letter-spacing: -0.01em; }
 
 .action-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap; }
 .bulk-actions { display: flex; gap: 0.75rem; align-items: center; }
 
 .controls-bar { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; background: white; padding: 1rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border); }
 .search-box { flex: 2; min-width: 260px; position: relative; }
-.search-box input { width: 100%; padding: 0.75rem 1rem 0.75rem 2.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; font-weight: 500; outline: none; transition: var(--transition); }
-.search-box input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+.search-box input { width: 100%; padding: 0.75rem 1rem 0.75rem 2.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; font-weight: 500; outline: none; transition: var(--transition); background: var(--bg-main); color: var(--text-main); }
+.search-box input:focus { border-color: var(--primary); background: #FFFFFF; box-shadow: 0 0 0 3px var(--primary-ring); }
 .search-box i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
 .filter-box { flex: 1; min-width: 180px; }
-.filter-box select { width: 100%; padding: 0.75rem 2.5rem 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; font-weight: 500; outline: none; appearance: none; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748B'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E") no-repeat right 1rem center/1.2rem; }
-.filter-box select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+.filter-box select { width: 100%; padding: 0.75rem 2.5rem 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; font-weight: 500; outline: none; appearance: none; background: var(--bg-main) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E") no-repeat right 1rem center/1.2rem; color: var(--text-main); transition: var(--transition); }
+.filter-box select:focus { border-color: var(--primary); background: #FFFFFF; box-shadow: 0 0 0 3px var(--primary-ring); }
 
-.btn { padding: 0.65rem 1.25rem; border-radius: var(--radius-md); font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: var(--transition); border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 42px; white-space: nowrap; }
+.btn { padding: 0.65rem 1.25rem; border-radius: var(--radius-md); font-weight: 500; font-size: 0.9rem; cursor: pointer; transition: var(--transition); border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 42px; white-space: nowrap; }
 .btn:active { transform: scale(0.97); }
-.btn-primary { background: var(--primary); color: white; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25); }
+.btn-primary { background: var(--primary-gradient); color: white; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); }
 .btn-primary:hover { background: var(--primary-hover); box-shadow: var(--shadow-float); transform: translateY(-1px); }
 .btn-outline { background: white; border-color: var(--border); color: var(--text-main); }
 .btn-outline:hover { background: var(--bg-main); border-color: var(--border-hover); }
-.btn-danger { background: var(--danger-light); color: var(--danger); }
+.btn-danger { background: var(--danger-light); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
 .btn-success { background: var(--success); color: white; }
 
 .table-container { background: white; border-radius: var(--radius-lg); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-sm); }
 table { width: 100%; border-collapse: collapse; text-align: left; }
-th { padding: 1rem 1.5rem; font-weight: 700; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; background: var(--bg-main); border-bottom: 1px solid var(--border); }
+th { padding: 1rem 1.5rem; font-weight: 600; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; background: var(--bg-main); border-bottom: 1px solid var(--border); }
 td { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; font-weight: 500; color: var(--text-main); }
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: var(--bg-main); }
 .checkbox-cell { width: 48px; text-align: center; }
-.checkbox-cell input { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
+.checkbox-cell input { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
 
-.badge { padding: 0.35rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 700; background: var(--bg-main); color: var(--text-muted); }
+.badge { padding: 0.35rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 600; background: var(--bg-main); color: var(--text-muted); }
 .badge-primary { background: var(--primary-light); color: var(--primary); }
-.badge-count { padding: 0.35rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700; background: var(--bg-main); border: 1px solid var(--border); cursor: pointer; transition: var(--transition); }
+.badge-count { padding: 0.35rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 600; background: var(--bg-main); border: 1px solid var(--border); cursor: pointer; transition: var(--transition); }
 .badge-count:hover { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
 
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); z-index: 999; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.2s ease; padding: 1rem; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.6); backdrop-filter: blur(4px); z-index: 999; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; padding: 1rem; }
 .modal-overlay.show { display: flex; opacity: 1; }
-.modal { background: white; width: 100%; max-width: 520px; border-radius: var(--radius-xl); padding: 2rem; box-shadow: var(--shadow-lg); transform: scale(0.95); transition: transform 0.2s ease; max-height: 90vh; overflow-y: auto; }
+.modal { background: white; width: 100%; max-width: 520px; border-radius: var(--radius-xl); padding: 2rem; box-shadow: var(--shadow-lg); transform: scale(0.95); transition: transform 0.3s ease; max-height: 90vh; overflow-y: auto; }
 .modal-overlay.show .modal { transform: scale(1); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-.modal-header h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; font-weight: 700; }
-.close-btn { background: var(--bg-main); border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; color: var(--text-muted); }
+.modal-header h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; font-weight: 600; }
+.close-btn { background: var(--bg-main); border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; color: var(--text-muted); transition: var(--transition); }
+.close-btn:hover { background: var(--danger-light); color: var(--danger); }
 .form-group { margin-bottom: 1.25rem; }
-.form-group label { display: block; margin-bottom: 0.5rem; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
-.form-group input, .form-group select { width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-main); font-size: 0.95rem; outline: none; }
+.form-group label { display: block; margin-bottom: 0.5rem; font-size: 0.85rem; font-weight: 500; color: var(--text-muted); }
+.form-group input, .form-group select { width: 100%; padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-main); font-size: 0.95rem; font-weight: 500; outline: none; transition: var(--transition); }
 .form-group input:focus, .form-group select:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px var(--primary-ring); }
 .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 2rem; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 
-.mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: 30; opacity: 0; transition: opacity 0.3s; }
+.mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.4); z-index: 30; opacity: 0; transition: opacity 0.4s; }
 .menu-toggle { display: none; background: transparent; border: none; font-size: 1.5rem; color: var(--text-main); cursor: pointer; }
 
 @media (max-width: 768px) {
-    body { background-color: #F1F5F9; } 
+    body { background-color: #F3F4F6; } 
     .sidebar { position: fixed; height: 100%; transform: translateX(-100%); width: 280px; border-radius: 0 24px 24px 0; border: none; box-shadow: var(--shadow-lg); }
     .sidebar.open { transform: translateX(0); }
     .mobile-overlay.open { display: block; opacity: 1; }
     .menu-toggle { display: block; }
     
     .header { padding: 1rem 1.25rem; border-bottom: none; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); position: sticky; top: 0; z-index: 25; box-shadow: var(--shadow-sm); flex-wrap: nowrap; }
-    .header h1 { font-size: 1.2rem; }
+    .header h1 { font-size: 1.15rem; }
     .header .btn-outline { border: none; background: var(--bg-main); border-radius: 50%; width: 40px; height: 40px; padding: 0; font-size: 0; min-height: 40px; flex-shrink: 0; }
     .header .btn-outline i { font-size: 1.1rem; margin: 0; color: var(--danger); }
     
@@ -157,12 +161,12 @@ tr:hover td { background: var(--bg-main); }
     .action-bar .btn { width: 100%; min-height: 48px; }
     .bulk-actions { flex-direction: column; align-items: stretch; background: transparent; border: none; padding: 0; box-shadow: none; gap: 0.75rem; width: 100%; }
     
-    .controls-bar { flex-direction: column; padding: 1.25rem; border-radius: var(--radius-lg); border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.04); gap: 1rem; margin-bottom: 1.5rem; }
+    .controls-bar { flex-direction: column; padding: 1.25rem; border-radius: var(--radius-lg); border: none; box-shadow: var(--shadow-sm); gap: 1rem; margin-bottom: 1.5rem; }
     .search-box, .filter-box, .controls-bar input, .controls-bar select { width: 100%; min-width: 100%; min-height: 48px; }
     .controls-bar > div:last-child { width: 100%; display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
     
     .modal-overlay { align-items: flex-end; padding: 0; background: rgba(0, 0, 0, 0.5); }
-    .modal { padding: 2rem 1.5rem; border-radius: 24px 24px 0 0; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); max-height: 85vh; padding-bottom: 3rem; }
+    .modal { padding: 2rem 1.5rem; border-radius: 24px 24px 0 0; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); max-height: 85vh; padding-bottom: 3rem; }
     .modal-overlay.show .modal { transform: translateY(0); }
     .modal-footer { flex-direction: column; gap: 0.75rem; }
     .modal-footer .btn { width: 100%; min-height: 48px; margin: 0; }
@@ -173,14 +177,14 @@ tr:hover td { background: var(--bg-main); }
     table, thead, tbody, th, td, tr { display: block; }
     thead { display: none; }
     
-    tbody tr { background: white; border-radius: var(--radius-xl); padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04); border: 1px solid rgba(226, 232, 240, 0.6); position: relative; }
+    tbody tr { background: white; border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; box-shadow: var(--shadow-sm); border: 1px solid var(--border); position: relative; }
     td { display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 0; border-bottom: 1px solid var(--bg-main); text-align: right; font-size: 0.9rem; }
     td:last-child { border-bottom: none; padding-bottom: 0; padding-top: 1.25rem; margin-top: 0.5rem; border-top: 1px dashed var(--border); justify-content: center; }
     
     .checkbox-cell { position: absolute; top: 1.25rem; left: 1.25rem; padding: 0; border: none; width: auto; }
-    .checkbox-cell input { width: 22px; height: 22px; }
+    .checkbox-cell input { width: 20px; height: 20px; }
     
-    td:nth-child(2) { padding-left: 2.5rem; font-size: 1.05rem; font-weight: 700; color: var(--primary); justify-content: flex-start; border-bottom: none; padding-top: 0; }
+    td:nth-child(2) { padding-left: 2.5rem; font-size: 1.05rem; font-weight: 600; color: var(--primary); justify-content: flex-start; border-bottom: none; padding-top: 0; }
     td:nth-child(2)::before { display: none !important; }
 
     #categories-tbody td:nth-of-type(3)::before { content: "Type"; }
@@ -209,7 +213,7 @@ tr:hover td { background: var(--bg-main); }
     #assign-workspace-tbody td:nth-of-type(5)::before { content: "Batch"; }
     #assign-workspace-tbody td:nth-of-type(6)::before { content: "Status"; }
 
-    td:not(.checkbox-cell)::before { font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; text-align: left; }
+    td:not(.checkbox-cell)::before { font-weight: 500; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; text-align: left; }
     
     td:last-child div { display: grid !important; grid-template-columns: 1fr 1fr; gap: 0.75rem; width: 100%; }
     td:last-child div button { width: 100%; justify-content: center; min-height: 44px; border-radius: var(--radius-md); }
@@ -217,7 +221,7 @@ tr:hover td { background: var(--bg-main); }
 }
 
 #toast-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.75rem; max-width: 400px; width: calc(100% - 4rem); pointer-events: none; }
-.toast { background: var(--bg-surface); border: 1px solid var(--border); padding: 1.15rem 1.5rem; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 1rem; font-size: 0.95rem; font-weight: 600; color: var(--text-main); animation: slideInToast 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; pointer-events: auto; }
+.toast { background: var(--bg-surface); border: 1px solid var(--border); padding: 1.15rem 1.5rem; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 1rem; font-size: 0.95rem; font-weight: 500; color: var(--text-main); animation: slideInToast 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; pointer-events: auto; }
 .toast.success { border-left: 4px solid var(--success); }
 .toast.error { border-left: 4px solid var(--danger); }
 @keyframes slideInToast { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -249,7 +253,7 @@ tr:hover td { background: var(--bg-main); }
 <div class="nav-item" onclick="switchTab('schedule-mgmt')"><i class="fa-solid fa-calendar-days"></i> Event Schedule</div>
 
         <div id="master-admin-portals" style="display: none; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
-            <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; padding-left: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Cross-Portal Access</div>
+            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem; padding-left: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Cross-Portal Access</div>
             <a href="manager.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-briefcase"></i> Manager Hub</a>
             <a href="stage-controller.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-microphone"></i> Stage Controller</a>
             <a href="judge.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-gavel"></i> Judge Portal</a>
@@ -260,7 +264,6 @@ tr:hover td { background: var(--bg-main); }
 
     <div class="main-content">
         <div class="header">
-            <!-- FIX: Added flex: 1 to this wrapper so it pushes the Sign Out button to the right -->
             <div style="display: flex; align-items: center; gap: 1rem; flex: 1; min-width: 0;">
                 <button class="menu-toggle" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
                 <h1 id="page-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0;">Workspace Overview</h1>
@@ -307,8 +310,7 @@ tr:hover td { background: var(--bg-main); }
             <div class="action-bar">
                 <button class="btn btn-primary" onclick="openCompModal()"><i class="fa-solid fa-plus"></i> New Competition</button>
                 <div class="bulk-actions" style="flex-wrap: wrap; gap: 0.5rem;">
-                    <!-- NEW: Vacancy Audit Button -->
-                    <button class="btn btn-outline" style="border-color: #D97706; color: #D97706; font-weight: 700;" onclick="openVacancyReportModal()">
+                    <button class="btn btn-outline" style="border-color: #D97706; color: #D97706;" onclick="openVacancyReportModal()">
                         <i class="fa-solid fa-user-clock"></i> Vacancy Audit
                     </button>
                     <button class="btn btn-primary" onclick="exportCompetitionsPDF()"><i class="fa-solid fa-file-pdf"></i> Premium PDF</button>
@@ -347,7 +349,7 @@ tr:hover td { background: var(--bg-main); }
                     </thead>
                     <tbody id="competitions-tbody"></tbody>
                 </table>
-                <div id="comp-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border);"></div>
+                <div id="comp-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: var(--bg-main); border-top: 1px solid var(--border);"></div>
             </div>
         </div>
         
@@ -375,19 +377,19 @@ tr:hover td { background: var(--bg-main); }
                     </select>
                 </div>
                 <div class="filter-box">
-                    <input type="date" id="filterPartDob" onchange="filterParticipants(true)" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none;">
+                    <input type="date" id="filterPartDob" onchange="filterParticipants(true)" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none; background: var(--bg-main); color: var(--text-main);">
                 </div>
                 <div style="display: flex; gap: 0.5rem; flex: 1; justify-content: flex-end;">
                     <button class="btn btn-success" onclick="bulkPrintSelected()"><i class="fa-solid fa-print"></i> Print Selected</button>
                     <button class="btn btn-danger" onclick="bulkDelete('participants', 'participants-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
                 </div>
             </div>
-            <div class="controls-bar" style="background: var(--primary-light); border: 1.5px solid var(--primary);">
-                <div style="flex: 1; font-weight: 800; color: var(--primary); display: flex; align-items: center;">
+            <div class="controls-bar" style="background: var(--primary-light); border: 1px solid var(--primary-ring);">
+                <div style="flex: 1; font-weight: 600; color: var(--primary); display: flex; align-items: center;">
                     <i class="fa-solid fa-users-gear" style="margin-right: 8px;"></i> TEAM MANAGEMENT
                 </div>
                 <div class="filter-box">
-                    <select id="bulkTeamSelect">
+                    <select id="bulkTeamSelect" style="background: white;">
                         <option value="">-- SELECT TEAM TO ASSIGN --</option>
                     </select>
                 </div>
@@ -410,7 +412,7 @@ tr:hover td { background: var(--bg-main); }
                     </thead>
                     <tbody id="participants-tbody"></tbody>
                 </table>
-                <div id="part-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border);"></div>
+                <div id="part-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: var(--bg-main); border-top: 1px solid var(--border);"></div>
             </div>
         </div>
         
@@ -418,7 +420,7 @@ tr:hover td { background: var(--bg-main); }
             <div class="grid-2">
                 <div>
                     <div class="action-bar" style="margin-bottom:1rem;">
-                        <h2 style="font-size:1.25rem; font-weight:700;">Stages</h2>
+                        <h2 style="font-size:1.25rem; font-weight:600;">Stages</h2>
                         <button class="btn btn-primary" onclick="openStageModal()"><i class="fa-solid fa-plus"></i></button>
                     </div>
                     <div class="table-container">
@@ -430,7 +432,7 @@ tr:hover td { background: var(--bg-main); }
                 </div>
                 <div>
                     <div class="action-bar" style="margin-bottom:1rem;">
-                        <h2 style="font-size:1.25rem; font-weight:700;">Teams</h2>
+                        <h2 style="font-size:1.25rem; font-weight:600;">Teams</h2>
                         <button class="btn btn-primary" onclick="openTeamModal()"><i class="fa-solid fa-plus"></i></button>
                     </div>
                     <div class="table-container">
@@ -461,23 +463,23 @@ tr:hover td { background: var(--bg-main); }
         <div id="data-center" class="content-section">
             <div class="action-bar" style="margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
                 <div>
-                    <h2 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.25rem; color: var(--text-main);"><i class="fa-solid fa-server" style="color: var(--primary);"></i> Master Data Center</h2>
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--text-main);"><i class="fa-solid fa-server" style="color: var(--primary);"></i> Master Data Center</h2>
                     <p style="color: var(--text-muted); font-size: 0.95rem;">System-wide data portability, backups, and destructive operations.</p>
                 </div>
             </div>
             <div style="display: flex; flex-direction: column; gap: 2.5rem;">
                 <div>
-                    <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 1.25rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                    <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.02em;">
                         <i class="fa-solid fa-cloud-arrow-down" style="color: var(--success);"></i> System Backup & Recovery
                     </h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
                         <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: var(--transition);">
                             <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
-                                <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--primary-light); color: var(--primary); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; flex-shrink: 0;">
+                                <div style="width: 48px; height: 48px; border-radius: 10px; background: var(--primary-light); color: var(--primary); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; flex-shrink: 0;">
                                     <i class="fa-solid fa-file-zipper"></i>
                                 </div>
                                 <div>
-                                    <h4 style="font-weight: 800; color: var(--text-main); margin-bottom: 0.25rem; font-size: 1.1rem;">Export Backup</h4>
+                                    <h4 style="font-weight: 600; color: var(--text-main); margin-bottom: 0.25rem; font-size: 1.1rem;">Export Backup</h4>
                                     <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">Download a complete ZIP file containing all database tables, templates, and photo configurations.</p>
                                 </div>
                             </div>
@@ -489,11 +491,11 @@ tr:hover td { background: var(--bg-main); }
                         </div>
                         <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: var(--transition);">
                             <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
-                                <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--success-light); color: var(--success); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; flex-shrink: 0;">
+                                <div style="width: 48px; height: 48px; border-radius: 10px; background: var(--success-light); color: var(--success); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; flex-shrink: 0;">
                                     <i class="fa-solid fa-upload"></i>
                                 </div>
                                 <div>
-                                    <h4 style="font-weight: 800; color: var(--text-main); margin-bottom: 0.25rem; font-size: 1.1rem;">Restore Data</h4>
+                                    <h4 style="font-weight: 600; color: var(--text-main); margin-bottom: 0.25rem; font-size: 1.1rem;">Restore Data</h4>
                                     <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">Upload a previously exported FestOS ZIP backup to completely restore the system state.</p>
                                 </div>
                             </div>
@@ -508,20 +510,20 @@ tr:hover td { background: var(--bg-main); }
                 </div>
 
                 <div style="margin-top: 1rem;">
-                    <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 1.25rem; color: var(--danger); display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                    <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem; color: var(--danger); display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.02em;">
                         <i class="fa-solid fa-triangle-exclamation"></i> Danger Zone
                     </h3>
-                    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid rgba(225, 29, 72, 0.4); box-shadow: 0 4px 15px rgba(225, 29, 72, 0.05);">
+                    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid rgba(239, 68, 68, 0.3); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.05);">
                         <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; width: 100%;">
                             <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--danger-light); color: var(--danger); display: flex; justify-content: center; align-items: center; font-size: 1.8rem; flex-shrink: 0;">
                                 <i class="fa-solid fa-radiation"></i>
                             </div>
                             <div style="flex: 1; min-width: 250px;">
-                                <h4 style="font-weight: 800; color: var(--text-main); font-size: 1.15rem; margin-bottom: 0.25rem;">Total Factory Reset</h4>
+                                <h4 style="font-weight: 600; color: var(--text-main); font-size: 1.15rem; margin-bottom: 0.25rem;">Total Factory Reset</h4>
                                 <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5;">This action will permanently wipe all teams, participants, results, templates, and configurations. <strong style="color: var(--danger);">This cannot be undone without a backup.</strong></p>
                             </div>
                             <div style="min-width: 200px; display: flex; justify-content: flex-end;">
-                                <button class="btn btn-danger" style="width: 100%; padding: 1rem; font-size: 1rem; justify-content: center; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.3);" onclick="requestSecureAction('reset')">
+                                <button class="btn btn-danger" style="width: 100%; padding: 1rem; font-size: 1rem; justify-content: center; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);" onclick="requestSecureAction('reset')">
                                     <i class="fa-solid fa-skull-crossbones"></i> WIPE ALL DATA
                                 </button>
                             </div>
@@ -534,37 +536,37 @@ tr:hover td { background: var(--bg-main); }
         <div id="direct-valuation" class="content-section">
             <div class="action-bar" style="margin-bottom: 1rem;">
                 <div>
-                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Direct Valuation</h2>
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">Direct Valuation</h2>
                     <p style="color: var(--text-muted); font-size: 0.9rem;">Bypass the judging process. Directly enter final marks to push to the Publisher.</p>
                 </div>
             </div>
-            <div class="controls-bar" style="background: var(--primary-light); border: 1.5px solid var(--primary); padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.5rem;">
+            <div class="controls-bar" style="background: var(--primary-light); border: 1px solid var(--primary-ring); padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.5rem;">
                 <div class="filter-box" style="flex: 1; min-width: 200px;">
-                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">1. FILTER BY CATEGORY</label>
-                    <select id="dvCategory" onchange="loadDVCompetitions()" style="width: 100%; border-color: var(--primary);">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">1. FILTER BY CATEGORY</label>
+                    <select id="dvCategory" onchange="loadDVCompetitions()" style="width: 100%; border-color: var(--primary); background-color: white;">
                         <option value="">-- ALL CATEGORIES --</option>
                     </select>
                 </div>
                 <div class="filter-box" style="flex: 1; min-width: 200px;">
-                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">2. FILTER BY STAGE</label>
-                    <select id="dvStage" onchange="loadDVCompetitions()" style="width: 100%; border-color: var(--primary);">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">2. FILTER BY STAGE</label>
+                    <select id="dvStage" onchange="loadDVCompetitions()" style="width: 100%; border-color: var(--primary); background-color: white;">
                         <option value="">-- ALL STAGES --</option>
                     </select>
                 </div>
                 <div class="filter-box" style="flex: 2; min-width: 250px;">
-                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">3. SELECT COMPETITION</label>
-                    <select id="dvComp" onchange="loadDVParticipants()" style="width: 100%; border-color: var(--primary);">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">3. SELECT COMPETITION</label>
+                    <select id="dvComp" onchange="loadDVParticipants()" style="width: 100%; border-color: var(--primary); background-color: white;">
                         <option value="">-- SELECT COMPETITION --</option>
                     </select>
                 </div>
             </div>
             <div id="dvWorkspace" style="display: none; animation: fadeUp 0.4s ease;">
                 <div class="table-container" style="margin-bottom: 1.5rem;">
-                    <div style="padding: 1rem 1.5rem; background: #F8FAFC; border-bottom: 2px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">
+                    <div style="padding: 1rem 1.5rem; background: var(--bg-main); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 600; font-size: 0.9rem; color: var(--text-main);">
                             <i class="fa-solid fa-list-check"></i> Enrolled Participants
                         </span>
-                        <span id="dvMaxMarks" style="font-weight: 800; font-size: 0.9rem; color: var(--danger);">
+                        <span id="dvMaxMarks" style="font-weight: 600; font-size: 0.9rem; color: var(--danger);">
                             Max Marks: 100
                         </span>
                     </div>
@@ -595,16 +597,16 @@ tr:hover td { background: var(--bg-main); }
                     <button class="btn btn-outline" onclick="exportAssignmentsCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
                 </div>
             </div>
-            <div class="controls-bar" style="background: var(--primary-light); border: 1.5px solid var(--primary); padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.5rem;">
+            <div class="controls-bar" style="background: var(--primary-light); border: 1px solid var(--primary-ring); padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.5rem;">
                 <div class="filter-box" style="flex: 1; min-width: 250px;">
-                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">1. SELECT CATEGORY</label>
-                    <select id="assignWorkCategory" onchange="loadAssignWorkspaceCompetitions()" style="width: 100%; border-color: var(--primary);">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">1. SELECT CATEGORY</label>
+                    <select id="assignWorkCategory" onchange="loadAssignWorkspaceCompetitions()" style="width: 100%; border-color: var(--primary); background-color: white;">
                         <option value="">-- CHOOSE CATEGORY --</option>
                     </select>
                 </div>
                 <div class="filter-box" style="flex: 1; min-width: 250px;">
-                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">2. SELECT COMPETITION</label>
-                    <select id="assignWorkComp" onchange="loadAssignWorkspaceStudents()" style="width: 100%; border-color: var(--primary);" disabled>
+                    <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">2. SELECT COMPETITION</label>
+                    <select id="assignWorkComp" onchange="loadAssignWorkspaceStudents()" style="width: 100%; border-color: var(--primary); background-color: white;" disabled>
                         <option value="">-- CHOOSE COMPETITION FIRST --</option>
                     </select>
                 </div>
@@ -621,7 +623,7 @@ tr:hover td { background: var(--bg-main); }
                         </select>
                     </div>
                     <div class="filter-box">
-                        <input type="date" id="assignFilterDob" onchange="filterAssignTable()" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none;">
+                        <input type="date" id="assignFilterDob" onchange="filterAssignTable()" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none; background: var(--bg-main); color: var(--text-main);">
                     </div>
                     <div class="filter-box">
                         <select id="assignFilterStatus" onchange="filterAssignTable()">
@@ -636,8 +638,8 @@ tr:hover td { background: var(--bg-main); }
                     </div>
                 </div>
                 <div class="table-container">
-                    <div style="padding: 1rem 1.5rem; background: #F8FAFC; border-bottom: 2px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                        <span id="assignLimitIndicator" style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">
+                    <div style="padding: 1rem 1.5rem; background: var(--bg-main); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <span id="assignLimitIndicator" style="font-weight: 600; font-size: 0.9rem; color: var(--text-main);">
                             <i class="fa-solid fa-users"></i> Enrollment: 0 / 0 Limit
                         </span>
                     </div>
@@ -662,7 +664,7 @@ tr:hover td { background: var(--bg-main); }
             <div id="template-library-view">
                 <div class="action-bar" style="margin-bottom: 1rem;">
                     <div>
-                        <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Poster Templates</h2>
+                        <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">Poster Templates</h2>
                         <p style="color: var(--text-muted); font-size: 0.9rem;">Manage, organize, and edit your dynamic graphics templates.</p>
                     </div>
                     <div class="bulk-actions">
@@ -686,12 +688,12 @@ tr:hover td { background: var(--bg-main); }
                     <div style="display: flex; gap: 1rem; align-items: center; flex: 1; flex-wrap: wrap;">
                         <button class="btn btn-outline" onclick="closeTemplateStudio()" style="padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px;"><i class="fa-solid fa-arrow-left"></i></button>
                         <div style="display: flex; flex-direction: column; flex: 1; min-width: 200px;">
-                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">TEMPLATE NAME</label>
-                            <input type="text" id="studio-template-name" placeholder="e.g. Dark Theme Individual Winner" style="border: none; border-bottom: 2px solid var(--border); font-size: 1.1rem; font-weight: 700; outline: none; padding: 0.25rem 0; background: transparent;">
+                            <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted);">TEMPLATE NAME</label>
+                            <input type="text" id="studio-template-name" placeholder="e.g. Dark Theme Individual Winner" style="border: none; border-bottom: 2px solid var(--border); font-size: 1.1rem; font-weight: 600; outline: none; padding: 0.25rem 0; background: transparent; color: var(--text-main);">
                         </div>
                         <div style="display: flex; flex-direction: column; flex: 1; min-width: 200px;">
-                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">TEMPLATE SECTOR</label>
-                           <select id="studio-template-type" onchange="initializeStudioFields()" style="padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border);">
+                            <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted);">TEMPLATE SECTOR</label>
+                           <select id="studio-template-type" onchange="initializeStudioFields()" style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-main); color: var(--text-main);">
                                 <option value="individual">Individual Event Poster</option>
                                 <option value="team">Live Team Standings</option>
                                 <option value="final">Final Championship</option>
@@ -711,7 +713,6 @@ tr:hover td { background: var(--bg-main); }
                             <i class="fa-solid fa-shapes"></i> Add Element
                         </button>
                         
-                        <!-- NEW: Add Custom Text Button -->
                         <button class="btn btn-outline" onclick="addCustomTextLayer()">
                             <i class="fa-solid fa-text-height"></i> Add Text
                         </button>
@@ -722,7 +723,7 @@ tr:hover td { background: var(--bg-main); }
                         </button>
                         
                         <div class="bulk-actions" style="margin-top: 0.5rem;">
-                            <div style="display: flex; gap: 0.25rem; margin-right: 0.5rem; border-right: 2px solid var(--border); padding-right: 1rem;">
+                            <div style="display: flex; gap: 0.25rem; margin-right: 0.5rem; border-right: 1px solid var(--border); padding-right: 1rem;">
                                 <button class="btn btn-outline" id="btn-undo" onclick="undo()" style="padding: 0.5rem 0.75rem;" disabled title="Undo">
                                     <i class="fa-solid fa-rotate-left"></i>
                                 </button>
@@ -740,14 +741,14 @@ tr:hover td { background: var(--bg-main); }
                 <div class="grid-2" style="grid-template-columns: 350px 1fr; gap: 2rem;">
                     <div style="display: flex; flex-direction: column; gap: 1rem; max-height: 70vh;">
                         <div class="table-container" style="background: white; border: 1px solid var(--border); display: flex; flex-direction: column; max-height: 40%;">
-                            <div style="padding: 0.75rem 1rem; background: var(--bg-main); border-bottom: 1px solid var(--border); font-weight: 800; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="padding: 0.75rem 1rem; background: var(--bg-main); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;">
                                 <span><i class="fa-solid fa-layer-group" style="margin-right: 5px; color: var(--primary);"></i> Active Layers</span>
                             </div>
                             <div id="studio-layers-panel" style="overflow-y: auto; padding: 0.5rem; flex: 1; display: flex; flex-direction: column; gap: 0.25rem;">
                             </div>
                         </div>
                         <div class="table-container" style="background: white; border: 1px solid var(--border); flex: 1; display: flex; flex-direction: column; overflow-y: auto;">
-                            <div style="padding: 0.75rem 1rem; background: var(--bg-main); border-bottom: 1px solid var(--border); font-weight: 800; font-size: 0.9rem;">
+                            <div style="padding: 0.75rem 1rem; background: var(--bg-main); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.9rem;">
                                 <i class="fa-solid fa-sliders" style="margin-right: 5px; color: var(--primary);"></i> Layer Properties
                             </div>
                             <div id="studio-properties-panel" style="padding: 1rem;">
@@ -756,15 +757,15 @@ tr:hover td { background: var(--bg-main); }
                         </div>
                     </div>
 
-                    <div class="table-container" style="padding: 1.5rem; background: #E2E8F0; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border); position: relative; height: 65vh;">
-                        <div style="position: absolute; top: 1rem; left: 1rem; background: rgba(0,0,0,0.6); color: white; padding: 0.5rem 1rem; border-radius: 50px; font-size: 0.8rem; font-weight: 600; pointer-events: none; z-index: 10;">
+                    <div class="table-container" style="padding: 1.5rem; background: var(--bg-main); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border); position: relative; height: 65vh;">
+                        <div style="position: absolute; top: 1rem; left: 1rem; background: rgba(31, 41, 55, 0.7); backdrop-filter: blur(4px); color: white; padding: 0.5rem 1rem; border-radius: 50px; font-size: 0.8rem; font-weight: 500; pointer-events: none; z-index: 10;">
                             <i class="fa-solid fa-hand-pointer"></i> Drag elements to position
                         </div>
-                        <button class="btn btn-dark" onclick="openFullViewModal()" style="position: absolute; top: 1rem; right: 1rem; z-index: 10; padding: 0.5rem 1rem; font-size: 0.8rem; opacity: 0.8;">
+                        <button class="btn btn-dark" onclick="openFullViewModal()" style="position: absolute; top: 1rem; right: 1rem; z-index: 10; padding: 0.5rem 1rem; font-size: 0.8rem; opacity: 0.9;">
                             <i class="fa-solid fa-expand"></i> Full Size
                         </button>
                         <div style="position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;">
-                            <canvas id="studio-canvas" style="max-width: 100%; max-height: 100%; object-fit: contain; cursor: move; background: white; box-shadow: var(--shadow-lg);"></canvas>
+                            <canvas id="studio-canvas" style="max-width: 100%; max-height: 100%; object-fit: contain; cursor: move; background: white; box-shadow: var(--shadow-md);"></canvas>
                         </div>
                     </div>
                 </div>
@@ -774,14 +775,14 @@ tr:hover td { background: var(--bg-main); }
         <div id="point-settings" class="content-section">
             <div class="action-bar" style="margin-bottom: 1.5rem;">
                 <div>
-                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Point System Settings</h2>
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">Point System Settings</h2>
                     <p style="color: var(--text-muted); font-size: 0.9rem;">Configure grading thresholds, point matrices, and position bonuses based on group sizes.</p>
                 </div>
                 <button class="btn btn-primary" onclick="savePointSettings()"><i class="fa-solid fa-floppy-disk"></i> Save Configuration</button>
             </div>
             <div class="grid-2" style="gap: 2rem;">
                 <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); grid-column: 1 / -1;">
-                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-percent" style="color: var(--primary);"></i> Grade Thresholds (Minimum % out of Max Marks)</h3>
+                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 600;"><i class="fa-solid fa-percent" style="color: var(--primary);"></i> Grade Thresholds (Minimum % out of Max Marks)</h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
                         <div class="form-group"><label>A+ Grade</label><input type="number" id="th-aplus" value="90"></div>
                         <div class="form-group"><label>A Grade</label><input type="number" id="th-a" value="70"></div>
@@ -791,7 +792,7 @@ tr:hover td { background: var(--bg-main); }
                 </div>
 
                 <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); grid-column: 1 / -1; overflow-x: auto;">
-                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-table" style="color: var(--primary);"></i> Grade Points Matrix</h3>
+                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 600;"><i class="fa-solid fa-table" style="color: var(--primary);"></i> Grade Points Matrix</h3>
                     <table style="width: 100%; border-collapse: collapse; min-width: 600px;">
                         <thead>
                             <tr>
@@ -804,66 +805,65 @@ tr:hover td { background: var(--bg-main); }
                         </thead>
                         <tbody>
                             <tr>
-                                <td style="font-weight: 700;">1 (Solo)</td>
-                                <td><input type="number" id="pt-solo-aplus" value="8" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                                <td><input type="number" id="pt-solo-a" value="7" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                                <td><input type="number" id="pt-solo-b" value="5" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                                <td><input type="number" id="pt-solo-c" value="3" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                                <td style="font-weight: 600;">1 (Solo)</td>
+                                <td><input type="number" id="pt-solo-aplus" value="8" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main); color: var(--text-main);"></td>
+                                <td><input type="number" id="pt-solo-a" value="7" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main); color: var(--text-main);"></td>
+                                <td><input type="number" id="pt-solo-b" value="5" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main); color: var(--text-main);"></td>
+                                <td><input type="number" id="pt-solo-c" value="3" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main); color: var(--text-main);"></td>
                             </tr>
                             <tr>
-                                <td style="font-weight: 700;">2 or 3</td>
-                                <td><input type="number" id="pt-small-aplus" value="12" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                                <td><input type="number" id="pt-small-a" value="10" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                                <td><input type="number" id="pt-small-b" value="7" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                                <td><input type="number" id="pt-small-c" value="5" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                                <td style="font-weight: 600;">2 or 3</td>
+                                <td><input type="number" id="pt-small-aplus" value="12" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main); color: var(--text-main);"></td>
+                                <td><input type="number" id="pt-small-a" value="10" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main); color: var(--text-main);"></td>
+                                <td><input type="number" id="pt-small-b" value="7" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main); color: var(--text-main);"></td>
+                                <td><input type="number" id="pt-small-c" value="5" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main); color: var(--text-main);"></td>
                             </tr>
                             <tr>
-                                <td style="font-weight: 700;">4 or 5+</td>
-                                <td><input type="number" id="pt-large-aplus" value="15" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                                <td><input type="number" id="pt-large-a" value="12" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                                <td><input type="number" id="pt-large-b" value="10" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
-                                <td><input type="number" id="pt-large-c" value="7" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></td>
+                                <td style="font-weight: 600;">4 or 5+</td>
+                                <td><input type="number" id="pt-large-aplus" value="15" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main); color: var(--text-main);"></td>
+                                <td><input type="number" id="pt-large-a" value="12" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main); color: var(--text-main);"></td>
+                                <td><input type="number" id="pt-large-b" value="10" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main); color: var(--text-main);"></td>
+                                <td><input type="number" id="pt-large-c" value="7" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main); color: var(--text-main);"></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
                 <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-medal" style="color: var(--warning);"></i> Position Points</h3>
+                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 600;"><i class="fa-solid fa-medal" style="color: var(--warning);"></i> Position Points</h3>
                     <div class="form-group"><label>1st Place</label><input type="number" id="pos-1" value="3"></div>
                     <div class="form-group"><label>2nd Place</label><input type="number" id="pos-2" value="2"></div>
                     <div class="form-group"><label>3rd Place</label><input type="number" id="pos-3" value="1"></div>
                 </div>
                 
                 <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;"><i class="fa-solid fa-gears" style="color: var(--primary);"></i> Global Settings</h3>
+                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 600;"><i class="fa-solid fa-gears" style="color: var(--primary);"></i> Global Settings</h3>
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label>Results Poster Interval</label>
                         <input type="number" id="setting-poster-interval" value="10">
                         <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Live results dropdown will show "After 10", "After 20", etc.</p>
                     </div>
 
-                    <!-- NEW: Announcer/Controller Portal Visibility Offset -->
-    <div class="form-group" style="margin-bottom: 1rem; border-top: 1px dashed var(--border); padding-top: 1rem;">
-        <label>Announcer Pre-Schedule Visibility (Mins)</label>
-        <input type="number" id="setting-announcer-offset" value="30">
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">How many minutes before a scheduled event should it automatically appear in the Announcer & Stage Controller Portals.</p>
-    </div>
+                    <div class="form-group" style="margin-bottom: 1rem; border-top: 1px dashed var(--border); padding-top: 1rem;">
+                        <label>Announcer Pre-Schedule Visibility (Mins)</label>
+                        <input type="number" id="setting-announcer-offset" value="30">
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">How many minutes before a scheduled event should it automatically appear in the Announcer & Stage Controller Portals.</p>
+                    </div>
     
-                    <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
+                    <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-main); padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
                         <div>
-                            <label style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text-main);">Allow TM Assignments</label>
+                            <label style="margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--text-main);">Allow TM Assignments</label>
                             <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Let Team Managers assign students</p>
                         </div>
-                        <label style="position: relative; display: inline-block; width: 50px; height: 26px;">
-                            <input type="checkbox" id="setting-tm-access" style="opacity: 0; width: 0; height: 0;" checked onchange="this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#cbd5e1'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(24px)' : 'translateX(0)';">
-                            <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .4s; border-radius: 34px;"></span>
-                            <span id="tm-toggle-knob" style="position: absolute; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; transform: translateX(24px);"></span>
+                        <label style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                            <input type="checkbox" id="setting-tm-access" style="opacity: 0; width: 0; height: 0;" checked onchange="this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#D1D5DB'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(20px)' : 'translateX(0)';">
+                            <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .3s; border-radius: 34px;"></span>
+                            <span id="tm-toggle-knob" style="position: absolute; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; transform: translateX(20px); box-shadow: 0 1px 2px rgba(0,0,0,0.1);"></span>
                         </label>
                     </div>
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label>Auto-Lock Registration Deadline</label>
-                        <input type="datetime-local" id="setting-lock-date" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border);">
+                        <input type="datetime-local" id="setting-lock-date" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border); text-transform: none !important;">
                         <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">After this exact time, Team Managers will be in read-only mode.</p>
                     </div>
                 </div>
@@ -873,7 +873,7 @@ tr:hover td { background: var(--bg-main); }
         <div id="admin-appeals" class="content-section">
             <div class="action-bar" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: flex-end;">
                 <div>
-                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Grievances & Appeals</h2>
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">Grievances & Appeals</h2>
                     <p style="color: var(--text-muted); font-size: 0.9rem;">Review and resolve tickets submitted by Team Managers.</p>
                 </div>
                 <button class="btn btn-outline" onclick="loadAdminAppeals()"><i class="fa-solid fa-rotate-right"></i> Refresh List</button>
@@ -896,103 +896,103 @@ tr:hover td { background: var(--bg-main); }
         </div>
 
         <div id="participant-points" class="content-section">
-    <div class="action-bar" style="margin-bottom: 1rem;">
-        <div>
-            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Points Ledger</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">View detailed point breakdowns per student and team, and track special awards.</p>
-        </div>
-        <div class="bulk-actions">
-            <button class="btn btn-primary" id="btn-export-points" onclick="bulkExportPointsPDF()"><i class="fa-solid fa-file-pdf"></i> Generate PDF Reports</button>
-        </div>
-    </div>
+            <div class="action-bar" style="margin-bottom: 1rem;">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">Points Ledger</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">View detailed point breakdowns per student and team, and track special awards.</p>
+                </div>
+                <div class="bulk-actions">
+                    <button class="btn btn-primary" id="btn-export-points" onclick="bulkExportPointsPDF()"><i class="fa-solid fa-file-pdf"></i> Generate PDF Reports</button>
+                </div>
+            </div>
 
-    <!-- VIEW SWITCHER -->
-    <div class="controls-bar" style="display: flex; gap: 0.75rem; background: transparent; padding: 0; box-shadow: none; border: none; margin-bottom: 1rem; overflow-x: auto; flex-wrap: nowrap;">
-        <button class="btn btn-primary" id="btn-view-ind" onclick="switchPointsView('individual')" style="border-radius: 50px; white-space: nowrap;">Participant Ledger</button>
-        <button class="btn btn-outline" id="btn-view-team" onclick="switchPointsView('team')" style="border-radius: 50px; white-space: nowrap;">Team Ledger</button>
-        
-        <div style="width: 2px; background: var(--border); margin: 0 0.5rem;"></div> <!-- Divider -->
-        
-        <button class="btn btn-outline" id="btn-view-star" onclick="switchPointsView('star')" style="border-radius: 50px; color: #D97706; border-color: #D97706; white-space: nowrap;"><i class="fa-solid fa-star"></i> Star Contenders</button>
-        <button class="btn btn-outline" id="btn-view-pen" onclick="switchPointsView('pen')" style="border-radius: 50px; color: #4338CA; border-color: #4338CA; white-space: nowrap;"><i class="fa-solid fa-pen-nib"></i> Pen Contenders</button>
-    </div>
+            <!-- VIEW SWITCHER -->
+            <div class="controls-bar" style="display: flex; gap: 0.75rem; background: transparent; padding: 0; box-shadow: none; border: none; margin-bottom: 1rem; overflow-x: auto; flex-wrap: nowrap;">
+                <button class="btn btn-primary" id="btn-view-ind" onclick="switchPointsView('individual')" style="border-radius: 50px; white-space: nowrap;">Participant Ledger</button>
+                <button class="btn btn-outline" id="btn-view-team" onclick="switchPointsView('team')" style="border-radius: 50px; white-space: nowrap;">Team Ledger</button>
+                
+                <div style="width: 1px; background: var(--border); margin: 0 0.25rem;"></div> 
+                
+                <button class="btn btn-outline" id="btn-view-star" onclick="switchPointsView('star')" style="border-radius: 50px; color: #D97706; border-color: #FCD34D; white-space: nowrap;"><i class="fa-solid fa-star"></i> Star Contenders</button>
+                <button class="btn btn-outline" id="btn-view-pen" onclick="switchPointsView('pen')" style="border-radius: 50px; color: #4338CA; border-color: #A5B4FC; white-space: nowrap;"><i class="fa-solid fa-pen-nib"></i> Pen Contenders</button>
+            </div>
 
-    <!-- Search/Filters (For Individual View) -->
-    <div class="controls-bar" id="ind-filters">
-        <div class="search-box">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="searchPointsInput" placeholder="Search name or ID..." onkeyup="filterPointsTable(true)">
+            <!-- Search/Filters (For Individual View) -->
+            <div class="controls-bar" id="ind-filters">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="searchPointsInput" placeholder="Search name or ID..." onkeyup="filterPointsTable(true)">
+                </div>
+                <div class="filter-box">
+                    <select id="filterPointsCategory" onchange="filterPointsTable(true)">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+                <div class="filter-box">
+                    <select id="filterPointsTeam" onchange="filterPointsTable(true)">
+                        <option value="">All Teams</option>
+                    </select>
+                </div>
+                <div class="filter-box">
+                    <input type="date" id="filterPointsDob" onchange="filterPointsTable(true)" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none; background: var(--bg-main); color: var(--text-main); text-transform: none !important;">
+                </div>
+            </div>
+
+            <!-- Participant Ledger Table -->
+            <div class="table-container" id="ind-points-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell" title="Select for Bulk PDF"><input type="checkbox" onchange="toggleSelectAll('points-tbody', this)"></th>
+                            <th>Unique ID</th>
+                            <th>Participant Name</th>
+                            <th>Team</th>
+                            <th>Total Points Earned</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="points-tbody"></tbody>
+                </table>
+                <div id="points-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: var(--bg-main); border-top: 1px solid var(--border);"></div>
+            </div>
+
+            <!-- Team Ledger Table -->
+            <div class="table-container" id="team-points-container" style="display: none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell" title="Select for Bulk PDF"><input type="checkbox" onchange="toggleSelectAll('team-points-tbody', this)"></th>
+                            <th>Team Name</th>
+                            <th>Total Participants</th>
+                            <th>Total Points Earned</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="team-points-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- SPECIAL AWARD LEDGER TABLE -->
+            <div class="table-container" id="special-points-container" style="display: none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Participant Details</th>
+                            <th>Team</th>
+                            <th id="special-pts-header">Points</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="special-points-tbody"></tbody>
+                </table>
+            </div>
         </div>
-        <div class="filter-box">
-            <select id="filterPointsCategory" onchange="filterPointsTable(true)">
-                <option value="">All Categories</option>
-            </select>
-        </div>
-        <div class="filter-box">
-            <select id="filterPointsTeam" onchange="filterPointsTable(true)">
-                <option value="">All Teams</option>
-            </select>
-        </div>
-        <div class="filter-box">
-            <input type="date" id="filterPointsDob" onchange="filterPointsTable(true)" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none;">
-        </div>
-    </div>
 
-    <!-- Participant Ledger Table -->
-    <div class="table-container" id="ind-points-container">
-        <table>
-            <thead>
-                <tr>
-                    <th class="checkbox-cell" title="Select for Bulk PDF"><input type="checkbox" onchange="toggleSelectAll('points-tbody', this)"></th>
-                    <th>Unique ID</th>
-                    <th>Participant Name</th>
-                    <th>Team</th>
-                    <th>Total Points Earned</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="points-tbody"></tbody>
-        </table>
-        <div id="points-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border);"></div>
-    </div>
-
-    <!-- Team Ledger Table -->
-    <div class="table-container" id="team-points-container" style="display: none;">
-        <table>
-            <thead>
-                <tr>
-                    <th class="checkbox-cell" title="Select for Bulk PDF"><input type="checkbox" onchange="toggleSelectAll('team-points-tbody', this)"></th>
-                    <th>Team Name</th>
-                    <th>Total Participants</th>
-                    <th>Total Points Earned</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="team-points-tbody"></tbody>
-        </table>
-    </div>
-
-    <!-- SPECIAL AWARD LEDGER TABLE -->
-    <div class="table-container" id="special-points-container" style="display: none;">
-        <table>
-            <thead>
-                <tr>
-                    <th>Rank</th>
-                    <th>Participant Details</th>
-                    <th>Team</th>
-                    <th id="special-pts-header">Points</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="special-points-tbody"></tbody>
-        </table>
-    </div>
-</div>
-
-    <div id="branding-settings" class="content-section">
+        <div id="branding-settings" class="content-section">
             <div class="action-bar" style="margin-bottom: 1.5rem;">
                 <div>
-                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">System Branding</h2>
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">System Branding</h2>
                     <p style="color: var(--text-muted); font-size: 0.9rem;">Customize the Fest Name and Logo displayed across all portals.</p>
                 </div>
                 <button class="btn btn-primary" id="btnSaveBranding" onclick="saveBrandingSettings()">
@@ -1001,7 +1001,7 @@ tr:hover td { background: var(--bg-main); }
             </div>
             <div class="grid-2" style="gap: 2rem;">
                 <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;">
+                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 600;">
                         <i class="fa-solid fa-signature" style="color: var(--primary);"></i> Fest Details
                     </h3>
                     <div class="form-group">
@@ -1015,7 +1015,7 @@ tr:hover td { background: var(--bg-main); }
                     </div>
                     <div class="form-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border);">
                         <label><i class="fa-solid fa-display" style="color: var(--primary); margin-right: 0.3rem;"></i> Branding Display Preference</label>
-                        <select id="setting-branding-display" style="width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); font-weight: 600; cursor: pointer;">
+                        <select id="setting-branding-display" style="width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); font-weight: 500; cursor: pointer;">
                             <option value="both">Show Both Logo & Name</option>
                             <option value="logo">Show Logo Only</option>
                             <option value="name">Show Name Only</option>
@@ -1024,11 +1024,11 @@ tr:hover td { background: var(--bg-main); }
                     </div>
                 </div>
                 <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 800;">
+                    <h3 style="margin-bottom: 1rem; color: var(--text-main); font-weight: 600;">
                         <i class="fa-solid fa-image" style="color: var(--primary);"></i> Fest Logo
                     </h3>
                     <div style="display: flex; gap: 1rem; align-items: center;">
-                        <img id="branding-logo-preview" src="" style="width: 80px; height: 80px; object-fit: contain; border: 1px dashed var(--border); border-radius: 8px; background: #f8fafc; display: none;">
+                        <img id="branding-logo-preview" src="" style="width: 80px; height: 80px; object-fit: contain; border: 1px dashed var(--border); border-radius: 8px; background: var(--bg-main); display: none;">
                         <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 0.5rem;">
                             <input type="file" id="setting-fest-logo" accept="image/png, image/jpeg, image/webp, image/svg+xml" style="display: none;" onchange="handleBrandingLogo(event)">
                             <button class="btn btn-outline" onclick="document.getElementById('setting-fest-logo').click()">
@@ -1044,11 +1044,11 @@ tr:hover td { background: var(--bg-main); }
             </div>
         </div>
 
-        <!-- ================= DISPLAY CONTROL SECTION ================= -->
+<!-- ================= DISPLAY CONTROL SECTION ================= -->
 <div id="display-control" class="content-section">
     <div class="action-bar" style="margin-bottom: 1.5rem;">
         <div>
-            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Spectator Display Hub</h2>
+            <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">Spectator Display Hub</h2>
             <p style="color: var(--text-muted); font-size: 0.9rem;">Total control over the live projector feed. Themes, custom slides, and preview.</p>
         </div>
         <div class="bulk-actions">
@@ -1058,12 +1058,10 @@ tr:hover td { background: var(--bg-main); }
     </div>
     
     <div class="grid-2" style="grid-template-columns: 1fr 1fr; gap: 2rem;">
-        <!-- Left: Controls -->
         <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-            <!-- Settings & Theme -->
             <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h3 style="margin: 0; font-weight: 800; color: var(--text-main);"><i class="fa-solid fa-palette" style="color: var(--primary);"></i> Theme & Engine</h3>
+                    <h3 style="margin: 0; font-weight: 600; color: var(--text-main);"><i class="fa-solid fa-palette" style="color: var(--primary);"></i> Theme & Engine</h3>
                     <button class="btn btn-primary" onclick="saveDisplaySettings()" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;"><i class="fa-solid fa-cloud-arrow-up"></i> Sync Changes</button>
                 </div>
                 
@@ -1088,7 +1086,6 @@ tr:hover td { background: var(--bg-main); }
                     </select>
                 </div>
                 
-                <!-- NEW MISSING INPUTS ADDED HERE -->
                 <div class="form-group" style="margin-top: 1rem;">
                     <label>Slide Transition Animation</label>
                     <select id="disp-transition" style="width: 100%;">
@@ -1102,38 +1099,34 @@ tr:hover td { background: var(--bg-main); }
                     <label>Global Ticker Marquee (Scrolling Text)</label>
                     <input type="text" id="disp-global-ticker" placeholder="e.g. WELCOME TO FESTOS! NEXT EVENT AT STAGE 2..." style="width: 100%; border: 1px solid var(--border); border-radius: 8px;">
                 </div>
-                <!-- END OF MISSING INPUTS -->
 
-                <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); margin-top: 1rem;">
+                <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-main); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); margin-top: 1rem;">
                     <div>
-                        <label style="margin: 0; font-weight: 700; color: var(--text-main);">Show Default QR Code</label>
+                        <label style="margin: 0; font-weight: 500; color: var(--text-main);">Show Default QR Code</label>
                     </div>
-                    <label style="position: relative; display: inline-block; width: 50px; height: 26px;">
-                        <input type="checkbox" id="disp-show-qr" style="opacity: 0; width: 0; height: 0;" checked onchange="this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#cbd5e1'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(24px)' : 'translateX(0)';">
-                        <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .4s; border-radius: 34px;"></span>
-                        <span style="position: absolute; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; transform: translateX(24px);"></span>
+                    <label style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                        <input type="checkbox" id="disp-show-qr" style="opacity: 0; width: 0; height: 0;" checked onchange="this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#D1D5DB'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(20px)' : 'translateX(0)';">
+                        <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .3s; border-radius: 34px;"></span>
+                        <span style="position: absolute; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; transform: translateX(20px); box-shadow: 0 1px 2px rgba(0,0,0,0.1);"></span>
                     </label>
                 </div>
             </div>
 
-            <!-- Custom Slides Manager -->
             <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h3 style="font-weight: 800; color: var(--text-main); margin: 0;"><i class="fa-solid fa-images" style="color: var(--primary);"></i> Custom Slides Hub</h3>
+                    <h3 style="font-weight: 600; color: var(--text-main); margin: 0;"><i class="fa-solid fa-images" style="color: var(--primary);"></i> Custom Slides Hub</h3>
                     <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;" onclick="openCustomSlideModal()">
                         <i class="fa-solid fa-plus"></i> New Slide
                     </button>
                 </div>
                 
                 <div id="custom-slides-list" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 350px; overflow-y: auto; padding-right: 0.5rem;">
-                    <!-- Rendered by JS -->
                 </div>
             </div>
         </div>
 
-        <!-- Right: Live Preview -->
-        <div class="card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; background: #0F172A; border-radius: var(--radius-lg); border: 4px solid #CBD5E1; box-shadow: var(--shadow-lg);">
-            <div style="background: #1E293B; padding: 0.75rem 1rem; color: white; font-size: 0.85rem; font-weight: 700; display: flex; justify-content: space-between; align-items: center;">
+        <div class="card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; background: #0F172A; border-radius: var(--radius-lg); border: 4px solid #D1D5DB; box-shadow: var(--shadow-lg);">
+            <div style="background: #1F2937; padding: 0.75rem 1rem; color: white; font-size: 0.85rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
                 <span><i class="fa-solid fa-tv" style="margin-right: 0.5rem;"></i> LIVE OUTPUT PREVIEW</span>
                 <span style="color: var(--success); font-size: 0.75rem;"><i class="fa-solid fa-circle-dot fa-fade" style="margin-right: 0.25rem;"></i> SYNCED</span>
             </div>
@@ -1161,7 +1154,7 @@ tr:hover td { background: var(--bg-main); }
             
             <div class="form-group">
                 <label>Subtext / Description</label>
-                <textarea id="cs-text" rows="3" placeholder="Thank you to our amazing sponsors..." style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border); outline: none;"></textarea>
+                <textarea id="cs-text" rows="3" placeholder="Thank you to our amazing sponsors..." style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border); outline: none; font-family: 'Inter', sans-serif; resize: vertical;"></textarea>
             </div>
             
             <div class="grid-2" style="gap: 1rem;">
@@ -1178,7 +1171,7 @@ tr:hover td { background: var(--bg-main); }
             <div class="form-group" style="padding-top: 1rem; border-top: 1px dashed var(--border);">
                 <label><i class="fa-solid fa-qrcode" style="color: var(--primary);"></i> Custom QR Code (Optional)</label>
                 <div style="display: flex; gap: 0.5rem; align-items: stretch;">
-                    <input type="text" id="cs-qr-url" placeholder="https://your-sponsor.com" style="flex: 2;">
+                    <input type="text" id="cs-qr-url" placeholder="https://your-sponsor.com" style="flex: 2; text-transform: none !important;">
                     <input type="text" id="cs-qr-text" placeholder="SCAN ME" style="flex: 1;">
                 </div>
                 <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">Replaces the default QR code when this slide is visible.</p>
@@ -1209,7 +1202,7 @@ tr:hover td { background: var(--bg-main); }
 <div id="schedule-mgmt" class="content-section">
             <div class="action-bar">
                 <div>
-                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Event Schedule</h2>
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">Event Schedule</h2>
                     <p style="color: var(--text-muted); font-size: 0.9rem;">Plan event timings and publish schedules to Team Managers.</p>
                 </div>
                 <div class="bulk-actions" style="flex-wrap: wrap; gap: 0.5rem;">
@@ -1229,7 +1222,6 @@ tr:hover td { background: var(--bg-main); }
                         <option value="">All Categories</option>
                     </select>
                 </div>
-                <!-- NEW: Stage Filter -->
                 <div class="filter-box">
                     <select id="filterSchedStage" onchange="filterScheduleTable()">
                         <option value="">All Stages</option>
@@ -1242,7 +1234,6 @@ tr:hover td { background: var(--bg-main); }
                         <option value="published">Published (Visible)</option>
                     </select>
                 </div>
-                <!-- NEW: Event Status Filter -->
                 <div class="filter-box">
                     <select id="filterSchedCompStatus" onchange="filterScheduleTable()">
                         <option value="">All Event Statuses</option>
@@ -1275,10 +1266,10 @@ tr:hover td { background: var(--bg-main); }
             </div>
         </div>
 
-    </div> <!-- THIS PROPERLY CLOSES .main-content -->
+    </div>
 
 <!-- ================= FULL VIEW MODAL ================= -->
-<div id="fullViewModal" class="modal-overlay" style="z-index: 1050; padding: 2rem; background: rgba(15, 23, 42, 0.9);">
+<div id="fullViewModal" class="modal-overlay" style="z-index: 1050; padding: 2rem; background: rgba(17, 24, 39, 0.9);">
     <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
         
         <div style="width: 100%; display: flex; justify-content: flex-end; margin-bottom: 1rem;">
@@ -1354,8 +1345,8 @@ tr:hover td { background: var(--bg-main); }
 
 <div id="cropperModal" class="modal-overlay" style="z-index: 1000;">
     <div class="modal" style="max-width: 450px; text-align: center;">
-        <h3 style="margin-bottom: 1rem; font-weight: 800; color: var(--text-main);">Adjust Photo (2:3 Ratio)</h3>
-        <div style="width: 100%; height: 350px; background: #f1f5f9; border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+        <h3 style="margin-bottom: 1rem; font-weight: 600; color: var(--text-main);">Adjust Photo (2:3 Ratio)</h3>
+        <div style="width: 100%; height: 350px; background: var(--bg-main); border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border);">
             <img id="cropperImage" src="" style="max-width: 100%; max-height: 100%; display: block;">
         </div>
         <div style="display: flex; gap: 1rem; justify-content: flex-end;">
@@ -1370,9 +1361,9 @@ tr:hover td { background: var(--bg-main); }
         <div style="width: 60px; height: 60px; border-radius: 50%; background: var(--danger-light); color: var(--danger); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 1rem;">
             <i class="fa-solid fa-lock"></i>
         </div>
-        <h3 style="margin-bottom: 0.5rem; font-weight: 800; color: var(--text-main);">Security Verification</h3>
+        <h3 style="margin-bottom: 0.5rem; font-weight: 600; color: var(--text-main);">Security Verification</h3>
         <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">Please enter your Master Admin password to authorize this critical action.</p>
-        <input type="password" id="master-auth-password" class="form-control" placeholder="Enter your password" style="margin-bottom: 1.5rem; text-align: center; font-size: 1.1rem; padding: 1rem;">
+        <input type="password" id="master-auth-password" class="form-control" placeholder="Enter your password" style="width: 100%; margin-bottom: 1.5rem; text-align: center; font-size: 1.1rem; padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); outline: none;">
         <div style="display: flex; gap: 1rem;">
             <button class="btn btn-outline" style="flex: 1;" onclick="document.getElementById('masterPasswordModal').classList.remove('show')">Cancel</button>
             <button class="btn btn-primary" style="flex: 1;" id="btn-verify-master" onclick="verifyMasterPassword()">Verify</button>
@@ -1408,7 +1399,7 @@ tr:hover td { background: var(--bg-main); }
             </table>
         </div>
         <div class="modal-footer" style="margin-top: 1.5rem; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-            <p style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin: auto 0;"><i class="fa-solid fa-circle-info"></i> Contains all enrollment, marking, and result records.</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; margin: auto 0;"><i class="fa-solid fa-circle-info"></i> Contains all enrollment, marking, and result records.</p>
             <button class="btn btn-primary" id="btn-download-log" onclick="downloadCompLogPDF()">
                 <i class="fa-solid fa-file-pdf"></i> Download PDF Report
             </button>
@@ -1421,7 +1412,7 @@ tr:hover td { background: var(--bg-main); }
     <div class="modal" style="max-width: 1050px; width: 95%;">
         <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
             <div>
-                <span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:800; font-size:0.75rem;"><i class="fa-solid fa-triangle-exclamation"></i> PARTICIPATION AUDIT</span>
+                <span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:600; font-size:0.75rem;"><i class="fa-solid fa-triangle-exclamation"></i> PARTICIPATION AUDIT</span>
                 <h2 style="margin-top: 0.35rem; font-size: 1.4rem;">Under-Enrolled Competitions</h2>
             </div>
             <button class="close-btn" onclick="document.getElementById('vacancyModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
@@ -1457,7 +1448,7 @@ tr:hover td { background: var(--bg-main); }
         </div>
 
         <div class="modal-footer" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-            <span id="vacancy-summary-count" style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted);">Calculating...</span>
+            <span id="vacancy-summary-count" style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">Calculating...</span>
             <button class="btn btn-outline" onclick="document.getElementById('vacancyModal').classList.remove('show')">Close</button>
         </div>
     </div>

@@ -13,64 +13,73 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
 
         :root {
-            /* Ultra-Premium Light Palette */
-            --primary: #4F46E5;
-            --primary-hover: #4338CA;
-            --primary-light: #EEF2FF;
-            --primary-ring: rgba(79, 70, 229, 0.15);
-            --primary-gradient: linear-gradient(135deg, #4F46E5 0%, #818CF8 100%);
+            /* Refined Premium Palette */
+            --primary: #3B82F6;
+            --primary-hover: #2563EB;
+            --primary-light: #EFF6FF;
+            --primary-ring: rgba(59, 130, 246, 0.2);
+            --primary-gradient: linear-gradient(135deg, #3B82F6 0%, #6366F1 100%);
             
-            --danger: #E11D48;
-            --danger-light: #FFF1F2;
+            --danger: #EF4444;
+            --danger-hover: #DC2626;
+            --danger-light: #FEF2F2;
+            
             --success: #10B981;
+            --success-hover: #059669;
             --success-light: #ECFDF5;
+            
             --warning: #F59E0B;
             --warning-light: #FEF3C7;
             
-            /* Neutrals & Glass Surfaces */
-            --bg-main: #F4F7F9; 
-            --bg-surface: rgba(255, 255, 255, 0.85); 
-            --input-bg: rgba(248, 250, 252, 0.7);
-            --text-main: #0F172A;
-            --text-muted: #64748B;
-            --border: rgba(226, 232, 240, 0.8);
+            /* Neutrals & Surfaces */
+            --bg-main: #F9FAFB; 
+            --bg-surface: #FFFFFF; 
+            --input-bg: rgba(243, 244, 246, 0.8);
+            --text-main: #1F2937;
+            --text-muted: #6B7280;
+            --border: #E5E7EB;
+            --border-hover: #D1D5DB;
             
-            /* Premium Elevations */
-            --shadow-nav: 0 4px 20px rgba(15, 23, 42, 0.04);
-            --shadow-card: 0 10px 25px -5px rgba(15, 23, 42, 0.05);
-            --shadow-float: 0 20px 40px -10px rgba(79, 70, 229, 0.2);
-            --shadow-btn: 0 8px 20px -6px rgba(79, 70, 229, 0.4);
+            /* Smooth, Deep Layered Shadows */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+            --shadow-float: 0 20px 25px -5px rgba(59, 130, 246, 0.15), 0 10px 10px -5px rgba(59, 130, 246, 0.05);
+            --shadow-nav: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
             
-            --radius-md: 14px;
-            --radius-lg: 20px;
-            --radius-xl: 28px;
+            /* Elegant Radii */
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --radius-xl: 20px;
             
-            --transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            --transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
-        /* FORCE ALL FIELDS TO CAPITAL LETTERS */
+        /* FORCE ALL FIELDS TO CAPITAL LETTERS (Maintained but softened weights) */
         body, input, select, textarea, button, a, th, td, h1, h2, h3, h4, p, span, div { 
             font-family: 'Inter', sans-serif; text-transform: uppercase; 
         }
         
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-main); color: var(--text-main); overflow: hidden; -webkit-font-smoothing: antialiased; }
+        body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-main); color: var(--text-main); overflow: hidden; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
         /* --- PREMIUM BACKGROUND ANIMATIONS --- */
         .ambient-bg { position: fixed; inset: 0; z-index: -2; pointer-events: none; overflow: hidden; }
         .grid-pattern {
             position: absolute; inset: 0; z-index: -1;
-            background-image: radial-gradient(rgba(15, 23, 42, 0.04) 1.5px, transparent 1.5px);
-            background-size: 32px 32px;
+            background-image: radial-gradient(rgba(17, 24, 39, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
             mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, black 20%, transparent 100%);
             -webkit-mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, black 20%, transparent 100%);
         }
-        .orb { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.5; animation: float 22s infinite alternate cubic-bezier(0.45, 0.05, 0.55, 0.95); }
-        .orb-1 { width: 500px; height: 500px; background: rgba(79, 70, 229, 0.12); top: -150px; left: -150px; }
-        .orb-2 { width: 400px; height: 400px; background: rgba(236, 72, 153, 0.08); bottom: -100px; right: -100px; animation-delay: -7s; }
-        @keyframes float { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(60px, 90px) scale(1.15) rotate(15deg); } }
+        .orb { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.5; animation: float 25s infinite alternate cubic-bezier(0.4, 0, 0.2, 1); }
+        .orb-1 { width: 500px; height: 500px; background: rgba(59, 130, 246, 0.15); top: -200px; left: -150px; }
+        .orb-2 { width: 400px; height: 400px; background: rgba(139, 92, 246, 0.1); bottom: -100px; right: -100px; animation-delay: -7s; }
+        @keyframes float { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(60px, 100px) scale(1.1) rotate(5deg); } }
 
         /* --- DESKTOP HIDES --- */
         .mobile-drawer, .mobile-overlay { display: none; }
@@ -79,114 +88,119 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
         .sidebar { 
             width: 280px; background: var(--bg-surface); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
             border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 2rem 1.25rem; 
-            z-index: 100; overflow-y: auto; transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
-            box-shadow: var(--shadow-nav);
+            z-index: 100; overflow-y: auto; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); 
+            box-shadow: var(--shadow-sm);
         }
-        .brand { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-bottom: 2.5rem; display: flex; align-items: center; gap: 0.75rem; padding-left: 0.75rem; letter-spacing: -0.5px; }
-        .nav-item { padding: 0.875rem 1.25rem; margin-bottom: 0.5rem; border-radius: var(--radius-md); cursor: pointer; color: var(--text-muted); font-weight: 700; font-size: 0.95rem; transition: var(--transition); display: flex; align-items: center; gap: 1rem; text-decoration: none; border: none; background: transparent; width: 100%; text-align: left; }
-        .nav-item i { font-size: 1.25rem; width: 24px; text-align: center; transition: var(--transition); }
-        .nav-item:hover { background: rgba(248, 250, 252, 0.8); color: var(--text-main); }
-        .nav-item.active { background: var(--primary-light); color: var(--primary); font-weight: 800; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
+        .brand { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.35rem; font-weight: 700; color: var(--primary); margin-bottom: 2.5rem; display: flex; align-items: center; gap: 0.75rem; padding-left: 0.75rem; letter-spacing: -0.02em; }
+        
+        .nav-item { padding: 0.85rem 1.25rem; margin-bottom: 0.4rem; border-radius: var(--radius-md); cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 0.9rem; transition: var(--transition); display: flex; align-items: center; gap: 1rem; text-decoration: none; border: none; background: transparent; width: 100%; text-align: left; }
+        .nav-item i { font-size: 1.1rem; width: 22px; text-align: center; transition: var(--transition); color: #9CA3AF; }
+        .nav-item:hover { background: var(--bg-main); color: var(--text-main); }
+        .nav-item.active { background: var(--primary-light); color: var(--primary); font-weight: 700; }
         .nav-item.active i { color: var(--primary); transform: scale(1.1); }
 
         /* --- MAIN CONTENT & GLASSMORPHIC HEADER --- */
         .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; scroll-behavior: smooth; }
         
         .header { 
-            background: rgba(255, 255, 255, 0.8); padding: 1.25rem 2.5rem; 
+            background: rgba(255, 255, 255, 0.85); padding: 1.25rem 2.5rem; 
             display: flex; justify-content: space-between; align-items: center; 
-            position: sticky; top: 0; z-index: 40; backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); 
-            border-bottom: 1px solid var(--border); box-shadow: var(--shadow-nav);
+            position: sticky; top: 0; z-index: 40; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); 
+            border-bottom: 1px solid var(--border); box-shadow: var(--shadow-sm);
         }
-        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.5rem; font-weight: 800; color: transparent; background: var(--primary-gradient); -webkit-background-clip: text; letter-spacing: -0.5px; margin: 0; }
+        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.3rem; font-weight: 600; color: transparent; background: var(--primary-gradient); -webkit-background-clip: text; letter-spacing: -0.01em; margin: 0; }
         
         .menu-toggle { display: none; }
 
-        .content-section { display: none; padding: 2.5rem; animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; max-width: 1400px; margin: 0 auto; width: 100%; }
+        .content-section { display: none; padding: 2rem 2.5rem; animation: fadeUp 0.4s ease forwards; opacity: 0; max-width: 1400px; margin: 0 auto; width: 100%; }
         .content-section.active { display: block; opacity: 1; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .content-section h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px; color: var(--text-main); }
+        .content-section h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text-main); }
 
         /* --- GRIDS & CARDS --- */
         .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
-        .stat-card { background: var(--bg-surface); backdrop-filter: blur(20px); padding: 2rem; border-radius: var(--radius-xl); border: 1px solid var(--border); box-shadow: var(--shadow-card); display: flex; flex-direction: column; transition: var(--transition); }
-        .stat-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-float); border-color: rgba(79, 70, 229, 0.3); }
-        .stat-card .icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 1rem; box-shadow: inset 0 2px 4px rgba(255,255,255,0.5); }
-        .stat-card h3 { color: var(--text-muted); font-size: 0.85rem; font-weight: 800; margin-bottom: 0.25rem; letter-spacing: 0.05em; }
-        .stat-card .value { font-size: 2.5rem; font-weight: 800; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1; }
+        .stat-card { background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: var(--transition); }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--border-hover); }
+        .stat-card .icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 1rem; }
+        .stat-card h3 { color: var(--text-muted); font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem; letter-spacing: 0.02em; }
+        .stat-card .value { font-size: 2.2rem; font-weight: 700; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1; }
 
         /* --- CONTROLS BAR --- */
         .controls-bar { 
             display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; 
-            background: var(--bg-surface); backdrop-filter: blur(20px); padding: 1.25rem; 
-            border-radius: var(--radius-lg); box-shadow: var(--shadow-card); border: 1px solid var(--border); align-items: center;
+            background: var(--bg-surface); padding: 1rem; 
+            border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border); align-items: center;
         }
         .search-box { flex: 2; min-width: 200px; position: relative; }
         .search-box input { 
-            width: 100%; padding: 1rem 1.2rem 1rem 3rem; border-radius: var(--radius-md); 
-            border: 1.5px solid var(--border); font-size: 0.95rem; font-weight: 600; outline: none; 
-            background: var(--input-bg); transition: var(--transition); 
+            width: 100%; padding: 0.85rem 1rem 0.85rem 2.75rem; border-radius: var(--radius-md); 
+            border: 1px solid var(--border); font-size: 0.95rem; font-weight: 500; outline: none; 
+            background: var(--bg-main); color: var(--text-main); transition: var(--transition); 
         }
-        .search-box input:focus { background: #FFFFFF; border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-light), inset 0 2px 4px rgba(0,0,0,0.01); transform: translateY(-1px); }
-        .search-box i { position: absolute; left: 1.2rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1.1rem; }
+        .search-box input:focus { background: #FFFFFF; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+        .search-box i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1.1rem; }
         
         .filter-box { flex: 1; min-width: 150px; }
         .filter-box select, .filter-box input[type="date"] { 
-            width: 100%; padding: 1rem 1.2rem; border-radius: var(--radius-md); border: 1.5px solid var(--border); 
-            font-size: 0.95rem; font-weight: 600; outline: none; cursor: pointer; background: var(--input-bg);
+            width: 100%; padding: 0.85rem 2.5rem 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); 
+            font-size: 0.95rem; font-weight: 500; outline: none; cursor: pointer; background: var(--bg-main); color: var(--text-main);
             transition: var(--transition);
         }
-        .filter-box select:focus, .filter-box input[type="date"]:focus { background: #FFFFFF; border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-light); transform: translateY(-1px); }
+        .filter-box select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.2rem;
+        }
+        .filter-box select:focus, .filter-box input[type="date"]:focus { background: #FFFFFF; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
 
         /* --- TABLES --- */
-        .table-container { background: var(--bg-surface); backdrop-filter: blur(20px); border-radius: var(--radius-xl); border: 1px solid var(--border); overflow-x: auto; box-shadow: var(--shadow-card); }
+        .table-container { background: var(--bg-surface); border-radius: var(--radius-xl); border: 1px solid var(--border); overflow-x: auto; box-shadow: var(--shadow-sm); }
         table { width: 100%; min-width: 700px; border-collapse: collapse; text-align: left; }
-        th { padding: 1.25rem 1.5rem; font-weight: 800; color: var(--text-muted); font-size: 0.8rem; background: rgba(248, 250, 252, 0.5); border-bottom: 1px solid var(--border); letter-spacing: 0.05em; }
-        td { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); font-size: 0.95rem; font-weight: 600; }
+        th { padding: 1rem 1.5rem; font-weight: 600; color: var(--text-muted); font-size: 0.75rem; background: var(--bg-main); border-bottom: 1px solid var(--border); letter-spacing: 0.05em; }
+        td { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; font-weight: 500; }
         tr:last-child td { border-bottom: none; }
-        tr:hover td { background: rgba(248, 250, 252, 0.8); }
+        tr:hover td { background: var(--bg-main); }
         .checkbox-cell { width: 48px; text-align: center; }
-        input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--primary); cursor: pointer; border-radius: 6px; border: 2px solid var(--text-muted); transition: 0.2s; }
-        input[type="checkbox"]:checked { border-color: var(--primary); }
+        input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; border-radius: 4px; border: 1px solid var(--border); transition: 0.2s; }
 
         /* --- BUTTONS --- */
         .btn { 
-            padding: 0.9rem 1.4rem; border-radius: var(--radius-md); font-weight: 800; font-size: 0.95rem; 
+            padding: 0.7rem 1.25rem; border-radius: var(--radius-md); font-weight: 600; font-size: 0.9rem; 
             cursor: pointer; transition: var(--transition); border: 1px solid transparent; 
-            display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem; 
-            letter-spacing: 0.03em; position: relative; overflow: hidden;
+            display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; 
+            letter-spacing: 0.01em; position: relative; overflow: hidden; min-height: 42px; white-space: nowrap;
         }
-        .btn-primary { background: var(--primary-gradient); color: white; box-shadow: var(--shadow-btn); }
-        .btn-primary::before { content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%; background: linear-gradient(to right, transparent, rgba(255,255,255,0.3), transparent); transform: skewX(-25deg); transition: 0.6s cubic-bezier(0.16, 1, 0.3, 1); z-index: 1; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 15px 30px -5px rgba(79, 70, 229, 0.4); }
-        .btn-primary:hover::before { left: 150%; }
-        .btn-primary:active { transform: translateY(1px); box-shadow: 0 5px 15px rgba(79, 70, 229, 0.3); }
+        .btn-primary { background: var(--primary-gradient); color: white; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-float); }
+        .btn-primary:active:not(:disabled) { transform: translateY(1px); box-shadow: var(--shadow-sm); }
 
-        .btn-outline { background: var(--bg-surface); border: 2px solid var(--border); color: var(--text-main); box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-        .btn-outline:hover { background: #FFFFFF; border-color: var(--primary); color: var(--primary); transform: translateY(-1px); box-shadow: 0 8px 16px rgba(79, 70, 229, 0.1); }
-        .btn-danger { background: var(--danger); color: white; border: none; box-shadow: 0 8px 20px -6px rgba(225, 29, 72, 0.4); }
+        .btn-outline { background: var(--bg-surface); border-color: var(--border); color: var(--text-main); }
+        .btn-outline:hover:not(:disabled) { background: var(--bg-main); border-color: var(--primary); color: var(--primary); transform: translateY(-1px); }
+        .btn-danger { background: var(--danger-light); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
         
-        /* --- BADGES --- */
-        .badge { padding: 0.4rem 0.85rem; border-radius: 8px; font-size: 0.75rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; letter-spacing: 0.05em; text-align: center; border: 1px solid transparent; }
-        .badge-success { background: var(--success-light); color: #059669; border-color: rgba(16, 185, 129, 0.2); }
-        .badge-warning { background: var(--warning-light); color: #d97706; border-color: rgba(245, 158, 11, 0.2); }
-        .badge-info { background: var(--primary-light); color: var(--primary); border-color: var(--primary-ring); }
-        .badge-gray { background: #f8fafc; color: #475569; border-color: var(--border); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        #lock-banner { display: none; background: var(--danger-light); color: var(--danger); padding: 1.25rem 1.5rem; border-radius: var(--radius-lg); font-weight: 800; margin-bottom: 1.5rem; align-items: center; gap: 0.75rem; border: 1px solid rgba(225, 29, 72, 0.2); box-shadow: 0 4px 12px rgba(225, 29, 72, 0.05); }
+        /* --- BADGES --- */
+        .badge { padding: 0.35rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; letter-spacing: 0.05em; text-align: center; border: 1px solid transparent; cursor: default; }
+        .badge-success { background: var(--success-light); color: var(--success-hover); border-color: rgba(16, 185, 129, 0.2); }
+        .badge-warning { background: var(--warning-light); color: #B45309; border-color: rgba(245, 158, 11, 0.2); }
+        .badge-info { background: var(--primary-light); color: var(--primary); border-color: var(--primary-ring); cursor: pointer; }
+        .badge-gray { background: var(--bg-main); color: var(--text-muted); border-color: var(--border); }
+
+        #lock-banner { display: none; background: var(--danger-light); color: var(--danger); padding: 1rem 1.5rem; border-radius: var(--radius-lg); font-weight: 600; margin-bottom: 1.5rem; align-items: center; gap: 0.75rem; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 0.95rem; }
 
         /* --- MODALS --- */
-        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); z-index: 1000; justify-content: center; align-items: center; padding: 1rem; opacity: 0; transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.6); backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center; padding: 1rem; opacity: 0; transition: opacity 0.3s ease; }
         .modal-overlay.show { display: flex; opacity: 1; }
-        .modal { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(25px); width: 100%; max-width: 560px; border-radius: var(--radius-xl); padding: 2.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); max-height: 90vh; overflow-y: auto; transform: scale(0.95) translateY(20px); transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); border: 1px solid rgba(255,255,255,1); }
-        .modal-overlay.show .modal { transform: scale(1) translateY(0); }
+        .modal { background: var(--bg-surface); width: 100%; max-width: 560px; border-radius: var(--radius-xl); padding: 2rem; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; transform: scale(0.95); transition: transform 0.3s ease; border: 1px solid var(--border); }
+        .modal-overlay.show .modal { transform: scale(1); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-        .modal-header h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; }
+        .modal-header h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; }
 
         /* --- TOASTS --- */
         #toast-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.75rem; pointer-events: none; }
-        .toast { background: var(--bg-surface); backdrop-filter: blur(20px); border-left: 4px solid var(--primary); padding: 1.15rem 1.5rem; border-radius: var(--radius-md); box-shadow: 0 10px 30px rgba(0,0,0,0.1); font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 0.75rem; pointer-events: auto; animation: slideInToast 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; border: 1px solid var(--border); }
+        .toast { background: var(--bg-surface); border-left: 4px solid var(--primary); padding: 1rem 1.5rem; border-radius: var(--radius-md); box-shadow: var(--shadow-md); font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; gap: 0.75rem; pointer-events: auto; animation: slideInToast 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); color: var(--text-main); }
         .toast.success { border-left-color: var(--success); }
         .toast.error { border-left-color: var(--danger); }
         @keyframes slideInToast { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -195,17 +209,17 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
            SEPARATE MOBILE UI (NATIVE BOTTOM NAVIGATION & CARDS)
            ======================================================================== */
         @media (max-width: 768px) {
-            body { flex-direction: column; background-color: #F8FAFC; }
-            .ambient-bg { display: none; } /* Better performance on mobile */
+            body { flex-direction: column; background-color: #F3F4F6; }
+            .ambient-bg { display: none; } 
             
             /* Native Sticky Top Header */
             .header { 
                 padding: 1rem 1.25rem; background: rgba(255, 255, 255, 0.95); 
-                box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-bottom: none; z-index: 50;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-bottom: none; z-index: 50;
             }
             .header h1 { font-size: 1.15rem; }
-            .header .btn-outline { border: none; background: #F1F5F9; border-radius: 50%; width: 44px; height: 44px; padding: 0; font-size: 0; }
-            .header .btn-outline i { font-size: 1.25rem; margin: 0; color: var(--danger); }
+            .header .btn-outline { border: none; background: var(--bg-main); border-radius: 50%; width: 40px; height: 40px; padding: 0; font-size: 0; min-height: auto;}
+            .header .btn-outline i { font-size: 1.1rem; margin: 0; color: var(--danger); }
             
             /* Convert Sidebar to Native iOS-style Bottom Navigation */
             #sidebar.sidebar { 
@@ -214,20 +228,20 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
                 padding: 0.5rem 0.25rem calc(0.5rem + env(safe-area-inset-bottom)) 0.25rem; 
                 background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
                 border-right: none; border-top: 1px solid var(--border);
-                box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.08); z-index: 100; transform: none;
+                box-shadow: 0 -4px 6px -1px rgba(0,0,0,0.05); z-index: 100; transform: none;
             }
             #sidebar .brand { display: none !important; } 
             
             /* Show only primary tabs in bottom nav, fit them evenly */
             #sidebar .nav-item { 
                 flex-direction: column; gap: 0.25rem; padding: 0.4rem 0.2rem; 
-                font-size: 0.6rem; text-align: center; border-radius: 12px;
-                flex: 1; justify-content: center; font-weight: 800; margin: 0;
+                font-size: 0.65rem; text-align: center; border-radius: 12px;
+                flex: 1; justify-content: center; font-weight: 600; margin: 0;
                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             }
-            #sidebar .nav-item i { font-size: 1.35rem; width: auto; margin-bottom: 2px; }
+            #sidebar .nav-item i { font-size: 1.25rem; width: auto; margin-bottom: 2px; }
             #sidebar .nav-item.active { box-shadow: none; background: transparent; color: var(--primary); }
-            #sidebar .nav-item.active i { transform: scale(1.15); }
+            #sidebar .nav-item.active i { transform: scale(1.1); }
             
             #sidebar .nav-item:nth-child(5), /* Tracking */
             #sidebar .nav-item:nth-child(7), /* Grievances */
@@ -236,16 +250,16 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
             /* Add Mobile Menu Toggle to Header */
             .menu-toggle { 
                 display: flex; background: transparent; border: none; box-shadow: none;
-                color: var(--text-main); font-size: 1.5rem; width: auto; height: auto; padding: 0.5rem;
+                color: var(--text-main); font-size: 1.25rem; width: auto; height: auto; padding: 0.5rem; cursor: pointer;
             }
             
             /* Slide-over mobile menu for the hidden items */
-            .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 150; opacity: 0; transition: opacity 0.3s; }
+            .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.4); z-index: 150; opacity: 0; transition: opacity 0.3s; }
             .mobile-overlay.open { display: block; opacity: 1; }
             
             .mobile-drawer {
                 display: flex; position: fixed; top: 0; left: 0; bottom: 0; width: 280px; background: var(--bg-surface);
-                z-index: 200; transform: translateX(-100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+                z-index: 200; transform: translateX(-100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
                 padding: 1.5rem 1.25rem; flex-direction: column; gap: 0.5rem;
             }
             .mobile-drawer.open { transform: translateX(0); }
@@ -255,14 +269,14 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
             /* Main Content Adjustments */
             .main-content { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
             .content-section { padding: 1.25rem 1rem; }
-            .content-section h2 { font-size: 1.4rem; }
+            .content-section h2 { font-size: 1.3rem; }
             
             /* Toolbar Stacking */
-            .controls-bar { flex-direction: column; align-items: stretch; padding: 1.25rem; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border-radius: var(--radius-xl); gap: 1rem; background: var(--bg-surface); }
-            .search-box, .filter-box, .controls-bar input, .controls-bar select { width: 100%; min-width: 100%; min-height: 52px; font-size: 15px !important; }
+            .controls-bar { flex-direction: column; align-items: stretch; padding: 1.25rem; border: none; box-shadow: var(--shadow-sm); border-radius: var(--radius-xl); gap: 1rem; background: var(--bg-surface); }
+            .search-box, .filter-box, .controls-bar input, .controls-bar select { width: 100%; min-width: 100%; min-height: 48px; font-size: 16px !important; }
             
             /* Buttons */
-            .btn { min-height: 52px; width: 100%; font-size: 1rem; }
+            .btn { min-height: 48px; width: 100%; font-size: 0.95rem; }
             .bulk-actions-wrapper { flex-direction: column; width: 100%; gap: 0.75rem !important; }
             .bulk-actions-wrapper .btn { margin-top: 0; }
             
@@ -272,19 +286,19 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
             thead { display: none; }
             
             tbody tr { 
-                background: var(--bg-surface); border-radius: var(--radius-xl); 
-                padding: 1.25rem; margin-bottom: 1.25rem; box-shadow: 0 4px 15px rgba(15, 23, 42, 0.04); 
+                background: var(--bg-surface); border-radius: var(--radius-lg); 
+                padding: 1.25rem; margin-bottom: 1rem; box-shadow: var(--shadow-sm); 
                 border: 1px solid var(--border); position: relative; 
             }
             
             td { 
                 display: flex; justify-content: space-between; align-items: center; 
-                padding: 0.85rem 0; border-bottom: 1px solid var(--bg-main); 
-                text-align: right; font-size: 0.95rem; gap: 1rem; min-height: 44px;
+                padding: 0.75rem 0; border-bottom: 1px solid var(--bg-main); 
+                text-align: right; font-size: 0.9rem; gap: 1rem; min-height: 40px;
             }
             
             td::before { 
-                font-weight: 800; color: var(--text-muted); font-size: 0.75rem; 
+                font-weight: 600; color: var(--text-muted); font-size: 0.75rem; 
                 text-align: left; content: attr(data-label); letter-spacing: 0.05em; 
                 flex-shrink: 0; width: 35%; line-height: 1.3;
             }
@@ -300,7 +314,7 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
                 align-items: stretch; border-top: 1px dashed var(--border);
             }
             td:last-child::before { display: none !important; }
-            td:last-child .btn, td:last-child .badge { width: 100%; margin: 0; display: flex; justify-content: center; padding: 0.85rem; }
+            td:last-child .btn, td:last-child .badge { width: 100%; margin: 0; display: flex; justify-content: center; padding: 0.75rem; }
             
             /* Checkbox Targeting Fix */
             .checkbox-cell { position: absolute; top: 1.25rem; left: 1.25rem; padding: 0 !important; border: none !important; width: auto; min-height: auto; }
@@ -308,21 +322,22 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
             .checkbox-cell ~ td:nth-of-type(2) { padding-left: 2.75rem; }
             
             /* Native Bottom Sheet Modals */
-            .modal-overlay { align-items: flex-end; padding: 0; background: rgba(0, 0, 0, 0.6); }
+            .modal-overlay { align-items: flex-end; padding: 0; background: rgba(0, 0, 0, 0.5); }
             .modal { 
-                padding: 2.5rem 1.5rem calc(2rem + env(safe-area-inset-bottom)) 1.5rem; 
-                border-radius: 36px 36px 0 0; transform: translateY(100%); 
-                transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); max-height: 90vh; 
+                padding: 2rem 1.5rem calc(2rem + env(safe-area-inset-bottom)) 1.5rem; 
+                border-radius: 24px 24px 0 0; transform: translateY(100%); 
+                transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); max-height: 85vh; 
                 border: none; border-top: 1px solid rgba(255,255,255,0.8);
             }
             .modal::before {
-                content: ''; position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-                width: 48px; height: 6px; background: var(--border); border-radius: 10px;
+                content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+                width: 40px; height: 5px; background: var(--border); border-radius: 10px;
             }
             .modal-overlay.show .modal { transform: translateY(0); }
+            .modal-header { padding-top: 0.5rem; }
             
             /* Mobile Toasts */
-            #toast-container { bottom: calc(95px + env(safe-area-inset-bottom)); right: 1rem; left: 1rem; align-items: stretch; width: auto; }
+            #toast-container { bottom: calc(85px + env(safe-area-inset-bottom)); right: 1rem; left: 1rem; align-items: stretch; width: auto; }
             .toast { width: 100%; box-sizing: border-box; justify-content: flex-start; }
         }
     </style>
@@ -343,7 +358,7 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
     <div class="mobile-drawer" id="mobile-drawer">
         <div class="mobile-drawer-header">
             <div class="brand"><i class="fa-solid fa-bolt"></i> MENU</div>
-            <button class="menu-toggle" style="margin: 0; border-radius: 50%; width: 44px; height: 44px; background: var(--bg-main);" onclick="toggleMobileMenu()"><i class="fa-solid fa-xmark"></i></button>
+            <button class="menu-toggle" style="margin: 0; border-radius: 50%; width: 40px; height: 40px; background: var(--bg-main); display: flex; justify-content: center; align-items: center;" onclick="toggleMobileMenu()"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="nav-item" onclick="switchTab('competitions'); toggleMobileMenu();"><i class="fa-solid fa-satellite-dish"></i> TRACKING</div>
         <div class="nav-item" onclick="switchTab('schedule'); toggleMobileMenu();"><i class="fa-solid fa-calendar-days"></i> SCHEDULE</div>
@@ -372,18 +387,17 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
         <nav class="navbar header">
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <button class="menu-toggle" onclick="toggleMobileMenu()"><i class="fa-solid fa-bars"></i></button>
-                <!-- ADDED BRANDING CONTAINER -->
-                <div class="brand" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 800; color: var(--primary);"></div>
+                <div class="brand" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--primary); margin: 0;"></div>
                 <div class="user-info">
                     <h1 id="team-name-title">LOADING TEAM...</h1>
-                    <p style="color: var(--text-muted); font-size: 0.85rem; display: none; font-weight: 700;" id="desktop-subtitle">TEAM MANAGER DASHBOARD</p>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; display: none; font-weight: 500;" id="desktop-subtitle">TEAM MANAGER DASHBOARD</p>
                 </div>
             </div>
             <div class="navbar-actions" style="display: flex; gap: 0.75rem; align-items: center;">
-                <button class="btn btn-outline" style="padding: 0.5rem; min-height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; color: var(--primary); border-color: var(--border);" onclick="refreshDashboard(this)" title="Sync Latest Data">
+                <button class="btn btn-outline" style="padding: 0.5rem; min-height: 40px; min-width: 40px; display: flex; align-items: center; justify-content: center; color: var(--primary); border-color: var(--border);" onclick="refreshDashboard(this)" title="Sync Latest Data">
                     <i class="fa-solid fa-rotate-right"></i>
                 </button>
-                <button class="btn btn-outline" style="padding: 0.5rem; min-height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; color: var(--danger); border-color: var(--border);" onclick="logout()" title="Sign Out">
+                <button class="btn btn-outline" style="padding: 0.5rem; min-height: 40px; min-width: 40px; display: flex; align-items: center; justify-content: center; color: var(--danger); border-color: var(--border);" onclick="logout()" title="Sign Out">
                     <i class="fa-solid fa-right-from-bracket"></i>
                 </button>
             </div>
@@ -393,13 +407,11 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
                 <div>
                     <h2 style="margin-bottom: 0.25rem;">LIVE OVERVIEW</h2>
-                    <!-- ADDED MANAGER NAMES DISPLAY -->
-                    <div id="tm-manager-names" style="color: var(--primary); font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <div id="tm-manager-names" style="color: var(--primary); font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
                         <i class="fa-solid fa-user-tie"></i> LOADING MANAGERS...
                     </div>
                 </div>
-                <!-- ADDED LOCK DEADLINE BANNER -->
-                <div id="dashboard-deadline-banner" style="background: var(--primary-light); color: var(--primary); padding: 0.75rem 1.25rem; border-radius: var(--radius-md); font-weight: 800; font-size: 0.85rem; border: 1px solid var(--primary-ring); display: none; align-items: center; gap: 0.5rem;">
+                <div id="dashboard-deadline-banner" style="background: var(--primary-light); color: var(--primary); padding: 0.75rem 1.25rem; border-radius: var(--radius-md); font-weight: 600; font-size: 0.85rem; border: 1px solid var(--primary-ring); display: none; align-items: center; gap: 0.5rem;">
                     <i class="fa-solid fa-clock"></i> <span id="deadline-text">NO DEADLINE SET</span>
                 </div>
             </div>
@@ -411,12 +423,12 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
                     <div class="value" id="stat-total-students">0</div>
                 </div>
                 <div class="stat-card">
-                    <div class="icon" style="background: #EEF2FF; color: #4338ca;"><i class="fa-solid fa-clipboard-list"></i></div>
+                    <div class="icon" style="background: var(--bg-main); color: var(--text-main);"><i class="fa-solid fa-clipboard-list"></i></div>
                     <h3>TOTAL EVENTS</h3>
                     <div class="value" id="stat-total-events">0</div>
                 </div>
                 <div class="stat-card">
-                    <div class="icon" style="background: var(--success-light); color: #059669;"><i class="fa-solid fa-check-circle"></i></div>
+                    <div class="icon" style="background: var(--success-light); color: var(--success-hover);"><i class="fa-solid fa-check-circle"></i></div>
                     <h3>EVENTS COMPLETED</h3>
                     <div class="value" id="stat-completed-events">0</div>
                 </div>
@@ -424,8 +436,8 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
         </div>
 
        <div id="my-team" class="content-section">
-            <h2 style="margin-bottom: 0.5rem;">STUDENT DIRECTORY</h2>
-            <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 600;">VIEW ALL STUDENTS ASSIGNED TO YOUR TEAM AND THEIR ACTIVE ENROLLMENTS.</p>
+            <h2 style="margin-bottom: 0.25rem;">STUDENT DIRECTORY</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 500;">VIEW ALL STUDENTS ASSIGNED TO YOUR TEAM AND THEIR ACTIVE ENROLLMENTS.</p>
             
             <div class="controls-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                 <div class="search-box" style="flex: 1; min-width: 250px;">
@@ -448,8 +460,8 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
         </div>
 
         <div id="event-catalog" class="content-section">
-            <h2 style="margin-bottom: 0.5rem;">EVENT CATALOG</h2>
-            <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 600;">REVIEW RULES, STAGES, AND LIMITS FOR ALL COMPETITIONS.</p>
+            <h2 style="margin-bottom: 0.25rem;">EVENT CATALOG</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 500;">REVIEW RULES, STAGES, AND LIMITS FOR ALL COMPETITIONS.</p>
             
          <div class="controls-bar">
                 <div class="search-box">
@@ -481,8 +493,8 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
         <div id="appeals" class="content-section">
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
                 <div>
-                    <h2 style="margin-bottom: 0.5rem;">GRIEVANCES & APPEALS</h2>
-                    <p style="color: var(--text-muted); font-weight: 600;">RAISE DISPUTES FOR SPELLING ERRORS OR SCORING ISSUES.</p>
+                    <h2 style="margin-bottom: 0.25rem;">GRIEVANCES & APPEALS</h2>
+                    <p style="color: var(--text-muted); font-weight: 500;">RAISE DISPUTES FOR SPELLING ERRORS OR SCORING ISSUES.</p>
                 </div>
                 <div class="bulk-actions-wrapper">
                     <button class="btn btn-primary" onclick="openAppealModal()"><i class="fa-solid fa-plus"></i> RAISE NEW TICKET</button>
@@ -493,8 +505,8 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
         </div>
 
         <div id="competitions" class="content-section">
-            <h2 style="margin-bottom: 0.5rem;">LIVE TRACKING</h2>
-            <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 600;">TRACK THE REAL-TIME STATUS OF EVENTS YOUR STUDENTS ARE IN.</p>
+            <h2 style="margin-bottom: 0.25rem;">LIVE TRACKING</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 500;">TRACK THE REAL-TIME STATUS OF EVENTS YOUR STUDENTS ARE IN.</p>
             
             <div class="controls-bar">
                 <div class="search-box">
@@ -520,8 +532,8 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
         </div>
 
         <div id="schedule" class="content-section">
-            <h2 style="margin-bottom: 0.5rem;">EVENT SCHEDULE</h2>
-            <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 600;">VIEW TIMINGS AND DATES FOR PUBLISHED COMPETITIONS.</p>
+            <h2 style="margin-bottom: 0.25rem;">EVENT SCHEDULE</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 500;">VIEW TIMINGS AND DATES FOR PUBLISHED COMPETITIONS.</p>
             
             <div class="controls-bar">
                 <div class="search-box">
@@ -545,38 +557,38 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
 
         <div id="assignments" class="content-section">
             <div style="margin-bottom: 1.5rem;">
-                <h2 style="margin-bottom: 0.5rem;">STRUCTURAL ASSIGNMENT</h2>
-                <p style="color: var(--text-muted); font-weight: 600;">ENROLL OR REMOVE MULTIPLE STUDENTS SIMULTANEOUSLY.</p>
+                <h2 style="margin-bottom: 0.25rem;">STRUCTURAL ASSIGNMENT</h2>
+                <p style="color: var(--text-muted); font-weight: 500;">ENROLL OR REMOVE MULTIPLE STUDENTS SIMULTANEOUSLY.</p>
             </div>
 
             <div id="lock-banner"><i class="fa-solid fa-lock"></i> MASTER ADMIN HAS DISABLED ASSIGNMENTS.</div>
 
-           <div class="controls-bar" style="background: rgba(248, 250, 252, 0.8); border: 2px solid var(--primary-light); display: flex; flex-wrap: wrap; align-items: flex-end;">
+           <div class="controls-bar" style="background: var(--bg-surface); border: 1px solid var(--border); display: flex; flex-wrap: wrap; align-items: flex-end;">
     <!-- 1. CATEGORY DROPDOWN -->
     <div class="filter-box" style="flex: 1; min-width: 200px;">
-        <label style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem;">1. SELECT CATEGORY</label>
-        <select id="bulkAssignCategory" onchange="populateBulkAssignDropdown()" style="border-color: var(--primary); background: white;">
+        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem;">1. SELECT CATEGORY</label>
+        <select id="bulkAssignCategory" onchange="populateBulkAssignDropdown()">
             <option value="">-- CHOOSE A CATEGORY --</option>
         </select>
     </div>
     
     <!-- 2. COMPETITION DROPDOWN -->
     <div class="filter-box" style="flex: 1; min-width: 200px;">
-        <label style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem;">2. SELECT COMPETITION</label>
-        <select id="bulkAssignComp" onchange="renderBulkAssignmentTable()" style="border-color: var(--primary); background: white;" disabled>
+        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem;">2. SELECT COMPETITION</label>
+        <select id="bulkAssignComp" onchange="renderBulkAssignmentTable()" disabled>
             <option value="">-- CHOOSE CATEGORY FIRST --</option>
         </select>
     </div>
     
     <div class="bulk-actions-wrapper" style="display: flex; gap: 0.75rem; flex: 1; justify-content: flex-end; min-width: 200px;">
         <button class="btn btn-success" id="btn-bulk-enroll" style="flex: 1;" onclick="executeBulkAction('enroll')"><i class="fa-solid fa-check"></i> ENROLL</button>
-        <button class="btn btn-danger" id="btn-bulk-remove" style="flex: 1;" onclick="executeBulkAction('remove')"><i class="fa-solid fa-xmark"></i> REMOVE</button>
+        <button class="btn btn-outline" id="btn-bulk-remove" style="flex: 1; color: var(--danger); border-color: var(--border);" onclick="executeBulkAction('remove')"><i class="fa-solid fa-xmark"></i> REMOVE</button>
     </div>
 </div>
 
             <div class="table-container" id="bulk-table-wrapper" style="display: none;">
-                <div style="padding: 1.25rem 1.5rem; background: rgba(248, 250, 252, 0.8); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                    <span id="bulk-comp-info" style="font-weight: 800; font-size: 0.95rem; color: var(--primary);">SELECT STUDENTS BELOW</span>
+                <div style="padding: 1.25rem 1.5rem; background: var(--bg-main); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                    <span id="bulk-comp-info" style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">SELECT STUDENTS BELOW</span>
                 </div>
                 <table>
                     <thead>
@@ -599,15 +611,15 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
         <div class="modal" style="max-width: 650px;">
             <div class="modal-header">
                 <h2 id="enroll-modal-title">ENROLLMENT DETAILS</h2>
-                <button class="btn btn-outline" style="border: none; padding: 0.5rem; min-width: 44px; min-height: 44px; border-radius: 50%;" onclick="document.getElementById('enrollmentDetailsModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="btn btn-outline" style="border: none; padding: 0.5rem; min-width: 40px; min-height: 40px; border-radius: 50%;" onclick="document.getElementById('enrollmentDetailsModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 250px;">
-                    <h3 id="enroll-modal-enrolled-title" style="color: #059669; font-size: 1rem; font-weight: 800; margin-bottom: 1rem;"><i class="fa-solid fa-check-circle"></i> CHECKED IN</h3>
+                    <h3 id="enroll-modal-enrolled-title" style="color: var(--success-hover); font-size: 0.95rem; font-weight: 700; margin-bottom: 1rem;"><i class="fa-solid fa-check-circle"></i> CHECKED IN</h3>
                     <div id="enroll-modal-enrolled" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;"></div>
                 </div>
                 <div style="flex: 1; min-width: 250px;">
-                    <h3 id="enroll-modal-pending-title" style="color: var(--warning); font-size: 1rem; font-weight: 800; margin-bottom: 1rem;"><i class="fa-solid fa-clock"></i> PENDING</h3>
+                    <h3 id="enroll-modal-pending-title" style="color: var(--warning); font-size: 0.95rem; font-weight: 700; margin-bottom: 1rem;"><i class="fa-solid fa-clock"></i> PENDING</h3>
                     <div id="enroll-modal-pending" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;"></div>
                 </div>
             </div>
@@ -618,16 +630,16 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
         <div class="modal">
             <div class="modal-header">
                 <h2 id="se-modal-title">STUDENT ENROLLMENTS</h2>
-                <button class="btn btn-outline" style="border: none; padding: 0.5rem; min-width: 44px; min-height: 44px; border-radius: 50%;" onclick="document.getElementById('studentEventsModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="btn btn-outline" style="border: none; padding: 0.5rem; min-width: 40px; min-height: 40px; border-radius: 50%;" onclick="document.getElementById('studentEventsModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div id="se-modal-body" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
         </div>
     </div>
 
-    <div id="scanModal" class="modal-overlay" style="z-index: 1050; padding: 0; background: #0F172A;">
+    <div id="scanModal" class="modal-overlay" style="z-index: 1050; padding: 0; background: #111827;">
         <div style="width: 100%; height: 100%; position: relative;">
             <div style="position: absolute; top: calc(1rem + env(safe-area-inset-top)); right: 1rem; z-index: 1000;">
-                <button class="btn btn-danger" style="box-shadow: 0 8px 24px rgba(0,0,0,0.5); border-radius: 50px; font-size: 0.85rem;" onclick="closeScanModal()"><i class="fa-solid fa-xmark"></i> CLOSE SCANNER</button>
+                <button class="btn btn-outline" style="background: rgba(255,255,255,0.9); color: var(--text-main); border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2); border-radius: 50px; font-size: 0.85rem;" onclick="closeScanModal()"><i class="fa-solid fa-xmark"></i> CLOSE</button>
             </div>
             <iframe id="scanIframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
         </div>
@@ -637,7 +649,7 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
         <div class="modal">
             <div class="modal-header">
                 <h2 id="modalTitle">Modal Title</h2>
-                <button class="btn btn-outline" style="border: none; padding: 0.5rem; min-width: 44px; min-height: 44px; border-radius: 50%;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+                <button class="btn btn-outline" style="border: none; padding: 0.5rem; min-width: 40px; min-height: 40px; border-radius: 50%;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div id="modalBody" style="display: flex; flex-direction: column; gap: 1.25rem;"></div>
             <div class="bulk-actions-wrapper" style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
@@ -651,9 +663,9 @@ body { display: flex; height: 100vh; height: 100dvh; background-color: var(--bg-
         <div class="modal" style="max-width: 450px; text-align: center;">
             <div class="modal-header">
                 <h2>ADJUST PHOTO</h2>
-                <button class="btn btn-outline" style="border: none; padding: 0.5rem; min-width: 44px; min-height: 44px; border-radius: 50%;" onclick="cancelCropper()"><i class="fa-solid fa-xmark"></i></button>
+                <button class="btn btn-outline" style="border: none; padding: 0.5rem; min-width: 40px; min-height: 40px; border-radius: 50%;" onclick="cancelCropper()"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div style="width: 100%; height: 350px; background: var(--input-bg); border-radius: 16px; margin-bottom: 1.5rem; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border);">
+            <div style="width: 100%; height: 350px; background: var(--bg-main); border-radius: var(--radius-lg); margin-bottom: 1.5rem; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border);">
                 <img id="cropperImage" src="" style="max-width: 100%; max-height: 100%; display: block;">
             </div>
             <div style="display: flex; gap: 1rem; justify-content: flex-end;">

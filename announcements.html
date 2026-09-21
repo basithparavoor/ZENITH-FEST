@@ -8,7 +8,7 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Supabase -->
@@ -20,123 +20,182 @@
 
     <style>
         :root {
-            --primary: #4F46E5;
-            --primary-gradient: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
-            --primary-light: #EEF2FF;
-            --primary-ring: rgba(79, 70, 229, 0.2);
-            --danger: #E11D48;
-            --danger-light: #FFF1F2;
+            /* Refined Premium Palette */
+            --primary: #3B82F6;
+            --primary-hover: #2563EB;
+            --primary-light: #EFF6FF;
+            --primary-ring: rgba(59, 130, 246, 0.2);
+            --primary-gradient: linear-gradient(135deg, #3B82F6 0%, #6366F1 100%);
+            
+            --danger: #EF4444;
+            --danger-light: #FEF2F2;
             --success: #10B981;
+            --success-light: #ECFDF5;
             --warning: #F59E0B;
-            --bg-main: #F4F7F9; 
+            --warning-light: #FEF3C7;
+            
+            /* Neutrals & Surfaces */
+            --bg-main: #F9FAFB; 
             --bg-surface: #FFFFFF;
-            --input-bg: #F8FAFC;
-            --text-main: #0F172A;
-            --text-muted: #64748B;
-            --border: #E2E8F0;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --radius-xl: 24px;
-            --shadow-nav: 0 4px 20px rgba(15, 23, 42, 0.04);
-            --shadow-card: 0 4px 12px rgba(15, 23, 42, 0.03), 0 1px 2px rgba(15, 23, 42, 0.02);
-            --shadow-float: 0 12px 24px -6px rgba(79, 70, 229, 0.25);
-            --transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+            --input-bg: rgba(243, 244, 246, 0.8);
+            --text-main: #1F2937;
+            --text-muted: #6B7280;
+            --border: #E5E7EB;
+            --border-hover: #D1D5DB;
+            
+            /* Smooth, Deep Layered Shadows */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+            --shadow-nav: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            --shadow-bottom-nav: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
+            
+            /* Elegant Radii */
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --radius-xl: 20px;
+            
+            --transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
         * { 
             margin: 0; padding: 0; box-sizing: border-box; 
-            font-family: 'Inter', sans-serif; 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
             text-transform: uppercase !important; 
             -webkit-tap-highlight-color: transparent;
         }
         
-        body { background-color: var(--bg-main); color: var(--text-main); min-height: 100vh; padding-bottom: calc(80px + env(safe-area-inset-bottom)); -webkit-font-smoothing: antialiased; }
+        body { 
+            background-color: var(--bg-main); 
+            color: var(--text-main); 
+            height: 100vh; 
+            display: flex;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow: hidden;
+        }
 
-        /* Loader */
+        /* --- PRELOADER --- */
         .loader-overlay {
             position: fixed; inset: 0;
-            background: rgba(244, 247, 249, 0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            background: rgba(249, 250, 251, 0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
             z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 1rem;
         }
         .spinner {
-            width: 44px; height: 44px; border: 4px solid var(--border);
+            width: 44px; height: 44px; border: 3px solid var(--border);
             border-top-color: var(--primary); border-radius: 50%;
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* App Shell */
-        .header {
-            position: sticky; top: 0; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-            padding: 1rem 1.5rem; border-bottom: 1px solid rgba(226, 232, 240, 0.6); display: flex; justify-content: space-between;
-            align-items: center; z-index: 100; box-shadow: var(--shadow-nav);
+        /* --- LAYOUT ARCHITECTURE --- */
+        
+        /* Sidebar (Desktop) / Bottom Nav (Mobile) */
+        .sidebar { 
+            width: 280px; background: var(--bg-surface); border-right: 1px solid var(--border); 
+            display: flex; flex-direction: column; padding: 2rem 1.25rem; z-index: 40; 
+            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); overflow-y: auto; 
+            box-shadow: var(--shadow-sm);
         }
-        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.35rem; font-weight: 800; color: transparent; background: var(--primary-gradient); -webkit-background-clip: text; letter-spacing: -0.5px; }
+        
+        .sidebar .brand { 
+            font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.35rem; font-weight: 700; 
+            color: var(--primary); margin-bottom: 2.5rem; display: flex; align-items: center; gap: 0.75rem; 
+            padding-left: 0.75rem; letter-spacing: -0.02em; text-transform: none !important;
+        }
 
-        .header button {
-            background: var(--danger-light); color: var(--danger); font-weight: 700; padding: 0.5rem 1rem; border-radius: var(--radius-md); border: none; cursor: pointer; transition: var(--transition); min-height: 40px; display: flex; align-items: center;
-        }
-        .header button:active { transform: scale(0.95); }
-
-        .container { padding: 1.5rem 1.25rem; width: 100%; max-width: 1000px; margin: 0 auto; }
+        .nav-items { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
         
-        /* Desktop Responsiveness */
-        @media (min-width: 768px) {
-            .container { padding: 2.5rem; }
-            .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 1.5rem; }
-            .card { margin-bottom: 0 !important; height: 100%; display: flex; flex-direction: column; }
-            .btn-main, .btn-tick { margin-top: auto; }
-            .header { padding: 1.25rem 2.5rem; }
-        }
-        
-        /* Filters & Tabs */
-        .filter-bar { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
-        .filter-bar select {
-            flex: 1; min-width: 150px; padding: 0.85rem 1.25rem; border-radius: var(--radius-md);
-            border: 1px solid var(--border); background: var(--input-bg); font-weight: 700; color: var(--text-main);
-            outline: none; font-size: 0.95rem; transition: var(--transition); appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748B'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
-            background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.2rem;
-        }
-        .filter-bar select:focus { border-color: var(--primary); background: var(--bg-surface); box-shadow: 0 0 0 3px var(--primary-ring); }
-        
-        .tab-nav {
-            display: flex; gap: 0.5rem; background: var(--bg-surface); padding: 0.5rem; border-radius: var(--radius-lg);
-            margin-bottom: 1.5rem; box-shadow: var(--shadow-card); overflow-x: auto; scrollbar-width: none; border: 1px solid var(--border);
-        }
-        .tab-nav::-webkit-scrollbar { display: none; }
         .tab-btn {
-            flex: 1; padding: 0.85rem 1.25rem; border: none; background: transparent; color: var(--text-muted);
-            font-weight: 700; font-size: 0.95rem; border-radius: var(--radius-md); cursor: pointer; white-space: nowrap; transition: var(--transition);
+            padding: 0.85rem 1.25rem; border-radius: var(--radius-md); border: none; background: transparent;
+            cursor: pointer; color: var(--text-muted); font-weight: 500; font-size: 0.95rem; 
+            transition: var(--transition); display: flex; align-items: center; gap: 1rem; width: 100%; text-align: left;
         }
-        .tab-btn.active { background: var(--primary-light); color: var(--primary); box-shadow: 0 2px 8px rgba(79, 70, 229, 0.1); }
+        .tab-btn i { width: 22px; text-align: center; font-size: 1.1rem; color: #9CA3AF; transition: var(--transition); }
+        .tab-btn:hover { background: var(--bg-main); color: var(--text-main); }
+        .tab-btn.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+        .tab-btn.active i { color: var(--primary); transform: scale(1.1); }
 
-        /* Cards */
+        /* Main Content Area */
+        #app-screen { 
+            flex: 1; display: flex; flex-direction: column; overflow-y: auto; scroll-behavior: smooth; position: relative; 
+        }
+
+        /* Glassmorphic Header */
+        .header {
+            background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            padding: 1.25rem 2.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between;
+            align-items: center; position: sticky; top: 0; z-index: 30; box-shadow: var(--shadow-sm);
+        }
+        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.15rem; font-weight: 600; color: var(--text-main); letter-spacing: -0.01em; margin: 0; }
+
+        .btn-logout {
+            background: var(--bg-surface); color: var(--danger); font-weight: 500; padding: 0.5rem 1rem; 
+            border-radius: var(--radius-md); border: 1px solid var(--border); cursor: pointer; transition: var(--transition); 
+            display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.85rem; min-height: 40px; box-shadow: var(--shadow-sm);
+        }
+        .btn-logout:hover { background: var(--danger-light); border-color: rgba(239, 68, 68, 0.3); }
+
+        .container { padding: 2rem 2.5rem; width: 100%; max-width: 1400px; margin: 0 auto; }
+        
+        .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+        
+        /* --- PREMIUM CONTROLS & FILTERS --- */
+        .filter-bar { 
+            display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; align-items: center; 
+            background: var(--bg-surface); padding: 1rem; border-radius: var(--radius-lg); 
+            border: 1px solid var(--border); box-shadow: var(--shadow-sm); 
+        }
+        .filter-box { flex: 1; min-width: 180px; }
+        
+        .filter-bar select {
+            width: 100%; padding: 0.85rem 2.5rem 0.85rem 1rem; border-radius: var(--radius-md); 
+            border: 1px solid var(--border); background: var(--bg-main); font-weight: 500; color: var(--text-main);
+            outline: none; font-size: 0.95rem; transition: var(--transition); appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.2rem; cursor: pointer;
+        }
+        .filter-bar select:focus { border-color: var(--primary); background: #FFFFFF; box-shadow: 0 0 0 3px var(--primary-ring); }
+        
+        /* Multi-Select Position Pills */
+        .pos-filter-group { display: flex; gap: 0.5rem; flex: 1; min-width: 200px; }
+        .pos-filter-group label {
+            flex: 1; text-align: center; background: var(--bg-main); border: 1px solid var(--border);
+            border-radius: var(--radius-md); padding: 0.85rem 0.5rem; font-weight: 500; font-size: 0.9rem;
+            color: var(--text-muted); cursor: pointer; transition: var(--transition); user-select: none;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .pos-filter-group input[type="checkbox"]:checked + label {
+            background: var(--primary-light); border-color: var(--primary); color: var(--primary);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); font-weight: 600;
+        }
+
+        /* --- CARDS --- */
         .card {
             background: var(--bg-surface); border-radius: var(--radius-xl); padding: 1.5rem;
-            margin-bottom: 1.25rem; box-shadow: var(--shadow-card); border: 1px solid var(--border);
-            animation: fadeUp 0.4s ease forwards; transition: var(--transition);
+            box-shadow: var(--shadow-sm); border: 1px solid var(--border);
+            animation: fadeUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; transition: var(--transition);
+            display: flex; flex-direction: column; height: 100%;
         }
+        .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--border-hover); }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
         .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; gap: 1rem; }
-        .card-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; font-weight: 800; line-height: 1.3; color: var(--text-main); }
+        .card-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.15rem; font-weight: 600; line-height: 1.3; color: var(--text-main); }
         
-        .badge { padding: 0.4rem 0.85rem; border-radius: 50px; font-size: 0.75rem; font-weight: 800; white-space: nowrap; letter-spacing: 0.05em; }
-        .badge-reg { background: #DBEAFE; color: #1D4ED8; }
-        .badge-live { background: #D1FAE5; color: #059669; }
-        .badge-results { background: #FEF3C7; color: #D97706; }
-        .badge-awards { background: #F3E8FF; color: #7E22CE; }
+        .badge { padding: 0.35rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; letter-spacing: 0.05em; border: 1px solid transparent; }
+        .badge-reg { background: var(--primary-light); color: var(--primary); border-color: var(--primary-ring); }
+        .badge-live { background: var(--success-light); color: var(--success-hover); border-color: rgba(16, 185, 129, 0.2); }
+        .badge-results { background: var(--warning-light); color: #B45309; border-color: rgba(245, 158, 11, 0.2); }
+        .badge-awards { background: #F3E8FF; color: #7E22CE; border-color: rgba(126, 34, 206, 0.2); }
         
-        .metric { font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; font-weight: 600; }
+        .metric { font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; margin-top: 0.6rem; font-weight: 500; }
         
-        /* Tables (Lists) */
-        .data-list {
-            margin-top: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--input-bg);
-        }
+        /* --- DATA LISTS (INSIDE CARDS) --- */
+        .data-list { margin-top: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--bg-main); }
         .data-list-header {
-            background: var(--bg-main); padding: 0.75rem 1rem; font-size: 0.8rem; font-weight: 800;
-            color: var(--text-muted); text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);
+            background: var(--bg-surface); padding: 0.85rem 1rem; font-size: 0.8rem; font-weight: 600;
+            color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);
         }
         .data-item {
             display: flex; justify-content: space-between; align-items: center; padding: 1rem;
@@ -144,98 +203,106 @@
         }
         .data-item:last-child { border-bottom: none; }
         
-        /* Buttons */
+        /* --- BUTTONS --- */
         .btn-main {
-            width: 100%; padding: 1rem; background: var(--success); color: white; border: none;
-            border-radius: var(--radius-md); font-weight: 800; font-size: 1rem; cursor: pointer; margin-top: 1rem;
-            transition: var(--transition); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25); letter-spacing: 0.02em;
+            width: 100%; padding: 0.85rem 1.25rem; background: var(--success); color: white; border: none;
+            border-radius: var(--radius-md); font-weight: 500; font-size: 0.95rem; cursor: pointer; margin-top: auto;
+            transition: var(--transition); box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2); letter-spacing: 0.02em;
+            display: flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 44px;
         }
-        .btn-main:active { transform: scale(0.97); }
+        .btn-main:hover { background: var(--success-hover); transform: translateY(-1px); box-shadow: 0 6px 10px rgba(16, 185, 129, 0.3); }
+        .btn-main:active { transform: translateY(1px); }
         
         .btn-pdf-small {
-            padding: 0.65rem 1rem; background: var(--bg-surface); color: var(--primary); border: 1px solid var(--primary);
-            border-radius: var(--radius-md); font-weight: 700; font-size: 0.85rem; cursor: pointer; display: flex; gap: 0.4rem; align-items: center; transition: var(--transition);
+            padding: 0.65rem 1.25rem; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border);
+            border-radius: var(--radius-md); font-weight: 500; font-size: 0.85rem; cursor: pointer; display: flex; gap: 0.5rem; align-items: center; transition: var(--transition); min-height: 40px; box-shadow: var(--shadow-sm);
         }
-        .btn-pdf-small:active { background: var(--primary-light); }
+        .btn-pdf-small:hover { background: var(--bg-main); border-color: var(--primary); color: var(--primary); }
         
         .btn-award {
-            padding: 0.65rem 1.25rem; border: none; border-radius: var(--radius-md); font-weight: 700; font-size: 0.85rem; cursor: pointer;
-            transition: var(--transition); white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.05); letter-spacing: 0.02em;
+            padding: 0.65rem 1.25rem; border: none; border-radius: var(--radius-md); font-weight: 500; font-size: 0.85rem; cursor: pointer;
+            transition: var(--transition); white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,0.05); letter-spacing: 0.02em; display: flex; align-items: center; justify-content: center; gap: 0.4rem;
         }
-        .btn-award.given { background: var(--success); color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25); }
-        .btn-award.pending { background: var(--warning); color: white; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25); }
+        .btn-award.given { background: var(--success-light); color: var(--success-hover); border: 1px solid rgba(16, 185, 129, 0.2); }
+        .btn-award.pending { background: var(--warning-light); color: #B45309; border: 1px solid rgba(245, 158, 11, 0.2); }
         .btn-award:active { transform: scale(0.95); }
 
-        .pos-1 { color: #D4AF37; font-weight: 900; font-size: 1.25rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1); width: 35px; }
-        .pos-2 { color: #94A3B8; font-weight: 900; font-size: 1.25rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1); width: 35px; }
-        .pos-3 { color: #CD7F32; font-weight: 900; font-size: 1.25rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1); width: 35px; }
+        .pos-1 { color: #D4AF37; font-weight: 700; font-size: 1.15rem; width: 35px; }
+        .pos-2 { color: #9CA3AF; font-weight: 700; font-size: 1.15rem; width: 35px; }
+        .pos-3 { color: #D97706; font-weight: 700; font-size: 1.15rem; width: 35px; }
 
         .hidden { display: none !important; }
 
-        /* Mobile specific overrides */
+        /* ========================================================================
+           CSS-ONLY NATIVE MOBILE APP SHELL
+           Transforms Sidebar into a Bottom Action Bar
+           ======================================================================== */
         @media (max-width: 768px) {
-            .filter-bar select { min-height: 52px; font-size: 16px; }
-            .btn-pdf-small { min-height: 52px; width: 100%; justify-content: center; }
+            body { flex-direction: column; }
             
+            /* Native Sticky Top Header */
+            .header { 
+                padding: 1rem 1.25rem; background: rgba(255, 255, 255, 0.95); 
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-bottom: none;
+            }
+            .header h1 { font-size: 1.15rem; }
+            .btn-logout { padding: 0.5rem; font-size: 0; width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--bg-main); justify-content: center; }
+            .btn-logout i { font-size: 1.1rem; margin: 0; color: var(--danger); }
+            
+            /* Transform Sidebar into Bottom Navigation */
+            .sidebar { 
+                position: fixed; bottom: 0; left: 0; right: 0; width: 100%; height: auto;
+                flex-direction: row; align-items: center; justify-content: space-around;
+                padding: 0.5rem 0.25rem calc(0.5rem + env(safe-area-inset-bottom)) 0.25rem; 
+                background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+                border-right: none; border-top: 1px solid var(--border);
+                box-shadow: var(--shadow-bottom-nav); z-index: 100;
+            }
+            .sidebar .brand { display: none; } 
+            
+            .nav-items { flex-direction: row; gap: 0.25rem; width: 100%; justify-content: space-around; }
+            .tab-btn { 
+                flex-direction: column; gap: 0.25rem; padding: 0.4rem 0.2rem; 
+                font-size: 0.65rem; text-align: center; border-radius: var(--radius-md);
+                flex: 1; justify-content: center;
+            }
+            .tab-btn i { font-size: 1.25rem; width: auto; margin: 0; }
+            .tab-btn.active { box-shadow: none; background: transparent; color: var(--primary); }
+            .tab-btn.active i { transform: scale(1.1); }
+            
+            /* Main Content Adjustments */
+            #app-screen { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+            .container { padding: 1.25rem 1rem; }
+            
+            /* Filters Stacking */
+            .filter-bar { flex-direction: column; align-items: stretch; padding: 1.25rem; border: none; box-shadow: var(--shadow-sm); border-radius: var(--radius-xl); gap: 1rem; }
+            .filter-box { width: 100%; }
+            .filter-bar select { min-height: 52px; font-size: 16px !important; /* Prevent iOS zoom */ }
+            
+            .pos-filter-group { width: 100%; }
+            .pos-filter-group label { min-height: 52px; }
+            
+            .btn-pdf-small { min-height: 52px; width: 100%; justify-content: center; font-size: 0.95rem; }
+            /* Prevent the PDF button from breaking the header layout */
+            .data-list-header .btn-pdf-small { width: auto; min-height: 32px; padding: 0.35rem 0.75rem; font-size: 0.75rem; }
+            
+            /* Cards Full Bleed */
+            .grid-layout { grid-template-columns: 1fr; gap: 1rem; }
+            .card { padding: 1.25rem 1rem; border-radius: var(--radius-lg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+            .card:hover { transform: none; }
+            
+            .btn-main { min-height: 52px; font-size: 1rem; }
+            
+            /* Inner Card Data List Fixes */
             #view-awards .data-item { flex-direction: column; align-items: stretch; gap: 1rem; }
-            #view-awards .data-item > button { width: 100%; min-height: 52px; }
+            #view-awards .data-item > button { width: 100%; min-height: 48px; justify-content: center; }
             
-            #view-results .data-item { flex-direction: column; align-items: stretch; gap: 0.75rem; }
-            #view-results .data-item > div:last-child { display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border); padding-top: 0.75rem; width: 100%; }
+            /* Fixed Results Layout - Keeps items on one line, neatly stacked */
+            #view-results .data-item { flex-direction: row; align-items: center; gap: 0.5rem; padding: 0.85rem 1rem; }
+            #view-results .data-item > div:first-child { flex: 1; min-width: 0; }
+            #view-results .data-item > div:last-child { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; border: none; padding-top: 0; width: auto; gap: 0.35rem; }
+            #view-results .data-item > div:last-child span:first-child { margin-right: 0 !important; font-size: 1.05rem !important; }
         }
-
-        /* Multi-Select Enhancements */
-        .filter-bar select[multiple] {
-            height: 100px; /* Allows showing multiple options at once */
-            padding: 0.5rem;
-            background-image: none; /* Remove custom arrow for multi-selects */
-            scrollbar-width: thin;
-        }
-        .filter-bar select[multiple] option {
-            padding: 0.5rem;
-            margin-bottom: 2px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .filter-bar select[multiple] option:checked {
-            background-color: var(--primary-light);
-            color: var(--primary);
-            font-weight: bold;
-        }
-
-
-/* Multi-Select Position Pills */
-        .pos-filter-group { 
-            display: flex; 
-            gap: 0.5rem; 
-            flex: 1; 
-            min-width: 200px; 
-        }
-        .pos-filter-group label {
-            flex: 1; 
-            text-align: center; 
-            background: var(--input-bg); 
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md); 
-            padding: 0.85rem 0.5rem; 
-            font-weight: 700; 
-            font-size: 0.85rem;
-            color: var(--text-muted); 
-            cursor: pointer; 
-            transition: var(--transition);
-            user-select: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .pos-filter-group input[type="checkbox"]:checked + label {
-            background: var(--primary-light); 
-            border-color: var(--primary); 
-            color: var(--primary);
-            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.1);
-        }
-        
-
     </style>
 </head>
 <body>
@@ -243,51 +310,80 @@
     <!-- Loading Screen -->
     <div id="loader" class="loader-overlay">
         <div class="spinner"></div>
-        <div style="font-weight: 700; color: var(--primary);">SYNCING LIVE DATA...</div>
+        <div style="font-weight: 500; color: var(--primary); margin-top: 1rem; letter-spacing: 0.05em;">SYNCING LIVE DATA...</div>
     </div>
 
+    <!-- Sidebar (Desktop) / Bottom Nav (Mobile) -->
+    <div class="sidebar" id="sidebar">
+        <!-- Unified Branding Engine Target -->
+        <div class="brand"></div>
+        
+        <div class="nav-items">
+            <button class="tab-btn active" onclick="switchTab('reg')">
+                <i class="fa-solid fa-clipboard-list"></i> <span>Registrations</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('ongoing')">
+                <i class="fa-solid fa-satellite-dish"></i> <span>Ongoing</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('results')">
+                <i class="fa-solid fa-flag-checkered"></i> <span>Results</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('awards')">
+                <i class="fa-solid fa-trophy"></i> <span>Awards</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
     <div id="app-screen">
         <div class="header">
-            <h1 class="brand"><i class="fa-solid fa-microphone-lines"></i> Live Desk</h1>
-            <button onclick="logout()">Sign Out</button>
+            <div class="header-left">
+                <!-- Script will inject Admin Hub button here if applicable -->
+                <h1 style="margin: 0;">Announcer Portal</h1>
+            </div>
+            <div style="display: flex; gap: 0.75rem; align-items: center;">
+                <button class="btn-logout" onclick="logout()" title="Sign Out">
+                    <i class="fa-solid fa-right-from-bracket"></i> <span class="logout-text">Sign Out</span>
+                </button>
+            </div>
         </div>
 
         <div class="container">
             
-            <div class="filter-bar">
-                <select id="filter-stage" multiple onchange="applyFilters()">
-                    <option value="all" selected>All Stages</option>
-                </select>
-                <select id="filter-category" multiple onchange="applyFilters()">
-                    <option value="all" selected>All Categories</option>
-                </select>
-            </div>
-
-            <div class="tab-nav">
-                <button class="tab-btn active" onclick="switchTab('reg')">Registrations</button>
-                <button class="tab-btn" onclick="switchTab('ongoing')">Ongoing</button>
-                <button class="tab-btn" onclick="switchTab('results')">Results</button>
-                <button class="tab-btn" onclick="switchTab('awards')">Awards</button>
+            <!-- Global Filters -->
+            <div class="filter-bar" id="global-filters">
+                <div class="filter-box">
+                    <select id="filter-stage" onchange="applyFilters()">
+                        <option value="all" selected>All Stages</option>
+                    </select>
+                </div>
+                <div class="filter-box">
+                    <select id="filter-category" onchange="applyFilters()">
+                        <option value="all" selected>All Categories</option>
+                    </select>
+                </div>
             </div>
 
             <!-- Tab Contents -->
-            <div id="view-reg" class="tab-content">
-                <div class="filter-bar" style="margin-bottom: 1.5rem; justify-content: flex-end;">
-                    <button class="btn-pdf-small" onclick="downloadAllCallListsPDF()">
+            <div id="view-reg" class="tab-content view-section">
+                <div class="filter-bar" style="margin-bottom: 1.5rem; justify-content: flex-end; padding: 0.5rem 1rem; background: transparent; border: none; box-shadow: none;">
+                    <button class="btn-pdf-small" onclick="downloadAllCallListsPDF()" style="border-color: var(--primary); color: var(--primary);">
                         <i class="fa-solid fa-file-pdf"></i> Download Bulk Call Lists
                     </button>
                 </div>
                 <div id="reg-container" class="grid-layout"></div>
             </div>
 
-            <div id="view-ongoing" class="tab-content grid-layout hidden"></div>
+            <div id="view-ongoing" class="tab-content view-section hidden">
+                <div id="ongoing-container" class="grid-layout"></div>
+            </div>
 
-            <div id="view-results" class="tab-content hidden">
-                <div class="filter-bar" style="margin-bottom: 1.5rem; justify-content: flex-end; gap: 0.75rem;">
-                    <button class="btn-pdf-small" onclick="downloadAllResultsCSV()" style="color: #10B981; border-color: #10B981;">
+            <div id="view-results" class="tab-content view-section hidden">
+                <div class="filter-bar" style="margin-bottom: 1.5rem; justify-content: flex-end; gap: 0.75rem; padding: 0.5rem 1rem; background: transparent; border: none; box-shadow: none;">
+                    <button class="btn-pdf-small" onclick="downloadAllResultsCSV()" style="color: var(--success); border-color: rgba(16, 185, 129, 0.3);">
                         <i class="fa-solid fa-file-csv"></i> Download CSV
                     </button>
-                    <button class="btn-pdf-small" onclick="downloadAllResultsPDF()">
+                    <button class="btn-pdf-small" onclick="downloadAllResultsPDF()" style="color: var(--primary); border-color: rgba(59, 130, 246, 0.3);">
                         <i class="fa-solid fa-file-pdf"></i> Download Bulk Results
                     </button>
                 </div>
@@ -295,15 +391,17 @@
             </div>
             
             <!-- Awards View -->
-            <div id="view-awards" class="tab-content hidden">
+            <div id="view-awards" class="tab-content view-section hidden">
                 <div class="filter-bar" style="margin-bottom: 1.5rem; gap: 0.75rem;">
-                    <select id="filter-award-status" onchange="applyFilters()">
-                        <option value="all">All Award Statuses</option>
-                        <option value="pending">Awards Pending</option>
-                        <option value="given">Awards Given</option>
-                    </select>
+                    <div class="filter-box">
+                        <select id="filter-award-status" onchange="applyFilters()">
+                            <option value="all">All Award Statuses</option>
+                            <option value="pending">Awards Pending</option>
+                            <option value="given">Awards Given</option>
+                        </select>
+                    </div>
                     
-                    <!-- NEW: Multi-Select Position Pills -->
+                    <!-- Multi-Select Position Pills -->
                     <div class="pos-filter-group">
                         <input type="checkbox" id="pos1" value="1" onchange="applyFilters()" hidden>
                         <label for="pos1">1st</label>
@@ -315,12 +413,14 @@
                         <label for="pos3">3rd</label>
                     </div>
 
-                    <button class="btn-pdf-small" onclick="downloadAllAwardsCSV()" style="flex: 1; justify-content: center; color: #10B981; border-color: #10B981;">
-                        <i class="fa-solid fa-file-csv"></i> CSV
-                    </button>
-                    <button class="btn-pdf-small" onclick="downloadAllAwardsPDF()" style="flex: 1; justify-content: center;">
-                        <i class="fa-solid fa-file-pdf"></i> PDF
-                    </button>
+                    <div style="display: flex; gap: 0.75rem; flex: 1;">
+                        <button class="btn-pdf-small" onclick="downloadAllAwardsCSV()" style="flex: 1; justify-content: center; color: var(--success); border-color: rgba(16, 185, 129, 0.3);">
+                            <i class="fa-solid fa-file-csv"></i> CSV
+                        </button>
+                        <button class="btn-pdf-small" onclick="downloadAllAwardsPDF()" style="flex: 1; justify-content: center; color: var(--primary); border-color: rgba(59, 130, 246, 0.3);">
+                            <i class="fa-solid fa-file-pdf"></i> PDF
+                        </button>
+                    </div>
                 </div>
                 <div id="awards-container" class="grid-layout"></div>
             </div>
@@ -340,6 +440,7 @@
     points_large: { aplus: 15, a: 12, b: 10, c: 7 },
     pos_points: { p1: 3, p2: 2, p3: 1 },
     poster_interval: 10,
+    announcer_offset: 30, 
     tm_access: true
 };
         let isInitialLoad = true;
@@ -355,35 +456,28 @@
         // --- INJECT ADMIN HUB RETURN BUTTON ---
         if (user.role === 'master_admin' || user.role === 'admin') {
             document.addEventListener("DOMContentLoaded", () => {
-                const header = document.querySelector('.header');
-                const signOutBtn = header.querySelector('button[onclick="logout()"]');
+                const headerRight = document.querySelector('.header > div:last-child');
                 
-                // Wrap the right-side actions to keep flexbox 'space-between' clean
-                const btnGroup = document.createElement('div');
-                btnGroup.style.display = 'flex';
-                btnGroup.style.alignItems = 'center';
-                btnGroup.style.gap = '1rem';
+                if (headerRight) {
+                    const returnBtn = document.createElement('button');
+                    returnBtn.innerHTML = '<i class="fa-solid fa-shield-halved"></i> <span class="logout-text">Admin Hub</span>';
+                    returnBtn.className = 'btn-logout';
+                    returnBtn.style.color = 'white';
+                    returnBtn.style.background = 'var(--primary)';
+                    returnBtn.style.borderColor = 'var(--primary)';
+                    returnBtn.onclick = () => window.location.href = 'admin.html';
+                    
+                    headerRight.insertBefore(returnBtn, headerRight.firstChild);
+                }
                 
-                // Create the Return Button using existing portal color variables
-                const returnBtn = document.createElement('button');
-                returnBtn.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Admin Hub';
-                returnBtn.style.padding = '0.5rem 1rem';
-                returnBtn.style.background = 'var(--primary)';
-                returnBtn.style.color = 'white';
-                returnBtn.style.border = 'none';
-                returnBtn.style.borderRadius = 'var(--radius-md)';
-                returnBtn.style.fontWeight = '700';
-                returnBtn.style.cursor = 'pointer';
-                returnBtn.style.minHeight = '40px';
-                returnBtn.onclick = () => window.location.href = 'admin.html';
-
-                // Append everything safely to the DOM
-                header.insertBefore(btnGroup, signOutBtn);
-                btnGroup.appendChild(returnBtn);
-                btnGroup.appendChild(signOutBtn); // Moves the sign out button into the new group
+                // Hide text on mobile for both buttons to save space
+                if(window.innerWidth <= 768) {
+                    document.querySelectorAll('.logout-text').forEach(el => el.style.display = 'none');
+                }
             });
         }
 
+        
         function logout() {
             localStorage.removeItem('festUser');
             window.location.href = 'index.html';
@@ -451,7 +545,6 @@ function calculateResults(judgements, savedAwards) {
         const limit = compData.comp_data.max_participants || 1;
         const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
         
-        // UPDATED: Count array length instead of using the count aggregate
         const registeredCount = compData.comp_data.participant_competitions?.length || 3;
         const eligibleForPosPts = registeredCount >= 3;
 
@@ -486,7 +579,6 @@ function calculateResults(judgements, savedAwards) {
             let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
             let grade = '-'; let gradePts = 0; let posPts = 0;
 
-            // FIX: Using systemSettings (lowercase 's') to match announcements.html
             if (percent >= 50) {
                 if (percent >= systemSettings.thresholds.aplus) { grade = 'A+'; gradePts = systemSettings[`points_${sizeCat}`].aplus; }
                 else if (percent >= systemSettings.thresholds.a) { grade = 'A'; gradePts = systemSettings[`points_${sizeCat}`].a; }
@@ -520,13 +612,13 @@ async function fetchData() {
                 const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
                 const masterSchedule = schedData?.value || {};
 
-                // 2. Fetch Active & Pending Competitions (Added stage_no)
+                // 2. Fetch Active & Pending Competitions
                 const { data: activeComps } = await supabaseClient
                     .from('competitions')
-                    .select(`*, categories(id, name, is_general), stages(id, name, stage_no), participant_competitions ( is_present, code_letter, is_leader, participants ( name, unique_id, teams(name) ) )`) // Added is_leader
+                    .select(`*, categories(id, name, is_general), stages(id, name, stage_no), participant_competitions ( is_present, code_letter, is_leader, participants ( name, unique_id, teams(name) ) )`)
                     .in('status', ['pending', 'registration', 'ongoing']);
                 
-                // 3. Fetch Published Competitions (Updated to include code_letter for accurate grouping)
+                // 3. Fetch Published Competitions
                 const { data: pubData } = await supabaseClient
                     .from('competitions')
                     .select('*, stages(id, name, stage_no), categories(id, name, is_general), participant_competitions(code_letter, is_leader, participants(id, name, team_id))')
@@ -542,7 +634,7 @@ if (allCompIds.length > 0) {
     const { data: judgements } = await supabaseClient
         .from('judgements')
         .select(`competition_id, awarded_mark, participants(id, name, team_id, unique_id), users(username)`)
-        .in('competition_id', allCompIds); // <-- Removed the .not() filter here
+        .in('competition_id', allCompIds);
 
     globalJudgements = judgements || [];
 }
@@ -611,7 +703,7 @@ if (allCompIds.length > 0) {
         function renderRegistrations(data) {
             const container = document.getElementById('reg-container');
             if (data.length === 0) {
-                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No open registrations or upcoming events within the time limit.</div>';
+                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem; border: 1px dashed var(--border); border-radius: var(--radius-md); font-weight: 500;">No open registrations or upcoming events within the time limit.</div>';
                 return;
             }
             container.innerHTML = data.map(comp => {
@@ -631,10 +723,10 @@ if (allCompIds.length > 0) {
                             return `
                             <div class="data-item" style="border-left: 4px solid var(--success);">
                                 <div style="display: flex; align-items: center; gap: 1rem;">
-                                    <span style="font-weight: 800; color: var(--primary); background: var(--primary-light); width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 1.1rem; border: 1px solid rgba(79,70,229,0.2);">${e.code_letter}</span>
-                                    <div><strong style="color: var(--text-main); font-size: 1.05rem;">${displayName}</strong><br><small style="color:var(--text-muted); font-family: monospace; font-weight: 600;">${e.participants.unique_id} • ${e.participants.teams?.name || 'IND'}</small></div>
+                                    <span style="font-weight: 600; color: var(--primary); background: var(--primary-light); width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 1.05rem; border: 1px solid rgba(59,130,246,0.2);">${e.code_letter}</span>
+                                    <div><strong style="color: var(--text-main); font-size: 0.95rem;">${displayName}</strong><br><small style="color:var(--text-muted); font-family: monospace; font-weight: 500;">${e.participants.unique_id} • ${e.participants.teams?.name || 'IND'}</small></div>
                                 </div>
-                                <span style="font-size: 0.75rem; font-weight: 800; color: var(--success); background: #D1FAE5; padding: 0.35rem 0.75rem; border-radius: 6px;"><i class="fa-solid fa-check"></i> IN</span>
+                                <span style="font-size: 0.7rem; font-weight: 600; color: var(--success-hover); background: var(--success-light); padding: 0.35rem 0.75rem; border-radius: 6px;"><i class="fa-solid fa-check"></i> IN</span>
                             </div>`;
                         }).join('');
                     }
@@ -652,8 +744,8 @@ if (allCompIds.length > 0) {
 
                             return `
                             <div class="data-item" style="opacity: 0.75; background: var(--bg-main); border-left: 4px solid var(--warning);">
-                                <div><strong style="color: var(--text-main); font-size: 1.05rem;">${displayName}</strong><br><small style="color:var(--text-muted); font-family: monospace; font-weight: 600;">${e.participants.unique_id} • ${e.participants.teams?.name || 'IND'}</small></div>
-                                <span style="font-size: 0.75rem; font-weight: 800; color: var(--warning); background: var(--warning-light); padding: 0.35rem 0.75rem; border-radius: 6px;">PENDING</span>
+                                <div><strong style="color: var(--text-main); font-size: 0.95rem;">${displayName}</strong><br><small style="color:var(--text-muted); font-family: monospace; font-weight: 500;">${e.participants.unique_id} • ${e.participants.teams?.name || 'IND'}</small></div>
+                                <span style="font-size: 0.7rem; font-weight: 600; color: #B45309; background: var(--warning-light); padding: 0.35rem 0.75rem; border-radius: 6px;">PENDING</span>
                             </div>`;
                         }).join('');
                     }
@@ -664,7 +756,7 @@ if (allCompIds.length > 0) {
                             ${listHtml}
                         </div>`;
                 } else {
-                    participantsHtml = `<div style="margin-top:1rem; padding: 1.5rem; text-align:center; font-size:0.9rem; font-weight: 600; color:var(--text-muted); border: 2px dashed var(--border); border-radius: 12px;">No participants registered yet.</div>`;
+                    participantsHtml = `<div style="margin-top:1rem; padding: 1.5rem; text-align:center; font-size:0.9rem; font-weight: 500; color:var(--text-muted); border: 1px dashed var(--border); border-radius: var(--radius-md);">No participants registered yet.</div>`;
                 }
                 
                 // Display Upcoming Schedule
@@ -683,8 +775,8 @@ if (allCompIds.length > 0) {
         }
 
         function renderOngoing(data) {
-            const container = document.getElementById('view-ongoing');
-            if (data.length === 0) return container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem;">No ongoing events.</div>';
+            const container = document.getElementById('ongoing-container');
+            if (data.length === 0) return container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 2rem; border: 1px dashed var(--border); border-radius: var(--radius-md);">No ongoing events.</div>';
             
             container.innerHTML = data.map(comp => {
                 let schedBadge = '';
@@ -713,7 +805,7 @@ if (allCompIds.length > 0) {
             });
 
             if (visibleData.length === 0) {
-                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 3rem; background: var(--bg-surface); border-radius: var(--radius-xl); border: 2px dashed var(--border); font-weight: 600;"><i class="fa-solid fa-clipboard-check" style="font-size: 3rem; color: #CBD5E1; margin-bottom: 1rem; display: block;"></i>No new results pending announcement.</div>';
+                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 3rem; background: var(--bg-surface); border-radius: var(--radius-xl); border: 1px dashed var(--border); font-weight: 500;"><i class="fa-solid fa-clipboard-check" style="font-size: 3rem; color: #D1D5DB; margin-bottom: 1rem; display: block;"></i>No new results pending announcement.</div>';
                 return;
             }
             
@@ -732,14 +824,17 @@ if (allCompIds.length > 0) {
 
                 if(resultsList.length > 0) {
                     const rows = resultsList.map(r => `
-                        <div class="data-item">
-                            <div style="display:flex; gap: 1rem; align-items:center;">
-                                <span class="pos-${r.position <= 3 ? r.position : '0'}">#${r.position}</span>
-                                <div><strong style="color: var(--text-main); font-size: 1.05rem;">${r.participant.name}</strong><br><small style="color:var(--text-muted); font-family: monospace; font-weight: 600;">${r.participant.teams?.name || 'IND'}</small></div>
+                        <div class="data-item" style="gap: 1rem;">
+                            <div style="display:flex; gap: 1rem; align-items:center; flex: 1; min-width: 0;">
+                                <span class="pos-${r.position <= 3 ? r.position : '0'}" style="flex-shrink: 0;">#${r.position}</span>
+                                <div style="min-width: 0; overflow: hidden;">
+                                    <strong style="color: var(--text-main); font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.participant.name}</strong>
+                                    <small style="color:var(--text-muted); font-family: monospace; font-weight: 500; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.participant.teams?.name || 'IND'}</small>
+                                </div>
                             </div>
-                            <div style="text-align: right;">
-                                <span style="font-weight: 800; color: var(--primary); font-size: 1.25rem; margin-right: 10px;">${r.grade}</span>
-                                <span style="font-size:0.8rem; font-weight:800; background: var(--input-bg); color: var(--text-muted); padding: 0.35rem 0.65rem; border-radius: 6px; border: 1px solid var(--border);">${r.points} PTS</span>
+                            <div style="text-align: right; flex-shrink: 0;">
+                                <span style="font-weight: 700; color: var(--primary); font-size: 1.15rem; margin-right: 10px;">${r.grade}</span>
+                                <span style="font-size:0.75rem; font-weight:600; background: var(--input-bg); color: var(--text-muted); padding: 0.35rem 0.65rem; border-radius: 6px; border: 1px solid var(--border);">${r.points} PTS</span>
                             </div>
                         </div>`).join('');
 
@@ -747,12 +842,12 @@ if (allCompIds.length > 0) {
                         <div class="data-list">
                             <div class="data-list-header">
                                 FINAL STANDINGS
-                                <button class="btn-pdf-small" onclick="downloadResultsPDF('${comp.id}')"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                                <button class="btn-pdf-small" onclick="downloadResultsPDF('${comp.id}')" style="border: none; background: transparent; padding: 0.25rem;"><i class="fa-solid fa-file-pdf"></i> PDF</button>
                             </div>
                             ${rows}
                         </div>`;
                 } else {
-                    tableHtml = `<div style="margin-top:1rem; padding: 1.5rem; text-align:center; font-size:0.9rem; font-weight: 600; color:var(--warning); border: 2px dashed var(--warning-light); border-radius: 12px; background: var(--warning-light);">Awaiting Judging Marks...</div>`;
+                    tableHtml = `<div style="margin-top:1rem; padding: 1.5rem; text-align:center; font-size:0.9rem; font-weight: 500; color:#B45309; border: 1px dashed rgba(245,158,11,0.3); border-radius: 12px; background: var(--warning-light);">Awaiting Judging Marks...</div>`;
                 }
 
                 return `
@@ -774,80 +869,21 @@ if (allCompIds.length > 0) {
         }
 
         function switchTab(tabId) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => {
-        c.classList.add('hidden');
-        if(c.id === 'view-awards' || c.id === 'view-reg' || c.id === 'view-results') { c.style.display = 'none'; } 
-    });
-    
-    event.currentTarget.classList.add('active');
-    const activeTab = document.getElementById(`view-${tabId}`);
-    activeTab.classList.remove('hidden');
-    if(tabId === 'awards' || tabId === 'reg' || tabId === 'results') { activeTab.style.display = 'block'; } 
-}
-
-      
-
-    
-
-      function renderResults(data) {
-            const container = document.getElementById('results-container'); 
-            const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
-            const visibleData = data.filter(comp => !announcedComps.includes(comp.id));
-
-            if (visibleData.length === 0) {
-                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 3rem; background: var(--bg-surface); border-radius: var(--radius-xl); border: 2px dashed var(--border); font-weight: 600;"><i class="fa-solid fa-clipboard-check" style="font-size: 3rem; color: #CBD5E1; margin-bottom: 1rem; display: block;"></i>No new results pending announcement.</div>';
-                return;
-            }
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => {
+                c.classList.add('hidden');
+                c.style.display = 'none'; 
+            });
             
-            container.innerHTML = visibleData.map(comp => {
-                const resultsList = computedResults[comp.id] || [];
-                let tableHtml = '';
-
-                if(resultsList.length > 0) {
-                    const rows = resultsList.map(r => `
-                        <div class="data-item">
-                            <div style="display:flex; gap: 1rem; align-items:center;">
-                                <span class="pos-${r.position <= 3 ? r.position : '0'}">#${r.position}</span>
-                                <div><strong style="color: var(--text-main); font-size: 1.05rem;">${r.participant.name}</strong><br><small style="color:var(--text-muted); font-family: monospace; font-weight: 600;">${r.participant.teams?.name || 'IND'}</small></div>
-                            </div>
-                            <div style="text-align: right;">
-                                <span style="font-weight: 800; color: var(--primary); font-size: 1.25rem; margin-right: 10px;">${r.grade}</span>
-                                <span style="font-size:0.8rem; font-weight:800; background: var(--input-bg); color: var(--text-muted); padding: 0.35rem 0.65rem; border-radius: 6px; border: 1px solid var(--border);">${r.points} PTS</span>
-                            </div>
-                        </div>`).join('');
-
-                    tableHtml = `
-                        <div class="data-list">
-                            <div class="data-list-header">
-                                FINAL STANDINGS
-                                <button class="btn-pdf-small" onclick="downloadResultsPDF('${comp.id}')"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                            </div>
-                            ${rows}
-                        </div>`;
-                } else {
-                    tableHtml = `<div style="margin-top:1rem; padding: 1.5rem; text-align:center; font-size:0.9rem; font-weight: 600; color:var(--warning); border: 2px dashed var(--warning-light); border-radius: 12px; background: var(--warning-light);">Awaiting Judging Marks...</div>`;
-                }
-
-                return `
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">${comp.name}</div>
-                        <span class="badge badge-results">PUBLISHED</span>
-                    </div>
-                    <div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div>
-                    ${tableHtml}
-                    <button class="btn-main" onclick="markAnnounced('${comp.id}')">
-                        <i class="fa-solid fa-check-double"></i> Mark as Announced
-                    </button>
-                </div>`;
-            }).join('');
+            event.currentTarget.classList.add('active');
+            const activeTab = document.getElementById(`view-${tabId}`);
+            activeTab.classList.remove('hidden');
+            activeTab.style.display = 'block'; 
         }
-        
- // Helper to get checked positions
+
+        // Helper to get checked positions
         function getSelectedPositions() {
             const checkboxes = document.querySelectorAll('.pos-filter-group input[type="checkbox"]:checked');
-            // If nothing is checked, default to showing 'all'
             if (checkboxes.length === 0) return ['all'];
             return Array.from(checkboxes).map(cb => cb.value);
         }
@@ -856,13 +892,11 @@ if (allCompIds.length > 0) {
             const stageId = document.getElementById('filter-stage').value;
             const catId = document.getElementById('filter-category').value;
             const awardStatus = document.getElementById('filter-award-status')?.value || 'all';
-            
-            // Fetch array of selected positions
             const positionStatuses = getSelectedPositions();
 
             const filterFn = (comp) => {
-                const matchStage = stageId === 'all' || comp.stage_id === stageId;
-                const matchCat = catId === 'all' || comp.category_id === catId;
+                const matchStage = stageId === 'all' || String(comp.stage_id) === String(stageId);
+                const matchCat = catId === 'all' || String(comp.category_id) === String(catId);
                 return matchStage && matchCat;
             };
 
@@ -881,14 +915,13 @@ if (allCompIds.length > 0) {
                 
                 return results.some(r => {
                     const matchStatus = statusFilter === 'all' || r.award_given === (statusFilter === 'given');
-                    // Check if the result's position is inside the array of selected positions
                     const matchPos = positionStatuses.includes('all') || positionStatuses.includes(r.position.toString());
                     return matchStatus && matchPos;
                 });
             });
 
             if (filteredComps.length === 0) {
-                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 3rem; background: var(--bg-surface); border-radius: var(--radius-xl); border: 2px dashed var(--border); font-weight: 600;">No awards matching criteria.</div>';
+                container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding: 3rem; background: var(--bg-surface); border-radius: var(--radius-xl); border: 1px dashed var(--border); font-weight: 500;">No awards matching criteria.</div>';
                 return;
             }
 
@@ -900,8 +933,7 @@ if (allCompIds.length > 0) {
                     results = results.filter(r => r.award_given === wantsGiven);
                 }
                 
-                // Filter individual rows against the selected positions array
-               if(!positionStatuses.includes('all')) {
+                if(!positionStatuses.includes('all')) {
                     results = results.filter(r => positionStatuses.includes(r.position.toString()));
                 }
 
@@ -914,18 +946,15 @@ if (allCompIds.length > 0) {
                     
                     let membersHtml = '';
                     if (comp.is_group && comp.participant_competitions) {
-                        // Get the leader's code_letter 
                         const leaderPc = comp.participant_competitions.find(pc => pc.participants?.id === p.id);
                         let teamMembers = [];
                         
                         if (leaderPc && leaderPc.code_letter) {
-                            // Primary match: Safely link by shared code_letter
                             teamMembers = comp.participant_competitions
                                 .filter(pc => pc.code_letter === leaderPc.code_letter && pc.participants?.id !== p.id)
                                 .map(pc => pc.participants?.name)
                                 .filter(Boolean);
                         } else if (p.team_id) {
-                            // Fallback match: By team ID (if code_letters are empty)
                             teamMembers = comp.participant_competitions
                                 .filter(pc => pc.participants?.team_id === p.team_id && pc.participants?.id !== p.id)
                                 .map(pc => pc.participants?.name)
@@ -933,24 +962,23 @@ if (allCompIds.length > 0) {
                         }
                         
                         if (teamMembers.length > 0) {
-                            membersHtml = `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; line-height: 1.4;"><strong>MEMBERS:</strong> ${teamMembers.join(', ')}</div>`;
+                            membersHtml = `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; line-height: 1.4; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><strong>MEMBERS:</strong> ${teamMembers.join(', ')}</div>`;
                         }
                     }
                     return `
-                        <div class="data-item">
-                            <div style="display:flex; gap: 1rem; align-items:flex-start; min-width: 200px;">
-                                <span class="pos-${r.position}">#${r.position}</span>
-                                <div>
-                                    <strong style="color: var(--text-main); font-size: 1.05rem;">${p.name}</strong><br>
-                                    <small style="color:var(--text-muted); font-weight: 600;">${p.unique_id || 'Group'} | ${p.teams?.name || 'IND'}</small>
+                        <div class="data-item" style="gap: 1rem;">
+                            <div style="display:flex; gap: 1rem; align-items:flex-start; flex: 1; min-width: 0;">
+                                <span class="pos-${r.position}" style="flex-shrink: 0;">#${r.position}</span>
+                                <div style="min-width: 0; overflow: hidden;">
+                                    <strong style="color: var(--text-main); font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.name}</strong>
+                                    <small style="color:var(--text-muted); font-weight: 500; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.unique_id || 'Group'} | ${p.teams?.name || 'IND'}</small>
                                     ${membersHtml}
                                 </div>
                             </div>
-                            <button class="btn-award ${btnClass}" onclick="toggleAward('${comp.id}', '${p.id}')" style="align-self: center;">${btnText}</button>
+                            <button class="btn-award ${btnClass}" onclick="toggleAward('${comp.id}', '${p.id}')" style="align-self: center; flex-shrink: 0;">${btnText}</button>
                         </div>`;
                 }).join('');
 
-                // THIS BLOCK WAS MISSING
                 return `
                     <div class="card">
                         <div class="card-header" style="margin-bottom:0.5rem;">
@@ -976,7 +1004,6 @@ if (allCompIds.length > 0) {
         }
 
         async function toggleAward(compId, participantId) {
-            // Find the specific result object in our state
             const compResults = computedResults[compId];
             const resultObj = compResults.find(r => r.participant.id === participantId);
             if (!resultObj) return;
@@ -984,11 +1011,10 @@ if (allCompIds.length > 0) {
             const isNowGiven = !resultObj.award_given;
 
             try {
-                // Optimistic Local Update (Instant UI change)
+                // Optimistic Local Update
                 resultObj.award_given = isNowGiven;
                 applyFilters(); 
 
-                // Backend Update
                 const { data: existing } = await supabaseClient
                     .from('results')
                     .select('id')
@@ -1008,12 +1034,10 @@ if (allCompIds.length > 0) {
                 }
             } catch (e) {
                 alert("Failed to update award status: " + e.message);
-                // Revert on failure
                 resultObj.award_given = !isNowGiven;
                 applyFilters(); 
             }
         }
-
 
         // ==========================================
         // PDF GENERATION ENGINE
@@ -1031,21 +1055,21 @@ if (allCompIds.length > 0) {
             if (displayMode === 'name' || displayMode === 'both') {
                 if (validName) festText = window.systemBranding.fest_name.toUpperCase();
             } else if (displayMode === 'logo' && validLogo) {
-                festText = 'OFFICIAL REPORT'; // Uses generic title if logo-only was requested
+                festText = 'OFFICIAL REPORT'; 
             } else if (validName) {
                 festText = window.systemBranding.fest_name.toUpperCase();
             }
             
             doc.setFontSize(22);
-            doc.setTextColor(79, 70, 229); 
+            doc.setTextColor(59, 130, 246); 
             doc.text(festText, 14, 20);
             
             doc.setFontSize(14);
-            doc.setTextColor(15, 23, 42); 
+            doc.setTextColor(31, 41, 55); 
             doc.text(title.toUpperCase(), 14, 30);
             
             doc.setFontSize(10);
-            doc.setTextColor(100, 116, 139); 
+            doc.setTextColor(107, 114, 128); 
             doc.text(subtitle, 14, 36);
 
             return doc;
@@ -1073,7 +1097,7 @@ if (allCompIds.length > 0) {
                 head: [['S.No', 'Chest/ID', 'Participant Name', 'Team']],
                 body: tableData,
                 theme: 'grid',
-                headStyles: { fillColor: [79, 70, 229] },
+                headStyles: { fillColor: [59, 130, 246] },
                 styles: { fontSize: 10, cellPadding: 3 }
             });
 
@@ -1081,7 +1105,6 @@ if (allCompIds.length > 0) {
         }
 
         function downloadResultsPDF(compId) {
-            // Automatically detect which portal we are in
             const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
             const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
             
@@ -1094,7 +1117,6 @@ if (allCompIds.length > 0) {
                 `Category: ${comp.categories?.name || 'General'}  |  Generated: ${new Date().toLocaleString()}`
             );
 
-            // Added Grade, Points, and renamed ID to Code Letter
             const tableData = results.map(r => [
                 r.position.toString(),
                 r.participant.unique_id || 'GROUP',
@@ -1117,19 +1139,19 @@ if (allCompIds.length > 0) {
         }
 
         function downloadAllResultsPDF() {
-            const stageIds = getSelectedValues('filter-stage');
-    const catIds = getSelectedValues('filter-category');
-    const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
+            const stageId = document.getElementById('filter-stage') ? document.getElementById('filter-stage').value : 'all';
+            const catId = document.getElementById('filter-category') ? document.getElementById('filter-category').value : 'all';
+            const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
 
-    const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
-    const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
+            const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
+            const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
 
-    const filteredComps = compsList.filter(comp => {
-        const matchStage = stageIds.includes('all') || stageIds.includes(comp.stage_id);
-        const matchCat = catIds.includes('all') || catIds.includes(comp.category_id);
-        const notAnnounced = !announcedComps.includes(comp.id);
-        return matchStage && matchCat && notAnnounced;
-    });
+            const filteredComps = compsList.filter(comp => {
+                const matchStage = stageId === 'all' || String(comp.stage_id) === String(stageId);
+                const matchCat = catId === 'all' || String(comp.category_id) === String(catId);
+                const notAnnounced = !announcedComps.includes(comp.id);
+                return matchStage && matchCat && notAnnounced;
+            });
 
             if (filteredComps.length === 0) {
                 alert("No results match the current filters to download.");
@@ -1147,7 +1169,6 @@ if (allCompIds.length > 0) {
                 const results = resList[comp.id] || [];
                 if (results.length === 0) return;
 
-                // Added Grade, Points, and renamed ID to Code Letter
                 const tableData = results.map(r => [
                     r.position.toString(),
                     r.participant.unique_id || 'GROUP',
@@ -1157,8 +1178,8 @@ if (allCompIds.length > 0) {
                     (r.points || 0).toString()
                 ]);
 
-                doc.setFontSize(12);
-                doc.setTextColor(15, 23, 42);
+                doc.setFontSize(11);
+                doc.setTextColor(31, 41, 55);
                 doc.text(`${comp.name.toUpperCase()} (${comp.categories?.name || 'GENERAL'})`, 14, startY);
                 startY += 5;
 
@@ -1174,7 +1195,6 @@ if (allCompIds.length > 0) {
                 
                 startY = doc.lastAutoTable.finalY + 15;
 
-                // Break to a new page if getting too close to the bottom
                 if (startY > doc.internal.pageSize.height - 30 && index < filteredComps.length - 1) {
                     doc.addPage();
                     startY = 20;
@@ -1184,399 +1204,364 @@ if (allCompIds.length > 0) {
             doc.save(`FestOS_Bulk_Results_Table.pdf`);
         }
 
- // Function to download awards list as CSV
-function downloadAllAwardsCSV() {
-    // 1. Get Filters
-    const statusFilter = document.getElementById('filter-award-status').value;
-    const positionStatuses = getSelectedPositions(); // Uses the new pills helper
-    const stageId = document.getElementById('filter-stage').value;
-    const catId = document.getElementById('filter-category').value;
+        function downloadAllAwardsCSV() {
+            const statusFilter = document.getElementById('filter-award-status').value;
+            const positionStatuses = getSelectedPositions(); 
+            const stageId = document.getElementById('filter-stage').value;
+            const catId = document.getElementById('filter-category').value;
 
-    // 2. Initialize the array (This was missing!)
-    let csvData = [['Competition', 'Category', 'Pos', 'ID', 'Name', 'Team', 'Status']];
-    
-    // 3. Filter Competitions
-    const filteredComps = publishedComps.filter(comp => {
-        const matchStage = stageId === 'all' || comp.stage_id === stageId;
-        const matchCat = catId === 'all' || comp.category_id === catId;
-        return matchStage && matchCat;
-    });
+            let csvData = [['Competition', 'Category', 'Pos', 'ID', 'Name', 'Team', 'Status']];
+            
+            const filteredComps = publishedComps.filter(comp => {
+                const matchStage = stageId === 'all' || String(comp.stage_id) === String(stageId);
+                const matchCat = catId === 'all' || String(comp.category_id) === String(catId);
+                return matchStage && matchCat;
+            });
 
-    // 4. Populate Data
-    filteredComps.forEach(comp => {
-        let results = computedResults[comp.id] || [];
-        
-        if(statusFilter !== 'all') {
-            const wantsGiven = statusFilter === 'given';
-            results = results.filter(r => r.award_given === wantsGiven);
-        }
-        
-        // Filter by multiple positions
-        if(!positionStatuses.includes('all')) {
-            results = results.filter(r => positionStatuses.includes(r.position.toString()));
-        }
-
-      results.forEach(r => {
-            let memberString = '';
-            if (comp.is_group && comp.participant_competitions) {
-                const leaderPc = comp.participant_competitions.find(pc => pc.participants?.id === r.participant.id);
-                let teamMembers = [];
+            filteredComps.forEach(comp => {
+                let results = computedResults[comp.id] || [];
                 
-                if (leaderPc && leaderPc.code_letter) {
-                    teamMembers = comp.participant_competitions
-                        .filter(pc => pc.code_letter === leaderPc.code_letter && pc.participants?.id !== r.participant.id)
-                        .map(pc => pc.participants?.name)
-                        .filter(Boolean);
-                } else if (r.participant.team_id) {
-                    teamMembers = comp.participant_competitions
-                        .filter(pc => pc.participants?.team_id === r.participant.team_id && pc.participants?.id !== r.participant.id)
-                        .map(pc => pc.participants?.name)
-                        .filter(Boolean);
+                if(statusFilter !== 'all') {
+                    const wantsGiven = statusFilter === 'given';
+                    results = results.filter(r => r.award_given === wantsGiven);
                 }
                 
-                if (teamMembers.length > 0) {
-                    memberString = `\n(MEMBERS: ${teamMembers.join(', ')})`;
+                if(!positionStatuses.includes('all')) {
+                    results = results.filter(r => positionStatuses.includes(r.position.toString()));
                 }
+
+              results.forEach(r => {
+                    let memberString = '';
+                    if (comp.is_group && comp.participant_competitions) {
+                        const leaderPc = comp.participant_competitions.find(pc => pc.participants?.id === r.participant.id);
+                        let teamMembers = [];
+                        
+                        if (leaderPc && leaderPc.code_letter) {
+                            teamMembers = comp.participant_competitions
+                                .filter(pc => pc.code_letter === leaderPc.code_letter && pc.participants?.id !== r.participant.id)
+                                .map(pc => pc.participants?.name)
+                                .filter(Boolean);
+                        } else if (r.participant.team_id) {
+                            teamMembers = comp.participant_competitions
+                                .filter(pc => pc.participants?.team_id === r.participant.team_id && pc.participants?.id !== r.participant.id)
+                                .map(pc => pc.participants?.name)
+                                .filter(Boolean);
+                        }
+                        
+                        if (teamMembers.length > 0) {
+                            memberString = `\n(MEMBERS: ${teamMembers.join(', ')})`;
+                        }
+                    }
+
+                    const finalName = r.participant.name.toUpperCase() + memberString.toUpperCase();
+
+                    csvData.push([
+                        comp.name.toUpperCase(),
+                        (comp.categories?.name || 'General').toUpperCase(),
+                        r.position.toString(),
+                        r.participant.unique_id || 'GROUP',
+                        finalName,
+                        (r.participant.teams?.name || 'IND').toUpperCase(),
+                        r.award_given ? 'GIVEN' : 'PENDING'
+                    ]);
+                });
+            });
+
+            if (csvData.length === 1) { 
+                alert("No awards match the current filters to download.");
+                return;
             }
 
-            const finalName = r.participant.name.toUpperCase() + memberString.toUpperCase();
-
-            csvData.push([
-                comp.name.toUpperCase(),
-                (comp.categories?.name || 'General').toUpperCase(),
-                r.position.toString(),
-                r.participant.unique_id || 'GROUP',
-                finalName,
-                (r.participant.teams?.name || 'IND').toUpperCase(),
-                r.award_given ? 'GIVEN' : 'PENDING'
-            ]);
-        });
-    });
-
-    if (csvData.length === 1) { 
-        alert("No awards match the current filters to download.");
-        return;
-    }
-
-    exportToCSV(`FestOS_Awards_Report_${new Date().getTime()}.csv`, csvData);
-}
-
-// Function to download awards list as PDF
-function downloadAllAwardsPDF() {
-    // 1. Get Filters
-    const statusFilter = document.getElementById('filter-award-status').value;
-    const positionStatuses = getSelectedPositions(); // Uses the new pills helper
-    const stageId = document.getElementById('filter-stage').value;
-    const catId = document.getElementById('filter-category').value;
-
-    // 2. Prepare Subtitle
-    let filterNames = [];
-    if (statusFilter !== 'all') filterNames.push(statusFilter === 'given' ? 'GIVEN' : 'PENDING');
-    if (!positionStatuses.includes('all')) filterNames.push(`POSITIONS: ${positionStatuses.join(', ')}`);
-    const subtitleText = filterNames.length > 0 ? `Filters: ${filterNames.join(' | ')}` : `All Awards Generated: ${new Date().toLocaleString()}`;
-
-    const doc = setupPDFDoc(`Master Awards Report`, subtitleText);
-
-    // 3. Initialize the array
-    let tableData = []; 
-    
-    // 4. Filter Competitions
-    const filteredComps = publishedComps.filter(comp => {
-        const matchStage = stageId === 'all' || comp.stage_id === stageId;
-        const matchCat = catId === 'all' || comp.category_id === catId;
-        return matchStage && matchCat;
-    });
-
-    // 5. Populate Data
-    filteredComps.forEach(comp => {
-        let results = computedResults[comp.id] || [];
-        
-        if(statusFilter !== 'all') {
-            const wantsGiven = statusFilter === 'given';
-            results = results.filter(r => r.award_given === wantsGiven);
-        }
-        
-        // Filter by multiple positions
-        if(!positionStatuses.includes('all')) {
-            results = results.filter(r => positionStatuses.includes(r.position.toString()));
+            exportToCSV(`FestOS_Awards_Report_${new Date().getTime()}.csv`, csvData);
         }
 
-       results.forEach(r => {
-            let memberString = '';
-            if (comp.is_group && comp.participant_competitions) {
-                const leaderPc = comp.participant_competitions.find(pc => pc.participants?.id === r.participant.id);
-                let teamMembers = [];
+        function downloadAllAwardsPDF() {
+            const statusFilter = document.getElementById('filter-award-status').value;
+            const positionStatuses = getSelectedPositions(); 
+            const stageId = document.getElementById('filter-stage').value;
+            const catId = document.getElementById('filter-category').value;
+
+            let filterNames = [];
+            if (statusFilter !== 'all') filterNames.push(statusFilter === 'given' ? 'GIVEN' : 'PENDING');
+            if (!positionStatuses.includes('all')) filterNames.push(`POSITIONS: ${positionStatuses.join(', ')}`);
+            const subtitleText = filterNames.length > 0 ? `Filters: ${filterNames.join(' | ')}` : `All Awards Generated: ${new Date().toLocaleString()}`;
+
+            const doc = setupPDFDoc(`Master Awards Report`, subtitleText);
+
+            let tableData = []; 
+            
+            const filteredComps = publishedComps.filter(comp => {
+                const matchStage = stageId === 'all' || String(comp.stage_id) === String(stageId);
+                const matchCat = catId === 'all' || String(comp.category_id) === String(catId);
+                return matchStage && matchCat;
+            });
+
+            filteredComps.forEach(comp => {
+                let results = computedResults[comp.id] || [];
                 
-                if (leaderPc && leaderPc.code_letter) {
-                    teamMembers = comp.participant_competitions
-                        .filter(pc => pc.code_letter === leaderPc.code_letter && pc.participants?.id !== r.participant.id)
-                        .map(pc => pc.participants?.name)
-                        .filter(Boolean);
-                } else if (r.participant.team_id) {
-                    teamMembers = comp.participant_competitions
-                        .filter(pc => pc.participants?.team_id === r.participant.team_id && pc.participants?.id !== r.participant.id)
-                        .map(pc => pc.participants?.name)
-                        .filter(Boolean);
+                if(statusFilter !== 'all') {
+                    const wantsGiven = statusFilter === 'given';
+                    results = results.filter(r => r.award_given === wantsGiven);
                 }
                 
-                if (teamMembers.length > 0) {
-                    memberString = `\n(MEMBERS: ${teamMembers.join(', ')})`;
+                if(!positionStatuses.includes('all')) {
+                    results = results.filter(r => positionStatuses.includes(r.position.toString()));
                 }
+
+               results.forEach(r => {
+                    let memberString = '';
+                    if (comp.is_group && comp.participant_competitions) {
+                        const leaderPc = comp.participant_competitions.find(pc => pc.participants?.id === r.participant.id);
+                        let teamMembers = [];
+                        
+                        if (leaderPc && leaderPc.code_letter) {
+                            teamMembers = comp.participant_competitions
+                                .filter(pc => pc.code_letter === leaderPc.code_letter && pc.participants?.id !== r.participant.id)
+                                .map(pc => pc.participants?.name)
+                                .filter(Boolean);
+                        } else if (r.participant.team_id) {
+                            teamMembers = comp.participant_competitions
+                                .filter(pc => pc.participants?.team_id === r.participant.team_id && pc.participants?.id !== r.participant.id)
+                                .map(pc => pc.participants?.name)
+                                .filter(Boolean);
+                        }
+                        
+                        if (teamMembers.length > 0) {
+                            memberString = `\n(MEMBERS: ${teamMembers.join(', ')})`;
+                        }
+                    }
+
+                    const finalName = r.participant.name.toUpperCase() + memberString.toUpperCase();
+
+                    tableData.push([
+                        comp.name.toUpperCase(),
+                        (comp.categories?.name || 'General').toUpperCase(),
+                        r.position.toString(),
+                        r.participant.unique_id || 'GROUP',
+                        finalName,
+                        (r.participant.teams?.name || 'IND').toUpperCase(),
+                        r.award_given ? 'GIVEN' : 'PENDING'
+                    ]);
+                });
+            });
+
+            if (tableData.length === 0) {
+                alert("No awards match the current filters to download.");
+                return;
             }
 
-            const finalName = r.participant.name.toUpperCase() + memberString.toUpperCase();
+            doc.autoTable({
+                startY: 45,
+                head: [['Competition', 'Category', 'Pos', 'ID', 'Name', 'Team', 'Status']], 
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [126, 34, 206] }, 
+                styles: { fontSize: 8, cellPadding: 3 }
+            });
 
-            tableData.push([
-                comp.name.toUpperCase(),
-                (comp.categories?.name || 'General').toUpperCase(),
-                r.position.toString(),
-                r.participant.unique_id || 'GROUP',
-                finalName,
-                (r.participant.teams?.name || 'IND').toUpperCase(),
-                r.award_given ? 'GIVEN' : 'PENDING'
-            ]);
-        });
-    });
-
-    if (tableData.length === 0) {
-        alert("No awards match the current filters to download.");
-        return;
-    }
-
-    doc.autoTable({
-        startY: 45,
-        head: [['Competition', 'Category', 'Pos', 'ID', 'Name', 'Team', 'Status']], 
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [126, 34, 206] }, 
-        styles: { fontSize: 8, cellPadding: 3 }
-    });
-
-    doc.save(`FestOS_Awards_Report.pdf`);
-}
-
-// ==========================================
-// UNIFIED GLOBAL BRANDING ENGINE
-// ==========================================
-async function fetchAndApplyBranding() {
-    try {
-        const { data, error } = await supabaseClient
-            .from('settings')
-            .select('value')
-            .eq('id', 'system_branding')
-            .maybeSingle();
-
-        if (error) throw error;
-        if (data && data.value) applyGlobalBranding(data.value);
-    } catch (e) {
-        console.warn("Could not fetch global branding:", e.message);
-    }
-}
-
-function applyGlobalBranding(brandingData) {
-    const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
-    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
-    const displayMode = brandingData.display_mode || 'both'; // 'both', 'logo', 'name'
-    
-    // 1. Update Document Title dynamically
-    const festName = validName ? brandingData.fest_name : 'FestOS';
-    const titleParts = document.title.split('|');
-    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
-    document.title = `${festName} | ${pageContext}`;
-
-    // 2. Global Favicon Injection (Instantly updates across all pages)
-    if (validLogo) {
-        let iconLinks = document.querySelectorAll("link[rel~='icon']");
-        if (iconLinks.length === 0) {
-            let newIcon = document.createElement('link');
-            newIcon.rel = 'icon';
-            document.head.appendChild(newIcon);
-            iconLinks = [newIcon];
+            doc.save(`FestOS_Awards_Report.pdf`);
         }
-        iconLinks.forEach(link => link.href = brandingData.fest_logo);
-    }
 
-    // 3. UI Header Updates
-    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
-    brandContainers.forEach(container => {
-        let html = '';
-        const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
-        const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
-        
-        // Dynamic Logo Sizing
-        if (showLogo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">`;
-        } else if (!validLogo && displayMode !== 'name') {
-            html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
-        }
-        
-        // Dynamic Text
-        if (showName) {
-            html += `<span style="letter-spacing: -0.5px;">${validName ? brandingData.fest_name : 'FestOS'}</span>`;
-        }
-        
-        container.innerHTML = html;
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        
-        // Centering logic for specific screens
-        if (window.location.pathname.includes('scan') || window.location.pathname.includes('login')) {
-            container.style.justifyContent = 'center';
-        }
-    });
+        // ==========================================
+        // UNIFIED GLOBAL BRANDING ENGINE
+        // ==========================================
+        async function fetchAndApplyBranding() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('settings')
+                    .select('value')
+                    .eq('id', 'system_branding')
+                    .maybeSingle();
 
-    // Store globally for PDF Generators
-    if (typeof window !== 'undefined') window.systemBranding = brandingData;
-}
-
-// ==========================================
-// NEW BULK PDF GENERATORS (UPDATED)
-// ==========================================
-
-function downloadAllCallListsPDF() {
-    // By setting this directly to rawRegData, it ignores the dropdown filters
-    // and fetches every competition currently in the calling/registration phase.
-    const filteredComps = rawRegData;
-
-    if (filteredComps.length === 0) {
-        alert("No calling lists available to download.");
-        return;
-    }
-
-    const doc = setupPDFDoc(
-        `Master Calling Lists Report`, 
-        `All Competitions | Generated: ${new Date().toLocaleString()}`
-    );
-
-    let startY = 45;
-
-    filteredComps.forEach((comp, index) => {
-        const enrollments = comp.participant_competitions || [];
-        if (enrollments.length === 0) return;
-
-        const tableData = enrollments.map((e, idx) => [
-            (idx + 1).toString(),
-            e.participants.unique_id,
-            e.participants.name.toUpperCase(),
-            (e.participants.teams?.name || 'IND').toUpperCase()
-        ]);
-
-        // Add competition title above each table
-        doc.setFontSize(12);
-        doc.setTextColor(15, 23, 42);
-        doc.text(`${comp.name.toUpperCase()} (${comp.categories?.name || 'GENERAL'})`, 14, startY);
-        startY += 5;
-
-        doc.autoTable({
-            startY: startY,
-            head: [['S.No', 'Chest/ID', 'Participant Name', 'Team']],
-            body: tableData,
-            theme: 'grid',
-            headStyles: { fillColor: [79, 70, 229] },
-            styles: { fontSize: 9, cellPadding: 2 },
-            margin: { top: 20 }
-        });
-        
-        startY = doc.lastAutoTable.finalY + 15;
-        
-        // Break to a new page if getting too close to the bottom
-        if (startY > doc.internal.pageSize.height - 30 && index < filteredComps.length - 1) {
-            doc.addPage();
-            startY = 20;
-        }
-    });
-
-    doc.save(`FestOS_Bulk_Calling_Lists.pdf`);
-}
-
-// ==========================================
-// CSV GENERATION ENGINE
-// ==========================================
-
-// Helper function to process and download CSV files
-function exportToCSV(filename, rows) {
-    const processRow = function (row) {
-        let finalVal = '';
-        for (let j = 0; j < row.length; j++) {
-            let innerValue = row[j] === null ? '' : row[j].toString();
-            if (row[j] instanceof Date) {
-                innerValue = row[j].toLocaleString();
+                if (error) throw error;
+                if (data && data.value) applyGlobalBranding(data.value);
+            } catch (e) {
+                console.warn("Could not fetch global branding:", e.message);
             }
-            let result = innerValue.replace(/"/g, '""');
-            if (result.search(/("|,|\n)/g) >= 0) result = '"' + result + '"';
-            if (j > 0) finalVal += ',';
-            finalVal += result;
         }
-        return finalVal + '\n';
-    };
 
-    let csvFile = '';
-    for (let i = 0; i < rows.length; i++) {
-        csvFile += processRow(rows[i]);
-    }
+        function applyGlobalBranding(brandingData) {
+            const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
+            const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+            const displayMode = brandingData.display_mode || 'both'; 
+            
+            // 1. Update Document Title
+            const festName = validName ? brandingData.fest_name : 'FestOS';
+            const titleParts = document.title.split('|');
+            const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
+            document.title = `${festName} | ${pageContext}`;
 
-    const blob = new Blob([csvFile], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    if (link.download !== undefined) {
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-}
+            // 2. Global Favicon Injection
+            if (validLogo) {
+                let iconLinks = document.querySelectorAll("link[rel~='icon']");
+                if (iconLinks.length === 0) {
+                    let newIcon = document.createElement('link');
+                    newIcon.rel = 'icon';
+                    document.head.appendChild(newIcon);
+                    iconLinks = [newIcon];
+                }
+                iconLinks.forEach(link => link.href = brandingData.fest_logo);
+            }
 
-// Function to download pending results as CSV
-function downloadAllResultsCSV() {
-    const stageId = document.getElementById('filter-stage') ? document.getElementById('filter-stage').value : 'all';
-    const catId = document.getElementById('filter-category') ? document.getElementById('filter-category').value : 'all';
-    const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
+            // 3. UI Header Updates
+            const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
+            brandContainers.forEach(container => {
+                let html = '';
+                const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
+                const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
+                
+                if (showLogo) {
+                    html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; display: inline-block; vertical-align: middle; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">`;
+                } else if (!validLogo && displayMode !== 'name') {
+                    html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
+                }
+                
+                if (showName) {
+                    html += `<span style="letter-spacing: -0.01em; display: inline-block; vertical-align: middle;">${validName ? brandingData.fest_name : 'FestOS'}</span>`;
+                }
+                
+                container.innerHTML = html;
+                container.style.display = 'flex';
+                container.style.alignItems = 'center';
+                container.style.flexWrap = 'nowrap';
+            });
 
-    const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
-    const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
+            if (typeof window !== 'undefined') window.systemBranding = brandingData;
+        }
 
-    const filteredComps = compsList.filter(comp => {
-        const matchStage = stageId === 'all' || comp.stage_id === stageId;
-        const matchCat = catId === 'all' || comp.category_id === catId;
-        const notAnnounced = !announcedComps.includes(comp.id);
-        return matchStage && matchCat && notAnnounced;
-    });
+        // ==========================================
+        // NEW BULK PDF GENERATORS (UPDATED)
+        // ==========================================
 
-    if (filteredComps.length === 0) {
-        alert("No results match the current filters to download.");
-        return;
-    }
+        function downloadAllCallListsPDF() {
+            const filteredComps = rawRegData;
 
-    let csvData = [['Competition', 'Category', 'Pos', 'Code Letter', 'Participant/Group Name', 'Team', 'Grade', 'Points']];
+            if (filteredComps.length === 0) {
+                alert("No calling lists available to download.");
+                return;
+            }
 
-    filteredComps.forEach((comp) => {
-        const results = resList[comp.id] || [];
-        results.forEach(r => {
-            csvData.push([
-                comp.name.toUpperCase(),
-                (comp.categories?.name || 'GENERAL').toUpperCase(),
-                r.position.toString(),
-                r.participant.unique_id || 'GROUP',
-                r.participant.name.toUpperCase(),
-                (r.participant.teams?.name || 'IND').toUpperCase(),
-                r.grade || '-',
-                (r.points || 0).toString()
-            ]);
-        });
-    });
+            const doc = setupPDFDoc(
+                `Master Calling Lists Report`, 
+                `All Competitions | Generated: ${new Date().toLocaleString()}`
+            );
 
-    exportToCSV(`FestOS_Bulk_Results_${new Date().getTime()}.csv`, csvData);
-}
+            let startY = 45;
 
+            filteredComps.forEach((comp, index) => {
+                const enrollments = comp.participant_competitions || [];
+                if (enrollments.length === 0) return;
 
+                const tableData = enrollments.map((e, idx) => [
+                    (idx + 1).toString(),
+                    e.participants.unique_id,
+                    e.participants.name.toUpperCase(),
+                    (e.participants.teams?.name || 'IND').toUpperCase()
+                ]);
 
-function getSelectedValues(elementId) {
-            const el = document.getElementById(elementId);
-            if (!el) return ['all'];
-            const values = Array.from(el.selectedOptions).map(opt => opt.value);
-            return values.length === 0 || values.includes('all') ? ['all'] : values;
+                doc.setFontSize(11);
+                doc.setTextColor(31, 41, 55);
+                doc.text(`${comp.name.toUpperCase()} (${comp.categories?.name || 'GENERAL'})`, 14, startY);
+                startY += 5;
+
+                doc.autoTable({
+                    startY: startY,
+                    head: [['S.No', 'Chest/ID', 'Participant Name', 'Team']],
+                    body: tableData,
+                    theme: 'grid',
+                    headStyles: { fillColor: [59, 130, 246] },
+                    styles: { fontSize: 9, cellPadding: 2 },
+                    margin: { top: 20 }
+                });
+                
+                startY = doc.lastAutoTable.finalY + 15;
+                
+                if (startY > doc.internal.pageSize.height - 30 && index < filteredComps.length - 1) {
+                    doc.addPage();
+                    startY = 20;
+                }
+            });
+
+            doc.save(`FestOS_Bulk_Calling_Lists.pdf`);
+        }
+
+        // ==========================================
+        // CSV GENERATION ENGINE
+        // ==========================================
+
+        function exportToCSV(filename, rows) {
+            const processRow = function (row) {
+                let finalVal = '';
+                for (let j = 0; j < row.length; j++) {
+                    let innerValue = row[j] === null ? '' : row[j].toString();
+                    if (row[j] instanceof Date) {
+                        innerValue = row[j].toLocaleString();
+                    }
+                    let result = innerValue.replace(/"/g, '""');
+                    if (result.search(/("|,|\n)/g) >= 0) result = '"' + result + '"';
+                    if (j > 0) finalVal += ',';
+                    finalVal += result;
+                }
+                return finalVal + '\n';
+            };
+
+            let csvFile = '';
+            for (let i = 0; i < rows.length; i++) {
+                csvFile += processRow(rows[i]);
+            }
+
+            const blob = new Blob([csvFile], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        function downloadAllResultsCSV() {
+            const stageId = document.getElementById('filter-stage') ? document.getElementById('filter-stage').value : 'all';
+            const catId = document.getElementById('filter-category') ? document.getElementById('filter-category').value : 'all';
+            const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
+
+            const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
+            const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
+
+            const filteredComps = compsList.filter(comp => {
+                const matchStage = stageId === 'all' || String(comp.stage_id) === String(stageId);
+                const matchCat = catId === 'all' || String(comp.category_id) === String(catId);
+                const notAnnounced = !announcedComps.includes(comp.id);
+                return matchStage && matchCat && notAnnounced;
+            });
+
+            if (filteredComps.length === 0) {
+                alert("No results match the current filters to download.");
+                return;
+            }
+
+            let csvData = [['Competition', 'Category', 'Pos', 'Code Letter', 'Participant/Group Name', 'Team', 'Grade', 'Points']];
+
+            filteredComps.forEach((comp) => {
+                const results = resList[comp.id] || [];
+                results.forEach(r => {
+                    csvData.push([
+                        comp.name.toUpperCase(),
+                        (comp.categories?.name || 'GENERAL').toUpperCase(),
+                        r.position.toString(),
+                        r.participant.unique_id || 'GROUP',
+                        r.participant.name.toUpperCase(),
+                        (r.participant.teams?.name || 'IND').toUpperCase(),
+                        r.grade || '-',
+                        (r.points || 0).toString()
+                    ]);
+                });
+            });
+
+            exportToCSV(`FestOS_Bulk_Results_${new Date().getTime()}.csv`, csvData);
         }
 
     </script>

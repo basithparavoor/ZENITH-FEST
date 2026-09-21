@@ -6,89 +6,174 @@
     <title>FestOS | Mobile Spectator</title>
     <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
         :root {
-            --primary: #4f46e5;
-            --primary-light: #EEF2FF;
-            --bg-main: #F4F7F9;
+            /* Refined Premium Palette */
+            --primary: #3B82F6;
+            --primary-hover: #2563EB;
+            --primary-light: #EFF6FF;
+            --primary-ring: rgba(59, 130, 246, 0.2);
+            --primary-gradient: linear-gradient(135deg, #3B82F6 0%, #6366F1 100%);
+            
+            --bg-main: #F9FAFB;
             --bg-surface: #FFFFFF;
-            --text-main: #0F172A;
-            --text-muted: #64748B;
-            --border: #E2E8F0;
-            --gold: #F59E0B; --silver: #94A3B8; --bronze: #D97706;
+            --input-bg: rgba(243, 244, 246, 0.8);
+            
+            --text-main: #1F2937;
+            --text-muted: #6B7280;
+            --border: #E5E7EB;
+            
+            --gold: #F59E0B; 
+            --silver: #9CA3AF; 
+            --bronze: #D97706;
+
+            /* Smooth Shadows */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            
+            --transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
         
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; text-transform: uppercase; }
-        body { background: var(--bg-main); color: var(--text-main); padding-top: 135px; padding-bottom: 40px; }
+        
+        /* Unified Flex Layout to Fix Scrolling */
+        body { 
+            background: var(--bg-main); 
+            color: var(--text-main); 
+            height: 100vh; 
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Ambient Background Animations */
+        .ambient-bg { position: fixed; inset: 0; z-index: -2; pointer-events: none; overflow: hidden; }
+        .grid-pattern {
+            position: absolute; inset: 0; z-index: -1;
+            background-image: radial-gradient(rgba(17, 24, 39, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, black 10%, transparent 100%);
+            -webkit-mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, black 10%, transparent 100%);
+        }
+        .orb { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.5; animation: float 25s infinite alternate cubic-bezier(0.4, 0, 0.2, 1); }
+        .orb-1 { width: 500px; height: 500px; background: rgba(59, 130, 246, 0.15); top: -200px; left: -150px; }
+        .orb-2 { width: 400px; height: 400px; background: rgba(139, 92, 246, 0.1); bottom: -100px; right: -100px; animation-delay: -7s; }
+        @keyframes float { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(60px, 100px) scale(1.1) rotate(5deg); } }
 
         /* Unified Premium Header */
-        .header { position: fixed; top: 0; left: 0; width: 100%; height: 65px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 0.75rem; z-index: 100; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
-        .header img { height: 32px; max-width: 120px; object-fit: contain; border-radius: 4px; display: none; }
-        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.3rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.5px; margin: 0; }
+        .header { 
+            position: relative; 
+            flex-shrink: 0;
+            width: 100%; 
+            height: 60px; 
+            background: rgba(255, 255, 255, 0.85); 
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border); 
+            display: flex; align-items: center; justify-content: center; 
+            gap: 0.5rem; z-index: 100; box-shadow: var(--shadow-sm); 
+        }
+        .header img { height: 28px; max-width: 120px; object-fit: contain; border-radius: 4px; display: none; }
+        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.15rem; font-weight: 600; color: var(--text-main); letter-spacing: -0.01em; margin: 0; }
 
         /* Spectator View Navigation Tabs */
-        .tabs-bar { position: fixed; top: 65px; left: 0; width: 100%; height: 55px; background: var(--bg-surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.5rem 1rem; z-index: 99; }
-        .tab-btn { flex: 1; max-width: 250px; height: 100%; border: none; border-radius: 8px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: 0.2s; background: transparent; color: var(--text-muted); }
+        .tabs-bar { 
+            position: relative;
+            flex-shrink: 0;
+            width: 100%; 
+            height: 54px; 
+            background: var(--bg-surface); 
+            border-bottom: 1px solid var(--border); 
+            display: flex; align-items: center; justify-content: center; 
+            gap: 0.5rem; padding: 0.5rem 1rem; z-index: 99; 
+        }
+        .tab-btn { 
+            flex: 1; max-width: 250px; height: 100%; border: none; border-radius: var(--radius-sm); 
+            font-weight: 600; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; 
+            justify-content: center; gap: 0.5rem; transition: var(--transition); background: transparent; color: var(--text-muted); 
+        }
         .tab-btn.active { background: var(--primary-light); color: var(--primary); }
 
-        .container { padding: 1.25rem; max-width: 600px; margin: 0 auto; }
+        /* Main Scrollable Container */
+        .container { 
+            flex: 1;
+            padding: 1.25rem 1rem calc(2rem + env(safe-area-inset-bottom)) 1rem; 
+            max-width: 600px; margin: 0 auto; width: 100%;
+            overflow-y: auto; -webkit-overflow-scrolling: touch;
+            z-index: 10; position: relative;
+        }
         
         /* Typography */
-        .page-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.25rem; line-height: 1.2; text-align: center; }
-        .page-subtitle { color: var(--text-muted); font-size: 0.8rem; font-weight: 700; text-align: center; margin-bottom: 1.5rem; letter-spacing: 0.5px; }
+        .page-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.35rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem; line-height: 1.2; text-align: center; letter-spacing: -0.02em; }
+        .page-subtitle { color: var(--text-muted); font-size: 0.8rem; font-weight: 500; text-align: center; margin-bottom: 1.5rem; letter-spacing: 0.02em; }
 
         /* Controls */
         .milestone-bar { margin-bottom: 1.25rem; display: flex; justify-content: center; }
-        .milestone-select { width: 100%; padding: 0.75rem 1rem; border-radius: 10px; border: 1.5px solid var(--primary); background: var(--bg-surface); font-weight: 700; font-size: 0.85rem; color: var(--primary); outline: none; }
+        .milestone-select { width: 100%; padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-surface); font-weight: 500; font-size: 0.85rem; color: var(--text-main); outline: none; transition: var(--transition); appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.2rem; cursor: pointer; }
+        .milestone-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
 
         /* Cards */
-        .card { background: var(--bg-surface); border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04); }
+        .card { background: var(--bg-surface); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
         
-        .badge { padding: 0.3rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.05em; }
-        .badge-live { background: rgba(16, 185, 129, 0.15); color: #059669; border: 1px solid rgba(16,185,129,0.3); }
-        .badge-val { background: rgba(245, 158, 11, 0.15); color: #D97706; border: 1px solid rgba(245,158,11,0.3); }
-        .badge-call { background: rgba(59, 130, 246, 0.15); color: #2563EB; border: 1px solid rgba(59,130,246,0.3); }
+        .badge { padding: 0.35rem 0.75rem; border-radius: 50px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; display: inline-flex; align-items: center; gap: 0.3rem; border: 1px solid transparent; }
+        .badge-live { background: var(--success-light); color: var(--success-hover); border-color: rgba(16, 185, 129, 0.2); }
+        .badge-val { background: var(--warning-light); color: #B45309; border-color: rgba(245, 158, 11, 0.2); }
+        .badge-call { background: var(--primary-light); color: var(--primary); border-color: var(--primary-ring); }
 
         /* Leaderboard Rows - WITH POINTS */
-        .lb-row { display: flex; align-items: center; justify-content: space-between; padding: 1.15rem 0.5rem; border-bottom: 1px dashed var(--border); }
+        .lb-row { display: flex; align-items: center; justify-content: space-between; padding: 1rem 0.5rem; border-bottom: 1px dashed var(--border); }
         .lb-row:last-child { border-bottom: none; padding-bottom: 0; }
         .lb-row:first-child { padding-top: 0; }
-        .lb-rank { font-size: 1.6rem; font-weight: 900; width: 45px; color: var(--text-muted); line-height: 1; }
-        .lb-details { flex: 1; padding-right: 0.75rem; }
-        .lb-name { font-size: 1.05rem; font-weight: 800; color: var(--text-main); display: block; margin-bottom: 0.2rem; }
-        .lb-team { font-size: 0.8rem; color: var(--text-muted); font-weight: 700; }
+        .lb-rank { font-size: 1.35rem; font-weight: 700; width: 40px; color: var(--text-muted); line-height: 1; }
+        .lb-details { flex: 1; padding-right: 0.75rem; min-width: 0; }
+        .lb-name { font-size: 1rem; font-weight: 600; color: var(--text-main); display: block; margin-bottom: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .lb-team { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
         
-        .lb-score { text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; }
-        .lb-score .score-val { font-size: 1.35rem; font-weight: 900; color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1; }
-        .lb-score .score-unit { font-size: 0.65rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.05em; margin-top: 3px; }
+        .lb-score { text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; flex-shrink: 0; }
+        .lb-score .score-val { font-size: 1.25rem; font-weight: 700; color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1; }
+        .lb-score .score-unit { font-size: 0.65rem; font-weight: 600; color: var(--text-muted); letter-spacing: 0.05em; margin-top: 2px; }
 
         .rank-1 { color: var(--gold); } 
         .rank-2 { color: var(--silver); } 
         .rank-3 { color: var(--bronze); }
 
         /* Buttons */
-        .btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 1rem; border-radius: 12px; font-size: 0.95rem; font-weight: 800; border: none; cursor: pointer; margin-top: 1rem; box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: 0.2s; }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-outline { background: white; border: 2px solid var(--border); color: var(--text-main); }
+        .btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 0.85rem; border-radius: var(--radius-md); font-size: 0.95rem; font-weight: 600; border: none; cursor: pointer; margin-top: 1rem; transition: var(--transition); }
+        .btn-primary { background: var(--primary-gradient); color: white; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); }
+        .btn-outline { background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main); box-shadow: var(--shadow-sm); }
         .btn:active { transform: scale(0.98); }
 
-        .loader { text-align: center; padding: 4rem 0; color: var(--text-muted); }
-        .loader i { font-size: 2rem; color: var(--primary); margin-bottom: 1rem; }
+        .loader { text-align: center; padding: 4rem 0; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+        .loader i { font-size: 2rem; color: var(--primary); }
 
         #poster-canvas { display: none; }
     </style>
 </head>
 <body>
 
+    <!-- Ambient Background -->
+    <div class="grid-pattern"></div>
+    <div class="ambient-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+    </div>
+
+    <!-- Static Header (Flex child, no longer fixed overlapping) -->
     <div class="header">
         <img id="head-logo" src="" alt="Logo">
         <h1 id="head-title">FESTOS</h1>
     </div>
 
-    <!-- Spectator View Switcher -->
+    <!-- Spectator View Switcher (Flex child) -->
     <div class="tabs-bar">
         <button class="tab-btn" id="btn-tab-live" onclick="switchView('live')">
             <i class="fa-solid fa-clock"></i> Schedule
@@ -98,10 +183,11 @@
         </button>
     </div>
 
+    <!-- Scrollable Main Container -->
     <div class="container" id="main-content">
         <div class="loader">
             <i class="fa-solid fa-spinner fa-spin"></i>
-            <p style="font-weight: 600; margin-top: 10px;">Scanning...</p>
+            <p style="font-weight: 500; font-size: 0.95rem;">Syncing Event Data...</p>
         </div>
     </div>
 
@@ -135,39 +221,7 @@
 
         async function init() {
             try {
-                // Branding
-                const { data: brand } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
-                if(brand && brand.value) {
-                    const b = brand.value;
-                    const validName = b.fest_name && b.fest_name.trim() !== '';
-                    const validLogo = b.fest_logo && b.fest_logo.trim() !== '';
-                    const displayMode = b.display_mode || 'both';
-
-                    document.title = validName ? `${b.fest_name} | Spectator` : 'Spectator';
-
-                    if (validLogo) {
-                        let allIcons = document.querySelectorAll("link[rel='icon']");
-                        if (allIcons.length === 0) {
-                            let newIcon = document.createElement('link'); newIcon.rel = 'icon';
-                            document.head.appendChild(newIcon); allIcons = [newIcon];
-                        }
-                        allIcons.forEach(link => { link.href = b.fest_logo; });
-                    }
-
-                    const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
-                    const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
-
-                    if (showLogo) {
-                        const logoEl = document.getElementById('head-logo');
-                        logoEl.src = b.fest_logo;
-                        logoEl.style.display = 'block';
-                    }
-                    if (showName && validName) {
-                        document.getElementById('head-title').innerText = b.fest_name.toUpperCase();
-                    } else {
-                        document.getElementById('head-title').innerText = '';
-                    }
-                }
+                await fetchAndApplyBranding();
 
                 // Global Settings
                 const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
@@ -186,7 +240,7 @@
                 else await renderLiveSchedule();
 
             } catch (err) {
-                document.getElementById('main-content').innerHTML = `<p style="color:red; text-align:center;">Connection Error.</p>`;
+                document.getElementById('main-content').innerHTML = `<p style="color:var(--danger); text-align:center; font-weight: 500;">Connection Error.</p>`;
             }
         }
 
@@ -211,10 +265,13 @@
                 'Category': comp.categories?.name || 'GENERAL',
                 'Position1Name': results[0]?.name || '',
                 'Position1Team': results[0]?.team || '',
+                'Position1Number': results[0] ? results[0].pos.toString() : '',
                 'Position2Name': results[1]?.name || '',
                 'Position2Team': results[1]?.team || '',
+                'Position2Number': results[1] ? results[1].pos.toString() : '',
                 'Position3Name': results[2]?.name || '',
-                'Position3Team': results[2]?.team || ''
+                'Position3Team': results[2]?.team || '',
+                'Position3Number': results[2] ? results[2].pos.toString() : ''
             };
             
             content.innerHTML = `
@@ -340,12 +397,14 @@
             // Store for Poster Generator
             currentPosterData = {
                 'ResultsCountText': `AFTER ${activeCount}`,
-                'Rank1Team': sortedTeams[0]?.name || '', 'Rank1Points': sortedTeams[0]?.score.toString() || '0',
-                'Rank2Team': sortedTeams[1]?.name || '', 'Rank2Points': sortedTeams[1]?.score.toString() || '0',
-                'Rank3Team': sortedTeams[2]?.name || '', 'Rank3Points': sortedTeams[2]?.score.toString() || '0',
-                'Rank4Team': sortedTeams[3]?.name || '', 'Rank4Points': sortedTeams[3]?.score.toString() || '0',
-                'Rank5Team': sortedTeams[4]?.name || '', 'Rank5Points': sortedTeams[4]?.score.toString() || '0'
+                'TotalCompetitionsCount': `FINAL STANDINGS`
             };
+            
+            for (let i = 0; i < 15; i++) {
+                currentPosterData[`Rank${i+1}Team`] = sortedTeams[i]?.name || '';
+                currentPosterData[`Rank${i+1}Points`] = sortedTeams[i] ? sortedTeams[i].score.toString() : '';
+                currentPosterData[`Rank${i+1}Number`] = sortedTeams[i] ? (i+1).toString() : '';
+            }
 
             const container = document.getElementById('standings-card-container');
             if (container) {
@@ -378,7 +437,7 @@
             `;
             
             if (!comps || comps.length === 0) {
-                content.innerHTML += `<div class="card"><p style="color: var(--text-muted); text-align: center; font-weight:600; margin: 0;">No active events right now.</p></div>`;
+                content.innerHTML += `<div class="card"><p style="color: var(--text-muted); text-align: center; font-weight:500; margin: 0;">No active events right now.</p></div>`;
                 return;
             }
 
@@ -390,12 +449,12 @@
 
                 content.innerHTML += `
                     <div class="card">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
-                            <span style="font-size: 0.8rem; font-weight: 800; color: var(--primary);">${c.categories?.name || 'GEN'}</span>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; gap: 0.5rem;">
+                            <span style="font-size: 0.75rem; font-weight: 600; color: var(--primary);">${c.categories?.name || 'GEN'}</span>
                             ${badge}
                         </div>
-                        <h3 style="font-size: 1.2rem; font-weight: 800; margin-bottom: 0.4rem; line-height: 1.2; color: var(--text-main);">${c.name}</h3>
-                        <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600;"><i class="fa-solid fa-microphone-stage"></i> ${c.stages?.name || 'GLOBAL STAGE'}</div>
+                        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.4rem; line-height: 1.2; color: var(--text-main);">${c.name}</h3>
+                        <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;"><i class="fa-solid fa-microphone-stage" style="margin-right: 4px;"></i> ${c.stages?.name || 'GLOBAL STAGE'}</div>
                     </div>
                 `;
             });
@@ -450,6 +509,77 @@
         }
 
         // ==========================================
+        // UNIFIED GLOBAL BRANDING ENGINE
+        // ==========================================
+        async function fetchAndApplyBranding() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('settings')
+                    .select('value')
+                    .eq('id', 'system_branding')
+                    .maybeSingle();
+
+                if (error) throw error;
+                if (data && data.value) applyGlobalBranding(data.value);
+            } catch (e) {
+                console.warn("Could not fetch global branding:", e.message);
+            }
+        }
+
+        function applyGlobalBranding(brandingData) {
+            const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
+            const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+            const displayMode = brandingData.display_mode || 'both'; 
+            
+            const festName = validName ? brandingData.fest_name : 'FestOS';
+            const titleParts = document.title.split('|');
+            const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Spectator';
+            document.title = `${festName} | ${pageContext}`;
+
+            if (validLogo) {
+                let iconLinks = document.querySelectorAll("link[rel~='icon']");
+                if (iconLinks.length === 0) {
+                    let newIcon = document.createElement('link');
+                    newIcon.rel = 'icon';
+                    document.head.appendChild(newIcon);
+                    iconLinks = [newIcon];
+                }
+                iconLinks.forEach(link => link.href = brandingData.fest_logo);
+            }
+
+            const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
+            const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
+            
+            const logoEl = document.getElementById('head-logo');
+            const titleEl = document.getElementById('head-title');
+
+            if (logoEl) {
+                if (showLogo) {
+                    logoEl.src = brandingData.fest_logo;
+                    logoEl.style.display = 'block';
+                    logoEl.style.height = '28px';
+                    logoEl.style.width = 'auto';
+                    logoEl.style.maxWidth = '120px';
+                    logoEl.style.objectFit = 'contain';
+                    logoEl.style.borderRadius = '4px';
+                } else {
+                    logoEl.style.display = 'none';
+                }
+            }
+            
+            if (titleEl) {
+                if (showName) {
+                    titleEl.innerText = validName ? brandingData.fest_name : 'FestOS';
+                    titleEl.style.display = 'block';
+                } else {
+                    titleEl.style.display = 'none';
+                }
+            }
+
+            if (typeof window !== 'undefined') window.systemBranding = brandingData;
+        }
+
+        // ==========================================
         // POSTER GENERATION ENGINE
         // ==========================================
         async function downloadPoster(type) {
@@ -457,7 +587,7 @@
             
             const btn = event.currentTarget;
             const originalHtml = btn.innerHTML;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating Image...`;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating...`;
             btn.disabled = true;
 
             try {
