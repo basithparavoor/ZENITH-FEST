@@ -1086,3 +1086,4 @@ function closeStatsModal() {
 
 // Boot up
 loadAssignments();
+

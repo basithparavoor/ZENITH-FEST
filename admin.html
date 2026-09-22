@@ -18,6 +18,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
     <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
 
@@ -76,11 +80,36 @@ input[type="password"], input[type="file"], .file-input, textarea[style*="text-t
 
 .brand { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.35rem; font-weight: 700; color: var(--primary); margin-bottom: 2.5rem; display: flex; align-items: center; gap: 0.75rem; padding-left: 0.75rem; flex-wrap: nowrap; line-height: 1.2; word-break: break-word; letter-spacing: -0.02em; }
 
-.nav-item { padding: 0.85rem 1.25rem; margin-bottom: 0.4rem; border-radius: var(--radius-md); cursor: pointer; color: var(--text-muted); font-weight: 500; font-size: 0.95rem; transition: var(--transition); display: flex; align-items: center; gap: 1rem; }
-.nav-item i { width: 22px; text-align: center; font-size: 1.1rem; color: #9CA3AF; transition: var(--transition); }
-.nav-item:hover { background: var(--bg-main); color: var(--text-main); }
-.nav-item.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
-.nav-item.active i { color: var(--primary); }
+.nav-group { margin-bottom: 0.25rem; }
+.nav-main { padding: 0.85rem 1.25rem; border-radius: var(--radius-md); cursor: pointer; color: var(--text-muted); font-weight: 500; font-size: 0.95rem; transition: var(--transition); display: flex; align-items: center; justify-content: space-between; }
+.nav-main:hover { background: var(--bg-main); color: var(--text-main); }
+.nav-main.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+.nav-main i.icon-left { width: 22px; text-align: center; font-size: 1.1rem; color: #9CA3AF; transition: var(--transition); }
+.nav-main.active i.icon-left { color: var(--primary); }
+.nav-main i.icon-right { font-size: 0.8rem; transition: transform 0.3s ease; }
+.nav-main.open i.icon-right { transform: rotate(90deg); color: var(--text-main); }
+
+.nav-sub { max-height: 0; overflow: hidden; transition: max-height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; flex-direction: column; background: #F8FAFC; border-radius: var(--radius-md); margin-top: 2px; }
+.nav-sub.open { max-height: 500px; padding: 0.5rem; border: 1px solid var(--border); }
+
+.nav-sub .nav-item { padding: 0.65rem 1rem 0.65rem 2.5rem; margin-bottom: 2px; border-radius: var(--radius-md); font-size: 0.85rem; color: var(--text-muted); cursor: pointer; transition: var(--transition); font-weight: 500;}
+.nav-sub .nav-item:hover { background: var(--bg-surface); color: var(--primary); }
+.nav-sub .nav-item.active { background: white; color: var(--primary); font-weight: 600; box-shadow: var(--shadow-sm); }
+
+/* Dashboard Specific Styles */
+.live-stage-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border); }
+.live-stage-item:last-child { border-bottom: none; }
+.live-stage-item h4 { font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.2rem; }
+.live-stage-item p { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+.live-badge-sm { font-size: 0.7rem; font-weight: 700; color: #E11D48; border: 1px solid rgba(225,29,72,0.3); padding: 0.2rem 0.5rem; border-radius: 50px; background: #FFE4E6; }
+
+.top-cand-row { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+.top-cand-row:last-child { border-bottom: none; }
+.cand-rank { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; color: white; margin-right: 0.75rem; }
+.cand-rank.r1 { background: #EF4444; }
+.cand-rank.r2 { background: #F59E0B; }
+.cand-rank.r3 { background: #3B82F6; }
+.cand-rank.other { background: #9CA3AF; }
 
 .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; scroll-behavior: smooth; }
 .content-section { display: none; padding: 2rem 2.5rem; animation: fadeUp 0.4s ease forwards; opacity: 0; }
@@ -236,29 +265,100 @@ tr:hover td { background: var(--bg-main); }
 
     <div class="sidebar" id="sidebar">
         <div class="brand"><i class="fa-solid fa-bolt"></i> FestOS</div>
-        <div class="nav-item active" onclick="switchTab('categories')"><i class="fa-solid fa-layer-group"></i> Categories</div>
-        <div class="nav-item" onclick="switchTab('competitions')"><i class="fa-solid fa-trophy"></i> Competitions</div>
-        <div class="nav-item" onclick="switchTab('participants')"><i class="fa-solid fa-users"></i> Participants</div>
-        <div class="nav-item" onclick="switchTab('stages')"><i class="fa-solid fa-masks-theater"></i> Stages & Teams</div>
-        <div class="nav-item" onclick="switchTab('users')"><i class="fa-solid fa-user-shield"></i> Users</div>
-        <div class="nav-item" onclick="switchTab('assignments')"><i class="fa-solid fa-clipboard-user"></i> Assign Students</div>
-        <div class="nav-item" onclick="switchTab('participant-points')"><i class="fa-solid fa-chart-line"></i> Points Ledger</div>
-        <div class="nav-item" onclick="switchTab('admin-appeals')"><i class="fa-solid fa-scale-balanced"></i> Appeals</div>
-        <div class="nav-item" onclick="switchTab('data-center')"><i class="fa-solid fa-server"></i> Data Center</div>
-        <div class="nav-item" onclick="switchTab('direct-valuation')"><i class="fa-solid fa-bolt"></i> Direct Valuation</div>
-        <div class="nav-item" onclick="switchTab('poster-templates')"><i class="fa-solid fa-image"></i> Poster Templates</div>
-        <div class="nav-item" onclick="switchTab('point-settings')"><i class="fa-solid fa-sliders"></i> Point System</div>
-        <div class="nav-item" onclick="switchTab('branding-settings')"><i class="fa-solid fa-palette"></i> Branding & UI</div>
-<div class="nav-item" onclick="switchTab('display-control')"><i class="fa-solid fa-tv"></i> Display Control</div>
-<div class="nav-item" onclick="switchTab('schedule-mgmt')"><i class="fa-solid fa-calendar-days"></i> Event Schedule</div>
+        
+        <div class="nav-group">
+            <div class="nav-main active" onclick="switchTab('dashboard')">
+                <div style="display:flex; align-items:center; gap:1rem;"><i class="fa-solid fa-house icon-left"></i> Dashboard</div>
+            </div>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-main" onclick="toggleSubmenu(this)">
+                <div style="display:flex; align-items:center; gap:1rem;"><i class="fa-solid fa-trophy icon-left"></i> Competitions</div>
+                <i class="fa-solid fa-chevron-right icon-right"></i>
+            </div>
+            <div class="nav-sub">
+                <div class="nav-item" onclick="switchTab('categories')">Categories</div>
+                <div class="nav-item" onclick="switchTab('competitions')">Competitions</div>
+                <div class="nav-item" onclick="switchTab('point-settings')">Point System</div>
+                <div class="nav-item" onclick="switchTab('direct-valuation')">Direct Valuation</div>
+                <div class="nav-item" onclick="switchTab('admin-appeals')">Appeals</div>
+            </div>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-main" onclick="toggleSubmenu(this)">
+                <div style="display:flex; align-items:center; gap:1rem;"><i class="fa-solid fa-users icon-left"></i> Participants & Teams</div>
+                <i class="fa-solid fa-chevron-right icon-right"></i>
+            </div>
+            <div class="nav-sub">
+                <div class="nav-item" onclick="switchTab('participants')">Participants</div>
+                <div class="nav-item" onclick="switchTab('stages')">Stages</div>
+                <div class="nav-item" onclick="switchTab('teams')">Teams</div>
+                <div class="nav-item" onclick="switchTab('assignments')">Assign Students</div>
+            </div>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-main" onclick="toggleSubmenu(this)">
+                <div style="display:flex; align-items:center; gap:1rem;"><i class="fa-solid fa-chart-line icon-left"></i> Results & Points</div>
+                <i class="fa-solid fa-chevron-right icon-right"></i>
+            </div>
+            <div class="nav-sub">
+                <div class="nav-item" onclick="switchTab('participant-points')">Points Ledger</div>
+            </div>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-main" onclick="toggleSubmenu(this)">
+                <div style="display:flex; align-items:center; gap:1rem;"><i class="fa-solid fa-palette icon-left"></i> Content & Branding</div>
+                <i class="fa-solid fa-chevron-right icon-right"></i>
+            </div>
+            <div class="nav-sub">
+                <div class="nav-item" onclick="switchTab('branding-settings')">Branding & UI</div>
+                <div class="nav-item" onclick="switchTab('poster-templates')">Poster Templates</div>
+            </div>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-main" onclick="toggleSubmenu(this)">
+                <div style="display:flex; align-items:center; gap:1rem;"><i class="fa-solid fa-tv icon-left"></i> Live Event</div>
+                <i class="fa-solid fa-chevron-right icon-right"></i>
+            </div>
+            <div class="nav-sub">
+                <div class="nav-item" onclick="switchTab('display-control')">Display Control</div>
+                <div class="nav-item" onclick="switchTab('schedule-mgmt')">Event Schedule</div>
+            </div>
+        </div>
+
+        <div class="nav-group" id="nav-data-center" style="display: none;">
+            <div class="nav-main" onclick="toggleSubmenu(this)">
+                <div style="display:flex; align-items:center; gap:1rem;"><i class="fa-solid fa-server icon-left"></i> Data Center</div>
+                <i class="fa-solid fa-chevron-right icon-right"></i>
+            </div>
+            <div class="nav-sub">
+                <div class="nav-item" onclick="switchTab('data-center')">Data Validation</div>
+            </div>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-main" onclick="toggleSubmenu(this)">
+                <div style="display:flex; align-items:center; gap:1rem;"><i class="fa-solid fa-gear icon-left"></i> Administration</div>
+                <i class="fa-solid fa-chevron-right icon-right"></i>
+            </div>
+            <div class="nav-sub">
+                <div class="nav-item" onclick="switchTab('users')">Users</div>
+                <div class="nav-item" onclick="switchTab('judges')">Judge Management</div>
+            </div>
+        </div>
 
         <div id="master-admin-portals" style="display: none; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
             <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem; padding-left: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Cross-Portal Access</div>
-            <a href="manager.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-briefcase"></i> Manager Hub</a>
-            <a href="stage-controller.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-microphone"></i> Stage Controller</a>
-            <a href="judge.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-gavel"></i> Judge Portal</a>
-            <a href="announcements.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-microphone-lines"></i> Announcer Portal</a>
-            <a href="program_report.html" class="nav-item" style="text-decoration: none;"><i class="fa-solid fa-file-pdf"></i> Master Reports</a>
+            <a href="manager.html" class="nav-main" style="text-decoration: none;"><div style="display:flex; align-items:center; gap:1rem;"><i class="fa-solid fa-briefcase icon-left"></i> Manager Hub</div></a>
+            <a href="stage-controller.html" class="nav-main" style="text-decoration: none;"><div style="display:flex; align-items:center; gap:1rem;"><i class="fa-solid fa-microphone icon-left"></i> Stage Controller</div></a>
+            <a href="judge.html" class="nav-main" style="text-decoration: none;"><div style="display:flex; align-items:center; gap:1rem;"><i class="fa-solid fa-gavel icon-left"></i> Judge Portal</div></a>
+            <a href="announcements.html" class="nav-main" style="text-decoration: none;"><div style="display:flex; align-items:center; gap:1rem;"><i class="fa-solid fa-microphone-lines icon-left"></i> Announcer</div></a>
+            <a href="program_report.html" class="nav-main" style="text-decoration: none;"><div style="display:flex; align-items:center; gap:1rem;"><i class="fa-solid fa-file-pdf icon-left"></i> Master Reports</div></a>
         </div>
     </div>
 
@@ -269,6 +369,153 @@ tr:hover td { background: var(--bg-main); }
                 <h1 id="page-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0;">Workspace Overview</h1>
             </div>
             <button class="btn btn-outline" onclick="logout()" style="flex-shrink: 0;"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+        </div>
+
+        <div id="dashboard" class="content-section active">
+            <div class="action-bar" style="margin-bottom: 1.5rem; align-items: flex-end;">
+                <div>
+                    <h2 style="font-size: 1.6rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem; letter-spacing: -0.02em;">Control Room</h2>
+                    <p style="color: var(--text-muted); font-size: 1.2rem; font-weight: 600;" id="dash-greeting">Good evening, ADMIN</p>
+                </div>
+                <button class="btn btn-danger" style="background: #E11D48; border-color: #E11D48; color: #FFFFFF;" onclick="window.location.href='manager.html'"><i class="fa-solid fa-trophy"></i> Publish Results</button>
+            </div>
+
+            <!-- Top Stat Cards (Pastel colored) -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                <div style="background: linear-gradient(135deg, #FFE4E6 0%, #FECDD3 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
+                    <i class="fa-solid fa-calendar-days" style="color: #E11D48; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                    <div style="font-size: 2rem; font-weight: 800; color: #881337; line-height: 1.2;" id="dash-program-count">0</div>
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #BE123C; margin-bottom: 0.5rem;"><span id="dash-live-count">0</span> live now</div>
+                    <div style="font-size: 0.75rem; font-weight: 700; color: #9F1239; text-transform: uppercase;">Programmes</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
+                    <i class="fa-solid fa-user" style="color: #0284C7; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                    <div style="font-size: 2rem; font-weight: 800; color: #0C4A6E; line-height: 1.2;" id="dash-participant-count">0</div>
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #0369A1; margin-bottom: 0.5rem;"><span id="dash-registered-count">0</span> programmes registered</div>
+                    <div style="font-size: 0.75rem; font-weight: 700; color: #075985; text-transform: uppercase;">Candidates</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #F3E8FF 0%, #E9D5FF 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
+                    <i class="fa-solid fa-layer-group" style="color: #7E22CE; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                    <div style="font-size: 2rem; font-weight: 800; color: #4C1D95; line-height: 1.2;" id="dash-category-count">0</div>
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #6B21A8; margin-bottom: 0.5rem;"><span id="dash-team-count">0</span> teams total</div>
+                    <div style="font-size: 0.75rem; font-weight: 700; color: #581C87; text-transform: uppercase;">Categories</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
+                    <i class="fa-solid fa-trophy" style="color: #059669; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                    <div style="font-size: 2rem; font-weight: 800; color: #064E3B; line-height: 1.2;" id="dash-results-ratio">0/0</div>
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #047857; margin-bottom: 0.5rem;"><span id="dash-results-percent">0</span>% complete</div>
+                    <div style="font-size: 0.75rem; font-weight: 700; color: #065F46; text-transform: uppercase;">Results Published</div>
+                </div>
+            </div>
+
+            <!-- Middle row: Black card + Quick lists -->
+            <div style="display: grid; grid-template-columns: 1fr 3fr; gap: 1.5rem; margin-bottom: 2rem;">
+                <!-- Top Team Card -->
+                <div style="background: #000000; padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); color: white; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="font-size: 0.8rem; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.05em;">Top Team</div>
+                        <i class="fa-regular fa-star" style="color: #D1D5DB;"></i>
+                    </div>
+                    <div>
+                        <div style="font-size: 1.8rem; font-weight: 800; color: white; line-height: 1.2;" id="dash-top-team-name">Loading...</div>
+                        <div style="font-size: 1rem; font-weight: 600; color: #9CA3AF;"><span id="dash-top-team-pts">0</span> pts</div>
+                    </div>
+                </div>
+
+                <!-- Stats flex row -->
+                <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); overflow-x: auto;">
+                    <div style="padding: 0 1rem;">
+                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Live Stage</div>
+                        <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);"><span id="dash-live-stage-count">0</span> running</div>
+                    </div>
+                    <div style="width: 1px; height: 40px; background: var(--border);"></div>
+                    <div style="padding: 0 1rem;">
+                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Results</div>
+                        <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);"><span id="pb-pub-val-top">0</span> published</div>
+                    </div>
+                    <div style="width: 1px; height: 40px; background: var(--border);"></div>
+                    <div style="padding: 0 1rem;">
+                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Today</div>
+                        <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);"><span id="dash-program-count-today">0</span> scheduled</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts and Lists Row -->
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+                <div style="display: flex; flex-direction: column; gap: 2rem;">
+                    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main);">Registration Dynamic</h3>
+                        </div>
+                        <div style="height: 300px; width: 100%;">
+                            <canvas id="regDynamicChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main);">Team Points</h3>
+                        </div>
+                        <div style="height: 300px; width: 100%;">
+                            <canvas id="teamPointsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 2rem;">
+                    <!-- Registration Progress -->
+                    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                        <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 1.5rem;">Registration & Results</h3>
+                        
+                        <div style="margin-bottom: 1.25rem;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">
+                                <span>Programmes Registered</span><span id="pb-prog-val">0/0</span>
+                            </div>
+                            <div style="width: 100%; height: 6px; background: var(--bg-main); border-radius: 4px; overflow: hidden;">
+                                <div id="pb-prog-fill" style="height: 100%; background: #EF4444; width: 0%; transition: 1s ease;"></div>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 1.25rem;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">
+                                <span>Results Generated</span><span id="pb-gen-val">0/0</span>
+                            </div>
+                            <div style="width: 100%; height: 6px; background: var(--bg-main); border-radius: 4px; overflow: hidden;">
+                                <div id="pb-gen-fill" style="height: 100%; background: #3B82F6; width: 0%; transition: 1s ease;"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">
+                                <span>Results Published</span><span id="pb-pub-val">0/0</span>
+                            </div>
+                            <div style="width: 100%; height: 6px; background: var(--bg-main); border-radius: 4px; overflow: hidden;">
+                                <div id="pb-pub-fill" style="height: 100%; background: #10B981; width: 0%; transition: 1s ease;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Stage List -->
+                    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main);">Live Stage</h3>
+                            <span style="font-size: 0.75rem; background: #FFE4E6; color: #E11D48; padding: 0.25rem 0.6rem; border-radius: 50px; font-weight: 700;"><span id="dash-live-stage-count-2">0</span> running</span>
+                        </div>
+                        <div id="dash-live-stage-list" style="display: flex; flex-direction: column;"></div>
+                    </div>
+
+                    <!-- Top Candidates List -->
+                    <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                        <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 1.5rem;">Top Candidates</h3>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);">
+                            <span>NAME</span>
+                            <span>POINTS</span>
+                        </div>
+                        <div id="dash-top-candidates" style="display: flex; flex-direction: column;"></div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div id="categories" class="content-section active">
@@ -417,31 +664,47 @@ tr:hover td { background: var(--bg-main); }
         </div>
         
         <div id="stages" class="content-section">
-            <div class="grid-2">
+            <div class="action-bar" style="margin-bottom:1.5rem;">
                 <div>
-                    <div class="action-bar" style="margin-bottom:1rem;">
-                        <h2 style="font-size:1.25rem; font-weight:600;">Stages</h2>
-                        <button class="btn btn-primary" onclick="openStageModal()"><i class="fa-solid fa-plus"></i></button>
-                    </div>
-                    <div class="table-container">
-                        <table>
-                            <thead><tr><th>Stage Name</th><th>Stage No</th><th>Actions</th></tr></thead>
-                            <tbody id="stages-tbody"></tbody>
-                        </table>
-                    </div>
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">Stages</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Manage performance stages and assign controllers.</p>
                 </div>
+                <button class="btn btn-primary" onclick="openStageModal()"><i class="fa-solid fa-plus"></i> New Stage</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Stage Name</th>
+                            <th>Stage No</th>
+                            <th>Comps Linked</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stages-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="teams" class="content-section">
+            <div class="action-bar" style="margin-bottom:1.5rem;">
                 <div>
-                    <div class="action-bar" style="margin-bottom:1rem;">
-                        <h2 style="font-size:1.25rem; font-weight:600;">Teams</h2>
-                        <button class="btn btn-primary" onclick="openTeamModal()"><i class="fa-solid fa-plus"></i></button>
-                    </div>
-                    <div class="table-container">
-                        <table>
-                            <thead><tr><th>Team Name</th><th>Actions</th></tr></thead>
-                            <tbody id="teams-tbody"></tbody>
-                        </table>
-                    </div>
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">Teams</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Manage participating groups and their managers.</p>
                 </div>
+                <button class="btn btn-primary" onclick="openTeamModal()"><i class="fa-solid fa-plus"></i> New Team</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Team Name</th>
+                            <th>Registry Count</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teams-tbody"></tbody>
+                </table>
             </div>
         </div>
 
@@ -454,8 +717,39 @@ tr:hover td { background: var(--bg-main); }
             </div>
             <div class="table-container">
                 <table>
-                    <thead><tr><th>Username</th><th>Assigned Role</th><th>Password</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Full Name</th><th>Username</th><th>Assigned Role</th><th>Password</th><th>Actions</th></tr></thead>
                     <tbody id="users-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+<div id="judges" class="content-section">
+            <div class="action-bar" style="margin-bottom: 1.5rem;">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">Judge Management</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Overview of all judges, their assigned events, and stage schedules.</p>
+                </div>
+                <div class="bulk-actions" style="flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="openJudgeModal()"><i class="fa-solid fa-user-plus"></i> Add New Judge</button>
+                    <button class="btn btn-outline" onclick="exportJudgesPDF()"><i class="fa-solid fa-file-pdf"></i> Export Roster PDF</button>
+                </div>
+            </div>
+            <div class="controls-bar">
+                <div class="search-box" style="flex: 1;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="searchJudgeInput" placeholder="Search judge usernames..." onkeyup="filterJudgesTable()">
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Judge Username</th>
+                            <th>Total Assignments</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="judges-tbody"></tbody>
                 </table>
             </div>
         </div>
@@ -1340,6 +1634,74 @@ tr:hover td { background: var(--bg-main); }
         </div>
     </div>
 </div>
+
+<!-- Judge Assignments & Schedule Modal -->
+<div id="judgeDetailsModal" class="modal-overlay" style="z-index: 1050;">
+    <div class="modal" style="max-width: 850px; width: 95%;">
+        <div class="modal-header">
+            <div>
+                <span class="badge badge-primary" style="margin-bottom: 0.5rem; display: inline-block;">JUDGE SCHEDULE</span>
+                <h2 id="jd-modal-title" style="margin-top: 0.25rem;">Judge Assignments</h2>
+            </div>
+            <button class="close-btn" onclick="document.getElementById('judgeDetailsModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        
+        <div class="table-container" style="max-height: 50vh; overflow-y: auto;">
+            <table style="min-width: 700px;">
+                <thead style="position: sticky; top: 0; z-index: 10;">
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Competition</th>
+                        <th>Category</th>
+                        <th>Stage</th>
+                    </tr>
+                </thead>
+                <tbody id="jd-modal-tbody"></tbody>
+            </table>
+        </div>
+        
+        <div class="modal-footer" style="margin-top: 1.5rem;">
+            <button class="btn btn-outline" onclick="document.getElementById('judgeDetailsModal').classList.remove('show')">Close Window</button>
+        </div>
+    </div>
+</div>
+
+<!-- Judge Event Assignment Modal -->
+<div id="assignJudgeEventsModal" class="modal-overlay" style="z-index: 1050;">
+    <div class="modal" style="max-width: 600px;">
+        <div class="modal-header">
+            <div>
+                <span class="badge badge-primary" style="margin-bottom: 0.5rem; display: inline-block;">EVENT ALLOCATION</span>
+                <h2 id="assign-judge-title" style="margin-top: 0.25rem;">Assign Events</h2>
+            </div>
+            <button class="close-btn" onclick="document.getElementById('assignJudgeEventsModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body" style="max-height: 60vh; overflow-y: auto; padding-right: 0.5rem; display: flex; flex-direction: column; gap: 1rem;">
+            <input type="hidden" id="target-assign-judge-id">
+            
+            <div class="controls-bar" style="margin-bottom: 0; padding: 0.75rem; display: flex; gap: 0.75rem; flex-wrap: wrap; background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: none;">
+                <div class="search-box" style="flex: 2; min-width: 150px;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="searchAssignJudgeComp" placeholder="Search competition..." onkeyup="filterJudgeAssignList()" style="background: white;">
+                </div>
+                <div class="filter-box" style="flex: 1; min-width: 140px;">
+                    <select id="filterAssignJudgeCat" onchange="filterJudgeAssignList()" style="background-color: white;">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="assign-judge-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <!-- Checkboxes populated dynamically -->
+            </div>
+        </div>
+        <div class="modal-footer" style="margin-top: 1.5rem;">
+            <button class="btn btn-outline" onclick="document.getElementById('assignJudgeEventsModal').classList.remove('show')">Cancel</button>
+            <button class="btn btn-primary" id="btn-save-judge-assign" onclick="saveJudgeAssignments()"><i class="fa-solid fa-floppy-disk"></i> Save Assignments</button>
+        </div>
+    </div>
+</div>
+
 
 <div id="toast-container"></div>
 

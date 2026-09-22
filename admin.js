@@ -16,6 +16,8 @@ let participantsList = [];
 let competitionsList = [];
 let availableControllers = [];
 let currentCropper = null; // Added for image cropping
+let dashRegChart = null; 
+let dashTeamChart = null;
 
 // --- UI UTILITIES (PREMIUM UPGRADES) ---
 function toggleSidebar() {
@@ -60,46 +62,277 @@ function setLoading(btnId, isLoading) {
     }
 }
 
-// --- CORE NAVIGATION & LOGOUT ---
+function toggleSubmenu(element) {
+    const parent = element.parentElement;
+    const submenu = parent.querySelector('.nav-sub');
+    element.classList.toggle('open');
+    if (element.classList.contains('open')) {
+        submenu.classList.add('open');
+    } else {
+        submenu.classList.remove('open');
+    }
+}
+
 function switchTab(tabId) {
-    // Hide all sections and un-highlight nav items
     document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+    document.querySelectorAll('.nav-main').forEach(nav => nav.classList.remove('active'));
     
-    // Show active section
     document.getElementById(tabId).classList.add('active');
+    
     const activeNav = document.querySelector(`[onclick="switchTab('${tabId}')"]`);
     if(activeNav) {
         activeNav.classList.add('active');
+        
+        // Highlight parent main group if clicking a sub-item
+        if (activeNav.classList.contains('nav-item')) {
+            const parentGroup = activeNav.closest('.nav-group');
+            if (parentGroup) {
+                const mainItem = parentGroup.querySelector('.nav-main');
+                const subItem = parentGroup.querySelector('.nav-sub');
+                if(mainItem) mainItem.classList.add('active');
+                if(mainItem && !mainItem.classList.contains('open')) {
+                    mainItem.classList.add('open');
+                    if(subItem) subItem.classList.add('open');
+                }
+            }
+        }
+        
         const pageTitle = document.getElementById('page-title');
         if(pageTitle) pageTitle.innerText = activeNav.innerText.trim();
     }
 
-    // Auto-close sidebar on mobile
     if(window.innerWidth <= 768) {
         document.getElementById('sidebar')?.classList.remove('open');
         document.querySelector('.mobile-overlay')?.classList.remove('open');
     }
 
-    // Trigger specific data loads with error handling
     try {
-       if (tabId === 'categories') loadCategories();
+        if (tabId === 'dashboard') loadAdminDashboard();
+        else if (tabId === 'categories') loadCategories();
         else if (tabId === 'competitions') loadCompetitions();
         else if (tabId === 'participants') loadParticipants();
         else if (tabId === 'stages') loadStagesAndTeams();
+        else if (tabId === 'teams') loadStagesAndTeams();
         else if (tabId === 'users') loadUsers();
+        else if (tabId === 'judges') loadJudgesManagement();
         else if (tabId === 'assignments') initAssignWorkspace();
         else if (tabId === 'direct-valuation') initDirectValuation();
         else if (tabId === 'point-settings') loadPointSettings(); 
         else if (tabId === 'branding-settings') loadBrandingSettings();
         else if (tabId === 'participant-points') loadParticipantPoints();
-        else if (tabId === 'admin-appeals') loadAdminAppeals(); // <--- ADD THIS LINE
+        else if (tabId === 'admin-appeals') loadAdminAppeals(); 
         else if (tabId === 'display-control') loadDisplaySettings();
         else if (tabId === 'schedule-mgmt') loadSchedules();
     } catch (e) {
         showToast("Failed to fetch dashboard data.", "error");
     }
 }
+
+
+async function loadAdminDashboard() {
+    try {
+        const { count: compCount } = await supabaseClient.from('competitions').select('*', { count: 'exact', head: true });
+        const { count: partCount } = await supabaseClient.from('participants').select('*', { count: 'exact', head: true });
+        const { count: catCount } = await supabaseClient.from('categories').select('*', { count: 'exact', head: true });
+        const { count: teamCount } = await supabaseClient.from('teams').select('*', { count: 'exact', head: true });
+        
+        const { data: allComps } = await supabaseClient.from('competitions').select('id, name, status, categories(name), stages(name)');
+        
+        const liveComps = allComps.filter(c => c.status === 'ongoing');
+        const publishedComps = allComps.filter(c => c.status === 'published');
+        
+        document.getElementById('dash-program-count').innerText = compCount || 0;
+        document.getElementById('dash-live-count').innerText = liveComps.length || 0;
+        document.getElementById('dash-participant-count').innerText = partCount || 0;
+        
+        const { count: enrolCount } = await supabaseClient.from('participant_competitions').select('*', { count: 'exact', head: true });
+        document.getElementById('dash-registered-count').innerText = enrolCount || 0;
+        
+        document.getElementById('dash-category-count').innerText = catCount || 0;
+        document.getElementById('dash-team-count').innerText = teamCount || 0;
+        
+        const publishRatio = `${publishedComps.length}/${compCount || 0}`;
+        const publishPercent = compCount ? Math.round((publishedComps.length / compCount) * 100) : 0;
+        
+        document.getElementById('dash-results-ratio').innerText = publishRatio;
+        document.getElementById('dash-results-percent').innerText = publishPercent;
+        
+        document.getElementById('pb-prog-val').innerText = `${enrolCount || 0}/${compCount || 0}`;
+        document.getElementById('pb-prog-fill').style.width = compCount ? `${Math.min(100, (enrolCount / compCount) * 100)}%` : '0%';
+        
+        const completedComps = allComps.filter(c => c.status === 'judgement_complete' || c.status === 'published').length;
+        document.getElementById('pb-gen-val').innerText = `${completedComps}/${compCount || 0}`;
+        document.getElementById('pb-gen-fill').style.width = compCount ? `${Math.round((completedComps / compCount) * 100)}%` : '0%';
+        
+        document.getElementById('pb-pub-val').innerText = `${publishedComps.length}/${compCount || 0}`;
+        document.getElementById('pb-pub-val-top').innerText = publishedComps.length;
+        document.getElementById('pb-pub-fill').style.width = `${publishPercent}%`;
+
+        // Calculate today's schedule
+        const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
+        const masterSchedule = schedData?.value || {};
+        const todayStr = new Date().toISOString().split('T')[0];
+        let todayCount = 0;
+        Object.values(masterSchedule).forEach(s => { if(s.date === todayStr) todayCount++; });
+        document.getElementById('dash-program-count-today').innerText = todayCount;
+
+        const stageListEl = document.getElementById('dash-live-stage-list');
+        document.getElementById('dash-live-stage-count').innerText = liveComps.length;
+        document.getElementById('dash-live-stage-count-2').innerText = liveComps.length;
+        
+        if (liveComps.length > 0) {
+            stageListEl.innerHTML = liveComps.map(c => `
+                <div class="live-stage-item">
+                    <div>
+                        <h4>${c.name}</h4>
+                        <p><i class="fa-solid fa-microphone-stage" style="color:var(--text-muted);"></i> ${c.stages?.name || 'TBD'} &nbsp;|&nbsp; <i class="fa-solid fa-folder" style="color:var(--text-muted);"></i> ${c.categories?.name || 'Gen'}</p>
+                    </div>
+                    <span class="live-badge-sm">Live</span>
+                </div>
+            `).join('');
+        } else {
+            stageListEl.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1rem;">No events running currently.</p>`;
+        }
+
+        await loadPointSettings(); 
+        const { data: teams } = await supabaseClient.from('teams').select('id, name');
+        const { data: judgements } = await supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark');
+        const { data: participants } = await supabaseClient.from('participants').select('id, name, team_id');
+        
+        const pMap = {};
+        (participants || []).forEach(p => pMap[p.id] = p);
+        
+        let compAverages = {}; 
+        (judgements || []).forEach(j => {
+           if(!compAverages[j.competition_id]) compAverages[j.competition_id] = {};
+           if(!compAverages[j.competition_id][j.participant_id]) compAverages[j.competition_id][j.participant_id] = { marks_array: [] };
+           compAverages[j.competition_id][j.participant_id].marks_array.push(parseFloat(j.awarded_mark));
+        });
+
+        let teamScores = {};
+        let partScores = {};
+        (teams || []).forEach(t => teamScores[t.id] = { name: t.name, score: 0 });
+        (participants || []).forEach(p => partScores[p.id] = { name: p.name, score: 0 });
+
+        allComps.forEach(comp => {
+            if(!compAverages[comp.id]) return;
+            const participantsArr = Object.entries(compAverages[comp.id]).map(([pId, data]) => {
+                let sortedMarks = data.marks_array.sort((a, b) => a - b);
+                if (sortedMarks.length >= 3) sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
+                const sum = sortedMarks.reduce((a, b) => a + b, 0);
+                return { id: pId, mark: sum / sortedMarks.length };
+            }).sort((a, b) => b.mark - a.mark);
+
+            let sizeCat = 'small';
+            let currentRank = 1;
+            let previousScore = -1;
+
+            participantsArr.forEach((p, index) => {
+                if (p.mark !== previousScore) currentRank = index + 1;
+                previousScore = p.mark;
+
+                let percent = (p.mark / 100) * 100;
+                let gradePts = 0; let posPts = 0;
+
+                if (percent >= 50) {
+                    if (percent >= pointsAdminSettings.thresholds.aplus) gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].aplus) || 0;
+                    else if (percent >= pointsAdminSettings.thresholds.a) gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].a) || 0;
+                    else if (percent >= pointsAdminSettings.thresholds.b) gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].b) || 0;
+                    else gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].c) || 0;
+                }
+                if (currentRank <= 3) {
+                    if (currentRank === 1) posPts = Number(pointsAdminSettings.pos_points.p1) || 0;
+                    else if (currentRank === 2) posPts = Number(pointsAdminSettings.pos_points.p2) || 0;
+                    else if (currentRank === 3) posPts = Number(pointsAdminSettings.pos_points.p3) || 0;
+                }
+                const totalPts = gradePts + posPts;
+                const tId = pMap[p.id] ? pMap[p.id].team_id : null;
+                
+                if (tId && teamScores[tId]) teamScores[tId].score += totalPts;
+                if (partScores[p.id]) partScores[p.id].score += totalPts;
+            });
+        });
+
+        const sortedTeams = Object.values(teamScores).sort((a, b) => b.score - a.score);
+        const sortedParts = Object.values(partScores).sort((a, b) => b.score - a.score).slice(0, 5);
+
+        if (sortedTeams.length > 0) {
+            document.getElementById('dash-top-team-name').innerText = sortedTeams[0].name;
+            document.getElementById('dash-top-team-pts').innerText = `${sortedTeams[0].score}`;
+        }
+
+        const candListEl = document.getElementById('dash-top-candidates');
+        if (sortedParts.length > 0 && sortedParts[0].score > 0) {
+            candListEl.innerHTML = sortedParts.map((c, i) => {
+                let rClass = i===0 ? 'r1' : i===1 ? 'r2' : i===2 ? 'r3' : 'other';
+                return `
+                <div class="top-cand-row">
+                    <div style="display: flex; align-items: center;">
+                        <div class="cand-rank ${rClass}">${i+1}</div>
+                        <span style="font-weight: 600; font-size: 0.9rem; text-transform: uppercase;">${c.name}</span>
+                    </div>
+                    <span style="font-weight: 700; color: var(--primary);">${c.score}</span>
+                </div>
+            `}).join('');
+        } else {
+            candListEl.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1rem;">No points awarded yet.</p>`;
+        }
+
+        renderDashCharts(sortedTeams);
+    } catch (error) { console.error("Dashboard Load Error:", error); }
+}
+
+function renderDashCharts(sortedTeams) {
+    if (dashRegChart) dashRegChart.destroy();
+    if (dashTeamChart) dashTeamChart.destroy();
+
+    // Line Chart
+    const ctxLine = document.getElementById('regDynamicChart').getContext('2d');
+    dashRegChart = new Chart(ctxLine, {
+        type: 'line',
+        data: {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [
+                { label: 'Registrations', data: [120, 150, 180, 90, 30, 10, 5], borderColor: '#EF4444', backgroundColor: 'transparent', fill: false, tension: 0.4 },
+                { label: 'Results', data: [0, 0, 10, 40, 100, 150, 200], borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    // Bar chart for Team Points
+    const ctxBar = document.getElementById('teamPointsChart').getContext('2d');
+    const teamLabels = sortedTeams.slice(0, 8).map(t => t.name.toUpperCase());
+    const teamData = sortedTeams.slice(0, 8).map(t => t.score);
+    const barColors = ['#EF4444', '#FCD34D', '#3B82F6', '#8B5CF6', '#10B981', '#F97316', '#14B8A6', '#F43F5E'];
+
+    dashTeamChart = new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+            labels: teamLabels,
+            datasets: [{
+                data: teamData,
+                backgroundColor: barColors,
+                borderRadius: 4,
+                barThickness: 20
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { 
+                y: { beginAtZero: true, grid: { borderDash: [2, 4] } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
 
 // Custom Logout Logic
 function logout() { document.getElementById('logoutModal').classList.add('show'); }
@@ -274,16 +507,7 @@ async function saveCategory() {
     }
 }
 
-async function deleteCategory(id) {
-    if(confirm("Delete this category? This might fail if competitions are linked to it.")) {
-        try {
-            const { error } = await supabaseClient.from('categories').delete().eq('id', id);
-            if(error) throw error;
-            showToast('Category deleted.');
-            loadCategories();
-        } catch(e) { showToast(e.message, 'error'); }
-    }
-}
+
 
 // --- NEW: Missing Categories Filter Function ---
 function filterCategoriesTable() {
@@ -645,26 +869,8 @@ const payload = { name, category_id, stage_id, max_mark, max_participants, is_gr
         setLoading('modalSaveBtn', false); 
     }
 }
-async function deleteCompetition(id) {
-    if(confirm("Delete this competition?")) {
-        try {
-            const { error } = await supabaseClient.from('competitions').delete().eq('id', id);
-            
-            if (error) {
-                // 23503 is the PostgreSQL error code for foreign key violations
-                if (error.code === '23503') {
-                    throw new Error('Cannot delete this competition because it has enrolled students or recorded marks. Remove them first.');
-                }
-                throw error;
-            }
-            
-            showToast('Competition deleted.');
-            loadCompetitions();
-        } catch(e) { 
-            showToast(e.message, 'error'); 
-        }
-    }
-}
+
+
 
 // --- STAGES & TEAMS MANAGEMENT ---
 // --- NEW FRONTEND CONFIRMATION LOGIC ---
@@ -1453,24 +1659,15 @@ async function saveParticipant() {
         setLoading('modalSaveBtn', false); 
     }
 }
-async function deleteParticipant(id) {
-    if(confirm("Are you sure you want to delete this participant?")) {
-        try {
-            const { error } = await supabaseClient.from('participants').delete().eq('id', id);
-            if(error) throw error;
-            showToast('Participant removed.');
-            loadParticipants();
-        } catch(e) { showToast(e.message, 'error'); }
-    }
-}
+
+
 
 // --- USER MANAGEMENT ---
 async function loadUsers() {
     try {
-        // Updated query to fetch the associated team name
         const { data, error } = await supabaseClient
             .from('users')
-            .select('id, username, role, password_hash, teams(name)')
+            .select('id, name, username, role, password_hash, teams(name)')
             .neq('role', 'master_admin')
             .order('role');
             
@@ -1481,14 +1678,12 @@ async function loadUsers() {
         
         (data || []).forEach(u => {
             const roleDisplay = u.role.replace('_', ' ').toUpperCase();
-            
-            // Generate a small team tag if the user belongs to a team
             const teamTag = u.teams?.name ? `<br><span style="font-size: 0.75rem; color: var(--primary); font-weight: 800; letter-spacing: 0.05em;">TEAM: ${u.teams.name.toUpperCase()}</span>` : '';
-            
             const safeData = JSON.stringify(u).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
 
             tbody.innerHTML += `
                 <tr>
+                    <td style="font-weight: 600;">${u.name || '-'}</td>
                     <td>
                         <strong style="font-size:1.05rem;">${u.username}</strong>
                         ${teamTag}
@@ -1509,7 +1704,7 @@ async function loadUsers() {
         });
     } catch(e) { showToast(e.message, 'error'); }
 }
-// New helper function to toggle password visibility
+
 function togglePassword(id) {
     const pwdInput = document.getElementById(`pwd-${id}`);
     const eyeIcon = document.getElementById(`eye-${id}`);
@@ -1526,6 +1721,7 @@ function togglePassword(id) {
 function openUserModal(editData = null) {
     const isEdit = !!editData;
     const uId = isEdit ? editData.id : '';
+    const uFullName = isEdit ? editData.name || '' : '';
     const uName = isEdit ? editData.username : '';
     const uPass = isEdit ? editData.password_hash : '';
     const uRole = isEdit ? editData.role : 'judge';
@@ -1533,6 +1729,7 @@ function openUserModal(editData = null) {
     openModal(isEdit ? 'Edit Staff Account' : 'Create Staff Account', `
         <input type="hidden" id="editUserId" value="${uId}">
         
+        <div class="form-group"><label>Full Name</label><input type="text" id="newFullName" value="${uFullName}" placeholder="e.g. John Doe" autocomplete="off"></div>
         <div class="form-group"><label>Username</label><input type="text" id="newUsername" value="${uName}" autocomplete="off"></div>
         
         <div class="form-group">
@@ -1551,16 +1748,17 @@ function openUserModal(editData = null) {
             </select>
         </div>
     `, async () => {
-      const id = document.getElementById('editUserId').value;
+        const id = document.getElementById('editUserId').value;
+        const name = document.getElementById('newFullName').value.trim();
         const username = document.getElementById('newUsername').value.trim();
         const password_hash = document.getElementById('newPassword').value.trim();
         const role = document.getElementById('newUserRole').value;
         
-        if (!username || !password_hash) return showToast('Username and Password required.', 'error');
+        if (!username || !password_hash || !name) return showToast('Name, Username, and Password are required.', 'error');
         
         setLoading('modalSaveBtn', true);
         
-        const payload = { username, password_hash, role };
+        const payload = { name, username, password_hash, role };
         if (id) payload.id = id;
         
         const { error } = await supabaseClient.from('users').upsert([payload]);
@@ -1577,8 +1775,47 @@ function openUserModal(editData = null) {
         }
     });
 }
+
+async function deleteCategory(id) {
+    openConfirmModal("Delete Category?", "This might fail if competitions are linked to it.", async () => {
+        try {
+            const { error } = await supabaseClient.from('categories').delete().eq('id', id);
+            if(error) throw error;
+            showToast('Category deleted.');
+            loadCategories();
+        } catch(e) { showToast(e.message, 'error'); }
+    });
+}
+
+async function deleteCompetition(id) {
+    openConfirmModal("Delete Competition?", "Are you sure you want to permanently delete this competition?", async () => {
+        try {
+            const { error } = await supabaseClient.from('competitions').delete().eq('id', id);
+            if (error) {
+                if (error.code === '23503') {
+                    throw new Error('Cannot delete this competition because it has enrolled students or recorded marks. Remove them first.');
+                }
+                throw error;
+            }
+            showToast('Competition deleted.');
+            loadCompetitions();
+        } catch(e) { showToast(e.message, 'error'); }
+    });
+}
+
+async function deleteParticipant(id) {
+    openConfirmModal("Delete Participant?", "Are you sure you want to delete this participant?", async () => {
+        try {
+            const { error } = await supabaseClient.from('participants').delete().eq('id', id);
+            if(error) throw error;
+            showToast('Participant removed.');
+            loadParticipants();
+        } catch(e) { showToast(e.message, 'error'); }
+    });
+}
+
 async function deleteUser(id, username) {
-    if (confirm(`Delete the user "${username}"? This cannot be undone.`)) {
+    openConfirmModal("Delete User?", `Delete the user "${username}"? This cannot be undone.`, async () => {
         try {
             const { error } = await supabaseClient.from('users').delete().eq('id', id);
             if (error) {
@@ -1589,7 +1826,7 @@ async function deleteUser(id, username) {
                 loadUsers();
             }
         } catch(e) { showToast(e.message, 'error'); }
-    }
+    });
 }
 
 // --- CSV BULK UPLOAD EXPORT (PapaParse) ---
@@ -1657,30 +1894,31 @@ async function handleBulkUpload(tableName, fileInputId) {
         }
     });
 }
+
 document.addEventListener("DOMContentLoaded", () => {
-    // Existing code: Show cross-portal menu for both Admin and Master Admin
     if (user && (user.role === 'master_admin' || user.role === 'admin')) {
         const portalMenu = document.getElementById('master-admin-portals');
         if (portalMenu) portalMenu.style.display = 'block';
+        
+        const dashGreeting = document.getElementById('dash-greeting');
+        if(dashGreeting) dashGreeting.innerHTML = `Good evening, <span style="color: #E11D48; font-weight: 800; text-transform: uppercase;">${user.username}</span>`;
     }
 
-    // ---> NEW CODE: Show Data Center ONLY for Master Admin <---
-    if (user && user.role === 'master_admin') {
+    if (user && user.role !== 'master_admin') {
+        const dataCenterTab = document.getElementById('nav-data-center');
+        if (dataCenterTab) dataCenterTab.style.display = 'none';
+    } else {
         const dataCenterTab = document.getElementById('nav-data-center');
         if (dataCenterTab) dataCenterTab.style.display = 'block';
     }
     
-    // Continue with the rest of your initialization...
-    loadCategories();
-    
-    // Check for cached branding and apply it immediately
     const cachedBranding = localStorage.getItem('festBranding');
-    if (cachedBranding) {
-        applyGlobalBranding(JSON.parse(cachedBranding));
-    }
+    if (cachedBranding) { applyGlobalBranding(JSON.parse(cachedBranding)); }
     
-    // Fetch latest branding from DB in the background
     fetchAndSyncBranding(); 
+    
+    // Automatically boot into the new dashboard
+    switchTab('dashboard');
 });
 
 async function fetchAndSyncBranding() {
@@ -1997,28 +2235,6 @@ function getSelectedIds(tbodyId) {
 
 // --- BULK ACTION LOGIC ---
 
-// 1. Bulk Delete (Universal)
-async function bulkDelete(tableName, tbodyId) {
-    const ids = getSelectedIds(tbodyId);
-    if(ids.length === 0) return showToast('No rows selected', 'error');
-    
-    if(confirm(`Are you sure you want to permanently delete ${ids.length} selected items?`)) {
-        try {
-            const { error } = await supabaseClient.from(tableName).delete().in('id', ids);
-            if (error) throw error;
-            
-            showToast(`Successfully deleted ${ids.length} items`);
-            
-           clearSelection(tbodyId);
-            
-            // Reload the respective tab
-            if(tableName === 'categories') loadCategories();
-            if(tableName === 'competitions') loadCompetitions();
-            if(tableName === 'participants') loadParticipants();
-            if(tableName === 'participant_competitions') loadAssignments();
-        } catch (e) { showToast(e.message, 'error'); }
-    }
-}
 
 async function openBulkAssignModal() {
     const ids = getSelectedIds('participants-tbody');
@@ -2363,7 +2579,42 @@ async function executeWorkspaceAssign() {
         setLoading('btnWorkspaceAssign', false);
     }
 }
-// Execute Bulk Removal (Edit capability)
+
+async function bulkDelete(tableName, tbodyId) {
+    const ids = getSelectedIds(tbodyId);
+    if(ids.length === 0) return showToast('No rows selected', 'error');
+    
+    openConfirmModal("Bulk Delete?", `Are you sure you want to permanently delete ${ids.length} selected items?`, async () => {
+        try {
+            const { error } = await supabaseClient.from(tableName).delete().in('id', ids);
+            if (error) throw error;
+            
+            showToast(`Successfully deleted ${ids.length} items`);
+            clearSelection(tbodyId);
+            
+            if(tableName === 'categories') loadCategories();
+            if(tableName === 'competitions') loadCompetitions();
+            if(tableName === 'participants') loadParticipants();
+            if(tableName === 'participant_competitions') loadAssignments();
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+}
+
+async function bulkRevokeTeam() {
+    const participantIds = getSelectedIds('participants-tbody');
+    if (participantIds.length === 0) return showToast('Select at least one participant.', 'error');
+    
+    openConfirmModal("Revoke Teams?", `Are you sure you want to remove ${participantIds.length} participants from their teams?`, async () => {
+        try {
+            const { error } = await supabaseClient.from('participants').update({ team_id: null }).in('id', participantIds);
+            if (error) throw error;
+            showToast('Teams revoked successfully.');
+            clearSelection('participants-tbody');
+            loadParticipants();
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+}
+
 async function executeWorkspaceRemove() {
     const compId = document.getElementById('assignWorkComp').value;
     const ids = getSelectedIds('assign-workspace-tbody');
@@ -2373,25 +2624,21 @@ async function executeWorkspaceRemove() {
     const assignedIds = ids.filter(id => currentEnrolledStudentIds.includes(id));
     if (assignedIds.length === 0) return showToast('None of the selected students are currently assigned.', 'error');
 
-    if(confirm(`Remove ${assignedIds.length} students from this competition?`)) {
+    openConfirmModal("Remove Students?", `Remove ${assignedIds.length} students from this competition?`, async () => {
         setLoading('btnWorkspaceRemove', true);
         try {
             const { error } = await supabaseClient.from('participant_competitions')
-                .delete()
-                .eq('competition_id', compId)
-                .in('participant_id', assignedIds);
-            
+                .delete().eq('competition_id', compId).in('participant_id', assignedIds);
             if (error) throw error;
+            
             showToast(`Removed ${assignedIds.length} students.`);
             document.querySelector('#assign-workspace-tbody').previousElementSibling.querySelector('input[type="checkbox"]').checked = false;
-            loadAssignWorkspaceStudents(); // Refresh Data
-        } catch (e) {
-            showToast(e.message, 'error');
-        } finally {
-            setLoading('btnWorkspaceRemove', false);
-        }
-    }
+            loadAssignWorkspaceStudents();
+        } catch (e) { showToast(e.message, 'error'); } 
+        finally { setLoading('btnWorkspaceRemove', false); }
+    });
 }
+
 // Export Full Assignment Data to CSV
 async function exportAssignmentsCSV() {
     try {
@@ -3045,20 +3292,7 @@ ${tpl.bg_base64 ? `<img src="${tpl.bg_base64}" loading="lazy" decoding="async" s
     });
 }
 
-async function deleteTemplate(index) {
-    if(!confirm("Permanently delete this template from the cloud?")) return;
-    
-    const templateId = savedTemplates[index].id;
-    
-    const { error } = await supabaseClient.from('templates').delete().eq('id', templateId);
-    
-    if (error) {
-        showToast("Error deleting template", "error");
-    } else {
-        showToast("Template Deleted.");
-        loadTemplatesList(); // Refresh from DB
-    }
-}
+
 
 function openTemplateStudio(template = null) {
     document.getElementById('template-library-view').style.display = 'none';
@@ -3315,17 +3549,6 @@ function addCustomTextLayer() {
     selectStudioLayer(key);
 }
 
-// UPDATED: Generic Delete function for both Custom Text and Uploaded Images
-function deleteStudioLayer(key) {
-    if (confirm("Delete this layer permanently?")) {
-        saveHistoryState();
-        delete studioActiveData.fields[key];
-        if (studioActiveField === key) studioActiveField = null;
-        renderLayersPanel();
-        renderPropertiesPanel();
-        drawStudioCanvas();
-    }
-}
 
 function renderPropertiesPanel() {
     const container = document.getElementById('studio-properties-panel');
@@ -3830,6 +4053,7 @@ function toggleDVRow(cb, pId) {
     }
 }
 
+
 async function submitDirectValuation() {
     const compId = document.getElementById('dvComp').value;
     if (!compId) return showToast('Select a competition first', 'error');
@@ -3861,34 +4085,38 @@ async function submitDirectValuation() {
         });
     }
     
-    if(!confirm(`Submit these marks directly and push the competition to the Fest Manager for publishing?`)) return;
-    
-    setLoading('btnSubmitDV', true);
-    
-    try {
-        // 1. Purge any existing marks to avoid duplication logic
-        await supabaseClient.from('judgements').delete().eq('competition_id', compId);
+    // Launch the premium confirmation modal
+    openConfirmModal("Submit Valuation?", "Submit these marks directly and push the competition to the Fest Manager for publishing?", async () => {
+        setLoading('btnSubmitDV', true);
         
-        // 2. Insert Final Marks
-        const { error: insertError } = await supabaseClient.from('judgements').insert(marksData);
-        if (insertError) throw insertError;
-        
-        // 3. Force Status to Judgement Complete so it appears in Fest Manager's "Publish Queue"
-        const { error: compError } = await supabaseClient.from('competitions').update({ status: 'judgement_complete' }).eq('id', compId);
-        if (compError) throw compError;
-        
-        showToast('Direct Valuation successfully submitted!', 'success');
-        
-        // Reset Workspace UI
-        document.getElementById('dvWorkspace').style.display = 'none';
-        document.getElementById('dvComp').value = '';
-        
-    } catch (e) {
-        showToast(e.message, 'error');
-    } finally {
-        setLoading('btnSubmitDV', false);
-    }
+        try {
+            // 1. Purge any existing marks to avoid duplication logic
+            await supabaseClient.from('judgements').delete().eq('competition_id', compId);
+            
+            // 2. Insert Final Marks
+            const { error: insertError } = await supabaseClient.from('judgements').insert(marksData);
+            if (insertError) throw insertError;
+            
+            // 3. Force Status to Judgement Complete so it appears in Fest Manager's "Publish Queue"
+            const { error: compError } = await supabaseClient.from('competitions').update({ status: 'judgement_complete' }).eq('id', compId);
+            if (compError) throw compError;
+            
+            showToast('Direct Valuation successfully submitted!', 'success');
+            
+            // Reset Workspace UI
+            document.getElementById('dvWorkspace').style.display = 'none';
+            document.getElementById('dvComp').value = '';
+            
+        } catch (e) {
+            showToast(e.message, 'error');
+        } finally {
+            setLoading('btnSubmitDV', false);
+        }
+    });
 }
+
+
+
 // --- MISSING EDIT FUNCTION FIX ---
 function editTemplate(index) {
     const templateToEdit = savedTemplates[index];
@@ -3935,25 +4163,7 @@ async function bulkAssignTeam() {
     } catch (e) { showToast(e.message, 'error'); }
 }
 
-// Revoke (Set team_id to NULL)
-async function bulkRevokeTeam() {
-    const participantIds = getSelectedIds('participants-tbody');
-    if (participantIds.length === 0) return showToast('Select at least one participant.', 'error');
-    
-    if (!confirm(`Are you sure you want to remove ${participantIds.length} participants from their teams?`)) return;
-    
-    try {
-        const { error } = await supabaseClient
-            .from('participants')
-            .update({ team_id: null })
-            .in('id', participantIds);
-            
-        if (error) throw error;
-        showToast('Teams revoked successfully.');
-        clearSelection('participants-tbody');
-        loadParticipants();
-    } catch (e) { showToast(e.message, 'error'); }
-}
+
 
 // --- BRANDING & UI ENGINE ---
 let pendingBrandingLogoBase64 = null;
@@ -5254,40 +5464,50 @@ async function executeZipImport() {
     }
 }
 
-// --- 3. TOTAL FACTORY RESET (DATABASE + STORAGE) ---
+
+async function resolveAppeal(ticketId, newStatus) {
+    openConfirmModal("Resolve Appeal?", `Mark this ticket as ${newStatus.toUpperCase()}?`, async () => {
+        try {
+            const { error } = await supabaseClient.from('appeals').update({ status: newStatus }).eq('id', ticketId);
+            if (error) throw error;
+            showToast(`Ticket ${newStatus}!`);
+            loadAdminAppeals();
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+}
+
+async function deleteAppeal(ticketId) {
+    openConfirmModal("Delete Appeal?", "Are you sure you want to permanently delete this appeal ticket? This action cannot be undone.", async () => {
+        try {
+            const { error } = await supabaseClient.from('appeals').delete().eq('id', ticketId);
+            if (error) throw error;
+            showToast("Appeal ticket deleted successfully.");
+            loadAdminAppeals();
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+}
+
 async function executeFactoryReset() {
-    if(!confirm("FINAL WARNING: This will permanently delete ALL tables, settings, photos, templates, and fonts. Type 'YES' to confirm.")) return;
-    
-    showToast("Initiating Total Factory Reset...", "warning");
-
-    try {
-        // 1. Delete Database Tables (Reverse order to avoid Foreign Key errors)
-        const reverseOrder = [...MASTER_TABLES].reverse();
-
-        for (const table of reverseOrder) {
-            await supabaseClient.from(table).delete().not('id', 'is', null);
-        }
-
-        // 2. Empty Storage Buckets
-        for (const bucket of STORAGE_BUCKETS) {
-            const { data: files } = await supabaseClient.storage.from(bucket).list();
-            
-            if (files && files.length > 0) {
-                // Get all file names except the hidden placeholder
-                const filePaths = files.map(f => f.name).filter(name => name !== '.emptyFolderPlaceholder');
-                
-                if (filePaths.length > 0) {
-                    await supabaseClient.storage.from(bucket).remove(filePaths);
+    openConfirmModal("Total Factory Reset?", "FINAL WARNING: This will permanently delete ALL tables, settings, photos, templates, and fonts. Proceed?", async () => {
+        showToast("Initiating Total Factory Reset...", "warning");
+        try {
+            const reverseOrder = [...MASTER_TABLES].reverse();
+            for (const table of reverseOrder) {
+                await supabaseClient.from(table).delete().not('id', 'is', null);
+            }
+            for (const bucket of STORAGE_BUCKETS) {
+                const { data: files } = await supabaseClient.storage.from(bucket).list();
+                if (files && files.length > 0) {
+                    const filePaths = files.map(f => f.name).filter(name => name !== '.emptyFolderPlaceholder');
+                    if (filePaths.length > 0) await supabaseClient.storage.from(bucket).remove(filePaths);
                 }
             }
+            showToast("System Reset Complete. Everything wiped. Reloading...", "success");
+            setTimeout(() => location.reload(), 2000);
+        } catch (err) {
+            showToast("Failed to complete full reset.", "error");
         }
-
-        showToast("System Reset Complete. Everything wiped. Reloading...", "success");
-        setTimeout(() => location.reload(), 2000);
-    } catch (err) {
-        console.error("Reset Error:", err);
-        showToast("Failed to complete full reset.", "error");
-    }
+    });
 }
 
 async function loadAdminAppeals() {
@@ -5334,28 +5554,10 @@ async function loadAdminAppeals() {
     } catch (e) { showToast(e.message, 'error'); }
 }
 
-async function resolveAppeal(ticketId, newStatus) {
-    if(!confirm(`Mark this ticket as ${newStatus.toUpperCase()}?`)) return;
-    try {
-        const { error } = await supabaseClient.from('appeals').update({ status: newStatus }).eq('id', ticketId);
-        if (error) throw error;
-        showToast(`Ticket ${newStatus}!`);
-        loadAdminAppeals();
-    } catch (e) { showToast(e.message, 'error'); }
-}
-async function deleteAppeal(ticketId) {
-    if (!confirm("Are you sure you want to permanently delete this appeal ticket? This action cannot be undone.")) return;
-    
-    try {
-        const { error } = await supabaseClient.from('appeals').delete().eq('id', ticketId);
-        if (error) throw error;
-        
-        showToast("Appeal ticket deleted successfully.");
-        loadAdminAppeals(); // Refresh the list to remove the deleted row
-    } catch (e) {
-        showToast(e.message, 'error');
-    }
-}
+
+
+
+
 
 // ==========================================
 // ADMIN CERTIFICATE GENERATION ENGINE
@@ -6067,11 +6269,49 @@ async function toggleCustomSlide(index, isEnabled) {
     await saveDisplaySettings(true); // silent sync
 }
 
-async function deleteCustomSlide(index) {
-    if(!confirm("Remove this custom slide permanently?")) return;
-    globalCustomSlides.splice(index, 1);
-    await saveDisplaySettings(false);
+async function deleteTemplate(index) {
+    openConfirmModal("Delete Template?", "Permanently delete this template from the cloud?", async () => {
+        const templateId = savedTemplates[index].id;
+        const { error } = await supabaseClient.from('templates').delete().eq('id', templateId);
+        if (error) {
+            showToast("Error deleting template", "error");
+        } else {
+            showToast("Template Deleted.");
+            loadTemplatesList();
+        }
+    });
 }
+
+function deleteStudioLayer(key) {
+    openConfirmModal("Delete Layer?", "Delete this layer permanently?", () => {
+        saveHistoryState();
+        delete studioActiveData.fields[key];
+        if (studioActiveField === key) studioActiveField = null;
+        renderLayersPanel();
+        renderPropertiesPanel();
+        drawStudioCanvas();
+    });
+}
+
+async function deleteSchedule(compId) {
+    openConfirmModal("Remove Schedule?", "Remove this event from the schedule?", async () => {
+        delete masterSchedule[compId];
+        try {
+            const { error } = await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+            if (error) throw error;
+            showToast(`Schedule deleted.`);
+            filterScheduleTable();
+        } catch(e) { showToast(e.message, 'error'); }
+    });
+}
+
+async function deleteCustomSlide(index) {
+    openConfirmModal("Delete Slide?", "Remove this custom slide permanently?", async () => {
+        globalCustomSlides.splice(index, 1);
+        await saveDisplaySettings(false);
+    });
+}
+
 
 async function triggerManualConfetti() {
     try {
@@ -6381,16 +6621,7 @@ async function toggleScheduleStatus(compId, newStatus) {
     } catch(e) { showToast(e.message, 'error'); }
 }
 
-async function deleteSchedule(compId) {
-    if(!confirm("Remove this event from the schedule?")) return;
-    delete masterSchedule[compId];
-    try {
-        const { error } = await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
-        if (error) throw error;
-        showToast(`Schedule deleted.`);
-        filterScheduleTable();
-    } catch(e) { showToast(e.message, 'error'); }
-}
+
 
 async function exportSchedulePDF() {
     showToast('Generating Schedule PDF...', 'success');
@@ -6751,5 +6982,508 @@ async function exportVacancyPDF() {
         html2pdf().set(opt).from(container).save().then(() => showToast('Vacancy PDF Exported!'));
     } catch (e) {
         showToast(e.message, 'error');
+    }
+}
+
+// ==========================================
+// JUDGE MANAGEMENT ENGINE
+// ==========================================
+let globalJudgesList = [];
+
+async function loadJudgesManagement() {
+    try {
+        // 1. Fetch all users with the role of 'judge'
+        const { data: judges, error: judgesErr } = await supabaseClient
+            .from('users')
+            .select('id, username')
+            .eq('role', 'judge')
+            .order('username');
+        
+        if (judgesErr) throw judgesErr;
+        globalJudgesList = judges || [];
+
+        // 2. Fetch assignments (judgements) to see what events they are linked to
+        const { data: assignments, error: assignErr } = await supabaseClient
+            .from('judgements')
+            .select('judge_id, competition_id, competitions(name, categories(name), stages(name))');
+        
+        if (assignErr) throw assignErr;
+
+        // 3. Group and deduplicate assignments per judge 
+        // (Since judgements might have multiple rows per comp if marks are saved)
+        globalJudgesList.forEach(judge => {
+            const judgeAssigns = assignments.filter(a => a.judge_id === judge.id);
+            const uniqueCompsMap = new Map();
+            
+            judgeAssigns.forEach(a => {
+                if (a.competitions && !uniqueCompsMap.has(a.competition_id)) {
+                    uniqueCompsMap.set(a.competition_id, a.competitions);
+                }
+            });
+            
+            judge.assignments = Array.from(uniqueCompsMap.entries()).map(([id, comp]) => ({ id, ...comp }));
+        });
+
+        renderJudgesTable();
+    } catch (error) {
+        showToast("Error loading judges: " + error.message, 'error');
+    }
+}
+
+function renderJudgesTable() {
+    const tbody = document.getElementById('judges-tbody');
+    const searchVal = (document.getElementById('searchJudgeInput')?.value || '').toLowerCase();
+    tbody.innerHTML = '';
+
+    const filtered = globalJudgesList.filter(j => j.username.toLowerCase().includes(searchVal));
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 2rem;">No judges found matching your search.</td></tr>`;
+        return;
+    }
+
+    filtered.forEach(judge => {
+        const assignCount = judge.assignments.length;
+        const countBadge = assignCount > 0 
+            ? `<span class="badge badge-primary">${assignCount} Events</span>` 
+            : `<span class="badge" style="background: var(--bg-main); color: var(--text-muted); border: 1px solid var(--border);">Unassigned</span>`;
+
+        const safeData = JSON.stringify(judge).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+
+        tbody.innerHTML += `
+            <tr>
+                <td style="font-weight: 700; font-size: 1.05rem;">
+                    <i class="fa-solid fa-gavel" style="color: var(--primary); margin-right: 0.5rem;"></i> ${judge.username}
+                </td>
+                <td>${countBadge}</td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; border-color: var(--primary); color: var(--primary);" onclick="viewJudgeDetails('${judge.id}')" ${assignCount === 0 ? 'disabled' : ''} title="View Schedule">
+                            <i class="fa-solid fa-calendar-days"></i>
+                        </button>
+                        <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; color: var(--danger); border-color: var(--danger);" onclick="exportSpecificJudgePDF('${judge.id}')" ${assignCount === 0 ? 'disabled' : ''} title="Download Schedule PDF">
+                            <i class="fa-solid fa-file-pdf"></i>
+                        </button>
+                        <button class="btn btn-outline" style="padding: 0.4rem 0.75rem;" onclick="openAssignJudgeEvents('${judge.id}')" title="Assign Events">
+                            <i class="fa-solid fa-list-check"></i>
+                        </button>
+                        <button class="btn btn-outline" style="padding: 0.4rem 0.75rem;" onclick='openJudgeModal(${safeData})' title="Edit Judge">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button class="btn btn-danger" style="padding: 0.4rem 0.75rem;" onclick="deleteJudge('${judge.id}', '${judge.username}')" title="Delete Judge">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+
+// --- CRUD: CREATE & EDIT JUDGE ---
+async function openJudgeModal(editData = null) {
+    let uId = ''; let uFullName = ''; let uName = ''; let uPass = '';
+    
+    if (editData) {
+        uId = editData.id;
+        uName = editData.username;
+        // Fetch existing name and password hash so we can pre-fill it
+        const {data} = await supabaseClient.from('users').select('name, password_hash').eq('id', uId).single();
+        if(data) {
+            uFullName = data.name || '';
+            uPass = data.password_hash;
+        }
+    }
+    
+    openModal(editData ? 'Edit Judge Profile' : 'Register New Judge', `
+        <input type="hidden" id="editJudgeId" value="${uId}">
+        <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="newJudgeFullName" value="${uFullName}" placeholder="e.g. John Doe" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label>Judge Username</label>
+            <input type="text" id="newJudgeName" value="${uName}" placeholder="e.g. stage1_judge" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label>Login Password</label>
+            <input type="text" id="newJudgePass" value="${uPass}" placeholder="Enter password" autocomplete="off" style="text-transform: none !important;">
+        </div>
+    `, async () => {
+        const id = document.getElementById('editJudgeId').value;
+        const name = document.getElementById('newJudgeFullName').value.trim();
+        const username = document.getElementById('newJudgeName').value.trim();
+        const password_hash = document.getElementById('newJudgePass').value.trim();
+        
+        if (!username || !password_hash || !name) return showToast('Name, Username, and Password are required.', 'error');
+        setLoading('modalSaveBtn', true);
+        
+        const payload = { name, username, password_hash, role: 'judge' };
+        if (id) payload.id = id;
+        
+        const { error } = await supabaseClient.from('users').upsert([payload]);
+        setLoading('modalSaveBtn', false);
+        
+        if (error) {
+            if (error.code === '23505') showToast('Username already taken.', 'error'); 
+            else showToast(error.message, 'error');
+        } else { 
+            showToast(id ? 'Judge profile updated!' : 'New Judge registered!'); 
+            closeModal(); 
+            loadJudgesManagement(); 
+        }
+    });
+}
+
+async function deleteJudge(id, username) {
+    openConfirmModal("Delete Judge?", `Are you sure you want to permanently delete Judge "${username}"?`, async () => {
+        try {
+            const { error } = await supabaseClient.from('users').delete().eq('id', id);
+            if (error) {
+                if (error.code === '23503') showToast(`Cannot delete ${username} as they have already submitted marks.`, 'error');
+                else throw error;
+            } else {
+                showToast(`Judge ${username} deleted.`);
+                loadJudgesManagement();
+            }
+        } catch(e) { showToast(e.message, 'error'); }
+    });
+}
+// --- ASSIGNMENT WORKFLOW WITH FILTERING ---
+let modalAssignComps = [];
+let modalAssignedIds = [];
+
+async function openAssignJudgeEvents(judgeId) {
+    const judge = globalJudgesList.find(j => j.id === judgeId);
+    if (!judge) return;
+    
+    document.getElementById('assign-judge-title').innerText = `Assign Events: ${judge.username}`;
+    document.getElementById('target-assign-judge-id').value = judgeId;
+    
+    const listContainer = document.getElementById('assign-judge-list');
+    listContainer.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Fetching events...</div>';
+    document.getElementById('assignJudgeEventsModal').classList.add('show');
+    
+    try {
+        const { data: comps, error } = await supabaseClient
+            .from('competitions')
+            .select('id, name, categories(name)')
+            .order('name');
+            
+        if (error) throw error;
+
+        modalAssignComps = comps || [];
+        modalAssignedIds = judge.assignments.map(a => a.id);
+        
+        // Populate category filter
+        const uniqueCats = [...new Set(modalAssignComps.map(c => c.categories?.name || 'General'))].sort();
+        const catSelect = document.getElementById('filterAssignJudgeCat');
+        catSelect.innerHTML = '<option value="">All Categories</option>';
+        uniqueCats.forEach(cat => catSelect.innerHTML += `<option value="${cat}">${cat}</option>`);
+        
+        document.getElementById('searchAssignJudgeComp').value = '';
+        
+        renderJudgeAssignList();
+
+    } catch (e) {
+        listContainer.innerHTML = `<p style="color:var(--danger); text-align:center;">Failed to load competitions.</p>`;
+    }
+}
+
+function renderJudgeAssignList() {
+    const search = document.getElementById('searchAssignJudgeComp').value.toLowerCase();
+    const catFilter = document.getElementById('filterAssignJudgeCat').value;
+    const listContainer = document.getElementById('assign-judge-list');
+    
+    let html = '';
+    const filteredComps = modalAssignComps.filter(c => {
+        const catName = c.categories?.name || 'General';
+        const matchSearch = c.name.toLowerCase().includes(search);
+        const matchCat = catFilter === '' || catName === catFilter;
+        return matchSearch && matchCat;
+    });
+    
+    if (filteredComps.length === 0) {
+        html = `<p style="text-align:center; color:var(--text-muted); padding: 1rem;">No competitions match your filters.</p>`;
+    } else {
+        filteredComps.forEach(c => {
+            const isChecked = modalAssignedIds.includes(c.id) ? 'checked' : '';
+            html += `
+                <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem; border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; transition: 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                    <input type="checkbox" class="judge-assign-cb" value="${c.id}" ${isChecked} onchange="updateModalAssignedIds(this)" style="width: 18px; height: 18px; accent-color: var(--primary);">
+                    <div>
+                        <strong style="display: block; font-size: 0.95rem;">${c.name}</strong>
+                        <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">${c.categories?.name || 'General'}</span>
+                    </div>
+                </label>
+            `;
+        });
+    }
+    listContainer.innerHTML = html;
+}
+
+function filterJudgeAssignList() {
+    renderJudgeAssignList();
+}
+
+function updateModalAssignedIds(cb) {
+    if (cb.checked) {
+        if (!modalAssignedIds.includes(cb.value)) modalAssignedIds.push(cb.value);
+    } else {
+        modalAssignedIds = modalAssignedIds.filter(id => id !== cb.value);
+    }
+}
+
+async function saveJudgeAssignments() {
+    const judgeId = document.getElementById('target-assign-judge-id').value;
+    const selectedCompIds = modalAssignedIds; // Fetch from memory, not DOM, because filters hide DOM checkboxes
+    
+    const btn = document.getElementById('btn-save-judge-assign');
+    const originalText = btn.innerHTML;
+    btn.disabled = true; 
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    
+    try {
+        // Remove old generic assignments for this judge (where no marks have been awarded yet)
+        await supabaseClient.from('judgements')
+            .delete()
+            .eq('judge_id', judgeId)
+            .is('participant_id', null);
+        
+        // Insert new selected assignments
+        if(selectedCompIds.length > 0) {
+            const inserts = selectedCompIds.map(compId => ({ competition_id: compId, judge_id: judgeId }));
+            await supabaseClient.from('judgements').insert(inserts);
+        }
+        
+        showToast('Judge assignments updated successfully!');
+        document.getElementById('assignJudgeEventsModal').classList.remove('show');
+        loadJudgesManagement(); // Refresh table and data
+        
+    } catch(e) {
+        showToast("Error updating assignments: " + e.message, 'error');
+    } finally {
+        btn.disabled = false; 
+        btn.innerHTML = originalText;
+    }
+}
+
+async function exportSpecificJudgePDF(judgeId) {
+    const judge = globalJudgesList.find(j => j.id === judgeId);
+    if (!judge) return;
+    
+    showToast(`Generating PDF for ${judge.username}...`, 'success');
+    
+    const container = document.createElement('div');
+    container.style.padding = '40px';
+    container.style.fontFamily = 'Inter, sans-serif';
+    container.innerHTML = getPDFHeaderHTML(`Judge Schedule: ${judge.username}`);
+
+    // Fetch Master Schedule dynamically to get live timing data
+    const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
+    const masterSchedule = schedData?.value || {};
+
+    let tableRows = '';
+    
+    if (judge.assignments.length === 0) {
+        tableRows = `<tr><td colspan="5" style="padding: 10px; text-align: center; color: #64748B;">No events currently assigned.</td></tr>`;
+    } else {
+        // Merge assignments with schedule data
+        const scheduledAssignments = judge.assignments.map(comp => {
+            const sched = masterSchedule[comp.id] || { date: 'TBD', time: '--:--' };
+            return { ...comp, sched };
+        });
+
+        // Sort chronologically by Date, then Time
+        scheduledAssignments.sort((a, b) => {
+            if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
+            return a.sched.time.localeCompare(b.sched.time);
+        });
+
+        tableRows = scheduledAssignments.map((comp, i) => {
+            const timeStr = comp.sched.date !== 'TBD' 
+                ? `<span style="font-weight: 700;">${comp.sched.date}</span><br><span style="color: #64748B; font-size: 10px;">${comp.sched.time}</span>` 
+                : `<span style="color: #D97706; font-weight: 600;">Unscheduled</span>`;
+
+            return `
+            <tr style="border-bottom: 1px solid #E2E8F0;">
+                <td style="padding: 8px 10px; font-size: 11px;">${i + 1}</td>
+                <td style="padding: 8px 10px; font-size: 11px; color: #0F172A;">${timeStr}</td>
+                <td style="padding: 8px 10px; font-size: 11px; font-weight: 600; color: #0F172A;">${comp.name}</td>
+                <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.categories?.name || 'General'}</td>
+                <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.stages?.name || 'Unassigned'}</td>
+            </tr>
+        `}).join('');
+    }
+
+    container.innerHTML += `
+        <div style="margin-bottom: 25px;">
+            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
+                <thead>
+                    <tr style="background: #F8FAFC; text-align: left; font-size: 10px; color: #64748B; border-bottom: 1px solid #E2E8F0; text-transform: uppercase;">
+                        <th style="padding: 8px 10px; width: 40px;">#</th>
+                        <th style="padding: 8px 10px;">DATE & TIME</th>
+                        <th style="padding: 8px 10px;">COMPETITION NAME</th>
+                        <th style="padding: 8px 10px;">CATEGORY</th>
+                        <th style="padding: 8px 10px;">STAGE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    const opt = { 
+        margin: 10, 
+        filename: `Judge_Schedule_${judge.username}.pdf`, 
+        image: { type: 'jpeg', quality: 0.98 }, 
+        html2canvas: { scale: 2, useCORS: true }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    };
+    
+    html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+}
+
+// --- PREMIUM PDF EXPORT (ALL JUDGES) ---
+async function exportJudgesPDF() {
+    if (globalJudgesList.length === 0) return showToast('No judges found to export.', 'error');
+    showToast('Generating Judge Roster PDF...', 'success');
+    
+    // Fetch Master Schedule dynamically to get live timing data
+    const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
+    const masterSchedule = schedData?.value || {};
+
+    const container = document.createElement('div');
+    container.style.padding = '40px';
+    container.style.fontFamily = 'Inter, sans-serif';
+    container.innerHTML = getPDFHeaderHTML('Master Judge & Allocation Roster');
+
+    globalJudgesList.forEach((judge, index) => {
+        let tableRows = '';
+        
+        if (judge.assignments.length === 0) {
+            tableRows = `<tr><td colspan="5" style="padding: 10px; text-align: center; color: #64748B;">No events currently assigned to this judge.</td></tr>`;
+        } else {
+            // Merge assignments with schedule data
+            const scheduledAssignments = judge.assignments.map(comp => {
+                const sched = masterSchedule[comp.id] || { date: 'TBD', time: '--:--' };
+                return { ...comp, sched };
+            });
+
+            // Sort chronologically by Date, then Time
+            scheduledAssignments.sort((a, b) => {
+                if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
+                return a.sched.time.localeCompare(b.sched.time);
+            });
+
+            tableRows = scheduledAssignments.map((comp, i) => {
+                const timeStr = comp.sched.date !== 'TBD' 
+                    ? `<span style="font-weight: 700;">${comp.sched.date}</span><br><span style="color: #64748B; font-size: 10px;">${comp.sched.time}</span>` 
+                    : `<span style="color: #D97706; font-weight: 600;">Unscheduled</span>`;
+
+                return `
+                <tr style="border-bottom: 1px solid #E2E8F0;">
+                    <td style="padding: 8px 10px; font-size: 11px;">${i + 1}</td>
+                    <td style="padding: 8px 10px; font-size: 11px; color: #0F172A;">${timeStr}</td>
+                    <td style="padding: 8px 10px; font-size: 11px; font-weight: 600; color: #0F172A;">${comp.name}</td>
+                    <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.categories?.name || 'General'}</td>
+                    <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.stages?.name || 'Unassigned'}</td>
+                </tr>
+            `}).join('');
+        }
+
+        container.innerHTML += `
+            <div style="margin-bottom: 25px; page-break-inside: avoid;">
+                <div style="background: #1E293B; color: white; padding: 10px 12px; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 13px; font-weight: 700; text-transform: uppercase;">
+                        JUDGE: ${judge.username}
+                    </h3>
+                    <span style="font-size: 10px; color: #94A3B8; font-weight: 600;">${judge.assignments.length} ASSIGNMENTS</span>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; border-top: none;">
+                    <thead>
+                        <tr style="background: #F8FAFC; text-align: left; font-size: 10px; color: #64748B; border-bottom: 1px solid #E2E8F0; text-transform: uppercase;">
+                            <th style="padding: 8px 10px; width: 40px;">#</th>
+                            <th style="padding: 8px 10px;">DATE & TIME</th>
+                            <th style="padding: 8px 10px;">COMPETITION NAME</th>
+                            <th style="padding: 8px 10px;">CATEGORY</th>
+                            <th style="padding: 8px 10px;">STAGE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    });
+
+    const opt = { 
+        margin: 10, 
+        filename: `FestOS_Judge_Roster.pdf`, 
+        image: { type: 'jpeg', quality: 0.98 }, 
+        html2canvas: { scale: 2, useCORS: true }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    };
+    
+    html2pdf().set(opt).from(container).save().then(() => showToast('Roster PDF Exported!'));
+}
+
+function filterJudgesTable() {
+    renderJudgesTable();
+}
+
+async function viewJudgeDetails(judgeId) {
+    const judge = globalJudgesList.find(j => j.id === judgeId);
+    if (!judge) return;
+
+    document.getElementById('jd-modal-title').innerText = `Schedule: ${judge.username}`;
+    const tbody = document.getElementById('jd-modal-tbody');
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Loading schedule...</td></tr>`;
+    document.getElementById('judgeDetailsModal').classList.add('show');
+
+    try {
+        // Fetch Master Schedule dynamically to get live timing data
+        const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
+        const masterSchedule = schedData?.value || {};
+
+        tbody.innerHTML = '';
+
+        if (judge.assignments.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">No events assigned to this judge.</td></tr>`;
+            return;
+        }
+
+        // Merge assignments with schedule data
+        const scheduledAssignments = judge.assignments.map(comp => {
+            const sched = masterSchedule[comp.id] || { date: 'TBD', time: '--:--' };
+            return { ...comp, sched };
+        });
+
+        // Sort chronologically by Date, then Time
+        scheduledAssignments.sort((a, b) => {
+            if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
+            return a.sched.time.localeCompare(b.sched.time);
+        });
+
+        scheduledAssignments.forEach(comp => {
+            const timeStr = comp.sched.date !== 'TBD' 
+                ? `<span style="color: var(--primary); font-weight: 700;">${comp.sched.date}</span><br><span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">${comp.sched.time}</span>` 
+                : `<span style="color: var(--warning); font-weight: 600; font-size: 0.8rem;">Unscheduled</span>`;
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td style="white-space: nowrap;">${timeStr}</td>
+                    <td style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">${comp.name}</td>
+                    <td><span class="badge" style="background: var(--bg-main); border: 1px solid var(--border); color: var(--text-muted);">${comp.categories?.name || 'General'}</span></td>
+                    <td><span style="font-weight: 500;"><i class="fa-solid fa-microphone-stage" style="color: var(--primary); margin-right: 4px;"></i> ${comp.stages?.name || 'Unassigned'}</span></td>
+                </tr>
+            `;
+        });
+    } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--danger); padding: 2rem;">Error loading schedule synchronization.</td></tr>`;
     }
 }

@@ -322,6 +322,16 @@ input, .mark-input { text-transform: uppercase; }
     #toast-container { left: auto; width: 350px; }
     .btn { width: auto; }
 }
+
+
+.feedback-input {
+    width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); 
+    border: 1px solid var(--border); font-size: 0.85rem; font-weight: 500; 
+    outline: none; background: var(--bg-main); color: var(--text-main); 
+    resize: vertical; transition: var(--transition); margin-top: 1rem;
+}
+.feedback-input:focus { border-color: var(--primary); background: var(--bg-surface); box-shadow: 0 0 0 3px var(--primary-ring); }
+
     </style>
 </head>
 <body>

@@ -237,29 +237,32 @@ async function openEvaluation(compId) {
         }
 
         container.innerHTML += `
-            <div class="participant-row" data-pid="${reg.participant_id}">
-                <div class="participant-info">
-                    <div class="code-letter">
-                        ${reg.code_letter || '?'}
+            <div class="participant-row" data-pid="${reg.participant_id}" style="flex-direction: column; align-items: stretch;">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 1rem;">
+                    <div class="participant-info">
+                        <div class="code-letter">
+                            ${reg.code_letter || '?'}
+                        </div>
+                        <div style="display: flex; flex-direction: column; justify-content: center;">
+                            <span style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Participant</span>
+                            <span style="font-weight: 700; font-size: 1.15rem; color: var(--text-main); margin-top: -2px;">${reg.code_letter ? 'Code ' + reg.code_letter : 'Unknown'}</span>
+                            ${roleBadge ? `<div style="margin-top: 4px;">${roleBadge}</div>` : ''}
+                        </div>
                     </div>
-                    <div style="display: flex; flex-direction: column; justify-content: center;">
-                        <span style="color: var(--text-muted); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Participant</span>
-                        <span style="font-weight: 800; font-size: 1.15rem; color: var(--text-main); margin-top: -2px;">${reg.code_letter ? 'Code ' + reg.code_letter : 'Unknown'}</span>
-                        ${roleBadge ? `<div style="margin-top: 4px;">${roleBadge}</div>` : ''}
+                    <div class="mark-wrapper">
+                        <input type="number" 
+                               class="mark-input" 
+                               placeholder="00.0" 
+                               min="0" 
+                               max="${currentMaxMark}" 
+                               step="0.5" 
+                               inputmode="decimal"
+                               oninput="validateMark(this, ${currentMaxMark})">
+                        <div class="max-mark-divider"></div>
+                        <span class="max-mark-label">${currentMaxMark}</span>
                     </div>
                 </div>
-                <div class="mark-wrapper">
-                    <input type="number" 
-                           class="mark-input" 
-                           placeholder="00.0" 
-                           min="0" 
-                           max="${currentMaxMark}" 
-                           step="0.5" 
-                           inputmode="decimal"
-                           oninput="validateMark(this, ${currentMaxMark})">
-                    <div class="max-mark-divider"></div>
-                    <span class="max-mark-label">${currentMaxMark}</span>
-                </div>
+                <textarea class="feedback-input" rows="2" placeholder="ADD CONSTRUCTIVE FEEDBACK (OPTIONAL)..."></textarea>
             </div>
         `;
     });
@@ -282,6 +285,7 @@ async function submitJudgement() {
     rows.forEach(row => {
         const pId = row.getAttribute('data-pid');
         const markInput = row.querySelector('.mark-input').value;
+        const feedbackInput = row.querySelector('.feedback-input').value.trim();
         
         if (markInput === '') {
             isValid = false;
@@ -294,7 +298,8 @@ async function submitJudgement() {
             competition_id: currentCompId,
             judge_id: user.id,
             participant_id: pId,
-            awarded_mark: parseFloat(markInput)
+            awarded_mark: parseFloat(markInput),
+            feedback: feedbackInput || null
         });
     });
 
