@@ -17,10 +17,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
@@ -173,18 +170,157 @@ tr:hover td { background: var(--bg-main); }
 .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.4); z-index: 30; opacity: 0; transition: opacity 0.4s; }
 .menu-toggle { display: none; background: transparent; border: none; font-size: 1.5rem; color: var(--text-main); cursor: pointer; }
 
+/* --- WEBSITE BUILDER UI --- */
+.builder-layout {
+    display: flex;
+    gap: 2rem;
+    height: calc(100vh - 180px);
+    margin-top: 1rem;
+}
+.builder-sidebar {
+    width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+.builder-nav-item {
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    color: var(--text-main);
+    font-weight: 500;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: var(--transition);
+}
+.builder-nav-item i {
+    width: 20px;
+    text-align: center;
+    font-size: 1.1rem;
+    color: var(--text-muted);
+}
+.builder-nav-item:hover {
+    background: var(--bg-main);
+}
+.builder-nav-item.active {
+    background: var(--danger-light);
+    color: var(--danger);
+    font-weight: 600;
+}
+.builder-nav-item.active i {
+    color: var(--danger);
+}
+.builder-main {
+    flex: 1;
+    background: var(--bg-surface);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.builder-preview-area {
+    padding: 2rem;
+    display: flex;
+    gap: 1.5rem;
+    background: #F8FAFC;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+}
+.mock-device {
+    background: linear-gradient(135deg, #E2E8F0 0%, #94A3B8 100%);
+    border-radius: var(--radius-lg);
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    border: 4px solid #F1F5F9;
+}
+.mock-desktop {
+    width: 600px;
+    aspect-ratio: 16/10;
+}
+.mock-mobile {
+    width: 260px;
+    aspect-ratio: 9/16;
+}
+.mock-header {
+    background: white;
+    padding: 0.5rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.mock-nav-pill {
+    background: white;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+.builder-controls-footer {
+    padding: 1.5rem 2rem;
+    background: white;
+    border-top: 1px solid var(--border);
+}
+.builder-controls-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+}
+
 @media (max-width: 768px) {
+    /* Base Body & Layout */
     body { background-color: #F3F4F6; } 
-    .sidebar { position: fixed; height: 100%; transform: translateX(-100%); width: 280px; border-radius: 0 24px 24px 0; border: none; box-shadow: var(--shadow-lg); }
+    
+    /* Off-Canvas Sidebar */
+    .sidebar { 
+        position: fixed; 
+        height: 100%; 
+        transform: translateX(-100%); 
+        width: 280px; 
+        border-radius: 0 24px 24px 0; 
+        border: none; 
+        box-shadow: var(--shadow-lg); 
+    }
     .sidebar.open { transform: translateX(0); }
     .mobile-overlay.open { display: block; opacity: 1; }
     .menu-toggle { display: block; }
     
-    .header { padding: 1rem 1.25rem; border-bottom: none; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); position: sticky; top: 0; z-index: 25; box-shadow: var(--shadow-sm); flex-wrap: nowrap; }
+    /* Sticky Glassmorphic Header */
+    .header { 
+        padding: 1rem 1.25rem; 
+        border-bottom: none; 
+        background: rgba(255, 255, 255, 0.9); 
+        backdrop-filter: blur(16px); 
+        position: sticky; top: 0; z-index: 25; 
+        box-shadow: var(--shadow-sm); 
+        flex-wrap: nowrap; 
+    }
     .header h1 { font-size: 1.15rem; }
-    .header .btn-outline { border: none; background: var(--bg-main); border-radius: 50%; width: 40px; height: 40px; padding: 0; font-size: 0; min-height: 40px; flex-shrink: 0; }
+    .header .btn-outline { 
+        border: none; background: var(--bg-main); border-radius: 50%; 
+        width: 40px; height: 40px; padding: 0; font-size: 0; 
+        min-height: 40px; flex-shrink: 0; 
+    }
     .header .btn-outline i { font-size: 1.1rem; margin: 0; color: var(--danger); }
     
+    /* Content & Controls Reflow */
     .content-section { padding: 1.25rem 1rem; }
     .action-bar { flex-direction: column; align-items: stretch; gap: 0.75rem; margin-bottom: 1rem; }
     .action-bar .btn { width: 100%; min-height: 48px; }
@@ -194,28 +330,49 @@ tr:hover td { background: var(--bg-main); }
     .search-box, .filter-box, .controls-bar input, .controls-bar select { width: 100%; min-width: 100%; min-height: 48px; }
     .controls-bar > div:last-child { width: 100%; display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
     
+    /* Bottom-Sheet Style Modals */
     .modal-overlay { align-items: flex-end; padding: 0; background: rgba(0, 0, 0, 0.5); }
-    .modal { padding: 2rem 1.5rem; border-radius: 24px 24px 0 0; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); max-height: 85vh; padding-bottom: 3rem; }
+    .modal { 
+        padding: 2rem 1.5rem; border-radius: 24px 24px 0 0; 
+        transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); 
+        max-height: 85vh; padding-bottom: 3rem; 
+    }
     .modal-overlay.show .modal { transform: translateY(0); }
     .modal-footer { flex-direction: column; gap: 0.75rem; }
     .modal-footer .btn { width: 100%; min-height: 48px; margin: 0; }
     
     .grid-2 { grid-template-columns: 1fr; gap: 1.25rem; }
 
+    /* Data Table to Card Conversion */
     .table-container { background: transparent; border: none; box-shadow: none; overflow: visible; }
     table, thead, tbody, th, td, tr { display: block; }
     thead { display: none; }
     
-    tbody tr { background: white; border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; box-shadow: var(--shadow-sm); border: 1px solid var(--border); position: relative; }
-    td { display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 0; border-bottom: 1px solid var(--bg-main); text-align: right; font-size: 0.9rem; }
-    td:last-child { border-bottom: none; padding-bottom: 0; padding-top: 1.25rem; margin-top: 0.5rem; border-top: 1px dashed var(--border); justify-content: center; }
+    tbody tr { 
+        background: white; border-radius: var(--radius-lg); padding: 1.25rem; 
+        margin-bottom: 1rem; box-shadow: var(--shadow-sm); border: 1px solid var(--border); 
+        position: relative; 
+    }
+    td { 
+        display: flex; justify-content: space-between; align-items: center; 
+        padding: 0.65rem 0; border-bottom: 1px solid var(--bg-main); text-align: right; font-size: 0.9rem; 
+    }
+    td:last-child { 
+        border-bottom: none; padding-bottom: 0; padding-top: 1.25rem; margin-top: 0.5rem; 
+        border-top: 1px dashed var(--border); justify-content: center; 
+    }
     
+    /* Floating Checkboxes */
     .checkbox-cell { position: absolute; top: 1.25rem; left: 1.25rem; padding: 0; border: none; width: auto; }
     .checkbox-cell input { width: 20px; height: 20px; }
     
+    /* Card Primary Title (2nd Column) */
     td:nth-child(2) { padding-left: 2.5rem; font-size: 1.05rem; font-weight: 600; color: var(--primary); justify-content: flex-start; border-bottom: none; padding-top: 0; }
     td:nth-child(2)::before { display: none !important; }
 
+    /* CSS Content Pseudo-Labels for Card Data */
+    td:not(.checkbox-cell)::before { font-weight: 500; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; text-align: left; }
+    
     #categories-tbody td:nth-of-type(3)::before { content: "Type"; }
     #categories-tbody td:nth-of-type(4)::before { content: "Students"; }
     #categories-tbody td:nth-of-type(5)::before { content: "Comps"; }
@@ -242,21 +399,252 @@ tr:hover td { background: var(--bg-main); }
     #assign-workspace-tbody td:nth-of-type(5)::before { content: "Batch"; }
     #assign-workspace-tbody td:nth-of-type(6)::before { content: "Status"; }
 
-    td:not(.checkbox-cell)::before { font-weight: 500; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; text-align: left; }
-    
+    /* Mobile Action Buttons Grid */
     td:last-child div { display: grid !important; grid-template-columns: 1fr 1fr; gap: 0.75rem; width: 100%; }
     td:last-child div button { width: 100%; justify-content: center; min-height: 44px; border-radius: var(--radius-md); }
     #participants-tbody td:last-child div { grid-template-columns: 1fr 1fr; }
-}
+    
+    /* Website Builder Mobile Reflow */
+    .builder-layout { flex-direction: column; height: auto; }
+    .builder-sidebar { width: 100%; flex-direction: row; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+    .builder-preview-area { flex-direction: column; }
+    .mock-desktop { width: 100%; }
 
-#toast-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.75rem; max-width: 400px; width: calc(100% - 4rem); pointer-events: none; }
+    /* Toast Notification Positioning */
+    #toast-container { bottom: 1rem; right: 1rem; width: calc(100% - 2rem); }
+}
 .toast { background: var(--bg-surface); border: 1px solid var(--border); padding: 1.15rem 1.5rem; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 1rem; font-size: 0.95rem; font-weight: 500; color: var(--text-main); animation: slideInToast 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; pointer-events: auto; }
 .toast.success { border-left: 4px solid var(--success); }
 .toast.error { border-left: 4px solid var(--danger); }
 @keyframes slideInToast { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fadeOut { to { opacity: 0; transform: scale(0.95); } }
 @media (max-width: 768px) { #toast-container { bottom: 1rem; right: 1rem; width: calc(100% - 2rem); } }
-    </style>
+   
+   
+   
+   /* --- BUILDER PANES --- */
+.builder-content-pane {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    height: 100%;
+    overflow-y: auto;
+    background: var(--bg-surface);
+}
+.builder-content-pane.active {
+    display: flex;
+    animation: fadeUp 0.3s ease forwards;
+}
+.builder-pane-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.builder-pane-body {
+    padding: 2rem;
+    flex: 1;
+}
+.builder-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    background: #FAFAFA;
+}
+.builder-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    margin-bottom: 0.5rem;
+    background: white;
+}
+   
+
+
+/* --- Website Builder Specific UI --- */
+.builder-upload-box {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    padding: 2rem;
+    text-align: center;
+    background: #FAFAFA;
+    transition: var(--transition);
+    cursor: pointer;
+    margin-bottom: 1rem;
+}
+.builder-upload-box:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+.builder-upload-box i {
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+.builder-upload-box span {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+.builder-upload-box small {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+/* Custom Builder Toggles (Red active state as per screenshot) */
+.builder-toggle {
+    position: relative; display: inline-block; width: 44px; height: 24px;
+}
+.builder-toggle input { opacity: 0; width: 0; height: 0; }
+.builder-toggle-slider {
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #E5E7EB; transition: .3s; border-radius: 34px;
+}
+.builder-toggle-slider:before {
+    position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+    background-color: white; transition: .3s; border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.builder-toggle input:checked + .builder-toggle-slider { background-color: #EF4444; }
+.builder-toggle input:checked + .builder-toggle-slider:before { transform: translateX(20px); }
+
+/* Color Palette Circles */
+.color-picker-wrapper {
+    display: flex; flex-direction: column; gap: 0.5rem; align-items: center;
+}
+.color-circle-btn {
+    width: 32px; height: 32px; border-radius: 50%; border: 2px solid transparent;
+    cursor: pointer; transition: 0.2s; padding: 2px;
+}
+.color-circle-btn.active { border-color: var(--primary); }
+.color-circle-inner { width: 100%; height: 100%; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); }
+
+/* Empty States */
+.empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 4rem 2rem; text-align: center;
+}
+.empty-state-icon {
+    width: 80px; height: 80px; background: #FEF2F2; border-radius: 20px;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;
+    box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.1);
+}
+.empty-state-icon i { font-size: 2.5rem; color: #EF4444; }
+.empty-state h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
+.empty-state p { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem; }
+
+/* Subdomain Input */
+.subdomain-input-group {
+    display: flex; align-items: stretch; width: 100%; max-width: 500px;
+}
+.subdomain-input-group input {
+    border-radius: var(--radius-md) 0 0 var(--radius-md); border-right: none; text-transform: lowercase !important;
+}
+.subdomain-input-group .domain-suffix {
+    background: var(--bg-main); border: 1px solid var(--border); padding: 0 1.25rem;
+    display: flex; align-items: center; font-weight: 600; color: var(--text-muted);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+
+
+.mockup-container {
+    position: relative;
+    width: 100%;
+    max-width: 850px;
+    margin: 0 auto;
+    padding: 2rem 2rem 4rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.mockup-desktop {
+    width: 80%;
+    aspect-ratio: 16/10;
+    background: #FFFFFF;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.mockup-desktop-header {
+    background: #F8FAFC;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+}
+
+.mockup-dots {
+    display: flex; gap: 6px;
+}
+
+.mockup-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+}
+
+.mockup-url-bar {
+    background: white;
+    flex: 1;
+    margin: 0 20px;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    padding: 4px 0;
+    border: 1px solid var(--border);
+}
+
+.mockup-mobile {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 26%;
+    min-width: 220px;
+    aspect-ratio: 9/19;
+    background: white;
+    border-radius: 30px;
+    box-shadow: -15px 15px 40px rgba(0,0,0,0.15);
+    border: 10px solid #1E293B; /* Dark bezel */
+    overflow: hidden;
+    z-index: 10;
+}
+
+.mockup-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #F9FAFB;
+}
+
+.builder-controls-footer {
+    padding: 1.5rem 2rem;
+    background: white;
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+}
+
+.builder-controls-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+   
+   </style>
 </head>
 <body>
 
@@ -317,6 +705,7 @@ tr:hover td { background: var(--bg-main); }
             <div class="nav-sub">
                 <div class="nav-item" onclick="switchTab('branding-settings')">Branding & UI</div>
                 <div class="nav-item" onclick="switchTab('poster-templates')">Poster Templates</div>
+                <div class="nav-item" onclick="switchTab('website-builder')">Website Customizer</div>
             </div>
         </div>
 
@@ -371,6 +760,472 @@ tr:hover td { background: var(--bg-main); }
             <button class="btn btn-outline" onclick="logout()" style="flex-shrink: 0;"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
         </div>
 
+        <!-- NEW WEBSITE BUILDER TAB -->
+        <div id="website-builder" class="content-section">
+            <div class="action-bar" style="margin-bottom: 0;">
+    <div>
+        <h2 style="font-size: 1.6rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem;">Website Customizer</h2>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Manage the public-facing pages, domains, and visibility.</p>
+    </div>
+</div>
+
+<div class="builder-layout">
+    <!-- Sidebar Menu -->
+    <div class="builder-sidebar">
+        <div class="builder-nav-item active" onclick="switchBuilderTab('overview', this)"><i class="fa-solid fa-globe"></i> Overview</div>
+        <div class="builder-nav-item" onclick="switchBuilderTab('analytics', this)"><i class="fa-solid fa-chart-simple"></i> Analytics</div>
+        <div class="builder-nav-item" onclick="switchBuilderTab('domains', this)"><i class="fa-solid fa-link"></i> Domains</div>
+        <div class="builder-nav-item" onclick="switchBuilderTab('pages', this)"><i class="fa-solid fa-bars"></i> Pages</div>
+        <div class="builder-nav-item" onclick="switchBuilderTab('visibility', this)"><i class="fa-solid fa-lock"></i> Visibility</div>
+        <div class="builder-nav-item" onclick="switchBuilderTab('theme', this)"><i class="fa-solid fa-palette"></i> Theme Customizer</div>
+        <div class="builder-nav-item" onclick="switchBuilderTab('gallery', this)"><i class="fa-regular fa-image"></i> Gallery</div>
+        <div class="builder-nav-item" onclick="switchBuilderTab('downloads', this)"><i class="fa-solid fa-download"></i> Downloads</div>
+        <div class="builder-nav-item" onclick="switchBuilderTab('news', this)"><i class="fa-regular fa-newspaper"></i> News</div>
+    </div>
+
+    <div class="builder-main">
+    <div id="builder-pane-overview" class="builder-content-pane active" style="padding: 0; background: white;">
+    <!-- Header -->
+    <div class="builder-pane-header" style="border-bottom: 1px solid var(--border);">
+        <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main);">
+            <i class="fa-solid fa-desktop" style="color: var(--primary);"></i> Live Device Preview
+        </h3>
+        <button class="btn btn-outline" onclick="document.getElementById('preview-desktop-frame').src += ''; document.getElementById('preview-mobile-frame').src += '';" style="font-size: 0.85rem; padding: 0.4rem 1rem; min-height: auto; width: auto; border-radius: var(--radius-md);">
+            <i class="fa-solid fa-rotate-right"></i> Refresh
+        </button>
+    </div>
+    
+    <!-- Preview Area[cite: 11] -->
+    <div class="builder-pane-body" style="background: #F8FAFC; display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; flex: 1;">
+        <div class="mockup-container">
+            <!-- Desktop Mockup -->
+            <div class="mockup-desktop">
+                <div class="mockup-desktop-header">
+                    <div class="mockup-dots">
+                        <span class="mockup-dot" style="background: #EF4444;"></span>
+                        <span class="mockup-dot" style="background: #F59E0B;"></span>
+                        <span class="mockup-dot" style="background: #10B981;"></span>
+                    </div>
+                    <div class="mockup-url-bar" id="overview-url-display-desk">hi.festos.app</div>
+                </div>
+                <!-- Points to your live results page -->
+                <iframe id="preview-desktop-frame" src="results.html?preview=true" class="mockup-iframe"></iframe>
+            </div>
+
+            <!-- Mobile Mockup Overlapping -->
+            <div class="mockup-mobile">
+                <iframe id="preview-mobile-frame" src="results.html?preview=true" class="mockup-iframe"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Controls[cite: 12] -->
+    <div class="builder-controls-footer">
+        <!-- Password Row -->
+        <div class="builder-controls-row" style="border-bottom: 1px solid var(--border); padding-bottom: 1.25rem; margin-bottom: 1.25rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--text-main); font-weight: 500; font-size: 0.95rem;">
+                <i class="fa-solid fa-lock" style="color: #EF4444;"></i> Password protected
+                <label class="builder-toggle" style="margin-bottom: 0;">
+                    <input type="checkbox" id="site-password-toggle">
+                    <span class="builder-toggle-slider"></span>
+                </label>
+            </div>
+            <button class="btn btn-outline" style="border-radius: 50px; font-size: 0.85rem; padding: 0.4rem 1.25rem; min-height: auto; width: auto; font-weight: 600;">Edit password</button>
+        </div>
+
+        <!-- Theme & Actions Row -->
+        <div class="builder-controls-row">
+            <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                <div style="font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.6rem; font-size: 1rem;">
+                    Theme 1 
+                    <span style="background: #FEE2E2; color: #EF4444; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 50px; font-weight: 700;">Current theme</span>
+                </div>
+                <div style="color: var(--text-main); font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem;">
+                    <i class="fa-solid fa-globe" style="color: var(--text-muted);"></i> <span id="overview-url-display-footer">eee.festie.app</span>
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-outline" style="border-radius: 50px; font-size: 0.85rem; padding: 0.5rem 1.25rem; min-height: auto; width: auto; font-weight: 600;" onclick="window.open('results.html', '_blank')">View website</button>
+                <button class="btn" style="background: #EF4444; color: white; border: none; border-radius: 50px; font-size: 0.85rem; padding: 0.5rem 1.25rem; min-height: auto; width: auto; box-shadow: 0 4px 10px rgba(239,68,68,0.2);">Launch</button>
+                <button class="btn btn-outline" style="border-radius: 50%; width: 36px; height: 36px; padding: 0; min-height: auto; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-ellipsis"></i></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- PANE: ANALYTICS -->
+    <div id="builder-pane-analytics" class="builder-content-pane">
+        <div class="builder-pane-header">
+            <h3 style="font-size: 1.25rem; font-weight: 700;"><i class="fa-solid fa-chart-simple" style="color: var(--primary);"></i> Professional Analytics</h3>
+            <select style="padding: 0.5rem; border-radius: var(--radius-md); border: 1px solid var(--border); outline: none;"><option>Last 7 Days</option><option>Last 30 Days</option></select>
+        </div>
+        <div class="builder-pane-body">
+            <div class="grid-2">
+                <div class="builder-card" style="text-align: center; background: white;">
+                    <p style="color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total Unique Visitors</p>
+                    <h2 style="font-size: 2.5rem; color: var(--text-main); margin-top: 0.5rem;" id="stat-visitors">12,482</h2>
+                    <p style="color: var(--success); font-size: 0.8rem; font-weight: 600; margin-top: 0.5rem;"><i class="fa-solid fa-arrow-trend-up"></i> +14.5% vs last week</p>
+                </div>
+                <div class="builder-card" style="text-align: center; background: white;">
+                    <p style="color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total Page Views</p>
+                    <h2 style="font-size: 2.5rem; color: var(--primary); margin-top: 0.5rem;" id="stat-pageviews">45,092</h2>
+                    <p style="color: var(--success); font-size: 0.8rem; font-weight: 600; margin-top: 0.5rem;"><i class="fa-solid fa-arrow-trend-up"></i> +22.1% vs last week</p>
+                </div>
+            </div>
+            <div class="builder-card" style="background: white; padding: 1.5rem; height: 350px;">
+                <canvas id="websiteAnalyticsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANE: DOMAINS -->
+    <div id="builder-pane-domains" class="builder-content-pane">
+        <div class="builder-pane-header">
+            <h3 style="font-size: 1.25rem; font-weight: 700;"><i class="fa-solid fa-link" style="color: var(--primary);"></i> Domain Management</h3>
+            <button class="btn btn-primary" onclick="saveDomainConfig()"><i class="fa-solid fa-floppy-disk"></i> Save Domain</button>
+        </div>
+        <div class="builder-pane-body">
+            <div class="builder-card" style="background: white;">
+                <h4 style="margin-bottom: 0.5rem; font-weight: 600;">Custom Subdomain</h4>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">Choose a unique subdomain for your festival under our primary domain.</p>
+                
+                <div class="form-group">
+                    <label>Subdomain Prefix</label>
+                    <div class="subdomain-input-group">
+                        <input type="text" id="web-subdomain" placeholder="e.g. mycollegefest" style="flex: 1;">
+                        <div class="domain-suffix">.festos.app</div>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--success); margin-top: 0.5rem; font-weight: 600; display: none;" id="subdomain-status"><i class="fa-solid fa-check-circle"></i> Subdomain is available and active!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANE: PAGES MANAGEMENT (Based on Screenshot 162752 & 162803) -->
+    <div id="builder-pane-pages" class="builder-content-pane">
+        <div class="builder-pane-header">
+            <div>
+                <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-solid fa-arrow-left" style="font-size: 0.9rem; color: var(--text-muted); cursor: pointer;"></i> Home</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Main landing page content, hero images, about media, and selected gallery images.</p>
+            </div>
+            <button class="btn btn-danger" style="background: #FCA5A5; color: #991B1B; border: none; width: auto;" onclick="savePageConfig()">Save Changes</button>
+        </div>
+        <div class="builder-pane-body">
+            <!-- Homepage Counts -->
+            <div class="builder-card" style="background: white;">
+                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">Homepage Counts</h4>
+                <div class="grid-2">
+                    <div class="form-group"><label>Programs count</label><input type="text" id="pg-prog-count" value="250+"></div>
+                    <div class="form-group"><label>Participants count</label><input type="text" id="pg-part-count" value="1.2K+"></div>
+                    <div class="form-group"><label>Teams count</label><input type="text" id="pg-team-count" value="40+"></div>
+                    <div class="form-group"><label>Venues count</label><input type="text" id="pg-venue-count" value="6"></div>
+                </div>
+            </div>
+
+            <!-- Hero Images -->
+            <div class="builder-card" style="background: white;">
+                <h4 style="margin-bottom: 0.25rem; font-weight: 700; font-size: 0.9rem;">Hero Images</h4>
+                <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1rem;">Use separate images so the landing page fits desktop and mobile layouts cleanly.</p>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="font-size: 0.85rem; font-weight: 600;"><i class="fa-solid fa-desktop" style="margin-right: 5px;"></i> Desktop hero images</span>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Approx. 1440 x 900 px, landscape.</span>
+                    </div>
+                    <div class="builder-upload-box" onclick="document.getElementById('upload-hero-desk').click()">
+                        <i class="fa-solid fa-display"></i>
+                        <span>Select file</span>
+                        <small>Browse from file library or upload new</small>
+                        <input type="file" id="upload-hero-desk" style="display: none;">
+                    </div>
+                </div>
+
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="font-size: 0.85rem; font-weight: 600;"><i class="fa-solid fa-mobile-screen" style="margin-right: 5px;"></i> Mobile hero images</span>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Approx. 390 x 700 px, portrait.</span>
+                    </div>
+                    <div class="builder-upload-box" onclick="document.getElementById('upload-hero-mob').click()">
+                        <i class="fa-solid fa-mobile-screen"></i>
+                        <span>Select file</span>
+                        <small>Browse from file library or upload new</small>
+                        <input type="file" id="upload-hero-mob" style="display: none;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- About Content -->
+            <div class="builder-card" style="background: white;">
+                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">About Content</h4>
+                <div class="grid-2">
+                    <div class="form-group"><label>About title</label><input type="text" id="pg-about-title"></div>
+                    <div class="form-group"><label>About subtitle</label><input type="text" id="pg-about-sub"></div>
+                </div>
+                <div class="form-group"><label>Content title</label><input type="text" id="pg-content-title"></div>
+                <div class="form-group"><label>Content description</label><textarea id="pg-content-desc" rows="4" style="width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.75rem; outline: none; text-transform: none !important;"></textarea></div>
+                <div class="form-group">
+                    <label>About image</label>
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: #F9FAFB;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div style="width: 32px; height: 32px; background: white; border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="fa-regular fa-file"></i></div>
+                            <div>
+                                <div style="font-size: 0.8rem; font-weight: 600;">Selected file</div>
+                                <div style="font-size: 0.7rem; color: var(--text-muted);">No file selected</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline" style="min-height: 32px; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.8rem;" onclick="document.getElementById('upload-about-img').click()">Choose</button>
+                        <input type="file" id="upload-about-img" style="display: none;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact -->
+            <div class="builder-card" style="background: white;">
+                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">Contact</h4>
+                <div class="grid-2">
+                    <div class="form-group"><label>Contact title</label><input type="text" id="pg-contact-title"></div>
+                    <div class="form-group"><label>Email</label><input type="text" id="pg-contact-email" style="text-transform: none !important;"></div>
+                    <div class="form-group"><label>Phone</label><input type="text" id="pg-contact-phone"></div>
+                    <div class="form-group"><label>WhatsApp</label><input type="text" id="pg-contact-wa"></div>
+                    <div class="form-group"><label>Instagram</label><input type="text" id="pg-contact-ig" style="text-transform: none !important;"></div>
+                    <div class="form-group"><label>Facebook</label><input type="text" id="pg-contact-fb" style="text-transform: none !important;"></div>
+                    <div class="form-group"><label>YouTube</label><input type="text" id="pg-contact-yt" style="text-transform: none !important;"></div>
+                    <div class="form-group"><label>Website</label><input type="text" id="pg-contact-web" style="text-transform: none !important;"></div>
+                </div>
+                <div class="form-group"><label>Address</label><textarea id="pg-contact-address" rows="3" style="width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.75rem; outline: none; text-transform: none !important;"></textarea></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANE: VISIBILITY (Based on Screenshot 162920) -->
+    <div id="builder-pane-visibility" class="builder-content-pane">
+        <div class="builder-pane-header">
+            <h3 style="font-size: 1.25rem; font-weight: 700;"><i class="fa-solid fa-lock" style="color: var(--primary);"></i> Visibility Settings</h3>
+            <button class="btn btn-danger" style="background: #FCA5A5; color: #991B1B; border: none; width: auto;" onclick="saveVisibilityConfig()">Save Changes</button>
+        </div>
+        <div class="builder-pane-body">
+            <!-- Page Visibility -->
+            <div class="builder-card" style="background: white;">
+                <h4 style="margin-bottom: 0.25rem; font-weight: 700; font-size: 0.9rem;">Page Visibility</h4>
+                <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1.5rem;">Choose which sections are visible on the public website.</p>
+                <div class="grid-2">
+                    ${['Schedules', 'Results', 'Downloads', 'Gallery', 'News', 'Wall', 'My Result'].map(item => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                            <span style="font-weight: 600; font-size: 0.9rem;">${item}</span>
+                            <label class="builder-toggle"><input type="checkbox" id="vis-page-${item.toLowerCase().replace(' ', '')}" checked><span class="builder-toggle-slider"></span></label>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Navbar Visibility -->
+            <div class="builder-card" style="background: white;">
+                <h4 style="margin-bottom: 1.5rem; font-weight: 700; font-size: 0.9rem;">Navbar Visibility</h4>
+                <div class="grid-2">
+                    ${['Schedules', 'Results', 'Downloads', 'Gallery', 'News', 'Wall', 'My Result'].map(item => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                            <span style="font-weight: 600; font-size: 0.9rem;">${item}</span>
+                            <label class="builder-toggle"><input type="checkbox" id="vis-nav-${item.toLowerCase().replace(' ', '')}" checked><span class="builder-toggle-slider"></span></label>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Footer Visibility -->
+            <div class="builder-card" style="background: white;">
+                <h4 style="margin-bottom: 1.5rem; font-weight: 700; font-size: 0.9rem;">Footer Visibility</h4>
+                <div class="grid-2">
+                    ${['Schedules', 'Results', 'Downloads', 'Gallery', 'News', 'Wall', 'My Result'].map(item => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                            <span style="font-weight: 600; font-size: 0.9rem;">${item}</span>
+                            <label class="builder-toggle"><input type="checkbox" id="vis-foot-${item.toLowerCase().replace(' ', '')}" checked><span class="builder-toggle-slider"></span></label>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANE: THEME CUSTOMIZER (Based on Screenshot 163023) -->
+    <div id="builder-pane-theme" class="builder-content-pane">
+        <div class="builder-pane-header">
+            <h3 style="font-size: 1.25rem; font-weight: 700;"><i class="fa-solid fa-palette" style="color: var(--primary);"></i> Theme Customizer</h3>
+            <button class="btn btn-danger" style="background: #FCA5A5; color: #991B1B; border: none; width: auto;" onclick="saveThemeConfig()">Save Changes</button>
+        </div>
+        <div class="builder-pane-body">
+            <div class="builder-card" style="background: white;">
+                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">Live Theme Preview</h4>
+                <div style="background: #F1F5F9; border-radius: var(--radius-md); padding: 1rem; height: 300px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; margin-bottom: 1.5rem;">
+                    <!-- Mock Navbar inside preview -->
+                    <div style="position: absolute; top: 10px; background: white; padding: 0.5rem 1.5rem; border-radius: 8px; box-shadow: var(--shadow-sm); display: flex; gap: 1rem; align-items: center;">
+                        <span style="font-weight: 800; color: #EF4444;"><i class="fa-solid fa-layer-group"></i> FESTIE</span>
+                        <span style="background: #EF4444; color: white; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;"><i class="fa-solid fa-house"></i> Home</span>
+                        <span style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted);"><i class="fa-regular fa-calendar"></i> Schedules</span>
+                        <span style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted);"><i class="fa-solid fa-trophy"></i> Results</span>
+                    </div>
+                    <i class="fa-regular fa-image" style="font-size: 4rem; color: #CBD5E1;"></i>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h4 style="font-weight: 700; font-size: 0.9rem;">Color Palette</h4>
+                    <button class="btn btn-outline" style="border: none; font-size: 0.8rem; color: var(--text-muted); padding: 0;"><i class="fa-solid fa-rotate-right"></i> Reset to defaults</button>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
+                    <!-- Primary Colors -->
+                    <div>
+                        <label style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.5rem;">Primary</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <div class="color-circle-btn active" style="border-color: #EF4444;"><div class="color-circle-inner" style="background: #EF4444;"></div></div>
+                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #FFFFFF;"></div></div>
+                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #3B82F6;"></div></div>
+                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #10B981;"></div></div>
+                        </div>
+                    </div>
+                    <!-- Secondary Colors -->
+                    <div>
+                        <label style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.5rem;">Secondary</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #1F2937;"></div></div>
+                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #FFFFFF;"></div></div>
+                            <div class="color-circle-btn active" style="border-color: #3B82F6;"><div class="color-circle-inner" style="background: #3B82F6;"></div></div>
+                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #10B981;"></div></div>
+                        </div>
+                    </div>
+                    <!-- Accent Colors -->
+                    <div>
+                        <label style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.5rem;">Accent</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <div class="color-circle-btn active" style="border-color: #F59E0B;"><div class="color-circle-inner" style="background: #1F2937;"></div></div>
+                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #FFFFFF;"></div></div>
+                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #3B82F6;"></div></div>
+                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #EF4444;"></div></div>
+                        </div>
+                    </div>
+                    <!-- Background Colors -->
+                    <div>
+                        <label style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.5rem;">Background</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #1F2937;"></div></div>
+                            <div class="color-circle-btn active" style="border-color: #EF4444;"><div class="color-circle-inner" style="background: #FFFFFF;"></div></div>
+                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #3B82F6;"></div></div>
+                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #10B981;"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="builder-card" style="background: white;">
+                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">Branding & Media</h4>
+                <div class="grid-2" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="form-group">
+                        <label>Header logo</label>
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: #F9FAFB;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;"><div style="width: 32px; height: 32px; background: white; border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="fa-regular fa-file"></i></div><div><div style="font-size: 0.8rem; font-weight: 600;">Selected file</div><div style="font-size: 0.7rem; color: var(--text-muted);">No file selected</div></div></div>
+                            <button class="btn btn-outline" style="min-height: 32px; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.8rem;">Choose</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Footer logo</label>
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: #F9FAFB;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;"><div style="width: 32px; height: 32px; background: white; border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="fa-regular fa-file"></i></div><div><div style="font-size: 0.8rem; font-weight: 600;">Selected file</div><div style="font-size: 0.7rem; color: var(--text-muted);">No file selected</div></div></div>
+                            <button class="btn btn-outline" style="min-height: 32px; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.8rem;">Choose</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>OG Image (Social preview)</label>
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: #F9FAFB;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;"><div style="width: 32px; height: 32px; background: white; border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="fa-regular fa-file"></i></div><div><div style="font-size: 0.8rem; font-weight: 600;">Selected file</div><div style="font-size: 0.7rem; color: var(--text-muted);">No file selected</div></div></div>
+                            <button class="btn btn-outline" style="min-height: 32px; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.8rem;">Choose</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="builder-card" style="background: white;">
+                <h4 style="margin-bottom: 0.25rem; font-weight: 700; font-size: 0.9rem;">Launch Settings</h4>
+                <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1rem;">Configure branding and assets for the festival launch screen (/launch)</p>
+                <div class="form-group" style="max-width: 300px;">
+                    <label>Launching logo</label>
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: #F9FAFB;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;"><div style="width: 32px; height: 32px; background: white; border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="fa-regular fa-file"></i></div><div><div style="font-size: 0.8rem; font-weight: 600;">Selected file</div><div style="font-size: 0.7rem; color: var(--text-muted);">No file selected</div></div></div>
+                        <button class="btn btn-outline" style="min-height: 32px; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.8rem;">Choose</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANE: GALLERY (Empty State) -->
+    <div id="builder-pane-gallery" class="builder-content-pane">
+        <div class="builder-pane-header">
+            <div>
+                <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-regular fa-images" style="color: #EF4444;"></i> Global Gallery <i class="fa-regular fa-circle-question" style="font-size: 0.9rem; color: var(--text-muted);"></i></h3>
+            </div>
+            <button class="btn btn-danger" style="background: #EF4444; border: none; width: auto;"><i class="fa-regular fa-folder-open"></i> New Album</button>
+        </div>
+        <div class="builder-pane-body" style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); margin: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 2rem;">
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-danger" style="background: #EF4444; border: none; padding: 0.4rem 1.5rem; border-radius: 50px; font-size: 0.8rem;">ALL</button>
+                    <button class="btn btn-outline" style="padding: 0.4rem 1.5rem; border-radius: 50px; font-size: 0.8rem; border: none; background: #F3F4F6;">PUBLIC</button>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; border-radius: 50px; font-size: 0.9rem; border: none; background: #F3F4F6;"><i class="fa-solid fa-magnifying-glass"></i></button>
+                    <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; border-radius: 50px; font-size: 0.9rem; border: none; background: #F3F4F6;"><i class="fa-solid fa-sliders"></i></button>
+                    <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; border-radius: 50px; font-size: 0.9rem; border: none; background: #F3F4F6;"><i class="fa-solid fa-arrow-down-a-z"></i></button>
+                </div>
+            </div>
+            <div class="empty-state">
+                <div class="empty-state-icon"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23EF4444' width='40' height='40'><path d='M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.96-2.36L6.5 17h11l-3.54-4.71z'/></svg>" /></div>
+                <h3>No albums yet</h3>
+                <p>Create your first album to start organizing gallery images.</p>
+                <button class="btn btn-danger" style="background: #EF4444; width: auto; border: none;">New Album</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANE: DOWNLOADS (Empty State) -->
+    <div id="builder-pane-downloads" class="builder-content-pane">
+        <div class="builder-pane-header">
+            <div>
+                <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-solid fa-file-arrow-down" style="color: #EF4444;"></i> Global Downloads <i class="fa-regular fa-circle-question" style="font-size: 0.9rem; color: var(--text-muted);"></i></h3>
+            </div>
+            <button class="btn btn-danger" style="background: #EF4444; border: none; width: auto;"><i class="fa-solid fa-plus"></i> Add Download</button>
+        </div>
+        <div class="builder-pane-body">
+            <div class="empty-state" style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg);">
+                <div class="empty-state-icon"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23EF4444' width='40' height='40'><path d='M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z'/></svg>" /></div>
+                <h3>No downloads yet</h3>
+                <p>Add your first download to get started.</p>
+                <button class="btn btn-danger" style="background: #EF4444; width: auto; border: none;"><i class="fa-solid fa-plus"></i> Add Download</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANE: NEWS (Empty State) -->
+    <div id="builder-pane-news" class="builder-content-pane">
+        <div class="builder-pane-header">
+            <div>
+                <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-regular fa-newspaper" style="color: #EF4444;"></i> Global News <i class="fa-regular fa-circle-question" style="font-size: 0.9rem; color: var(--text-muted);"></i></h3>
+            </div>
+            <button class="btn btn-danger" style="background: #EF4444; border: none; width: auto;"><i class="fa-solid fa-plus"></i> Add News</button>
+        </div>
+        <div class="builder-pane-body">
+            <div class="empty-state" style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg);">
+                <div class="empty-state-icon"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23EF4444' width='40' height='40'><path d='M20 3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H4V5h16v14zM14 7h4v2h-4zm0 4h4v2h-4zM6 7h6v6H6zm0 8h12v2H6z'/></svg>" /></div>
+                <h3>No news yet</h3>
+                <p>Add your first news item to get started.</p>
+                <button class="btn btn-danger" style="background: #EF4444; width: auto; border: none;"><i class="fa-solid fa-plus"></i> Add News</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+</div>
+
+        <!-- Dashboard Section -->
         <div id="dashboard" class="content-section active">
             <div class="action-bar" style="margin-bottom: 1.5rem; align-items: flex-end;">
                 <div>
@@ -518,7 +1373,7 @@ tr:hover td { background: var(--bg-main); }
             </div>
         </div>
 
-        <div id="categories" class="content-section active">
+        <div id="categories" class="content-section">
             <div class="action-bar">
                 <button class="btn btn-primary" onclick="openCategoryModal()"><i class="fa-solid fa-plus"></i> Create Category</button>
             </div>
@@ -723,7 +1578,7 @@ tr:hover td { background: var(--bg-main); }
             </div>
         </div>
 
-<div id="judges" class="content-section">
+        <div id="judges" class="content-section">
             <div class="action-bar" style="margin-bottom: 1.5rem;">
                 <div>
                     <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">Judge Management</h2>
