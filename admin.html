@@ -326,12 +326,245 @@ tr:hover td { background: var(--bg-main); }
     .modal-footer { flex-direction: column; gap: 0.75rem; margin-top: 1.5rem; }
     .modal-footer .btn { width: 100%; min-height: 48px; margin: 0; }
     
-    /* 7. Poster Studio Mobile Fixes */
-    #template-studio-view .table-container { height: auto !important; min-height: 250px; overflow: hidden; }
-    #studio-layers-panel, #studio-properties-panel { max-height: 250px; overflow-y: auto; }
-    canvas { max-width: 100%; height: auto !important; }
-    .preview-wrapper { min-height: 300px; }
+/* --- 7. PROFESSIONAL MOBILE PHOTO EDITOR (POSTER STUDIO) --- */
     
+    /* Remove global padding so the studio can go edge-to-edge */
+    #poster-templates.content-section {
+        padding: 0 !important;
+    }
+    #template-library-view {
+        padding: 1.25rem 1rem !important;
+    }
+
+    /* Lock the studio exactly to the viewport and override global padding */
+    #template-studio-view {
+        display: flex !important;
+        flex-direction: column !important;
+        height: calc(100dvh - 65px) !important;
+        background: #0F172A !important;
+        margin-bottom: -120px !important; /* Neutralizes .main-content padding */
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* Top Navigation & Settings Bar */
+    #template-studio-view > .action-bar {
+        background: #1E293B !important;
+        border: none !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+        padding: 0.75rem 1rem 0.5rem 1rem !important;
+        flex-shrink: 0 !important;
+        z-index: 50 !important;
+    }
+    
+    #template-studio-view .action-bar > div:first-child {
+        flex-wrap: nowrap !important;
+        gap: 0.5rem !important;
+    }
+    #template-studio-view .action-bar > div:first-child > div {
+        min-width: 0 !important;
+    }
+    
+    /* Dark Mode Form Inputs for Top Bar */
+    #template-studio-view .action-bar label { color: #94A3B8 !important; font-size: 0.65rem !important; }
+    #studio-template-name { color: white !important; font-size: 0.9rem !important; border-bottom-color: #334155 !important; }
+    #studio-template-type { background: #0F172A !important; color: white !important; border-color: #334155 !important; font-size: 0.8rem !important; padding: 0.3rem !important; }
+
+    /* Bottom Scrolling Toolbar (App-style) */
+    #template-studio-view .bulk-actions {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        padding: 0.5rem 0 !important;
+        gap: 0.5rem !important;
+        scrollbar-width: none;
+    }
+    #template-studio-view .bulk-actions::-webkit-scrollbar { display: none; }
+    
+    #template-studio-view .bulk-actions .btn {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        font-size: 0.8rem !important;
+        padding: 0.5rem 0.8rem !important;
+        background: #334155 !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 12px !important;
+        min-height: 36px !important;
+    }
+    #template-studio-view .bulk-actions .btn-success { background: var(--primary) !important; color: white !important; }
+    
+    #template-studio-view .bulk-actions > div {
+        display: flex !important;
+        gap: 0.25rem !important;
+        flex-shrink: 0 !important;
+        border-right: 1px solid #334155 !important;
+        padding-right: 0.5rem !important;
+        margin-right: 0 !important;
+    }
+
+    /* Reverse the layout: Put Canvas on top, Panels on bottom */
+    #template-studio-view .grid-2 {
+        display: flex !important;
+        flex-direction: column-reverse !important; 
+        gap: 0 !important;
+        flex: 1 1 0 !important; /* Force flex child to respect parent height boundaries */
+        min-height: 0 !important; /* Absolutely critical for allowing internal scrolling */
+        overflow-y: auto !important; 
+        background: #0F172A !important;
+        padding-bottom: 150px !important; /* Add massive buffer so user can scroll past the bottom cutoff */
+    }
+
+    /* CANVAS AREA (Viewport) */
+    #template-studio-view .grid-2 > .table-container:nth-child(2) {
+        flex: 0 0 45vh !important; /* Fixed viewport height */
+        width: 100% !important;
+        border: none !important;
+        border-radius: 0 !important;
+        background: #000000 !important; 
+        padding: 0 !important;
+        position: relative !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    #template-studio-view .grid-2 > .table-container:nth-child(2) > div:first-child { display: none !important; }
+    
+    /* Convert "Full Size" button to a neat icon */
+    #template-studio-view .grid-2 > .table-container:nth-child(2) > .btn-dark {
+        top: 0.75rem !important;
+        right: 0.75rem !important;
+        padding: 0 !important;
+        border-radius: 50% !important;
+        width: 36px !important;
+        height: 36px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: rgba(30, 41, 59, 0.8) !important;
+        backdrop-filter: blur(4px);
+        color: white !important;
+        border: none !important;
+        font-size: 0 !important; 
+        z-index: 20 !important;
+    }
+    #template-studio-view .grid-2 > .table-container:nth-child(2) > .btn-dark i { font-size: 1rem !important; margin: 0 !important; }
+
+    /* LAYERS & PROPERTIES AREA (Bottom Sheet) */
+    #template-studio-view .grid-2 > div:nth-child(1) {
+        flex: none !important; /* Let it dictate its own height based on content */
+        height: auto !important;
+        background: #0F172A !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* Pro Editor Panels */
+    #template-studio-view .table-container { 
+        background: #0F172A !important; 
+        border: none !important; 
+        border-radius: 0 !important; 
+        overflow: visible !important;
+        margin-bottom: 0 !important;
+    }
+    #template-studio-view .table-container > div:first-child { 
+        background: #1E293B !important; 
+        color: #94A3B8 !important; 
+        border-bottom: 1px solid #0F172A !important; 
+        padding: 0.6rem 1rem !important; 
+        font-size: 0.75rem !important;
+        font-weight: 800 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+    }
+    
+    #studio-layers-panel { 
+        background: #0F172A !important; 
+        padding: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 1px !important; 
+    }
+    #studio-properties-panel { 
+        background: #0F172A !important; 
+        color: white !important; 
+        padding: 1rem !important;
+    }
+
+    /* --- PIXELLAB-STYLE LAYERS LIST --- */
+    #studio-layers-panel > div {
+        border-radius: 0 !important;
+        margin-bottom: 0 !important;
+        padding: 0.85rem 1rem !important;
+        background: #1E293B !important;
+        border: none !important;
+        display: flex !important;
+        flex-direction: row-reverse !important; 
+        align-items: center !important;
+        justify-content: flex-end !important;
+    }
+
+    #studio-layers-panel > div > div:nth-child(1) {
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: row-reverse !important; 
+        justify-content: space-between !important;
+        align-items: center !important;
+    }
+
+    #studio-layers-panel > div > div:nth-child(2) {
+        margin-right: 1rem !important;
+        width: 24px !important;
+        text-align: center !important;
+    }
+
+    #studio-layers-panel > div span { 
+        color: #E2E8F0 !important; 
+        font-weight: 600 !important; 
+        font-size: 0.95rem !important;
+    }
+    #studio-layers-panel > div button { 
+        color: #94A3B8 !important; 
+        font-size: 1.25rem !important; 
+    }
+    #studio-layers-panel > div i { 
+        color: #94A3B8 !important; 
+        font-size: 1rem !important;
+    }
+
+    #studio-layers-panel > div[style*="var(--primary-light)"] { 
+        background: #3B82F6 !important; 
+    }
+    #studio-layers-panel > div[style*="var(--primary-light)"] span,
+    #studio-layers-panel > div[style*="var(--primary-light)"] button,
+    #studio-layers-panel > div[style*="var(--primary-light)"] i { 
+        color: #FFFFFF !important; 
+    }
+
+    /* Property Panel Inputs */
+    #studio-properties-panel label { color: #94A3B8 !important; font-size: 0.75rem !important; font-weight: 700 !important; }
+    #studio-properties-panel h4 { color: white !important; font-size: 1rem !important; margin-top: 0.5rem !important; }
+    #studio-properties-panel input,
+    #studio-properties-panel select { 
+        background: #1E293B !important; 
+        color: white !important; 
+        border: 1px solid #334155 !important; 
+        border-radius: 6px !important;
+        padding: 0.6rem !important;
+    }
+    #studio-properties-panel input:focus, #studio-properties-panel select:focus { 
+        border-color: var(--primary) !important; 
+    }
+    #studio-properties-panel .btn-outline { 
+        background: #334155 !important; 
+        color: white !important; 
+        border: none !important; 
+    }
     /* 8. Data Tables -> Mobile Cards */
     .table-container { background: transparent; border: none; box-shadow: none; overflow: visible; padding: 0; width: 100%; }
     
