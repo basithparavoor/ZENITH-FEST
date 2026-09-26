@@ -62,9 +62,20 @@ function setLoading(btnId, isLoading) {
     }
 }
 
+// Add this to gracefully handle expanding/collapsing sidebar sections
 function toggleSubmenu(element) {
     const parent = element.parentElement;
     const submenu = parent.querySelector('.nav-sub');
+    
+    // Close all other main tabs and submenus
+    document.querySelectorAll('.nav-main').forEach(nav => {
+        if (nav !== element) nav.classList.remove('open');
+    });
+    document.querySelectorAll('.nav-sub').forEach(sub => {
+        if (sub !== submenu) sub.classList.remove('open');
+    });
+
+    // Toggle the clicked one
     element.classList.toggle('open');
     if (element.classList.contains('open')) {
         submenu.classList.add('open');
@@ -73,35 +84,36 @@ function toggleSubmenu(element) {
     }
 }
 
+// Update switchTab to properly assign active classes
 function switchTab(tabId) {
+    // Remove active states everywhere
     document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
     document.querySelectorAll('.nav-main').forEach(nav => nav.classList.remove('active'));
     
+    // Show target section
     document.getElementById(tabId).classList.add('active');
     
+    // Find the clicked nav item
     const activeNav = document.querySelector(`[onclick="switchTab('${tabId}')"]`);
     if(activeNav) {
         activeNav.classList.add('active');
         
-        // Highlight parent main group if clicking a sub-item
+        // If clicking a sub-item, ALSO highlight the parent main tab
         if (activeNav.classList.contains('nav-item')) {
             const parentGroup = activeNav.closest('.nav-group');
             if (parentGroup) {
                 const mainItem = parentGroup.querySelector('.nav-main');
-                const subItem = parentGroup.querySelector('.nav-sub');
                 if(mainItem) mainItem.classList.add('active');
-                if(mainItem && !mainItem.classList.contains('open')) {
-                    mainItem.classList.add('open');
-                    if(subItem) subItem.classList.add('open');
-                }
             }
         }
         
+        // Update header title
         const pageTitle = document.getElementById('page-title');
         if(pageTitle) pageTitle.innerText = activeNav.innerText.trim();
     }
 
+    // Auto-close sidebar on mobile after clicking
     if(window.innerWidth <= 768) {
         document.getElementById('sidebar')?.classList.remove('open');
         document.querySelector('.mobile-overlay')?.classList.remove('open');
@@ -7486,4 +7498,298 @@ async function viewJudgeDetails(judgeId) {
     } catch (error) {
         tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--danger); padding: 2rem;">Error loading schedule synchronization.</td></tr>`;
     }
+}
+
+// --- WEBSITE CUSTOMIZER ROUTING ENGINE ---
+window.switchBuilderTab = function(tabId, element) {
+    // 1. Update active state on sidebar items
+    const navItems = document.querySelectorAll('.builder-nav-item');
+    navItems.forEach(el => el.classList.remove('active'));
+    if (element) element.classList.add('active');
+    
+    // 2. Hide all panes
+    const allPanes = document.querySelectorAll('.builder-content-pane');
+    allPanes.forEach(pane => {
+        pane.classList.remove('active');
+        pane.style.display = 'none';
+    });
+    
+    // 3. Show the target pane
+    const targetPane = document.getElementById(`builder-pane-${tabId}`);
+    if (targetPane) {
+        targetPane.classList.add('active');
+        targetPane.style.display = 'flex';
+    }
+};
+
+
+// ==========================================
+// WEBSITE BUILDER / CUSTOMIZER ENGINE
+// ==========================================
+
+let websiteConfig = {
+    domain: '',
+    pages: {
+        home: {
+            progCount: '250+', partCount: '1.2K+', teamCount: '40+', venueCount: '6',
+            aboutTitle: '', aboutSub: '', contentTitle: '', contentDesc: '',
+            contact: { title: '', email: '', phone: '', wa: '', ig: '', fb: '', yt: '', web: '', address: ''}
+        }
+    },
+    visibility: {
+        page: { schedules: true, results: true, downloads: true, gallery: true, news: true, wall: true, myresult: true },
+        nav: { schedules: true, results: true, downloads: true, gallery: true, news: true, wall: true, myresult: true },
+        foot: { schedules: true, results: true, downloads: true, gallery: true, news: true, wall: true, myresult: true }
+    },
+    theme: {
+        colors: { primary: '#EF4444', secondary: '#3B82F6', accent: '#F59E0B', bg: '#FFFFFF' }
+    }
+};
+
+let webAnalyticsChart = null;
+
+// Extends the existing switchTab function to initialize Builder Components
+const existingSwitchTabHook = window.switchTab;
+window.switchTab = function(tabId) {
+    if(existingSwitchTabHook) existingSwitchTabHook(tabId);
+    
+    if (tabId === 'website-builder') {
+        // Initialize the first tab (Overview)
+        switchBuilderTab('overview', document.querySelector('.builder-nav-item.active') || document.querySelectorAll('.builder-nav-item')[0]);
+        loadWebsiteConfig();
+    }
+};
+
+window.switchBuilderTab = function(tabId, element) {
+    // 1. Update active state on sidebar items
+    const navItems = document.querySelectorAll('.builder-nav-item');
+    navItems.forEach(el => el.classList.remove('active'));
+    if (element) element.classList.add('active');
+    
+    // 2. Hide all panes
+    const allPanes = document.querySelectorAll('.builder-content-pane');
+    allPanes.forEach(pane => {
+        pane.classList.remove('active');
+        pane.style.display = 'none';
+    });
+    
+    // 3. Show the target pane
+    const targetPane = document.getElementById(`builder-pane-${tabId}`);
+    if (targetPane) {
+        targetPane.classList.add('active');
+        targetPane.style.display = 'flex';
+    }
+
+    // 4. Initialize specific pane features
+    if (tabId === 'analytics') {
+        initProfessionalAnalytics();
+    } else if (tabId === 'overview') {
+        // Refresh iframes to ensure proper loading
+        const deskFrame = document.getElementById('preview-desktop-frame');
+        const mobFrame = document.getElementById('preview-mobile-frame');
+        if (deskFrame) deskFrame.src = deskFrame.src;
+        if (mobFrame) mobFrame.src = mobFrame.src;
+    }
+};
+
+// --- Analytics Chart Initialization ---
+function initProfessionalAnalytics() {
+    const ctx = document.getElementById('websiteAnalyticsChart');
+    if (!ctx) return;
+    
+    if (webAnalyticsChart) webAnalyticsChart.destroy();
+    
+    // Mock Data for Professional Chart matching screenshot theme
+    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const visitorsData = [1200, 1900, 3000, 5000, 2000, 3000, 4500];
+    const pageviewsData = [2400, 3800, 6000, 10000, 4000, 6000, 9000];
+
+    webAnalyticsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Page Views',
+                    data: pageviewsData,
+                    borderColor: '#3B82F6', // Primary Blue
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Unique Visitors',
+                    data: visitorsData,
+                    borderColor: '#10B981', // Success Green
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    borderDash: [5, 5],
+                    fill: false,
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8, font: { family: 'Inter', weight: 600 } } }
+            },
+            scales: {
+                y: { beginAtZero: true, grid: { borderDash: [2, 4], color: '#E5E7EB' } },
+                x: { grid: { display: false } }
+            },
+            interaction: { mode: 'index', intersect: false }
+        }
+    });
+}
+
+// --- Loading and Saving Configuration ---
+async function loadWebsiteConfig() {
+    try {
+        const { data, error } = await supabaseClient.from('settings').select('value').eq('id', 'website_config').maybeSingle();
+        if (data && data.value) {
+            websiteConfig = data.value;
+            populateWebsiteForms();
+        }
+    } catch(e) {
+        console.warn("Using default website configuration.");
+        populateWebsiteForms(); // Populate defaults
+    }
+}
+
+function populateWebsiteForms() {
+    // Domains
+    if(document.getElementById('web-subdomain')) {
+        document.getElementById('web-subdomain').value = websiteConfig.domain || '';
+        document.getElementById('preview-url-display').innerText = websiteConfig.domain ? `${websiteConfig.domain}.festos.app` : 'festos.app';
+        if(websiteConfig.domain) document.getElementById('subdomain-status').style.display = 'block';
+    }
+
+    // Pages
+    const p = websiteConfig.pages.home;
+    document.getElementById('pg-prog-count').value = p.progCount || '';
+    document.getElementById('pg-part-count').value = p.partCount || '';
+    document.getElementById('pg-team-count').value = p.teamCount || '';
+    document.getElementById('pg-venue-count').value = p.venueCount || '';
+    document.getElementById('pg-about-title').value = p.aboutTitle || '';
+    document.getElementById('pg-about-sub').value = p.aboutSub || '';
+    document.getElementById('pg-content-title').value = p.contentTitle || '';
+    document.getElementById('pg-content-desc').value = p.contentDesc || '';
+    
+    const c = p.contact || {};
+    document.getElementById('pg-contact-title').value = c.title || '';
+    document.getElementById('pg-contact-email').value = c.email || '';
+    document.getElementById('pg-contact-phone').value = c.phone || '';
+    document.getElementById('pg-contact-wa').value = c.wa || '';
+    document.getElementById('pg-contact-ig').value = c.ig || '';
+    document.getElementById('pg-contact-fb').value = c.fb || '';
+    document.getElementById('pg-contact-yt').value = c.yt || '';
+    document.getElementById('pg-contact-web').value = c.web || '';
+    document.getElementById('pg-contact-address').value = c.address || '';
+
+    // Visibility
+    const applyToggles = (category, data) => {
+        Object.keys(data).forEach(key => {
+            const el = document.getElementById(`vis-${category}-${key}`);
+            if(el) el.checked = data[key];
+        });
+    };
+    applyToggles('page', websiteConfig.visibility.page);
+    applyToggles('nav', websiteConfig.visibility.nav);
+    applyToggles('foot', websiteConfig.visibility.foot);
+}
+
+async function executeWebsiteSave(btnElement) {
+    const originalText = btnElement.innerHTML;
+    btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    btnElement.disabled = true;
+
+    try {
+        const { error } = await supabaseClient.from('settings').upsert({ id: 'website_config', value: websiteConfig });
+        if (error) throw error;
+        showToast("Website Settings Saved successfully!", "success");
+    } catch(e) {
+        showToast(e.message, 'error');
+    } finally {
+        btnElement.innerHTML = originalText;
+        btnElement.disabled = false;
+    }
+}
+
+function saveDomainConfig() {
+    const domainInput = document.getElementById('web-subdomain').value.toLowerCase().replace(/[^a-z0-9]/g, '');
+    websiteConfig.domain = domainInput;
+    document.getElementById('subdomain-status').style.display = domainInput ? 'block' : 'none';
+    document.getElementById('preview-url-display').innerText = domainInput ? `${domainInput}.festos.app` : 'festos.app';
+    executeWebsiteSave(event.currentTarget);
+}
+
+function savePageConfig() {
+    websiteConfig.pages.home = {
+        progCount: document.getElementById('pg-prog-count').value,
+        partCount: document.getElementById('pg-part-count').value,
+        teamCount: document.getElementById('pg-team-count').value,
+        venueCount: document.getElementById('pg-venue-count').value,
+        aboutTitle: document.getElementById('pg-about-title').value,
+        aboutSub: document.getElementById('pg-about-sub').value,
+        contentTitle: document.getElementById('pg-content-title').value,
+        contentDesc: document.getElementById('pg-content-desc').value,
+        contact: {
+            title: document.getElementById('pg-contact-title').value,
+            email: document.getElementById('pg-contact-email').value,
+            phone: document.getElementById('pg-contact-phone').value,
+            wa: document.getElementById('pg-contact-wa').value,
+            ig: document.getElementById('pg-contact-ig').value,
+            fb: document.getElementById('pg-contact-fb').value,
+            yt: document.getElementById('pg-contact-yt').value,
+            web: document.getElementById('pg-contact-web').value,
+            address: document.getElementById('pg-contact-address').value
+        }
+    };
+    executeWebsiteSave(event.currentTarget);
+}
+
+function saveVisibilityConfig() {
+    const keys = ['schedules', 'results', 'downloads', 'gallery', 'news', 'wall', 'myresult'];
+    
+    keys.forEach(k => {
+        websiteConfig.visibility.page[k] = document.getElementById(`vis-page-${k}`).checked;
+        websiteConfig.visibility.nav[k] = document.getElementById(`vis-nav-${k}`).checked;
+        websiteConfig.visibility.foot[k] = document.getElementById(`vis-foot-${k}`).checked;
+    });
+    
+    executeWebsiteSave(event.currentTarget);
+}
+
+function saveThemeConfig() {
+    // Future expansion: Save color palette selections
+    executeWebsiteSave(event.currentTarget);
+}
+
+// Color Palette Interactivity (Mock functionality for the preview UI)
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.color-circle-btn')) {
+        const btn = e.target.closest('.color-circle-btn');
+        const parent = btn.parentElement;
+        parent.querySelectorAll('.color-circle-btn').forEach(el => el.classList.remove('active'));
+        btn.classList.add('active');
+    }
+});
+
+
+// Add this inside your admin.js to ensure the subdomain text updates dynamically
+function saveDomainConfig() {
+    const domainInput = document.getElementById('web-subdomain').value.toLowerCase().replace(/[^a-z0-9]/g, '');
+    websiteConfig.domain = domainInput;
+    
+    // Update the domain displays in the Overview pane
+    const fullUrl = domainInput ? `${domainInput}.festos.app` : 'festos.app';
+    document.getElementById('subdomain-status').style.display = domainInput ? 'block' : 'none';
+    document.getElementById('preview-url-display').innerText = fullUrl;
+    document.getElementById('overview-url-display-desk').innerText = fullUrl;
+    document.getElementById('overview-url-display-footer').innerText = fullUrl;
+    
+    executeWebsiteSave(event.currentTarget);
 }

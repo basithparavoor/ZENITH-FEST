@@ -305,8 +305,8 @@ tr:hover td { background: var(--bg-main); }
         width: 100% !important; height: 1px !important; margin: 0.5rem 0 !important;
     }
 
-    /* 5. Controls & Action Bars */
-    .action-bar { flex-direction: column; align-items: stretch; gap: 0.75rem; margin-bottom: 1rem; }
+    .action-bar { flex-direction: column; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; width: 100%; text-align: left; }
+    .action-bar > div { text-align: left; width: 100%; }
     .action-bar .btn { width: 100%; min-height: 48px; justify-content: center; }
     .bulk-actions { flex-direction: column; align-items: stretch; background: transparent; border: none; padding: 0; box-shadow: none; gap: 0.75rem; width: 100%; }
     
@@ -335,40 +335,37 @@ tr:hover td { background: var(--bg-main); }
     /* 8. Data Tables -> Mobile Cards */
     .table-container { background: transparent; border: none; box-shadow: none; overflow: visible; padding: 0; width: 100%; }
     
-    .content-section:not(#point-settings) table, 
-    .content-section:not(#point-settings) thead, 
-    .content-section:not(#point-settings) tbody, 
-    .content-section:not(#point-settings) th, 
-    .content-section:not(#point-settings) td, 
-    .content-section:not(#point-settings) tr { 
-        display: block; width: 100%; 
-    }
-    .content-section:not(#point-settings) thead { display: none; }
+    table, thead, tbody, th, td, tr { display: block; width: 100%; }
+    thead { display: none; }
     
-    #point-settings .card[style*="overflow-x: auto"] { padding: 1rem !important; -webkit-overflow-scrolling: touch; width: 100%; overflow-x: scroll !important; }
-    #point-settings .card table { min-width: 600px; }
+    /* Fix: Turn the Point Settings Matrix into stacked cards, remove 600px min-width */
+    #point-settings .card[style*="overflow-x: auto"] { padding: 0 !important; overflow-x: visible !important; border: none !important; box-shadow: none !important; background: transparent !important; }
+    #point-settings table { min-width: 0 !important; }
+    #point-settings tbody td input { width: 120px !important; text-align: right; }
     
-    .content-section:not(#point-settings) tbody tr { 
+    tbody tr { 
         background: white; border-radius: var(--radius-lg); padding: 1rem; 
         margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
         border: 1px solid var(--border); position: relative; 
         display: flex; flex-direction: column; gap: 0.25rem;
     }
     
-    .content-section:not(#point-settings) td { 
+    td { 
         display: flex; justify-content: space-between; align-items: center; 
         padding: 0.5rem 0; border-bottom: 1px solid var(--bg-main); text-align: right; font-size: 0.9rem; min-height: 40px; gap: 1rem;
     }
-    .content-section:not(#point-settings) td > span, 
-    .content-section:not(#point-settings) td > div { flex: 1; text-align: right; justify-content: flex-end; }
+    td > span, td > div { flex: 1; text-align: right; justify-content: flex-end; }
     
+    /* Floating Checkboxes */
     .checkbox-cell { position: absolute; top: 1rem; left: 1rem; padding: 0 !important; border: none !important; width: auto; min-height: auto; }
     .checkbox-cell input { width: 22px; height: 22px; margin: 0; }
     
-    .content-section:not(#point-settings) td:nth-child(2) { padding-left: 2.5rem; font-size: 1.05rem; font-weight: 600; color: var(--primary); justify-content: flex-start; border-bottom: none; padding-top: 0; text-align: left;}
-    .content-section:not(#point-settings) td:nth-child(2)::before { display: none !important; }
+    /* Card Primary Title (Next to Checkbox) */
+    td:nth-child(2) { padding-left: 2.5rem; font-size: 1.05rem; font-weight: 600; color: var(--primary); justify-content: flex-start; border-bottom: none; padding-top: 0; text-align: left;}
+    td:nth-child(2)::before { display: none !important; }
 
-    .content-section:not(#point-settings) td:not(.checkbox-cell)::before { 
+    /* CSS Generated Pseudo-Labels for Card Data */
+    td:not(.checkbox-cell)::before { 
         font-weight: 600; color: var(--text-muted); font-size: 0.75rem; 
         text-transform: uppercase; letter-spacing: 0.03em; text-align: left; 
         flex-shrink: 0; width: 35%;
@@ -400,14 +397,21 @@ tr:hover td { background: var(--bg-main); }
     #assign-workspace-tbody td:nth-of-type(5)::before { content: "Batch"; }
     #assign-workspace-tbody td:nth-of-type(6)::before { content: "Status"; }
 
-    .content-section:not(#point-settings) td:last-child { 
+    /* Point Settings Matrix Labels */
+    #point-settings tbody td:nth-of-type(2)::before { content: "A+ Points"; }
+    #point-settings tbody td:nth-of-type(3)::before { content: "A Points"; }
+    #point-settings tbody td:nth-of-type(4)::before { content: "B Points"; }
+    #point-settings tbody td:nth-of-type(5)::before { content: "C Points"; }
+
+    /* Action Buttons Row */
+    td:last-child { 
         border-bottom: none; padding-bottom: 0; padding-top: 1rem; margin-top: 0.25rem; 
         border-top: 1px dashed var(--border); justify-content: center; flex-direction: column;
     }
-    .content-section:not(#point-settings) td:last-child::before { display: none !important; }
-    .content-section:not(#point-settings) td:last-child div { display: grid !important; grid-template-columns: 1fr 1fr; gap: 0.5rem; width: 100%; }
-    .content-section:not(#point-settings) td:last-child div button { width: 100%; justify-content: center; min-height: 44px; border-radius: var(--radius-md); font-size: 0.85rem;}
-    
+    td:last-child::before { display: none !important; }
+    td:last-child div { display: grid !important; grid-template-columns: 1fr 1fr; gap: 0.5rem; width: 100%; }
+    td:last-child div button { width: 100%; justify-content: center; min-height: 44px; border-radius: var(--radius-md); font-size: 0.85rem;}
+
     /* 9. Website Builder Mobile Fixes */
     .builder-layout { flex-direction: column; height: auto; gap: 1rem; }
     .builder-sidebar { width: 100%; flex-direction: row; overflow-x: auto; white-space: nowrap; scrollbar-width: none; padding-bottom: 0.5rem; }
@@ -423,6 +427,94 @@ tr:hover td { background: var(--bg-main); }
     #display-control .action-bar { align-items: stretch; }
     #display-control .bulk-actions { width: 100%; flex-direction: column; }
     #display-control .bulk-actions .btn { width: 100%; margin-top: 0.5rem; }
+
+    /* --- 1. Fix Bottom Spacing --- */
+    .main-content { padding-bottom: 120px !important; }
+
+    /* --- 2. Fix Pagination Overflow (Screenshot 161817) --- */
+    div[id$="-pagination"] {
+        flex-direction: column !important;
+        gap: 1rem !important;
+        align-items: stretch !important;
+        text-align: center;
+    }
+    div[id$="-pagination"] > div {
+        justify-content: center !important;
+        width: 100% !important;
+        flex-wrap: wrap !important;
+    }
+    div[id$="-pagination"] select {
+        width: 100% !important;
+        margin-top: 0.5rem;
+    }
+
+    /* --- 3. Fix "Print Selected" Button Overflow --- */
+    .controls-bar > div[style*="justify-content: flex-end"] {
+        flex-direction: column !important;
+        width: 100% !important;
+    }
+    .controls-bar > div[style*="justify-content: flex-end"] .btn {
+        width: 100% !important;
+    }
+
+    /* --- 4. Point System Matrix Fixes (Screenshot 161600) --- */
+    #point-settings tbody tr { gap: 0.5rem; }
+    #point-settings tbody td { 
+        padding: 0.75rem 0; 
+        border-bottom: 1px dashed var(--border); 
+        align-items: center;
+    }
+    #point-settings tbody td:last-child { border-bottom: none; }
+    
+    /* Format the "1 (SOLO)" / "2 OR 3" headers nicely */
+    #point-settings tbody td:nth-of-type(1) { 
+        font-size: 1.15rem; 
+        font-weight: 800; 
+        color: var(--text-main); 
+        border-bottom: 1px solid var(--border); 
+        padding-bottom: 1rem; 
+        margin-bottom: 0.5rem; 
+        justify-content: flex-start; 
+    }
+    
+    #point-settings tbody td:nth-of-type(1)::before { display: none !important; }
+    #point-settings tbody td:nth-of-type(2)::before { content: "A+ POINTS"; }
+    #point-settings tbody td:nth-of-type(3)::before { content: "A POINTS"; }
+    #point-settings tbody td:nth-of-type(4)::before { content: "B POINTS"; }
+    #point-settings tbody td:nth-of-type(5)::before { content: "C POINTS"; }
+
+    /* --- 5. Add Missing Mobile Data Labels for ALL Tables --- */
+    #schedule-tbody td:nth-of-type(1)::before { content: "Competition"; }
+    #schedule-tbody td:nth-of-type(2)::before { content: "Category"; }
+    #schedule-tbody td:nth-of-type(3)::before { content: "Stage"; }
+    #schedule-tbody td:nth-of-type(4)::before { content: "Date"; }
+    #schedule-tbody td:nth-of-type(5)::before { content: "From Time"; }
+    #schedule-tbody td:nth-of-type(6)::before { content: "To Time"; }
+    #schedule-tbody td:nth-of-type(7)::before { content: "Status"; }
+
+    #points-tbody td:nth-of-type(2)::before { content: "Unique ID"; }
+    #points-tbody td:nth-of-type(3)::before { content: "Participant"; }
+    #points-tbody td:nth-of-type(4)::before { content: "Team"; }
+    #points-tbody td:nth-of-type(5)::before { content: "Total Points"; }
+
+    #team-points-tbody td:nth-of-type(2)::before { content: "Team Name"; }
+    #team-points-tbody td:nth-of-type(3)::before { content: "Total Participants"; }
+    #team-points-tbody td:nth-of-type(4)::before { content: "Total Points"; }
+
+    #special-points-tbody td:nth-of-type(1)::before { content: "Rank"; }
+    #special-points-tbody td:nth-of-type(2)::before { content: "Participant Details"; }
+    #special-points-tbody td:nth-of-type(3)::before { content: "Team"; }
+    #special-points-tbody td:nth-of-type(4)::before { content: "Points"; }
+
+    #admin-appeals-tbody td:nth-of-type(1)::before { content: "Type"; }
+    #admin-appeals-tbody td:nth-of-type(2)::before { content: "Team"; }
+    #admin-appeals-tbody td:nth-of-type(3)::before { content: "Event / Student"; }
+    #admin-appeals-tbody td:nth-of-type(4)::before { content: "Description"; }
+    #admin-appeals-tbody td:nth-of-type(5)::before { content: "Status"; }
+
+    #judges-tbody td:nth-of-type(1)::before { content: "Judge Username"; }
+    #judges-tbody td:nth-of-type(2)::before { content: "Total Assignments"; }
+    
 }
    </style>
 </head>
