@@ -393,13 +393,15 @@ async function loadCategories() {
             const compCount = cat.competitions[0]?.count || 0;
             tbody.innerHTML += `
                 <tr>
-<td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${cat.id}" ${globalSelections['categories-tbody']?.has(cat.id) ? 'checked' : ''} onchange="handleRowSelection('categories-tbody', this.value, this.checked)"></td>                    <td>${cat.name}</td>
+                    <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${cat.id}" ${globalSelections['categories-tbody']?.has(cat.id) ? 'checked' : ''} onchange="handleRowSelection('categories-tbody', this.value, this.checked)"></td>                    <td>${cat.name}</td>
                     <td>${cat.is_general ? '<span class="badge badge-primary">General</span>' : 'Standard'}</td>
                     <td><span class="badge-count" onclick="viewRelationalData('participants', 'category_id', '${cat.id}')">${partCount} Students</span></td>
                     <td><span class="badge-count" onclick="viewRelationalData('competitions', 'category_id', '${cat.id}')">${compCount} Competitions</span></td>
                     <td>
-                        <button class="btn btn-outline" onclick='openCategoryModal(${JSON.stringify(cat).replace(/'/g, "&apos;").replace(/"/g, "&quot;")})'><i class="fa-solid fa-pen"></i></button>
-                        <button class="btn btn-danger" onclick="deleteCategory('${cat.id}')"><i class="fa-solid fa-trash"></i></button>
+                        <div style="display: flex; gap: 0.5rem; width: 100%;">
+                             <button class="btn btn-outline" onclick='openCategoryModal(${JSON.stringify(cat).replace(/'/g, "&apos;").replace(/"/g, "&quot;")})'><i class="fa-solid fa-pen"></i></button>
+                             <button class="btn btn-danger" onclick="deleteCategory('${cat.id}')"><i class="fa-solid fa-trash"></i></button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -1402,11 +1404,42 @@ const photoSrc = p.photo_url ? p.photo_url : 'data:image/svg+xml;charset=UTF-8,%
             .pid-btn:hover { border-color: var(--primary); color: var(--primary); }
 
             /* Mobile Stack Optimization */
-            @media (max-width: 600px) {
-                .pid-top { flex-direction: column; align-items: center; text-align: center; padding: 1.5rem 1rem; }
-                .pid-info { text-align: center; display: flex; flex-direction: column; align-items: center; }
-                .pid-bottom { grid-template-columns: 1fr; }
-            }
+@media (max-width: 768px) {
+    .pid-top { 
+        flex-direction: column; 
+        align-items: center; 
+        text-align: center; 
+        padding: 1.25rem; 
+    }
+    .pid-info { 
+        text-align: center; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+    }
+    /* Force bottom section to stack vertically */
+    .pid-bottom { 
+        grid-template-columns: 1fr; 
+        gap: 0.75rem; 
+    }
+    /* Turn QR card into a horizontal banner to save vertical space */
+    .pid-qr-card { 
+        flex-direction: row; 
+        justify-content: flex-start; 
+        padding: 1rem; 
+        text-align: left; 
+        gap: 1rem;
+    }
+    .pid-qr-box { 
+        width: 70px; 
+        height: 70px; 
+        flex-shrink: 0; 
+    }
+    .pid-dob-card { 
+        padding: 1rem; 
+        min-height: auto; 
+    }
+}
         </style>
         
         <tbody>

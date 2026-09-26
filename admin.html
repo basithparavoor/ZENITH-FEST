@@ -540,6 +540,199 @@ tr:hover td { background: var(--bg-main); }
     #judges-tbody td:nth-of-type(1)::before { content: "Judge Username"; }
     #judges-tbody td:nth-of-type(2)::before { content: "Total Assignments"; }
 
+
+    /* Fix: Reset alignment for tables WITHOUT checkboxes */
+    #stages-tbody td:nth-child(2),
+    #teams-tbody td:nth-child(2),
+    #judges-tbody td:nth-child(2) {
+        padding-left: 0;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--text-main);
+        justify-content: space-between;
+        border-bottom: 1px solid var(--bg-main);
+        padding-top: 0.5rem;
+        text-align: right;
+    }
+    
+    #stages-tbody td:nth-child(2)::before,
+    #teams-tbody td:nth-child(2)::before,
+    #judges-tbody td:nth-child(2)::before {
+        display: block !important;
+    }
+
+    /* Make the 1st column act as the main card title for these specific tables */
+    #stages-tbody td:nth-child(1),
+    #teams-tbody td:nth-child(1),
+    #judges-tbody td:nth-child(1) {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: var(--primary);
+        justify-content: flex-start;
+        border-bottom: none;
+        padding-bottom: 0;
+        text-align: left;
+    }
+    
+    #stages-tbody td:nth-child(1)::before,
+    #teams-tbody td:nth-child(1)::before,
+    #judges-tbody td:nth-child(1)::before {
+        display: none !important;
+    }
+
+
+    /* --- Participant Identity Popup Mobile Stack Fix --- */
+    .pid-top { 
+        flex-direction: column !important; 
+        align-items: center !important; 
+        text-align: center !important; 
+        padding: 1.25rem !important; 
+    }
+    .pid-info { 
+        text-align: center !important; 
+        align-items: center !important; 
+    }
+    .pid-bottom { 
+        display: flex !important; 
+        flex-direction: column !important; 
+        gap: 0.75rem !important; 
+    }
+    .pid-qr-card { 
+        flex-direction: row !important; 
+        justify-content: flex-start !important; 
+        padding: 1rem !important; 
+        text-align: left !important; 
+        gap: 1rem !important; 
+    }
+    .pid-qr-box { 
+        width: 80px !important; 
+        height: 80px !important; 
+        flex-shrink: 0 !important; 
+    }
+    .pid-dob-card { 
+        padding: 1rem !important; 
+        min-height: auto !important; 
+    }
+
+/* --- RESCUE PARTICIPANT POPUP FROM GLOBAL TABLE OVERRIDES --- */
+    #listModalTable td:last-child {
+        border-top: none !important;
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    
+    /* Override the aggressive 1fr 1fr grid */
+    #listModalTable td:last-child div {
+        display: flex !important; 
+    }
+    
+    /* Force the cards to stack vertically with clean spacing */
+    #listModalTable .pid-wrapper,
+    #listModalTable .pid-bottom,
+    #listModalTable .pid-actions {
+        flex-direction: column !important;
+        width: 100% !important;
+        gap: 0.75rem !important;
+    }
+    
+    /* --- TOP PROFILE CARD --- */
+    #listModalTable .pid-top {
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        padding: 1.5rem 1rem !important;
+    }
+    
+    /* Strict Image Wrapping */
+    #listModalTable .pid-photo {
+        width: 90px !important;
+        height: 90px !important;
+        border-radius: 50% !important; 
+        margin: 0 auto 1rem auto !important;
+        flex-shrink: 0 !important;
+        border: 2px solid var(--border) !important;
+        overflow: hidden !important; 
+    }
+    
+    #listModalTable .pid-photo img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important; 
+    }
+    
+    /* Strictly Center all text containers */
+    #listModalTable .pid-info {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        width: 100% !important;
+    }
+    
+    #listModalTable .pid-name {
+        display: flex !important;
+        justify-content: center !important;
+        text-align: center !important;
+        width: 100% !important;
+        margin: 0 auto 0.5rem auto !important;
+    }
+    
+    #listModalTable .pid-badge {
+        width: auto !important;
+        min-width: 100px !important;
+        display: inline-flex !important;
+        justify-content: center !important;
+        margin: 0.5rem auto 1rem auto !important;
+        text-align: center !important;
+    }
+    
+    /* Center the Icon + Text rows perfectly */
+    #listModalTable .pid-meta {
+        align-items: center !important;
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.4rem !important;
+    }
+    
+    #listModalTable .pid-meta-item {
+        justify-content: center !important; 
+        width: 100% !important;
+        display: flex !important;
+    }
+    
+    /* --- QR CARD --- */
+    #listModalTable .pid-qr-card {
+        flex-direction: column !important; 
+        justify-content: center !important;
+        align-items: center !important;
+        text-align: center !important;
+        padding: 1.5rem 1rem !important;
+        gap: 0.75rem !important;
+    }
+    
+    #listModalTable .pid-qr-box {
+        width: 120px !important; 
+        height: 120px !important;
+        flex-shrink: 0 !important;
+        margin: 0 auto !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+    }
+    
+    #listModalTable .pid-qr-card span {
+        font-size: 0.8rem !important;
+        max-width: none !important;
+        line-height: 1.4 !important;
+        color: var(--text-muted) !important;
+        font-weight: 700 !important;
+        text-align: center !important;
+        display: block !important;
+        width: 100% !important;
+    }
+
 }
    </style>
 </head>
