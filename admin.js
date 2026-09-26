@@ -3599,9 +3599,20 @@ function addCustomTextLayer() {
 
 function renderPropertiesPanel() {
     const container = document.getElementById('studio-properties-panel');
+    const studioView = document.getElementById('template-studio-view');
+    
     if (!studioActiveField || !studioActiveData.fields[studioActiveField]) {
         container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">Select a layer to edit.</p>`;
+        if (studioView) {
+            studioView.classList.remove('layer-active');
+            studioView.classList.add('layer-empty');
+        }
         return;
+    }
+
+    if (studioView) {
+        studioView.classList.add('layer-active');
+        studioView.classList.remove('layer-empty');
     }
 
     const key = studioActiveField;
@@ -3625,7 +3636,6 @@ function renderPropertiesPanel() {
             </div>
         `;
     } else {
-        // Handle Custom Text Name Changing
         let customTextHTML = '';
         if (data.isCustom) {
             customTextHTML = `
@@ -3661,8 +3671,23 @@ function renderPropertiesPanel() {
         `;
     }
 
+    // NEW: Eye Icon Toggle attached directly to the Properties Header
+    const visibilityBtn = `
+        <button style="background:none; border:none; color: ${data.enabled ? '#3B82F6' : '#64748B'}; cursor:pointer; font-size:1.4rem; padding: 0.5rem;" onclick="toggleLayerVisibility(event, '${key}')">
+            <i class="fa-solid ${data.enabled ? 'fa-eye' : 'fa-eye-slash'}"></i>
+        </button>
+    `;
+
     container.innerHTML = `
-        <h4 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 1rem; color: var(--primary);">${data.displayName}</h4>
+        <div class="mobile-properties-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px dashed #334155; padding-bottom: 0.85rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <button class="btn btn-outline mobile-back-btn" style="padding: 0.4rem 0.6rem; border-radius: 8px; border: none; background: #334155; color: white; display: none;" onclick="studioActiveField = null; renderLayersPanel(); renderPropertiesPanel(); drawStudioCanvas();">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <h4 style="color: white; font-size: 1.15rem; font-weight: 800; margin: 0; text-transform: uppercase;">${data.displayName}</h4>
+            </div>
+            ${visibilityBtn}
+        </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
             <div><label style="font-size: 0.75rem; font-weight:700;">X POS</label><input type="number" id="prop-x" value="${data.x}" oninput="updateActiveProperty('x', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
             <div><label style="font-size: 0.75rem; font-weight:700;">Y POS</label><input type="number" id="prop-y" value="${data.y}" oninput="updateActiveProperty('y', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
@@ -3670,7 +3695,6 @@ function renderPropertiesPanel() {
         ${specificHTML}
     `;
 }
-
 function drawStudioCanvas() {
     const canvas = document.getElementById('studio-canvas');
     if(!canvas) return;

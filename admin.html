@@ -1149,7 +1149,38 @@ tr:hover td { background: var(--bg-main); }
         width: 100% !important;
     }
 
+
+/* --- MOBILE LAYER/PROPERTY INTERACTION LOGIC --- */
+    
+    /* When no layer is selected: Hide the properties panel entirely */
+    #template-studio-view.layer-empty #studio-properties-panel {
+        display: none !important;
+    }
+    
+    /* When a layer IS selected: Hide the layers list and the header */
+    #template-studio-view.layer-active #studio-layers-panel {
+        display: none !important;
+    }
+    #template-studio-view.layer-active .table-container > div:first-child {
+        display: none !important; /* Hides 'ACTIVE LAYERS' text */
+    }
+    
+    /* Show the Back button inside the Properties header */
+    #template-studio-view.layer-active .mobile-back-btn {
+        display: block !important;
+    }
+    
+    /* Remove duplicate bottom border on the properties header in mobile view */
+    #studio-properties-panel h4 {
+        border-bottom: none !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+
 }
+
+
    </style>
 </head>
 <body>
