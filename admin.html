@@ -338,13 +338,17 @@ tr:hover td { background: var(--bg-main); }
 
     /* Lock the studio exactly to the viewport and override global padding */
     #template-studio-view {
-        display: flex !important;
         flex-direction: column !important;
         height: calc(100dvh - 65px) !important;
         background: #0F172A !important;
-        margin-bottom: -120px !important; /* Neutralizes .main-content padding */
+        margin-bottom: -120px !important; 
         padding: 0 !important;
         overflow: hidden !important;
+    }
+
+    /* Force flexbox layout ONLY when JavaScript makes the studio visible */
+    #template-studio-view:not([style*="display: none"]) {
+        display: flex !important;
     }
 
     /* Top Navigation & Settings Bar */
@@ -371,38 +375,74 @@ tr:hover td { background: var(--bg-main); }
     #studio-template-name { color: white !important; font-size: 0.9rem !important; border-bottom-color: #334155 !important; }
     #studio-template-type { background: #0F172A !important; color: white !important; border-color: #334155 !important; font-size: 0.8rem !important; padding: 0.3rem !important; }
 
-    /* Bottom Scrolling Toolbar (App-style) */
-    #template-studio-view .bulk-actions {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        overflow-x: auto !important;
-        padding: 0.5rem 0 !important;
+    /* App-Style Editor Tool Grid */
+    #template-studio-view .action-bar > .bulk-actions {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important; /* 4 tools side-by-side */
         gap: 0.5rem !important;
-        scrollbar-width: none;
+        padding: 0.5rem 0 0 0 !important;
+        width: 100% !important;
+        overflow: visible !important;
     }
-    #template-studio-view .bulk-actions::-webkit-scrollbar { display: none; }
     
-    #template-studio-view .bulk-actions .btn {
-        flex: 0 0 auto !important;
-        width: auto !important;
-        font-size: 0.8rem !important;
-        padding: 0.5rem 0.8rem !important;
+    /* Individual Tool Buttons (Stack icon above text) */
+    #template-studio-view .action-bar > .bulk-actions > .btn {
+        width: 100% !important;
+        font-size: 0.65rem !important;
+        font-weight: 700 !important;
+        padding: 0.5rem 0.2rem !important;
         background: #334155 !important;
         color: white !important;
         border: none !important;
-        border-radius: 12px !important;
-        min-height: 36px !important;
-    }
-    #template-studio-view .bulk-actions .btn-success { background: var(--primary) !important; color: white !important; }
-    
-    #template-studio-view .bulk-actions > div {
+        border-radius: 8px !important;
+        min-height: 56px !important;
         display: flex !important;
-        gap: 0.25rem !important;
-        flex-shrink: 0 !important;
-        border-right: 1px solid #334155 !important;
-        padding-right: 0.5rem !important;
-        margin-right: 0 !important;
+        flex-direction: column !important; 
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.35rem !important;
+        white-space: normal !important; 
+        line-height: 1.1 !important;
+        text-align: center !important;
+    }
+    
+    #template-studio-view .action-bar > .bulk-actions > .btn i {
+        font-size: 1.15rem !important;
+        margin: 0 !important;
+    }
+    
+    /* Undo / Redo Container (Split 50/50 below tools) */
+    #template-studio-view .action-bar > .bulk-actions > .bulk-actions {
+        grid-column: 1 / -1 !important; 
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 0.5rem !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Remove borders/paddings from inline wrapper */
+    #template-studio-view .action-bar > .bulk-actions > .bulk-actions > div {
+        display: contents !important; 
+    }
+    
+    /* Revert undo/redo buttons to side-by-side icon + text */
+    #template-studio-view .action-bar > .bulk-actions > .bulk-actions .btn {
+        flex-direction: row !important;
+        font-size: 0.8rem !important;
+        min-height: 38px !important;
+        border-radius: 8px !important;
+        background: #1E293B !important;
+        border: 1px solid #334155 !important;
+    }
+
+    /* Save Button (Full width at bottom) */
+    #template-studio-view .action-bar > .bulk-actions > .btn-success { 
+        grid-column: 1 / -1 !important; 
+        flex-direction: row !important; 
+        font-size: 0.95rem !important;
+        min-height: 44px !important;
+        background: var(--primary) !important; 
     }
 
     /* Reverse the layout: Put Canvas on top, Panels on bottom */
@@ -410,16 +450,16 @@ tr:hover td { background: var(--bg-main); }
         display: flex !important;
         flex-direction: column-reverse !important; 
         gap: 0 !important;
-        flex: 1 1 0 !important; /* Force flex child to respect parent height boundaries */
-        min-height: 0 !important; /* Absolutely critical for allowing internal scrolling */
+        flex: 1 1 0 !important; 
+        min-height: 0 !important; 
         overflow-y: auto !important; 
         background: #0F172A !important;
-        padding-bottom: 150px !important; /* Add massive buffer so user can scroll past the bottom cutoff */
+        padding-bottom: 150px !important; 
     }
 
     /* CANVAS AREA (Viewport) */
     #template-studio-view .grid-2 > .table-container:nth-child(2) {
-        flex: 0 0 45vh !important; /* Fixed viewport height */
+        flex: 0 0 45vh !important; 
         width: 100% !important;
         border: none !important;
         border-radius: 0 !important;
@@ -454,9 +494,11 @@ tr:hover td { background: var(--bg-main); }
     #template-studio-view .grid-2 > .table-container:nth-child(2) > .btn-dark i { font-size: 1rem !important; margin: 0 !important; }
 
     /* LAYERS & PROPERTIES AREA (Bottom Sheet) */
+    /* CRITICAL FIX: OVERRIDING INLINE HEIGHTS */
     #template-studio-view .grid-2 > div:nth-child(1) {
-        flex: none !important; /* Let it dictate its own height based on content */
+        flex: none !important; 
         height: auto !important;
+        max-height: none !important; 
         background: #0F172A !important;
         padding: 0 !important;
         gap: 0 !important;
@@ -471,7 +513,10 @@ tr:hover td { background: var(--bg-main); }
         border-radius: 0 !important; 
         overflow: visible !important;
         margin-bottom: 0 !important;
+        max-height: none !important; 
+        height: auto !important; 
     }
+    
     #template-studio-view .table-container > div:first-child { 
         background: #1E293B !important; 
         color: #94A3B8 !important; 
@@ -489,11 +534,16 @@ tr:hover td { background: var(--bg-main); }
         display: flex !important;
         flex-direction: column !important;
         gap: 1px !important; 
+        max-height: none !important; 
+        overflow: visible !important; 
     }
+    
     #studio-properties-panel { 
         background: #0F172A !important; 
         color: white !important; 
         padding: 1rem !important;
+        max-height: none !important; 
+        overflow: visible !important; 
     }
 
     /* --- PIXELLAB-STYLE LAYERS LIST --- */
