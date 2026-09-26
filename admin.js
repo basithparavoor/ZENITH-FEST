@@ -3223,6 +3223,8 @@ async function saveTemplateConfig() {
 let savedTemplates = []; 
 let studioActiveData = null; 
 let studioActiveField = null; 
+let multiSelectedLayers = new Set();
+let dragStartPositions = {};
 let currentLibraryFilter = 'all';
 
 // DRAG & RESIZE STATE
@@ -3424,32 +3426,6 @@ function closeTemplateStudio() {
 }
 
 
-function renderLayersPanel() {
-    const container = document.getElementById('studio-layers-panel');
-    container.innerHTML = '';
-
-    Object.keys(studioActiveData.fields).forEach(key => {
-        const data = studioActiveData.fields[key];
-        const isActiveLayer = (studioActiveField === key);
-        
-        container.innerHTML += `
-            <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.75rem; border-radius: 6px; cursor: pointer; transition: 0.2s; background: ${isActiveLayer ? 'var(--primary-light)' : 'transparent'}; border: 1px solid ${isActiveLayer ? 'rgba(79,70,229,0.3)' : 'transparent'};" onclick="selectStudioLayer('${key}')">
-                
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <button style="background:none; border:none; color: ${data.enabled ? 'var(--text-main)' : '#CBD5E1'}; cursor:pointer; font-size:1.1rem;" onclick="toggleLayerVisibility(event, '${key}')">
-                        <i class="fa-solid ${data.enabled ? 'fa-eye' : 'fa-eye-slash'}"></i>
-                    </button>
-                    <span style="font-weight: 700; font-size: 0.85rem; color: ${data.enabled ? 'var(--text-main)' : 'var(--text-muted)'};">${data.displayName}</span>
-                </div>
-                
-                <div style="color: var(--text-muted); font-size: 0.8rem;">
-                    ${data.isImage ? '<i class="fa-regular fa-image"></i>' : '<i class="fa-solid fa-t"></i>'}
-                </div>
-            </div>
-        `;
-    });
-}
-
 function selectStudioLayer(key) {
     studioActiveField = key;
     renderLayersPanel(); // Update Highlights
@@ -3540,12 +3516,14 @@ function initializeStudioFields() {
             if (isImage) {
                 studioActiveData.fields[key] = { 
                     enabled: false, x: 100, y: 150, w: 250, h: 300, radius: 20, 
-                    isImage: true, aspectLocked: true, aspectRatio: 250 / 300 
+                    isImage: true, aspectLocked: true, aspectRatio: 250 / 300,
+                    locked: false, groupId: null
                 };
             } else {
                 studioActiveData.fields[key] = { 
                     enabled: false, x: 100, y: 150, size: 40, color: '#0F172A', 
-                    align: 'left', font: 'Inter, sans-serif', weight: 'bold', isImage: false 
+                    align: 'left', font: 'Inter, sans-serif', weight: 'bold', isImage: false,
+                    locked: false, groupId: null
                 };
             }
         }
@@ -3588,7 +3566,9 @@ function addCustomTextLayer() {
         font: 'Inter, sans-serif',
         weight: 'bold',
         isImage: false,
-        isCustom: true // Flags it so it isn't deleted during sector switches
+        isCustom: true, // Flags it so it isn't deleted during sector switches
+        locked: false,  // Enables the lock/unlock toggle
+        groupId: null   // Enables multi-select grouping
     };
 
     saveHistoryState();
@@ -3597,25 +3577,191 @@ function addCustomTextLayer() {
 }
 
 
+function renderLayersPanel() {
+    const container = document.getElementById('studio-layers-panel');
+    container.innerHTML = '';
+
+    Object.keys(studioActiveData.fields).forEach(key => {
+        const data = studioActiveData.fields[key];
+        const isActiveLayer = multiSelectedLayers.has(key);
+        
+        const lockColor = data.locked ? '#EF4444' : '#64748B';
+        const lockIcon = data.locked ? 'fa-lock' : 'fa-unlock';
+        const groupTag = data.groupId ? `<i class="fa-solid fa-link" style="font-size: 0.6rem; color: var(--primary); margin-left: 4px;" title="Grouped"></i>` : '';
+
+        container.innerHTML += `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.75rem; border-radius: 6px; cursor: pointer; transition: 0.2s; background: ${isActiveLayer ? 'var(--primary-light)' : 'transparent'}; border: 1px solid ${isActiveLayer ? 'rgba(79,70,229,0.3)' : 'transparent'};" onclick="selectStudioLayer('${key}')">
+                
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <button style="background:none; border:none; color: ${data.enabled ? '#3B82F6' : '#64748B'}; cursor:pointer; font-size:1.1rem;" onclick="toggleLayerVisibility(event, '${key}')">
+                        <i class="fa-solid ${data.enabled ? 'fa-eye' : 'fa-eye-slash'}"></i>
+                    </button>
+                    <button style="background:none; border:none; color: ${lockColor}; cursor:pointer; font-size:1rem;" onclick="toggleLayerLock(event, '${key}')">
+                        <i class="fa-solid ${lockIcon}"></i>
+                    </button>
+                    <span style="font-weight: 700; font-size: 0.85rem; color: ${data.enabled ? 'var(--text-main)' : 'var(--text-muted)'};">${data.displayName} ${groupTag}</span>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="color: var(--text-muted); font-size: 0.8rem;">
+                        ${data.isImage ? '<i class="fa-regular fa-image"></i>' : '<i class="fa-solid fa-t"></i>'}
+                    </div>
+                    <input type="checkbox" ${isActiveLayer ? 'checked' : ''} onclick="toggleMultiSelect(event, '${key}')" style="width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer;">
+                </div>
+            </div>
+        `;
+    });
+}
+
+function toggleLayerLock(event, key) {
+    event.stopPropagation();
+    saveHistoryState();
+    studioActiveData.fields[key].locked = !studioActiveData.fields[key].locked;
+    renderLayersPanel();
+}
+
+function toggleMultiSelect(event, key) {
+    event.stopPropagation();
+    if (multiSelectedLayers.has(key)) {
+        multiSelectedLayers.delete(key);
+    } else {
+        multiSelectedLayers.add(key);
+    }
+    studioActiveField = multiSelectedLayers.size > 0 ? Array.from(multiSelectedLayers).pop() : null;
+    renderLayersPanel();
+    renderPropertiesPanel();
+    drawStudioCanvas();
+}
+
+function selectStudioLayer(key) {
+    // Standard click clears multi-select unless it belongs to a group
+    multiSelectedLayers.clear();
+    
+    const hitGroup = studioActiveData.fields[key].groupId;
+    if (hitGroup) {
+        Object.keys(studioActiveData.fields).forEach(k => {
+            if (studioActiveData.fields[k].groupId === hitGroup) multiSelectedLayers.add(k);
+        });
+    } else {
+        multiSelectedLayers.add(key);
+    }
+    
+    studioActiveField = key;
+    renderLayersPanel();
+    renderPropertiesPanel();
+    drawStudioCanvas();
+}
+
+function alignSelected(type) {
+    if (multiSelectedLayers.size < 2) return;
+    saveHistoryState();
+    
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const layers = Array.from(multiSelectedLayers).map(k => studioActiveData.fields[k]);
+    
+    // Calculate Bounding Box
+    layers.forEach(data => {
+        let w = data.w || 0;
+        let h = data.h || data.size || 0;
+        if (!data.isImage && data.align === 'center') { minX = Math.min(minX, data.x - w/2); maxX = Math.max(maxX, data.x + w/2); }
+        else { minX = Math.min(minX, data.x); maxX = Math.max(maxX, data.x + w); }
+        minY = Math.min(minY, data.y - (data.isImage ? 0 : h));
+        maxY = Math.max(maxY, data.y + (data.isImage ? h : 0));
+    });
+
+    const centerX = minX + (maxX - minX) / 2;
+    const centerY = minY + (maxY - minY) / 2;
+
+    layers.forEach(data => {
+        if(data.locked) return;
+        let w = data.w || 0; let h = data.h || data.size || 0;
+
+        if (type === 'left') data.x = data.isImage || data.align !== 'center' ? minX : minX + w/2;
+        if (type === 'right') data.x = data.isImage || data.align !== 'center' ? maxX - w : maxX - w/2;
+        if (type === 'center') data.x = data.isImage || data.align !== 'center' ? centerX - w/2 : centerX;
+        if (type === 'top') data.y = data.isImage ? minY : minY + h;
+        if (type === 'bottom') data.y = data.isImage ? maxY - h : maxY;
+        if (type === 'middle') data.y = data.isImage ? centerY - h/2 : centerY + h/2;
+    });
+    
+    drawStudioCanvas();
+    renderPropertiesPanel();
+}
+
+function groupSelected() {
+    if (multiSelectedLayers.size < 2) return;
+    saveHistoryState();
+    const groupId = 'GRP_' + Date.now();
+    multiSelectedLayers.forEach(k => { studioActiveData.fields[k].groupId = groupId; });
+    showToast("Layers Grouped Successfully!", "success");
+    renderLayersPanel();
+    renderPropertiesPanel();
+}
+
+function ungroupSelected() {
+    saveHistoryState();
+    multiSelectedLayers.forEach(k => { studioActiveData.fields[k].groupId = null; });
+    showToast("Layers Ungrouped!", "success");
+    renderLayersPanel();
+    renderPropertiesPanel();
+}
+
 function renderPropertiesPanel() {
     const container = document.getElementById('studio-properties-panel');
     const studioView = document.getElementById('template-studio-view');
     
-    if (!studioActiveField || !studioActiveData.fields[studioActiveField]) {
+    if (typeof multiSelectedLayers === 'undefined' || multiSelectedLayers.size === 0) {
         container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">Select a layer to edit.</p>`;
-        if (studioView) {
-            studioView.classList.remove('layer-active');
-            studioView.classList.add('layer-empty');
-        }
+        if (studioView) { studioView.classList.remove('layer-active'); studioView.classList.add('layer-empty'); }
         return;
     }
 
-    if (studioView) {
-        studioView.classList.add('layer-active');
-        studioView.classList.remove('layer-empty');
+    if (studioView) { studioView.classList.add('layer-active'); studioView.classList.remove('layer-empty'); }
+
+    // MULTI-SELECT ALIGNMENT VIEW
+    if (multiSelectedLayers.size > 1) {
+        const keys = Array.from(multiSelectedLayers);
+        const hasGroup = keys.every(k => studioActiveData.fields[k].groupId && studioActiveData.fields[k].groupId === studioActiveData.fields[keys[0]].groupId);
+        
+        container.innerHTML = `
+            <div class="mobile-properties-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px dashed #334155; padding-bottom: 0.85rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <button class="btn btn-outline mobile-back-btn" style="padding: 0.4rem 0.6rem; border-radius: 8px; border: none; background: #334155; color: white; display: none;" onclick="multiSelectedLayers.clear(); studioActiveField = null; renderLayersPanel(); renderPropertiesPanel(); drawStudioCanvas();"><i class="fa-solid fa-arrow-left"></i></button>
+                    <h4 style="color: white; font-size: 1.15rem; font-weight: 800; margin: 0;">${keys.length} Layers Selected</h4>
+                </div>
+            </div>
+            
+            <label style="color: #94A3B8; font-size: 0.75rem; font-weight: 700; margin-bottom: 0.5rem; display: block;">ALIGNMENT TOOLS</label>
+            <div class="align-grid">
+                <button class="btn" onclick="alignSelected('left')"><i class="fa-solid fa-align-left"></i> Left</button>
+                <button class="btn" onclick="alignSelected('center')"><i class="fa-solid fa-align-center"></i> Center</button>
+                <button class="btn" onclick="alignSelected('right')"><i class="fa-solid fa-align-right"></i> Right</button>
+                <button class="btn" onclick="alignSelected('top')"><i class="fa-solid fa-object-group" style="transform: rotate(180deg)"></i> Top</button>
+                <button class="btn" onclick="alignSelected('middle')"><i class="fa-solid fa-arrows-up-down"></i> Middle</button>
+                <button class="btn" onclick="alignSelected('bottom')"><i class="fa-solid fa-object-group"></i> Bottom</button>
+            </div>
+            
+            <div class="group-action-row">
+                <button class="btn ${hasGroup ? 'btn-danger' : 'btn-success'}" onclick="${hasGroup ? 'ungroupSelected()' : 'groupSelected()'}">
+                    <i class="fa-solid ${hasGroup ? 'fa-object-ungroup' : 'fa-object-group'}"></i> ${hasGroup ? 'Ungroup Selection' : 'Group Selected Layers'}
+                </button>
+            </div>
+        `;
+        return;
     }
 
+    // --- STANDARD SINGLE LAYER VIEW ---
     const key = studioActiveField;
+
+    // CRITICAL SAFETY CHECK: Prevent the font crash if layer data is missing
+    if (!key || !studioActiveData.fields[key]) {
+        multiSelectedLayers.clear();
+        studioActiveField = null;
+        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">Select a layer to edit.</p>`;
+        if (studioView) { studioView.classList.remove('layer-active'); studioView.classList.add('layer-empty'); }
+        return;
+    }
+
     const data = studioActiveData.fields[key];
     const fonts = AVAILABLE_FONTS.map(f => `<option value="${f.value}" ${data.font === f.value ? 'selected' : ''}>${f.name}</option>`).join('');
 
@@ -3628,10 +3774,10 @@ function renderPropertiesPanel() {
 
         specificHTML = `
             <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.5rem; margin-top: 1rem; align-items: end;">
-                <div><label style="font-size: 0.75rem; font-weight:700;">WIDTH</label><input type="number" id="prop-w" value="${data.w}" oninput="updateActiveProperty('w', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">WIDTH</label><input type="number" id="prop-w" value="${data.w}" oninput="updateActiveProperty('w', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
                 <button class="btn btn-outline" style="padding: 0.5rem; height: 35px; width: 35px; display: flex; justify-content: center; align-items: center;" onclick="toggleAspectRatioLock('${key}')" title="Toggle Aspect Ratio Lock"><i class="fa-solid ${lockIcon}"></i></button>
-                <div><label style="font-size: 0.75rem; font-weight:700;">HEIGHT</label><input type="number" id="prop-h" value="${data.h}" oninput="updateActiveProperty('h', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
-                <div style="grid-column: span 3;"><label style="font-size: 0.75rem; font-weight:700;">CORNER RADIUS</label><input type="number" id="prop-rad" value="${data.radius || 0}" oninput="updateActiveProperty('radius', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">HEIGHT</label><input type="number" id="prop-h" value="${data.h}" oninput="updateActiveProperty('h', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
+                <div style="grid-column: span 3;"><label style="font-size: 0.75rem; font-weight:700;">CORNER RADIUS</label><input type="number" id="prop-rad" value="${data.radius || 0}" oninput="updateActiveProperty('radius', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
                 ${deleteBtn}
             </div>
         `;
@@ -3641,7 +3787,7 @@ function renderPropertiesPanel() {
             customTextHTML = `
                 <div style="grid-column: span 2;">
                     <label style="font-size: 0.75rem; font-weight:700;">TEXT CONTENT</label>
-                    <input type="text" value="${data.displayName}" oninput="updateActiveProperty('displayName', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                    <input type="text" value="${data.displayName}" oninput="updateActiveProperty('displayName', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}>
                 </div>
             `;
         }
@@ -3653,15 +3799,15 @@ function renderPropertiesPanel() {
         specificHTML = `
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem;">
                 ${customTextHTML}
-                <div><label style="font-size: 0.75rem; font-weight:700;">FONT SIZE</label><input type="number" id="prop-sz" value="${data.size}" oninput="updateActiveProperty('size', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
-                <div><label style="font-size: 0.75rem; font-weight:700;">COLOR</label><input type="color" id="prop-cl" value="${data.color}" oninput="updateActiveProperty('color', this.value)" style="width: 100%; height: 35px; border: 1px solid var(--border); border-radius: 4px; padding:0;"></div>
-                <div style="grid-column: span 2;"><label style="font-size: 0.75rem; font-weight:700;">FONT FAMILY</label><select onchange="updateActiveProperty('font', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">${fonts}</select></div>
-                <div><label style="font-size: 0.75rem; font-weight:700;">WEIGHT</label><select onchange="updateActiveProperty('weight', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                <div><label style="font-size: 0.75rem; font-weight:700;">FONT SIZE</label><input type="number" id="prop-sz" value="${data.size}" oninput="updateActiveProperty('size', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">COLOR</label><input type="color" id="prop-cl" value="${data.color}" oninput="updateActiveProperty('color', this.value)" style="width: 100%; height: 35px; border: 1px solid var(--border); border-radius: 4px; padding:0;" ${data.locked ? 'disabled' : ''}></div>
+                <div style="grid-column: span 2;"><label style="font-size: 0.75rem; font-weight:700;">FONT FAMILY</label><select onchange="updateActiveProperty('font', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}>${fonts}</select></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">WEIGHT</label><select onchange="updateActiveProperty('weight', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}>
                     <option value="normal" ${data.weight==='normal'?'selected':''}>Normal</option>
                     <option value="bold" ${data.weight==='bold'?'selected':''}>Bold</option>
                     <option value="900" ${data.weight==='900'?'selected':''}>Black</option>
                 </select></div>
-                <div><label style="font-size: 0.75rem; font-weight:700;">ALIGN</label><select onchange="updateActiveProperty('align', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                <div><label style="font-size: 0.75rem; font-weight:700;">ALIGN</label><select onchange="updateActiveProperty('align', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}>
                     <option value="left" ${data.align==='left'?'selected':''}>Left</option>
                     <option value="center" ${data.align==='center'?'selected':''}>Center</option>
                     <option value="right" ${data.align==='right'?'selected':''}>Right</option>
@@ -3671,7 +3817,6 @@ function renderPropertiesPanel() {
         `;
     }
 
-    // NEW: Eye Icon Toggle attached directly to the Properties Header
     const visibilityBtn = `
         <button style="background:none; border:none; color: ${data.enabled ? '#3B82F6' : '#64748B'}; cursor:pointer; font-size:1.4rem; padding: 0.5rem;" onclick="toggleLayerVisibility(event, '${key}')">
             <i class="fa-solid ${data.enabled ? 'fa-eye' : 'fa-eye-slash'}"></i>
@@ -3681,20 +3826,20 @@ function renderPropertiesPanel() {
     container.innerHTML = `
         <div class="mobile-properties-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px dashed #334155; padding-bottom: 0.85rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <button class="btn btn-outline mobile-back-btn" style="padding: 0.4rem 0.6rem; border-radius: 8px; border: none; background: #334155; color: white; display: none;" onclick="studioActiveField = null; renderLayersPanel(); renderPropertiesPanel(); drawStudioCanvas();">
-                    <i class="fa-solid fa-arrow-left"></i>
-                </button>
-                <h4 style="color: white; font-size: 1.15rem; font-weight: 800; margin: 0; text-transform: uppercase;">${data.displayName}</h4>
+                <button class="btn btn-outline mobile-back-btn" style="padding: 0.4rem 0.6rem; border-radius: 8px; border: none; background: #334155; color: white; display: none;" onclick="multiSelectedLayers.clear(); studioActiveField = null; renderLayersPanel(); renderPropertiesPanel(); drawStudioCanvas();"><i class="fa-solid fa-arrow-left"></i></button>
+                <h4 style="color: white; font-size: 1.15rem; font-weight: 800; margin: 0; text-transform: uppercase;">${data.displayName} ${data.locked ? '<i class="fa-solid fa-lock" style="color:#EF4444; font-size: 0.8rem; margin-left: 5px;"></i>' : ''}</h4>
             </div>
             ${visibilityBtn}
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-            <div><label style="font-size: 0.75rem; font-weight:700;">X POS</label><input type="number" id="prop-x" value="${data.x}" oninput="updateActiveProperty('x', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
-            <div><label style="font-size: 0.75rem; font-weight:700;">Y POS</label><input type="number" id="prop-y" value="${data.y}" oninput="updateActiveProperty('y', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+            <div><label style="font-size: 0.75rem; font-weight:700;">X POS</label><input type="number" id="prop-x" value="${data.x}" oninput="updateActiveProperty('x', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
+            <div><label style="font-size: 0.75rem; font-weight:700;">Y POS</label><input type="number" id="prop-y" value="${data.y}" oninput="updateActiveProperty('y', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
         </div>
         ${specificHTML}
     `;
 }
+
+
 function drawStudioCanvas() {
     const canvas = document.getElementById('studio-canvas');
     if(!canvas) return;
@@ -3769,11 +3914,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const canvas = document.getElementById('studio-canvas');
     if (!canvas) return;
 
-    // Helper to get coordinates for both Mouse AND Touch
     function getCoords(e) {
-        if (e.touches && e.touches.length > 0) {
-            return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        }
+        if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
         return { x: e.clientX, y: e.clientY };
     }
 
@@ -3785,10 +3927,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const mouseX = (coords.x - rect.left) * scaleX; 
         const mouseY = (coords.y - rect.top) * scaleY;
 
-        // 1. Check if we are clicking a Resize Handle
-        if (studioActiveField && studioActiveData.fields[studioActiveField].isImage) {
+        // 1. Single Element Resize (Only if ONE element is active and NOT locked)
+        if (multiSelectedLayers.size === 1 && studioActiveField && studioActiveData.fields[studioActiveField].isImage && !studioActiveData.fields[studioActiveField].locked) {
             const data = studioActiveData.fields[studioActiveField];
-            const hitZone = 40; // Increased hit zone size for mobile fingers
+            const hitZone = 40; 
             
             if (mouseX >= data.x + data.w - hitZone && mouseX <= data.x + data.w + hitZone &&
                 mouseY >= data.y + data.h - hitZone && mouseY <= data.y + data.h + hitZone) {
@@ -3800,12 +3942,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 resizeStartX = mouseX;
                 resizeStartY = mouseY;
                 
-                if(e.type === 'touchstart') e.preventDefault(); // Stop mobile scroll
+                if(e.type === 'touchstart') e.preventDefault(); 
                 return; 
             }
         }
 
-        // 2. Standard Hit Detection (Drag/Select)
+        // 2. Multi-Hit Detection (Find what was clicked)
         let hit = null;
         const keys = Object.keys(studioActiveData.fields).reverse();
         
@@ -3826,35 +3968,64 @@ document.addEventListener("DOMContentLoaded", () => {
                 if(data.align === 'center') startX -= w/2;
                 if(data.align === 'right') startX -= w;
 
-                // Increased hit area padding for mobile text tapping
                 if(mouseX >= startX - 20 && mouseX <= startX + w + 20 && mouseY >= data.y - h - 20 && mouseY <= data.y + (h * 0.2) + 20) {
                     hit = key; break;
                 }
             }
         }
 
-        if(hit) {
-            if (studioActiveField !== hit) selectStudioLayer(hit);
+        // 3. Selection & Group Drag Logic
+        if (hit) {
+            // Desktop Ctrl/Shift click adds to selection
+            if (e.ctrlKey || e.metaKey || e.shiftKey) {
+                if (multiSelectedLayers.has(hit)) multiSelectedLayers.delete(hit);
+                else multiSelectedLayers.add(hit);
+            } 
+            // If they click something that ISN'T already selected, clear and select it (and its group)
+            else if (!multiSelectedLayers.has(hit)) {
+                multiSelectedLayers.clear();
+                const hitGroup = studioActiveData.fields[hit].groupId;
+                if (hitGroup) {
+                    Object.keys(studioActiveData.fields).forEach(k => {
+                        if (studioActiveData.fields[k].groupId === hitGroup) multiSelectedLayers.add(k);
+                    });
+                } else {
+                    multiSelectedLayers.add(hit);
+                }
+            }
+            
+            studioActiveField = multiSelectedLayers.size > 0 ? hit : null;
+
             saveHistoryState(); 
-            
             isDraggingLayer = true;
-            dragOffsetX = mouseX - studioActiveData.fields[hit].x;
-            dragOffsetY = mouseY - studioActiveData.fields[hit].y; // Fix vertical drag snapping
             
-            if(e.type === 'touchstart') e.preventDefault(); // Stop mobile scroll
+            // Map out drag offsets for ALL currently selected items
+            dragStartPositions = {};
+            multiSelectedLayers.forEach(k => {
+                if (!studioActiveData.fields[k].locked) {
+                    dragStartPositions[k] = {
+                        offsetX: mouseX - studioActiveData.fields[k].x,
+                        offsetY: mouseY - studioActiveData.fields[k].y
+                    };
+                }
+            });
+            
+            if(e.type === 'touchstart') e.preventDefault(); 
         } else {
+            multiSelectedLayers.clear();
             studioActiveField = null; 
-            renderLayersPanel(); 
-            renderPropertiesPanel(); 
-            drawStudioCanvas();
         }
+        
+        renderLayersPanel(); 
+        renderPropertiesPanel(); 
+        drawStudioCanvas();
     }
 
     function onPointerMove(e) {
-        if(!studioActiveField) return;
+        if(multiSelectedLayers.size === 0) return;
         if(!isDraggingLayer && !isResizingLayer) return;
         
-        if(e.type === 'touchmove') e.preventDefault(); // Lock screen from scrolling while dragging
+        if(e.type === 'touchmove') e.preventDefault(); 
 
         const coords = getCoords(e);
         const rect = canvas.getBoundingClientRect();
@@ -3862,10 +4033,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const scaleY = canvas.height / rect.height;
         const mouseX = (coords.x - rect.left) * scaleX; 
         const mouseY = (coords.y - rect.top) * scaleY;
-        const data = studioActiveData.fields[studioActiveField];
 
         // HANDLE RESIZING
-        if (isResizingLayer) {
+        if (isResizingLayer && studioActiveField) {
+            const data = studioActiveData.fields[studioActiveField];
             let deltaX = mouseX - resizeStartX;
             let newW = Math.max(20, resizeStartW + deltaX);
             let newH = data.h; 
@@ -3889,15 +4060,24 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // HANDLE DRAGGING
+        // HANDLE MULTI-DRAGGING
         if(isDraggingLayer) {
-            data.x = Math.round(mouseX - dragOffsetX);
-            data.y = Math.round(mouseY - dragOffsetY);
+            multiSelectedLayers.forEach(k => {
+                const data = studioActiveData.fields[k];
+                const startPos = dragStartPositions[k];
+                if (startPos && !data.locked) {
+                    data.x = Math.round(mouseX - startPos.offsetX);
+                    data.y = Math.round(mouseY - startPos.offsetY);
+                }
+            });
 
-            const propX = document.getElementById('prop-x');
-            const propY = document.getElementById('prop-y');
-            if(propX) propX.value = data.x;
-            if(propY) propY.value = data.y;
+            // If only one layer is moving, live update its property inputs
+            if (multiSelectedLayers.size === 1 && studioActiveField) {
+                const propX = document.getElementById('prop-x');
+                const propY = document.getElementById('prop-y');
+                if(propX) propX.value = studioActiveData.fields[studioActiveField].x;
+                if(propY) propY.value = studioActiveData.fields[studioActiveField].y;
+            }
 
             drawStudioCanvas();
         }
@@ -3908,12 +4088,10 @@ document.addEventListener("DOMContentLoaded", () => {
         isResizingLayer = false; 
     }
 
-    // Attach Desktop Mouse Events
     canvas.addEventListener('mousedown', onPointerDown);
     canvas.addEventListener('mousemove', onPointerMove);
     window.addEventListener('mouseup', onPointerUp);
 
-    // Attach Mobile Touch Events (passive: false is required to allow e.preventDefault())
     canvas.addEventListener('touchstart', onPointerDown, { passive: false });
     canvas.addEventListener('touchmove', onPointerMove, { passive: false });
     window.addEventListener('touchend', onPointerUp);
@@ -5291,7 +5469,8 @@ function redo() {
 }
 
 function finalizeHistoryAction() {
-    studioActiveField = null; // Clear active selections to prevent ghost resizing handles
+    if (typeof multiSelectedLayers !== 'undefined') multiSelectedLayers.clear(); // CRITICAL FIX
+    studioActiveField = null; 
     updateHistoryButtons();
     renderLayersPanel();
     renderPropertiesPanel();
@@ -6378,6 +6557,7 @@ function deleteStudioLayer(key) {
         saveHistoryState();
         delete studioActiveData.fields[key];
         if (studioActiveField === key) studioActiveField = null;
+        if (typeof multiSelectedLayers !== 'undefined') multiSelectedLayers.delete(key); // CRITICAL FIX
         renderLayersPanel();
         renderPropertiesPanel();
         drawStudioCanvas();
