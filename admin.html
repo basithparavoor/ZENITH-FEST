@@ -375,14 +375,93 @@ tr:hover td { background: var(--bg-main); }
     #studio-template-name { color: white !important; font-size: 0.9rem !important; border-bottom-color: #334155 !important; }
     #studio-template-type { background: #0F172A !important; color: white !important; border-color: #334155 !important; font-size: 0.8rem !important; padding: 0.3rem !important; }
 
-    /* App-Style Editor Tool Grid */
+   /* App-Style Editor Tool Grid */
     #template-studio-view .action-bar > .bulk-actions {
         display: grid !important;
-        grid-template-columns: repeat(4, 1fr) !important; /* 4 tools side-by-side */
+        grid-template-columns: repeat(4, 1fr) !important; /* 4 columns */
         gap: 0.5rem !important;
         padding: 0.5rem 0 0 0 !important;
         width: 100% !important;
         overflow: visible !important;
+    }
+    
+    /* Top 4 Tools */
+    #template-studio-view .action-bar > .bulk-actions > .btn {
+        width: 100% !important;
+        font-size: 0.65rem !important;
+        font-weight: 700 !important;
+        padding: 0.5rem 0.2rem !important;
+        background: #334155 !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        min-height: 56px !important;
+        display: flex !important;
+        flex-direction: column !important; 
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.35rem !important;
+        white-space: normal !important; 
+        line-height: 1.1 !important;
+        text-align: center !important;
+    }
+    
+    #template-studio-view .action-bar > .bulk-actions > .btn i {
+        font-size: 1.15rem !important;
+        margin: 0 !important;
+    }
+    
+    /* Bottom Row Left: Undo & Redo Wrapper */
+    #template-studio-view .action-bar > .bulk-actions > .bulk-actions {
+        grid-column: span 2 !important; /* Take half the bottom row */
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 0.5rem !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+    }
+    
+    #template-studio-view .action-bar > .bulk-actions > .bulk-actions > div {
+        display: flex !important; 
+        width: 100% !important;
+        gap: 0.5rem !important;
+        border: none !important; /* Remove right border */
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    /* Undo & Redo Buttons */
+    #template-studio-view .action-bar > .bulk-actions > .bulk-actions .btn {
+        flex: 1 !important;
+        flex-direction: row !important;
+        font-size: 1.1rem !important; /* Large visible icons */
+        min-height: 44px !important;
+        border-radius: 8px !important;
+        background: #1E293B !important;
+        border: 1px solid #334155 !important;
+        color: white !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    
+    /* Force display of icons */
+    #template-studio-view .action-bar > .bulk-actions > .bulk-actions .btn i {
+        display: inline-block !important;
+        margin: 0 !important;
+    }
+
+    /* Bottom Row Right: Save Button */
+    #template-studio-view .action-bar > .bulk-actions > .btn-success { 
+        grid-column: span 2 !important; /* Take other half of bottom row */
+        flex-direction: row !important; 
+        font-size: 0.9rem !important;
+        font-weight: 700 !important;
+        min-height: 44px !important;
+        background: var(--primary) !important; 
+        border-radius: 8px !important;
+        gap: 0.5rem !important;
     }
     
     /* Individual Tool Buttons (Stack icon above text) */
@@ -411,15 +490,6 @@ tr:hover td { background: var(--bg-main); }
         margin: 0 !important;
     }
     
-    /* Undo / Redo Container (Split 50/50 below tools) */
-    #template-studio-view .action-bar > .bulk-actions > .bulk-actions {
-        grid-column: 1 / -1 !important; 
-        display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
-        gap: 0.5rem !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
     
     /* Remove borders/paddings from inline wrapper */
     #template-studio-view .action-bar > .bulk-actions > .bulk-actions > div {

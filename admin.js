@@ -3745,34 +3745,43 @@ document.addEventListener("DOMContentLoaded", () => {
     const canvas = document.getElementById('studio-canvas');
     if (!canvas) return;
 
-    canvas.addEventListener('mousedown', function(e) {
+    // Helper to get coordinates for both Mouse AND Touch
+    function getCoords(e) {
+        if (e.touches && e.touches.length > 0) {
+            return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }
+        return { x: e.clientX, y: e.clientY };
+    }
+
+    function onPointerDown(e) {
+        const coords = getCoords(e);
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width; 
         const scaleY = canvas.height / rect.height;
-        const mouseX = (e.clientX - rect.left) * scaleX; 
-        const mouseY = (e.clientY - rect.top) * scaleY;
+        const mouseX = (coords.x - rect.left) * scaleX; 
+        const mouseY = (coords.y - rect.top) * scaleY;
 
-       // 1. Check if we are clicking a Resize Handle
+        // 1. Check if we are clicking a Resize Handle
         if (studioActiveField && studioActiveData.fields[studioActiveField].isImage) {
             const data = studioActiveData.fields[studioActiveField];
-            const hitZone = 20; 
+            const hitZone = 40; // Increased hit zone size for mobile fingers
             
             if (mouseX >= data.x + data.w - hitZone && mouseX <= data.x + data.w + hitZone &&
                 mouseY >= data.y + data.h - hitZone && mouseY <= data.y + data.h + hitZone) {
                 
-                saveHistoryState(); // <-- ADD THIS LINE HERE
-                
+                saveHistoryState(); 
                 isResizingLayer = true;
                 resizeStartW = data.w;
-                // ... [keep rest of resize logic]
                 resizeStartH = data.h;
                 resizeStartX = mouseX;
                 resizeStartY = mouseY;
-                return; // Stop here, we are resizing, not selecting/dragging
+                
+                if(e.type === 'touchstart') e.preventDefault(); // Stop mobile scroll
+                return; 
             }
         }
 
-        // 2. If not resizing, do standard Hit Detection (Drag/Select)
+        // 2. Standard Hit Detection (Drag/Select)
         let hit = null;
         const keys = Object.keys(studioActiveData.fields).reverse();
         
@@ -3793,47 +3802,49 @@ document.addEventListener("DOMContentLoaded", () => {
                 if(data.align === 'center') startX -= w/2;
                 if(data.align === 'right') startX -= w;
 
-                if(mouseX >= startX && mouseX <= startX + w && mouseY >= data.y - h && mouseY <= data.y + (h * 0.2)) {
+                // Increased hit area padding for mobile text tapping
+                if(mouseX >= startX - 20 && mouseX <= startX + w + 20 && mouseY >= data.y - h - 20 && mouseY <= data.y + (h * 0.2) + 20) {
                     hit = key; break;
                 }
             }
         }
 
-       // ... [hit detection loop] ...
-
         if(hit) {
             if (studioActiveField !== hit) selectStudioLayer(hit);
-            
-            saveHistoryState(); // <-- ADD THIS LINE HERE
+            saveHistoryState(); 
             
             isDraggingLayer = true;
             dragOffsetX = mouseX - studioActiveData.fields[hit].x;
-            // ... [keep rest of drag logic]
+            dragOffsetY = mouseY - studioActiveData.fields[hit].y; // Fix vertical drag snapping
+            
+            if(e.type === 'touchstart') e.preventDefault(); // Stop mobile scroll
         } else {
             studioActiveField = null; 
             renderLayersPanel(); 
             renderPropertiesPanel(); 
             drawStudioCanvas();
         }
-    });
+    }
 
-    canvas.addEventListener('mousemove', function(e) {
+    function onPointerMove(e) {
         if(!studioActiveField) return;
+        if(!isDraggingLayer && !isResizingLayer) return;
         
+        if(e.type === 'touchmove') e.preventDefault(); // Lock screen from scrolling while dragging
+
+        const coords = getCoords(e);
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width; 
         const scaleY = canvas.height / rect.height;
-        const mouseX = (e.clientX - rect.left) * scaleX; 
-        const mouseY = (e.clientY - rect.top) * scaleY;
+        const mouseX = (coords.x - rect.left) * scaleX; 
+        const mouseY = (coords.y - rect.top) * scaleY;
         const data = studioActiveData.fields[studioActiveField];
 
         // HANDLE RESIZING
         if (isResizingLayer) {
             let deltaX = mouseX - resizeStartX;
-            
-            // Calculate new width (prevent it from getting too small)
             let newW = Math.max(20, resizeStartW + deltaX);
-            let newH = data.h; // Default
+            let newH = data.h; 
 
             if (data.aspectLocked && data.aspectRatio) {
                 newH = Math.round(newW / data.aspectRatio);
@@ -3845,7 +3856,6 @@ document.addEventListener("DOMContentLoaded", () => {
             data.w = newW;
             data.h = newH;
 
-            // Live update the properties panel
             const propW = document.getElementById('prop-w');
             const propH = document.getElementById('prop-h');
             if (propW) propW.value = data.w;
@@ -3867,12 +3877,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
             drawStudioCanvas();
         }
-    });
+    }
 
-    window.addEventListener('mouseup', () => { 
+    function onPointerUp() {
         isDraggingLayer = false; 
         isResizingLayer = false; 
-    });
+    }
+
+    // Attach Desktop Mouse Events
+    canvas.addEventListener('mousedown', onPointerDown);
+    canvas.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+
+    // Attach Mobile Touch Events (passive: false is required to allow e.preventDefault())
+    canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+    canvas.addEventListener('touchmove', onPointerMove, { passive: false });
+    window.addEventListener('touchend', onPointerUp);
 });
 
 // --- 5. SAVING ---
