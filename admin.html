@@ -1152,25 +1152,37 @@ tr:hover td { background: var(--bg-main); }
 
 /* --- MOBILE LAYER/PROPERTY INTERACTION LOGIC --- */
     
-    /* When no layer is selected: Hide the properties panel entirely */
-    #template-studio-view.layer-empty #studio-properties-panel {
+    /* 1. When NO layer is selected (layer-empty) */
+    /* Hide the entire Properties Card completely */
+    #template-studio-view.layer-empty .grid-2 > div:nth-child(1) > .table-container:nth-child(2) {
         display: none !important;
+    }
+    /* Ensure the Layers Card is fully visible */
+    #template-studio-view.layer-empty .grid-2 > div:nth-child(1) > .table-container:nth-child(1) {
+        display: flex !important;
     }
     
-    /* When a layer IS selected: Hide the layers list and the header */
-    #template-studio-view.layer-active #studio-layers-panel {
+    /* 2. When a layer IS selected (layer-active) */
+    /* Hide the entire Layers Card completely */
+    #template-studio-view.layer-active .grid-2 > div:nth-child(1) > .table-container:nth-child(1) {
         display: none !important;
     }
-    #template-studio-view.layer-active .table-container > div:first-child {
-        display: none !important; /* Hides 'ACTIVE LAYERS' text */
+    /* Show the Properties Card completely */
+    #template-studio-view.layer-active .grid-2 > div:nth-child(1) > .table-container:nth-child(2) {
+        display: flex !important;
+    }
+    
+    /* Hide the desktop "Layer Properties" header so only the mobile one shows */
+    #template-studio-view.layer-active .grid-2 > div:nth-child(1) > .table-container:nth-child(2) > div:first-child {
+        display: none !important;
     }
     
     /* Show the Back button inside the Properties header */
     #template-studio-view.layer-active .mobile-back-btn {
-        display: block !important;
+        display: flex !important;
     }
     
-    /* Remove duplicate bottom border on the properties header in mobile view */
+    /* Remove duplicate bottom border on the properties header */
     #studio-properties-panel h4 {
         border-bottom: none !important;
         padding-bottom: 0 !important;
