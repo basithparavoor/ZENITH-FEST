@@ -62,7 +62,6 @@ function setLoading(btnId, isLoading) {
     }
 }
 
-// Add this to gracefully handle expanding/collapsing sidebar sections
 function toggleSubmenu(element) {
     const parent = element.parentElement;
     const submenu = parent.querySelector('.nav-sub');
@@ -84,28 +83,31 @@ function toggleSubmenu(element) {
     }
 }
 
-// Update switchTab to properly assign active classes
 function switchTab(tabId) {
-    // Remove active states everywhere
+    // 1. Remove active states from EVERYTHING
     document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
     document.querySelectorAll('.nav-main').forEach(nav => nav.classList.remove('active'));
     
-    // Show target section
+    // 2. Show the target content section
     document.getElementById(tabId).classList.add('active');
     
-    // Find the clicked nav item
+    // 3. Find the clicked nav item and highlight it
     const activeNav = document.querySelector(`[onclick="switchTab('${tabId}')"]`);
     if(activeNav) {
         activeNav.classList.add('active');
         
-        // If clicking a sub-item, ALSO highlight the parent main tab
+        // If it's a sub-item, ALSO highlight its parent main tab
         if (activeNav.classList.contains('nav-item')) {
             const parentGroup = activeNav.closest('.nav-group');
             if (parentGroup) {
                 const mainItem = parentGroup.querySelector('.nav-main');
                 if(mainItem) mainItem.classList.add('active');
             }
+        } else if (activeNav.classList.contains('nav-main')) {
+            // If it's a standalone main tab (like Dashboard), close all submenus
+            document.querySelectorAll('.nav-main').forEach(nav => nav.classList.remove('open'));
+            document.querySelectorAll('.nav-sub').forEach(sub => sub.classList.remove('open'));
         }
         
         // Update header title
@@ -113,7 +115,7 @@ function switchTab(tabId) {
         if(pageTitle) pageTitle.innerText = activeNav.innerText.trim();
     }
 
-    // Auto-close sidebar on mobile after clicking
+    // Auto-close sidebar on mobile
     if(window.innerWidth <= 768) {
         document.getElementById('sidebar')?.classList.remove('open');
         document.querySelector('.mobile-overlay')?.classList.remove('open');
