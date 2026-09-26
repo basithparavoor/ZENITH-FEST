@@ -600,23 +600,18 @@ tr:hover td { background: var(--bg-main); }
         align-items: center !important;
     }
     
-    /* --- STRUCTURED LAYERS PANEL --- */
+   /* --- PIXELLAB-STYLE LAYERS LIST --- */
     #studio-layers-panel { 
         background: transparent !important; 
         padding: 0.75rem !important;
         display: flex !important;
         flex-direction: column !important;
-        gap: 0.5rem !important; /* Proper spacing between layers */
+        gap: 0.5rem !important; 
         max-height: none !important; 
         overflow: visible !important; 
     }
-    
+
     #studio-layers-panel > div {
-        border-radius: 10px !important;
-        margin-bottom: 0 !important;
-        padding: 0.85rem 1rem !important;
-        background: #0F172A !important;
-        border: 1px solid #334155 !important;
         display: flex !important;
         flex-direction: row-reverse !important; 
         align-items: center !important;
@@ -631,32 +626,13 @@ tr:hover td { background: var(--bg-main); }
         align-items: center !important;
     }
 
+    /* Accommodate the new Checkboxes and Icons */
     #studio-layers-panel > div > div:nth-child(2) {
         margin-right: 1rem !important;
-        width: 24px !important;
-        text-align: center !important;
-    }
-
-    #studio-layers-panel > div span { 
-        color: #E2E8F0 !important; 
-        font-weight: 600 !important; 
-        font-size: 0.95rem !important;
-    }
-    #studio-layers-panel > div button,
-    #studio-layers-panel > div i { 
-        color: #94A3B8 !important; 
-        font-size: 1.15rem !important; 
-    }
-
-    /* Highlight states for ACTIVE layers */
-    #studio-layers-panel > div[style*="var(--primary-light)"] { 
-        background: #3B82F6 !important; 
-        border-color: #60A5FA !important;
-    }
-    #studio-layers-panel > div[style*="var(--primary-light)"] span,
-    #studio-layers-panel > div[style*="var(--primary-light)"] button,
-    #studio-layers-panel > div[style*="var(--primary-light)"] i { 
-        color: #FFFFFF !important; 
+        width: auto !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
     }
 
     /* --- STRUCTURED PROPERTIES PANEL --- */

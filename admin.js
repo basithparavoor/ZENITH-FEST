@@ -3394,14 +3394,15 @@ function openTemplateStudio(template = null) {
         }
     } else {
         // Initialize a brand new template
-        studioActiveData = { 
+       studioActiveData = { 
             id: 'TPL_' + Date.now(), 
             name: '', 
             type: 'individual', 
             bg_base64: null, 
             imgObj: new Image(), 
             fields: {},
-            customFonts: [] // Ensure the array exists for new templates
+            groups: {}, // Ensure groups object exists
+            customFonts: [] 
         };
         
         studioActiveData.imgObj.crossOrigin = "Anonymous";
@@ -3448,38 +3449,320 @@ function toggleLayerVisibility(event, key) {
 
 let historyTimeout = null;
 
-function updateActiveProperty(prop, value) {
-    if (!studioActiveField) return;
-    const data = studioActiveData.fields[studioActiveField];
-    const isNum = ['x','y','w','h','size','radius'].includes(prop);
-    const val = isNum ? (parseInt(value) || 0) : value;
 
-    // ---> NEW: Save History once per interaction burst <---
-    if (!historyTimeout && !isRestoringHistory) saveHistoryState();
-    clearTimeout(historyTimeout);
-    historyTimeout = setTimeout(() => { historyTimeout = null; }, 800);
+// --- LAYER MANAGEMENT & GROUPING ENGINE ---
+function groupSelected() {
+    if (multiSelectedLayers.size < 2) return;
+    saveHistoryState();
+    const groupId = 'GRP_' + Date.now();
+    if (!studioActiveData.groups) studioActiveData.groups = {};
+    studioActiveData.groups[groupId] = { name: 'New Group', expanded: true };
+    multiSelectedLayers.forEach(k => { studioActiveData.fields[k].groupId = groupId; });
+    showToast("Layers Grouped!", "success");
+    renderLayersPanel();
+    renderPropertiesPanel();
+}
 
-    // Handle Proportional Scaling
-    if (prop === 'w' && data.aspectLocked && data.aspectRatio) {
-        data.w = val;
-        data.h = Math.round(val / data.aspectRatio);
-        const propH = document.getElementById('prop-h');
-        if (propH) propH.value = data.h;
-    } else if (prop === 'h' && data.aspectLocked && data.aspectRatio) {
-        data.h = val;
-        data.w = Math.round(val * data.aspectRatio);
-        const propW = document.getElementById('prop-w');
-        if (propW) propW.value = data.w;
-    } else {
-        data[prop] = val;
-    }
+function ungroupSelected() {
+    saveHistoryState();
+    const keys = Array.from(multiSelectedLayers);
+    const groupId = studioActiveData.fields[keys[0]].groupId;
+    if(groupId && studioActiveData.groups) delete studioActiveData.groups[groupId];
+    multiSelectedLayers.forEach(k => { studioActiveData.fields[k].groupId = null; });
+    showToast("Layers Ungrouped!", "success");
+    renderLayersPanel();
+    renderPropertiesPanel();
+}
 
-    if (!data.aspectLocked && (prop === 'w' || prop === 'h')) {
-        if (data.w > 0 && data.h > 0) data.aspectRatio = data.w / data.h;
-    }
-
+function selectStudioGroup(groupId) {
+    multiSelectedLayers.clear();
+    Object.keys(studioActiveData.fields).forEach(k => {
+        if (studioActiveData.fields[k].groupId === groupId) multiSelectedLayers.add(k);
+    });
+    studioActiveField = null; 
+    renderLayersPanel();
+    renderPropertiesPanel();
     drawStudioCanvas();
 }
+
+function toggleGroupExpand(e, groupId) {
+    e.stopPropagation();
+    if (studioActiveData.groups && studioActiveData.groups[groupId]) {
+        studioActiveData.groups[groupId].expanded = !studioActiveData.groups[groupId].expanded;
+        renderLayersPanel();
+    }
+}
+
+
+function renderLayersPanel() {
+    const container = document.getElementById('studio-layers-panel');
+    container.innerHTML = '';
+    if (!studioActiveData.groups) studioActiveData.groups = {};
+
+    const processedGroups = new Set();
+    const keys = Object.keys(studioActiveData.fields).reverse(); 
+    
+    keys.forEach(key => {
+        const data = studioActiveData.fields[key];
+        const groupId = data.groupId;
+
+        if (groupId) {
+            if (!processedGroups.has(groupId)) {
+                processedGroups.add(groupId);
+                const groupMeta = studioActiveData.groups[groupId] || { name: 'Group', expanded: true };
+                
+                const groupKeys = Object.keys(studioActiveData.fields).filter(k => studioActiveData.fields[k].groupId === groupId);
+                const isGroupSelected = groupKeys.every(k => multiSelectedLayers.has(k)) && groupKeys.length > 0;
+                
+                // LIGHT THEME COLORS FOR GROUP FOLDER
+                const bgColor = isGroupSelected ? 'var(--primary-light)' : '#FFFFFF';
+                const textColor = isGroupSelected ? 'var(--primary)' : '#0F172A';
+                const iconColor = isGroupSelected ? 'var(--primary)' : '#64748B';
+                
+                container.innerHTML += `
+                    <div style="display: flex; flex-direction: row-reverse; align-items: center; justify-content: flex-end; padding: 0.85rem 1rem; background: ${bgColor}; border: 1px solid ${isGroupSelected ? 'var(--primary)' : '#E5E7EB'}; margin-bottom: 2px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);" onclick="selectStudioGroup('${groupId}')">
+                        <div style="flex: 1; display: flex; flex-direction: row-reverse; justify-content: space-between; align-items: center;">
+                            <button style="background:none; border:none; color: ${iconColor}; cursor:pointer; font-size:1.15rem; padding: 0 0.5rem;" onclick="toggleGroupExpand(event, '${groupId}')">
+                                <i class="fa-solid fa-chevron-${groupMeta.expanded ? 'down' : 'right'}"></i>
+                            </button>
+                            <span style="font-weight: 800; font-size: 0.95rem; color: ${textColor}; text-transform: uppercase;">${groupMeta.name}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-right: 1rem; text-align: center;">
+                            <i class="fa-solid fa-folder" style="color: ${iconColor}; font-size: 1.1rem;"></i>
+                        </div>
+                    </div>
+                `;
+
+                // Render Children indented if expanded
+                if (groupMeta.expanded) {
+                    groupKeys.reverse().forEach(childKey => {
+                        renderSingleLayerRow(container, childKey, studioActiveData.fields[childKey], true);
+                    });
+                }
+            }
+        } else {
+            renderSingleLayerRow(container, key, data, false);
+        }
+    });
+}
+
+function renderSingleLayerRow(container, key, data, isChild) {
+    const isActiveLayer = multiSelectedLayers.has(key) || studioActiveField === key;
+    
+    // LIGHT THEME COLORS FOR LAYERS
+    const bgColor = isActiveLayer ? 'var(--primary-light)' : '#FFFFFF';
+    const textColor = isActiveLayer ? 'var(--primary)' : '#0F172A';
+    const iconColor = isActiveLayer ? 'var(--primary)' : '#64748B';
+    const eyeColor = isActiveLayer ? 'var(--primary)' : (data.enabled ? '#0F172A' : '#CBD5E1');
+
+    const lockColor = data.locked ? '#EF4444' : iconColor;
+    const lockIcon = data.locked ? 'fa-lock' : 'fa-unlock';
+    
+    // Visually indent layers if they are inside a folder
+    const indentStyles = isChild ? 'margin-left: 24px; border-left: 3px solid #E5E7EB; border-top-left-radius: 0; border-bottom-left-radius: 0;' : '';
+    
+    container.innerHTML += `
+        <div style="display: flex; flex-direction: row-reverse; align-items: center; justify-content: flex-end; padding: 0.85rem 1rem; background: ${bgColor}; border: 1px solid ${isActiveLayer ? 'var(--primary)' : '#E5E7EB'}; margin-bottom: 2px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); ${indentStyles}" onclick="selectStudioLayer('${key}')">
+            <div style="flex: 1; display: flex; flex-direction: row-reverse; justify-content: space-between; align-items: center;">
+                <button style="background:none; border:none; color: ${eyeColor}; cursor:pointer; font-size:1.15rem;" onclick="toggleLayerVisibility(event, '${key}')">
+                    <i class="fa-solid ${data.enabled ? 'fa-eye' : 'fa-eye-slash'}"></i>
+                </button>
+                <button style="background:none; border:none; color: ${lockColor}; cursor:pointer; font-size:1rem;" onclick="toggleLayerLock(event, '${key}')">
+                    <i class="fa-solid ${lockIcon}"></i>
+                </button>
+                <span style="font-weight: 600; font-size: 0.95rem; color: ${textColor};">${data.displayName}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-right: 1rem; text-align: center;">
+                <i class="fa-solid ${data.isImage ? 'fa-image' : 'fa-t'}" style="color: ${iconColor}; font-size: 1.1rem;"></i>
+                <input type="checkbox" ${isActiveLayer ? 'checked' : ''} onclick="toggleMultiSelect(event, '${key}')" style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;">
+            </div>
+        </div>
+    `;
+}
+
+function updateActiveProperty(prop, value) {
+    if (multiSelectedLayers.size > 0) {
+        if (!historyTimeout && !isRestoringHistory) saveHistoryState();
+        clearTimeout(historyTimeout);
+        historyTimeout = setTimeout(() => { historyTimeout = null; }, 800);
+
+        const isNum = ['x','y','w','h','size','radius'].includes(prop);
+        const val = isNum ? (parseInt(value) || 0) : value;
+
+        // Group Renaming Logic
+        if (prop === 'groupName') {
+            const keys = Array.from(multiSelectedLayers);
+            const groupId = studioActiveData.fields[keys[0]].groupId;
+            if (groupId && studioActiveData.groups[groupId]) {
+                studioActiveData.groups[groupId].name = val;
+            }
+            renderLayersPanel();
+            return;
+        }
+
+        // Apply edits to all valid selected layers (Group Bulk Edit)
+        multiSelectedLayers.forEach(key => {
+            const data = studioActiveData.fields[key];
+            if (data.locked) return;
+
+            if (data.isImage && ['size', 'color', 'font', 'weight', 'align'].includes(prop)) return; // Skip text edits on images
+            if (!data.isImage && ['w', 'h', 'radius'].includes(prop)) return; // Skip image edits on text
+
+            if (prop === 'w' && data.aspectLocked && data.aspectRatio) {
+                data.w = val; data.h = Math.round(val / data.aspectRatio);
+            } else if (prop === 'h' && data.aspectLocked && data.aspectRatio) {
+                data.h = val; data.w = Math.round(val * data.aspectRatio);
+            } else {
+                data[prop] = val;
+            }
+            if (!data.aspectLocked && (prop === 'w' || prop === 'h')) {
+                if (data.w > 0 && data.h > 0) data.aspectRatio = data.w / data.h;
+            }
+        });
+
+        drawStudioCanvas();
+        return;
+    }
+}
+
+function renderPropertiesPanel() {
+    const container = document.getElementById('studio-properties-panel');
+    const studioView = document.getElementById('template-studio-view');
+    
+    if (typeof multiSelectedLayers === 'undefined' || multiSelectedLayers.size === 0) {
+        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">Select a layer to edit.</p>`;
+        if (studioView) { studioView.classList.remove('layer-active'); studioView.classList.add('layer-empty'); }
+        return;
+    }
+
+    if (studioView) { studioView.classList.add('layer-active'); studioView.classList.remove('layer-empty'); }
+
+    // --- MULTI-SELECT & GROUP BULK EDIT VIEW ---
+    if (multiSelectedLayers.size > 1) {
+        const keys = Array.from(multiSelectedLayers);
+        const groupId = studioActiveData.fields[keys[0]].groupId;
+        const isFormalGroup = keys.every(k => studioActiveData.fields[k].groupId && studioActiveData.fields[k].groupId === groupId);
+        
+        let groupNameInput = '';
+        let groupTitle = `${keys.length} Layers Selected`;
+
+        if (isFormalGroup && studioActiveData.groups[groupId]) {
+            groupTitle = `Group Selected`;
+            groupNameInput = `
+                <div style="grid-column: span 2; margin-bottom: 1.25rem;">
+                    <label style="font-size: 0.75rem; font-weight:700;">GROUP NAME</label>
+                    <input type="text" value="${studioActiveData.groups[groupId].name}" oninput="updateActiveProperty('groupName', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                </div>
+            `;
+        }
+
+        // Grab placeholder data from the first text element in the group to populate the fields
+        let commonColor = '#ffffff', commonSize = 40, commonFont = 'Inter, sans-serif', commonWeight = 'bold', commonAlign = 'left';
+        const firstTextKey = keys.find(k => !studioActiveData.fields[k].isImage);
+        if (firstTextKey) {
+            const fd = studioActiveData.fields[firstTextKey];
+            commonColor = fd.color; commonSize = fd.size; commonFont = fd.font; commonWeight = fd.weight; commonAlign = fd.align;
+        }
+        const fonts = AVAILABLE_FONTS.map(f => `<option value="${f.value}" ${commonFont === f.value ? 'selected' : ''}>${f.name}</option>`).join('');
+
+        container.innerHTML = `
+            <div class="mobile-properties-header" style="display: flex; justify-content: flex-start; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px dashed #334155; padding-bottom: 0.85rem; gap: 0.75rem;">
+                <button class="btn btn-outline mobile-back-btn" style="padding: 0.4rem 0.6rem; border-radius: 8px; border: none; background: #334155; color: white; display: none;" onclick="multiSelectedLayers.clear(); studioActiveField = null; renderLayersPanel(); renderPropertiesPanel(); drawStudioCanvas();"><i class="fa-solid fa-arrow-left"></i></button>
+                <h4 style="color: white; font-size: 1.15rem; font-weight: 800; margin: 0;">${groupTitle}</h4>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                ${groupNameInput}
+                <div><label style="font-size: 0.75rem; font-weight:700;">NUDGE X</label><input type="number" value="0" onchange="shiftSelected('x', this.value); this.value=0;" placeholder="0" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; text-align: center;"></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">NUDGE Y</label><input type="number" value="0" onchange="shiftSelected('y', this.value); this.value=0;" placeholder="0" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; text-align: center;"></div>
+                
+                <div><label style="font-size: 0.75rem; font-weight:700;">FONT SIZE</label><input type="number" value="${commonSize}" oninput="updateActiveProperty('size', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">COLOR</label><input type="color" value="${commonColor}" oninput="updateActiveProperty('color', this.value)" style="width: 100%; height: 35px; border: 1px solid var(--border); border-radius: 4px; padding:0;"></div>
+                <div style="grid-column: span 2;"><label style="font-size: 0.75rem; font-weight:700;">FONT FAMILY</label><select onchange="updateActiveProperty('font', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">${fonts}</select></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">WEIGHT</label><select onchange="updateActiveProperty('weight', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"><option value="normal" ${commonWeight==='normal'?'selected':''}>Normal</option><option value="bold" ${commonWeight==='bold'?'selected':''}>Bold</option><option value="900" ${commonWeight==='900'?'selected':''}>Black</option></select></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">ALIGN</label><select onchange="updateActiveProperty('align', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;"><option value="left" ${commonAlign==='left'?'selected':''}>Left</option><option value="center" ${commonAlign==='center'?'selected':''}>Center</option><option value="right" ${commonAlign==='right'?'selected':''}>Right</option></select></div>
+            </div>
+
+            <label style="color: #94A3B8; font-size: 0.75rem; font-weight: 700; margin-bottom: 0.5rem; display: block;">ALIGNMENT TOOLS</label>
+            <div style="display: flex; background: #1E293B; border-radius: 8px; padding: 0.25rem; gap: 0.25rem; margin-bottom: 1rem; border: 1px solid #334155;">
+                <button class="btn btn-outline" style="flex:1; border:none; background:transparent; padding: 0.6rem 0; color: #E2E8F0;" onclick="alignSelected('left')"><i class="fa-solid fa-align-left" style="font-size: 1.1rem; margin:0;"></i></button>
+                <button class="btn btn-outline" style="flex:1; border:none; background:transparent; padding: 0.6rem 0; color: #E2E8F0;" onclick="alignSelected('center')"><i class="fa-solid fa-align-center" style="font-size: 1.1rem; margin:0;"></i></button>
+                <button class="btn btn-outline" style="flex:1; border:none; background:transparent; padding: 0.6rem 0; color: #E2E8F0;" onclick="alignSelected('right')"><i class="fa-solid fa-align-right" style="font-size: 1.1rem; margin:0;"></i></button>
+                <div style="width: 1px; background: #334155; margin: 0.25rem 0;"></div>
+                <button class="btn btn-outline" style="flex:1; border:none; background:transparent; padding: 0.6rem 0; color: #E2E8F0;" onclick="alignSelected('top')"><i class="fa-solid fa-object-group" style="transform: rotate(180deg); font-size: 1.1rem; margin:0;"></i></button>
+                <button class="btn btn-outline" style="flex:1; border:none; background:transparent; padding: 0.6rem 0; color: #E2E8F0;" onclick="alignSelected('middle')"><i class="fa-solid fa-arrows-up-down" style="font-size: 1.1rem; margin:0;"></i></button>
+                <button class="btn btn-outline" style="flex:1; border:none; background:transparent; padding: 0.6rem 0; color: #E2E8F0;" onclick="alignSelected('bottom')"><i class="fa-solid fa-object-group" style="font-size: 1.1rem; margin:0;"></i></button>
+            </div>
+            
+            <div class="group-action-row" style="display: flex; width: 100%;">
+                <button class="btn ${isFormalGroup ? 'btn-danger' : 'btn-success'}" style="flex: 1; padding: 0.75rem; border-radius: 8px; font-weight: 700;" onclick="${isFormalGroup ? 'ungroupSelected()' : 'groupSelected()'}">
+                    <i class="fa-solid ${isFormalGroup ? 'fa-object-ungroup' : 'fa-object-group'}"></i> ${isFormalGroup ? 'Ungroup Selection' : 'Group Selected Layers'}
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    // --- STANDARD SINGLE LAYER VIEW ---
+    const key = studioActiveField;
+    if (!key || !studioActiveData.fields[key]) return;
+    
+    // [The rest of the standard single layer view remains identical to your current admin_2.js implementation]
+    const data = studioActiveData.fields[key];
+    const fonts = AVAILABLE_FONTS.map(f => `<option value="${f.value}" ${data.font === f.value ? 'selected' : ''}>${f.name}</option>`).join('');
+
+    let specificHTML = '';
+    if (data.isImage) {
+        const lockIcon = data.aspectLocked ? 'fa-lock' : 'fa-lock-open';
+        const deleteBtn = data.isStaticElement ? `<button class="btn btn-outline" style="grid-column: span 3; border-color: var(--danger); color: var(--danger); margin-top: 0.5rem;" onclick="deleteStudioLayer('${key}')"><i class="fa-solid fa-trash"></i> Delete Element</button>` : '';
+
+        specificHTML = `
+            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.5rem; margin-top: 1rem; align-items: end;">
+                <div><label style="font-size: 0.75rem; font-weight:700;">WIDTH</label><input type="number" id="prop-w" value="${data.w}" oninput="updateActiveProperty('w', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
+                <button class="btn btn-outline" style="padding: 0.5rem; height: 35px; width: 35px; display: flex; justify-content: center; align-items: center;" onclick="toggleAspectRatioLock('${key}')" title="Toggle Aspect Ratio Lock"><i class="fa-solid ${lockIcon}"></i></button>
+                <div><label style="font-size: 0.75rem; font-weight:700;">HEIGHT</label><input type="number" id="prop-h" value="${data.h}" oninput="updateActiveProperty('h', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
+                <div style="grid-column: span 3;"><label style="font-size: 0.75rem; font-weight:700;">CORNER RADIUS</label><input type="number" id="prop-rad" value="${data.radius || 0}" oninput="updateActiveProperty('radius', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
+                ${deleteBtn}
+            </div>
+        `;
+    } else {
+        let customTextHTML = '';
+        if (data.isCustom) {
+            customTextHTML = `
+                <div style="grid-column: span 2;">
+                    <label style="font-size: 0.75rem; font-weight:700;">TEXT CONTENT</label>
+                    <input type="text" value="${data.displayName}" oninput="updateActiveProperty('displayName', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}>
+                </div>
+            `;
+        }
+        const deleteBtn = data.isCustom ? `<button class="btn btn-outline" style="grid-column: span 2; border-color: var(--danger); color: var(--danger); margin-top: 0.5rem;" onclick="deleteStudioLayer('${key}')"><i class="fa-solid fa-trash"></i> Delete Layer</button>` : '';
+
+        specificHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem;">
+                ${customTextHTML}
+                <div><label style="font-size: 0.75rem; font-weight:700;">FONT SIZE</label><input type="number" id="prop-sz" value="${data.size}" oninput="updateActiveProperty('size', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">COLOR</label><input type="color" id="prop-cl" value="${data.color}" oninput="updateActiveProperty('color', this.value)" style="width: 100%; height: 35px; border: 1px solid var(--border); border-radius: 4px; padding:0;" ${data.locked ? 'disabled' : ''}></div>
+                <div style="grid-column: span 2;"><label style="font-size: 0.75rem; font-weight:700;">FONT FAMILY</label><select onchange="updateActiveProperty('font', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}>${fonts}</select></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">WEIGHT</label><select onchange="updateActiveProperty('weight', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}><option value="normal" ${data.weight==='normal'?'selected':''}>Normal</option><option value="bold" ${data.weight==='bold'?'selected':''}>Bold</option><option value="900" ${data.weight==='900'?'selected':''}>Black</option></select></div>
+                <div><label style="font-size: 0.75rem; font-weight:700;">ALIGN</label><select onchange="updateActiveProperty('align', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}><option value="left" ${data.align==='left'?'selected':''}>Left</option><option value="center" ${data.align==='center'?'selected':''}>Center</option><option value="right" ${data.align==='right'?'selected':''}>Right</option></select></div>
+                ${deleteBtn}
+            </div>
+        `;
+    }
+
+    container.innerHTML = `
+        <div class="mobile-properties-header" style="display: flex; justify-content: flex-start; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px dashed #334155; padding-bottom: 0.85rem; gap: 0.75rem;">
+            <button class="btn btn-outline mobile-back-btn" style="padding: 0.4rem 0.6rem; border-radius: 8px; border: none; background: #334155; color: white; display: none;" onclick="multiSelectedLayers.clear(); studioActiveField = null; renderLayersPanel(); renderPropertiesPanel(); drawStudioCanvas();"><i class="fa-solid fa-arrow-left"></i></button>
+            <h4 style="color: white; font-size: 1.15rem; font-weight: 800; margin: 0; text-transform: uppercase;">${data.displayName} ${data.locked ? '<i class="fa-solid fa-lock" style="color:#EF4444; font-size: 0.8rem; margin-left: 5px;"></i>' : ''}</h4>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <div><label style="font-size: 0.75rem; font-weight:700;">X POS</label><input type="number" id="prop-x" value="${data.x}" oninput="updateActiveProperty('x', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
+            <div><label style="font-size: 0.75rem; font-weight:700;">Y POS</label><input type="number" id="prop-y" value="${data.y}" oninput="updateActiveProperty('y', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
+        </div>
+        ${specificHTML}
+    `;
+}
+
 function handleStudioUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -3577,41 +3860,7 @@ function addCustomTextLayer() {
 }
 
 
-function renderLayersPanel() {
-    const container = document.getElementById('studio-layers-panel');
-    container.innerHTML = '';
 
-    Object.keys(studioActiveData.fields).forEach(key => {
-        const data = studioActiveData.fields[key];
-        const isActiveLayer = multiSelectedLayers.has(key);
-        
-        const lockColor = data.locked ? '#EF4444' : '#64748B';
-        const lockIcon = data.locked ? 'fa-lock' : 'fa-unlock';
-        const groupTag = data.groupId ? `<i class="fa-solid fa-link" style="font-size: 0.6rem; color: var(--primary); margin-left: 4px;" title="Grouped"></i>` : '';
-
-        container.innerHTML += `
-            <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.75rem; border-radius: 6px; cursor: pointer; transition: 0.2s; background: ${isActiveLayer ? 'var(--primary-light)' : 'transparent'}; border: 1px solid ${isActiveLayer ? 'rgba(79,70,229,0.3)' : 'transparent'};" onclick="selectStudioLayer('${key}')">
-                
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <button style="background:none; border:none; color: ${data.enabled ? '#3B82F6' : '#64748B'}; cursor:pointer; font-size:1.1rem;" onclick="toggleLayerVisibility(event, '${key}')">
-                        <i class="fa-solid ${data.enabled ? 'fa-eye' : 'fa-eye-slash'}"></i>
-                    </button>
-                    <button style="background:none; border:none; color: ${lockColor}; cursor:pointer; font-size:1rem;" onclick="toggleLayerLock(event, '${key}')">
-                        <i class="fa-solid ${lockIcon}"></i>
-                    </button>
-                    <span style="font-weight: 700; font-size: 0.85rem; color: ${data.enabled ? 'var(--text-main)' : 'var(--text-muted)'};">${data.displayName} ${groupTag}</span>
-                </div>
-                
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <div style="color: var(--text-muted); font-size: 0.8rem;">
-                        ${data.isImage ? '<i class="fa-regular fa-image"></i>' : '<i class="fa-solid fa-t"></i>'}
-                    </div>
-                    <input type="checkbox" ${isActiveLayer ? 'checked' : ''} onclick="toggleMultiSelect(event, '${key}')" style="width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer;">
-                </div>
-            </div>
-        `;
-    });
-}
 
 function toggleLayerLock(event, key) {
     event.stopPropagation();
@@ -3706,138 +3955,20 @@ function ungroupSelected() {
     renderPropertiesPanel();
 }
 
-function renderPropertiesPanel() {
-    const container = document.getElementById('studio-properties-panel');
-    const studioView = document.getElementById('template-studio-view');
-    
-    if (typeof multiSelectedLayers === 'undefined' || multiSelectedLayers.size === 0) {
-        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">Select a layer to edit.</p>`;
-        if (studioView) { studioView.classList.remove('layer-active'); studioView.classList.add('layer-empty'); }
-        return;
-    }
-
-    if (studioView) { studioView.classList.add('layer-active'); studioView.classList.remove('layer-empty'); }
-
-    // MULTI-SELECT ALIGNMENT VIEW
-    if (multiSelectedLayers.size > 1) {
-        const keys = Array.from(multiSelectedLayers);
-        const hasGroup = keys.every(k => studioActiveData.fields[k].groupId && studioActiveData.fields[k].groupId === studioActiveData.fields[keys[0]].groupId);
-        
-        container.innerHTML = `
-            <div class="mobile-properties-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px dashed #334155; padding-bottom: 0.85rem;">
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <button class="btn btn-outline mobile-back-btn" style="padding: 0.4rem 0.6rem; border-radius: 8px; border: none; background: #334155; color: white; display: none;" onclick="multiSelectedLayers.clear(); studioActiveField = null; renderLayersPanel(); renderPropertiesPanel(); drawStudioCanvas();"><i class="fa-solid fa-arrow-left"></i></button>
-                    <h4 style="color: white; font-size: 1.15rem; font-weight: 800; margin: 0;">${keys.length} Layers Selected</h4>
-                </div>
-            </div>
-            
-            <label style="color: #94A3B8; font-size: 0.75rem; font-weight: 700; margin-bottom: 0.5rem; display: block;">ALIGNMENT TOOLS</label>
-            <div class="align-grid">
-                <button class="btn" onclick="alignSelected('left')"><i class="fa-solid fa-align-left"></i> Left</button>
-                <button class="btn" onclick="alignSelected('center')"><i class="fa-solid fa-align-center"></i> Center</button>
-                <button class="btn" onclick="alignSelected('right')"><i class="fa-solid fa-align-right"></i> Right</button>
-                <button class="btn" onclick="alignSelected('top')"><i class="fa-solid fa-object-group" style="transform: rotate(180deg)"></i> Top</button>
-                <button class="btn" onclick="alignSelected('middle')"><i class="fa-solid fa-arrows-up-down"></i> Middle</button>
-                <button class="btn" onclick="alignSelected('bottom')"><i class="fa-solid fa-object-group"></i> Bottom</button>
-            </div>
-            
-            <div class="group-action-row">
-                <button class="btn ${hasGroup ? 'btn-danger' : 'btn-success'}" onclick="${hasGroup ? 'ungroupSelected()' : 'groupSelected()'}">
-                    <i class="fa-solid ${hasGroup ? 'fa-object-ungroup' : 'fa-object-group'}"></i> ${hasGroup ? 'Ungroup Selection' : 'Group Selected Layers'}
-                </button>
-            </div>
-        `;
-        return;
-    }
-
-    // --- STANDARD SINGLE LAYER VIEW ---
-    const key = studioActiveField;
-
-    // CRITICAL SAFETY CHECK: Prevent the font crash if layer data is missing
-    if (!key || !studioActiveData.fields[key]) {
-        multiSelectedLayers.clear();
-        studioActiveField = null;
-        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">Select a layer to edit.</p>`;
-        if (studioView) { studioView.classList.remove('layer-active'); studioView.classList.add('layer-empty'); }
-        return;
-    }
-
-    const data = studioActiveData.fields[key];
-    const fonts = AVAILABLE_FONTS.map(f => `<option value="${f.value}" ${data.font === f.value ? 'selected' : ''}>${f.name}</option>`).join('');
-
-    let specificHTML = '';
-    if (data.isImage) {
-        const lockIcon = data.aspectLocked ? 'fa-lock' : 'fa-lock-open';
-        const deleteBtn = data.isStaticElement 
-            ? `<button class="btn btn-outline" style="grid-column: span 3; border-color: var(--danger); color: var(--danger); margin-top: 0.5rem;" onclick="deleteStudioLayer('${key}')"><i class="fa-solid fa-trash"></i> Delete Element</button>` 
-            : '';
-
-        specificHTML = `
-            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.5rem; margin-top: 1rem; align-items: end;">
-                <div><label style="font-size: 0.75rem; font-weight:700;">WIDTH</label><input type="number" id="prop-w" value="${data.w}" oninput="updateActiveProperty('w', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
-                <button class="btn btn-outline" style="padding: 0.5rem; height: 35px; width: 35px; display: flex; justify-content: center; align-items: center;" onclick="toggleAspectRatioLock('${key}')" title="Toggle Aspect Ratio Lock"><i class="fa-solid ${lockIcon}"></i></button>
-                <div><label style="font-size: 0.75rem; font-weight:700;">HEIGHT</label><input type="number" id="prop-h" value="${data.h}" oninput="updateActiveProperty('h', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
-                <div style="grid-column: span 3;"><label style="font-size: 0.75rem; font-weight:700;">CORNER RADIUS</label><input type="number" id="prop-rad" value="${data.radius || 0}" oninput="updateActiveProperty('radius', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
-                ${deleteBtn}
-            </div>
-        `;
-    } else {
-        let customTextHTML = '';
-        if (data.isCustom) {
-            customTextHTML = `
-                <div style="grid-column: span 2;">
-                    <label style="font-size: 0.75rem; font-weight:700;">TEXT CONTENT</label>
-                    <input type="text" value="${data.displayName}" oninput="updateActiveProperty('displayName', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}>
-                </div>
-            `;
+// NEW: Shifts all selected layers precisely
+function shiftSelected(axis, val) {
+    const shiftAmount = parseInt(val) || 0;
+    if (shiftAmount === 0) return;
+    saveHistoryState();
+    multiSelectedLayers.forEach(k => {
+        if (!studioActiveData.fields[k].locked) {
+            studioActiveData.fields[k][axis] += shiftAmount;
         }
-
-        const deleteBtn = data.isCustom 
-            ? `<button class="btn btn-outline" style="grid-column: span 2; border-color: var(--danger); color: var(--danger); margin-top: 0.5rem;" onclick="deleteStudioLayer('${key}')"><i class="fa-solid fa-trash"></i> Delete Layer</button>` 
-            : '';
-
-        specificHTML = `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem;">
-                ${customTextHTML}
-                <div><label style="font-size: 0.75rem; font-weight:700;">FONT SIZE</label><input type="number" id="prop-sz" value="${data.size}" oninput="updateActiveProperty('size', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
-                <div><label style="font-size: 0.75rem; font-weight:700;">COLOR</label><input type="color" id="prop-cl" value="${data.color}" oninput="updateActiveProperty('color', this.value)" style="width: 100%; height: 35px; border: 1px solid var(--border); border-radius: 4px; padding:0;" ${data.locked ? 'disabled' : ''}></div>
-                <div style="grid-column: span 2;"><label style="font-size: 0.75rem; font-weight:700;">FONT FAMILY</label><select onchange="updateActiveProperty('font', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}>${fonts}</select></div>
-                <div><label style="font-size: 0.75rem; font-weight:700;">WEIGHT</label><select onchange="updateActiveProperty('weight', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}>
-                    <option value="normal" ${data.weight==='normal'?'selected':''}>Normal</option>
-                    <option value="bold" ${data.weight==='bold'?'selected':''}>Bold</option>
-                    <option value="900" ${data.weight==='900'?'selected':''}>Black</option>
-                </select></div>
-                <div><label style="font-size: 0.75rem; font-weight:700;">ALIGN</label><select onchange="updateActiveProperty('align', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}>
-                    <option value="left" ${data.align==='left'?'selected':''}>Left</option>
-                    <option value="center" ${data.align==='center'?'selected':''}>Center</option>
-                    <option value="right" ${data.align==='right'?'selected':''}>Right</option>
-                </select></div>
-                ${deleteBtn}
-            </div>
-        `;
-    }
-
-    const visibilityBtn = `
-        <button style="background:none; border:none; color: ${data.enabled ? '#3B82F6' : '#64748B'}; cursor:pointer; font-size:1.4rem; padding: 0.5rem;" onclick="toggleLayerVisibility(event, '${key}')">
-            <i class="fa-solid ${data.enabled ? 'fa-eye' : 'fa-eye-slash'}"></i>
-        </button>
-    `;
-
-    container.innerHTML = `
-        <div class="mobile-properties-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px dashed #334155; padding-bottom: 0.85rem;">
-            <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <button class="btn btn-outline mobile-back-btn" style="padding: 0.4rem 0.6rem; border-radius: 8px; border: none; background: #334155; color: white; display: none;" onclick="multiSelectedLayers.clear(); studioActiveField = null; renderLayersPanel(); renderPropertiesPanel(); drawStudioCanvas();"><i class="fa-solid fa-arrow-left"></i></button>
-                <h4 style="color: white; font-size: 1.15rem; font-weight: 800; margin: 0; text-transform: uppercase;">${data.displayName} ${data.locked ? '<i class="fa-solid fa-lock" style="color:#EF4444; font-size: 0.8rem; margin-left: 5px;"></i>' : ''}</h4>
-            </div>
-            ${visibilityBtn}
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-            <div><label style="font-size: 0.75rem; font-weight:700;">X POS</label><input type="number" id="prop-x" value="${data.x}" oninput="updateActiveProperty('x', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
-            <div><label style="font-size: 0.75rem; font-weight:700;">Y POS</label><input type="number" id="prop-y" value="${data.y}" oninput="updateActiveProperty('y', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}></div>
-        </div>
-        ${specificHTML}
-    `;
+    });
+    drawStudioCanvas();
+    // Do not re-render properties panel so the input stays in focus
 }
+
 
 
 function drawStudioCanvas() {
@@ -3974,14 +4105,14 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // 3. Selection & Group Drag Logic
+        // 3. Selection & Group Drag Logic (FIXED FOR MOBILE)
         if (hit) {
             // Desktop Ctrl/Shift click adds to selection
             if (e.ctrlKey || e.metaKey || e.shiftKey) {
                 if (multiSelectedLayers.has(hit)) multiSelectedLayers.delete(hit);
                 else multiSelectedLayers.add(hit);
             } 
-            // If they click something that ISN'T already selected, clear and select it (and its group)
+            // PREVENT CLEARING IF TOUCHING AN ALREADY SELECTED LAYER (Allows mobile drag)
             else if (!multiSelectedLayers.has(hit)) {
                 multiSelectedLayers.clear();
                 const hitGroup = studioActiveData.fields[hit].groupId;
@@ -4147,8 +4278,9 @@ async function saveActiveTemplate() {
             id: studioActiveData.id,
             name: studioActiveData.name,
             type: studioActiveData.type,
-            bg_base64: studioActiveData.bg_base64, // This is now a URL!
-            fields: studioActiveData.fields
+            bg_base64: studioActiveData.bg_base64, 
+            fields: studioActiveData.fields,
+            groups: studioActiveData.groups || {}
         };
 
         // 3. Save to Database
