@@ -203,15 +203,28 @@
         }
         .data-item:last-child { border-bottom: none; }
         
-        /* --- BUTTONS --- */
+       /* --- MAIN ACTION BUTTON ("Mark as Announced") --- */
         .btn-main {
             width: 100%; padding: 0.85rem 1.25rem; background: var(--success); color: white; border: none;
             border-radius: var(--radius-md); font-weight: 500; font-size: 0.95rem; cursor: pointer; margin-top: auto;
             transition: var(--transition); box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2); letter-spacing: 0.02em;
             display: flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 44px;
         }
-        .btn-main:hover { background: var(--success-hover); transform: translateY(-1px); box-shadow: 0 6px 10px rgba(16, 185, 129, 0.3); }
-        .btn-main:active { transform: translateY(1px); }
+        
+        /* Removed background color shift to prevent shading on hover */
+        .btn-main:hover { transform: translateY(-1px); box-shadow: 0 6px 10px rgba(16, 185, 129, 0.3); }
+        .btn-main:active { transform: translateY(1px); box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2); }
+        
+        /* CRITICAL FIX: Prevents iOS from turning the disabled text gray */
+        .btn-main:disabled { 
+            opacity: 0.8 !important; 
+            background: var(--success) !important; 
+            color: #04bd0d !important; 
+            -webkit-text-fill-color: #008b09df !important; /* Overrides Apple's native disabled text color */
+            pointer-events: none; 
+            box-shadow: none !important;
+            transform: none !important;
+        }
         
         .btn-pdf-small {
             padding: 0.65rem 1.25rem; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border);
@@ -223,9 +236,11 @@
             padding: 0.65rem 1.25rem; border: none; border-radius: var(--radius-md); font-weight: 500; font-size: 0.85rem; cursor: pointer;
             transition: var(--transition); white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,0.05); letter-spacing: 0.02em; display: flex; align-items: center; justify-content: center; gap: 0.4rem;
         }
-        .btn-award.given { background: var(--success-light); color: var(--success-hover); border: 1px solid rgba(16, 185, 129, 0.2); }
-        .btn-award.pending { background: var(--warning-light); color: #B45309; border: 1px solid rgba(245, 158, 11, 0.2); }
         .btn-award:active { transform: scale(0.95); }
+        
+        /* The order here is critical to ensure proper overrides */
+        .btn-award.pending { background: var(--warning-light) !important; color: #B45309 !important; border: 1px solid rgba(245, 158, 11, 0.2) !important; }
+        .btn-award.given { background: var(--success-light) !important; color: var(--success-hover) !important; border: 1px solid rgba(16, 185, 129, 0.2) !important; }
 
         .pos-1 { color: #D4AF37; font-weight: 700; font-size: 1.15rem; width: 35px; }
         .pos-2 { color: #9CA3AF; font-weight: 700; font-size: 1.15rem; width: 35px; }
@@ -233,65 +248,227 @@
 
         .hidden { display: none !important; }
 
+
+
+        /* --- BOTTOM SHEET MODALS --- */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(17, 24, 39, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            display: none; align-items: flex-end; justify-content: center; z-index: 9999;
+            padding: 0; opacity: 0; animation: fadeIn 0.3s forwards;
+        }
+        @keyframes fadeIn { to { opacity: 1; } }
+
+        .modal-content {
+            background: var(--bg-surface); padding: 2rem 1.5rem calc(2rem + env(safe-area-inset-bottom)) 1.5rem;
+            border-radius: 32px 32px 0 0; width: 100%; max-height: 90vh; overflow-y: auto;
+            position: relative; text-align: center; border-top: 1px solid rgba(255, 255, 255, 0.8);
+            transform: translateY(100%); animation: slideUpModal 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.1);
+        }
+        @keyframes slideUpModal { to { transform: translateY(0); } }
+
+        /* Drawer Handle for modal */
+        .modal-content::before {
+            content: ''; display: block; width: 48px; height: 5px;
+            background: var(--border); border-radius: 10px; margin: 0 auto 1.5rem auto;
+        }
+        
+        /* Desktop Modal Overrides */
+        @media (min-width: 768px) {
+            .modal-overlay { align-items: center; padding: 1rem; }
+            .modal-content { 
+                border-radius: var(--radius-xl); 
+                max-width: 450px; 
+                transform: translateY(20px) scale(0.95);
+            }
+            .modal-content::before { display: none; }
+        }
+
         /* ========================================================================
-           CSS-ONLY NATIVE MOBILE APP SHELL
-           Transforms Sidebar into a Bottom Action Bar
+           CSS-ONLY NATIVE MOBILE APP SHELL & RESPONSIVE COMPONENT SYSTEM
            ======================================================================== */
         @media (max-width: 768px) {
-            body { flex-direction: column; }
+            body { flex-direction: column; background-color: #F8FAFC; }
             
             /* Native Sticky Top Header */
             .header { 
-                padding: 1rem 1.25rem; background: rgba(255, 255, 255, 0.95); 
-                box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-bottom: none;
+                padding: 1.25rem; 
+                background: var(--bg-surface); 
+                border-bottom: 1px solid var(--border);
+                z-index: 50; 
+                flex-wrap: nowrap;
+                box-shadow: none;
             }
-            .header h1 { font-size: 1.15rem; }
-            .btn-logout { padding: 0.5rem; font-size: 0; width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--bg-main); justify-content: center; }
-            .btn-logout i { font-size: 1.1rem; margin: 0; color: var(--danger); }
+            .header h1 { font-size: 1.35rem; }
             
-            /* Transform Sidebar into Bottom Navigation */
+            /* Icon Buttons in Mobile Header */
+            .btn-logout { 
+                padding: 0; 
+                width: 44px; 
+                height: 44px; 
+                border-radius: 50%; 
+                background: var(--bg-surface); 
+                border: 1px solid var(--border); 
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
+                display: inline-flex; 
+                justify-content: center; 
+                align-items: center; 
+                color: var(--danger);
+                min-height: 0;
+            }
+            .btn-logout span { display: none; } /* Hide text on mobile */
+            .btn-logout i { font-size: 1.15rem; margin: 0; }
+            
+            /* Admin Hub specific styling (overrides btn-logout if injected) */
+            .header .btn-logout.btn-primary { 
+                background: var(--primary-light) !important; 
+                color: var(--primary) !important; 
+                border-color: rgba(59, 130, 246, 0.2) !important; 
+                box-shadow: none !important;
+            }
+
+            /* --- REFINED MOBILE BOTTOM NAVBAR (iOS Pill Match) --- */
             .sidebar { 
-                position: fixed; bottom: 0; left: 0; right: 0; width: 100%; height: auto;
-                flex-direction: row; align-items: center; justify-content: space-around;
-                padding: 0.5rem 0.25rem calc(0.5rem + env(safe-area-inset-bottom)) 0.25rem; 
-                background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-                border-right: none; border-top: 1px solid var(--border);
-                box-shadow: var(--shadow-bottom-nav); z-index: 100;
+                position: fixed; 
+                bottom: 0; 
+                left: 0; 
+                right: 0; 
+                width: 100%;
+                height: calc(65px + env(safe-area-inset-bottom)) !important;
+                flex-direction: row; 
+                align-items: center; 
+                justify-content: center;
+                padding: 0.25rem 0.5rem calc(0.25rem + env(safe-area-inset-bottom)) 0.5rem !important; 
+                background: rgba(255, 255, 255, 0.98); 
+                backdrop-filter: blur(20px); 
+                -webkit-backdrop-filter: blur(20px);
+                border-top: 1px solid var(--border); 
+                border-right: none;
+                box-shadow: 0 -10px 30px rgba(0,0,0,0.03); 
+                z-index: 100;
             }
-            .sidebar .brand { display: none; } 
             
-            .nav-items { flex-direction: row; gap: 0.25rem; width: 100%; justify-content: space-around; }
+            .sidebar .brand { display: none !important; } 
+            
+            .nav-items { 
+                flex-direction: row; 
+                gap: 0; 
+                width: 100%; 
+                justify-content: space-around; 
+                align-items: center; 
+                height: 100%;
+            }
+
             .tab-btn { 
-                flex-direction: column; gap: 0.25rem; padding: 0.4rem 0.2rem; 
-                font-size: 0.65rem; text-align: center; border-radius: var(--radius-md);
-                flex: 1; justify-content: center;
+                flex-direction: column; 
+                gap: 2px; 
+                padding: 0.25rem 0; 
+                height: 100%; 
+                flex: 1;
+                font-size: 0.65rem; 
+                text-align: center; 
+                border-radius: 0;
+                justify-content: center; 
+                align-items: center; 
+                margin: 0; 
+                font-weight: 600;
+                background: transparent !important; 
+                border: none !important; 
+                box-shadow: none !important;
+                color: #64748B; 
+                transition: color 0.2s ease;
             }
-            .tab-btn i { font-size: 1.25rem; width: auto; margin: 0; }
-            .tab-btn.active { box-shadow: none; background: transparent; color: var(--primary); }
-            .tab-btn.active i { transform: scale(1.1); }
             
-            /* Main Content Adjustments */
+            /* Icon Pill Wrapper */
+            .tab-btn i { 
+                width: 48px; 
+                height: 26px; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center;
+                font-size: 1.25rem; 
+                color: #64748B; 
+                margin: 0; 
+                padding: 0;
+                border-radius: 16px; 
+                transition: all 0.2s ease; 
+                background: transparent;
+            }
+            
+            .tab-btn.active { 
+                color: var(--primary) !important; 
+                font-weight: 700; 
+            }
+            .tab-btn.active i { 
+                background: var(--primary-light); 
+                color: var(--primary); 
+                transform: scale(1.05); 
+            }
+
+            /* --- MAIN CONTENT ADJUSTMENTS --- */
             #app-screen { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
-            .container { padding: 1.25rem 1rem; }
+            .container { padding: 1.25rem; }
+
+            /* --- TOOLBARS & FILTERS --- */
+            .filter-bar { 
+                flex-direction: column; 
+                align-items: stretch; 
+                padding: 1.25rem; 
+                border-radius: var(--radius-lg); 
+                gap: 1rem; 
+                background: var(--bg-surface); 
+                border: 1px solid var(--border) !important;
+                box-shadow: var(--shadow-sm) !important;
+            }
+            /* Override the custom transparent bars inside the tabs to match mobile flow */
+            .tab-content .filter-bar {
+                background: var(--bg-surface) !important;
+                padding: 1.25rem !important;
+            }
             
-            /* Filters Stacking */
-            .filter-bar { flex-direction: column; align-items: stretch; padding: 1.25rem; border: none; box-shadow: var(--shadow-sm); border-radius: var(--radius-xl); gap: 1rem; }
-            .filter-box { width: 100%; }
-            .filter-bar select { min-height: 52px; font-size: 16px !important; /* Prevent iOS zoom */ }
+            .filter-box, .pos-filter-group { width: 100%; }
+            .filter-bar select, .pos-filter-group label { 
+                min-height: 48px; 
+                font-size: 16px !important; /* Prevent iOS zoom */
+            }
             
-            .pos-filter-group { width: 100%; }
-            .pos-filter-group label { min-height: 52px; }
+            /* Full width buttons */
+            .btn-pdf-small { 
+                min-height: 48px; 
+                width: 100%; 
+                justify-content: center; 
+                font-size: 0.95rem; 
+            }
             
-            .btn-pdf-small { min-height: 52px; width: 100%; justify-content: center; font-size: 0.95rem; }
-            /* Prevent the PDF button from breaking the header layout */
-            .data-list-header .btn-pdf-small { width: auto; min-height: 32px; padding: 0.35rem 0.75rem; font-size: 0.75rem; }
+            /* Prevent the PDF button from breaking the header layout inside cards */
+            .data-list-header .btn-pdf-small { 
+                width: auto; 
+                min-height: 32px; 
+                padding: 0.35rem 0.75rem; 
+                font-size: 0.75rem; 
+            }
             
-            /* Cards Full Bleed */
-            .grid-layout { grid-template-columns: 1fr; gap: 1rem; }
-            .card { padding: 1.25rem 1rem; border-radius: var(--radius-lg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+            /* Make Awards tab export buttons split evenly 50/50 */
+            #view-awards .filter-bar > div:last-child {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.75rem;
+            }
+            #view-awards .filter-bar > div:last-child .btn-pdf-small {
+                width: 100%;
+            }
+
+            /* --- MOBILE CARDS (Glassmorphism) --- */
+            .grid-layout { grid-template-columns: 1fr; gap: 1.25rem; }
+            .card { 
+                padding: 1.5rem; 
+                border-radius: var(--radius-xl); 
+                box-shadow: 0 2px 8px rgba(0,0,0,0.03); 
+            }
             .card:hover { transform: none; }
             
-            .btn-main { min-height: 52px; font-size: 1rem; }
+            .btn-main { min-height: 48px; font-size: 1rem; }
             
             /* Inner Card Data List Fixes */
             #view-awards .data-item { flex-direction: column; align-items: stretch; gap: 1rem; }
@@ -425,6 +602,21 @@
                 <div id="awards-container" class="grid-layout"></div>
             </div>
         </div>
+
+        <!-- Premium Action Confirmation Bottom Sheet -->
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal-content">
+            <div style="font-size: 3.5rem; color: var(--warning); margin-bottom: 1rem;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h2 style="margin-bottom: 0.5rem; font-size: 1.5rem; font-weight: 700; color: var(--text-main);" id="confirmModalTitle">Are you sure?</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 0.95rem; font-weight: 500;" id="confirmModalText">This action cannot be undone.</p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button class="btn btn-outline" style="flex: 1; border-radius: 14px; min-height: 48px;" onclick="closeConfirmModal()">Cancel</button>
+                <button class="btn btn-danger" style="flex: 1; background: var(--danger); color: white; border: none; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3); border-radius: 14px; min-height: 48px;" id="confirmModalBtn">Yes, Proceed</button>
+            </div>
+        </div>
+    </div>
     </div>
 
     <script>
@@ -461,7 +653,8 @@
                 if (headerRight) {
                     const returnBtn = document.createElement('button');
                     returnBtn.innerHTML = '<i class="fa-solid fa-shield-halved"></i> <span class="logout-text">Admin Hub</span>';
-                    returnBtn.className = 'btn-logout';
+                    // Added btn-primary class so the mobile CSS specifically targets it for the blue styling
+                    returnBtn.className = 'btn-logout btn-primary'; 
                     returnBtn.style.color = 'white';
                     returnBtn.style.background = 'var(--primary)';
                     returnBtn.style.borderColor = 'var(--primary)';
@@ -469,18 +662,32 @@
                     
                     headerRight.insertBefore(returnBtn, headerRight.firstChild);
                 }
-                
-                // Hide text on mobile for both buttons to save space
-                if(window.innerWidth <= 768) {
-                    document.querySelectorAll('.logout-text').forEach(el => el.style.display = 'none');
-                }
             });
         }
-
         
+        // --- MODAL & AUTH UTILITIES ---
+        function openConfirmModal(title, text, confirmCallback) {
+            document.getElementById('confirmModalTitle').innerText = title;
+            document.getElementById('confirmModalText').innerText = text;
+            
+            const confirmBtn = document.getElementById('confirmModalBtn');
+            confirmBtn.onclick = () => {
+                closeConfirmModal();
+                if (confirmCallback) confirmCallback();
+            };
+            
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+        }
+
         function logout() {
-            localStorage.removeItem('festUser');
-            window.location.href = 'index.html';
+            openConfirmModal("Sign Out", "Are you sure you want to securely log out of the announcer portal?", () => {
+                localStorage.removeItem('festUser');
+                window.location.href = 'index.html';
+            });
         }
 
         // Global Data State
@@ -993,14 +1200,21 @@ if (allCompIds.length > 0) {
             }).join('');
         }
     
-        // --- INTERACTIONS ---
-        function markAnnounced(compId) {
-            let announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
-            if (!announcedComps.includes(compId)) {
-                announcedComps.push(compId);
-                localStorage.setItem('announced_comps', JSON.stringify(announcedComps));
-            }
-            applyFilters(); 
+        function markAnnounced(compId, btnElement) {
+            openConfirmModal("Mark as Announced?", "Remove this competition from the pending results view?", () => {
+                if (btnElement) {
+                    btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+                    btnElement.disabled = true;
+                }
+                setTimeout(() => {
+                    let announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
+                    if (!announcedComps.includes(compId)) {
+                        announcedComps.push(compId);
+                        localStorage.setItem('announced_comps', JSON.stringify(announcedComps));
+                    }
+                    applyFilters(); 
+                }, 400); // Tiny delay allows the UI spinner to register smoothly
+            });
         }
 
         async function toggleAward(compId, participantId) {
@@ -1410,8 +1624,8 @@ if (allCompIds.length > 0) {
                 const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
                 const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
                 
-                if (showLogo) {
-                    html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; display: inline-block; vertical-align: middle; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">`;
+              if (showLogo) {
+                    html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; display: inline-block; vertical-align: middle;">`;
                 } else if (!validLogo && displayMode !== 'name') {
                     html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
                 }
