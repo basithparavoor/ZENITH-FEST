@@ -227,17 +227,78 @@
             font-weight: 600; color: var(--primary); font-size: 1.1rem;
         }
 
+        /* --- MOBILE OPTIMIZATIONS --- */
         @media (max-width: 768px) {
             .header { padding: 1rem 1.25rem; }
+            .header .btn { padding: 0.5rem; font-size: 0; min-height: 40px; width: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; }
+            .header .btn i { font-size: 1.1rem; margin: 0; }
+            
+            .container { padding: 1rem; }
+            .controls-card { padding: 1.25rem; }
+            
+            /* Vertical Filter Stacking */
             .filter-row { flex-direction: column; gap: 0.75rem; }
             .filter-group { min-width: 100%; }
-            .control-input { min-height: 48px; font-size: 16px !important; }
+            .control-input { min-height: 48px; font-size: 16px !important; } /* Prevent iOS Zoom */
+            
+            /* Action Buttons Layout */
             .action-row { flex-direction: column; align-items: stretch !important; gap: 1rem; }
-            .btn { width: 100%; min-height: 48px; }
-            .container { padding: 1rem; }
-            .report-wrapper { padding: 1rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-            .view-toggle { justify-content: center; width: 100%; }
-            .view-toggle .btn { flex: 1; }
+            .view-toggle { justify-content: center; width: 100%; display: flex; }
+            .view-toggle .btn { flex: 1; min-height: 48px; }
+            
+            /* Make Export Buttons side-by-side or stacked cleanly */
+            .action-row > div:last-child { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+            #record-count { grid-column: span 2; text-align: center; margin-bottom: 0.5rem; margin-right: 0 !important; }
+            .action-row > div:last-child .btn { width: 100%; min-height: 48px; justify-content: center; }
+            
+            .report-wrapper { padding: 1rem; border-radius: var(--radius-lg); }
+            
+            /* List View Mobile Cards Conversion */
+            #list-view-container .list-table { border: none !important; background: transparent !important; }
+            #list-view-container .list-table, 
+            #list-view-container .list-table thead, 
+            #list-view-container .list-table tbody, 
+            #list-view-container .list-table th, 
+            #list-view-container .list-table td, 
+            #list-view-container .list-table tr { display: block; width: 100%; }
+            
+            #list-view-container .list-table thead { display: none; } /* Hide headers */
+            
+            #list-view-container .list-table tr {
+                background: var(--bg-surface); 
+                border-radius: var(--radius-md); 
+                padding: 1rem;
+                margin-bottom: 1rem; 
+                border: 1px solid var(--border); 
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                display: flex; flex-direction: column; gap: 0.5rem;
+            }
+            
+            #list-view-container .list-table td { 
+                padding: 0 !important; border: none !important; 
+                display: flex; justify-content: space-between; align-items: center; 
+                font-size: 0.85rem; background: transparent !important;
+            }
+            
+            /* Pseudo-Labels for Mobile Cards */
+            #list-view-container .list-table td::before {
+                font-weight: 600; color: var(--text-muted); font-size: 0.7rem;
+                text-transform: uppercase; letter-spacing: 0.05em;
+            }
+            #list-view-container .list-table td:nth-child(1)::before { content: "S.No"; }
+            #list-view-container .list-table td:nth-child(2)::before { content: "Name"; }
+            #list-view-container .list-table td:nth-child(3)::before { content: "ID"; }
+            #list-view-container .list-table td:nth-child(4)::before { content: "Team"; }
+            #list-view-container .list-table td:nth-child(5)::before { content: "Event"; }
+            #list-view-container .list-table td:nth-child(6)::before { content: "Category"; }
+            #list-view-container .list-table td:nth-child(7)::before { content: "Stage"; }
+            
+            /* Emphasize the Name */
+            #list-view-container .list-table td:nth-child(2) { font-size: 1rem; color: var(--text-main); font-weight: 700; margin-bottom: 0.25rem; }
+            #list-view-container .list-table td:nth-child(2)::before { display: none; } /* Hide "Name" label, it's obvious */
+            
+            /* Ensure Matrix View scrolls cleanly */
+            .table-scroll-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 0.5rem; }
         }
     </style>
 </head>
