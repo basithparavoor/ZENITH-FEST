@@ -503,6 +503,23 @@
             .section-header > div { width: 100%; }
             .section-header h2 { font-size: 1.5rem; margin-bottom: 0.5rem; }
             .section-header p { font-size: 0.95rem; line-height: 1.4; }
+
+            /* --- FIX PUBLISH TAB HEADER MOBILE LAYOUT --- */
+            #publish .section-header > div:last-child {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 0.75rem !important;
+            }
+            
+            #live-published-count {
+                width: 100% !important;
+                text-align: center !important;
+                box-sizing: border-box !important;
+                justify-content: center !important;
+                display: flex !important;
+                min-height: 48px !important;
+                align-items: center !important;
+            }
             
             /* Toolbar Stacking */
             .toolbar { 
