@@ -268,10 +268,6 @@
 
 
 
-
-/* ========================================================================
-           CSS-ONLY NATIVE MOBILE APP SHELL & RESPONSIVE COMPONENT SYSTEM
-           ======================================================================== */
 /* ========================================================================
            CSS-ONLY NATIVE MOBILE APP SHELL & RESPONSIVE COMPONENT SYSTEM
            ======================================================================== */
@@ -303,7 +299,7 @@
                 align-items: center; 
                 color: var(--text-main);
             }
-            .header .btn span { display: none; } /* Hide text on mobile */
+            .header .btn span { display: none; }
             .header .btn i { font-size: 1.3rem; margin: 0; }
             
             /* Special styling for the Admin Hub button on mobile */
@@ -397,18 +393,13 @@
                 border: none !important; 
                 background: transparent !important; 
                 box-shadow: none !important; 
-                overflow: visible !important; 
+                overflow: hidden !important; 
             }
-            #judges table, 
-            #judges thead, 
-            #judges tbody, 
-            #judges th, 
-            #judges td, 
-            #judges tr { 
-                display: block; 
-                width: 100%; 
-            }
-            #judges thead { display: none; } /* Hide desktop headers */
+            
+            /* CRITICAL FIX: Removes the 600px minimum */
+            #judges table { min-width: 0 !important; display: block; width: 100%; }
+            #judges thead, #judges tbody, #judges th, #judges td, #judges tr { display: block; width: 100%; }
+            #judges thead { display: none; } 
             
             #judges tr {
                 background: var(--bg-surface); 
@@ -468,6 +459,40 @@
                 justify-content: center;
                 padding: 0;
             }
+
+            /* --- JUDGE SCHEDULE MODAL RESPONSIVENESS --- */
+            #judgeDetailsModal .modal-content > div:nth-child(2) {
+                border: none !important;
+                background: transparent !important;
+            }
+            #judgeDetailsModal table { min-width: 0 !important; display: block; width: 100%; }
+            #judgeDetailsModal thead { display: none; }
+            #judgeDetailsModal tbody { display: flex; flex-direction: column; gap: 0.75rem; }
+            
+            #judgeDetailsModal tr {
+                display: flex; flex-direction: column; gap: 0.5rem;
+                background: var(--bg-surface); border: 1px solid var(--border);
+                border-radius: var(--radius-md); padding: 1rem;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            }
+            
+            #judgeDetailsModal td { 
+                display: flex; justify-content: space-between; align-items: center; 
+                padding: 0 !important; border: none !important; width: 100%; text-align: right;
+            }
+            
+            /* CSS Pseudo-Labels for Modal Cards */
+            #judgeDetailsModal td::before {
+                font-weight: 600; color: var(--text-muted); font-size: 0.75rem;
+                text-transform: uppercase; letter-spacing: 0.03em;
+            }
+            #judgeDetailsModal td:nth-child(1)::before { content: "Date & Time"; }
+            #judgeDetailsModal td:nth-child(2)::before { content: "Competition"; }
+            #judgeDetailsModal td:nth-child(3)::before { content: "Category"; }
+            #judgeDetailsModal td:nth-child(4)::before { content: "Stage"; }
+            
+            #judgeDetailsModal td > * { flex: 1; text-align: right; justify-content: flex-end; }
+
 
             /* Main Content Adjustments */
             .main-content { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
