@@ -26,11 +26,15 @@ if (user.role === 'master_admin' || user.role === 'admin') {
     });
 }
 
-// --- GLOBAL STATE (For fast searching & filtering) ---
+// --- GLOBAL STATE ---
 let availableJudges = [];
 let allCompetitions = [];
 let allAssignments = [];
-let allStages = []; // <-- NEW VARIABLE
+let allStages = [];
+// New Variables for Judge Management
+let globalJudgesList = [];
+let modalAssignComps = [];
+let modalAssignedIds = [];
 
 // --- UTILITIES ---
 function switchTab(tabId) {
@@ -41,8 +45,8 @@ function switchTab(tabId) {
 
     if (tabId === 'assignments') loadAssignments();
     if (tabId === 'publish') loadPublishableComps();
-    // NEW ROUTE
     if (tabId === 'published-results') loadPublishedResults(); 
+    if (tabId === 'judges') loadJudgesManagement(); // <--- Add this
 }
 
 function logout() {
@@ -1104,3 +1108,473 @@ function closeStatsModal() {
 // Boot up
 loadAssignments();
 
+// ==========================================
+// JUDGE MANAGEMENT ENGINE (PORTED FROM ADMIN)
+// ==========================================
+
+async function loadJudgesManagement() {
+    try {
+        const { data: judges, error: judgesErr } = await supabaseClient
+            .from('users')
+            .select('id, username')
+            .eq('role', 'judge')
+            .order('username');
+        if (judgesErr) throw judgesErr;
+        
+        globalJudgesList = judges || [];
+
+        const { data: assignments, error: assignErr } = await supabaseClient
+            .from('judgements')
+            .select('judge_id, competition_id, competitions(name, categories(name), stages(name))');
+        if (assignErr) throw assignErr;
+
+        globalJudgesList.forEach(judge => {
+            const judgeAssigns = assignments.filter(a => a.judge_id === judge.id);
+            const uniqueCompsMap = new Map();
+            
+            judgeAssigns.forEach(a => {
+                if (a.competitions && !uniqueCompsMap.has(a.competition_id)) {
+                    uniqueCompsMap.set(a.competition_id, a.competitions);
+                }
+            });
+            judge.assignments = Array.from(uniqueCompsMap.entries()).map(([id, comp]) => ({ id, ...comp }));
+        });
+
+        renderJudgesTable();
+    } catch (error) {
+        showToast("Error loading judges: " + error.message, 'error');
+    }
+}
+
+function renderJudgesTable() {
+    const tbody = document.getElementById('judges-tbody');
+    const searchVal = (document.getElementById('searchJudgeInput')?.value || '').toLowerCase();
+    tbody.innerHTML = '';
+
+    const filtered = globalJudgesList.filter(j => j.username.toLowerCase().includes(searchVal));
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 2rem;">No judges found matching your search.</td></tr>`;
+        return;
+    }
+
+    filtered.forEach(judge => {
+        const assignCount = judge.assignments.length;
+        const countBadge = assignCount > 0 
+            ? `<span class="badge" style="background: var(--primary-light); color: var(--primary);">${assignCount} Events</span>` 
+            : `<span class="badge" style="background: var(--bg-main); color: var(--text-muted); border: 1px solid var(--border);">Unassigned</span>`;
+
+        const safeData = JSON.stringify(judge).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+
+        tbody.innerHTML += `
+            <tr>
+                <td style="font-weight: 700; font-size: 1.05rem; padding: 1.25rem 1.5rem; color: var(--text-main);">
+                    <i class="ph ph-scales" style="color: var(--primary); margin-right: 0.5rem; font-size: 1.25rem; vertical-align: bottom;"></i> ${judge.username}
+                </td>
+                <td style="padding: 1.25rem 1.5rem;">${countBadge}</td>
+                <td style="padding: 1.25rem 1.5rem;">
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button class="btn btn-outline btn-icon" style="color: var(--primary); border-color: rgba(59, 130, 246, 0.3);" onclick="viewJudgeDetails('${judge.id}')" ${assignCount === 0 ? 'disabled' : ''} title="View Schedule">
+                            <i class="ph ph-calendar-blank"></i>
+                        </button>
+                        <button class="btn btn-outline btn-icon" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3);" onclick="exportSpecificJudgePDF('${judge.id}')" ${assignCount === 0 ? 'disabled' : ''} title="Download Schedule PDF">
+                            <i class="ph ph-file-pdf"></i>
+                        </button>
+                        <button class="btn btn-outline btn-icon" style="color: var(--text-muted); border-color: var(--border);" onclick="openAssignJudgeEvents('${judge.id}')" title="Assign Events">
+                            <i class="ph ph-list-bullets"></i>
+                        </button>
+                        <button class="btn btn-outline btn-icon" style="color: var(--text-muted); border-color: var(--border);" onclick='openJudgeModal(${safeData})' title="Edit Judge">
+                            <i class="ph ph-pencil-simple"></i>
+                        </button>
+                        <button class="btn btn-outline btn-icon" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3);" onclick="deleteJudge('${judge.id}', '${judge.username}')" title="Delete Judge">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+function filterJudgesTable() { renderJudgesTable(); }
+
+async function openJudgeModal(editData = null) {
+    if (editData) {
+        document.getElementById('editJudgeId').value = editData.id;
+        document.getElementById('newJudgeName').value = editData.username;
+        document.getElementById('judgeModalTitle').innerText = 'Edit Judge Profile';
+        
+        const {data} = await supabaseClient.from('users').select('name, password_hash').eq('id', editData.id).single();
+        if(data) {
+            document.getElementById('newJudgeFullName').value = data.name || '';
+            document.getElementById('newJudgePass').value = data.password_hash;
+        }
+    } else {
+        document.getElementById('editJudgeId').value = '';
+        document.getElementById('newJudgeFullName').value = '';
+        document.getElementById('newJudgeName').value = '';
+        document.getElementById('newJudgePass').value = '';
+        document.getElementById('judgeModalTitle').innerText = 'Register New Judge';
+    }
+    
+    document.getElementById('judgeFormModal').classList.add('active');
+}
+
+async function saveJudgeProfile() {
+    const id = document.getElementById('editJudgeId').value;
+    const name = document.getElementById('newJudgeFullName').value.trim();
+    const username = document.getElementById('newJudgeName').value.trim();
+    const password_hash = document.getElementById('newJudgePass').value.trim();
+    
+    if (!username || !password_hash || !name) return showToast('Name, Username, and Password are required.', 'error');
+    
+    const btn = document.getElementById('btnSaveJudge');
+    const ogText = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Saving...';
+    btn.disabled = true;
+
+    try {
+        const payload = { name, username, password_hash, role: 'judge' };
+        if (id) payload.id = id;
+        
+        const { error } = await supabaseClient.from('users').upsert([payload]);
+        if (error) {
+            if (error.code === '23505') throw new Error('Username already taken.');
+            throw error;
+        }
+        
+        showToast(id ? 'Judge profile updated!' : 'New Judge registered!'); 
+        document.getElementById('judgeFormModal').classList.remove('active');
+        loadJudgesManagement(); 
+    } catch(e) {
+        showToast(e.message, 'error');
+    } finally {
+        btn.innerHTML = ogText;
+        btn.disabled = false;
+    }
+}
+
+async function deleteJudge(id, username) {
+    openConfirmModal("Delete Judge?", `Are you sure you want to permanently delete Judge "${username}"?`, async () => {
+        try {
+            const { error } = await supabaseClient.from('users').delete().eq('id', id);
+            if (error) {
+                if (error.code === '23503') throw new Error(`Cannot delete ${username} as they have already submitted marks.`);
+                throw error;
+            }
+            showToast(`Judge ${username} deleted.`);
+            loadJudgesManagement();
+        } catch(e) { showToast(e.message, 'error'); }
+    });
+}
+
+async function openAssignJudgeEvents(judgeId) {
+    const judge = globalJudgesList.find(j => j.id === judgeId);
+    if (!judge) return;
+    
+    document.getElementById('assign-judge-title').innerText = `Assign Events: ${judge.username}`;
+    document.getElementById('target-assign-judge-id').value = judgeId;
+    
+    const listContainer = document.getElementById('assign-judge-list');
+    listContainer.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite; font-size: 2rem; color: var(--primary);"></i><p style="margin-top:0.5rem; color: var(--text-muted);">Fetching events...</p></div>';
+    document.getElementById('assignJudgeEventsModal').classList.add('active');
+    
+    try {
+        const { data: comps, error } = await supabaseClient
+            .from('competitions')
+            .select('id, name, categories(name)')
+            .order('name');
+        if (error) throw error;
+
+        modalAssignComps = comps || [];
+        modalAssignedIds = judge.assignments.map(a => a.id);
+        
+        const uniqueCats = [...new Set(modalAssignComps.map(c => c.categories?.name || 'General'))].sort();
+        const catSelect = document.getElementById('filterAssignJudgeCat');
+        catSelect.innerHTML = '<option value="">All Categories</option>';
+        uniqueCats.forEach(cat => catSelect.innerHTML += `<option value="${cat}">${cat}</option>`);
+        
+        document.getElementById('searchAssignJudgeComp').value = '';
+        renderJudgeAssignList();
+    } catch (e) {
+        listContainer.innerHTML = `<p style="color:var(--danger); text-align:center;">Failed to load competitions.</p>`;
+    }
+}
+
+function renderJudgeAssignList() {
+    const search = document.getElementById('searchAssignJudgeComp').value.toLowerCase();
+    const catFilter = document.getElementById('filterAssignJudgeCat').value;
+    const listContainer = document.getElementById('assign-judge-list');
+    
+    let html = '';
+    const filteredComps = modalAssignComps.filter(c => {
+        const catName = c.categories?.name || 'General';
+        const matchSearch = c.name.toLowerCase().includes(search);
+        const matchCat = catFilter === '' || catName === catFilter;
+        return matchSearch && matchCat;
+    });
+    
+    if (filteredComps.length === 0) {
+        html = `<p style="text-align:center; color:var(--text-muted); padding: 1rem;">No competitions match your filters.</p>`;
+    } else {
+        filteredComps.forEach(c => {
+            const isChecked = modalAssignedIds.includes(c.id) ? 'checked' : '';
+            html += `
+                <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem; border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; transition: var(--transition);" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                    <input type="checkbox" value="${c.id}" ${isChecked} onchange="updateModalAssignedIds(this)" style="width: 18px; height: 18px; accent-color: var(--primary);">
+                    <div>
+                        <strong style="display: block; font-size: 0.95rem;">${c.name}</strong>
+                        <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">${c.categories?.name || 'General'}</span>
+                    </div>
+                </label>
+            `;
+        });
+    }
+    listContainer.innerHTML = html;
+}
+
+function filterJudgeAssignList() { renderJudgeAssignList(); }
+
+function updateModalAssignedIds(cb) {
+    if (cb.checked) {
+        if (!modalAssignedIds.includes(cb.value)) modalAssignedIds.push(cb.value);
+    } else {
+        modalAssignedIds = modalAssignedIds.filter(id => id !== cb.value);
+    }
+}
+
+async function saveJudgeAssignments() {
+    const judgeId = document.getElementById('target-assign-judge-id').value;
+    const btn = document.getElementById('btn-save-judge-assign');
+    const ogText = btn.innerHTML;
+    btn.disabled = true; 
+    btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Saving...';
+    
+    try {
+        await supabaseClient.from('judgements')
+            .delete()
+            .eq('judge_id', judgeId)
+            .is('participant_id', null);
+        
+        if(modalAssignedIds.length > 0) {
+            const inserts = modalAssignedIds.map(compId => ({ competition_id: compId, judge_id: judgeId }));
+            await supabaseClient.from('judgements').insert(inserts);
+        }
+        
+        showToast('Judge assignments updated successfully!');
+        document.getElementById('assignJudgeEventsModal').classList.remove('active');
+        loadJudgesManagement(); 
+    } catch(e) {
+        showToast("Error updating assignments: " + e.message, 'error');
+    } finally {
+        btn.disabled = false; 
+        btn.innerHTML = ogText;
+    }
+}
+
+async function viewJudgeDetails(judgeId) {
+    const judge = globalJudgesList.find(j => j.id === judgeId);
+    if (!judge) return;
+
+    document.getElementById('jd-modal-title').innerText = `Schedule: ${judge.username}`;
+    const tbody = document.getElementById('jd-modal-tbody');
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 2rem;"><i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite; font-size: 2rem; color: var(--primary);"></i></td></tr>`;
+    document.getElementById('judgeDetailsModal').classList.add('active');
+
+    try {
+        const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
+        const masterSchedule = schedData?.value || {};
+
+        if (judge.assignments.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">No events assigned to this judge.</td></tr>`;
+            return;
+        }
+
+        const scheduledAssignments = judge.assignments.map(comp => {
+            const sched = masterSchedule[comp.id] || { date: 'TBD', time: '--:--' };
+            return { ...comp, sched };
+        });
+
+        scheduledAssignments.sort((a, b) => {
+            if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
+            return a.sched.time.localeCompare(b.sched.time);
+        });
+
+        tbody.innerHTML = '';
+        scheduledAssignments.forEach(comp => {
+            const timeStr = comp.sched.date !== 'TBD' 
+                ? `<span style="color: var(--primary); font-weight: 700;">${comp.sched.date}</span><br><span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">${comp.sched.time}</span>` 
+                : `<span style="color: #D97706; font-weight: 600; font-size: 0.8rem;">Unscheduled</span>`;
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td style="padding: 1rem; border-bottom: 1px solid var(--border); white-space: nowrap;">${timeStr}</td>
+                    <td style="padding: 1rem; border-bottom: 1px solid var(--border); font-weight: 700; color: var(--text-main); font-size: 0.95rem;">${comp.name}</td>
+                    <td style="padding: 1rem; border-bottom: 1px solid var(--border);"><span class="badge" style="background: var(--bg-main); border: 1px solid var(--border); color: var(--text-muted);">${comp.categories?.name || 'General'}</span></td>
+                    <td style="padding: 1rem; border-bottom: 1px solid var(--border); font-weight: 500;"><i class="ph-fill ph-microphone-stage" style="color: var(--primary); margin-right: 4px;"></i> ${comp.stages?.name || 'Unassigned'}</td>
+                </tr>
+            `;
+        });
+    } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--danger); padding: 2rem;">Error loading schedule.</td></tr>`;
+    }
+}
+
+// --- LIGHTWEIGHT PDF HEADER FOR MANAGER ---
+function getManagerPDFHeaderHTML(title) {
+    return `
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 26px; font-family: 'Plus Jakarta Sans', sans-serif; text-transform: uppercase; font-weight: 800;">FestOS Manager</h1>
+            <h2 style="color: #1F2937; font-size: 18px; margin-top: 0; text-transform: uppercase;">${title}</h2>
+            <p style="color: #64748B; font-size: 12px; margin-top: 4px;">Generated on: ${new Date().toLocaleString()}</p>
+        </div>
+    `;
+}
+
+async function exportSpecificJudgePDF(judgeId) {
+    const judge = globalJudgesList.find(j => j.id === judgeId);
+    if (!judge) return;
+    
+    showToast(`Generating PDF for ${judge.username}...`);
+    
+    const container = document.createElement('div');
+    container.style.padding = '40px';
+    container.style.fontFamily = 'Inter, sans-serif';
+    container.innerHTML = getManagerPDFHeaderHTML(`Judge Schedule: ${judge.username}`);
+
+    const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
+    const masterSchedule = schedData?.value || {};
+
+    let tableRows = '';
+    if (judge.assignments.length === 0) {
+        tableRows = `<tr><td colspan="5" style="padding: 10px; text-align: center; color: #64748B;">No events currently assigned.</td></tr>`;
+    } else {
+        const scheduledAssignments = judge.assignments.map(comp => {
+            const sched = masterSchedule[comp.id] || { date: 'TBD', time: '--:--' };
+            return { ...comp, sched };
+        });
+
+        scheduledAssignments.sort((a, b) => {
+            if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
+            return a.sched.time.localeCompare(b.sched.time);
+        });
+
+        tableRows = scheduledAssignments.map((comp, i) => {
+            const timeStr = comp.sched.date !== 'TBD' 
+                ? `<span style="font-weight: 700;">${comp.sched.date}</span><br><span style="color: #64748B; font-size: 10px;">${comp.sched.time}</span>` 
+                : `<span style="color: #D97706; font-weight: 600;">Unscheduled</span>`;
+
+            return `
+            <tr style="border-bottom: 1px solid #E2E8F0;">
+                <td style="padding: 8px 10px; font-size: 11px;">${i + 1}</td>
+                <td style="padding: 8px 10px; font-size: 11px; color: #0F172A;">${timeStr}</td>
+                <td style="padding: 8px 10px; font-size: 11px; font-weight: 600; color: #0F172A;">${comp.name}</td>
+                <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.categories?.name || 'General'}</td>
+                <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.stages?.name || 'Unassigned'}</td>
+            </tr>
+        `}).join('');
+    }
+
+    container.innerHTML += `
+        <div style="margin-bottom: 25px;">
+            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
+                <thead>
+                    <tr style="background: #F8FAFC; text-align: left; font-size: 10px; color: #64748B; border-bottom: 1px solid #E2E8F0; text-transform: uppercase;">
+                        <th style="padding: 8px 10px; width: 40px;">#</th>
+                        <th style="padding: 8px 10px;">DATE & TIME</th>
+                        <th style="padding: 8px 10px;">COMPETITION NAME</th>
+                        <th style="padding: 8px 10px;">CATEGORY</th>
+                        <th style="padding: 8px 10px;">STAGE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    const opt = { 
+        margin: 10, filename: `Judge_Schedule_${judge.username}.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
+        html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    };
+    
+    document.getElementById('pdf-export-container').innerHTML = ''; // Clean buffer
+    html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+}
+
+async function exportJudgesPDF() {
+    if (globalJudgesList.length === 0) return showToast('No judges found to export.', 'error');
+    showToast('Generating Judge Roster PDF...');
+    
+    const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
+    const masterSchedule = schedData?.value || {};
+
+    const container = document.createElement('div');
+    container.style.padding = '40px';
+    container.style.fontFamily = 'Inter, sans-serif';
+    container.innerHTML = getManagerPDFHeaderHTML('Master Judge Roster');
+
+    globalJudgesList.forEach((judge, index) => {
+        let tableRows = '';
+        if (judge.assignments.length === 0) {
+            tableRows = `<tr><td colspan="5" style="padding: 10px; text-align: center; color: #64748B;">No events currently assigned.</td></tr>`;
+        } else {
+            const scheduledAssignments = judge.assignments.map(comp => {
+                const sched = masterSchedule[comp.id] || { date: 'TBD', time: '--:--' };
+                return { ...comp, sched };
+            });
+
+            scheduledAssignments.sort((a, b) => {
+                if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
+                return a.sched.time.localeCompare(b.sched.time);
+            });
+
+            tableRows = scheduledAssignments.map((comp, i) => {
+                const timeStr = comp.sched.date !== 'TBD' 
+                    ? `<span style="font-weight: 700;">${comp.sched.date}</span><br><span style="color: #64748B; font-size: 10px;">${comp.sched.time}</span>` 
+                    : `<span style="color: #D97706; font-weight: 600;">Unscheduled</span>`;
+
+                return `
+                <tr style="border-bottom: 1px solid #E2E8F0;">
+                    <td style="padding: 8px 10px; font-size: 11px;">${i + 1}</td>
+                    <td style="padding: 8px 10px; font-size: 11px; color: #0F172A;">${timeStr}</td>
+                    <td style="padding: 8px 10px; font-size: 11px; font-weight: 600; color: #0F172A;">${comp.name}</td>
+                    <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.categories?.name || 'General'}</td>
+                    <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.stages?.name || 'Unassigned'}</td>
+                </tr>
+            `}).join('');
+        }
+
+        container.innerHTML += `
+            <div style="margin-bottom: 25px; page-break-inside: avoid;">
+                <div style="background: #1E293B; color: white; padding: 10px 12px; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 13px; font-weight: 700; text-transform: uppercase;">JUDGE: ${judge.username}</h3>
+                    <span style="font-size: 10px; color: #94A3B8; font-weight: 600;">${judge.assignments.length} ASSIGNMENTS</span>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; border-top: none;">
+                    <thead>
+                        <tr style="background: #F8FAFC; text-align: left; font-size: 10px; color: #64748B; border-bottom: 1px solid #E2E8F0; text-transform: uppercase;">
+                            <th style="padding: 8px 10px; width: 40px;">#</th>
+                            <th style="padding: 8px 10px;">DATE & TIME</th>
+                            <th style="padding: 8px 10px;">COMPETITION NAME</th>
+                            <th style="padding: 8px 10px;">CATEGORY</th>
+                            <th style="padding: 8px 10px;">STAGE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    });
+
+    const opt = { 
+        margin: 10, filename: `FestOS_Master_Judge_Roster.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
+        html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    };
+    
+    document.getElementById('pdf-export-container').innerHTML = ''; // Clean buffer
+    html2pdf().set(opt).from(container).save().then(() => showToast('Roster PDF Exported!'));
+}
