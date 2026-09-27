@@ -21,7 +21,6 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
 
         :root {
-            /* Refined Premium Palette */
             --bg-light: #F9FAFB;
             --surface: #FFFFFF;
             --surface-hover: #FFFFFF;
@@ -50,7 +49,6 @@
             --bronze-glow: rgba(217, 119, 6, 0.15);
             --bronze-border: rgba(217, 119, 6, 0.3);
             
-            /* Smooth, Deep Layered Shadows */
             --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
             --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
             --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
@@ -76,6 +74,8 @@
             background-color: var(--bg-light);
             color: var(--text-main); 
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             overflow-x: hidden;
@@ -101,22 +101,35 @@
             100% { transform: translate(50px, 80px) scale(1.1); }
         }
 
-        /* --- Entrances & Keyframes --- */
         @keyframes popIn { 0% { opacity: 0; transform: translateY(12px); } 100% { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
         @keyframes shimmer { 0% { left: -100%; } 20% { left: 100%; } 100% { left: 100%; } }
 
-        /* --- Navbar --- */
-        .navbar {
-            background: rgba(255, 255, 255, 0.85);
+        /* --- Public Website Navigation --- */
+        .public-navbar {
+            background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
             padding: 1rem 6%; display: flex; justify-content: space-between; align-items: center;
-            position: sticky; top: 0; z-index: 40; border-bottom: 1px solid var(--surface-border); box-shadow: var(--shadow-nav);
+            position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--surface-border); box-shadow: var(--shadow-nav);
         }
-        .navbar .brand { 
-            font-weight: 700; font-size: 1.3rem; letter-spacing: -0.02em; 
-            color: var(--primary);
-            display: flex; align-items: center; gap: 0.6rem;
+        .public-navbar .brand { 
+            font-weight: 800; font-size: 1.4rem; letter-spacing: -0.02em; 
+            color: var(--primary); display: flex; align-items: center; gap: 0.6rem; text-transform: uppercase;
+        }
+        .nav-links {
+            display: flex; gap: 2rem; align-items: center;
+        }
+        .nav-link {
+            font-size: 0.95rem; font-weight: 600; color: var(--text-muted);
+            cursor: pointer; transition: var(--transition); text-transform: uppercase;
+            position: relative;
+            padding: 0.5rem 0;
+        }
+        .nav-link:hover { color: var(--primary); }
+        .nav-link.active { color: var(--primary); }
+        .nav-link.active::after {
+            content: ''; position: absolute; bottom: 0px; left: 0; right: 0; height: 2px;
+            background: var(--primary); border-radius: 2px;
         }
 
         /* Live Radar Ping */
@@ -130,10 +143,46 @@
         .live-ping { position: absolute; inset: -3px; border: 2px solid #10B981; border-radius: 50%; animation: radarPing 2s infinite cubic-bezier(0, 0, 0.2, 1); z-index: 1; }
         @keyframes radarPing { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
 
-        /* --- Main Container --- */
-        .container { max-width: 960px; margin: 2rem auto; padding: 0 1.5rem; }
+        /* --- Hero Section (Home) --- */
+        .hero-section {
+            text-align: center; padding: 6rem 1.5rem; position: relative; z-index: 10;
+        }
+        .hero-title {
+            font-size: 3.5rem; font-weight: 800; color: var(--text-main);
+            margin-bottom: 1rem; line-height: 1.1; letter-spacing: -0.03em;
+        }
+        .hero-subtitle {
+            font-size: 1.25rem; color: var(--text-muted); font-weight: 500;
+            max-width: 600px; margin: 0 auto 2.5rem auto;
+        }
 
-        /* --- Tabs --- */
+        /* --- Public Footer --- */
+        .public-footer {
+            background: var(--surface); border-top: 1px solid var(--surface-border);
+            padding: 3rem 6%; text-align: center; margin-top: auto; position: relative; z-index: 10;
+        }
+        .footer-brand { font-size: 1.25rem; font-weight: 700; color: var(--text-main); margin-bottom: 1rem; text-transform: uppercase; }
+        .footer-links { display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .footer-links a { color: var(--text-muted); text-decoration: none; font-weight: 600; text-transform: uppercase; transition: var(--transition); font-size: 0.9rem;}
+        .footer-links a:hover { color: var(--primary); }
+        .copyright { font-size: 0.85rem; color: var(--text-dim); }
+
+        /* Schedule Table */
+        .schedule-table-container { background: var(--surface); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); border: 1px solid var(--surface-border); overflow: hidden; margin-bottom: 3rem;}
+        .schedule-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .schedule-table th { padding: 1rem 1.5rem; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); background: var(--bg-light); border-bottom: 1px solid var(--surface-border); }
+        .schedule-table td { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--surface-border); font-size: 0.95rem; font-weight: 600; color: var(--text-main); }
+        .schedule-table tr:last-child td { border-bottom: none; }
+
+        /* --- Main Container --- */
+        .container { max-width: 960px; margin: 2rem auto; padding: 0 1.5rem; flex: 1; width: 100%; }
+
+        .view-section { display: none; }
+        .view-section.active { display: block; animation: fadeIn 0.3s ease; }
+        .results-sub-view { display: none; }
+        .results-sub-view.active { display: block; animation: fadeIn 0.3s ease; }
+
+        /* --- Tabs (For Results) --- */
         .tabs { 
             display: flex; gap: 0.35rem; margin-bottom: 2rem; 
             background: rgba(243, 244, 246, 0.9); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
@@ -144,7 +193,7 @@
         .tab { 
             flex: 1; text-align: center; padding: 0.75rem 1.25rem; 
             cursor: pointer; font-weight: 600; color: var(--text-muted); 
-            border-radius: 999px; transition: var(--transition);
+            border-radius: 999px; transition: var(--transition); text-transform: uppercase;
             font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
             white-space: nowrap; flex-shrink: 0;
         }
@@ -153,9 +202,6 @@
             background: var(--primary-gradient); color: #ffffff; 
             box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25);
         }
-
-        .view-section { display: none; }
-        .view-section.active { display: block; animation: fadeIn 0.3s ease; }
 
         /* --- Standings Header Controls --- */
         .standings-header-card {
@@ -168,7 +214,7 @@
         }
 
         select, input[type="text"] {
-            color: var(--text-main); background: var(--bg-light);
+            color: var(--text-main); background: var(--bg-light); text-transform: uppercase;
             border: 1px solid var(--surface-border); border-radius: var(--radius-md);
             padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; outline: none;
             transition: var(--transition); appearance: none;
@@ -186,12 +232,12 @@
             background: var(--primary-light); border: 1px solid rgba(59, 130, 246, 0.2); color: var(--primary);
             padding: 0.65rem 1.25rem; border-radius: 999px; font-weight: 600; font-size: 0.85rem;
             display: flex; align-items: center; gap: 0.5rem; box-shadow: var(--shadow-sm);
-            animation: popIn 0.4s ease backwards; white-space: nowrap;
+            animation: popIn 0.4s ease backwards; white-space: nowrap; text-transform: uppercase;
         }
 
         /* --- Leaderboard Styles --- */
         .leaderboard-card {
-            background: var(--surface);
+            background: var(--surface); text-transform: uppercase;
             border-radius: var(--radius-md); padding: 1.15rem 1.5rem;
             display: flex; align-items: center; margin-bottom: 0.75rem;
             border: 1px solid var(--surface-border); box-shadow: var(--card-shadow);
@@ -227,7 +273,7 @@
         .score-label { display: block; font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
 
         /* --- Event Tiles Grid --- */
-        .competitions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; }
+        .competitions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; text-transform: uppercase;}
         .comp-tile {
             background: var(--surface); border-radius: var(--radius-md); padding: 1.4rem;
             border: 1px solid var(--surface-border); box-shadow: var(--card-shadow);
@@ -249,7 +295,7 @@
             border: none; border-radius: var(--radius-md); font-size: 0.9rem; font-weight: 600; 
             cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
             box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); position: relative; overflow: hidden; letter-spacing: 0.01em;
-            min-height: 42px; white-space: nowrap;
+            min-height: 42px; white-space: nowrap; text-transform: uppercase;
         }
         .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-float); }
         .btn:active:not(:disabled) { transform: translateY(1px); }
@@ -262,7 +308,7 @@
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(17, 24, 39, 0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-            z-index: 100; display: none; justify-content: center; align-items: center;
+            z-index: 200; display: none; justify-content: center; align-items: center;
             opacity: 0; transition: opacity 0.3s ease; padding: 1.25rem;
         }
         .modal-overlay.active { display: flex; opacity: 1; }
@@ -272,7 +318,7 @@
             border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
             overflow-y: auto; position: relative; border: 1px solid var(--surface-border);
             transform: scale(0.95); transition: transform 0.3s ease;
-            display: flex; flex-direction: column;
+            display: flex; flex-direction: column; text-transform: uppercase;
         }
         .modal-overlay.active .modal-content { transform: scale(1); }
         
@@ -316,7 +362,7 @@
         .template-btn { 
             padding: 0.6rem 1rem; border-radius: 999px; border: none;
             background: transparent; color: var(--text-muted); font-size: 0.8rem; font-weight: 600; cursor: pointer;
-            white-space: nowrap; transition: var(--transition);
+            white-space: nowrap; transition: var(--transition); text-transform: uppercase;
             display: flex; align-items: center; justify-content: center;
         }
         .template-btn.active { background: #ffffff; color: var(--primary); box-shadow: var(--shadow-sm); }
@@ -345,26 +391,34 @@
             font-weight: 600; font-size: 0.9rem; color: var(--primary); backdrop-filter: blur(4px);
         }
 
-        /* ========================================================================
-           APP-LIKE MOBILE VIEW (NATIVE FEEL)
-           ======================================================================== */
+        /* --- Mobile Overrides --- */
         @media (max-width: 768px) {
-            .navbar { padding: 1rem 1.25rem; }
-            .navbar .brand { font-size: 1.15rem; }
-            .live-badge { padding: 0.35rem 0.75rem; font-size: 0.7rem; }
+            .nav-links { display: none; }
+            .hero-title { font-size: 2.5rem; }
+            .hero-subtitle { font-size: 1.05rem; }
             
-            .container { margin: 1.25rem auto; padding: 0 1.25rem; }
-            
+            /* Native bottom nav for mobile */
+            .mobile-bottom-nav {
+                display: flex; position: fixed; bottom: 0; left: 0; right: 0;
+                background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px);
+                border-top: 1px solid var(--surface-border); z-index: 100;
+                padding: 0.5rem 0 calc(0.5rem + env(safe-area-inset-bottom)) 0;
+                box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
+            }
+            .mobile-nav-item {
+                flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+                font-size: 0.65rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;
+            }
+            .mobile-nav-item i { font-size: 1.25rem; }
+            .mobile-nav-item.active { color: var(--primary); }
+
             .standings-header-card { flex-direction: column; align-items: stretch; gap: 1rem; padding: 1.25rem 1rem; }
             .standings-header-card > div:last-child { width: 100%; flex-direction: column; gap: 0.75rem !important; }
-            
-            select, input[type="text"] { width: 100%; min-height: 48px; font-size: 16px !important; /* Prevent iOS zoom */ }
+            select, input[type="text"] { width: 100%; min-height: 48px; font-size: 16px !important; }
             .btn { min-height: 48px; width: 100%; justify-content: center; font-size: 0.95rem; }
-
             .filters { flex-direction: column; align-items: stretch !important; gap: 0.75rem; }
             .filters > div { width: 100%; min-width: 100%; }
             .published-count-badge { justify-content: center; min-height: 48px; }
-            
             .leaderboard-card { padding: 1rem; }
             .rank { font-size: 0.95rem; width: 40px; }
             .rank-1, .rank-2, .rank-3 { font-size: 1.35rem; width: 45px; }
@@ -386,12 +440,11 @@
             }
             .modal-header { padding: 1rem 0.5rem 0.75rem 0.5rem; position: static; background: transparent; border: none; }
             .modal-body { padding: 0 0.5rem; gap: 1.5rem; }
-            
             .poster-section .btn { margin-top: 1rem; }
-            
             .w-name { font-size: 0.9rem !important; }
             .w-rank { font-size: 1.2rem !important; margin-right: 0.75rem !important; }
         }
+        @media (min-width: 769px) { .mobile-bottom-nav { display: none; } }
     </style>
 </head>
 <body>
@@ -404,87 +457,145 @@
         <div class="orb orb-3"></div>
     </div>
 
-    <!-- Navbar -->
-    <div class="navbar">
-        <div class="brand"><i class="fa-solid fa-bolt" style="color: var(--primary);"></i> FestOS</div>
+    <!-- Public Navigation Bar -->
+    <nav class="public-navbar">
+        <div class="brand">
+            <img id="head-logo" src="" alt="Logo" style="height: 32px; display: none;">
+            <span id="head-title">FESTOS</span>
+        </div>
+        <div class="nav-links">
+            <a class="nav-link active" onclick="switchMainTab('home', this)">Home</a>
+            <a class="nav-link" onclick="switchMainTab('schedule', this)">Schedules</a>
+            <a class="nav-link" onclick="switchMainTab('results', this)">Results</a>
+        </div>
         <div class="live-badge">
-            <div class="live-dot-container">
-                <span class="live-ping"></span>
-                <span class="live-dot"></span>
-            </div>
-            Live Results
+            <div class="live-dot-container"><span class="live-ping"></span><span class="live-dot"></span></div>
+            Live
         </div>
-    </div>
+    </nav>
 
-    <!-- Main Container -->
-    <div class="container">
-        <!-- Navigation Tabs -->
-        <div class="tabs">
-            <div class="tab active" onclick="switchTab('standings', this)">
-                <i class="fa-solid fa-trophy"></i> Overall Standings
-            </div>
-            <div class="tab" onclick="switchTab('individual', this)">
-                <i class="fa-solid fa-list-check"></i> Event Results & Graphics
-            </div>
-        </div>
-
-        <!-- Leaderboard View -->
-        <div id="standings" class="view-section active">
-            <div class="standings-header-card">
-                <div>
-                    <h3 style="font-size: 1.15rem; font-weight: 600; color: var(--text-main);">Team Leaderboard</h3>
-                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.2rem; font-weight: 400;">Generate graphics for real-time or final overall team rankings.</p>
+    <!-- Main App Container -->
+    <div class="container" style="min-height: 60vh;">
+        
+        <!-- HOME TAB -->
+        <div id="view-home" class="view-section active">
+            <div class="hero-section">
+                <div style="display: inline-block; padding: 0.5rem 1rem; background: var(--primary-light); color: var(--primary); border-radius: 50px; font-weight: 700; font-size: 0.85rem; margin-bottom: 1.5rem; border: 1px solid var(--primary-ring); text-transform: uppercase;">
+                    <i class="fa-solid fa-satellite-dish fa-fade"></i> LIVE EVENT HUB
                 </div>
-                
-                <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-                    <select id="event-timeline-filter" onchange="applyTimelineFilter()">
-                    </select>
-                    <button class="btn btn-outline" style="width: auto;" onclick="previewTeamPoster('team', this)">
-                        <i class="fa-solid fa-eye"></i> Current Standings
-                    </button>
-                    <button class="btn" style="width: auto;" onclick="previewTeamPoster('final', this)">
-                        <i class="fa-solid fa-award"></i> Final Standings
-                    </button>
+                <h1 class="hero-title" id="home-hero-title">Welcome to FestOS</h1>
+                <p class="hero-subtitle">Track live event schedules, real-time results, and official championship standings all in one place.</p>
+                <div style="display: flex; gap: 1rem; justify-content: center;">
+                    <button class="btn btn-primary" style="width: auto;" onclick="switchMainTab('results', document.querySelectorAll('.nav-link')[2])">View Latest Results</button>
+                    <button class="btn btn-outline" style="width: auto;" onclick="switchMainTab('schedule', document.querySelectorAll('.nav-link')[1])">Event Schedule</button>
                 </div>
             </div>
+        </div>
 
-            <div id="leaderboard-container">
-                <p style="text-align:center; color:var(--text-muted); padding: 4rem 1rem; font-weight: 500; display:flex; flex-direction:column; align-items:center; gap: 1rem;">
-                    <span class="loading-pulse"></span> Syncing live metrics...
-                </p>
+        <!-- SCHEDULE TAB -->
+        <div id="view-schedule" class="view-section">
+            <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.75rem; font-weight: 700; margin-bottom: 0.5rem; text-align: center; text-transform: uppercase;">Official Schedule</h2>
+            <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem; font-weight: 500; text-transform: uppercase;">Upcoming timings for the main events.</p>
+            
+            <div class="schedule-table-container">
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>TIME</th>
+                            <th>COMPETITION</th>
+                            <th>CATEGORY</th>
+                            <th>STAGE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="public-schedule-tbody">
+                        <tr><td colspan="4" style="text-align:center; padding: 2rem; color: var(--text-muted);"><span class="loading-pulse"></span> Loading schedule...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- Competitions Grid View -->
-        <div id="individual" class="view-section">
-            <div class="filters" style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; align-items: center; justify-content: space-between;">
-                
-                <!-- Search & Filters -->
-                <div style="display: flex; gap: 1rem; flex: 1; flex-wrap: wrap; min-width: 300px;">
-                    <div style="position: relative; flex: 2; min-width: 200px;">
-                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1.25rem; top: 50%; transform: translateY(-50%); color: var(--text-dim);"></i>
-                        <input type="text" id="search-comp" placeholder="SEARCH EVENTS..." onkeyup="renderCompetitionsGrid()" style="padding-left: 2.75rem; width: 100%;">
+        <!-- RESULTS HUB TAB -->
+        <div id="view-results" class="view-section">
+            <!-- Navigation Sub-Tabs -->
+            <div class="tabs">
+                <div class="tab active" onclick="switchResultsTab('standings', this)">
+                    <i class="fa-solid fa-trophy"></i> Overall Standings
+                </div>
+                <div class="tab" onclick="switchResultsTab('individual', this)">
+                    <i class="fa-solid fa-list-check"></i> Event Results
+                </div>
+            </div>
+
+            <!-- Leaderboard View -->
+            <div id="standings" class="results-sub-view active">
+                <div class="standings-header-card">
+                    <div>
+                        <h3 style="font-size: 1.15rem; font-weight: 600; color: var(--text-main); text-transform: uppercase;">Team Leaderboard</h3>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.2rem; font-weight: 400; text-transform: uppercase;">Generate graphics for real-time or final overall team rankings.</p>
                     </div>
                     
-                    <select id="category-filter" onchange="renderCompetitionsGrid()" style="flex: 1; min-width: 160px;">
-                        <option value="all">ALL CATEGORIES</option>
-                    </select>
+                    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                        <select id="event-timeline-filter" onchange="applyTimelineFilter()">
+                        </select>
+                        <button class="btn btn-outline" style="width: auto;" onclick="previewTeamPoster('team', this)">
+                            <i class="fa-solid fa-eye"></i> Current Standings
+                        </button>
+                        <button class="btn btn-primary" style="width: auto;" onclick="previewTeamPoster('final', this)">
+                            <i class="fa-solid fa-award"></i> Final Standings
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Total Published Results Counter -->
-                <div class="published-count-badge">
-                    <i class="fa-solid fa-flag-checkered"></i>
-                    <span id="published-count-display">0</span> Published
+                <div id="leaderboard-container">
+                    <p style="text-align:center; color:var(--text-muted); padding: 4rem 1rem; font-weight: 500; display:flex; flex-direction:column; align-items:center; gap: 1rem; text-transform: uppercase;">
+                        <span class="loading-pulse"></span> Syncing live metrics...
+                    </p>
                 </div>
-
             </div>
-            
-            <div class="competitions-grid" id="competitions-container">
-                <p style="text-align:center; color:var(--text-muted); grid-column: 1/-1; padding: 4rem 1rem; display:flex; flex-direction:column; align-items:center; gap: 1rem; font-weight: 500;">
-                    <span class="loading-pulse"></span> Loading events...
-                </p>
+
+            <!-- Competitions Grid View -->
+            <div id="individual" class="results-sub-view" style="display: none;">
+                <div class="filters" style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; gap: 1rem; flex: 1; flex-wrap: wrap; min-width: 300px;">
+                        <div style="position: relative; flex: 2; min-width: 200px;">
+                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1.25rem; top: 50%; transform: translateY(-50%); color: var(--text-dim);"></i>
+                            <input type="text" id="search-comp" placeholder="SEARCH EVENTS..." onkeyup="renderCompetitionsGrid()" style="padding-left: 2.75rem; width: 100%;">
+                        </div>
+                        <select id="category-filter" onchange="renderCompetitionsGrid()" style="flex: 1; min-width: 160px;">
+                            <option value="all">ALL CATEGORIES</option>
+                        </select>
+                    </div>
+                    <div class="published-count-badge">
+                        <i class="fa-solid fa-flag-checkered"></i><span id="published-count-display">0</span> Published
+                    </div>
+                </div>
+                
+                <div class="competitions-grid" id="competitions-container">
+                    <p style="text-align:center; color:var(--text-muted); grid-column: 1/-1; padding: 4rem 1rem; display:flex; flex-direction:column; align-items:center; gap: 1rem; font-weight: 500; text-transform: uppercase;">
+                        <span class="loading-pulse"></span> Loading events...
+                    </p>
+                </div>
             </div>
         </div>
+
+    </div>
+
+    <!-- Public Footer -->
+    <footer class="public-footer">
+        <div class="footer-brand" id="footer-title">FESTOS</div>
+        <div class="footer-links">
+            <a href="#" onclick="switchMainTab('home', document.querySelectorAll('.nav-link')[0])">Home</a>
+            <a href="#" onclick="switchMainTab('schedule', document.querySelectorAll('.nav-link')[1])">Schedule</a>
+            <a href="#" onclick="switchMainTab('results', document.querySelectorAll('.nav-link')[2])">Results</a>
+        </div>
+        <div class="copyright">© 2026 Powered by FestOS Event Architecture. All rights reserved.</div>
+    </footer>
+
+    <!-- Mobile Bottom Nav -->
+    <div class="mobile-bottom-nav">
+        <div class="mobile-nav-item active" onclick="switchMainTab('home', this)"><i class="fa-solid fa-house"></i> Home</div>
+        <div class="mobile-nav-item" onclick="switchMainTab('schedule', this)"><i class="fa-solid fa-calendar"></i> Schedule</div>
+        <div class="mobile-nav-item" onclick="switchMainTab('results', this)"><i class="fa-solid fa-trophy"></i> Results</div>
     </div>
 
     <!-- Results & Poster Modal -->
@@ -493,39 +604,37 @@
             <div class="modal-header">
                 <div>
                     <span id="modal-cat-name" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: var(--primary); letter-spacing: 0.05em; background: var(--primary-light); padding: 0.3rem 0.65rem; border-radius: 50px; margin-bottom: 0.4rem; display: inline-block;">Category</span>
-                    <h2 id="modal-comp-name" style="font-size: 1.25rem; font-weight: 600; color: var(--text-main); margin-top: 0.2rem; line-height: 1.2;">Competition Name</h2>
+                    <h2 id="modal-comp-name" style="font-size: 1.25rem; font-weight: 600; color: var(--text-main); margin-top: 0.2rem; line-height: 1.2; text-transform: uppercase;">Competition Name</h2>
                 </div>
                 <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
             <div class="modal-body">
-                <!-- Left Side: Results -->
                 <div>
-                    <h3 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-main); letter-spacing: -0.01em;">
+                    <h3 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-main); letter-spacing: -0.01em; text-transform: uppercase;">
                         <i class="fa-solid fa-medal" style="color: var(--primary); margin-right: 0.4rem;"></i> TOP STANDINGS
                     </h3>
                     <div id="modal-winners-list">
                     </div>
                 </div>
 
-                <!-- Right Side: Poster Preview -->
                 <div class="poster-section">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <h3 style="font-size: 1.05rem; font-weight: 600; color: var(--text-main); letter-spacing: -0.01em;">
+                        <h3 style="font-size: 1.05rem; font-weight: 600; color: var(--text-main); letter-spacing: -0.01em; text-transform: uppercase;">
                             <i class="fa-solid fa-image" style="color: var(--primary); margin-right: 0.4rem;"></i> EXPORT GRAPHIC
                         </h3>
                     </div>
                     
                     <div class="template-tabs-container">
                         <div class="template-tabs" id="template-selector">
-                            <p style="font-size: 0.85rem; color: var(--text-muted); padding: 0.5rem;">Loading templates...</p>
+                            <p style="font-size: 0.85rem; color: var(--text-muted); padding: 0.5rem; text-transform: uppercase;">Loading templates...</p>
                         </div>
                     </div>
 
                     <div class="preview-wrapper">
                         <canvas id="poster-canvas" width="1080" height="1080"></canvas>
                         <div class="loading-overlay" id="preview-loader">
-                            <span class="loading-pulse"></span> <span>Rendering...</span>
+                            <span class="loading-pulse"></span> <span style="text-transform: uppercase;">Rendering...</span>
                         </div>
                     </div>
 
@@ -543,7 +652,7 @@
             <div class="modal-header">
                 <div>
                     <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: var(--primary); letter-spacing: 0.05em; background: var(--primary-light); padding: 0.3rem 0.65rem; border-radius: 50px; margin-bottom: 0.4rem; display: inline-block;">TEAM STANDINGS</span>
-                    <h2 id="team-modal-title" style="font-size: 1.25rem; font-weight: 600; color: var(--text-main); margin-top: 0.2rem;">Preview</h2>
+                    <h2 id="team-modal-title" style="font-size: 1.25rem; font-weight: 600; color: var(--text-main); margin-top: 0.2rem; text-transform: uppercase;">Preview</h2>
                 </div>
                 <button class="modal-close" onclick="closeTeamModal()"><i class="fa-solid fa-xmark"></i></button>
             </div>
@@ -567,15 +676,15 @@
             auth: { persistSession: false }
         });
 
-let SYSTEM_SETTINGS = {
-    thresholds: { aplus: 90, a: 70, b: 60, c: 50 },
-    points_solo: { aplus: 8, a: 7, b: 5, c: 3 },
-    points_small: { aplus: 12, a: 10, b: 7, c: 5 },
-    points_large: { aplus: 15, a: 12, b: 10, c: 7 },
-    pos_points: { p1: 3, p2: 2, p3: 1 },
-    poster_interval: 10,
-    tm_access: true
-};
+        let SYSTEM_SETTINGS = {
+            thresholds: { aplus: 90, a: 70, b: 60, c: 50 },
+            points_solo: { aplus: 8, a: 7, b: 5, c: 3 },
+            points_small: { aplus: 12, a: 10, b: 7, c: 5 },
+            points_large: { aplus: 15, a: 12, b: 10, c: 7 },
+            pos_points: { p1: 3, p2: 2, p3: 1 },
+            poster_interval: 10,
+            tm_access: true
+        };
         let publishedCompetitions = []; let allTeams = []; let calculatedTeamScores = {}; 
         let competitionResults = {}; let cachedTemplates = []; let activeCompId = null;
         let activeTemplateIndex = 0; let globalJudgements = []; let currentTeamPosterDataUrl = null;
@@ -584,7 +693,6 @@ let SYSTEM_SETTINGS = {
         // --- Live Counting Animation Utility ---
         function animateCounter(element, targetValue, duration = 1200) {
             let startTime = null;
-            const startValue = 0;
             const step = (currentTime) => {
                 if (!startTime) startTime = currentTime;
                 const progress = Math.min((currentTime - startTime) / duration, 1);
@@ -599,18 +707,85 @@ let SYSTEM_SETTINGS = {
             requestAnimationFrame(step);
         }
 
-        function switchTab(tabId, element) {
-            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            if(element) element.classList.add('active');
+        // --- Routing and Tab Logic ---
+        function switchMainTab(tabId, element) {
+            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.mobile-nav-item').forEach(el => el.classList.remove('active'));
+            
+            if (element) element.classList.add('active');
+
+            document.querySelectorAll('.view-section').forEach(el => {
+                el.classList.remove('active');
+                el.style.display = 'none';
+            });
+            
+            const targetView = document.getElementById(`view-${tabId}`);
+            if (targetView) {
+                targetView.classList.add('active');
+                targetView.style.display = 'block';
+            }
+
+            if (tabId === 'schedule') loadPublicSchedule();
+        }
+
+        function switchResultsTab(subTabId, element) {
+            document.querySelectorAll('.results-sub-view').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.tabs .tab').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(subTabId).style.display = 'block';
+            if (element) element.classList.add('active');
+        }
+
+        // --- Fetch Schedule ---
+        async function loadPublicSchedule() {
+            const tbody = document.getElementById('public-schedule-tbody');
+            
+            try {
+                const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
+                const masterSchedule = schedData?.value || {};
+                
+                const { data: comps } = await supabaseClient.from('competitions').select('id, name, categories(name), stages(name)');
+                
+                let scheduledItems = Object.keys(masterSchedule).map(compId => {
+                    const comp = comps.find(c => c.id == compId);
+                    return { comp, sched: masterSchedule[compId] };
+                }).filter(item => item.comp && item.sched.status === 'published');
+                
+                scheduledItems.sort((a,b) => {
+                    if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
+                    return a.sched.time.localeCompare(b.sched.time);
+                });
+
+                if (scheduledItems.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted); text-transform: uppercase;">No events scheduled yet.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = scheduledItems.map(item => `
+                    <tr>
+                        <td>
+                            <span style="color: var(--primary); font-weight: 700;">${item.sched.date}</span><br>
+                            <span style="font-size: 0.85rem; color: var(--text-muted);">${item.sched.time} - ${item.sched.to_time || 'TBD'}</span>
+                        </td>
+                        <td style="font-weight: 700; color: var(--text-main); text-transform: uppercase;">${item.comp.name}</td>
+                        <td><span class="badge" style="background: var(--bg-main); padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid var(--border); font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">${item.comp.categories?.name || 'GENERAL'}</span></td>
+                        <td style="font-weight: 600; color: var(--text-muted); text-transform: uppercase;"><i class="fa-solid fa-microphone-stage" style="margin-right: 4px;"></i> ${item.comp.stages?.name || 'TBD'}</td>
+                    </tr>
+                `).join('');
+
+            } catch (err) {
+                console.error(err);
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--danger); text-transform: uppercase;">Failed to load schedule.</td></tr>`;
+            }
         }
 
         async function init() {
             try {
-                const { data: settingsData } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
-                if (settingsData && settingsData.value) {
-                    SYSTEM_SETTINGS = settingsData.value;
+                await fetchAndApplyBranding();
+
+                const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
+                if (set_data && set_data.value) {
+                    SYSTEM_SETTINGS = set_data.value;
                     if(!SYSTEM_SETTINGS.poster_interval) SYSTEM_SETTINGS.poster_interval = 10;
                 }
 
@@ -653,11 +828,20 @@ let SYSTEM_SETTINGS = {
                 populateCategoryFilter();
                 renderCompetitionsGrid();
                 
+                // URL Routing
                 const urlParams = new URLSearchParams(window.location.search);
-                const compIdToOpen = urlParams.get('comp');
-                if (compIdToOpen) {
-                    switchTab('individual', document.querySelectorAll('.tab')[1]);
-                    setTimeout(() => { openResultModal(compIdToOpen); }, 500);
+                const viewContext = urlParams.get('view') || 'home';
+                const targetCompId = urlParams.get('comp') || null;
+
+                if (viewContext === 'results' && targetCompId) {
+                    switchMainTab('results', document.querySelectorAll('.nav-link')[2]);
+                    switchResultsTab('individual', document.querySelectorAll('.tabs .tab')[1]);
+                    setTimeout(() => { openResultModal(targetCompId); }, 500);
+                } else if (viewContext === 'standings') {
+                    switchMainTab('results', document.querySelectorAll('.nav-link')[2]);
+                    switchResultsTab('standings', document.querySelectorAll('.tabs .tab')[0]);
+                } else {
+                    switchMainTab('home', document.querySelectorAll('.nav-link')[0]);
                 }
             } catch (err) {
                 console.error("Init Error:", err);
@@ -693,84 +877,84 @@ let SYSTEM_SETTINGS = {
             renderLeaderboard();
         }
 
-function processJudgements(judgements) {
-    const compGroups = {};
-    
-    judgements.forEach(j => {
-        if (!j.participants || !j.participants.id) return; 
-        const comp = publishedCompetitions.find(c => c.id === j.competition_id);
-        if(!compGroups[j.competition_id]) {
-            compGroups[j.competition_id] = { participants: {}, comp_data: comp, total_enrolled: 0 };
-        }
-        const pId = j.participants.id;
-        if(!compGroups[j.competition_id].participants[pId]) {
-            compGroups[j.competition_id].participants[pId] = { participant: j.participants, marks_array: [] };
-            compGroups[j.competition_id].total_enrolled++;
-        }
-        compGroups[j.competition_id].participants[pId].marks_array.push(parseFloat(j.awarded_mark));
-    });
-
-    for (const [compId, compData] of Object.entries(compGroups)) {
-        const limit = compData.comp_data.max_participants || 1;
-        const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
-
-        const participantsArr = Object.values(compData.participants).map(p => {
-            let sortedMarks = p.marks_array.sort((a, b) => a - b);
-            if (sortedMarks.length >= 3) {
-                sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
-            }
-            const sum = sortedMarks.reduce((a, b) => a + b, 0);
-            p.score = sum / sortedMarks.length;
-            return p;
-        }).sort((a, b) => b.score - a.score);
-
-        let currentRank = 1;
-        let previousScore = -1;
-
-        participantsArr.forEach((entry, idx) => {
-            if (entry.score !== previousScore) {
-                currentRank = idx + 1; 
-            }
-            entry.position = currentRank;
-            previousScore = entry.score;
-
-            let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
-            let gradePts = 0; let posPts = 0;
-            let gradeStr = '-'; 
-
-            if (percent >= 50) {
-                if (percent >= SYSTEM_SETTINGS.thresholds.aplus) { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].aplus); gradeStr = 'A+'; }
-                else if (percent >= SYSTEM_SETTINGS.thresholds.a) { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].a); gradeStr = 'A'; }
-                else if (percent >= SYSTEM_SETTINGS.thresholds.b) { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].b); gradeStr = 'B'; }
-                else { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].c); gradeStr = 'C'; }
-            }
+        function processJudgements(judgements) {
+            const compGroups = {};
             
-            if (currentRank <= 3) {
-                if (currentRank === 1) posPts = Number(SYSTEM_SETTINGS.pos_points.p1) || 0;
-                else if (currentRank === 2) posPts = Number(SYSTEM_SETTINGS.pos_points.p2) || 0;
-                else if (currentRank === 3) posPts = Number(SYSTEM_SETTINGS.pos_points.p3) || 0;
+            judgements.forEach(j => {
+                if (!j.participants || !j.participants.id) return; 
+                const comp = publishedCompetitions.find(c => c.id === j.competition_id);
+                if(!compGroups[j.competition_id]) {
+                    compGroups[j.competition_id] = { participants: {}, comp_data: comp, total_enrolled: 0 };
+                }
+                const pId = j.participants.id;
+                if(!compGroups[j.competition_id].participants[pId]) {
+                    compGroups[j.competition_id].participants[pId] = { participant: j.participants, marks_array: [] };
+                    compGroups[j.competition_id].total_enrolled++;
+                }
+                compGroups[j.competition_id].participants[pId].marks_array.push(parseFloat(j.awarded_mark));
+            });
+
+            for (const [compId, compData] of Object.entries(compGroups)) {
+                const limit = compData.comp_data.max_participants || 1;
+                const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
+
+                const participantsArr = Object.values(compData.participants).map(p => {
+                    let sortedMarks = p.marks_array.sort((a, b) => a - b);
+                    if (sortedMarks.length >= 3) {
+                        sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
+                    }
+                    const sum = sortedMarks.reduce((a, b) => a + b, 0);
+                    p.score = sum / sortedMarks.length;
+                    return p;
+                }).sort((a, b) => b.score - a.score);
+
+                let currentRank = 1;
+                let previousScore = -1;
+
+                participantsArr.forEach((entry, idx) => {
+                    if (entry.score !== previousScore) {
+                        currentRank = idx + 1; 
+                    }
+                    entry.position = currentRank;
+                    previousScore = entry.score;
+
+                    let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
+                    let gradePts = 0; let posPts = 0;
+                    let gradeStr = '-'; 
+
+                    if (percent >= 50) {
+                        if (percent >= SYSTEM_SETTINGS.thresholds.aplus) { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].aplus); gradeStr = 'A+'; }
+                        else if (percent >= SYSTEM_SETTINGS.thresholds.a) { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].a); gradeStr = 'A'; }
+                        else if (percent >= SYSTEM_SETTINGS.thresholds.b) { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].b); gradeStr = 'B'; }
+                        else { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].c); gradeStr = 'C'; }
+                    }
+                    
+                    if (currentRank <= 3) {
+                        if (currentRank === 1) posPts = Number(SYSTEM_SETTINGS.pos_points.p1) || 0;
+                        else if (currentRank === 2) posPts = Number(SYSTEM_SETTINGS.pos_points.p2) || 0;
+                        else if (currentRank === 3) posPts = Number(SYSTEM_SETTINGS.pos_points.p3) || 0;
+                    }
+                    
+                    entry.grade = gradeStr;
+                    entry.points = gradePts + posPts;
+
+                    const teamId = entry.participant.team_id;
+                    if (teamId && calculatedTeamScores[teamId]) { 
+                        calculatedTeamScores[teamId].score += (gradePts + posPts); 
+                    }
+                });
+
+                competitionResults[compId] = participantsArr.filter(p => p.position <= 3);
             }
-            
-            entry.grade = gradeStr;
-            entry.points = gradePts + posPts;
+        }
 
-            const teamId = entry.participant.team_id;
-            if (teamId && calculatedTeamScores[teamId]) { 
-                calculatedTeamScores[teamId].score += (gradePts + posPts); 
-            }
-        });
-
-        competitionResults[compId] = participantsArr.filter(p => p.position <= 3);
-    }
-}
-
-function renderLeaderboard() {
+        function renderLeaderboard() {
             const container = document.getElementById('leaderboard-container');
             container.innerHTML = '';
             const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score);
 
             if(sortedTeams.length === 0) {
-                container.innerHTML = `<p style="text-align:center; padding: 4rem 1rem; color: var(--text-muted); font-weight: 500;">AWAITING OFFICIAL RESULTS...</p>`;
+                container.innerHTML = `<p style="text-align:center; padding: 4rem 1rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase;">AWAITING OFFICIAL RESULTS...</p>`;
                 return;
             }
 
@@ -778,7 +962,7 @@ function renderLeaderboard() {
                 const rank = index + 1;
                 let rankClass = rank <= 3 ? `rank-${rank}` : '';
                 let cardClass = rank === 1 ? 'gold-card' : rank === 2 ? 'silver-card' : rank === 3 ? 'bronze-card' : '';
-                let rankDisplay = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+                let rankDisplay = rank === 1 ? '<i class="fa-solid fa-crown"></i>' : rank === 2 ? '<i class="fa-solid fa-medal"></i>' : rank === 3 ? '<i class="fa-solid fa-medal"></i>' : `#${rank}`;
                 let scoreId = `score-count-${index}`;
 
                 container.innerHTML += `
@@ -837,12 +1021,12 @@ function renderLeaderboard() {
                     </div>`;
             });
 
-            if(count === 0) container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 4rem 1rem; color: var(--text-muted); font-weight: 500;">NO MATCHING EVENTS FOUND.</p>`;
+            if(count === 0) container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 4rem 1rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase;">NO MATCHING EVENTS FOUND.</p>`;
         }
 
         async function previewTeamPoster(type, btnElement) {
             const originalText = btnElement.innerHTML;
-            btnElement.innerHTML = `<span class="loading-pulse" style="width: 1rem; height: 1rem; border-width: 2px;"></span> Generating...`;
+            btnElement.innerHTML = `<span class="loading-pulse" style="width: 1rem; height: 1rem; border-width: 2px;"></span> GENERATING...`;
             btnElement.disabled = true;
 
             try {
@@ -883,7 +1067,7 @@ function renderLeaderboard() {
                         mappedData['ResultsCountText'] = `AFTER ALL`; mappedData['TotalCompetitionsCount'] = `FINAL STANDINGS`;
                     }
 
-                   const top10 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 15);
+                    const top10 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 15);
                     for(let i = 0; i < 15; i++) {
                         mappedData[`Rank${i+1}Team`] = top10[i] ? top10[i].name : "";
                         mappedData[`Rank${i+1}Points`] = top10[i] ? `${top10[i].score}` : "";
@@ -902,7 +1086,7 @@ function renderLeaderboard() {
                                             pImg.src = fieldConfig.src;
                                         });
                                         if (staticImg) { ctx.drawImage(staticImg, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); }
-                                    } catch(e) { console.error("Failed to load element", e); }
+                                    } catch(e) {}
                                 }
                                 continue;
                           }
@@ -929,14 +1113,14 @@ function renderLeaderboard() {
                 };
                 img.src = template.bg_base64;
             } catch (err) {
-                console.error("Poster Error:", err); alert("An error occurred while generating.");
+                alert("An error occurred while generating.");
                 btnElement.innerHTML = originalText; btnElement.disabled = false;
             }
         }
 
         function closeTeamModal() { document.getElementById('team-preview-modal').classList.remove('active'); }
 
-       function openResultModal(compId) {
+        function openResultModal(compId) {
             activeCompId = compId; const comp = publishedCompetitions.find(c => c.id === compId);
             document.getElementById('modal-cat-name').innerText = comp.categories?.name || 'EVENT';
             document.getElementById('modal-comp-name').innerText = comp.name;
@@ -946,15 +1130,15 @@ function renderLeaderboard() {
             
             const results = competitionResults[compId] || [];
             if(results.length === 0) {
-                winnersList.innerHTML = `<p style="color: var(--text-muted); font-weight: 500; padding: 2rem 0; text-align: center;">RESULTS ARE STILL BEING CALCULATED.</p>`;
+                winnersList.innerHTML = `<p style="color: var(--text-muted); font-weight: 500; padding: 2rem 0; text-align: center; text-transform: uppercase;">RESULTS ARE STILL BEING CALCULATED.</p>`;
             } else {
                 results.forEach((entry, idx) => {
                     const teamName = allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent';
                     
                     let rankDisplay = '';
-                    if (entry.position === 1) rankDisplay = '🥇';
-                    else if (entry.position === 2) rankDisplay = '🥈';
-                    else if (entry.position === 3) rankDisplay = '🥉';
+                    if (entry.position === 1) rankDisplay = '<i class="fa-solid fa-crown" style="color: var(--gold);"></i>';
+                    else if (entry.position === 2) rankDisplay = '<i class="fa-solid fa-medal" style="color: var(--silver);"></i>';
+                    else if (entry.position === 3) rankDisplay = '<i class="fa-solid fa-medal" style="color: var(--bronze);"></i>';
                     else rankDisplay = `#${entry.position}`; 
                     
                     winnersList.innerHTML += `
@@ -970,7 +1154,7 @@ function renderLeaderboard() {
 
             const selector = document.getElementById('template-selector'); selector.innerHTML = '';
             if(cachedTemplates.length === 0) {
-                selector.innerHTML = `<span style="font-size: 0.85rem; color: #ef4444; font-weight: 500;">NO TEMPLATES CONFIGURED BY ADMIN.</span>`;
+                selector.innerHTML = `<span style="font-size: 0.85rem; color: #ef4444; font-weight: 500; text-transform: uppercase;">NO TEMPLATES CONFIGURED BY ADMIN.</span>`;
             } else {
                 cachedTemplates.forEach((tpl, idx) => {
                     const btn = document.createElement('button');
@@ -1027,7 +1211,7 @@ function renderLeaderboard() {
                                         pImg.onload = () => resolve(pImg); pImg.onerror = () => resolve(null); pImg.src = fieldConfig.src;
                                     });
                                     if (staticImg) { ctx.drawImage(staticImg, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); }
-                                } catch (err) { console.error("Failed to render static element", err); }
+                                } catch (err) { }
                             } else {
                                 const nameKey = key.replace('Photo', 'Name');
                                 if (key.includes('Photo') && mappedData[nameKey] === "") continue;
@@ -1044,7 +1228,7 @@ function renderLeaderboard() {
                                         else { ctx.rect(fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); }
                                         ctx.clip(); ctx.drawImage(pPhoto, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); ctx.restore();
                                     }
-                                } catch (err) { console.error("Failed to render photo:", err); }
+                                } catch (err) { }
                             }
                         } else {
                             const text = fieldConfig.isCustom ? fieldConfig.displayName : (mappedData[key] || ""); 
@@ -1061,7 +1245,7 @@ function renderLeaderboard() {
             img.src = template.bg_base64;
         }
 
-       function downloadCurrentPoster() {
+        function downloadCurrentPoster() {
             const canvas = document.getElementById('poster-canvas');
             const comp = publishedCompetitions.find(c => c.id === activeCompId);
             const safeName = comp ? comp.name.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'event';
@@ -1070,122 +1254,6 @@ function renderLeaderboard() {
             link.href = canvas.toDataURL("image/jpeg", 1.0); link.click();
         }
 
-async function renderSingleResult() {
-            const content = document.getElementById('main-content');
-            
-            const { data: comp } = await supabaseClient.from('competitions').select('*, categories(name), participant_competitions(count)').eq('id', targetCompId).single();
-            if (!comp || comp.status !== 'published') {
-                content.innerHTML = `<h2 class="page-title">Results Unavailable</h2><p class="page-subtitle">Results for this event are not published yet.</p>`;
-                return;
-            }
-
-            const { data: judgements } = await supabaseClient.from('judgements')
-                .select('awarded_mark, participants(id, name, team_id, unique_id)')
-                .eq('competition_id', targetCompId)
-                .not('awarded_mark', 'is', null);
-
-            const results = calculateSingleComp(comp, judgements || []);
-            
-            currentPosterData = {
-                'Competition': comp.name,
-                'Category': comp.categories?.name || 'GENERAL',
-                'Position1Name': results[0]?.name || '',
-                'Position1Team': results[0]?.team || '',
-                'Position1Number': results[0] ? results[0].pos.toString() : '',
-                'Position2Name': results[1]?.name || '',
-                'Position2Team': results[1]?.team || '',
-                'Position2Number': results[1] ? results[1].pos.toString() : '',
-                'Position3Name': results[2]?.name || '',
-                'Position3Team': results[2]?.team || '',
-                'Position3Number': results[2] ? results[2].pos.toString() : ''
-            };
-            
-            content.innerHTML = `
-                <h2 class="page-title">${comp.name}</h2>
-                <p class="page-subtitle">${comp.categories?.name || 'GEN'} • OFFICIAL RESULTS</p>
-                <div class="card">
-                    ${results.map(r => `
-                        <div class="lb-row">
-                            <div class="lb-rank rank-${r.pos}">#${r.pos}</div>
-                            <div class="lb-details">
-                                <span class="lb-name">${r.name}</span>
-                                <span class="lb-team">${r.team}</span>
-                            </div>
-                            <div class="lb-score">
-                                <span class="score-val">${r.pts}</span>
-                                <span class="score-unit">PTS</span>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                <button class="btn btn-primary" onclick="downloadPoster('individual')">
-                    <i class="fa-solid fa-image"></i> Download Result Poster
-                </button>
-            `;
-        }
-
-     function filterStandingsData(filterVal) {
-    const totalPublished = rawPublishedComps.length;
-    let activeComps = rawPublishedComps;
-    let activeCount = totalPublished;
-
-    if (filterVal !== 'all') {
-        const limit = parseInt(filterVal);
-        activeComps = rawPublishedComps.slice(0, limit);
-        activeCount = limit;
-    }
-
-    let teamScores = {};
-    allTeams.forEach(t => teamScores[t.id] = { name: t.name, score: 0 });
-
-    activeComps.forEach(comp => {
-        const compJudgements = allJudgements.filter(j => j.competition_id === comp.id);
-        const results = calculateSingleComp(comp, compJudgements);
-        results.forEach(r => {
-            if (r.teamId && teamScores[r.teamId]) {
-                teamScores[r.teamId].score += Number(r.pts) || 0;
-            }
-        });
-    });
-
-    const sortedTeams = Object.values(teamScores).sort((a,b) => b.score - a.score);
-
-    const subtitle = document.getElementById('standings-subtitle');
-    if (subtitle) {
-        subtitle.innerText = `POINTS AFTER ${activeCount} PUBLISHED EVENT${activeCount === 1 ? '' : 'S'}`;
-    }
-
-    currentPosterData = {
-        'ResultsCountText': `AFTER ${activeCount}`,
-        'TotalCompetitionsCount': `FINAL STANDINGS`
-    };
-    
-    for (let i = 0; i < 15; i++) {
-        currentPosterData[`Rank${i+1}Team`] = sortedTeams[i]?.name || '';
-        currentPosterData[`Rank${i+1}Points`] = sortedTeams[i] ? sortedTeams[i].score.toString() : '';
-        currentPosterData[`Rank${i+1}Number`] = sortedTeams[i] ? (i+1).toString() : '';
-    }
-
-    const container = document.getElementById('standings-card-container');
-    if (container) {
-        container.innerHTML = sortedTeams.map((t, i) => {
-            const rank = i + 1;
-            return `
-            <div class="lb-row">
-                <div class="lb-rank rank-${rank}">#${rank}</div>
-                <div class="lb-details"><span class="lb-name">${t.name}</span></div>
-                <div class="lb-score">
-                    <span class="score-val">${t.score}</span>
-                    <span class="score-unit">PTS</span>
-                </div>
-            </div>
-            `;
-        }).join('');
-    }
-}
-        // ==========================================
-        // UNIFIED GLOBAL BRANDING ENGINE
-        // ==========================================
         async function fetchAndApplyBranding() {
             try {
                 const { data, error } = await supabaseClient
@@ -1201,53 +1269,62 @@ async function renderSingleResult() {
             }
         }
 
-   function applyGlobalBranding(brandingData) {
-    const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
-    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
-    const displayMode = brandingData.display_mode || 'both'; 
-    
-    const festName = validName ? brandingData.fest_name : 'FestOS';
-    const titleParts = document.title.split('|');
-    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
-    document.title = `${festName} | ${pageContext}`;
+        function applyGlobalBranding(brandingData) {
+            const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
+            const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+            const displayMode = brandingData.display_mode || 'both'; 
+            
+            const festName = validName ? brandingData.fest_name : 'FestOS';
+            const titleParts = document.title.split('|');
+            const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Live';
+            document.title = `${festName} | ${pageContext}`;
 
-    if (validLogo) {
-        let iconLinks = document.querySelectorAll("link[rel~='icon']");
-        if (iconLinks.length === 0) {
-            let newIcon = document.createElement('link');
-            newIcon.rel = 'icon';
-            document.head.appendChild(newIcon);
-            iconLinks = [newIcon];
-        }
-        iconLinks.forEach(link => link.href = brandingData.fest_logo);
-    }
+            if (validLogo) {
+                let iconLinks = document.querySelectorAll("link[rel~='icon']");
+                if (iconLinks.length === 0) {
+                    let newIcon = document.createElement('link');
+                    newIcon.rel = 'icon';
+                    document.head.appendChild(newIcon);
+                    iconLinks = [newIcon];
+                }
+                iconLinks.forEach(link => link.href = brandingData.fest_logo);
+            }
 
-    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
-    brandContainers.forEach(container => {
-        let html = '';
-        const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
-        const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
-        
-        if (showLogo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: auto; max-width: 120px; object-fit: contain; border-radius: 4px; margin-right: 8px; display: inline-block; vertical-align: middle;">`;
-        } else if (!validLogo && displayMode !== 'name') {
-            html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 6px;"></i>`;
-        }
-        
-        if (showName) {
-            html += `<span style="letter-spacing: -0.01em; display: inline-block; vertical-align: middle;">${validName ? brandingData.fest_name : 'FestOS'}</span>`;
-        }
-        
-        container.innerHTML = html;
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-    });
+            const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
+            const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
+            
+            const logoEl = document.getElementById('head-logo');
+            const titleEl = document.getElementById('head-title');
 
-    if (typeof window !== 'undefined') window.systemBranding = brandingData;
-}
-        // --- Font Loader & Init ---
+            if (logoEl) {
+                if (showLogo) {
+                    logoEl.src = brandingData.fest_logo;
+                    logoEl.style.display = 'block';
+                } else {
+                    logoEl.style.display = 'none';
+                }
+            }
+            
+            if (titleEl) {
+                if (showName) {
+                    titleEl.innerText = validName ? brandingData.fest_name : 'FestOS';
+                    titleEl.style.display = 'block';
+                } else {
+                    titleEl.style.display = 'none';
+                }
+            }
+
+            const heroTitle = document.getElementById('home-hero-title');
+            const footerTitle = document.getElementById('footer-title');
+            const targetName = validName ? brandingData.fest_name : 'FestOS';
+            
+            if (heroTitle) heroTitle.innerText = `Welcome to ${targetName}`;
+            if (footerTitle) footerTitle.innerText = targetName;
+
+            if (typeof window !== 'undefined') window.systemBranding = brandingData;
+        }
+
         const loadedFontFamilies = new Set();
-        
         async function ensureFontsLoaded(template) {
             if (!template.customFonts || template.customFonts.length === 0) return;
             const loadPromises = template.customFonts.map(async (fontData) => {
@@ -1256,17 +1333,16 @@ async function renderSingleResult() {
                         const customFont = new FontFace(fontData.family, `url(${fontData.url})`);
                         const loadedFace = await customFont.load();
                         document.fonts.add(loadedFace); loadedFontFamilies.add(fontData.family);
-                    } catch (e) { console.error("Failed to load custom font:", fontData.family, e); }
+                    } catch (e) {}
                 }
             });
             await Promise.all(loadPromises);
         }
 
         document.addEventListener("DOMContentLoaded", () => { 
-            fetchAndApplyBranding(); 
+            init(); 
         });
-        
-        init();
+
     </script>
 </body>
 </html>

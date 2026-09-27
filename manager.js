@@ -15,13 +15,14 @@ if (!user || (user.role !== 'fest_manager' && user.role !== 'master_admin' && us
 // Inject Return Button for Admins
 if (user.role === 'master_admin' || user.role === 'admin') {
     document.addEventListener("DOMContentLoaded", () => {
-        const header = document.querySelector('.header');
-        const returnBtn = document.createElement('button');
-        returnBtn.className = 'btn btn-primary';
-        returnBtn.style.marginRight = '1rem';
-        returnBtn.innerHTML = '<i class="ph ph-shield-check"></i> Admin Hub';
-        returnBtn.onclick = () => window.location.href = 'admin.html';
-        header.insertBefore(returnBtn, header.children[1]);
+        const headerDiv = document.querySelector('.header > div');
+        if (headerDiv) {
+            const returnBtn = document.createElement('button');
+            returnBtn.className = 'btn btn-primary';
+            returnBtn.innerHTML = '<i class="ph ph-shield-check"></i> <span>Admin Hub</span>';
+            returnBtn.onclick = () => window.location.href = 'admin.html';
+            headerDiv.insertBefore(returnBtn, headerDiv.firstChild);
+        }
     });
 }
 
@@ -57,6 +58,21 @@ function showToast(message, type = 'success') {
     toast.innerHTML = `${icon} <span style="font-weight: 500; font-size: 0.875rem;">${message}</span>`;
     container.appendChild(toast);
     setTimeout(() => { toast.style.animation = 'slideOut 0.3s ease forwards'; setTimeout(() => toast.remove(), 300); }, 3000);
+}
+
+// --- PREMIUM CONFIRMATION MODAL ---
+function openConfirmModal(title, text, confirmCallback) {
+    document.getElementById('confirmModalTitle').innerText = title;
+    document.getElementById('confirmModalText').innerText = text;
+    
+    const confirmBtn = document.getElementById('confirmModalBtn');
+    
+    confirmBtn.onclick = () => {
+        document.getElementById('confirmModal').classList.remove('active');
+        if (confirmCallback) confirmCallback();
+    };
+    
+    document.getElementById('confirmModal').classList.add('active');
 }
 
 
@@ -280,31 +296,7 @@ async function assignJudge(compId, btnElement) {
     }
 }
 
-// --- NEW REVOKE FUNCTION ---
-async function revokeJudge(compId, judgeId, btnElement) {
-    if(!confirm("Are you sure you want to revoke this judge's assignment?")) return;
-    
-    // Set loading state on the tiny button
-    const originalIcon = btnElement.innerHTML;
-    btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i>';
-    btnElement.disabled = true;
 
-    // Delete the specific row matching the competition and the judge
-    const { error } = await window.db
-        .from('judgements')
-        .delete()
-        .match({ competition_id: compId, judge_id: judgeId });
-
-    if (error) {
-        console.error("REVOKE ERROR:", error);
-        showToast("Failed to revoke: " + error.message, 'error');
-        btnElement.innerHTML = originalIcon;
-        btnElement.disabled = false;
-    } else {
-        showToast("Judge assignment revoked!");
-        loadAssignments(); // Refresh state to remove the tag
-    }
-}
 
 // --- EXPORT FEATURES ---
 
@@ -436,41 +428,7 @@ async function loadPublishableComps() {
         `;
     });
 }
-async function publishCompetition(compId, btnElement) {
-    if(!confirm("⚠️ Push final standings to Live Portal immediately?")) return;
-    btnElement.disabled = true;
-    btnElement.innerHTML = 'Publishing...';
-    await window.db.from('competitions').update({ status: 'published' }).eq('id', compId);
-    showToast("Results published!");
-    loadPublishableComps(); 
-}
-// --- MANAGER.JS UPDATE ---
-async function redoJudgement(compId, btnElement) {
-    if(!confirm("⚠️ Send this competition back for re-judging? This will ERASE all current marks!")) return;
-    
-    btnElement.disabled = true;
-    btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Reverting...';
 
-    // 1. DELETE ONLY THE MARKS
-await window.db.from('judgements')
-    .delete()
-    .eq('competition_id', compId)
-    .not('participant_id', 'is', null);
-
-// 2. Revert the status
-const { error } = await window.db.from('competitions')
-    .update({ status: 'ongoing' })
-    .eq('id', compId);
-
-    if (error) {
-        showToast("Failed to revert: " + error.message, 'error');
-        btnElement.innerHTML = '<i class="ph ph-arrow-u-up-left"></i> Redo';
-        btnElement.disabled = false;
-    } else {
-        showToast("Sent back for re-judging! Marks erased.", "success");
-        loadPublishableComps(); 
-    }
-}
 
 // --- BULK ACTION LOGIC ---
 
@@ -501,53 +459,7 @@ function toggleBulkActions() {
     }
 }
 
-async function bulkAssignJudges() {
-    const judgeId = document.getElementById('bulk-judge-select').value;
-    const checkboxes = document.querySelectorAll('.comp-checkbox:checked');
-    
-    if (!judgeId) return showToast('Please select a judge for bulk assignment.', 'error');
-    if (checkboxes.length === 0) return;
-    
-    if(!confirm(`Assign this judge to ${checkboxes.length} competitions?`)) return;
 
-    const insertPayload = Array.from(checkboxes).map(cb => ({
-        competition_id: cb.value,
-        judge_id: judgeId
-    }));
-
-    // In a real scenario, you'd want to check for duplicates first, 
-    // or handle unique constraint errors gracefully.
-    const { error } = await window.db.from('judgements').insert(insertPayload);
-
-    if (error) {
-        showToast("Bulk Assign Error: " + error.message, 'error');
-    } else {
-        showToast(`Successfully assigned judge to ${checkboxes.length} competitions!`);
-        document.getElementById('bulk-actions').style.display = 'none';
-        loadAssignments();
-    }
-}
-
-async function bulkRevokeJudges() {
-    const checkboxes = document.querySelectorAll('.comp-checkbox:checked');
-    if (checkboxes.length === 0) return;
-    
-    if(!confirm(`WARNING: Remove ALL judges from the ${checkboxes.length} selected competitions?`)) return;
-
-    const compIds = Array.from(checkboxes).map(cb => cb.value);
-
-    const { error } = await window.db.from('judgements')
-        .delete()
-        .in('competition_id', compIds);
-
-    if (error) {
-        showToast("Bulk Revoke Error: " + error.message, 'error');
-    } else {
-        showToast(`Cleared judges from ${checkboxes.length} competitions!`);
-        document.getElementById('bulk-actions').style.display = 'none';
-        loadAssignments();
-    }
-}
 async function previewConvertedPoints(compId, legacyMaxMark, legacyIsGeneral) {
     try {
         let sysSet = {
@@ -664,26 +576,7 @@ async function previewConvertedPoints(compId, legacyMaxMark, legacyIsGeneral) {
         showToast("An error occurred while generating the preview.", "error");
     }
 }
-// Revert Published Results back to Pending
-async function revertPublishedResult(compId, btnElement) {
-    if(!confirm("⚠️ Move this published result back to pending? It will be removed from Live Results!")) return;
-    
-    btnElement.disabled = true;
-    btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Reverting...';
 
-    const { error } = await window.db.from('competitions')
-        .update({ status: 'judgement_complete' }) // Moves it back to the publish queue
-        .eq('id', compId);
-
-    if (error) {
-        showToast("Failed to revert: " + error.message, 'error');
-        btnElement.disabled = false;
-        btnElement.innerHTML = '<i class="ph ph-arrow-u-up-left"></i> Revert to Pending';
-    } else {
-        showToast("Moved back to pending queue!", "success");
-        loadPublishedResults(); // FIX: Now refreshes the Published tab!
-    }
-}
 // --- NEW: Select All Logic ---
 function toggleSelectAll(selectAllCheckbox) {
     const checkboxes = document.querySelectorAll('.comp-checkbox');
@@ -807,6 +700,137 @@ function closeEditModal() {
     currentEditingCompId = null;
 }
 
+// --- NEW REVOKE FUNCTION ---
+async function revokeJudge(compId, judgeId, btnElement) {
+    openConfirmModal("Revoke Judge?", "Are you sure you want to revoke this judge's assignment?", async () => {
+        const originalIcon = btnElement.innerHTML;
+        btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i>';
+        btnElement.disabled = true;
+
+        const { error } = await window.db
+            .from('judgements')
+            .delete()
+            .match({ competition_id: compId, judge_id: judgeId });
+
+        if (error) {
+            console.error("REVOKE ERROR:", error);
+            showToast("Failed to revoke: " + error.message, 'error');
+            btnElement.innerHTML = originalIcon;
+            btnElement.disabled = false;
+        } else {
+            showToast("Judge assignment revoked!");
+            loadAssignments(); 
+        }
+    });
+}
+
+// --- PUBLISH RESULTS ---
+async function publishCompetition(compId, btnElement) {
+    openConfirmModal("Publish Results?", "Push final standings to the Live Portal immediately?", async () => {
+        btnElement.disabled = true;
+        btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Publishing...';
+        await window.db.from('competitions').update({ status: 'published' }).eq('id', compId);
+        showToast("Results published!", "success");
+        loadPublishableComps(); 
+    });
+}
+
+// --- REDO JUDGEMENT ---
+async function redoJudgement(compId, btnElement) {
+    openConfirmModal("Redo Judgement?", "Send this competition back for re-judging? This will ERASE all current marks!", async () => {
+        btnElement.disabled = true;
+        btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Reverting...';
+
+        await window.db.from('judgements')
+            .delete()
+            .eq('competition_id', compId)
+            .not('participant_id', 'is', null);
+
+        const { error } = await window.db.from('competitions')
+            .update({ status: 'ongoing' })
+            .eq('id', compId);
+
+        if (error) {
+            showToast("Failed to revert: " + error.message, 'error');
+            btnElement.innerHTML = '<i class="ph ph-arrow-u-up-left"></i> Redo';
+            btnElement.disabled = false;
+        } else {
+            showToast("Sent back for re-judging! Marks erased.", "success");
+            loadPublishableComps(); 
+        }
+    });
+}
+
+// --- BULK ASSIGN ---
+async function bulkAssignJudges() {
+    const judgeId = document.getElementById('bulk-judge-select').value;
+    const checkboxes = document.querySelectorAll('.comp-checkbox:checked');
+    
+    if (!judgeId) return showToast('Please select a judge for bulk assignment.', 'error');
+    if (checkboxes.length === 0) return;
+    
+    openConfirmModal("Bulk Assign?", `Assign this judge to ${checkboxes.length} competitions?`, async () => {
+        const insertPayload = Array.from(checkboxes).map(cb => ({
+            competition_id: cb.value,
+            judge_id: judgeId
+        }));
+
+        const { error } = await window.db.from('judgements').insert(insertPayload);
+
+        if (error) {
+            showToast("Bulk Assign Error: " + error.message, 'error');
+        } else {
+            showToast(`Successfully assigned judge to ${checkboxes.length} competitions!`);
+            document.getElementById('bulk-actions').style.display = 'none';
+            loadAssignments();
+        }
+    });
+}
+
+// --- BULK REVOKE ---
+async function bulkRevokeJudges() {
+    const checkboxes = document.querySelectorAll('.comp-checkbox:checked');
+    if (checkboxes.length === 0) return;
+    
+    openConfirmModal("Bulk Revoke?", `WARNING: Remove ALL judges from the ${checkboxes.length} selected competitions?`, async () => {
+        const compIds = Array.from(checkboxes).map(cb => cb.value);
+
+        const { error } = await window.db.from('judgements')
+            .delete()
+            .in('competition_id', compIds);
+
+        if (error) {
+            showToast("Bulk Revoke Error: " + error.message, 'error');
+        } else {
+            showToast(`Cleared judges from ${checkboxes.length} competitions!`);
+            document.getElementById('bulk-actions').style.display = 'none';
+            loadAssignments();
+        }
+    });
+}
+
+// --- REVERT PUBLISHED ---
+async function revertPublishedResult(compId, btnElement) {
+    openConfirmModal("Revert to Pending?", "Move this published result back to pending? It will be removed from Live Results!", async () => {
+        btnElement.disabled = true;
+        btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Reverting...';
+
+        const { error } = await window.db.from('competitions')
+            .update({ status: 'judgement_complete' }) 
+            .eq('id', compId);
+
+        if (error) {
+            showToast("Failed to revert: " + error.message, 'error');
+            btnElement.disabled = false;
+            btnElement.innerHTML = '<i class="ph ph-arrow-u-up-left"></i> Revert';
+        } else {
+            showToast("Moved back to pending queue!", "success");
+            loadPublishedResults(); 
+        }
+    });
+}
+
+// --- SAVE EDITED POINTS ---
 async function saveEditedPoints() {
     const inputs = document.querySelectorAll('.edit-point-input');
     const saveBtn = document.getElementById('save-points-btn');
@@ -821,32 +845,29 @@ async function saveEditedPoints() {
 
     if (updates.length === 0) return;
 
-    if (!confirm("Are you sure you want to update these scores? This will immediately affect live results.")) return;
+    openConfirmModal("Save Updates?", "Are you sure you want to update these scores? This will immediately affect live results.", async () => {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Saving...';
 
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Saving...';
+        try {
+            const { error } = await window.db
+                .from('judgements')
+                .upsert(updates, { onConflict: 'id' });
 
-    try {
-        // Update records in Supabase (upsert based on primary key 'id')
-        const { error } = await window.db
-            .from('judgements')
-            .upsert(updates, { onConflict: 'id' });
+            if (error) throw error;
 
-        if (error) throw error;
-
-        showToast("Points successfully updated!", "success");
-        closeEditModal();
-        
-        // Refresh the published results to reflect potential point/status changes
-        loadPublishedResults();
-        
-    } catch (err) {
-        console.error("Error saving marks:", err);
-        showToast("Failed to save updates: " + err.message, "error");
-    } finally {
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = 'Save Changes';
-    }
+            showToast("Points successfully updated!", "success");
+            closeEditModal();
+            loadPublishedResults();
+            
+        } catch (err) {
+            console.error("Error saving marks:", err);
+            showToast("Failed to save updates: " + err.message, "error");
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Save Changes';
+        }
+    });
 }
 
 let allPendingComps = [];
@@ -964,15 +985,13 @@ async function fetchAndApplyBranding() {
 function applyGlobalBranding(brandingData) {
     const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
     const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
-    const displayMode = brandingData.display_mode || 'both'; // 'both', 'logo', 'name'
+    const displayMode = brandingData.display_mode || 'both'; 
     
-    // 1. Update Document Title dynamically
     const festName = validName ? brandingData.fest_name : 'FestOS';
     const titleParts = document.title.split('|');
     const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
     document.title = `${festName} | ${pageContext}`;
 
-    // 2. Global Favicon Injection (Instantly updates across all pages)
     if (validLogo) {
         let iconLinks = document.querySelectorAll("link[rel~='icon']");
         if (iconLinks.length === 0) {
@@ -984,21 +1003,19 @@ function applyGlobalBranding(brandingData) {
         iconLinks.forEach(link => link.href = brandingData.fest_logo);
     }
 
-    // 3. UI Header Updates
     const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
     brandContainers.forEach(container => {
         let html = '';
         const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
         const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
         
-        // Dynamic Logo Sizing
+        // CRITICAL FIX: Removed inline box-shadow and border-radius to ensure a perfectly flat, clean logo
         if (showLogo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">`;
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 36px; width: auto; max-width: 180px; object-fit: contain; margin-right: ${showName ? '10px' : '0'}; display: inline-block; vertical-align: middle;">`;
         } else if (!validLogo && displayMode !== 'name') {
-            html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
+            html += `<i class="ph-fill ph-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
         }
         
-        // Dynamic Text
         if (showName) {
             html += `<span style="letter-spacing: -0.5px;">${validName ? brandingData.fest_name : 'FestOS'}</span>`;
         }
@@ -1007,13 +1024,11 @@ function applyGlobalBranding(brandingData) {
         container.style.display = 'flex';
         container.style.alignItems = 'center';
         
-        // Centering logic for specific screens
         if (window.location.pathname.includes('scan') || window.location.pathname.includes('login')) {
             container.style.justifyContent = 'center';
         }
     });
 
-    // Store globally for PDF Generators
     if (typeof window !== 'undefined') window.systemBranding = brandingData;
 }
 
