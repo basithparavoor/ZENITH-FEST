@@ -46,8 +46,10 @@ function switchTab(tabId) {
 }
 
 function logout() {
-    localStorage.removeItem('festUser');
-    window.location.href = 'index.html';
+    openConfirmModal("Logout", "Are you sure you want to log out of the manager dashboard?", () => {
+        localStorage.removeItem('festUser');
+        window.location.href = 'index.html';
+    });
 }
 
 function showToast(message, type = 'success') {
