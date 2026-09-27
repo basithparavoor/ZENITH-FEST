@@ -316,7 +316,40 @@ function viewStudentEvents(studentId) {
     document.getElementById('studentEventsModal').classList.add('show');
 }
 
-// --- ADD NEW MEMBER LOGIC ---
+window.validateTMDob = function() {
+    const catId = document.getElementById('partCategory').value;
+    const dobVal = document.getElementById('partDob').value;
+    const warningEl = document.getElementById('tmDobWarning');
+    const saveBtn = document.getElementById('modalSaveBtn');
+    
+    if(!catId || !dobVal || !warningEl) return;
+    
+    const category = globalCategories.find(c => String(c.id) === String(catId));
+    let isInvalid = false;
+    let warningMsg = '';
+
+    if(category) {
+        const dobDate = new Date(dobVal);
+        if (category.dob_start && dobDate < new Date(category.dob_start)) {
+            isInvalid = true;
+            warningMsg = `NOT ELIGIBLE: MUST BE BORN ON OR AFTER ${category.dob_start}.`;
+        }
+        if (category.dob_end && dobDate > new Date(category.dob_end)) {
+            isInvalid = true;
+            warningMsg = `NOT ELIGIBLE: MUST BE BORN ON OR BEFORE ${category.dob_end}.`;
+        }
+    }
+
+    if(isInvalid) {
+        warningEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${warningMsg}`;
+        warningEl.style.display = 'block';
+        if(saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.5'; }
+    } else {
+        warningEl.style.display = 'none';
+        if(saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
+    }
+};
+
 function openAddMemberModal() {
     if (isAssignmentLocked) return showToast("Registration is locked by Admin.", "error");
 
@@ -351,14 +384,17 @@ function openAddMemberModal() {
                 <div style="display:flex; gap:1rem; flex-wrap: wrap;">
                     <div class="form-group" style="flex: 2; min-width: 150px; margin-bottom: 1rem;">
                         <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block;">CATEGORY <span style="color: var(--danger);">*</span></label>
-                        <select id="partCategory" style="width: 100%; padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1.5px solid var(--border); background: var(--input-bg); outline: none; font-weight: 700;">${catOpts}</select>
+                        <select id="partCategory" onchange="window.validateTMDob()" style="width: 100%; padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1.5px solid var(--border); background: var(--input-bg); outline: none; font-weight: 700;">${catOpts}</select>
                     </div>
                     
                     <div class="form-group" style="flex: 1; min-width: 130px; margin-bottom: 1rem;">
                         <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block;">DATE OF BIRTH</label>
-                        <input type="date" id="partDob" style="width: 100%; padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1.5px solid var(--border); background: var(--input-bg); outline: none; font-weight: 700; text-transform: none;">
+                        <input type="date" id="partDob" onchange="window.validateTMDob()" style="width: 100%; padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1.5px solid var(--border); background: var(--input-bg); outline: none; font-weight: 700; text-transform: none;">
                     </div>
                 </div>
+                
+                <!-- TM Warning injection -->
+                <div id="tmDobWarning" style="color: var(--danger); font-size: 0.8rem; font-weight: 800; margin-bottom: 1rem; display: none;"></div>
             </div>
         </div>
     `;

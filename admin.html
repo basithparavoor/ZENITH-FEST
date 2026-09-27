@@ -772,9 +772,10 @@ tr:hover td { background: var(--bg-main); }
     #competitions-tbody td:nth-of-type(5)::before { content: "Max Marks"; }
     #competitions-tbody td:nth-of-type(6)::before { content: "Limit"; }
     
-    #participants-tbody td:nth-of-type(3)::before { content: "Name"; }
+   #participants-tbody td:nth-of-type(3)::before { content: "Name"; }
     #participants-tbody td:nth-of-type(4)::before { content: "Team"; }
     #participants-tbody td:nth-of-type(5)::before { content: "Category"; }
+    #participants-tbody td:nth-of-type(6)::before { content: "DOB"; } /* NEW */
     
     #stages-tbody td:nth-of-type(2)::before { content: "Identifier"; }
     #stages-tbody td:nth-of-type(3)::before { content: "Comps Linked"; }
@@ -804,13 +805,115 @@ tr:hover td { background: var(--bg-main); }
     td:last-child div { display: grid !important; grid-template-columns: 1fr 1fr; gap: 0.5rem; width: 100%; }
     td:last-child div button { width: 100%; justify-content: center; min-height: 44px; border-radius: var(--radius-md); font-size: 0.85rem;}
 
-    /* 9. Website Builder Mobile Fixes */
-    .builder-layout { flex-direction: column; height: auto; gap: 1rem; }
-    .builder-sidebar { width: 100%; flex-direction: row; overflow-x: auto; white-space: nowrap; scrollbar-width: none; padding-bottom: 0.5rem; }
-    .builder-preview-area { flex-direction: column; padding: 1rem; }
-    .mock-desktop, .mock-mobile { width: 100%; height: auto; aspect-ratio: auto; min-height: 400px; }
-    .mock-iframe { height: 400px; }
+/* --- 9. WEBSITE BUILDER MOBILE FIXES --- */
+    .builder-layout { 
+        flex-direction: column !important; 
+        height: auto !important; 
+        gap: 0 !important; 
+    }
     
+/* Wrapped Chip-Style Nav (No Horizontal Scrolling) */
+    .builder-sidebar { 
+        width: 100% !important; 
+        display: flex !important;
+        flex-direction: row !important; 
+        flex-wrap: wrap !important; /* Forces items to wrap to the next line */
+        overflow-x: hidden !important; /* Removes horizontal scrollbar */
+        white-space: normal !important; 
+        padding: 1rem 1.25rem !important; 
+        gap: 0.5rem !important;
+        background: var(--bg-main) !important;
+        border-bottom: 1px solid var(--border) !important;
+    }
+    
+    .builder-nav-item { 
+        flex: 1 1 auto !important; /* Allows buttons to stretch and fill empty space neatly */
+        justify-content: center !important;
+        padding: 0.5rem 0.75rem !important; 
+        border-radius: 50px !important; 
+        background: white !important;
+        border: 1px solid var(--border) !important;
+        font-size: 0.75rem !important; /* Slightly smaller font to fit more per row */
+        font-weight: 600 !important;
+        margin-bottom: 0 !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+    }
+    
+    .builder-nav-item.active {
+        background: #FEF2F2 !important;
+        border-color: #FCA5A5 !important;
+        color: #EF4444 !important;
+    }
+
+    /* Pane Adjustments */
+    .builder-pane-header { 
+        padding: 1.25rem !important; 
+        flex-direction: row !important; /* Keeps title and button inline if space allows */
+        align-items: center !important; 
+        justify-content: space-between !important;
+        flex-wrap: wrap !important;
+        gap: 1rem !important; 
+    }
+    .builder-pane-header h3 { font-size: 1.15rem !important; margin: 0 !important; }
+    .builder-pane-header .btn { width: auto !important; flex-grow: 1 !important; justify-content: center !important; }
+    
+    .builder-pane-body { padding: 1.25rem !important; }
+    .builder-card { padding: 1.25rem !important; }
+    
+    /* Device Mockup Mobile Overlapping (CRITICAL FIX) */
+    .builder-pane-body[style*="background: #F8FAFC"] { 
+        padding: 2rem 1.5rem 4rem 1.5rem !important; /* Extra bottom padding for absolute overlap */
+        background: #F1F5F9 !important;
+    }
+    
+    .mockup-container { 
+        padding: 0 !important; 
+        display: block !important; /* Remove flex column to allow absolute positioning */
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+    }
+    
+    .mockup-desktop { 
+        width: 90% !important; /* Leave room on right for mobile overlap */
+        aspect-ratio: 16/10 !important;
+        margin: 0 !important;
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1) !important;
+        border-radius: 8px !important;
+    }
+    
+    .mockup-mobile { 
+        position: absolute !important; 
+        width: 32% !important; /* Proportional width */
+        min-width: 120px !important;
+        max-width: 160px !important;
+        aspect-ratio: 9/19 !important;
+        right: 0 !important; 
+        bottom: -15% !important; /* Hang off the bottom edge */
+        z-index: 10 !important;
+        border-width: 6px !important; /* Thinner bezel on mobile */
+        border-radius: 20px !important;
+        box-shadow: -10px 10px 30px rgba(0,0,0,0.2) !important;
+    }
+
+    .mockup-iframe {
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    /* Footer Controls Stacking */
+    .builder-controls-footer { padding: 1.25rem !important; }
+    .builder-controls-row { flex-direction: column !important; align-items: flex-start !important; gap: 1.25rem !important; }
+    .builder-controls-row > div { width: 100% !important; justify-content: space-between !important; flex-wrap: wrap !important; gap: 0.5rem !important; }
+    .builder-controls-row .btn { flex: 1 !important; min-width: calc(50% - 0.5rem) !important; justify-content: center !important; }
+    
+    /* Domain Input Fix */
+    .subdomain-input-group { flex-direction: row !important; }
+    .subdomain-input-group input { width: auto !important; flex: 1 !important; border-radius: var(--radius-md) 0 0 var(--radius-md) !important; border-right: none !important;}
+    .subdomain-input-group .domain-suffix { border-radius: 0 var(--radius-md) var(--radius-md) 0 !important; padding: 0 0.75rem !important; font-size: 0.85rem !important; }
+
+
     /* 10. Toasts */
     #toast-container { bottom: 1rem; right: 1rem; left: 1rem; width: auto; align-items: stretch; }
     .toast { width: 100%; box-sizing: border-box; }
@@ -2066,6 +2169,7 @@ tr:hover td { background: var(--bg-main); }
                             <th>Name</th>
                             <th>Team</th>
                             <th>Category</th>
+                            <th>DOB</th>
                             <th>Actions</th>
                         </tr>
                     </thead>

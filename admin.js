@@ -374,43 +374,6 @@ function openModal(title, bodyHTML, saveFunction) {
     document.getElementById('formModal').classList.add('show');
 }
 
-// --- CATEGORIES ---
-async function loadCategories() {
-    try {
-        const { data, error } = await supabaseClient
-            .from('categories')
-            .select('*, participants(count), competitions(count)')
-            .order('name');
-            
-        if(error) throw error;
-        categoriesList = data || [];
-        
-        const tbody = document.getElementById('categories-tbody');
-        tbody.innerHTML = '';
-        
-        categoriesList.forEach(cat => {
-            const partCount = cat.participants[0]?.count || 0;
-            const compCount = cat.competitions[0]?.count || 0;
-            tbody.innerHTML += `
-                <tr>
-                    <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${cat.id}" ${globalSelections['categories-tbody']?.has(cat.id) ? 'checked' : ''} onchange="handleRowSelection('categories-tbody', this.value, this.checked)"></td>                    <td>${cat.name}</td>
-                    <td>${cat.is_general ? '<span class="badge badge-primary">General</span>' : 'Standard'}</td>
-                    <td><span class="badge-count" onclick="viewRelationalData('participants', 'category_id', '${cat.id}')">${partCount} Students</span></td>
-                    <td><span class="badge-count" onclick="viewRelationalData('competitions', 'category_id', '${cat.id}')">${compCount} Competitions</span></td>
-                    <td>
-                        <div style="display: flex; gap: 0.5rem; width: 100%;">
-                             <button class="btn btn-outline" onclick='openCategoryModal(${JSON.stringify(cat).replace(/'/g, "&apos;").replace(/"/g, "&quot;")})'><i class="fa-solid fa-pen"></i></button>
-                             <button class="btn btn-danger" onclick="deleteCategory('${cat.id}')"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        });
-        
-        // Persist filter state after reload
-        if (typeof filterCategoriesTable === 'function') filterCategoriesTable();
-    } catch(e) { showToast(e.message, 'error'); }
-}
 
 // Function to handle viewing counts in a popup
 async function viewRelationalData(fetchTable, filterColumn, filterId, displayColumn = 'name') {
@@ -444,15 +407,19 @@ async function viewRelationalData(fetchTable, filterColumn, filterId, displayCol
     }
 }
 
-// 1. Update the modal function to accept data and show general category links
+
+
 function openCategoryModal(editData = null) {
     const isEdit = !!editData;
     const catId = isEdit ? editData.id : '';
     const catName = isEdit ? editData.name : '';
     const isGeneral = isEdit ? editData.is_general.toString() : 'false';
     const allowedGenerals = isEdit && editData.allowed_general_categories ? editData.allowed_general_categories : [];
+    
+    // NEW: Capture the DOB period
+    const catDobStart = isEdit && editData.dob_start ? editData.dob_start : '';
+    const catDobEnd = isEdit && editData.dob_end ? editData.dob_end : ''; 
 
-    // Filter out only general categories
     let generalCats = categoriesList.filter(c => c.is_general && c.id !== catId);
     let generalOptsHtml = '';
     
@@ -486,17 +453,26 @@ function openCategoryModal(editData = null) {
                 <option value="true" ${isGeneral === 'true' ? 'selected' : ''}>General (Anyone can participate)</option>
             </select>
         </div>
+        <div class="form-group" style="padding-top: 0.5rem;">
+            <label>Allowed Date of Birth Period (Optional)</label>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <input type="date" id="catDobStart" value="${catDobStart}" style="flex: 1; text-transform: none;">
+                <span style="color: var(--text-muted); font-weight: 800;">TO</span>
+                <input type="date" id="catDobEnd" value="${catDobEnd}" style="flex: 1; text-transform: none;">
+            </div>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">If set, participants must be born between these dates to register.</p>
+        </div>
         ${generalOptsHtml}
     `, saveCategory);
 }
 
-// 2. Update the save function to Upsert with the new array
 async function saveCategory() {
     const id = document.getElementById('catId').value;
     const name = document.getElementById('catName').value;
     const is_general = document.getElementById('catGeneral').value === 'true';
+    const dob_start = document.getElementById('catDobStart').value || null;
+    const dob_end = document.getElementById('catDobEnd').value || null;
     
-    // Grab all checked IDs
     const allowed_general_categories = Array.from(document.querySelectorAll('.cat-general-eligibility:checked')).map(cb => cb.value);
 
     if(!name) return showToast('Name is required', 'error');
@@ -506,6 +482,8 @@ async function saveCategory() {
         const payload = { 
             name, 
             is_general, 
+            dob_start,
+            dob_end,
             allowed_general_categories: is_general ? [] : allowed_general_categories 
         };
         if (id) payload.id = id;
@@ -1171,6 +1149,51 @@ return matchName && matchCat && matchTeam && matchDob;
     renderParticipantsTable();
 }
 
+
+async function loadCategories() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('categories')
+            .select('*, participants(count), competitions(count)')
+            .order('name');
+            
+        if(error) throw error;
+        categoriesList = data || [];
+        
+        const tbody = document.getElementById('categories-tbody');
+        tbody.innerHTML = '';
+        
+        categoriesList.forEach(cat => {
+            const partCount = cat.participants[0]?.count || 0;
+            const compCount = cat.competitions[0]?.count || 0;
+            
+            // Generate DOB Period Label
+            let dobLabel = '';
+            if (cat.dob_start && cat.dob_end) dobLabel = `<br><span style="font-size:0.75rem; color:var(--text-muted); font-weight: 600;"><i class="fa-regular fa-calendar"></i> ${cat.dob_start} to ${cat.dob_end}</span>`;
+            else if (cat.dob_start) dobLabel = `<br><span style="font-size:0.75rem; color:var(--text-muted); font-weight: 600;"><i class="fa-regular fa-calendar"></i> From ${cat.dob_start}</span>`;
+            else if (cat.dob_end) dobLabel = `<br><span style="font-size:0.75rem; color:var(--text-muted); font-weight: 600;"><i class="fa-regular fa-calendar"></i> Until ${cat.dob_end}</span>`;
+
+            tbody.innerHTML += `
+                <tr>
+                    <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${cat.id}" ${globalSelections['categories-tbody']?.has(cat.id) ? 'checked' : ''} onchange="handleRowSelection('categories-tbody', this.value, this.checked)"></td>                    
+                    <td><strong style="font-size: 1.05rem;">${cat.name}</strong>${dobLabel}</td>
+                    <td>${cat.is_general ? '<span class="badge badge-primary">General</span>' : 'Standard'}</td>
+                    <td><span class="badge-count" onclick="viewRelationalData('participants', 'category_id', '${cat.id}')">${partCount} Students</span></td>
+                    <td><span class="badge-count" onclick="viewRelationalData('competitions', 'category_id', '${cat.id}')">${compCount} Competitions</span></td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem; width: 100%;">
+                             <button class="btn btn-outline" onclick='openCategoryModal(${JSON.stringify(cat).replace(/'/g, "&apos;").replace(/"/g, "&quot;")})'><i class="fa-solid fa-pen"></i></button>
+                             <button class="btn btn-danger" onclick="deleteCategory('${cat.id}')"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        if (typeof filterCategoriesTable === 'function') filterCategoriesTable();
+    } catch(e) { showToast(e.message, 'error'); }
+}
+
 function renderParticipantsTable() {
     const tbody = document.getElementById('participants-tbody');
     tbody.innerHTML = '';
@@ -1180,15 +1203,16 @@ function renderParticipantsTable() {
     const pageData = filteredParticipantsList.slice(start, end);
 
     if (pageData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">No participants found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">No participants found.</td></tr>`;
     }
 
     pageData.forEach(p => {
         const safeData = JSON.stringify(p).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
-const photoSrc = p.photo_url ? p.photo_url : 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%236B7280"%3ENO PHOTO%3C/text%3E%3C/svg%3E';        
+        const photoSrc = p.photo_url ? p.photo_url : 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%236B7280"%3ENO PHOTO%3C/text%3E%3C/svg%3E';        
         tbody.innerHTML += `
             <tr>
-<td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}" ${globalSelections['participants-tbody']?.has(p.id) ? 'checked' : ''} onchange="handleRowSelection('participants-tbody', this.value, this.checked)"></td>                <td style="font-family: monospace; font-weight: 600; color: var(--primary);">${p.unique_id}</td>
+                <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}" ${globalSelections['participants-tbody']?.has(p.id) ? 'checked' : ''} onchange="handleRowSelection('participants-tbody', this.value, this.checked)"></td>
+                <td style="font-family: monospace; font-weight: 600; color: var(--primary);">${p.unique_id}</td>
                 <td>
                     <div style="display: flex; align-items: center; gap: 0.75rem;">
                         <img src="${photoSrc}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0;">
@@ -1197,6 +1221,7 @@ const photoSrc = p.photo_url ? p.photo_url : 'data:image/svg+xml;charset=UTF-8,%
                 </td>
                 <td><span class="badge" style="background:#F1F5F9; color:#475569;">${p.teams?.name || 'UNASSIGNED'}</span></td>
                 <td>${p.categories?.name || 'N/A'}</td>
+                <td style="font-weight: 600; color: var(--text-muted);">${p.dob || 'N/A'}</td>
                 <td>
                     <div style="display: flex; gap: 0.5rem;">
                         <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" title="View Details" onclick='viewParticipantCard(${safeData})'><i class="fa-solid fa-eye"></i></button>
@@ -1211,6 +1236,7 @@ const photoSrc = p.photo_url ? p.photo_url : 'data:image/svg+xml;charset=UTF-8,%
     
     renderPartPagination();
 }
+
 
 function renderPartPagination() {
     const totalPages = Math.ceil(filteredParticipantsList.length / partRowsPerPage) || 1;
@@ -1555,6 +1581,40 @@ async function viewParticipantEnrollments(participantId) {
     }
 }
 
+window.validateAdminDob = function() {
+    const catId = document.getElementById('partCategory').value;
+    const dobVal = document.getElementById('partDob').value;
+    const warningEl = document.getElementById('dobWarning');
+    const saveBtn = document.getElementById('modalSaveBtn');
+    
+    if(!catId || !dobVal || !warningEl) return;
+    
+    const category = categoriesList.find(c => String(c.id) === String(catId));
+    let isInvalid = false;
+    let warningMsg = '';
+
+    if(category) {
+        const dobDate = new Date(dobVal);
+        if (category.dob_start && dobDate < new Date(category.dob_start)) {
+            isInvalid = true;
+            warningMsg = `Not eligible! Must be born on or AFTER ${category.dob_start}.`;
+        }
+        if (category.dob_end && dobDate > new Date(category.dob_end)) {
+            isInvalid = true;
+            warningMsg = `Not eligible! Must be born on or BEFORE ${category.dob_end}.`;
+        }
+    }
+
+    if(isInvalid) {
+        warningEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${warningMsg}`;
+        warningEl.style.display = 'block';
+        if(saveBtn) saveBtn.disabled = true;
+    } else {
+        warningEl.style.display = 'none';
+        if(saveBtn) saveBtn.disabled = false;
+    }
+};
+
 function openParticipantModal(editData = null) {
     let catOpts = categoriesList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     let teamOpts = teamsList.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
@@ -1562,12 +1622,10 @@ function openParticipantModal(editData = null) {
     const isEdit = !!editData;
     const pId = isEdit ? editData.id : '';
     const pName = isEdit ? editData.name : '';
-    
-    // CHANGED: Load 'dob' instead of 'batch_no'
     const pDob = isEdit && editData.dob ? editData.dob : '';
-    
     const pUniqueId = isEdit ? editData.unique_id : '';
-const pPhoto = isEdit && editData.photo_url ? editData.photo_url : 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="100%25" height="100%25" fill="%23EEF2FF"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%236366F1"%3EPHOTO%3C/text%3E%3C/svg%3E';
+    const pPhoto = isEdit && editData.photo_url ? editData.photo_url : 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="100%25" height="100%25" fill="%23EEF2FF"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%236366F1"%3EPHOTO%3C/text%3E%3C/svg%3E';
+    
     const modalHtml = `
         <style>
             .part-modal-grid { display: grid; grid-template-columns: 150px 1fr; gap: 2rem; align-items: start; }
@@ -1618,15 +1676,16 @@ const pPhoto = isEdit && editData.photo_url ? editData.photo_url : 'data:image/s
                 <div style="display:flex; gap:1rem; flex-wrap: wrap;">
                     <div class="form-group" style="flex: 2; min-width: 150px;">
                         <label>Category <span style="color: var(--danger);">*</span></label>
-                        <select id="partCategory">${catOpts}</select>
+                        <select id="partCategory" onchange="window.validateAdminDob()">${catOpts}</select>
                     </div>
                     
-                    <!-- CHANGED: Replaced Batch input with Date of Birth -->
                     <div class="form-group" style="flex: 1; min-width: 130px;">
                         <label>Date of Birth</label>
-                        <input type="date" id="partDob" value="${pDob}" style="text-transform: none;">
+                        <input type="date" id="partDob" value="${pDob}" style="text-transform: none;" onchange="window.validateAdminDob()">
                     </div>
                 </div>
+                <!-- Warning injection -->
+                <div id="dobWarning" style="color: var(--danger); font-size: 0.85rem; font-weight: 700; margin-top: 0.5rem; display: none;"></div>
             </div>
         </div>
     `;
@@ -1636,8 +1695,10 @@ const pPhoto = isEdit && editData.photo_url ? editData.photo_url : 'data:image/s
     if (isEdit) {
         if(editData.team_id) document.getElementById('partTeam').value = editData.team_id;
         if(editData.category_id) document.getElementById('partCategory').value = editData.category_id;
+        setTimeout(() => window.validateAdminDob(), 100); // Check validity on load
     }
 }
+
 async function saveParticipant() {
     const id = document.getElementById('partId').value;
     const name = document.getElementById('partName').value;
@@ -3352,30 +3413,36 @@ function openTemplateStudio(template = null) {
         document.getElementById('studio-template-name').value = studioActiveData.name;
         document.getElementById('studio-template-type').value = studioActiveData.type;
         
+        // HIDDEN GROUPS WORKAROUND: Extract the hidden groups object from fields
+        if (studioActiveData.fields && studioActiveData.fields['__groups__']) {
+            studioActiveData.groups = studioActiveData.fields['__groups__'];
+            delete studioActiveData.fields['__groups__']; // Remove it so the canvas doesn't try to draw it
+        } else {
+            studioActiveData.groups = {};
+        }
+        
         // Rehydrate main background image
         studioActiveData.imgObj = new Image();
         studioActiveData.imgObj.crossOrigin = "Anonymous"; 
         studioActiveData.imgObj.onload = () => drawStudioCanvas();
         if (studioActiveData.bg_base64) studioActiveData.imgObj.src = studioActiveData.bg_base64;
 
-        // Rehydrate static uploaded elements (logos, SVGs, etc.)
+        // Rehydrate static uploaded elements
         if (studioActiveData.fields) {
             Object.keys(studioActiveData.fields).forEach(key => {
                 const field = studioActiveData.fields[key];
                 if (field.isStaticElement && field.src) {
                     field.imgObj = new Image();
                     field.imgObj.crossOrigin = "Anonymous";
-                    // Redraw canvas once this specific element loads
                     field.imgObj.onload = () => drawStudioCanvas();
                     field.imgObj.src = field.src;
                 }
             });
         }
 
-        // ---> NEW: Rehydrate Custom Fonts <---
+        // Rehydrate Custom Fonts
         if (studioActiveData.customFonts && studioActiveData.customFonts.length > 0) {
             studioActiveData.customFonts.forEach(async (fontData) => {
-                // Prevent adding the same font to the dropdown multiple times if opened twice
                 if (!AVAILABLE_FONTS.find(f => f.value === fontData.family)) {
                     try {
                         const customFont = new FontFace(fontData.family, `url(${fontData.url})`);
@@ -3383,8 +3450,6 @@ function openTemplateStudio(template = null) {
                         document.fonts.add(loadedFace);
                         
                         AVAILABLE_FONTS.push({ name: fontData.name, value: fontData.family });
-                        
-                        // Redraw the canvas just in case it drew before the font finished downloading
                         drawStudioCanvas(); 
                     } catch (e) {
                         console.error("Failed to rehydrate custom font:", fontData.family, e);
@@ -3394,14 +3459,14 @@ function openTemplateStudio(template = null) {
         }
     } else {
         // Initialize a brand new template
-       studioActiveData = { 
+        studioActiveData = { 
             id: 'TPL_' + Date.now(), 
             name: '', 
             type: 'individual', 
             bg_base64: null, 
             imgObj: new Image(), 
             fields: {},
-            groups: {}, // Ensure groups object exists
+            groups: {}, 
             customFonts: [] 
         };
         
@@ -3411,6 +3476,7 @@ function openTemplateStudio(template = null) {
         document.getElementById('studio-template-type').value = 'individual';
     }
     
+    if (typeof multiSelectedLayers !== 'undefined') multiSelectedLayers.clear();
     studioActiveField = null;
     
     // Reset History Stacks
@@ -3420,6 +3486,7 @@ function openTemplateStudio(template = null) {
     
     initializeStudioFields();
 }
+
 function closeTemplateStudio() {
     document.getElementById('template-studio-view').style.display = 'none';
     document.getElementById('template-library-view').style.display = 'block';
@@ -4247,43 +4314,39 @@ async function saveActiveTemplate() {
     saveBtn.disabled = true;
 
     try {
-        // 1. If there's a new file, upload it to Supabase Storage first
         if (studioActiveData.pendingFile) {
             showToast("Uploading background image...", "success");
             const file = studioActiveData.pendingFile;
             const fileExt = file.name.split('.').pop();
             const fileName = `bg_${Date.now()}.${fileExt}`;
 
-            // Upload to the 'templates' bucket
             const { data: uploadData, error: uploadError } = await supabaseClient.storage
                 .from('templates')
                 .upload(fileName, file, { contentType: file.type });
 
             if (uploadError) throw uploadError;
 
-            // Get the Public URL
             const { data: publicUrlData } = supabaseClient.storage
                 .from('templates')
                 .getPublicUrl(fileName);
 
-            // Swap out the local Base64 string for the permanent Cloud URL
             studioActiveData.bg_base64 = publicUrlData.publicUrl;
-            
-            // Clear pending file so we don't re-upload if they click save again
             studioActiveData.pendingFile = null; 
         }
 
-        // 2. Create the payload for the Database (now containing a lightweight URL!)
+        // HIDDEN GROUPS WORKAROUND: Pack the groups object INSIDE the fields JSON
+        // so we don't have to alter the Supabase database schema!
+        const packedFields = { ...studioActiveData.fields };
+        packedFields['__groups__'] = studioActiveData.groups || {};
+
         const savePayload = { 
             id: studioActiveData.id,
             name: studioActiveData.name,
             type: studioActiveData.type,
             bg_base64: studioActiveData.bg_base64, 
-            fields: studioActiveData.fields,
-            groups: studioActiveData.groups || {}
+            fields: packedFields // Save the combined object to the existing column
         };
 
-        // 3. Save to Database
         const { error } = await supabaseClient.from('templates').upsert(savePayload);
         if (error) throw error;
         
@@ -4298,7 +4361,6 @@ async function saveActiveTemplate() {
         saveBtn.disabled = false;
     }
 }
-
 function openFullViewModal() {
     const canvas = document.getElementById('studio-canvas');
     document.getElementById('fullViewImage').src = canvas.toDataURL("image/png");
@@ -8051,34 +8113,45 @@ async function loadWebsiteConfig() {
 }
 
 function populateWebsiteForms() {
-    // Domains
+    // Domains (FIXED ID REFERENCES)
     if(document.getElementById('web-subdomain')) {
         document.getElementById('web-subdomain').value = websiteConfig.domain || '';
-        document.getElementById('preview-url-display').innerText = websiteConfig.domain ? `${websiteConfig.domain}.festos.app` : 'festos.app';
-        if(websiteConfig.domain) document.getElementById('subdomain-status').style.display = 'block';
+        
+        const fullUrl = websiteConfig.domain ? `${websiteConfig.domain}.festos.app` : 'festos.app';
+        
+        if(document.getElementById('overview-url-display-desk')) {
+            document.getElementById('overview-url-display-desk').innerText = fullUrl;
+        }
+        if(document.getElementById('overview-url-display-footer')) {
+            document.getElementById('overview-url-display-footer').innerText = fullUrl;
+        }
+        
+        if(websiteConfig.domain && document.getElementById('subdomain-status')) {
+            document.getElementById('subdomain-status').style.display = 'block';
+        }
     }
 
     // Pages
     const p = websiteConfig.pages.home;
-    document.getElementById('pg-prog-count').value = p.progCount || '';
-    document.getElementById('pg-part-count').value = p.partCount || '';
-    document.getElementById('pg-team-count').value = p.teamCount || '';
-    document.getElementById('pg-venue-count').value = p.venueCount || '';
-    document.getElementById('pg-about-title').value = p.aboutTitle || '';
-    document.getElementById('pg-about-sub').value = p.aboutSub || '';
-    document.getElementById('pg-content-title').value = p.contentTitle || '';
-    document.getElementById('pg-content-desc').value = p.contentDesc || '';
+    if(document.getElementById('pg-prog-count')) document.getElementById('pg-prog-count').value = p.progCount || '';
+    if(document.getElementById('pg-part-count')) document.getElementById('pg-part-count').value = p.partCount || '';
+    if(document.getElementById('pg-team-count')) document.getElementById('pg-team-count').value = p.teamCount || '';
+    if(document.getElementById('pg-venue-count')) document.getElementById('pg-venue-count').value = p.venueCount || '';
+    if(document.getElementById('pg-about-title')) document.getElementById('pg-about-title').value = p.aboutTitle || '';
+    if(document.getElementById('pg-about-sub')) document.getElementById('pg-about-sub').value = p.aboutSub || '';
+    if(document.getElementById('pg-content-title')) document.getElementById('pg-content-title').value = p.contentTitle || '';
+    if(document.getElementById('pg-content-desc')) document.getElementById('pg-content-desc').value = p.contentDesc || '';
     
     const c = p.contact || {};
-    document.getElementById('pg-contact-title').value = c.title || '';
-    document.getElementById('pg-contact-email').value = c.email || '';
-    document.getElementById('pg-contact-phone').value = c.phone || '';
-    document.getElementById('pg-contact-wa').value = c.wa || '';
-    document.getElementById('pg-contact-ig').value = c.ig || '';
-    document.getElementById('pg-contact-fb').value = c.fb || '';
-    document.getElementById('pg-contact-yt').value = c.yt || '';
-    document.getElementById('pg-contact-web').value = c.web || '';
-    document.getElementById('pg-contact-address').value = c.address || '';
+    if(document.getElementById('pg-contact-title')) document.getElementById('pg-contact-title').value = c.title || '';
+    if(document.getElementById('pg-contact-email')) document.getElementById('pg-contact-email').value = c.email || '';
+    if(document.getElementById('pg-contact-phone')) document.getElementById('pg-contact-phone').value = c.phone || '';
+    if(document.getElementById('pg-contact-wa')) document.getElementById('pg-contact-wa').value = c.wa || '';
+    if(document.getElementById('pg-contact-ig')) document.getElementById('pg-contact-ig').value = c.ig || '';
+    if(document.getElementById('pg-contact-fb')) document.getElementById('pg-contact-fb').value = c.fb || '';
+    if(document.getElementById('pg-contact-yt')) document.getElementById('pg-contact-yt').value = c.yt || '';
+    if(document.getElementById('pg-contact-web')) document.getElementById('pg-contact-web').value = c.web || '';
+    if(document.getElementById('pg-contact-address')) document.getElementById('pg-contact-address').value = c.address || '';
 
     // Visibility
     const applyToggles = (category, data) => {
