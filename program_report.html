@@ -204,18 +204,91 @@
         .list-table td { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; font-weight: 500; color: var(--text-main); }
         .list-table tr:nth-child(even) td { background: #F9FAFB; }
 
-        /* MATRIX VIEW SPECIFIC STYLES */
-        .matrix-table { width: 100%; border-collapse: collapse; text-align: left; table-layout: fixed; }
-        .matrix-table th, .matrix-table td { border: 1px solid var(--border); padding: 0.5rem; font-size: 0.8rem; color: var(--text-main); }
-        .matrix-table th { background: #F9FAFB; color: var(--text-muted); font-weight: 600; }
-        .matrix-table th.vertical { height: 180px; width: 35px; min-width: 35px; position: relative; vertical-align: bottom; }
-        .matrix-table th.vertical span { display: block; transform: rotate(-90deg); transform-origin: left bottom; position: absolute; bottom: 10px; left: 50%; white-space: nowrap; font-size: 0.75rem; margin-left: -5px; color: var(--text-main); font-weight: 500; }
-        .matrix-table th.col-sno { width: 40px; text-align: center; }
-        .matrix-table th.col-team { width: 120px; }
-        .matrix-table th.col-id { width: 80px; }
-        .matrix-table th.col-name { width: 180px; }
-        .matrix-table td.check-cell { text-align: center; font-weight: 700; color: var(--primary); font-size: 1rem; }
-        .matrix-table tbody tr:nth-child(even) td { background: #F9FAFB; }
+        /* ==========================================
+           PREMIUM MATRIX & PDF PAGINATION STYLES
+           ========================================== */
+        .report-page {
+            background: white;
+            padding: 25px;
+            margin-bottom: 2.5rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+            page-break-inside: avoid;
+        }
+
+        .report-page-header {
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-end;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 12px; 
+            margin-bottom: 20px;
+        }
+
+        /* Fixed Table Layout for Desktop & PDF (Forces 100% width, no horizontal scroll) */
+        .matrix-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            table-layout: fixed; /* Crucial for fitting all columns horizontally */
+        }
+        
+        .matrix-table th, .matrix-table td { 
+            border: 1px solid #CBD5E1; 
+            font-size: 0.75rem; 
+            color: #1E293B; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            white-space: nowrap;
+        }
+        
+        .matrix-table td { padding: 6px 4px; }
+        
+        .matrix-table th { 
+            background: #F1F5F9; color: #475569; font-weight: 700; text-transform: uppercase; 
+        }
+        
+        /* Strict percentage sizing for the static data to balance remaining space */
+        .matrix-table th.col-sno { width: 30px; text-align: center; }
+        .matrix-table th.col-team { width: 18%; }
+        .matrix-table th.col-id { width: 12%; font-family: monospace; }
+        .matrix-table th.col-name { width: 22%; color: #0F172A; }
+        
+        /* Vertical Text Fix: Perfect Bottom-to-Top orientation */
+        .matrix-table th.vertical { 
+            height: 160px; /* Provides space for long competition names */
+            padding: 0;
+            vertical-align: bottom; 
+            background: #F8FAFC;
+        }
+        
+        .matrix-table th.vertical span { 
+            /* Flips the text onto its side, reading bottom to top */
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            
+            /* Sizing and alignment */
+            display: inline-block;
+            max-height: 150px; /* Prevents overflow into table body */
+            padding: 8px 0;
+            width: 100%;
+            text-align: left; /* Because it's rotated, 'left' aligns it to the bottom */
+            
+            /* Typography */
+            font-size: 0.65rem; 
+            font-weight: 800; 
+            color: #334155; 
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            letter-spacing: 0.05em;
+        }
+        
+        .matrix-table td.check-cell { text-align: center; color: var(--primary); font-size: 1.1rem; }
+        .matrix-table tbody tr:nth-child(even) td { background: #F8FAFC; }
+        
+        /* Force desktop to NEVER scroll horizontally */
+        .table-scroll-wrapper { overflow-x: hidden !important; width: 100%; }
 
         /* PDF Pagination Safe Guards */
         .pdf-page-break { page-break-after: always; break-after: page; }
@@ -227,7 +300,10 @@
             font-weight: 600; color: var(--primary); font-size: 1.1rem;
         }
 
-        /* --- MOBILE OPTIMIZATIONS --- */
+
+
+        
+/* --- MOBILE OPTIMIZATIONS --- */
         @media (max-width: 768px) {
             .header { padding: 1rem 1.25rem; }
             .header .btn { padding: 0.5rem; font-size: 0; min-height: 40px; width: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; }
@@ -251,54 +327,68 @@
             #record-count { grid-column: span 2; text-align: center; margin-bottom: 0.5rem; margin-right: 0 !important; }
             .action-row > div:last-child .btn { width: 100%; min-height: 48px; justify-content: center; }
             
-            .report-wrapper { padding: 1rem; border-radius: var(--radius-lg); }
+            .report-wrapper { padding: 1rem; border-radius: var(--radius-lg); overflow: hidden; }
             
-            /* List View Mobile Cards Conversion */
-            #list-view-container .list-table { border: none !important; background: transparent !important; }
-            #list-view-container .list-table, 
-            #list-view-container .list-table thead, 
-            #list-view-container .list-table tbody, 
-            #list-view-container .list-table th, 
-            #list-view-container .list-table td, 
-            #list-view-container .list-table tr { display: block; width: 100%; }
+            /* =========================================
+               UNIVERSAL TABLE-TO-CARD CONVERSION
+               (Applies to BOTH List View & Matrix View)
+               ========================================= */
+            .list-table, .matrix-table { border: none !important; background: transparent !important; }
             
-            #list-view-container .list-table thead { display: none; } /* Hide headers */
+            .list-table, .list-table thead, .list-table tbody, .list-table th, .list-table td, .list-table tr,
+            .matrix-table, .matrix-table thead, .matrix-table tbody, .matrix-table th, .matrix-table td, .matrix-table tr { 
+                display: block; width: 100%; 
+            }
             
-            #list-view-container .list-table tr {
+            .list-table thead, .matrix-table thead { display: none; } /* Hide headers */
+            
+            /* Card Container Styling */
+            .list-table tr, .matrix-table tr {
                 background: var(--bg-surface); 
-                border-radius: var(--radius-md); 
-                padding: 1rem;
+                border-radius: var(--radius-lg); 
+                padding: 1.25rem;
                 margin-bottom: 1rem; 
                 border: 1px solid var(--border); 
-                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                box-shadow: 0 4px 6px rgba(0,0,0,0.02);
                 display: flex; flex-direction: column; gap: 0.5rem;
             }
             
-            #list-view-container .list-table td { 
+            /* Cell Styling */
+            .list-table td, .matrix-table td { 
                 padding: 0 !important; border: none !important; 
                 display: flex; justify-content: space-between; align-items: center; 
                 font-size: 0.85rem; background: transparent !important;
+                text-align: right; min-height: 24px;
             }
             
-            /* Pseudo-Labels for Mobile Cards */
-            #list-view-container .list-table td::before {
-                font-weight: 600; color: var(--text-muted); font-size: 0.7rem;
-                text-transform: uppercase; letter-spacing: 0.05em;
+            /* Dynamic Pseudo-Labels reading from data-label */
+            .list-table td::before, .matrix-table td::before {
+                content: attr(data-label);
+                font-weight: 600; color: var(--text-muted); font-size: 0.75rem;
+                text-transform: uppercase; letter-spacing: 0.05em; text-align: left;
+                flex: 1; padding-right: 1rem;
             }
-            #list-view-container .list-table td:nth-child(1)::before { content: "S.No"; }
-            #list-view-container .list-table td:nth-child(2)::before { content: "Name"; }
-            #list-view-container .list-table td:nth-child(3)::before { content: "ID"; }
-            #list-view-container .list-table td:nth-child(4)::before { content: "Team"; }
-            #list-view-container .list-table td:nth-child(5)::before { content: "Event"; }
-            #list-view-container .list-table td:nth-child(6)::before { content: "Category"; }
-            #list-view-container .list-table td:nth-child(7)::before { content: "Stage"; }
+
+            /* --- MATRIX SPECIFIC TWEAKS --- */
+            /* Highlight the Participant Name */
+            .matrix-table td.td-name { 
+                font-size: 1.15rem; color: var(--text-main); font-weight: 800 !important; 
+                margin-bottom: 0.5rem; justify-content: flex-start; 
+            }
+            .matrix-table td.td-name::before { display: none; } /* Hide "Participant" label, it's obvious */
             
-            /* Emphasize the Name */
-            #list-view-container .list-table td:nth-child(2) { font-size: 1rem; color: var(--text-main); font-weight: 700; margin-bottom: 0.25rem; }
-            #list-view-container .list-table td:nth-child(2)::before { display: none; } /* Hide "Name" label, it's obvious */
+            /* Hide Serial Number entirely on mobile cards */
+            .matrix-table td.col-sno { display: none !important; }
+
+            /* Style the Event Checkboxes to look like a list */
+            .matrix-table td.check-cell {
+                border-top: 1px dashed var(--border) !important;
+                padding-top: 0.5rem !important;
+                margin-top: 0.25rem;
+            }
             
-            /* Ensure Matrix View scrolls cleanly */
-            .table-scroll-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 0.5rem; }
+            /* Disable any horizontal scrolling completely */
+            .table-scroll-wrapper { width: 100%; overflow-x: hidden !important; padding-bottom: 0; }
         }
     </style>
 </head>
@@ -560,8 +650,8 @@
             });
         }
 
-        // ==========================================
-        // MATRIX VIEW RENDERER
+// ==========================================
+        // MATRIX VIEW RENDERER (Paginated for A4 PDF)
         // ==========================================
         function renderMatrix() {
             const container = document.getElementById('dynamic-matrix-container');
@@ -572,72 +662,99 @@
                 return;
             }
 
-            // 1. Get unique categories currently visible
+            const ROWS_PER_PAGE = 18; // Perfect fit for A4 Landscape
             const cats = [...new Set(filteredData.map(d => d.categoryName))].sort();
+            
+            let totalPages = 0;
+            const categoryChunks = [];
 
-            // 2. Build a matrix per category
-            cats.forEach((cat, index) => {
+            // Pre-calculate chunks and total pages
+            cats.forEach(cat => {
                 const comps = [...new Set(filteredData.filter(d => d.categoryName === cat).map(d => d.compName))].sort();
-
+                
                 const partMap = {};
                 filteredData.filter(d => d.categoryName === cat).forEach(d => {
                     if(!partMap[d.uniqueId]) {
-                        partMap[d.uniqueId] = {
-                            name: d.participantName,
-                            id: d.uniqueId,
-                            team: d.teamName,
-                            enrolled: new Set()
-                        };
+                        partMap[d.uniqueId] = { name: d.participantName, id: d.uniqueId, team: d.teamName, enrolled: new Set() };
                     }
                     partMap[d.uniqueId].enrolled.add(d.compName);
                 });
 
-                const participants = Object.values(partMap).sort((a,b) => {
-                    if (a.team !== b.team) return a.team.localeCompare(b.team);
-                    return a.name.localeCompare(b.name);
-                });
-
-                // Generate Column Headers
-                let ths = comps.map(c => `<th class="vertical"><span>${c}</span></th>`).join('');
+                const participants = Object.values(partMap).sort((a,b) => a.team.localeCompare(b.team) || a.name.localeCompare(b.name));
                 
-                // Generate Rows
-                let trs = participants.map((p, idx) => {
-                    let tds = comps.map(c => `<td class="check-cell">${p.enrolled.has(c) ? '✔' : ''}</td>`).join('');
-                    return `<tr>
-                        <td style="text-align:center;">${idx + 1}</td>
-                        <td style="white-space: nowrap;">${p.team}</td>
-                        <td style="font-family: monospace;">${p.id}</td>
-                        <td style="font-weight: 600; white-space: nowrap;">${p.name}</td>
-                        ${tds}
-                    </tr>`;
-                }).join('');
-
-                const isLastCategory = index === cats.length - 1;
-                
-                container.innerHTML += `
-                    <div class="${isLastCategory ? '' : 'pdf-page-break'}" style="margin-bottom: 3rem;">
-                        <h3 style="background: #1F2937; color: white; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0; margin: 0; font-size: 1rem; font-weight: 600; border: 1px solid #1F2937; border-bottom: none;">
-                            REGISTRATION FORM: ${cat}
-                        </h3>
-                        <div class="table-scroll-wrapper" style="overflow-x: auto;">
-                            <table class="matrix-table">
-                                <thead>
-                                    <tr>
-                                        <th class="col-sno">SI</th>
-                                        <th class="col-team">TEAM</th>
-                                        <th class="col-id">ID</th>
-                                        <th class="col-name">PARTICIPANT NAME</th>
-                                        ${ths}
-                                    </tr>
-                                </thead>
-                                <tbody>${trs}</tbody>
-                            </table>
-                        </div>
-                    </div>
-                `;
+                if (participants.length > 0) {
+                    const numChunks = Math.ceil(participants.length / ROWS_PER_PAGE);
+                    totalPages += numChunks;
+                    categoryChunks.push({ cat, comps, participants });
+                }
             });
-        }
 
+            let currentPage = 1;
+            let html = '';
+            const reportTitleText = document.getElementById('report-title').innerText;
+
+            categoryChunks.forEach(({ cat, comps, participants }) => {
+                let ths = comps.map(c => `<th class="vertical" title="${c}"><span>${c}</span></th>`).join('');
+
+                for (let i = 0; i < participants.length; i += ROWS_PER_PAGE) {
+                    const chunk = participants.slice(i, i + ROWS_PER_PAGE);
+                    const isLastPage = currentPage === totalPages;
+
+                    let trs = chunk.map((p, idx) => {
+                        let tds = comps.map(c => `<td class="check-cell" data-label="${c}">${p.enrolled.has(c) ? '✔' : ''}</td>`).join('');
+                        return `<tr>
+                            <td class="col-sno" data-label="S.NO">${i + idx + 1}</td>
+                            <td class="col-team" data-label="TEAM">${p.team}</td>
+                            <td class="col-id" data-label="UNIQUE ID">${p.id}</td>
+                            <td class="col-name td-name" data-label="PARTICIPANT" style="font-weight: 800;">${p.name}</td>
+                            ${tds}
+                        </tr>`;
+                    }).join('');
+
+                    // Add branding logo directly into the PDF header
+                    const brandingData = window.systemBranding || {};
+                    let brandHtml = '';
+                    if (brandingData.fest_logo && brandingData.fest_logo.trim() !== '') {
+                        brandHtml = `<img src="${brandingData.fest_logo}" style="height: 36px; width: auto; object-fit: contain; margin-right: 12px; border-radius: 4px;">`;
+                    }
+
+                    html += `
+                        <div class="report-page ${isLastPage ? '' : 'pdf-page-break'}">
+                            <div class="report-page-header">
+                                <div style="display: flex; align-items: center;">
+                                    ${brandHtml}
+                                    <div>
+                                        <h2 style="font-size:1.4rem; font-weight:800; color:var(--primary); margin:0; letter-spacing: -0.02em;">${reportTitleText}</h2>
+                                        <div style="background:#1E293B; color:white; padding:4px 10px; border-radius:4px; font-size:0.75rem; font-weight:700; display:inline-block; margin-top:8px; letter-spacing: 0.05em;">CATEGORY: ${cat}</div>
+                                    </div>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-size:0.8rem; font-weight:800; color:var(--text-muted);">PAGE ${currentPage} OF ${totalPages}</div>
+                                    <div style="font-size:0.7rem; color:#94A3B8; margin-top:4px; font-weight: 600;">${new Date().toLocaleDateString()}</div>
+                                </div>
+                            </div>
+                            <div class="table-scroll-wrapper">
+                                <table class="matrix-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="col-sno">#</th>
+                                            <th class="col-team">TEAM</th>
+                                            <th class="col-id">ID</th>
+                                            <th class="col-name">PARTICIPANT NAME</th>
+                                            ${ths}
+                                        </tr>
+                                    </thead>
+                                    <tbody>${trs}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                    currentPage++;
+                }
+            });
+
+            container.innerHTML = html;
+        }
         function updateReportTitles(comp, cat, stage, team) {
             let subtitle = [];
             if (comp !== 'all') subtitle.push(`Competition: ${comp}`);
@@ -724,29 +841,35 @@
             loader.style.display = 'flex';
 
             const element = document.getElementById('report-content');
-            element.style.padding = '20px';
-            element.style.width = '100%';
-
-            const scrollWrappers = element.querySelectorAll('.table-scroll-wrapper');
-            scrollWrappers.forEach(el => el.style.overflowX = 'visible');
+            
+            // Clean up UI for printing & Force strict width to prevent clipping
+            element.style.background = '#FFFFFF';
+            element.style.padding = '0';
+            element.style.width = '1250px'; // Forces A4 Landscape scale
+            element.style.margin = '0 auto';
+            
+            // Hide the main wrapper titles since every page now has its own header
+            const mainHeader = document.querySelector('.report-header');
+            if(mainHeader) mainHeader.style.display = 'none';
 
             const orientation = currentReportView === 'matrix' ? 'landscape' : 'portrait';
 
             const opt = {
-                margin:       [10, 10, 10, 10],
+                margin:       [10, 10, 10, 10], // Margin around the printed PDF page
                 filename:     `FestOS_Report_${new Date().toISOString().split('T')[0]}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
+                image:        { type: 'jpeg', quality: 1 },
+                html2canvas:  { scale: 2, useCORS: true }, 
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: orientation },
                 pagebreak:    { mode: ['css', 'legacy'] }
             };
 
             html2pdf().set(opt).from(element).save().then(() => {
                 loader.style.display = 'none';
-                element.style.padding = '0';
-                scrollWrappers.forEach(el => el.style.overflowX = 'auto');
+                element.style.width = '100%'; // Reset UI width
+                if(mainHeader) mainHeader.style.display = 'block'; // Restore Header
             });
         }
+        
         
         // ==========================================
         // UNIFIED GLOBAL BRANDING ENGINE
