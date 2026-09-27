@@ -151,7 +151,8 @@ async function loadAdminDashboard() {
         const { count: catCount } = await supabaseClient.from('categories').select('*', { count: 'exact', head: true });
         const { count: teamCount } = await supabaseClient.from('teams').select('*', { count: 'exact', head: true });
         
-        const { data: allComps } = await supabaseClient.from('competitions').select('id, name, status, categories(name), stages(name)');
+        // CRITICAL FIX: Added max_mark and max_participants to properly calculate grading thresholds and points
+        const { data: allComps } = await supabaseClient.from('competitions').select('id, name, status, award_type, is_group, max_mark, max_participants, categories(name), stages(name)');
         
         const liveComps = allComps.filter(c => c.status === 'ongoing');
         const publishedComps = allComps.filter(c => c.status === 'published');
@@ -227,7 +228,7 @@ async function loadAdminDashboard() {
         let teamScores = {};
         let partScores = {};
         (teams || []).forEach(t => teamScores[t.id] = { name: t.name, score: 0 });
-        (participants || []).forEach(p => partScores[p.id] = { name: p.name, score: 0 });
+        (participants || []).forEach(p => partScores[p.id] = { name: p.name, score: 0, star: 0, pen: 0 });
 
         allComps.forEach(comp => {
             if(!compAverages[comp.id]) return;
@@ -238,7 +239,10 @@ async function loadAdminDashboard() {
                 return { id: pId, mark: sum / sortedMarks.length };
             }).sort((a, b) => b.mark - a.mark);
 
-            let sizeCat = 'small';
+            // CRITICAL FIX: Dynamically determine the size category just like the Points Ledger
+            const limit = comp.max_participants || 1;
+            const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
+            
             let currentRank = 1;
             let previousScore = -1;
 
@@ -246,7 +250,8 @@ async function loadAdminDashboard() {
                 if (p.mark !== previousScore) currentRank = index + 1;
                 previousScore = p.mark;
 
-                let percent = (p.mark / 100) * 100;
+                // CRITICAL FIX: Calculate percent based on the competition's specific max_mark
+                let percent = (p.mark / (comp.max_mark || 100)) * 100;
                 let gradePts = 0; let posPts = 0;
 
                 if (percent >= 50) {
@@ -255,47 +260,106 @@ async function loadAdminDashboard() {
                     else if (percent >= pointsAdminSettings.thresholds.b) gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].b) || 0;
                     else gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].c) || 0;
                 }
+                
                 if (currentRank <= 3) {
                     if (currentRank === 1) posPts = Number(pointsAdminSettings.pos_points.p1) || 0;
                     else if (currentRank === 2) posPts = Number(pointsAdminSettings.pos_points.p2) || 0;
                     else if (currentRank === 3) posPts = Number(pointsAdminSettings.pos_points.p3) || 0;
                 }
+                
                 const totalPts = gradePts + posPts;
                 const tId = pMap[p.id] ? pMap[p.id].team_id : null;
                 
+                // Teams ALWAYS get points for both individual and group events
                 if (tId && teamScores[tId]) teamScores[tId].score += totalPts;
-                if (partScores[p.id]) partScores[p.id].score += totalPts;
+                
+                // CRITICAL FIX: Ignore group events when calculating individual scores
+                if (!comp.is_group) {
+                    if (partScores[p.id]) {
+                        partScores[p.id].score += totalPts;
+                        if (comp.award_type === 'star') partScores[p.id].star += totalPts;
+                        if (comp.award_type === 'pen') partScores[p.id].pen += totalPts;
+                    }
+                }
             });
         });
 
         const sortedTeams = Object.values(teamScores).sort((a, b) => b.score - a.score);
-        const sortedParts = Object.values(partScores).sort((a, b) => b.score - a.score).slice(0, 5);
 
         if (sortedTeams.length > 0) {
             document.getElementById('dash-top-team-name').innerText = sortedTeams[0].name;
             document.getElementById('dash-top-team-pts').innerText = `${sortedTeams[0].score}`;
         }
 
-        const candListEl = document.getElementById('dash-top-candidates');
-        if (sortedParts.length > 0 && sortedParts[0].score > 0) {
-            candListEl.innerHTML = sortedParts.map((c, i) => {
-                let rClass = i===0 ? 'r1' : i===1 ? 'r2' : i===2 ? 'r3' : 'other';
-                return `
-                <div class="top-cand-row">
-                    <div style="display: flex; align-items: center;">
-                        <div class="cand-rank ${rClass}">${i+1}</div>
-                        <span style="font-weight: 600; font-size: 0.9rem; text-transform: uppercase;">${c.name}</span>
-                    </div>
-                    <span style="font-weight: 700; color: var(--primary);">${c.score}</span>
-                </div>
-            `}).join('');
-        } else {
-            candListEl.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1rem;">No points awarded yet.</p>`;
+        window.globalDashCandidates = Object.values(partScores);
+        
+        if (typeof window.switchDashTopView === 'function') {
+            window.switchDashTopView('all');
         }
 
         renderDashCharts(sortedTeams);
     } catch (error) { console.error("Dashboard Load Error:", error); }
 }
+
+// TOGGLE LOGIC FOR DASHBOARD TOP CANDIDATES
+window.switchDashTopView = function(type) {
+    // 1. Reset all buttons
+    document.getElementById('btn-dash-top-all').className = 'btn btn-outline';
+    document.getElementById('btn-dash-top-star').className = 'btn btn-outline';
+    document.getElementById('btn-dash-top-pen').className = 'btn btn-outline';
+    
+    document.getElementById('btn-dash-top-star').style.background = 'transparent';
+    document.getElementById('btn-dash-top-star').style.color = '#D97706';
+    document.getElementById('btn-dash-top-pen').style.background = 'transparent';
+    document.getElementById('btn-dash-top-pen').style.color = '#4338CA';
+
+    let sortKey = 'score';
+    let ptsColor = 'var(--primary)';
+    
+    // 2. Apply active styling and set parameters
+    if (type === 'all') {
+        document.getElementById('btn-dash-top-all').className = 'btn btn-primary';
+        document.getElementById('dash-top-pts-label').innerText = 'TOTAL POINTS';
+    } else if (type === 'star') {
+        const btn = document.getElementById('btn-dash-top-star');
+        btn.className = 'btn'; btn.style.background = '#D97706'; btn.style.color = 'white';
+        sortKey = 'star';
+        ptsColor = '#D97706';
+        document.getElementById('dash-top-pts-label').innerText = 'STAR POINTS';
+    } else if (type === 'pen') {
+        const btn = document.getElementById('btn-dash-top-pen');
+        btn.className = 'btn'; btn.style.background = '#4338CA'; btn.style.color = 'white';
+        sortKey = 'pen';
+        ptsColor = '#4338CA';
+        document.getElementById('dash-top-pts-label').innerText = 'PEN POINTS';
+    }
+
+    if (!window.globalDashCandidates) return;
+    
+    // 3. Filter (greater than 0), Sort, and grab top 5
+    let sortedParts = window.globalDashCandidates
+        .filter(c => c[sortKey] > 0)
+        .sort((a, b) => b[sortKey] - a[sortKey])
+        .slice(0, 5);
+
+    const candListEl = document.getElementById('dash-top-candidates');
+    if (sortedParts.length > 0) {
+        candListEl.innerHTML = sortedParts.map((c, i) => {
+            let rClass = i===0 ? 'r1' : i===1 ? 'r2' : i===2 ? 'r3' : 'other';
+            return `
+            <div class="top-cand-row">
+                <div style="display: flex; align-items: center;">
+                    <div class="cand-rank ${rClass}">${i+1}</div>
+                    <span style="font-weight: 600; font-size: 0.9rem; text-transform: uppercase;">${c.name}</span>
+                </div>
+                <span style="font-weight: 800; color: ${ptsColor}; font-size: 1.05rem;">${c[sortKey]}</span>
+            </div>
+        `}).join('');
+    } else {
+        const typeName = type === 'all' ? 'total' : type;
+        candListEl.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 2rem 1rem;">No ${typeName} points awarded yet.</p>`;
+    }
+};
 
 function renderDashCharts(sortedTeams) {
     if (dashRegChart) dashRegChart.destroy();
