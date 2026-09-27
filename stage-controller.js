@@ -34,7 +34,8 @@ async function initializeApp() {
     if (user.role === 'master_admin' || user.role === 'admin') {
         const navActions = document.querySelector('.nav-actions');
         if (navActions) {
-            navActions.insertAdjacentHTML('afterbegin', `<button class="btn btn-primary" onclick="window.location.href='admin.html'"><i class="fa-solid fa-shield-halved"></i> Admin Hub</button>`);
+            // Added as an icon button to match the rest of the floating pill dock
+            navActions.insertAdjacentHTML('afterbegin', `<button class="btn btn-outline" onclick="window.location.href='admin.html'" style="color: var(--primary);"><i class="fa-solid fa-shield-halved"></i></button>`);
         }
     }
     
@@ -567,10 +568,9 @@ async function loadCheckedInList(compId) {
     listContainer.innerHTML = html;
 }
 
-async function changeCompetitionState(compId, newStatus, btnElement, loadingText) {
-    if (newStatus === 'ongoing' && !confirm("Lock registration and start the event?")) return;
-    if (newStatus === 'judgement_complete' && !confirm("End competition? This locks marks and notifies the Manager.")) return;
 
+// Internal core function to execute state changes
+async function executeStateChange(compId, newStatus, btnElement, loadingText) {
     const originalHTML = btnElement.innerHTML;
     btnElement.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${loadingText}...`;
     btnElement.disabled = true;
@@ -600,33 +600,48 @@ async function changeCompetitionState(compId, newStatus, btnElement, loadingText
     }
 }
 
-async function cancelRegistration(compId, btn) {
-    try {
-        if (!confirm("WARNING: THIS WILL CANCEL REGISTRATION AND REMOVE ANY SCANNED PARTICIPANTS. PROCEED?")) return;
-        
-        const originalHTML = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CANCELLING...';
-        btn.disabled = true;
-
-        const { error: resetError } = await supabaseClient
-            .from('participant_competitions')
-            .update({ is_present: false, code_letter: null })
-            .eq('competition_id', compId);
-            
-        if (resetError) throw resetError;
-        
-        await changeCompetitionState(compId, 'pending', btn, 'CANCELLING');
-    } catch (err) {
-        showToast("ERROR CANCELLING: " + err.message, "error");
-        btn.innerHTML = '<i class="fa-solid fa-xmark"></i> CANCEL REGISTRATION';
-        btn.disabled = false;
+// Wrapper function mapped to UI buttons
+async function changeCompetitionState(compId, newStatus, btnElement, loadingText) {
+    if (newStatus === 'ongoing' || newStatus === 'judgement_complete') {
+        let title = newStatus === 'ongoing' ? "Start Event?" : "End Event?";
+        let text = newStatus === 'ongoing' ? "Lock registration and start the event?" : "End competition? This locks marks and notifies the Manager.";
+        openConfirmModal(title, text, () => {
+            executeStateChange(compId, newStatus, btnElement, loadingText);
+        });
+    } else {
+        executeStateChange(compId, newStatus, btnElement, loadingText);
     }
 }
 
-async function backToRegistration(compId, btn) {
-    if(!confirm("⚠️ Re-open the scanner? This will ERASE any submitted marks!")) return;
-    changeCompetitionState(compId, 'registration', btn, 'Reverting');
+async function cancelRegistration(compId, btn) {
+    openConfirmModal("Cancel Registration?", "WARNING: This will cancel registration and remove any scanned participants. Proceed?", async () => {
+        try {
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CANCELLING...';
+            btn.disabled = true;
+
+            const { error: resetError } = await supabaseClient
+                .from('participant_competitions')
+                .update({ is_present: false, code_letter: null })
+                .eq('competition_id', compId);
+                
+            if (resetError) throw resetError;
+            
+            await executeStateChange(compId, 'pending', btn, 'CANCELLING');
+        } catch (err) {
+            showToast("ERROR CANCELLING: " + err.message, "error");
+            btn.innerHTML = '<i class="fa-solid fa-xmark"></i> CANCEL';
+            btn.disabled = false;
+        }
+    });
 }
+
+async function backToRegistration(compId, btn) {
+    openConfirmModal("Revert to Registration?", "⚠️ Re-open the scanner? This will ERASE any submitted marks!", () => {
+        executeStateChange(compId, 'registration', btn, 'Reverting');
+    });
+}
+
 
 // Dynamic CSS for spinner
 const style = document.createElement('style');
@@ -687,7 +702,7 @@ function applyGlobalBranding(brandingData) {
         const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
         
         if (showLogo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: ${logoSize}px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '8px' : '0'}; display: inline-block; vertical-align: middle; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">`;
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: ${logoSize}px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '8px' : '0'}; display: inline-block; vertical-align: middle;">`;
         } else if (!validLogo && displayMode !== 'name') {
             html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
         }
@@ -710,3 +725,28 @@ function applyGlobalBranding(brandingData) {
 }
 
 initializeApp();
+
+// --- MODAL & AUTH UTILITIES ---
+function openConfirmModal(title, text, confirmCallback) {
+    document.getElementById('confirmModalTitle').innerText = title;
+    document.getElementById('confirmModalText').innerText = text;
+    
+    const confirmBtn = document.getElementById('confirmModalBtn');
+    confirmBtn.onclick = () => {
+        closeConfirmModal();
+        if (confirmCallback) confirmCallback();
+    };
+    
+    document.getElementById('confirmModal').style.display = 'flex';
+}
+
+function closeConfirmModal() {
+    document.getElementById('confirmModal').style.display = 'none';
+}
+
+function logout() {
+    openConfirmModal("Sign Out", "Are you sure you want to securely log out of the stage controller?", () => {
+        localStorage.removeItem('festUser');
+        window.location.href = 'index.html';
+    });
+}

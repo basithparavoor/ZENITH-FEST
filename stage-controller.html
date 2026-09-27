@@ -115,14 +115,13 @@ body, input, button, select, .toast, .card-title {
     letter-spacing: -0.01em;
 }
 
-/* Fixed Bottom Action Bar -> Floating iOS Pill */
+/* Fixed Bottom Action Bar -> Floating iOS Icon Pill */
 .nav-actions { 
     position: fixed; 
     bottom: calc(1.5rem + env(safe-area-inset-bottom)); 
     left: 50%; 
     transform: translateX(-50%);
-    width: calc(100% - 2rem); 
-    max-width: 400px;
+    width: 160px; /* Constrained width for icon-only layout */
     background: rgba(255, 255, 255, 0.95); 
     backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
     z-index: 100;
@@ -135,10 +134,13 @@ body, input, button, select, .toast, .card-title {
 .nav-actions .btn { 
     flex: 1; 
     min-height: 48px; 
-    font-size: 0.9rem; 
+    font-size: 1.25rem; /* Larger font size for icons */
     border-radius: 100px; 
-    letter-spacing: 0.02em; 
     margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* --- MAIN CONTAINER --- */
@@ -367,17 +369,34 @@ body, input, button, select, .toast, .card-title {
             </main>
     </div>
     
+    <!-- Floating Icon-Only Nav Pill -->
     <div class="nav-actions">
-        <button class="btn btn-outline" onclick="loadDashboard()" style="color: var(--primary);"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
-        <button class="btn btn-danger" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+        <button class="btn btn-outline" onclick="loadDashboard()" style="color: var(--primary);"><i class="fa-solid fa-rotate-right"></i></button>
+        <button class="btn btn-danger" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i></button>
     </div>
 
+    <!-- Scanner Bottom Sheet -->
     <div id="scanner-modal" class="modal-overlay">
         <div class="modal-content">
             <button class="modal-close" onclick="closeScannerModal()"><i class="fa-solid fa-xmark"></i></button>
             <h2 id="modal-comp-name" style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.01em; color: var(--text-main);">Scanning Participants</h2>
             <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1rem; font-weight: 500;">Point camera at participant QR code</p>
             <div id="global-reader"></div>
+        </div>
+    </div>
+
+    <!-- Premium Action Confirmation Bottom Sheet -->
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal-content">
+            <div style="font-size: 3.5rem; color: var(--warning); margin-bottom: 1rem;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h2 style="margin-bottom: 0.5rem; font-size: 1.5rem; font-weight: 700; color: var(--text-main);" id="confirmModalTitle">Are you sure?</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 0.95rem; font-weight: 500;" id="confirmModalText">This action cannot be undone.</p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button class="btn btn-outline" style="flex: 1; border-radius: 14px;" onclick="closeConfirmModal()">Cancel</button>
+                <button class="btn btn-danger" style="flex: 1; background: var(--danger); color: white; border: none; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3); border-radius: 14px;" id="confirmModalBtn">Yes, Proceed</button>
+            </div>
         </div>
     </div>
 
