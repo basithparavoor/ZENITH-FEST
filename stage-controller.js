@@ -294,38 +294,40 @@ function getButtonsForStatus(comp) {
     const safeName = comp.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
     if (comp.status === 'pending') {
-        return `<button class="btn btn-primary" onclick="changeCompetitionState('${comp.id}', 'registration', this, 'STARTING')"><i class="fa-solid fa-qrcode"></i> START REGISTRATION</button>`;
+        return `
+            <div>
+                <button class="btn btn-primary btn-full" onclick="changeCompetitionState('${comp.id}', 'registration', this, 'STARTING')"><i class="fa-solid fa-qrcode"></i> START REGISTRATION</button>
+            </div>
+        `;
     }
     
     if (comp.status === 'registration') {
         return `
             <div>
-                <button class="btn btn-outline" style="color: var(--primary); border-color: var(--primary);" onclick="openScannerModal('${comp.id}', '${safeName}')" title="SCAN QR"><i class="fa-solid fa-expand"></i> SCAN QR</button>
+                <button class="btn btn-outline btn-full" style="color: var(--primary); border-color: var(--primary); margin-bottom: 0.25rem !important;" onclick="openScannerModal('${comp.id}', '${safeName}')" title="SCAN QR"><i class="fa-solid fa-expand"></i> SCAN QR</button>
+                <button class="btn btn-danger" onclick="cancelRegistration('${comp.id}', this)"><i class="fa-solid fa-xmark"></i> CANCEL</button>
                 <button class="btn btn-success" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'STARTING')"><i class="fa-solid fa-play"></i> START EVENT</button>
-                <button class="btn btn-danger" onclick="cancelRegistration('${comp.id}', this)"><i class="fa-solid fa-xmark"></i> CANCEL REGISTRATION</button>
             </div>
         `;
     }
     
     if (comp.status === 'ongoing') {
-        // --- NEW: OFFSTAGE EVENT WORKFLOW ---
         if (comp.is_offstage) {
             return `
                 <div>
-                    <button class="btn btn-outline" onclick="backToRegistration('${comp.id}', this)"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT TO REGISTRATION</button>
-                    <button class="btn btn-warning" onclick="changeCompetitionState('${comp.id}', 'valuation', this, 'ENDING')"><i class="fa-solid fa-file-export"></i> END EVENT & SEND TO VALUATION</button>
+                    <button class="btn btn-outline btn-full" onclick="backToRegistration('${comp.id}', this)" style="margin-bottom: 0.25rem !important;"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT TO REGISTRATION</button>
+                    <button class="btn btn-warning btn-full" onclick="changeCompetitionState('${comp.id}', 'valuation', this, 'ENDING')"><i class="fa-solid fa-file-export"></i> SEND TO VALUATION</button>
                 </div>
             `;
         } else {
-            // --- STANDARD EVENT WORKFLOW ---
             const hasMarks = comp.judgements && comp.judgements.some(j => j.awarded_mark !== null);
             const endBtn = hasMarks 
-                ? `<button class="btn btn-warning" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'ENDING')"><i class="fa-solid fa-flag-checkered"></i> END COMPETITION</button>`
-                : `<button class="btn btn-outline" style="opacity: 0.6; pointer-events: none;" disabled><i class="fa-solid fa-hourglass-half"></i> AWAITING JUDGES...</button>`;
+                ? `<button class="btn btn-warning" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'ENDING')"><i class="fa-solid fa-flag-checkered"></i> END EVENT</button>`
+                : `<button class="btn btn-outline" style="opacity: 0.6; pointer-events: none;" disabled><i class="fa-solid fa-hourglass-half"></i> AWAITING...</button>`;
 
             return `
                 <div>
-                    <button class="btn btn-outline" onclick="backToRegistration('${comp.id}', this)"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT TO REGISTRATION</button>
+                    <button class="btn btn-outline" onclick="backToRegistration('${comp.id}', this)"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT</button>
                     ${endBtn}
                 </div>
             `;
@@ -335,17 +337,17 @@ function getButtonsForStatus(comp) {
     if (comp.status === 'valuation') {
         const hasMarks = comp.judgements && comp.judgements.some(j => j.awarded_mark !== null);
         const endBtn = hasMarks 
-            ? `<button class="btn btn-success" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'SUBMITTING')"><i class="fa-solid fa-check-double"></i> MARKS RECEIVED - SEND TO MANAGER</button>`
-            : `<button class="btn btn-outline" style="opacity: 0.6; pointer-events: none;" disabled><i class="fa-solid fa-hourglass-half"></i> AWAITING VALUATION MARKS...</button>`;
+            ? `<button class="btn btn-success" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'SUBMITTING')"><i class="fa-solid fa-check-double"></i> SUBMIT MARKS</button>`
+            : `<button class="btn btn-outline" style="opacity: 0.6; pointer-events: none;" disabled><i class="fa-solid fa-hourglass-half"></i> AWAITING MARKS</button>`;
         return `
             <div>
-                <button class="btn btn-outline" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'REVERTING')"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT TO ONGOING</button>
+                <button class="btn btn-outline" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'REVERTING')"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT</button>
                 ${endBtn}
             </div>
         `;
     }
     
-    return `<div style="color: var(--primary); font-size: 0.95rem; font-weight: 700; width: 100%; text-align: center; background: var(--primary-light); padding: 1.25rem; border-radius: 12px; border: 1px dashed rgba(79, 70, 229, 0.3);">EVENT COMPLETED. WAITING FOR MANAGER.</div>`;
+    return `<div style="color: var(--primary); font-size: 0.95rem; font-weight: 700; width: 100%; text-align: center; background: var(--primary-light); padding: 1.25rem; border-radius: 16px; border: 1px dashed rgba(79, 70, 229, 0.3);">EVENT COMPLETED. WAITING FOR MANAGER.</div>`;
 }
 
 async function openScannerModal(compId, compName) {

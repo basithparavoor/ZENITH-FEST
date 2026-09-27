@@ -12,7 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
     
     <style>
-      :root {
+        :root {
     /* Refined Premium Palette */
     --primary: #3B82F6;
     --primary-hover: #2563EB;
@@ -115,19 +115,31 @@ body, input, button, select, .toast, .card-title {
     letter-spacing: -0.01em;
 }
 
-/* Fixed Bottom Action Bar */
+/* Fixed Bottom Action Bar -> Floating iOS Pill */
 .nav-actions { 
     position: fixed; 
-    bottom: 0; left: 0; right: 0; 
+    bottom: calc(1.5rem + env(safe-area-inset-bottom)); 
+    left: 50%; 
+    transform: translateX(-50%);
+    width: calc(100% - 2rem); 
+    max-width: 400px;
     background: rgba(255, 255, 255, 0.95); 
-    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
     z-index: 100;
-    padding: 1rem 1.25rem calc(1rem + env(safe-area-inset-bottom)) 1.25rem;
-    display: flex; gap: 0.75rem;
-    box-shadow: var(--shadow-bottom-nav);
-    border-top: 1px solid rgba(226, 232, 240, 0.6);
+    padding: 0.5rem;
+    display: flex; gap: 0.5rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 100px;
 }
-.nav-actions .btn { flex: 1; min-height: 52px; font-size: 0.95rem; letter-spacing: 0.02em; }
+.nav-actions .btn { 
+    flex: 1; 
+    min-height: 48px; 
+    font-size: 0.9rem; 
+    border-radius: 100px; 
+    letter-spacing: 0.02em; 
+    margin: 0;
+}
 
 /* --- MAIN CONTAINER --- */
 .container { 
@@ -161,12 +173,13 @@ body, input, button, select, .toast, .card-title {
 
 /* --- MOBILE CARDS --- */
 .card { 
-    background: var(--bg-surface); 
-    border-radius: var(--radius-xl); 
+    background: rgba(255, 255, 255, 0.95); 
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-radius: 24px; 
     padding: 1.5rem; 
     margin-bottom: 1.25rem; 
-    box-shadow: var(--shadow-card); 
-    border: 1px solid var(--border);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04); 
+    border: 1px solid rgba(255, 255, 255, 0.8);
     animation: fadeUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
     transition: var(--transition);
 }
@@ -202,10 +215,23 @@ body, input, button, select, .toast, .card-title {
 .btn-outline { background: var(--bg-surface); border-color: var(--border); color: var(--text-main); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
 .btn-outline:hover { background: var(--bg-main); border-color: var(--primary); color: var(--primary); }
 
-/* Stack buttons inside controls container seamlessly */
-[id^="controls-"] { display: flex; flex-direction: column; gap: 0.75rem; width: 100%; margin-top: 1.25rem; }
-[id^="controls-"] > div { display: flex; flex-direction: column; gap: 0.75rem; width: 100%; }
-[id^="controls-"] button { width: 100% !important; margin: 0 !important; }
+/* Stack buttons inside controls container using Grid */
+[id^="controls-"] { margin-top: 1.25rem; width: 100%; }
+[id^="controls-"] > div { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 0.5rem; 
+    width: 100%; 
+}
+[id^="controls-"] button { 
+    width: 100% !important; 
+    margin: 0 !important; 
+    min-height: 48px; 
+    font-size: 0.85rem !important; 
+    border-radius: 14px;
+}
+/* Utility class to make primary buttons span the full width of the card */
+.btn-full { grid-column: 1 / -1; }
 
 /* --- BADGES --- */
 .badge { padding: 0.35rem 0.85rem; border-radius: 50px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 0.4rem;}
@@ -270,7 +296,7 @@ body, input, button, select, .toast, .card-title {
 /* --- TOAST MESSAGING --- */
 #toast-container { 
     position: fixed; 
-    bottom: calc(90px + env(safe-area-inset-bottom)); /* Sits right above the nav-actions */
+    bottom: calc(100px + env(safe-area-inset-bottom)); 
     right: 1rem; left: 1rem; 
     z-index: 9999; display: flex; flex-direction: column; gap: 0.75rem; pointer-events: none; 
 }
@@ -290,7 +316,7 @@ body, input, button, select, .toast, .card-title {
         min-height: 52px;
     }
 }
-  </style>
+    </style>    
 </head>
 <body>
 
