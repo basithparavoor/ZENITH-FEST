@@ -22,8 +22,11 @@ async function initializeApp() {
     document.getElementById('judge-name').innerText = `Welcome, ${user.username || user.email} ${roleDisplay}`;
 
     if (user.role === 'master_admin' || user.role === 'admin') {
-        const nav = document.querySelector('.navbar-actions');
-        nav.insertAdjacentHTML('afterbegin', `<button class="btn btn-primary" style="padding: 0.5rem; height: 40px; min-width: 40px;" onclick="window.location.href='admin.html'" title="Admin Hub"><i class="fa-solid fa-shield-halved"></i></button>`);
+        const nav = document.getElementById('global-nav');
+        if (nav) {
+            nav.style.width = '240px'; // Expand pill slightly to hold 3 buttons
+            nav.insertAdjacentHTML('afterbegin', `<button class="btn btn-outline" style="color: var(--primary);" onclick="window.location.href='admin.html'" title="Admin Hub"><i class="fa-solid fa-shield-halved"></i></button>`);
+        }
     }
 
     loadDashboard(); 
@@ -196,6 +199,7 @@ async function openEvaluation(compId) {
 
     document.getElementById('dashboard-view').style.display = 'none';
     document.getElementById('evaluation-view').style.display = 'block';
+    document.getElementById('global-nav').style.display = 'none';
     document.getElementById('eval-comp-name').innerText = comp.name;
     document.getElementById('eval-max-mark').innerText = currentMaxMark;
     window.scrollTo(0, 0); // Reset scroll position
@@ -330,6 +334,7 @@ async function submitJudgement() {
 function closeEvaluation() {
     document.getElementById('evaluation-view').style.display = 'none';
     document.getElementById('dashboard-view').style.display = 'block';
+    document.getElementById('global-nav').style.display = 'flex';
     currentCompId = null;
     const btn = document.getElementById('submit-btn');
     btn.disabled = false;
@@ -337,11 +342,30 @@ function closeEvaluation() {
     window.scrollTo(0, 0);
 }
 
-function logout() {
-    localStorage.removeItem('festUser');
-    window.location.href = 'index.html';
+// --- MODAL & AUTH UTILITIES ---
+function openConfirmModal(title, text, confirmCallback) {
+    document.getElementById('confirmModalTitle').innerText = title;
+    document.getElementById('confirmModalText').innerText = text;
+    
+    const confirmBtn = document.getElementById('confirmModalBtn');
+    confirmBtn.onclick = () => {
+        closeConfirmModal();
+        if (confirmCallback) confirmCallback();
+    };
+    
+    document.getElementById('confirmModal').style.display = 'flex';
 }
 
+function closeConfirmModal() {
+    document.getElementById('confirmModal').style.display = 'none';
+}
+
+function logout() {
+    openConfirmModal("Sign Out", "Are you sure you want to securely log out of the judge portal?", () => {
+        localStorage.removeItem('festUser');
+        window.location.href = 'index.html';
+    });
+}
 function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
     if (!container) return alert(message); // Fallback
@@ -414,9 +438,8 @@ function applyGlobalBranding(brandingData) {
         const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
         const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
         
-        // Dynamic Logo Sizing
         if (showLogo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">`;
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; display: inline-block; vertical-align: middle;">`;
         } else if (!validLogo && displayMode !== 'name') {
             html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
         }
