@@ -538,32 +538,51 @@
             requestAnimationFrame(animateStardust);
         }
 
+        function applyDisplayBranding(brandData) {
+            if (!brandData) return;
+            systemBranding = brandData;
+            const validName = systemBranding.fest_name && systemBranding.fest_name.trim() !== '';
+            const validLogo = systemBranding.fest_logo && systemBranding.fest_logo.trim() !== '';
+            const displayMode = systemBranding.display_mode || 'both';
+
+            // 1. Dynamic Page Title
+            document.title = validName ? `${systemBranding.fest_name} | Live Display` : 'Live Display';
+
+            // 2. Global Favicon Injection (Dynamically inject uploaded Fest Logo as Favicon)
+            if (validLogo) {
+                let iconLinks = document.querySelectorAll("link[rel~='icon']");
+                if (iconLinks.length === 0) {
+                    let newIcon = document.createElement('link');
+                    newIcon.rel = 'icon';
+                    document.head.appendChild(newIcon);
+                    iconLinks = [newIcon];
+                }
+                iconLinks.forEach(link => link.href = systemBranding.fest_logo);
+            }
+
+            // 3. Header Branding Area
+            const brandContainer = document.getElementById('branding-header-left');
+            if (brandContainer) {
+                let brandHtml = '';
+                if (displayMode === 'logo' && validLogo) {
+                    brandHtml = `<img src="${systemBranding.fest_logo}" style="height: 60px; object-fit: contain;">`;
+                } else if (displayMode === 'name' && validName) {
+                    brandHtml = `<h1 class="theme-font" style="font-size: 2.2rem; font-weight: 800; color: #FFFFFF; letter-spacing: -0.01em;">${systemBranding.fest_name}</h1>`;
+                } else {
+                    const logoPart = validLogo ? `<img src="${systemBranding.fest_logo}" style="height: 60px; object-fit: contain; margin-right: 15px;">` : '';
+                    const namePart = validName ? `<h1 class="theme-font" style="font-size: 2.2rem; font-weight: 800; color: #FFFFFF; letter-spacing: -0.01em;">${systemBranding.fest_name}</h1>` : '';
+                    brandHtml = `<div style="display:flex; align-items:center;">${logoPart}${namePart}</div>`;
+                }
+                brandContainer.innerHTML = brandHtml;
+            }
+        }
+
         async function fetchDisplayData() {
             try {
-                // Strict Branding Injection
+                // Strict Branding Injection & Favicon Sync
                 const { data: brandData } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
                 if (brandData && brandData.value) {
-                    systemBranding = brandData.value;
-                    const validName = systemBranding.fest_name && systemBranding.fest_name.trim() !== '';
-                    const validLogo = systemBranding.fest_logo && systemBranding.fest_logo.trim() !== '';
-                    const displayMode = systemBranding.display_mode || 'both';
-
-                    document.title = validName ? `${systemBranding.fest_name} | Display` : 'Display';
-
-                    const brandContainer = document.getElementById('branding-header-left');
-                    if (brandContainer) {
-                        let brandHtml = '';
-                        if (displayMode === 'logo' && validLogo) {
-                            brandHtml = `<img src="${systemBranding.fest_logo}" style="height: 60px; object-fit: contain;">`;
-                        } else if (displayMode === 'name' && validName) {
-                            brandHtml = `<h1 class="theme-font" style="font-size: 2.2rem; font-weight: 800; color: #FFFFFF; letter-spacing: -0.01em;">${systemBranding.fest_name}</h1>`;
-                        } else {
-                            const logoPart = validLogo ? `<img src="${systemBranding.fest_logo}" style="height: 60px; object-fit: contain;">` : '';
-                            const namePart = validName ? `<h1 class="theme-font" style="font-size: 2.2rem; font-weight: 800; color: #FFFFFF; letter-spacing: -0.01em;">${systemBranding.fest_name}</h1>` : '';
-                            brandHtml = `${logoPart} ${namePart}`;
-                        }
-                        brandContainer.innerHTML = brandHtml;
-                    }
+                    applyDisplayBranding(brandData.value);
                 }
 
                 const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
@@ -1379,6 +1398,14 @@
                 }
             }
         });
+
+        // Fast initial branding & favicon injection
+        (async function initQuickBranding() {
+            try {
+                const { data } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
+                if (data && data.value) applyDisplayBranding(data.value);
+            } catch(e) {}
+        })();
 
         // Initialize display and scaling
         autoScaleDisplay();
