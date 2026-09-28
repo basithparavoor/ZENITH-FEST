@@ -513,12 +513,178 @@
         .footer-links a:hover { color: var(--primary); }
         .copyright { font-size: 0.82rem; color: var(--text-dim); }
 
-        /* Schedule Table */
-        .schedule-table-container { background: var(--surface); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); border: 1px solid var(--surface-border); overflow: hidden; margin-bottom: 3rem;}
+        /* Schedule Table & Modern Mobile View */
+        .schedule-table-container { background: var(--surface); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); border: 1px solid var(--surface-border); overflow: hidden; margin-bottom: 2.5rem;}
         .schedule-table { width: 100%; border-collapse: collapse; text-align: left; }
-        .schedule-table th { padding: 1rem 1.5rem; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); background: var(--bg-light); border-bottom: 1px solid var(--surface-border); text-transform: uppercase; }
-        .schedule-table td { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--surface-border); font-size: 0.92rem; font-weight: 600; color: var(--text-main); }
+        .schedule-table th { padding: 1rem 1.5rem; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); background: var(--bg-light); border-bottom: 1px solid var(--surface-border); text-transform: uppercase; letter-spacing: 0.04em; }
+        .schedule-table td { padding: 1.15rem 1.5rem; border-bottom: 1px solid var(--surface-border); font-size: 0.92rem; font-weight: 600; color: var(--text-main); }
         .schedule-table tr:last-child td { border-bottom: none; }
+        .schedule-table tr:hover td { background: rgba(59, 130, 246, 0.02); }
+
+        .sched-controls-bar {
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-xl);
+            padding: 1rem 1.25rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .sched-search-box {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: var(--bg-light);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-lg);
+            padding: 0.65rem 1.15rem;
+            flex: 1;
+            min-width: 240px;
+        }
+        .sched-search-box i { color: var(--text-muted); font-size: 0.95rem; }
+        .sched-search-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            width: 100%;
+            font-size: 0.92rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+        .sched-filter-group {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .sched-filter-group select {
+            background: var(--bg-light);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-lg);
+            padding: 0.65rem 1rem;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-main);
+            outline: none;
+            cursor: pointer;
+        }
+        .sched-date-chips-bar {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        .sched-date-chips-bar::-webkit-scrollbar { display: none; }
+        .sched-date-chip {
+            padding: 0.5rem 1.15rem;
+            border-radius: 50px;
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .sched-date-chip.active, .sched-date-chip:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        /* Mobile Schedule Cards */
+        .mobile-schedule-cards {
+            display: none;
+            flex-direction: column;
+            gap: 0.85rem;
+            margin-bottom: 2.5rem;
+        }
+        .sched-card {
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-xl);
+            padding: 1.15rem 1.25rem;
+            box-shadow: var(--shadow-sm);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+            border-left: 5px solid var(--primary);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .sched-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .sched-card-time-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 0.35rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+        }
+        .sched-card-date-badge {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .sched-card-title {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--text-main);
+            line-height: 1.35;
+            text-transform: uppercase;
+        }
+        .sched-card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            align-items: center;
+            margin-top: 0.2rem;
+        }
+        .sched-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem 0.7rem;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            border: 1px solid var(--surface-border);
+            text-transform: uppercase;
+        }
+        .sched-pill.stage {
+            background: #EFF6FF;
+            color: #1D4ED8;
+            border-color: #BFDBFE;
+        }
+        .sched-pill.cat {
+            background: var(--bg-light);
+            color: var(--text-muted);
+        }
 
         /* Password Overlay Gate */
         #password-gate-overlay {
@@ -726,14 +892,40 @@
 
         <!-- SCHEDULE TAB -->
         <div id="view-schedule" class="view-section">
-            <h2 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 0.5rem; text-align: center; text-transform: uppercase;">Official Stage Schedule</h2>
-            <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem; font-weight: 600; text-transform: uppercase;">Real-time scheduled timings for all stages.</p>
-            
-            <div class="schedule-table-container">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <h2 style="font-size: 1.85rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.35rem; text-transform: uppercase;">
+                    <i class="fa-solid fa-calendar-days" style="color: var(--primary); margin-right: 8px;"></i> Official Stage Schedule
+                </h2>
+                <p style="color: var(--text-muted); font-weight: 600; font-size: 0.92rem; text-transform: uppercase;">Real-time scheduled timings, venues, and stage lineups</p>
+            </div>
+
+            <!-- Schedule Search & Filter Bar -->
+            <div class="sched-controls-bar">
+                <div class="sched-search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="sched-search-input" placeholder="Search events, venues, stages..." oninput="filterPublicSchedule()">
+                </div>
+                <div class="sched-filter-group">
+                    <select id="sched-stage-filter" onchange="filterPublicSchedule()">
+                        <option value="">All Stages / Venues</option>
+                    </select>
+                    <select id="sched-cat-filter" onchange="filterPublicSchedule()">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Date Filter Chips Bar -->
+            <div id="sched-date-chips" class="sched-date-chips-bar">
+                <!-- Dynamically populated e.g. [ All Dates ] [ 28 Sep ] [ 29 Sep ] -->
+            </div>
+
+            <!-- Desktop View: Polished Table -->
+            <div class="schedule-table-container desktop-schedule-table">
                 <table class="schedule-table">
                     <thead>
                         <tr>
-                            <th>TIMING</th>
+                            <th>DATE & TIMING</th>
                             <th>COMPETITION</th>
                             <th>CATEGORY</th>
                             <th>STAGE / VENUE</th>
@@ -743,6 +935,11 @@
                         <tr><td colspan="4" style="text-align:center; padding: 2.5rem; color: var(--text-muted);"><span class="loading-pulse"></span> Loading schedule...</td></tr>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Mobile View: Modern Schedule Timeline Cards -->
+            <div id="public-schedule-mobile-cards" class="mobile-schedule-cards">
+                <!-- Dynamically rendered mobile cards -->
             </div>
         </div>
 
@@ -1439,14 +1636,19 @@
             }
         }
 
-        // --- Fetch Schedule ---
+        // --- Fetch & Render Public Schedule ---
+        window.allPublicScheduledItems = [];
+        window.activeScheduleDateFilter = '';
+
         async function loadPublicSchedule() {
             const tbody = document.getElementById('public-schedule-tbody');
+            const mobileCards = document.getElementById('public-schedule-mobile-cards');
+            
             try {
                 const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
                 const masterSchedule = schedData?.value || {};
                 
-                const { data: comps } = await supabaseClient.from('competitions').select('id, name, categories(name), stages(name)');
+                const { data: comps } = await supabaseClient.from('competitions').select('id, name, is_group, categories(id, name), stages(id, name)');
                 
                 let scheduledItems = Object.keys(masterSchedule).map(compId => {
                     const comp = (comps || []).find(c => c.id == compId);
@@ -1458,26 +1660,159 @@
                     return (a.sched.time || '').localeCompare(b.sched.time || '');
                 });
 
-                if (scheduledItems.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2.5rem; color: var(--text-muted); text-transform: uppercase;">No events scheduled yet.</td></tr>`;
-                    return;
+                window.allPublicScheduledItems = scheduledItems;
+
+                // 1. Populate Date Chips
+                const distinctDates = [...new Set(scheduledItems.map(i => i.sched.date).filter(Boolean))].sort();
+                const dateChipsContainer = document.getElementById('sched-date-chips');
+                if (dateChipsContainer) {
+                    dateChipsContainer.innerHTML = `
+                        <button type="button" class="sched-date-chip ${window.activeScheduleDateFilter === '' ? 'active' : ''}" onclick="setScheduleDateFilter('', this)">
+                            <i class="fa-solid fa-layer-group"></i> All Dates (${scheduledItems.length})
+                        </button>
+                        ${distinctDates.map(d => `
+                            <button type="button" class="sched-date-chip ${window.activeScheduleDateFilter === d ? 'active' : ''}" onclick="setScheduleDateFilter('${d}', this)">
+                                <i class="fa-regular fa-calendar"></i> ${d}
+                            </button>
+                        `).join('')}
+                    `;
                 }
 
-                tbody.innerHTML = scheduledItems.map(item => `
-                    <tr>
-                        <td>
-                            <span style="color: var(--primary); font-weight: 700;">${item.sched.date || 'TBD'}</span><br>
-                            <span style="font-size: 0.82rem; color: var(--text-muted);">${item.sched.time || ''} ${item.sched.to_time ? '- ' + item.sched.to_time : ''}</span>
-                        </td>
-                        <td style="font-weight: 700; color: var(--text-main); text-transform: uppercase;">${item.comp.name}</td>
-                        <td><span class="badge" style="background: var(--bg-light); padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid var(--surface-border); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">${item.comp.categories?.name || 'GENERAL'}</span></td>
-                        <td style="font-weight: 600; color: var(--text-muted); text-transform: uppercase;"><i class="fa-solid fa-microphone-stage" style="margin-right: 4px; color: var(--primary);"></i> ${item.comp.stages?.name || 'STAGE 1'}</td>
-                    </tr>
-                `).join('');
+                // 2. Populate Stage Filter Dropdown
+                const distinctStages = [...new Set(scheduledItems.map(i => i.comp.stages?.name).filter(Boolean))].sort();
+                const stageSelect = document.getElementById('sched-stage-filter');
+                if (stageSelect) {
+                    const currVal = stageSelect.value;
+                    stageSelect.innerHTML = '<option value="">All Stages / Venues</option>' + distinctStages.map(s => `<option value="${s}">${s}</option>`).join('');
+                    stageSelect.value = currVal;
+                }
+
+                // 3. Populate Category Filter Dropdown
+                const distinctCats = [...new Set(scheduledItems.map(i => i.comp.categories?.name).filter(Boolean))].sort();
+                const catSelect = document.getElementById('sched-cat-filter');
+                if (catSelect) {
+                    const currVal = catSelect.value;
+                    catSelect.innerHTML = '<option value="">All Categories</option>' + distinctCats.map(c => `<option value="${c}">${c}</option>`).join('');
+                    catSelect.value = currVal;
+                }
+
+                renderPublicSchedule(scheduledItems);
 
             } catch (err) {
                 console.error(err);
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #EF4444; padding: 2rem; text-transform: uppercase;">Failed to load schedule.</td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #EF4444; padding: 2rem; text-transform: uppercase;">Failed to load schedule.</td></tr>`;
+                if (mobileCards) mobileCards.innerHTML = `<div style="text-align:center; color:#EF4444; padding:2rem; font-weight:700;">Failed to load schedule.</div>`;
+            }
+        }
+
+        window.setScheduleDateFilter = function(dateVal, chipEl) {
+            window.activeScheduleDateFilter = dateVal;
+            const allChips = document.querySelectorAll('.sched-date-chip');
+            allChips.forEach(c => c.classList.remove('active'));
+            if (chipEl) chipEl.classList.add('active');
+            filterPublicSchedule();
+        };
+
+        window.filterPublicSchedule = function() {
+            const query = (document.getElementById('sched-search-input')?.value || '').toLowerCase().trim();
+            const stage = document.getElementById('sched-stage-filter')?.value || '';
+            const cat = document.getElementById('sched-cat-filter')?.value || '';
+            const date = window.activeScheduleDateFilter || '';
+
+            const filtered = (window.allPublicScheduledItems || []).filter(item => {
+                const compName = (item.comp.name || '').toLowerCase();
+                const stageName = (item.comp.stages?.name || '').toLowerCase();
+                const catName = (item.comp.categories?.name || '').toLowerCase();
+                const itemDate = item.sched.date || '';
+
+                const matchesQuery = !query || compName.includes(query) || stageName.includes(query) || catName.includes(query);
+                const matchesStage = !stage || (item.comp.stages?.name === stage);
+                const matchesCat = !cat || (item.comp.categories?.name === cat);
+                const matchesDate = !date || (itemDate === date);
+
+                return matchesQuery && matchesStage && matchesCat && matchesDate;
+            });
+
+            renderPublicSchedule(filtered);
+        };
+
+        function renderPublicSchedule(items) {
+            const tbody = document.getElementById('public-schedule-tbody');
+            const mobileCards = document.getElementById('public-schedule-mobile-cards');
+
+            if (items.length === 0) {
+                const emptyMsg = `
+                    <div style="text-align: center; padding: 3rem 1.5rem; color: var(--text-muted);">
+                        <i class="fa-regular fa-calendar-xmark" style="font-size: 2.5rem; margin-bottom: 0.75rem; color: var(--text-dim); display: block;"></i>
+                        <p style="font-weight: 700; font-size: 1rem; color: var(--text-main); margin-bottom: 0.25rem;">No scheduled events found</p>
+                        <p style="font-size: 0.85rem;">Try adjusting your date, stage filter, or search keywords.</p>
+                        <button class="btn btn-outline" style="margin-top: 1rem; padding: 0.4rem 1.25rem; border-radius: 50px; font-size: 0.82rem; width: auto;" onclick="document.getElementById('sched-search-input').value=''; document.getElementById('sched-stage-filter').value=''; document.getElementById('sched-cat-filter').value=''; setScheduleDateFilter('', document.querySelectorAll('.sched-date-chip')[0]);">Reset All Filters</button>
+                    </div>
+                `;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="4">${emptyMsg}</td></tr>`;
+                if (mobileCards) mobileCards.innerHTML = emptyMsg;
+                return;
+            }
+
+            // Render Desktop Table Rows
+            if (tbody) {
+                tbody.innerHTML = items.map(item => `
+                    <tr>
+                        <td>
+                            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                                <span style="color: var(--primary); font-weight: 800; font-size: 0.95rem; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-regular fa-calendar" style="font-size: 0.85rem;"></i> ${item.sched.date || 'TBD'}
+                                </span>
+                                <span style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-regular fa-clock" style="font-size: 0.8rem;"></i> ${item.sched.time || ''} ${item.sched.to_time ? '- ' + item.sched.to_time : ''}
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            <span style="font-weight: 800; color: var(--text-main); text-transform: uppercase; font-size: 0.95rem;">${item.comp.name}</span>
+                            ${item.comp.is_group ? '<span style="margin-left: 6px; background:#FDF2F8; color:#BE185D; border:1px solid #FBCFE8; padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.68rem; font-weight: 700;">GROUP</span>' : ''}
+                        </td>
+                        <td>
+                            <span class="badge" style="background: var(--bg-light); padding: 0.35rem 0.65rem; border-radius: 6px; border: 1px solid var(--surface-border); font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+                                ${item.comp.categories?.name || 'GENERAL'}
+                            </span>
+                        </td>
+                        <td>
+                            <span style="font-weight: 700; color: var(--primary); text-transform: uppercase; font-size: 0.88rem; display: flex; align-items: center; gap: 0.4rem;">
+                                <i class="fa-solid fa-microphone-stage"></i> ${item.comp.stages?.name || 'STAGE 1'}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            // Render Mobile Cards
+            if (mobileCards) {
+                mobileCards.innerHTML = items.map(item => {
+                    const timeRange = (item.sched.time ? item.sched.time : '') + (item.sched.to_time ? ' - ' + item.sched.to_time : '');
+                    return `
+                        <div class="sched-card">
+                            <div class="sched-card-header">
+                                <span class="sched-card-time-badge">
+                                    <i class="fa-regular fa-clock"></i> ${timeRange || 'TIME TBD'}
+                                </span>
+                                <span class="sched-card-date-badge">
+                                    <i class="fa-regular fa-calendar"></i> ${item.sched.date || 'DATE TBD'}
+                                </span>
+                            </div>
+                            <div class="sched-card-title">${item.comp.name}</div>
+                            <div class="sched-card-tags">
+                                <span class="sched-pill stage">
+                                    <i class="fa-solid fa-microphone-stage"></i> ${item.comp.stages?.name || 'MAIN STAGE'}
+                                </span>
+                                <span class="sched-pill cat">
+                                    <i class="fa-solid fa-tag"></i> ${item.comp.categories?.name || 'GENERAL'}
+                                </span>
+                                ${item.comp.is_group ? '<span class="sched-pill" style="background:#FDF2F8; color:#BE185D; border-color:#FBCFE8;"><i class="fa-solid fa-users"></i> GROUP</span>' : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
             }
         }
 
