@@ -3,310 +3,763 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>FestOS | ID Scanner</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 320 512%22><path fill=%22%234F46E5%22 d=%22M296 160H180.6l42.6-129.8C227.2 15 215.7 0 200 0H56C44 0 33.8 8.9 32.2 20.8l-32 240C-.5 273.6 9.3 288 24 288h118.7L96.6 482.5c-3.6 15.2 8 29.5 23.3 29.5 8.4 0 16.4-4.4 20.8-12l176-304c9.3-15.9-2.2-36-20.7-36z%22/></svg>">
-    
+    <title>FestOS | Scanner Pro</title>
+    <!-- Libraries -->
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         :root {
-            /* Refined Premium Palette */
             --primary: #3B82F6;
             --primary-hover: #2563EB;
-            --primary-light: #EFF6FF;
+            --primary-light: rgba(59, 130, 246, 0.15);
             --primary-gradient: linear-gradient(135deg, #3B82F6 0%, #6366F1 100%);
             
-            --bg-main: #000000; /* True black for camera backdrop */
-            --bg-surface: #FFFFFF;
-            --input-bg: rgba(243, 244, 246, 0.8);
+            --bg-main: #000000;
+            --bg-surface: #111827;
+            --bg-surface-elevated: #1F2937;
             
-            --text-main: #1F2937;
-            --text-muted: #6B7280;
-            --border: #E5E7EB;
+            --border: #374151;
+            --border-light: rgba(255, 255, 255, 0.1);
             
-            /* Smooth, Deep Layered Shadows */
-            --shadow-float: 0 12px 30px -8px rgba(0, 0, 0, 0.2);
-            --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-            --shadow-sheet: 0 -10px 40px rgba(0, 0, 0, 0.15);
+            --text-main: #F9FAFB;
+            --text-muted: #9CA3AF;
+            --text-dim: #6B7280;
             
-            /* Elegant Radii */
-            --radius-md: 10px;
-            --radius-lg: 14px;
-            --radius-xl: 20px;
+            --success: #10B981;
+            --success-light: rgba(16, 185, 129, 0.15);
+            --danger: #EF4444;
+            --danger-light: rgba(239, 68, 68, 0.15);
+            --warning: #F59E0B;
+            --warning-light: rgba(245, 158, 11, 0.15);
             
-            --transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            --shadow-float: 0 12px 30px -8px rgba(0, 0, 0, 0.5);
+            --shadow-sheet: 0 -10px 40px rgba(0, 0, 0, 0.6);
+            
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --radius-xl: 28px;
+            --radius-full: 9999px;
+            
+            --transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
         * { 
             margin: 0; padding: 0; box-sizing: border-box; 
-            font-family: 'Inter', sans-serif; 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
             -webkit-tap-highlight-color: transparent;
         }
 
         body { 
             background-color: var(--bg-main); 
-            height: 100vh; width: 100vw; 
-            overflow: hidden; display: flex; flex-direction: column;
+            height: 100vh; 
+            height: 100dvh; 
+            width: 100vw; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column;
             -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
 
-        /* --- GLASSMORPHIC UI OVERLAYS --- */
-        .header {
-            position: absolute; top: 0; left: 0; right: 0;
-            /* Respect iOS notch/safe areas */
-            padding: calc(1.5rem + env(safe-area-inset-top)) 1.5rem 1.5rem 1.5rem; 
-            z-index: 10;
-            background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 70%, transparent 100%);
-            color: white; text-align: center;
+        /* --- GLASS HUD OVERLAYS --- */
+        .hud-header {
+            position: absolute; 
+            top: 0; left: 0; right: 0;
+            padding: calc(1rem + env(safe-area-inset-top)) 1.25rem 1rem 1.25rem; 
+            z-index: 20;
+            background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 70%, transparent 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
         }
-        
-        .header h1 { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            font-size: 1.25rem; font-weight: 600; 
-            display: flex; align-items: center; justify-content: center; gap: 0.5rem; 
-            letter-spacing: -0.01em; text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        .hud-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            color: #FFFFFF;
+        }
+        .hud-logo {
+            height: 28px;
+            max-width: 110px;
+            object-fit: contain;
+            border-radius: var(--radius-sm);
+        }
+        .hud-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+        }
+
+        /* Top HUD Action Buttons (Torch, Camera Flip, Manual Search) */
+        .hud-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .hud-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #FFFFFF;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .hud-btn:hover, .hud-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+            transform: scale(1.05);
+        }
+        .hud-btn:active {
+            transform: scale(0.95);
         }
 
         /* --- SCANNER VIEWPORT --- */
-        #reader-container { flex: 1; position: relative; overflow: hidden; background: #000; }
-        #reader { width: 100%; height: 100%; }
-        #reader video { object-fit: cover !important; width: 100% !important; height: 100% !important; }
+        #reader-container { 
+            flex: 1; 
+            position: relative; 
+            overflow: hidden; 
+            background: #000; 
+        }
+        #reader { 
+            width: 100%; 
+            height: 100%; 
+        }
+        #reader video { 
+            object-fit: cover !important; 
+            width: 100% !important; 
+            height: 100% !important; 
+        }
         
-        /* Hide the ugly default HTML5-QR-Code UI elements */
         #reader__dashboard_section_csr span, 
-        #reader__dashboard_section_swaplink { display: none !important; }
+        #reader__dashboard_section_swaplink,
+        #reader__status_span { display: none !important; }
 
-        /* Premium Scanner Reticle */
+        /* Cyber Reticle HUD */
         .scan-overlay {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 300px; height: 300px;
+            position: absolute; 
+            top: 50%; left: 50%; 
+            transform: translate(-50%, -50%);
+            width: 280px; 
+            height: 280px;
             border: 2px solid rgba(255, 255, 255, 0.15);
             border-radius: var(--radius-xl); 
-            box-shadow: 0 0 0 4000px rgba(0,0,0,0.6), 0 0 30px rgba(255,255,255,0.05) inset;
-            z-index: 5; pointer-events: none;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            box-shadow: 0 0 0 4000px rgba(0,0,0,0.65), 0 0 40px rgba(59, 130, 246, 0.1) inset;
+            z-index: 10; 
+            pointer-events: none;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
             overflow: hidden;
         }
-        /* Scanning Laser */
+        
+        /* Laser Beam */
         .scan-overlay::before {
-            content: ''; position: absolute; width: 100%; height: 2px;
-            background: #10B981; box-shadow: 0 0 15px 2px #10B981, 0 15px 30px rgba(16, 185, 129, 0.3);
-            animation: scanline 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            content: ''; 
+            position: absolute; 
+            width: 100%; 
+            height: 2px;
+            background: #38BDF8; 
+            box-shadow: 0 0 15px 3px #38BDF8, 0 10px 25px rgba(56, 189, 248, 0.4);
+            animation: scanline 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
-        /* Corner Reticle Brackets */
+
+        /* Corner Brackets */
         .scan-overlay::after {
-            content: ''; position: absolute; inset: -2px; border-radius: var(--radius-xl);
+            content: ''; 
+            position: absolute; 
+            inset: -2px; 
+            border-radius: var(--radius-xl);
             border: 3px solid transparent;
-            background: linear-gradient(to right, white 20px, transparent 20px, transparent calc(100% - 20px), white calc(100% - 20px)) top left / 100% 20px no-repeat,
-                        linear-gradient(to right, white 20px, transparent 20px, transparent calc(100% - 20px), white calc(100% - 20px)) bottom left / 100% 20px no-repeat,
-                        linear-gradient(to bottom, white 20px, transparent 20px, transparent calc(100% - 20px), white calc(100% - 20px)) top left / 20px 100% no-repeat,
-                        linear-gradient(to bottom, white 20px, transparent 20px, transparent calc(100% - 20px), white calc(100% - 20px)) top right / 20px 100% no-repeat;
+            background: linear-gradient(to right, #38BDF8 25px, transparent 25px, transparent calc(100% - 25px), #38BDF8 calc(100% - 25px)) top left / 100% 25px no-repeat,
+                        linear-gradient(to right, #38BDF8 25px, transparent 25px, transparent calc(100% - 25px), #38BDF8 calc(100% - 25px)) bottom left / 100% 25px no-repeat,
+                        linear-gradient(to bottom, #38BDF8 25px, transparent 25px, transparent calc(100% - 25px), #38BDF8 calc(100% - 25px)) top left / 25px 100% no-repeat,
+                        linear-gradient(to bottom, #38BDF8 25px, transparent 25px, transparent calc(100% - 25px), #38BDF8 calc(100% - 25px)) top right / 25px 100% no-repeat;
+        }
+
+        .reticle-status {
+            position: absolute;
+            bottom: calc(50% - 180px);
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 12;
+            color: #94A3B8;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
         }
 
         @keyframes scanline {
             0% { top: 0; opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
+            15% { opacity: 1; }
+            85% { opacity: 1; }
             100% { top: 100%; opacity: 0; }
         }
 
-        /* --- PREMIUM BOTTOM SHEET MODAL --- */
-        .bottom-sheet {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: rgba(255, 255, 255, 0.98); 
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-radius: 32px 32px 0 0;
-            /* Respect iOS home bar safe area */
-            padding: 2rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom)) 1.5rem; 
-            z-index: 100;
-            transform: translateY(100%);
-            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+        /* --- MANUAL SEARCH DRAWER --- */
+        .manual-search-drawer {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: rgba(17, 24, 39, 0.96);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-light);
+            padding: calc(1rem + env(safe-area-inset-top)) 1.25rem 1.25rem 1.25rem;
+            z-index: 150;
+            transform: translateY(-110%);
+            transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
             box-shadow: var(--shadow-sheet);
-            max-height: 90vh; display: flex; flex-direction: column;
+        }
+        .manual-search-drawer.open {
+            transform: translateY(0);
+        }
+        .search-row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .search-input {
+            flex: 1;
+            padding: 0.85rem 1rem;
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            color: #FFFFFF;
+            font-size: 0.9rem;
+            font-weight: 600;
+            outline: none;
             text-transform: uppercase;
         }
-        .bottom-sheet.open { transform: translateY(0); }
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        /* --- BOTTOM SHEET MODAL --- */
+        .bottom-sheet {
+            position: fixed; 
+            bottom: 0; left: 0; right: 0;
+            background: var(--bg-surface); 
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            padding: 1.5rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom)) 1.25rem; 
+            z-index: 120;
+            transform: translateY(105%);
+            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            box-shadow: var(--shadow-sheet);
+            max-height: 88vh; 
+            display: flex; 
+            flex-direction: column;
+            color: var(--text-main);
+        }
+        .bottom-sheet.open { 
+            transform: translateY(0); 
+        }
         
-        /* Drag Handle */
         .sheet-handle {
-            width: 40px; height: 5px; background: #D1D5DB;
-            border-radius: 10px; margin: -10px auto 1.5rem auto;
+            width: 44px; 
+            height: 5px; 
+            background: var(--border);
+            border-radius: var(--radius-full); 
+            margin: -0.5rem auto 1.25rem auto;
+            cursor: pointer;
         }
 
-        .profile-header { display: flex; gap: 1.25rem; margin-bottom: 1.5rem; align-items: flex-start; }
+        .profile-card {
+            display: flex; 
+            gap: 1rem; 
+            margin-bottom: 1.25rem; 
+            align-items: flex-start;
+            padding-bottom: 1.25rem;
+            border-bottom: 1px solid var(--border-light);
+        }
         .profile-photo {
-            width: 90px; height: 120px; object-fit: cover;
-            border-radius: 12px; border: 1px solid var(--border);
-            box-shadow: var(--shadow-sm); flex-shrink: 0;
-            background: var(--input-bg);
+            width: 85px; 
+            height: 110px; 
+            object-fit: cover;
+            border-radius: var(--radius-md); 
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-float); 
+            flex-shrink: 0;
+            background: var(--bg-surface-elevated);
         }
-        .profile-info { flex: 1; overflow: hidden; }
-        .profile-info h2 { 
-            font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; font-weight: 700; 
-            color: var(--text-main); line-height: 1.2; margin-bottom: 0.25rem;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        .profile-info { 
+            flex: 1; 
+            min-width: 0; 
         }
-        .profile-info .id-badge { 
-            font-family: monospace; font-size: 0.9rem; color: var(--primary); 
-            font-weight: 600; display: block; margin-bottom: 0.85rem; letter-spacing: 0.02em;
+        .profile-name { 
+            font-size: 1.25rem; 
+            font-weight: 800; 
+            color: #FFFFFF; 
+            line-height: 1.2; 
+            margin-bottom: 0.25rem;
+            text-transform: uppercase;
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis;
+        }
+        .profile-id { 
+            font-family: 'JetBrains Mono', monospace; 
+            font-size: 0.88rem; 
+            color: var(--primary); 
+            font-weight: 700; 
+            display: block; 
+            margin-bottom: 0.75rem; 
         }
         
-        .tags-wrapper { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-        .tag { padding: 0.35rem 0.65rem; border-radius: 50px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; display: inline-flex; align-items: center; gap: 0.3rem; letter-spacing: 0.05em; border: 1px solid transparent; }
-        .tag-team { background: var(--primary-light); color: var(--primary); border-color: var(--primary-ring); }
-        .tag-category { background: var(--bg-main); color: var(--text-muted); border-color: var(--border); }
-        .tag-batch { background: #F3F4F6; color: #4B5563; }
+        .badge-chips { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 0.4rem; 
+        }
+        .pill-chip { 
+            padding: 0.3rem 0.65rem; 
+            border-radius: var(--radius-full); 
+            font-size: 0.7rem; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 0.35rem; 
+            letter-spacing: 0.03em; 
+            border: 1px solid transparent; 
+        }
+        .pill-team { background: var(--primary-light); color: #60A5FA; border-color: rgba(59, 130, 246, 0.3); }
+        .pill-category { background: rgba(255, 255, 255, 0.08); color: var(--text-muted); border-color: var(--border-light); }
+        .pill-batch { background: rgba(245, 158, 11, 0.15); color: #FBBF24; border-color: rgba(245, 158, 11, 0.3); }
 
-        .comps-container { flex: 1; overflow-y: auto; padding-right: 0.5rem; margin-bottom: 1.5rem; -webkit-overflow-scrolling: touch; }
-        .comps-container::-webkit-scrollbar { width: 4px; }
-        .comps-container::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
+        .comps-scroll { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding-right: 0.25rem; 
+            margin-bottom: 1.25rem; 
+            -webkit-overflow-scrolling: touch; 
+        }
+        .comps-scroll::-webkit-scrollbar { width: 4px; }
+        .comps-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
         
-        .comps-title { font-size: 0.85rem; font-weight: 600; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
-        
-        /* Premium Event Cards */
-        .comp-card {
-            background: var(--bg-surface); border: 1px solid var(--border);
-            border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 0.85rem;
-            display: flex; flex-direction: column; gap: 0.75rem;
-            transition: var(--transition); box-shadow: var(--shadow-sm);
+        .comps-heading { 
+            font-size: 0.8rem; 
+            font-weight: 800; 
+            color: var(--text-muted); 
+            text-transform: uppercase; 
+            letter-spacing: 0.05em; 
+            margin-bottom: 0.75rem; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between;
+        }
+
+        /* Competition Cards in Bottom Sheet */
+        .sheet-comp-card {
+            background: var(--bg-surface-elevated); 
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md); 
+            padding: 1rem; 
+            margin-bottom: 0.75rem;
+            display: flex; 
+            flex-direction: column; 
+            gap: 0.6rem;
+            transition: var(--transition);
+        }
+        .sheet-comp-header {
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start; 
+            gap: 0.75rem;
+        }
+        .sheet-comp-name {
+            font-size: 0.95rem; 
+            font-weight: 800; 
+            color: #FFFFFF; 
+            text-transform: uppercase;
+            line-height: 1.3;
         }
         
-        .comp-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
-        .comp-card strong { color: var(--text-main); font-size: 0.95rem; font-weight: 600; line-height: 1.3; }
-        
-        .comp-status { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; padding: 0.35rem 0.75rem; border-radius: 50px; white-space: nowrap; letter-spacing: 0.02em; display: inline-flex; align-items: center; gap: 0.3rem; border: 1px solid transparent; }
-        .status-pending { background: #F9FAFB; color: #4B5563; border-color: var(--border); }
-        .status-registration { background: #EFF6FF; color: #1D4ED8; border-color: rgba(59, 130, 246, 0.2); }
-        .status-ongoing { background: #ECFDF5; color: #047857; border-color: rgba(16, 185, 129, 0.2); }
-        .status-judgement_complete { background: #F5F3FF; color: #6D28D9; border-color: rgba(139, 92, 246, 0.2); }
-        .status-published { background: #FEF3C7; color: #B45309; border-color: rgba(245, 158, 11, 0.2); }
+        /* Squad Roster in Scanner Sheet */
+        .squad-member-list {
+            margin-top: 0.4rem;
+            padding: 0.5rem 0.65rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-light);
+        }
+        .squad-member-title {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 0.35rem;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .squad-tags-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+        .squad-tag {
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            background: var(--bg-surface);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-full);
+            color: var(--text-main);
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        .squad-tag.leader {
+            background: rgba(245, 158, 11, 0.15);
+            color: #FCD34D;
+            border-color: rgba(245, 158, 11, 0.3);
+            font-weight: 700;
+        }
+
+        .status-badge {
+            font-size: 0.68rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            padding: 0.25rem 0.6rem;
+            border-radius: var(--radius-full);
+            white-space: nowrap;
+            letter-spacing: 0.03em;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            border: 1px solid transparent;
+        }
+        .st-pending { background: rgba(255, 255, 255, 0.06); color: var(--text-muted); }
+        .st-registration { background: var(--primary-light); color: #60A5FA; border-color: rgba(59, 130, 246, 0.3); }
+        .st-ongoing { background: var(--success-light); color: #34D399; border-color: rgba(16, 185, 129, 0.3); }
+        .st-valuation { background: var(--warning-light); color: #FBBF24; border-color: rgba(245, 158, 11, 0.3); }
+        .st-published { background: rgba(139, 92, 246, 0.15); color: #A78BFA; border-color: rgba(139, 92, 246, 0.3); }
 
         /* Action Buttons */
-        .btn {
-            width: 100%; min-height: 52px; border-radius: var(--radius-lg); border: none;
-            background: var(--primary-gradient); color: white; font-size: 0.95rem; font-weight: 600;
-            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.6rem;
-            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); transition: transform 0.2s; letter-spacing: 0.01em;
+        .btn-action {
+            width: 100%; 
+            min-height: 50px; 
+            border-radius: var(--radius-md); 
+            border: none;
+            background: var(--primary-gradient); 
+            color: white; 
+            font-size: 0.92rem; 
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 0.6rem;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3); 
+            transition: var(--transition);
         }
-        .btn:active { transform: scale(0.97); }
+        .btn-action:active { transform: scale(0.97); }
 
-        /* Fullscreen Loader */
+        /* Loading Overlay */
         #loader {
-            position: absolute; inset: 0; background: rgba(17, 24, 39, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            z-index: 200; display: none; flex-direction: column; align-items: center; justify-content: center; color: white;
+            position: absolute; 
+            inset: 0; 
+            background: rgba(0, 0, 0, 0.8); 
+            backdrop-filter: blur(10px); 
+            -webkit-backdrop-filter: blur(10px);
+            z-index: 200; 
+            display: none; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            color: white;
         }
-        
-        /* Native App Style Toast */
+
+        /* Toast Notifications */
         #toast {
-            position: fixed; top: calc(1rem + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%) translateY(-150px);
-            background: var(--bg-surface); color: var(--text-main); padding: 1rem 1.5rem; border-radius: 50px;
-            font-weight: 600; z-index: 300; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-            box-shadow: var(--shadow-float); display: flex; align-items: center; gap: 0.75rem; border-left: 4px solid var(--danger); font-size: 0.9rem; width: 90%; max-width: 400px;
+            position: fixed; 
+            top: calc(1rem + env(safe-area-inset-top)); 
+            left: 50%; 
+            transform: translateX(-50%) translateY(-150px);
+            background: var(--bg-surface-elevated); 
+            color: var(--text-main); 
+            padding: 0.85rem 1.25rem; 
+            border-radius: var(--radius-full);
+            font-weight: 700; 
+            z-index: 300; 
+            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            box-shadow: var(--shadow-float); 
+            display: flex; 
+            align-items: center; 
+            gap: 0.75rem; 
+            border: 1px solid var(--border-light);
+            font-size: 0.85rem; 
+            width: 90%; 
+            max-width: 380px;
+            text-transform: uppercase;
         }
         #toast.show { transform: translateX(-50%) translateY(0); }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1 class="brand"><i class="ph-fill ph-scan"></i> FestOS Identifier</h1>
-        <p style="font-size: 0.85rem; opacity: 0.9; margin-top: 0.25rem; font-weight: 400;">Align QR code within frame</p>
+    <!-- HUD Header -->
+    <header class="hud-header">
+        <div class="hud-brand">
+            <img id="head-logo" class="hud-logo" src="" alt="Logo" style="display: none;">
+            <span id="head-title" class="hud-title">FestOS Scan</span>
+        </div>
+        <div class="hud-actions">
+            <button class="hud-btn" id="btn-torch" onclick="toggleTorch()" title="Toggle Flashlight">
+                <i class="fa-solid fa-bolt"></i>
+            </button>
+            <button class="hud-btn" id="btn-camera-flip" onclick="flipCamera()" title="Switch Camera">
+                <i class="fa-solid fa-camera-rotate"></i>
+            </button>
+            <button class="hud-btn" id="btn-search-toggle" onclick="toggleManualSearch()" title="Manual Search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Manual Search Dropdown Drawer -->
+    <div class="manual-search-drawer" id="manual-drawer">
+        <div class="search-row">
+            <input type="text" class="search-input" id="manual-search-input" placeholder="Type Chest # or Name..." onkeydown="if(event.key==='Enter') executeManualLookup()">
+            <button class="hud-btn" onclick="executeManualLookup()" style="border-radius: var(--radius-md); background: var(--primary);">
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+            <button class="hud-btn" onclick="toggleManualSearch()" style="border-radius: var(--radius-md); background: transparent;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
     </div>
 
+    <!-- Camera Viewport -->
     <div id="reader-container">
         <div class="scan-overlay"></div>
+        <div class="reticle-status"><i class="fa-solid fa-crosshairs"></i> Align QR in frame</div>
         <div id="reader"></div>
     </div>
 
+    <!-- Spinner Modal -->
     <div id="loader">
-        <i class="ph ph-spinner-gap" style="font-size: 3rem; animation: spin 1s linear infinite; color: var(--primary);"></i>
-        <p style="margin-top: 1.5rem; font-weight: 500; font-size: 1rem; letter-spacing: 0.05em;">FETCHING PROFILE...</p>
+        <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2.5rem; color: var(--primary);"></i>
+        <p style="margin-top: 1.25rem; font-weight: 700; font-size: 0.95rem; letter-spacing: 0.05em; text-transform: uppercase;">VERIFYING CREDENTIALS...</p>
     </div>
     
-    <div id="toast"><i class="ph-fill ph-warning-circle" style="color: var(--danger); font-size: 1.25rem;"></i> <span id="toast-msg">Error</span></div>
+    <!-- Toast Popup -->
+    <div id="toast">
+        <i class="fa-solid fa-circle-exclamation" id="toast-icon" style="color: var(--danger); font-size: 1.15rem;"></i> 
+        <span id="toast-msg">Error Message</span>
+    </div>
 
+    <!-- Profile Verification Bottom Sheet -->
     <div id="profile-sheet" class="bottom-sheet">
-        <div class="sheet-handle"></div>
+        <div class="sheet-handle" onclick="resumeScanning()"></div>
         
-        <div class="profile-header">
+        <div class="profile-card">
             <img id="p-photo" class="profile-photo" src="" alt="Profile">
             <div class="profile-info">
-                <h2 id="p-name">Loading...</h2>
-                <span id="p-id" class="id-badge">ID: ---</span>
-                <div class="tags-wrapper">
-                    <span id="p-team" class="tag tag-team"><i class="ph-fill ph-users"></i> TEAM</span>
-                    <span id="p-category" class="tag tag-category"><i class="ph-fill ph-folders"></i> CATEGORY</span>
-                    <span id="p-batch" class="tag tag-batch"><i class="ph-fill ph-calendar-blank"></i> DOB</span>
+                <h2 id="p-name" class="profile-name">Student Name</h2>
+                <span id="p-id" class="profile-id">CHEST: ---</span>
+                <div class="badge-chips">
+                    <span id="p-team" class="pill-chip pill-team"><i class="fa-solid fa-users"></i> TEAM</span>
+                    <span id="p-category" class="pill-chip pill-category"><i class="fa-solid fa-folder"></i> CATEGORY</span>
+                    <span id="p-batch" class="pill-chip pill-batch"><i class="fa-solid fa-calendar"></i> DOB</span>
                 </div>
             </div>
         </div>
 
-        <div class="comps-container">
-            <div class="comps-title"><i class="ph-fill ph-trophy" style="color: var(--primary); font-size: 1.1rem;"></i> Enrolled Events</div>
+        <div class="comps-scroll">
+            <div class="comps-heading">
+                <span><i class="fa-solid fa-trophy" style="color: var(--primary); margin-right: 4px;"></i> Enrolled Competitions</span>
+                <span id="p-comp-count" style="font-size: 0.72rem; color: var(--primary);">0 Events</span>
+            </div>
             <div id="p-comps">
-                <!-- Dynamically populated -->
+                <!-- Dynamically populated event cards with squad rosters -->
             </div>
         </div>
 
-        <button class="btn" onclick="resumeScanning()">
-            <i class="ph-bold ph-qr-code"></i> SCAN ANOTHER ID
+        <button class="btn-action" onclick="resumeScanning()">
+            <i class="fa-solid fa-qrcode"></i> SCAN NEXT CREDENTIAL
         </button>
     </div>
 
     <script>
-        // Supabase Initialization
         const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let html5QrCode;
+        let html5QrCode = null;
         let isProcessing = false;
+        let currentFacingMode = "environment";
+        let isTorchOn = false;
+        let videoTrack = null;
+        let audioCtx = null;
 
         document.addEventListener("DOMContentLoaded", () => {
-            startCamera();
+            fetchAndApplyBranding();
+            startCamera(currentFacingMode);
         });
 
-        function startCamera() {
+        // ==========================================
+        // AUDIO FEEDBACK SYNTHESIZER
+        // ==========================================
+        function playSuccessBeep() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now); // A5 note
+                osc.frequency.exponentialRampToValueAtTime(1760, now + 0.12); // A6 note
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } catch (e) {
+                console.warn("Audio chime unsupported:", e);
+            }
+        }
+
+        // ==========================================
+        // CAMERA CONTROLS & QR CODE SCANNING
+        // ==========================================
+        function startCamera(facingMode) {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => initCameraInstance(facingMode)).catch(() => initCameraInstance(facingMode));
+            } else {
+                initCameraInstance(facingMode);
+            }
+        }
+
+        function initCameraInstance(facingMode) {
             html5QrCode = new Html5Qrcode("reader");
-            
-            // Start camera using the back camera natively
             html5QrCode.start(
-                { facingMode: "environment" },
+                { facingMode: facingMode },
                 {
-                    fps: 20, // Increased for ultra-fast scanning
-                    // qrbox removed: now scans the entire camera feed instantly
+                    fps: 24,
                     aspectRatio: window.innerWidth / window.innerHeight
                 },
                 onScanSuccess,
-                (errorMessage) => { /* Ignore background scan errors */ }
-            ).catch(err => {
-                showToast("Camera access denied or unavailable.");
+                () => {} // silent frame handler
+            ).then(() => {
+                captureVideoTrack();
+            }).catch(err => {
+                showToast("Camera access unavailable.", "error");
             });
         }
 
+        function captureVideoTrack() {
+            const videoEl = document.querySelector("#reader video");
+            if (videoEl && videoEl.srcObject) {
+                const stream = videoEl.srcObject;
+                const tracks = stream.getVideoTracks();
+                if (tracks.length > 0) videoTrack = tracks[0];
+            }
+        }
+
+        async function toggleTorch() {
+            if (!videoTrack) captureVideoTrack();
+            if (!videoTrack) return showToast("Torch unavailable on device.", "error");
+
+            try {
+                const capabilities = videoTrack.getCapabilities();
+                if (!capabilities.torch) {
+                    return showToast("Flashlight not supported on this camera.", "error");
+                }
+
+                isTorchOn = !isTorchOn;
+                await videoTrack.applyConstraints({
+                    advanced: [{ torch: isTorchOn }]
+                });
+
+                const btn = document.getElementById('btn-torch');
+                if (isTorchOn) btn.classList.add('active');
+                else btn.classList.remove('active');
+
+            } catch (err) {
+                showToast("Torch toggle error: " + err.message, "error");
+            }
+        }
+
+        function flipCamera() {
+            currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
+            startCamera(currentFacingMode);
+        }
+
+        function toggleManualSearch() {
+            const drawer = document.getElementById('manual-drawer');
+            drawer.classList.toggle('open');
+            if (drawer.classList.contains('open')) {
+                document.getElementById('manual-search-input').focus();
+            }
+        }
+
+        async function executeManualLookup() {
+            const val = document.getElementById('manual-search-input').value.trim();
+            if (!val) return;
+            toggleManualSearch();
+            await lookupParticipant(val);
+        }
+
+        // ==========================================
+        // SCAN HANDLER & DATA POPULATION
+        // ==========================================
         async function onScanSuccess(decodedText) {
             if (isProcessing) return;
             isProcessing = true;
-            
+
+            playSuccessBeep();
             html5QrCode.pause(true);
-            document.getElementById('loader').style.display = 'flex';
 
             let uniqueId = decodedText.trim();
             if (uniqueId.includes('?id=')) {
                 uniqueId = uniqueId.split('?id=')[1];
             }
 
+            await lookupParticipant(uniqueId);
+        }
+
+        async function lookupParticipant(searchIdentifier) {
+            document.getElementById('loader').style.display = 'flex';
+
             try {
-                // Fetching dob, and the nested stages/categories for competitions
-                const { data, error } = await supabaseClient
+                // 1. Fetch Participant Details
+                const { data: pData, error } = await supabaseClient
                     .from('participants')
                     .select(`
                         *, 
-                        teams(name), 
+                        teams(id, name), 
                         categories(name),
                         participant_competitions(
                             is_leader,
@@ -314,115 +767,139 @@
                                 id, 
                                 name, 
                                 status,
+                                is_group,
                                 categories(name),
                                 stages(name)
                             )
                         )
                     `)
-                    .eq('unique_id', uniqueId)
-                    .single();
+                    .or(`unique_id.eq.${searchIdentifier},name.ilike.%${searchIdentifier}%`)
+                    .limit(1)
+                    .maybeSingle();
 
-                if (error || !data) throw new Error("Participant not found in database.");
+                if (error || !pData) throw new Error("Participant record not found.");
 
-                populateSheet(data);
-                
+                // 2. For each enrolled Group event, fetch all teammates
+                const groupCompIds = (pData.participant_competitions || [])
+                    .filter(pc => pc.competitions && pc.competitions.is_group)
+                    .map(pc => pc.competitions.id);
+
+                let squadMembersMap = {};
+                if (groupCompIds.length > 0 && pData.team_id) {
+                    const { data: squadData } = await supabaseClient
+                        .from('participant_competitions')
+                        .select('competition_id, is_leader, participants(name, unique_id, team_id)')
+                        .in('competition_id', groupCompIds);
+
+                    if (squadData) {
+                        squadData.forEach(row => {
+                            if (row.participants && row.participants.team_id === pData.team_id) {
+                                if (!squadMembersMap[row.competition_id]) squadMembersMap[row.competition_id] = [];
+                                squadMembersMap[row.competition_id].push({
+                                    name: row.participants.name,
+                                    unique_id: row.participants.unique_id,
+                                    is_leader: row.is_leader
+                                });
+                            }
+                        });
+                    }
+                }
+
+                populateSheet(pData, squadMembersMap);
+
                 document.getElementById('loader').style.display = 'none';
                 document.getElementById('profile-sheet').classList.add('open');
 
             } catch (err) {
                 document.getElementById('loader').style.display = 'none';
-                showToast(err.message);
-                
+                showToast(err.message, "error");
+
                 setTimeout(() => {
                     isProcessing = false;
-                    html5QrCode.resume();
-                }, 2000);
+                    if (html5QrCode) html5QrCode.resume();
+                }, 2200);
             }
         }
 
-        function populateSheet(p) {
-            // Populate Details
+        function populateSheet(p, squadMembersMap) {
             document.getElementById('p-name').innerText = p.name;
-            document.getElementById('p-id').innerText = p.unique_id;
-            document.getElementById('p-team').innerHTML = `<i class="ph-fill ph-users"></i> ${p.teams?.name || 'INDEPENDENT'}`;
-            document.getElementById('p-category').innerHTML = `<i class="ph-fill ph-folders"></i> ${p.categories?.name || 'GENERAL'}`;
-            
-            // Check if they uploaded a photo, otherwise use fallback
-            const photoUrl = p.photo_url || `data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="200"%3E%3Crect width="100%25" height="100%25" fill="%23F3F4F6"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="600" fill="%239CA3AF"%3ENO PHOTO%3C/text%3E%3C/svg%3E`;
-            document.getElementById('p-photo').src = photoUrl;
-            
-            // Set DOB or Batch
-            document.getElementById('p-batch').innerHTML = `<i class="ph-fill ph-calendar-blank"></i> ${p.dob || 'DOB N/A'}`;
+            document.getElementById('p-id').innerText = `CHEST #${p.unique_id}`;
+            document.getElementById('p-team').innerHTML = `<i class="fa-solid fa-shield-halved"></i> ${p.teams?.name || 'INDEPENDENT'}`;
+            document.getElementById('p-category').innerHTML = `<i class="fa-solid fa-layer-group"></i> ${p.categories?.name || 'GENERAL'}`;
+            document.getElementById('p-batch').innerHTML = `<i class="fa-solid fa-calendar"></i> ${p.dob || 'DOB N/A'}`;
 
-            // Populate Competitions
+            // Participant Photo
+            const fallbackAvatar = `data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="200"%3E%3Crect width="100%25" height="100%25" fill="%231F2937"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="%239CA3AF"%3ENO PHOTO%3C/text%3E%3C/svg%3E`;
+            document.getElementById('p-photo').src = p.photo_url || fallbackAvatar;
+
+            const enrollments = p.participant_competitions || [];
+            document.getElementById('p-comp-count').innerText = `${enrollments.length} Assigned`;
+
             const compContainer = document.getElementById('p-comps');
-            
-            if (p.participant_competitions && p.participant_competitions.length > 0) {
-                compContainer.innerHTML = p.participant_competitions.map(pc => {
+
+            if (enrollments.length > 0) {
+                compContainer.innerHTML = enrollments.map(pc => {
                     const comp = pc.competitions;
-                    if(!comp) return '';
-                    
-                    // Format Status Text Beautifully
-                    let statusLabel = comp.status.replace('_', ' ').toUpperCase();
-                    let icon = '';
-                    
-                    if(comp.status === 'pending') { statusLabel = 'UPCOMING'; icon = '<i class="ph-bold ph-clock"></i>'; }
-                    if(comp.status === 'registration') { statusLabel = 'REGISTRATION'; icon = '<i class="ph-bold ph-megaphone"></i>'; }
-                    if(comp.status === 'ongoing') { statusLabel = 'LIVE NOW'; icon = '<i class="ph-fill ph-broadcast"></i>'; }
-                    if(comp.status === 'judgement_complete') { statusLabel = 'AWAITING RESULTS'; icon = '<i class="ph-bold ph-hourglass-high"></i>'; }
-                    
-                    const compCategory = comp.categories?.name || 'General';
-                    const compStage = comp.stages?.name || 'Unassigned Stage';
-                    
-                    // Check if published to add the interactive link
-                    let clickAction = '';
-                    let interactiveStyle = '';
-                    let resultButton = '';
-                    
-                    if (comp.status === 'published') {
-                        statusLabel = 'RESULTS PUBLISHED';
-                        icon = '<i class="ph-fill ph-seal-check"></i>';
-                        clickAction = `onclick="window.location.href='results.html?comp=${comp.id}'"`;
-                        interactiveStyle = 'cursor: pointer; border-color: var(--primary-ring); box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1); transform: scale(1);';
-                        resultButton = `
-                            <div style="width: 100%; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--border);">
-                                <button style="width: 100%; background: var(--primary-light); color: var(--primary); border: none; padding: 0.65rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer; text-transform: uppercase;">
-                                    <i class="ph-bold ph-image"></i> View Result Poster
-                                </button>
-                            </div>
-                        `;
-                    }
-                    
-                    const leaderTag = pc.is_leader ? `<span style="background: var(--success-light); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.2); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.65rem; font-weight: 600; margin-top: 0.25rem; display: inline-block;">GROUP LEADER</span>` : '';
-                    
-                    return `
-                        <div class="comp-card" style="${interactiveStyle}" ${clickAction}>
-                            <div class="comp-card-header">
-                                <div>
-                                    <strong style="display: block;">${comp.name}</strong>
-                                    ${leaderTag}
+                    if (!comp) return '';
+
+                    let stClass = 'st-pending';
+                    let stIcon = '<i class="fa-solid fa-clock"></i>';
+                    let stText = 'UPCOMING';
+
+                    if (comp.status === 'registration') { stClass = 'st-registration'; stIcon = '<i class="fa-solid fa-bullhorn"></i>'; stText = 'CALLING'; }
+                    else if (comp.status === 'ongoing') { stClass = 'st-ongoing'; stIcon = '<i class="fa-solid fa-bolt"></i>'; stText = 'LIVE ON STAGE'; }
+                    else if (comp.status === 'valuation') { stClass = 'st-valuation'; stIcon = '<i class="fa-solid fa-gavel"></i>'; stText = 'VALUATION'; }
+                    else if (comp.status === 'published') { stClass = 'st-published'; stIcon = '<i class="fa-solid fa-circle-check"></i>'; stText = 'DECLARED'; }
+
+                    const catName = comp.categories?.name || 'General';
+                    const stageName = comp.stages?.name || 'Unassigned Stage';
+
+                    // Group Roster HTML
+                    let squadHtml = '';
+                    if (comp.is_group) {
+                        const teammates = squadMembersMap[comp.id] || [];
+                        if (teammates.length > 0) {
+                            squadHtml = `
+                                <div class="squad-member-list">
+                                    <div class="squad-member-title"><i class="fa-solid fa-users"></i> Team Squad (${teammates.length} Members)</div>
+                                    <div class="squad-tags-row">
+                                        ${teammates.map(m => `
+                                            <span class="squad-tag ${m.is_leader ? 'leader' : ''}">
+                                                ${m.is_leader ? '<i class="fa-solid fa-star"></i>' : '<i class="fa-solid fa-user"></i>'} ${m.name}
+                                            </span>
+                                        `).join('')}
+                                    </div>
                                 </div>
-                                <span class="comp-status status-${comp.status}">${icon} ${statusLabel}</span>
+                            `;
+                        }
+                    }
+
+                    return `
+                        <div class="sheet-comp-card">
+                            <div class="sheet-comp-header">
+                                <div>
+                                    <strong class="sheet-comp-name">${comp.name}</strong>
+                                    ${pc.is_leader ? '<span style="color: #FBBF24; font-size: 0.68rem; font-weight: 800; display: block; margin-top: 2px;"><i class="fa-solid fa-star"></i> SQUAD LEADER</span>' : ''}
+                                </div>
+                                <span class="status-badge ${stClass}">${stIcon} ${stText}</span>
                             </div>
-                            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.75rem; font-weight: 500; color: var(--text-muted);">
-                                <span style="display: inline-flex; align-items: center; gap: 0.25rem;">
-                                    <i class="ph-fill ph-folder" style="color: var(--text-muted);"></i> ${compCategory}
-                                </span>
-                                <span style="color: var(--border);">|</span>
-                                <span style="display: inline-flex; align-items: center; gap: 0.25rem;">
-                                    <i class="ph-fill ph-microphone-stage" style="color: var(--text-muted);"></i> ${compStage}
-                                </span>
+
+                            <div style="display: flex; gap: 0.75rem; font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">
+                                <span><i class="fa-solid fa-folder"></i> ${catName}</span>
+                                <span><i class="fa-solid fa-microphone-lines"></i> ${stageName}</span>
                             </div>
-                            ${resultButton}
+
+                            ${squadHtml}
                         </div>
                     `;
                 }).join('');
             } else {
                 compContainer.innerHTML = `
-                    <div style="text-align: center; padding: 2rem 1rem; background: var(--input-bg); border-radius: var(--radius-md); border: 1px dashed var(--border);">
-                        <i class="ph-fill ph-files" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 0.5rem;"></i>
-                        <p style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">No events assigned to this participant.</p>
-                    </div>`;
+                    <div style="text-align: center; padding: 2rem 1rem; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px dashed var(--border-light); color: var(--text-muted);">
+                        <i class="fa-solid fa-folder-open" style="font-size: 2rem; margin-bottom: 0.5rem; display: block; color: var(--text-dim);"></i>
+                        <p style="font-size: 0.85rem; font-weight: 600;">No events assigned to this participant.</p>
+                    </div>
+                `;
             }
         }
 
@@ -430,99 +907,72 @@
             document.getElementById('profile-sheet').classList.remove('open');
             setTimeout(() => {
                 isProcessing = false;
-                html5QrCode.resume();
-            }, 400); // Match CSS transition duration
+                if (html5QrCode) html5QrCode.resume();
+            }, 350);
         }
 
-        function showToast(msg) {
+        function showToast(msg, type = "error") {
             const toast = document.getElementById('toast');
-            // Clean up error message if needed
-            if (msg.includes("Invalid password") || msg.includes("Failed to fetch")) {
-                msg = "Network or Database Error.";
-            }
+            const icon = document.getElementById('toast-icon');
+            
+            icon.className = type === "error" ? "fa-solid fa-circle-exclamation" : "fa-solid fa-circle-check";
+            icon.style.color = type === "error" ? "var(--danger)" : "var(--success)";
+            
             document.getElementById('toast-msg').innerText = msg;
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 3500);
         }
 
-        // Add CSS Spinner Keyframes
-        const style = document.createElement('style');
-        style.innerHTML = `@keyframes spin { 100% { transform: rotate(360deg); } }`;
-        document.head.appendChild(style);
-
         // ==========================================
-        // GLOBAL BRANDING ENGINE
+        // UNIFIED BRANDING & FAVICON ENGINE
         // ==========================================
-        document.addEventListener("DOMContentLoaded", () => {
-            fetchAndApplyBranding();
-        });
-
         async function fetchAndApplyBranding() {
             try {
-                const { data, error } = await supabaseClient
-                    .from('settings')
-                    .select('value')
-                    .eq('id', 'system_branding')
-                    .maybeSingle();
-
-                if (error) throw error;
+                const { data } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
                 if (data && data.value) applyGlobalBranding(data.value);
             } catch (e) {
-                console.warn("Could not fetch global branding:", e.message);
+                console.warn("Branding error:", e.message);
             }
         }
 
-function applyGlobalBranding(brandingData) {
-    const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
-    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
-    const displayMode = brandingData.display_mode || 'both'; // 'both', 'logo', 'name'
-    
-    // 1. Update Document Title dynamically
-    const festName = validName ? brandingData.fest_name : 'FestOS';
-    const titleParts = document.title.split('|');
-    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
-    document.title = `${festName} | ${pageContext}`;
+        function applyGlobalBranding(brandingData) {
+            const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
+            const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+            const displayMode = brandingData.display_mode || 'both';
 
-    // 2. Global Favicon Injection (Instantly updates across all pages)
-    if (validLogo) {
-        let iconLinks = document.querySelectorAll("link[rel~='icon']");
-        if (iconLinks.length === 0) {
-            let newIcon = document.createElement('link');
-            newIcon.rel = 'icon';
-            document.head.appendChild(newIcon);
-            iconLinks = [newIcon];
-        }
-        iconLinks.forEach(link => link.href = brandingData.fest_logo);
-    }
+            const festName = validName ? brandingData.fest_name : 'FestOS';
+            document.title = `${festName} | Scanner Pro`;
 
-    // 3. UI Header Updates
-    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
-    brandContainers.forEach(container => {
-        let html = '';
-        const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
-        const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
-        
-        // Dynamic Logo Sizing
-        if (showLogo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 28px; width: auto; max-width: 120px; object-fit: contain; border-radius: 4px; margin-right: 8px; display: inline-block; vertical-align: middle;">`;
-        } else if (!validLogo && displayMode !== 'name') {
-            html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 6px;"></i>`;
-        }
-        
-        // Dynamic Text
-        if (showName) {
-            html += `<span style="letter-spacing: -0.01em; display: inline-block; vertical-align: middle;">${validName ? brandingData.fest_name : 'FestOS'}</span>`;
-        }
-        
-        container.innerHTML = html;
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        container.style.justifyContent = 'center';
-    });
+            if (validLogo) {
+                let iconLinks = document.querySelectorAll("link[rel~='icon']");
+                if (iconLinks.length === 0) {
+                    let newIcon = document.createElement('link');
+                    newIcon.rel = 'icon';
+                    document.head.appendChild(newIcon);
+                    iconLinks = [newIcon];
+                }
+                iconLinks.forEach(link => link.href = brandingData.fest_logo);
+            }
 
-    // Store globally for PDF Generators
-    if (typeof window !== 'undefined') window.systemBranding = brandingData;
-}
+            const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
+            const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
+
+            const logoEl = document.getElementById('head-logo');
+            const titleEl = document.getElementById('head-title');
+
+            if (logoEl) {
+                if (showLogo) {
+                    logoEl.src = brandingData.fest_logo;
+                    logoEl.style.display = 'block';
+                } else {
+                    logoEl.style.display = 'none';
+                }
+            }
+            if (titleEl) {
+                titleEl.innerText = showName ? (validName ? brandingData.fest_name : 'FestOS Scan') : '';
+                titleEl.style.display = showName ? 'block' : 'none';
+            }
+        }
     </script>
 </body>
 </html>

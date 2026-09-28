@@ -6118,17 +6118,41 @@ async function bulkDownloadCertificates(compId) {
             
             // Assign textual position based on the calculated rank
             r.position = currentRank === 1 ? 'FIRST PLACE' : currentRank === 2 ? 'SECOND PLACE' : currentRank === 3 ? 'THIRD PLACE' : 'PARTICIPANT';
-            
-            // Add "& PARTY" for Group Events on the Certificate
-            if (comp.is_group && !r.participant.name.endsWith('& PARTY')) {
-                r.participant.name += " & PARTY";
-            }
         });
 
         // 6. Slice Top 3 Based on Rank (This safely captures all tied participants)
         const results = allResults.filter(r => r.numericRank <= 3);
 
         if (results.length === 0) throw new Error("Could not calculate top standings. No valid participant data.");
+
+        // For Group Competitions, expand certificates to ALL enrolled squad members of the winning teams
+        let finalCertList = [];
+        if (comp.is_group) {
+            const { data: squadEnrollments } = await supabaseClient
+                .from('participant_competitions')
+                .select('participant_id, is_leader, participants(id, name, unique_id, team_id, teams(name))')
+                .eq('competition_id', compId);
+
+            results.forEach(res => {
+                const teamId = res.participant?.team_id;
+                const squad = (squadEnrollments || []).filter(se => se.participants && (se.participants.team_id === teamId || se.participant_id === res.participant_id));
+                if (squad && squad.length > 0) {
+                    squad.forEach(member => {
+                        finalCertList.push({
+                            participant: member.participants,
+                            numericRank: res.numericRank,
+                            position: res.position,
+                            grade: res.grade,
+                            avgMark: res.avgMark
+                        });
+                    });
+                } else {
+                    finalCertList.push(res);
+                }
+            });
+        } else {
+            finalCertList = results;
+        }
 
         // 7. Generate PDF via Canvas
         const { jsPDF } = window.jspdf;
@@ -6157,8 +6181,8 @@ async function bulkDownloadCertificates(compId) {
         canvas.width = img.naturalWidth || 1080; 
         canvas.height = img.naturalHeight || 1080;
 
-        for (let i = 0; i < results.length; i++) {
-            const entry = results[i];
+        for (let i = 0; i < finalCertList.length; i++) {
+            const entry = finalCertList[i];
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0);
 

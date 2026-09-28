@@ -2,264 +2,1182 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FestOS | Mobile Spectator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>FestOS | Spectator Hub</title>
     <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
         :root {
-            /* Refined Premium Palette */
             --primary: #3B82F6;
             --primary-hover: #2563EB;
             --primary-light: #EFF6FF;
-            --primary-ring: rgba(59, 130, 246, 0.2);
+            --primary-ring: rgba(59, 130, 246, 0.25);
             --primary-gradient: linear-gradient(135deg, #3B82F6 0%, #6366F1 100%);
             
-            --bg-main: #F9FAFB;
-            --bg-surface: #FFFFFF;
-            --input-bg: rgba(243, 244, 246, 0.8);
+            --bg-main: #0B0F19;
+            --bg-surface: #111827;
+            --bg-surface-elevated: #1F2937;
+            --bg-glass: rgba(17, 24, 39, 0.75);
             
-            --text-main: #1F2937;
-            --text-muted: #6B7280;
-            --border: #E5E7EB;
+            --border: #374151;
+            --border-light: rgba(255, 255, 255, 0.08);
             
-            --gold: #F59E0B; 
-            --silver: #9CA3AF; 
-            --bronze: #D97706;
-
-            /* Smooth Shadows */
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --text-main: #F9FAFB;
+            --text-muted: #9CA3AF;
+            --text-dim: #6B7280;
+            
+            --gold: #F59E0B;
+            --gold-gradient: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+            --silver: #E2E8F0;
+            --silver-gradient: linear-gradient(135deg, #CBD5E1 0%, #94A3B8 100%);
+            --bronze: #F97316;
+            --bronze-gradient: linear-gradient(135deg, #FB923C 0%, #C2410C 100%);
+            
+            --success: #10B981;
+            --success-light: rgba(16, 185, 129, 0.15);
+            --warning: #F59E0B;
+            --warning-light: rgba(245, 158, 11, 0.15);
+            
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 12px 30px -4px rgba(0, 0, 0, 0.6);
+            --shadow-glow: 0 0 25px rgba(59, 130, 246, 0.25);
             
             --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --radius-full: 9999px;
             
-            --transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            --transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
-        
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; text-transform: uppercase; }
-        
-        /* Unified Flex Layout to Fix Scrolling */
-        body { 
-            background: var(--bg-main); 
-            color: var(--text-main); 
-            height: 100vh; 
-            height: 100dvh;
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
 
-        /* Ambient Background Animations */
-        .ambient-bg { position: fixed; inset: 0; z-index: -2; pointer-events: none; overflow: hidden; }
+        /* Ambient Glow & Background Grid */
+        .ambient-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
         .grid-pattern {
-            position: absolute; inset: 0; z-index: -1;
-            background-image: radial-gradient(rgba(17, 24, 39, 0.03) 1px, transparent 1px);
-            background-size: 40px 40px;
-            mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, black 10%, transparent 100%);
-            -webkit-mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, black 10%, transparent 100%);
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 32px 32px;
+            mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, black 20%, transparent 100%);
+            -webkit-mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, black 20%, transparent 100%);
         }
-        .orb { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.5; animation: float 25s infinite alternate cubic-bezier(0.4, 0, 0.2, 1); }
-        .orb-1 { width: 500px; height: 500px; background: rgba(59, 130, 246, 0.15); top: -200px; left: -150px; }
-        .orb-2 { width: 400px; height: 400px; background: rgba(139, 92, 246, 0.1); bottom: -100px; right: -100px; animation-delay: -7s; }
-        @keyframes float { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(60px, 100px) scale(1.1) rotate(5deg); } }
+        .ambient-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.35;
+            animation: pulse-glow 18s infinite alternate ease-in-out;
+        }
+        .orb-1 { width: 500px; height: 500px; background: #3B82F6; top: -150px; left: -100px; }
+        .orb-2 { width: 450px; height: 450px; background: #8B5CF6; bottom: -100px; right: -100px; animation-delay: -6s; }
+        .orb-3 { width: 350px; height: 350px; background: #EC4899; top: 40%; left: 60%; opacity: 0.2; animation-delay: -12s; }
 
-        /* Unified Premium Header */
-        .header { 
-            position: relative; 
-            flex-shrink: 0;
-            width: 100%; 
-            height: 60px; 
-            background: rgba(255, 255, 255, 0.85); 
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border); 
-            display: flex; align-items: center; justify-content: center; 
-            gap: 0.5rem; z-index: 100; box-shadow: var(--shadow-sm); 
+        @keyframes pulse-glow {
+            0% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+            100% { transform: translate(40px, 60px) scale(1.15); opacity: 0.45; }
         }
-        .header img { height: 28px; max-width: 120px; object-fit: contain; border-radius: 4px; display: none; }
-        .header h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.15rem; font-weight: 600; color: var(--text-main); letter-spacing: -0.01em; margin: 0; }
 
-        /* Spectator View Navigation Tabs */
-        .tabs-bar { 
-            position: relative;
-            flex-shrink: 0;
-            width: 100%; 
-            height: 54px; 
-            background: var(--bg-surface); 
-            border-bottom: 1px solid var(--border); 
-            display: flex; align-items: center; justify-content: center; 
-            gap: 0.5rem; padding: 0.5rem 1rem; z-index: 99; 
+        /* Header Navigation */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-light);
+            padding: 0.75rem 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
-        .tab-btn { 
-            flex: 1; max-width: 250px; height: 100%; border: none; border-radius: var(--radius-sm); 
-            font-weight: 600; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; 
-            justify-content: center; gap: 0.5rem; transition: var(--transition); background: transparent; color: var(--text-muted); 
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: var(--text-main);
         }
-        .tab-btn.active { background: var(--primary-light); color: var(--primary); }
+        .header-logo {
+            height: 32px;
+            max-width: 130px;
+            object-fit: contain;
+            border-radius: var(--radius-sm);
+        }
+        .header-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #FFFFFF 30%, #94A3B8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+        }
+        .live-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(16, 185, 129, 0.12);
+            color: #34D399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 0.3rem 0.75rem;
+            border-radius: var(--radius-full);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .live-dot {
+            width: 7px;
+            height: 7px;
+            background: #10B981;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #10B981;
+            animation: live-blink 1.5s infinite;
+        }
+        @keyframes live-blink {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
 
-        /* Main Scrollable Container */
-        .container { 
+        /* View Container */
+        .container {
             flex: 1;
-            padding: 1.25rem 1rem calc(2rem + env(safe-area-inset-bottom)) 1rem; 
-            max-width: 600px; margin: 0 auto; width: 100%;
-            overflow-y: auto; -webkit-overflow-scrolling: touch;
-            z-index: 10; position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 1.25rem 1.25rem calc(5.5rem + env(safe-area-inset-bottom)) 1.25rem;
+            position: relative;
+            z-index: 10;
         }
-        
-        /* Typography */
-        .page-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.35rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem; line-height: 1.2; text-align: center; letter-spacing: -0.02em; }
-        .page-subtitle { color: var(--text-muted); font-size: 0.8rem; font-weight: 500; text-align: center; margin-bottom: 1.5rem; letter-spacing: 0.02em; }
 
-        /* Controls */
-        .milestone-bar { margin-bottom: 1.25rem; display: flex; justify-content: center; }
-        .milestone-select { width: 100%; padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-surface); font-weight: 500; font-size: 0.85rem; color: var(--text-main); outline: none; transition: var(--transition); appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.2rem; cursor: pointer; }
-        .milestone-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+        /* Top Segmented Controls */
+        .nav-segments {
+            display: flex;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            padding: 4px;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-sm);
+        }
+        .segment-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.7rem 0.5rem;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-weight: 700;
+            font-size: 0.82rem;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            border-radius: calc(var(--radius-md) - 4px);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .segment-btn.active {
+            background: var(--primary-gradient);
+            color: #FFFFFF;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+        }
+        .segment-btn i {
+            font-size: 0.95rem;
+        }
 
-        /* Cards */
-        .card { background: var(--bg-surface); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
-        
-        .badge { padding: 0.35rem 0.75rem; border-radius: 50px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; display: inline-flex; align-items: center; gap: 0.3rem; border: 1px solid transparent; }
-        .badge-live { background: var(--success-light); color: var(--success-hover); border-color: rgba(16, 185, 129, 0.2); }
-        .badge-val { background: var(--warning-light); color: #B45309; border-color: rgba(245, 158, 11, 0.2); }
-        .badge-call { background: var(--primary-light); color: var(--primary); border-color: var(--primary-ring); }
+        /* Page Headers */
+        .view-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .view-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #FFFFFF;
+            text-transform: uppercase;
+            margin-bottom: 0.35rem;
+        }
+        .view-subtitle {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
 
-        /* Leaderboard Rows - WITH POINTS */
-        .lb-row { display: flex; align-items: center; justify-content: space-between; padding: 1rem 0.5rem; border-bottom: 1px dashed var(--border); }
-        .lb-row:last-child { border-bottom: none; padding-bottom: 0; }
-        .lb-row:first-child { padding-top: 0; }
-        .lb-rank { font-size: 1.35rem; font-weight: 700; width: 40px; color: var(--text-muted); line-height: 1; }
-        .lb-details { flex: 1; padding-right: 0.75rem; min-width: 0; }
-        .lb-name { font-size: 1rem; font-weight: 600; color: var(--text-main); display: block; margin-bottom: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .lb-team { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
-        
-        .lb-score { text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; flex-shrink: 0; }
-        .lb-score .score-val { font-size: 1.25rem; font-weight: 700; color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1; }
-        .lb-score .score-unit { font-size: 0.65rem; font-weight: 600; color: var(--text-muted); letter-spacing: 0.05em; margin-top: 2px; }
+        /* Cards & Panels */
+        .panel-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+            box-shadow: var(--shadow-md);
+            backdrop-filter: blur(8px);
+            transition: var(--transition);
+        }
+        .panel-card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
 
-        .rank-1 { color: var(--gold); } 
-        .rank-2 { color: var(--silver); } 
-        .rank-3 { color: var(--bronze); }
+        /* Milestone Bar */
+        .filter-row {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+            align-items: center;
+        }
+        .custom-select {
+            flex: 1;
+            padding: 0.85rem 1.15rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            color: var(--text-main);
+            font-size: 0.85rem;
+            font-weight: 600;
+            outline: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1.1rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .custom-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-ring);
+        }
+
+        /* Podium Top 3 Cards in Standings */
+        .podium-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.15fr 1fr;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            align-items: end;
+        }
+        .podium-card {
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            padding: 1.25rem 0.75rem 1rem 0.75rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .podium-card.rank-1 {
+            order: 2;
+            border-color: rgba(245, 158, 11, 0.4);
+            box-shadow: 0 8px 24px rgba(245, 158, 11, 0.15);
+            padding-top: 1.75rem;
+            background: linear-gradient(180deg, rgba(245, 158, 11, 0.08) 0%, var(--bg-surface-elevated) 100%);
+        }
+        .podium-card.rank-2 {
+            order: 1;
+            border-color: rgba(203, 213, 225, 0.3);
+            background: linear-gradient(180deg, rgba(203, 213, 225, 0.06) 0%, var(--bg-surface-elevated) 100%);
+        }
+        .podium-card.rank-3 {
+            order: 3;
+            border-color: rgba(249, 115, 22, 0.3);
+            background: linear-gradient(180deg, rgba(249, 115, 22, 0.06) 0%, var(--bg-surface-elevated) 100%);
+        }
+
+        .podium-medal {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1rem;
+            margin-bottom: 0.6rem;
+        }
+        .rank-1 .podium-medal { background: var(--gold-gradient); color: #000; box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); width: 44px; height: 44px; font-size: 1.15rem; }
+        .rank-2 .podium-medal { background: var(--silver-gradient); color: #000; box-shadow: 0 0 10px rgba(203, 213, 225, 0.4); }
+        .rank-3 .podium-medal { background: var(--bronze-gradient); color: #FFFFFF; box-shadow: 0 0 10px rgba(249, 115, 22, 0.4); }
+
+        .podium-team-name {
+            font-weight: 800;
+            font-size: 0.88rem;
+            color: #FFFFFF;
+            text-transform: uppercase;
+            line-height: 1.2;
+            margin-bottom: 0.35rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-align: center;
+        }
+        .podium-score {
+            font-size: 1.25rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--primary);
+        }
+        .podium-score-lbl {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--text-dim);
+            letter-spacing: 0.05em;
+        }
+
+        /* Leaderboard Table / Rows */
+        .lb-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+        }
+        .lb-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem 1rem;
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            transition: var(--transition);
+        }
+        .lb-item:hover {
+            transform: translateX(3px);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+        .lb-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            min-width: 0;
+            flex: 1;
+        }
+        .lb-pos {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            width: 30px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .lb-pos.pos-1 { color: var(--gold); }
+        .lb-pos.pos-2 { color: var(--silver); }
+        .lb-pos.pos-3 { color: var(--bronze); }
+
+        .lb-info {
+            min-width: 0;
+            flex: 1;
+        }
+        .lb-name {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #FFFFFF;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .lb-bar-wrap {
+            margin-top: 5px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+            width: 100%;
+        }
+        .lb-bar {
+            height: 100%;
+            background: var(--primary-gradient);
+            border-radius: var(--radius-full);
+            transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .lb-points-box {
+            text-align: right;
+            padding-left: 1rem;
+            flex-shrink: 0;
+        }
+        .lb-points-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1;
+        }
+        .lb-points-unit {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--text-dim);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-top: 3px;
+        }
+
+        /* Results Event Cards */
+        .result-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+            box-shadow: var(--shadow-md);
+            transition: var(--transition);
+        }
+        .result-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.85rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .result-comp-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #FFFFFF;
+            text-transform: uppercase;
+            line-height: 1.3;
+        }
+        .result-comp-cat {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-transform: uppercase;
+            margin-top: 0.25rem;
+            letter-spacing: 0.05em;
+        }
+
+        /* Squad / Group Member Tags Strip */
+        .squad-roster-box {
+            margin-top: 0.6rem;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            padding: 0.6rem 0.75rem;
+        }
+        .squad-roster-lbl {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.45rem;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .squad-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+        .squad-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: var(--bg-surface-elevated);
+            color: var(--text-main);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-full);
+            padding: 0.25rem 0.65rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .squad-chip.leader {
+            background: rgba(245, 158, 11, 0.15);
+            color: #FCD34D;
+            border-color: rgba(245, 158, 11, 0.3);
+            font-weight: 700;
+        }
+
+        /* Live Radar Cards */
+        .radar-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+        }
+        .radar-card.is-live {
+            border-color: rgba(16, 185, 129, 0.3);
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.1);
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: var(--radius-full);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .badge-ongoing { background: var(--success-light); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .badge-valuation { background: var(--warning-light); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge-registration { background: var(--primary-light); color: #60A5FA; border: 1px solid var(--primary-ring); }
+        .badge-published { background: rgba(139, 92, 246, 0.15); color: #A78BFA; border: 1px solid rgba(139, 92, 246, 0.3); }
+
+        /* Search Input */
+        .search-box {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+        .search-input {
+            width: 100%;
+            padding: 0.95rem 1rem 0.95rem 3rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            color: #FFFFFF;
+            font-size: 0.9rem;
+            font-weight: 600;
+            outline: none;
+            transition: var(--transition);
+            text-transform: uppercase;
+        }
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-ring);
+        }
+        .search-icon {
+            position: absolute;
+            left: 1.15rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-dim);
+            font-size: 1.1rem;
+        }
 
         /* Buttons */
-        .btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 0.85rem; border-radius: var(--radius-md); font-size: 0.95rem; font-weight: 600; border: none; cursor: pointer; margin-top: 1rem; transition: var(--transition); }
-        .btn-primary { background: var(--primary-gradient); color: white; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); }
-        .btn-outline { background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main); box-shadow: var(--shadow-sm); }
-        .btn:active { transform: scale(0.98); }
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.95rem 1.25rem;
+            background: var(--primary-gradient);
+            color: #FFFFFF;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 0.88rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+            transition: var(--transition);
+            margin-top: 1rem;
+        }
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+        .btn-action:active {
+            transform: translateY(0);
+        }
+        .btn-secondary {
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-light);
+            color: var(--text-main);
+            box-shadow: var(--shadow-sm);
+        }
+        .btn-secondary:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: var(--shadow-md);
+        }
 
-        .loader { text-align: center; padding: 4rem 0; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 1rem; }
-        .loader i { font-size: 2rem; color: var(--primary); }
+        /* Bottom Floating Bar Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(11, 15, 25, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border-light);
+            padding: 0.5rem 1rem calc(0.5rem + env(safe-area-inset-bottom)) 1rem;
+            z-index: 100;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+        .b-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            padding: 0.4rem 0.75rem;
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+        }
+        .b-nav-item i {
+            font-size: 1.25rem;
+        }
+        .b-nav-item.active {
+            color: #38BDF8;
+        }
+        .b-nav-item.active i {
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.5));
+        }
 
+        /* Spinner & Empty State */
+        .loader-box {
+            text-align: center;
+            padding: 4rem 1rem;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .loader-box i {
+            font-size: 2.2rem;
+            color: var(--primary);
+        }
+        .empty-box {
+            text-align: center;
+            padding: 3.5rem 1.5rem;
+            background: var(--bg-surface);
+            border: 1px dashed var(--border-light);
+            border-radius: var(--radius-lg);
+            color: var(--text-muted);
+        }
+        .empty-box i {
+            font-size: 2.5rem;
+            color: var(--text-dim);
+            margin-bottom: 0.75rem;
+            display: block;
+        }
+
+        /* Hidden Poster Canvas */
         #poster-canvas { display: none; }
     </style>
 </head>
 <body>
 
-    <!-- Ambient Background -->
-    <div class="grid-pattern"></div>
+    <!-- Ambient Floating Orbs & Grid -->
     <div class="ambient-bg">
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
+        <div class="grid-pattern"></div>
+        <div class="ambient-orb orb-1"></div>
+        <div class="ambient-orb orb-2"></div>
+        <div class="ambient-orb orb-3"></div>
     </div>
 
-    <!-- Static Header (Flex child, no longer fixed overlapping) -->
-    <div class="header">
-        <img id="head-logo" src="" alt="Logo">
-        <h1 id="head-title">FESTOS</h1>
-    </div>
-
-    <!-- Spectator View Switcher (Flex child) -->
-    <div class="tabs-bar">
-        <button class="tab-btn" id="btn-tab-live" onclick="switchView('live')">
-            <i class="fa-solid fa-clock"></i> Schedule
-        </button>
-        <button class="tab-btn" id="btn-tab-standings" onclick="switchView('standings')">
-            <i class="fa-solid fa-trophy"></i> Standings
-        </button>
-    </div>
-
-    <!-- Scrollable Main Container -->
-    <div class="container" id="main-content">
-        <div class="loader">
-            <i class="fa-solid fa-spinner fa-spin"></i>
-            <p style="font-weight: 500; font-size: 0.95rem;">Syncing Event Data...</p>
+    <!-- Top Sticky Header -->
+    <header class="header">
+        <div class="header-brand">
+            <img id="head-logo" class="header-logo" src="" alt="Logo" style="display: none;">
+            <span id="head-title" class="header-title">FestOS Hub</span>
         </div>
-    </div>
+        <div class="live-status-pill">
+            <div class="live-dot"></div>
+            <span>LIVE SYNC</span>
+        </div>
+    </header>
+
+    <!-- Main Dynamic Content -->
+    <main class="container" id="main-view">
+        <div class="loader-box">
+            <i class="fa-solid fa-circle-notch fa-spin"></i>
+            <p style="font-weight: 600; font-size: 0.95rem;">Syncing Fest Data...</p>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation Bar for Mobile/Touch -->
+    <nav class="bottom-nav">
+        <button class="b-nav-item active" id="b-nav-standings" onclick="navigateTo('standings')">
+            <i class="fa-solid fa-trophy"></i>
+            <span>Standings</span>
+        </button>
+        <button class="b-nav-item" id="b-nav-results" onclick="navigateTo('results')">
+            <i class="fa-solid fa-medal"></i>
+            <span>Results</span>
+        </button>
+        <button class="b-nav-item" id="b-nav-radar" onclick="navigateTo('radar')">
+            <i class="fa-solid fa-tower-broadcast"></i>
+            <span>Stage Radar</span>
+        </button>
+        <button class="b-nav-item" id="b-nav-search" onclick="navigateTo('search')">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <span>Search</span>
+        </button>
+    </nav>
 
     <canvas id="poster-canvas"></canvas>
 
     <script>
+        // Supabase Initialization
         const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_solo: { aplus: 8, a: 7, b: 5, c: 3 }, points_small: { aplus: 12, a: 10, b: 7, c: 5 }, points_large: { aplus: 15, a: 12, b: 10, c: 7 }, pos_points: { p1: 3, p2: 2, p3: 1 }, poster_interval: 10, tm_access: true };
+        // App State
+        let currentTab = 'standings';
         let allTeams = [];
-        let rawPublishedComps = [];
+        let systemSettings = {
+            thresholds: { aplus: 90, a: 70, b: 60, c: 50 },
+            points_solo: { aplus: 8, a: 7, b: 5, c: 3 },
+            points_small: { aplus: 12, a: 10, b: 7, c: 5 },
+            points_large: { aplus: 15, a: 12, b: 10, c: 7 },
+            pos_points: { p1: 3, p2: 2, p3: 1 },
+            poster_interval: 10
+        };
+        let publishedComps = [];
         let allJudgements = [];
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        let viewContext = urlParams.get('view') || 'live';
-        let targetCompId = urlParams.get('comp') || null;
-
+        let allEnrollments = [];
         let currentPosterData = null;
 
-        function switchView(view) {
-            viewContext = view;
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            if (view === 'live') document.getElementById('btn-tab-live')?.classList.add('active');
-            if (view === 'standings') document.getElementById('btn-tab-standings')?.classList.add('active');
-
-            if (view === 'standings') renderStandings();
-            else renderLiveSchedule();
-        }
+        // Initialize Router
+        const urlParams = new URLSearchParams(window.location.search);
+        const routeParam = urlParams.get('view') || 'standings';
+        const compParam = urlParams.get('comp') || null;
 
         async function init() {
             try {
                 await fetchAndApplyBranding();
 
-                // Global Settings
-                const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
-                if (set_data && set_data.value) systemSettings = set_data.value;
+                // 1. Fetch System Settings
+                const { data: setData } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
+                if (setData && setData.value) systemSettings = setData.value;
 
-                const { data: teams } = await supabaseClient.from('teams').select('*');
+                // 2. Fetch Teams
+                const { data: teams } = await supabaseClient.from('teams').select('*').order('name');
                 allTeams = teams || [];
 
-                // Update active tab UI
-                if (viewContext === 'standings') document.getElementById('btn-tab-standings')?.classList.add('active');
-                else if (viewContext === 'live') document.getElementById('btn-tab-live')?.classList.add('active');
+                // 3. Pre-fetch all enrollments for team & group mapping
+                const { data: enrollData } = await supabaseClient
+                    .from('participant_competitions')
+                    .select('competition_id, participant_id, is_leader, participants(id, name, unique_id, team_id, teams(name))');
+                allEnrollments = enrollData || [];
 
-                // Route
-                if (viewContext === 'results' && targetCompId) await renderSingleResult();
-                else if (viewContext === 'standings') await renderStandings();
-                else await renderLiveSchedule();
+                // 4. Navigate to initial tab or specific competition
+                if (compParam) {
+                    currentTab = 'results';
+                    await renderSpecificResult(compParam);
+                } else {
+                    navigateTo(routeParam);
+                }
+
+                // Setup Realtime Subscription for live updates
+                setupRealtime();
 
             } catch (err) {
-                document.getElementById('main-content').innerHTML = `<p style="color:var(--danger); text-align:center; font-weight: 500;">Connection Error.</p>`;
+                console.error("Spectator init error:", err);
+                document.getElementById('main-view').innerHTML = `
+                    <div class="empty-box">
+                        <i class="fa-solid fa-triangle-exclamation" style="color: #EF4444;"></i>
+                        <h3 style="color:#FFF; margin-bottom: 0.5rem;">Connection Error</h3>
+                        <p>${err.message || 'Unable to connect to fest server.'}</p>
+                    </div>
+                `;
             }
         }
 
-        async function renderSingleResult() {
-            const content = document.getElementById('main-content');
-            
-            const { data: comp } = await supabaseClient.from('competitions').select('*, categories(name), participant_competitions(count)').eq('id', targetCompId).single();
-            if (!comp || comp.status !== 'published') {
-                content.innerHTML = `<h2 class="page-title">Results Unavailable</h2><p class="page-subtitle">Results for this event are not published yet.</p>`;
+        function navigateTo(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.b-nav-item').forEach(btn => btn.classList.remove('active'));
+            const targetBtn = document.getElementById(`b-nav-${tab}`);
+            if (targetBtn) targetBtn.classList.add('active');
+
+            if (tab === 'standings') renderStandingsView();
+            else if (tab === 'results') renderResultsView();
+            else if (tab === 'radar') renderRadarView();
+            else if (tab === 'search') renderSearchView();
+        }
+
+        // ==========================================
+        // 1. CHAMPIONSHIP STANDINGS VIEW
+        // ==========================================
+        async function renderStandingsView() {
+            const container = document.getElementById('main-view');
+            container.innerHTML = `
+                <div class="loader-box">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                    <p style="font-weight: 600;">Calculating Championship Points...</p>
+                </div>
+            `;
+
+            // Fetch published competitions
+            const { data: comps } = await supabaseClient
+                .from('competitions')
+                .select('*, categories(name)')
+                .eq('status', 'published')
+                .order('updated_at', { ascending: true });
+
+            publishedComps = comps || [];
+
+            if (publishedComps.length === 0) {
+                container.innerHTML = `
+                    <div class="view-header">
+                        <h2 class="view-title">Championship Standings</h2>
+                        <p class="view-subtitle">Live Leaderboard</p>
+                    </div>
+                    <div class="empty-box">
+                        <i class="fa-solid fa-trophy"></i>
+                        <h3 style="color:#FFF; margin-bottom: 0.35rem;">No Published Results Yet</h3>
+                        <p>Standings will update automatically as stage evaluations are published.</p>
+                    </div>
+                `;
                 return;
             }
 
-            const { data: judgements } = await supabaseClient.from('judgements')
-                .select('awarded_mark, participants(id, name, team_id, unique_id)')
-                .eq('competition_id', targetCompId)
+            const compIds = publishedComps.map(c => c.id);
+            const { data: judgements } = await supabaseClient
+                .from('judgements')
+                .select('competition_id, awarded_mark, participant_id, participants(id, name, team_id, unique_id)')
+                .in('competition_id', compIds)
                 .not('awarded_mark', 'is', null);
 
-            const results = calculateSingleComp(comp, judgements || []);
-            
+            allJudgements = judgements || [];
+
+            const interval = parseInt(systemSettings.poster_interval) || 10;
+            const totalPublished = publishedComps.length;
+            const lastMilestone = Math.floor(totalPublished / interval) * interval;
+
+            let milestoneOptions = '';
+            if (lastMilestone > 0) {
+                milestoneOptions += `<option value="${lastMilestone}">LATEST MILESTONE (AFTER ${lastMilestone} EVENTS)</option>`;
+                milestoneOptions += `<option value="all">ALL PUBLISHED (${totalPublished} EVENTS)</option>`;
+                for (let i = lastMilestone - interval; i >= interval; i -= interval) {
+                    milestoneOptions += `<option value="${i}">AFTER ${i} EVENTS</option>`;
+                }
+            } else {
+                milestoneOptions += `<option value="all">ALL PUBLISHED (${totalPublished} EVENTS)</option>`;
+            }
+
+            const defaultFilter = (lastMilestone > 0) ? lastMilestone.toString() : 'all';
+
+            container.innerHTML = `
+                <div class="view-header">
+                    <h2 class="view-title">Championship Standings</h2>
+                    <p class="view-subtitle" id="standings-subtitle">Official Live Points</p>
+                </div>
+
+                <div class="filter-row">
+                    <select id="milestone-select" class="custom-select" onchange="calculateAndRenderStandings(this.value)">
+                        ${milestoneOptions}
+                    </select>
+                </div>
+
+                <div id="podium-section"></div>
+                <div class="panel-card" id="standings-list-box" style="padding: 1rem;"></div>
+
+                <button class="btn-action" onclick="downloadPoster('team')">
+                    <i class="fa-solid fa-file-arrow-down"></i> Download Standings Poster
+                </button>
+            `;
+
+            calculateAndRenderStandings(defaultFilter);
+        }
+
+        function calculateAndRenderStandings(filterVal) {
+            const total = publishedComps.length;
+            let activeComps = publishedComps;
+            let count = total;
+
+            if (filterVal !== 'all') {
+                const limit = parseInt(filterVal);
+                activeComps = publishedComps.slice(0, limit);
+                count = limit;
+            }
+
+            const subtitle = document.getElementById('standings-subtitle');
+            if (subtitle) {
+                subtitle.innerText = `POINTS AFTER ${count} PUBLISHED EVENT${count === 1 ? '' : 'S'}`;
+            }
+
+            // Calculate Team Scores
+            const teamMap = {};
+            allTeams.forEach(t => teamMap[t.id] = { id: t.id, name: t.name, score: 0 });
+
+            activeComps.forEach(comp => {
+                const compJudgements = allJudgements.filter(j => j.competition_id === comp.id);
+                const results = computeCompPositions(comp, compJudgements);
+                results.forEach(r => {
+                    if (r.teamId && teamMap[r.teamId]) {
+                        teamMap[r.teamId].score += Number(r.points) || 0;
+                    }
+                });
+            });
+
+            const sorted = Object.values(teamMap).sort((a, b) => b.score - a.score);
+            const maxScore = sorted[0]?.score > 0 ? sorted[0].score : 1;
+
+            // Store for Poster Generator
+            currentPosterData = {
+                'ResultsCountText': `AFTER ${count}`,
+                'TotalCompetitionsCount': `FINAL STANDINGS`
+            };
+            for (let i = 0; i < 15; i++) {
+                currentPosterData[`Rank${i+1}Team`] = sorted[i]?.name || '';
+                currentPosterData[`Rank${i+1}Points`] = sorted[i] ? sorted[i].score.toString() : '';
+                currentPosterData[`Rank${i+1}Number`] = sorted[i] ? (i+1).toString() : '';
+            }
+
+            // Top 3 Podium
+            const podiumBox = document.getElementById('podium-section');
+            if (podiumBox && sorted.length >= 3) {
+                podiumBox.innerHTML = `
+                    <div class="podium-grid">
+                        <div class="podium-card rank-2">
+                            <div class="podium-medal">2</div>
+                            <span class="podium-team-name">${sorted[1]?.name || '-'}</span>
+                            <span class="podium-score">${sorted[1]?.score || 0}</span>
+                            <span class="podium-score-lbl">PTS</span>
+                        </div>
+                        <div class="podium-card rank-1">
+                            <div class="podium-medal"><i class="fa-solid fa-crown"></i></div>
+                            <span class="podium-team-name">${sorted[0]?.name || '-'}</span>
+                            <span class="podium-score">${sorted[0]?.score || 0}</span>
+                            <span class="podium-score-lbl">PTS</span>
+                        </div>
+                        <div class="podium-card rank-3">
+                            <div class="podium-medal">3</div>
+                            <span class="podium-team-name">${sorted[2]?.name || '-'}</span>
+                            <span class="podium-score">${sorted[2]?.score || 0}</span>
+                            <span class="podium-score-lbl">PTS</span>
+                        </div>
+                    </div>
+                `;
+            } else if (podiumBox) {
+                podiumBox.innerHTML = '';
+            }
+
+            // Full Leaderboard List
+            const listContainer = document.getElementById('standings-list-box');
+            if (listContainer) {
+                listContainer.innerHTML = `
+                    <div class="lb-list">
+                        ${sorted.map((t, idx) => {
+                            const rank = idx + 1;
+                            const pct = Math.min(100, Math.max(5, (t.score / maxScore) * 100));
+                            return `
+                                <div class="lb-item">
+                                    <div class="lb-left">
+                                        <span class="lb-pos pos-${rank}">#${rank}</span>
+                                        <div class="lb-info">
+                                            <span class="lb-name">${t.name}</span>
+                                            <div class="lb-bar-wrap">
+                                                <div class="lb-bar" style="width: ${pct}%;"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="lb-points-box">
+                                        <div class="lb-points-val">${t.score}</div>
+                                        <div class="lb-points-unit">PTS</div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
+        }
+
+        // ==========================================
+        // 2. OFFICIAL PUBLISHED RESULTS VIEW
+        // ==========================================
+        async function renderResultsView() {
+            const container = document.getElementById('main-view');
+            container.innerHTML = `
+                <div class="loader-box">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                    <p style="font-weight: 600;">Fetching Declared Results...</p>
+                </div>
+            `;
+
+            const { data: comps } = await supabaseClient
+                .from('competitions')
+                .select('*, categories(name), stages(name)')
+                .eq('status', 'published')
+                .order('updated_at', { ascending: false });
+
+            if (!comps || comps.length === 0) {
+                container.innerHTML = `
+                    <div class="view-header">
+                        <h2 class="view-title">Declared Results</h2>
+                        <p class="view-subtitle">Official Event Standings</p>
+                    </div>
+                    <div class="empty-box">
+                        <i class="fa-solid fa-medal"></i>
+                        <h3 style="color:#FFF; margin-bottom: 0.35rem;">No Published Results</h3>
+                        <p>Check back once evaluations are finalized by judges.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const compIds = comps.map(c => c.id);
+            const { data: judgements } = await supabaseClient
+                .from('judgements')
+                .select('competition_id, awarded_mark, participant_id, participants(id, name, team_id, unique_id)')
+                .in('competition_id', compIds)
+                .not('awarded_mark', 'is', null);
+
+            container.innerHTML = `
+                <div class="view-header">
+                    <h2 class="view-title">Official Results</h2>
+                    <p class="view-subtitle">Verified & Published Events</p>
+                </div>
+
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" class="search-input" id="result-search-input" placeholder="Search event name or category..." oninput="filterResultsList()">
+                </div>
+
+                <div id="results-cards-container">
+                    ${comps.map(c => {
+                        const cJudgements = (judgements || []).filter(j => j.competition_id === c.id);
+                        const topResults = computeCompPositions(c, cJudgements);
+                        return renderResultCardHTML(c, topResults);
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function renderResultCardHTML(comp, results) {
+            const top3 = results.slice(0, 3);
+            return `
+                <div class="result-card" data-search="${comp.name.toLowerCase()} ${(comp.categories?.name || '').toLowerCase()}">
+                    <div class="result-card-header">
+                        <div>
+                            <h3 class="result-comp-title">${comp.name}</h3>
+                            <span class="result-comp-cat">
+                                <i class="fa-solid fa-folder"></i> ${comp.categories?.name || 'GENERAL'} 
+                                ${comp.is_group ? '• <i class="fa-solid fa-users"></i> GROUP SQUAD' : '• <i class="fa-solid fa-user"></i> SOLO'}
+                            </span>
+                        </div>
+                        <span class="status-badge badge-published">
+                            <i class="fa-solid fa-circle-check"></i> DECLARED
+                        </span>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        ${top3.map(r => {
+                            const medalIcon = r.pos === 1 ? '<i class="fa-solid fa-crown" style="color:var(--gold);"></i>' : (r.pos === 2 ? '<i class="fa-solid fa-medal" style="color:var(--silver);"></i>' : '<i class="fa-solid fa-medal" style="color:var(--bronze);"></i>');
+                            
+                            // Group Member Roster if team competition
+                            let squadHtml = '';
+                            if (comp.is_group && r.allMembers && r.allMembers.length > 0) {
+                                squadHtml = `
+                                    <div class="squad-roster-box">
+                                        <div class="squad-roster-lbl"><i class="fa-solid fa-users-viewfinder"></i> Team Squad (${r.allMembers.length} Members)</div>
+                                        <div class="squad-chips">
+                                            ${r.allMembers.map(m => `
+                                                <span class="squad-chip ${m.is_leader ? 'leader' : ''}">
+                                                    ${m.is_leader ? '<i class="fa-solid fa-star"></i>' : '<i class="fa-solid fa-user"></i>'} ${m.name}
+                                                </span>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            }
+
+                            return `
+                                <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 0.85rem;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                                        <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 0; flex: 1;">
+                                            <div style="font-size: 1.15rem; flex-shrink: 0;">${medalIcon}</div>
+                                            <div style="min-width: 0; flex: 1;">
+                                                <div style="font-size: 0.95rem; font-weight: 800; color: #FFF; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.name}</div>
+                                                <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">${r.team}</div>
+                                            </div>
+                                        </div>
+                                        <div style="text-align: right; flex-shrink: 0;">
+                                            <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; font-weight: 800; color: var(--primary);">${r.points}</span>
+                                            <span style="font-size: 0.65rem; color: var(--text-dim); font-weight: 700; display: block;">PTS (${r.grade})</span>
+                                        </div>
+                                    </div>
+                                    ${squadHtml}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+
+                    <button class="btn-action btn-secondary" onclick="openCompPoster('${comp.id}')">
+                        <i class="fa-solid fa-image"></i> Download Result Poster
+                    </button>
+                </div>
+            `;
+        }
+
+        function filterResultsList() {
+            const query = document.getElementById('result-search-input')?.value.toLowerCase().trim() || '';
+            const cards = document.querySelectorAll('.result-card');
+            cards.forEach(card => {
+                const searchTxt = card.getAttribute('data-search') || '';
+                card.style.display = searchTxt.includes(query) ? 'block' : 'none';
+            });
+        }
+
+        async function openCompPoster(compId) {
+            const { data: comp } = await supabaseClient.from('competitions').select('*, categories(name)').eq('id', compId).single();
+            if (!comp) return;
+
+            const { data: judgements } = await supabaseClient
+                .from('judgements')
+                .select('competition_id, awarded_mark, participant_id, participants(id, name, team_id, unique_id)')
+                .eq('competition_id', compId)
+                .not('awarded_mark', 'is', null);
+
+            const results = computeCompPositions(comp, judgements || []);
+
             currentPosterData = {
                 'Competition': comp.name,
                 'Category': comp.categories?.name || 'GENERAL',
@@ -273,230 +1191,254 @@
                 'Position3Team': results[2]?.team || '',
                 'Position3Number': results[2] ? results[2].pos.toString() : ''
             };
-            
-            content.innerHTML = `
-                <h2 class="page-title">${comp.name}</h2>
-                <p class="page-subtitle">${comp.categories?.name || 'GEN'} • OFFICIAL RESULTS</p>
-                <div class="card">
-                    ${results.map(r => `
-                        <div class="lb-row">
-                            <div class="lb-rank rank-${r.pos}">#${r.pos}</div>
-                            <div class="lb-details">
-                                <span class="lb-name">${r.name}</span>
-                                <span class="lb-team">${r.team}</span>
-                            </div>
-                            <div class="lb-score">
-                                <span class="score-val">${r.pts}</span>
-                                <span class="score-unit">PTS</span>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                <button class="btn btn-primary" onclick="downloadPoster('individual')">
-                    <i class="fa-solid fa-image"></i> Download Result Poster
-                </button>
-            `;
+
+            downloadPoster('individual');
         }
 
-        async function renderStandings() {
-            const content = document.getElementById('main-content');
-            content.innerHTML = `<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:10px;">Calculating Points...</p></div>`;
+        // ==========================================
+        // 3. LIVE STAGE RADAR VIEW
+        // ==========================================
+        async function renderRadarView() {
+            const container = document.getElementById('main-view');
+            container.innerHTML = `
+                <div class="loader-box">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                    <p style="font-weight: 600;">Scanning Active Stages...</p>
+                </div>
+            `;
 
-            // Fetch published competitions ordered by completion
-            const { data: publishedComps } = await supabaseClient
+            const { data: comps } = await supabaseClient
                 .from('competitions')
-                .select('*, categories(name), participant_competitions(count)')
-                .eq('status', 'published')
-                .order('updated_at', { ascending: true });
-            
-            rawPublishedComps = publishedComps || [];
-
-            if (rawPublishedComps.length === 0) {
-                content.innerHTML = '<h2 class="page-title">CHAMPIONSHIP STANDINGS</h2><p class="page-subtitle">NO SCORES RECORDED YET</p>';
-                return;
-            }
-
-            const compIds = rawPublishedComps.map(c => c.id);
-            const { data: judgements } = await supabaseClient.from('judgements')
-                .select('competition_id, awarded_mark, participants(id, name, team_id, unique_id)')
-                .in('competition_id', compIds)
-                .not('awarded_mark', 'is', null);
-
-            allJudgements = judgements || [];
-
-            // Calculate milestone options based on system interval
-            const interval = parseInt(systemSettings.poster_interval) || 10;
-            const totalPublished = rawPublishedComps.length;
-            const lastMilestone = Math.floor(totalPublished / interval) * interval;
-
-            // Default to last milestone if at least one milestone passed; otherwise show all published
-            let defaultFilter = (lastMilestone > 0) ? lastMilestone.toString() : 'all';
-
-            // Milestone dropdown selector
-            let milestoneOptions = '';
-            if (lastMilestone > 0) {
-                milestoneOptions += `<option value="${lastMilestone}">LAST PUBLISHED MILESTONE (AFTER ${lastMilestone} EVENTS)</option>`;
-                milestoneOptions += `<option value="all">ALL PUBLISHED (${totalPublished} EVENTS)</option>`;
-                for (let i = lastMilestone - interval; i >= interval; i -= interval) {
-                    milestoneOptions += `<option value="${i}">AFTER ${i} EVENTS</option>`;
-                }
-            } else {
-                milestoneOptions += `<option value="all">ALL PUBLISHED (${totalPublished} EVENTS)</option>`;
-            }
-
-            content.innerHTML = `
-                <h2 class="page-title">CHAMPIONSHIP STANDINGS</h2>
-                <p class="page-subtitle" id="standings-subtitle">POINTS FROM LAST PUBLISHED EVENTS</p>
-                <div class="milestone-bar">
-                    <select id="milestone-select" class="milestone-select" onchange="filterStandingsData(this.value)">
-                        ${milestoneOptions}
-                    </select>
-                </div>
-                <div class="card" id="standings-card-container"></div>
-                <button class="btn btn-primary" onclick="downloadPoster('team')">
-                    <i class="fa-solid fa-image"></i> Download Standings Poster
-                </button>
-            `;
-
-            filterStandingsData(defaultFilter);
-        }
-
-        function filterStandingsData(filterVal) {
-            const totalPublished = rawPublishedComps.length;
-            let activeComps = rawPublishedComps;
-            let activeCount = totalPublished;
-
-            if (filterVal !== 'all') {
-                const limit = parseInt(filterVal);
-                activeComps = rawPublishedComps.slice(0, limit);
-                activeCount = limit;
-            }
-
-            // Calculate points for the active set
-            let teamScores = {};
-            allTeams.forEach(t => teamScores[t.id] = { name: t.name, score: 0 });
-
-            activeComps.forEach(comp => {
-                const compJudgements = allJudgements.filter(j => j.competition_id === comp.id);
-                const results = calculateSingleComp(comp, compJudgements);
-                results.forEach(r => {
-                    if (r.teamId && teamScores[r.teamId]) {
-                        teamScores[r.teamId].score += Number(r.pts) || 0;
-                    }
-                });
-            });
-
-            const sortedTeams = Object.values(teamScores).sort((a,b) => b.score - a.score);
-
-            // Update Subtitle
-            const subtitle = document.getElementById('standings-subtitle');
-            if (subtitle) {
-                subtitle.innerText = `POINTS AFTER ${activeCount} PUBLISHED EVENT${activeCount === 1 ? '' : 'S'}`;
-            }
-
-            // Store for Poster Generator
-            currentPosterData = {
-                'ResultsCountText': `AFTER ${activeCount}`,
-                'TotalCompetitionsCount': `FINAL STANDINGS`
-            };
-            
-            for (let i = 0; i < 15; i++) {
-                currentPosterData[`Rank${i+1}Team`] = sortedTeams[i]?.name || '';
-                currentPosterData[`Rank${i+1}Points`] = sortedTeams[i] ? sortedTeams[i].score.toString() : '';
-                currentPosterData[`Rank${i+1}Number`] = sortedTeams[i] ? (i+1).toString() : '';
-            }
-
-            const container = document.getElementById('standings-card-container');
-            if (container) {
-                container.innerHTML = sortedTeams.map((t, i) => {
-                    const rank = i + 1;
-                    return `
-                    <div class="lb-row">
-                        <div class="lb-rank rank-${rank}">#${rank}</div>
-                        <div class="lb-details"><span class="lb-name">${t.name}</span></div>
-                        <div class="lb-score">
-                            <span class="score-val">${t.score}</span>
-                            <span class="score-unit">PTS</span>
-                        </div>
-                    </div>
-                    `;
-                }).join('');
-            }
-        }
-
-        async function renderLiveSchedule() {
-            const content = document.getElementById('main-content');
-            const { data: comps } = await supabaseClient.from('competitions')
                 .select('*, categories(name), stages(name)')
-                .in('status', ['ongoing', 'valuation', 'registration'])
+                .in('status', ['ongoing', 'valuation', 'registration', 'pending'])
                 .order('status');
-                
-            content.innerHTML = `
-                <h2 class="page-title">EVENT SCHEDULE</h2>
-                <p class="page-subtitle">HAPPENING RIGHT NOW</p>
-            `;
-            
+
             if (!comps || comps.length === 0) {
-                content.innerHTML += `<div class="card"><p style="color: var(--text-muted); text-align: center; font-weight:500; margin: 0;">No active events right now.</p></div>`;
-                return;
-            }
-
-            comps.forEach(c => {
-                let badge = '';
-                if(c.status === 'ongoing') badge = '<span class="badge badge-live">LIVE ON STAGE</span>';
-                if(c.status === 'valuation') badge = '<span class="badge badge-val">IN VALUATION</span>';
-                if(c.status === 'registration') badge = '<span class="badge badge-call">CALLING NOW</span>';
-
-                content.innerHTML += `
-                    <div class="card">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; gap: 0.5rem;">
-                            <span style="font-size: 0.75rem; font-weight: 600; color: var(--primary);">${c.categories?.name || 'GEN'}</span>
-                            ${badge}
-                        </div>
-                        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.4rem; line-height: 1.2; color: var(--text-main);">${c.name}</h3>
-                        <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;"><i class="fa-solid fa-microphone-stage" style="margin-right: 4px;"></i> ${c.stages?.name || 'GLOBAL STAGE'}</div>
+                container.innerHTML = `
+                    <div class="view-header">
+                        <h2 class="view-title">Stage Radar</h2>
+                        <p class="view-subtitle">Live Stage Monitoring</p>
+                    </div>
+                    <div class="empty-box">
+                        <i class="fa-solid fa-tower-broadcast"></i>
+                        <h3 style="color:#FFF; margin-bottom: 0.35rem;">No Active Events</h3>
+                        <p>All stage performances are currently paused or completed.</p>
                     </div>
                 `;
-            });
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="view-header">
+                    <h2 class="view-title">Stage Radar</h2>
+                    <p class="view-subtitle">Real-time Stage Feeds</p>
+                </div>
+
+                <div>
+                    ${comps.map(c => {
+                        let badgeClass = 'badge-registration';
+                        let badgeIcon = '<i class="fa-solid fa-bullhorn"></i>';
+                        let badgeText = 'CALLING TO STAGE';
+                        let isLive = false;
+
+                        if (c.status === 'ongoing') {
+                            badgeClass = 'badge-ongoing';
+                            badgeIcon = '<i class="fa-solid fa-bolt"></i>';
+                            badgeText = 'PERFORMING NOW';
+                            isLive = true;
+                        } else if (c.status === 'valuation') {
+                            badgeClass = 'badge-valuation';
+                            badgeIcon = '<i class="fa-solid fa-gavel"></i>';
+                            badgeText = 'JUDGES VALUATING';
+                        } else if (c.status === 'pending') {
+                            badgeClass = 'status-badge';
+                            badgeIcon = '<i class="fa-solid fa-clock"></i>';
+                            badgeText = 'UPCOMING';
+                        }
+
+                        return `
+                            <div class="radar-card ${isLive ? 'is-live' : ''}">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem;">
+                                    <span style="font-size: 0.75rem; font-weight: 800; color: var(--primary); text-transform: uppercase;">
+                                        ${c.categories?.name || 'GEN'} • ${c.is_group ? 'GROUP EVENT' : 'SOLO'}
+                                    </span>
+                                    <span class="status-badge ${badgeClass}">
+                                        ${badgeIcon} ${badgeText}
+                                    </span>
+                                </div>
+                                <h3 style="font-size: 1.15rem; font-weight: 800; color: #FFF; margin-bottom: 0.5rem; text-transform: uppercase; line-height: 1.2;">
+                                    ${c.name}
+                                </h3>
+                                <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+                                    <i class="fa-solid fa-microphone-lines" style="color: var(--primary);"></i> ${c.stages?.name || 'Global Stage'}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
         }
 
-        // Shared Logic for calculating points
-        function calculateSingleComp(comp, judgements) {
+        // ==========================================
+        // 4. PARTICIPANT SEARCH / CHEST LOOKUP VIEW
+        // ==========================================
+        function renderSearchView() {
+            const container = document.getElementById('main-view');
+            container.innerHTML = `
+                <div class="view-header">
+                    <h2 class="view-title">Participant Lookup</h2>
+                    <p class="view-subtitle">Search by Chest ID or Name</p>
+                </div>
+
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" class="search-input" id="search-portal-input" placeholder="Enter Chest # or Student Name..." onkeydown="if(event.key==='Enter') executeParticipantSearch()">
+                </div>
+                <button class="btn-action" onclick="executeParticipantSearch()" style="margin-top: -0.5rem; margin-bottom: 1.5rem;">
+                    <i class="fa-solid fa-search"></i> Search Participant
+                </button>
+
+                <div id="search-results-area"></div>
+            `;
+        }
+
+        async function executeParticipantSearch() {
+            const query = document.getElementById('search-portal-input')?.value.trim();
+            if (!query) return;
+
+            const resultsArea = document.getElementById('search-results-area');
+            resultsArea.innerHTML = `
+                <div class="loader-box">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                    <p style="font-weight: 600;">Searching Database...</p>
+                </div>
+            `;
+
+            try {
+                const { data: students } = await supabaseClient
+                    .from('participants')
+                    .select('*, teams(name), categories(name), participant_competitions(is_leader, competitions(id, name, status, stages(name), categories(name)))')
+                    .or(`name.ilike.%${query}%,unique_id.ilike.%${query}%`)
+                    .limit(10);
+
+                if (!students || students.length === 0) {
+                    resultsArea.innerHTML = `
+                        <div class="empty-box">
+                            <i class="fa-solid fa-user-xmark"></i>
+                            <h3 style="color:#FFF; margin-bottom: 0.25rem;">No Participant Found</h3>
+                            <p>No participant records matched "${query}".</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                resultsArea.innerHTML = students.map(s => `
+                    <div class="panel-card" style="margin-bottom: 1rem;">
+                        <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+                            <div style="width: 50px; height: 50px; background: var(--bg-surface-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: var(--primary);">
+                                <i class="fa-solid fa-user-graduate"></i>
+                            </div>
+                            <div>
+                                <h3 style="font-size: 1.1rem; font-weight: 800; color: #FFF; text-transform: uppercase;">${s.name}</h3>
+                                <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 700; color: var(--primary);">CHEST #${s.unique_id}</div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem;">
+                            <span class="squad-chip"><i class="fa-solid fa-shield-halved"></i> ${s.teams?.name || 'INDEPENDENT'}</span>
+                            <span class="squad-chip"><i class="fa-solid fa-layer-group"></i> ${s.categories?.name || 'GENERAL'}</span>
+                        </div>
+
+                        <div style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">
+                            <i class="fa-solid fa-trophy"></i> Enrolled Events (${s.participant_competitions?.length || 0})
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                            ${(s.participant_competitions || []).map(pc => {
+                                const c = pc.competitions;
+                                if (!c) return '';
+                                return `
+                                    <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 0.6rem 0.85rem; display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <span style="font-size: 0.85rem; font-weight: 700; color: #FFF; text-transform: uppercase; display: block;">${c.name}</span>
+                                            <span style="font-size: 0.7rem; color: var(--text-dim);">${c.stages?.name || 'Stage N/A'}</span>
+                                        </div>
+                                        <span class="status-badge" style="font-size: 0.65rem; padding: 0.2rem 0.5rem; background: rgba(255,255,255,0.06);">
+                                            ${c.status.toUpperCase()}
+                                        </span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (err) {
+                resultsArea.innerHTML = `<p style="color:#EF4444; text-align:center;">Search failed: ${err.message}</p>`;
+            }
+        }
+
+        // ==========================================
+        // SHARED CALCULATION ENGINE & ROSTER MAPPING
+        // ==========================================
+        function computeCompPositions(comp, judgements) {
             const pMap = {};
             judgements.forEach(j => {
-                if(!j.participants) return;
+                if (!j.participants) return;
                 const pId = j.participants.id;
-                if(!pMap[pId]) pMap[pId] = { p: j.participants, marks: [] };
+                if (!pMap[pId]) pMap[pId] = { p: j.participants, marks: [] };
                 pMap[pId].marks.push(parseFloat(j.awarded_mark));
             });
 
             const limit = comp.max_participants || 1;
             const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
 
-            const arr = Object.values(pMap).map(data => {
-                let sorted = data.marks.sort((a,b) => a-b);
-                if(sorted.length >= 3) sorted = sorted.slice(1, sorted.length-1);
-                const avg = sorted.reduce((a,b) => a+b, 0) / sorted.length;
-                
-                let name = data.p.name;
-                if(comp.is_group && !name.endsWith('& PARTY')) name += " & PARTY";
+            // Find all enrollments for this comp to group team members
+            const compEnrollments = allEnrollments.filter(e => e.competition_id === comp.id);
 
-                return { avg, name, teamId: data.p.team_id, team: allTeams.find(t=>t.id===data.p.team_id)?.name || 'IND' };
-            }).sort((a,b) => b.avg - a.avg);
+            const arr = Object.values(pMap).map(data => {
+                let sorted = data.marks.sort((a, b) => a - b);
+                if (sorted.length >= 3) sorted = sorted.slice(1, sorted.length - 1);
+                const avg = sorted.reduce((a, b) => a + b, 0) / sorted.length;
+
+                const teamObj = allTeams.find(t => t.id === data.p.team_id);
+                const teamName = teamObj?.name || 'INDEPENDENT';
+
+                // Map all enrolled squad members for group events
+                let squadMembers = [];
+                if (comp.is_group && data.p.team_id) {
+                    squadMembers = compEnrollments
+                        .filter(e => e.participants && e.participants.team_id === data.p.team_id)
+                        .map(e => ({
+                            name: e.participants.name,
+                            unique_id: e.participants.unique_id,
+                            is_leader: e.is_leader
+                        }));
+                }
+
+                return {
+                    avg,
+                    name: data.p.name,
+                    teamId: data.p.team_id,
+                    team: teamName,
+                    allMembers: squadMembers
+                };
+            }).sort((a, b) => b.avg - a.avg);
 
             let rank = 1, prev = -1;
             return arr.map((entry, idx) => {
-                if(entry.avg !== prev) rank = idx + 1;
+                if (entry.avg !== prev) rank = idx + 1;
                 prev = entry.avg;
 
                 let pct = (entry.avg / (comp.max_mark || 100)) * 100;
                 let pts = 0;
+                let grade = '-';
 
                 if (pct >= 50) {
-                    if (pct >= systemSettings.thresholds.aplus) pts += Number(systemSettings[`points_${sizeCat}`].aplus) || 0;
-                    else if (pct >= systemSettings.thresholds.a) pts += Number(systemSettings[`points_${sizeCat}`].a) || 0;
-                    else if (pct >= systemSettings.thresholds.b) pts += Number(systemSettings[`points_${sizeCat}`].b) || 0;
-                    else pts += Number(systemSettings[`points_${sizeCat}`].c) || 0;
+                    if (pct >= systemSettings.thresholds.aplus) { pts += Number(systemSettings[`points_${sizeCat}`].aplus) || 0; grade = 'A+'; }
+                    else if (pct >= systemSettings.thresholds.a) { pts += Number(systemSettings[`points_${sizeCat}`].a) || 0; grade = 'A'; }
+                    else if (pct >= systemSettings.thresholds.b) { pts += Number(systemSettings[`points_${sizeCat}`].b) || 0; grade = 'B'; }
+                    else { pts += Number(systemSettings[`points_${sizeCat}`].c) || 0; grade = 'C'; }
                 }
                 if (rank <= 3) {
                     if (rank === 1) pts += Number(systemSettings.pos_points.p1) || 0;
@@ -504,37 +1446,47 @@
                     else if (rank === 3) pts += Number(systemSettings.pos_points.p3) || 0;
                 }
 
-                return { ...entry, pos: rank, pts };
+                return { ...entry, pos: rank, points: pts, grade };
             });
         }
 
         // ==========================================
-        // UNIFIED GLOBAL BRANDING ENGINE
+        // REALTIME SUBSCRIPTION FOR LIVE REFRESH
+        // ==========================================
+        function setupRealtime() {
+            supabaseClient
+                .channel('spectator-live-feed')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'competitions' }, () => {
+                    if (currentTab === 'standings') renderStandingsView();
+                    else if (currentTab === 'radar') renderRadarView();
+                    else if (currentTab === 'results') renderResultsView();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'judgements' }, () => {
+                    if (currentTab === 'standings') renderStandingsView();
+                    else if (currentTab === 'results') renderResultsView();
+                })
+                .subscribe();
+        }
+
+        // ==========================================
+        // UNIFIED BRANDING & FAVICON ENGINE
         // ==========================================
         async function fetchAndApplyBranding() {
             try {
-                const { data, error } = await supabaseClient
-                    .from('settings')
-                    .select('value')
-                    .eq('id', 'system_branding')
-                    .maybeSingle();
-
-                if (error) throw error;
+                const { data } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
                 if (data && data.value) applyGlobalBranding(data.value);
             } catch (e) {
-                console.warn("Could not fetch global branding:", e.message);
+                console.warn("Branding fetch warning:", e.message);
             }
         }
 
         function applyGlobalBranding(brandingData) {
             const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
             const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
-            const displayMode = brandingData.display_mode || 'both'; 
-            
+            const displayMode = brandingData.display_mode || 'both';
+
             const festName = validName ? brandingData.fest_name : 'FestOS';
-            const titleParts = document.title.split('|');
-            const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Spectator';
-            document.title = `${festName} | ${pageContext}`;
+            document.title = `${festName} | Spectator Hub`;
 
             if (validLogo) {
                 let iconLinks = document.querySelectorAll("link[rel~='icon']");
@@ -549,7 +1501,7 @@
 
             const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
             const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
-            
+
             const logoEl = document.getElementById('head-logo');
             const titleEl = document.getElementById('head-title');
 
@@ -557,43 +1509,31 @@
                 if (showLogo) {
                     logoEl.src = brandingData.fest_logo;
                     logoEl.style.display = 'block';
-                    logoEl.style.height = '28px';
-                    logoEl.style.width = 'auto';
-                    logoEl.style.maxWidth = '120px';
-                    logoEl.style.objectFit = 'contain';
-                    logoEl.style.borderRadius = '4px';
                 } else {
                     logoEl.style.display = 'none';
                 }
             }
-            
             if (titleEl) {
-                if (showName) {
-                    titleEl.innerText = validName ? brandingData.fest_name : 'FestOS';
-                    titleEl.style.display = 'block';
-                } else {
-                    titleEl.style.display = 'none';
-                }
+                titleEl.innerText = showName ? (validName ? brandingData.fest_name : 'FestOS Hub') : '';
+                titleEl.style.display = showName ? 'block' : 'none';
             }
-
-            if (typeof window !== 'undefined') window.systemBranding = brandingData;
         }
 
         // ==========================================
-        // POSTER GENERATION ENGINE
+        // POSTER GENERATION CANVAS ENGINE
         // ==========================================
         async function downloadPoster(type) {
-            if (!currentPosterData) return alert("Data not ready for poster generation.");
-            
+            if (!currentPosterData) return alert("Poster data not ready.");
+
             const btn = event.currentTarget;
             const originalHtml = btn.innerHTML;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating...`;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Rendering Poster...`;
             btn.disabled = true;
 
             try {
                 const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', type).limit(1);
-                if(!templates || templates.length === 0) {
-                    throw new Error("No poster template found. The Admin needs to design one first.");
+                if (!templates || templates.length === 0) {
+                    throw new Error("No poster template found for this category. Design one in Admin Studio first.");
                 }
                 const template = templates[0];
 
@@ -603,7 +1543,7 @@
                             const customFont = new FontFace(fontData.family, `url(${fontData.url})`);
                             const loadedFace = await customFont.load();
                             document.fonts.add(loadedFace);
-                        } catch (e) { console.error("Could not load template font:", e); }
+                        } catch (e) { console.error("Font load error:", e); }
                     }
                 }
 
@@ -611,19 +1551,19 @@
                 img.crossOrigin = "Anonymous";
                 await new Promise((resolve, reject) => {
                     img.onload = resolve;
-                    img.onerror = () => reject(new Error("Failed to load background template image."));
+                    img.onerror = () => reject(new Error("Failed to load poster background template."));
                     img.src = template.bg_base64;
                 });
 
                 const canvas = document.getElementById('poster-canvas');
-                canvas.width = img.naturalWidth; 
+                canvas.width = img.naturalWidth;
                 canvas.height = img.naturalHeight;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0);
 
                 for (const [key, fieldConfig] of Object.entries(template.fields)) {
-                    if(!fieldConfig.enabled) continue; 
-                    
+                    if (!fieldConfig.enabled) continue;
+
                     if (fieldConfig.isImage && fieldConfig.isStaticElement && fieldConfig.src) {
                         try {
                             const staticImg = await new Promise((res) => {
@@ -637,9 +1577,9 @@
                     }
 
                     const text = fieldConfig.isCustom ? fieldConfig.displayName : (currentPosterData[key] || "");
-                    if(!text) continue;
-                    
-                    ctx.textAlign = fieldConfig.align || 'left'; 
+                    if (!text) continue;
+
+                    ctx.textAlign = fieldConfig.align || 'left';
                     ctx.fillStyle = fieldConfig.color || '#000000';
                     ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
                     ctx.fillText(text, fieldConfig.x, fieldConfig.y);
