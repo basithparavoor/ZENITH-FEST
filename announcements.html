@@ -919,22 +919,28 @@
 
         // --- INITIALIZATION & FETCHING ---
         async function initializePortal() {
-            await fetchAndApplyBranding();
+            const [
+                brandingRes,
+                setRes,
+                stagesRes,
+                catsRes,
+                teamsRes
+            ] = await Promise.all([
+                fetchAndApplyBranding(),
+                supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle(),
+                supabaseClient.from('stages').select('id, name'),
+                supabaseClient.from('categories').select('id, name'),
+                supabaseClient.from('teams').select('*')
+            ]);
             
-            const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
-            if (set_data && set_data.value) systemSettings = set_data.value;
-
-            const { data: stages } = await supabaseClient.from('stages').select('id, name');
-            const { data: categories } = await supabaseClient.from('categories').select('id, name');
-            const { data: teamsData } = await supabaseClient.from('teams').select('*');
-            
-            allTeams = teamsData || [];
+            if (setRes?.data?.value) systemSettings = setRes.data.value;
+            allTeams = teamsRes?.data || [];
             
             const stageFilter = document.getElementById('filter-stage');
             const catFilter = document.getElementById('filter-category');
             
-            (stages || []).forEach(s => stageFilter.innerHTML += `<option value="${s.id}">${s.name}</option>`);
-            (categories || []).forEach(c => catFilter.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+            (stagesRes?.data || []).forEach(s => stageFilter.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+            (catsRes?.data || []).forEach(c => catFilter.innerHTML += `<option value="${c.id}">${c.name}</option>`);
 
             initAIVoiceEngine();
             await fetchData();
@@ -1036,23 +1042,24 @@ function calculateResults(judgements, savedAwards) {
 
 async function fetchData() {
             try {
-                // 1. Fetch Master Schedule from settings
-                const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
-                const masterSchedule = schedData?.value || {};
+                // 1. Fetch Schedule, Active Comps & Published Comps in parallel
+                const [
+                    schedRes,
+                    activeRes,
+                    pubRes
+                ] = await Promise.all([
+                    supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle(),
+                    supabaseClient.from('competitions')
+                        .select(`*, categories(id, name, is_general), stages(id, name, stage_no), participant_competitions ( is_present, code_letter, is_leader, participants ( name, unique_id, teams(name) ) )`)
+                        .in('status', ['pending', 'registration', 'ongoing']),
+                    supabaseClient.from('competitions')
+                        .select('*, stages(id, name, stage_no), categories(id, name, is_general), participant_competitions(code_letter, is_leader, participants(id, name, team_id))')
+                        .eq('status', 'published')
+                ]);
 
-                // 2. Fetch Active & Pending Competitions
-                const { data: activeComps } = await supabaseClient
-                    .from('competitions')
-                    .select(`*, categories(id, name, is_general), stages(id, name, stage_no), participant_competitions ( is_present, code_letter, is_leader, participants ( name, unique_id, teams(name) ) )`)
-                    .in('status', ['pending', 'registration', 'ongoing']);
-                
-                // 3. Fetch Published Competitions
-                const { data: pubData } = await supabaseClient
-                    .from('competitions')
-                    .select('*, stages(id, name, stage_no), categories(id, name, is_general), participant_competitions(code_letter, is_leader, participants(id, name, team_id))')
-                    .eq('status', 'published');
-                
-                publishedComps = pubData || [];
+                const masterSchedule = schedRes?.data?.value || {};
+                const activeComps = activeRes?.data || [];
+                publishedComps = pubRes?.data || [];
                 
                 // 4. Fetch Judgements to determine Judges
 const allCompIds = [...(activeComps || []), ...publishedComps].map(c => c.id);

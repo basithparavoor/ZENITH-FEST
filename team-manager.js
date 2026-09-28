@@ -117,8 +117,14 @@ async function initDashboard() {
     }
 
     try {
-        // Fetch manager names along with team name
-        const { data: teamData } = await supabaseClient.from('teams').select('name, manager_name, assistant_manager_name').eq('id', myTeamId).single();
+        const [
+            { data: teamData },
+            { data: settingsData }
+        ] = await Promise.all([
+            supabaseClient.from('teams').select('name, manager_name, assistant_manager_name').eq('id', myTeamId).single(),
+            supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle()
+        ]);
+
         document.getElementById('team-name-title').innerText = teamData ? teamData.name : 'MY TEAM';
         
         // Inject manager names into UI
@@ -128,7 +134,6 @@ async function initDashboard() {
             document.getElementById('tm-manager-names').innerHTML = `<i class="fa-solid fa-user-tie"></i> MGR: ${mgr} <span style="color:var(--border);">|</span> ASST: ${asst}`;
         }
 
-        const { data: settingsData } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
         if (settingsData && settingsData.value) {
             systemSettings = settingsData.value;
             if (systemSettings.tm_access === false) {
@@ -172,16 +177,21 @@ async function refreshDashboard(btnElement) {
 
 async function fetchAllData() {
     try {
-        const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
+        const [
+            { data: schedData },
+            { data: cats },
+            { data: students },
+            { data: comps }
+        ] = await Promise.all([
+            supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle(),
+            supabaseClient.from('categories').select('*'),
+            supabaseClient.from('participants').select('*, categories(name)').eq('team_id', myTeamId).order('name'),
+            supabaseClient.from('competitions').select('*, categories(id, name, is_general, allowed_general_categories), stages(name)').order('name')
+        ]);
+
         tmScheduleData = schedData?.value || {};
-
-        const { data: cats } = await supabaseClient.from('categories').select('*');
         globalCategories = cats || [];
-
-      const { data: students } = await supabaseClient.from('participants').select('*, categories(name)').eq('team_id', myTeamId).order('name');
-        globalStudents = students || []; // <-- THIS LINE WAS MISSING
-
-        const { data: comps } = await supabaseClient.from('competitions').select('*, categories(id, name, is_general, allowed_general_categories), stages(name)').order('name');        
+        globalStudents = students || [];
         globalComps = comps || [];
 
         const studentIds = globalStudents.map(s => s.id);

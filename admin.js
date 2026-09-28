@@ -146,24 +146,39 @@ function switchTab(tabId) {
 
 async function loadAdminDashboard() {
     try {
-        const { count: compCount } = await supabaseClient.from('competitions').select('*', { count: 'exact', head: true });
-        const { count: partCount } = await supabaseClient.from('participants').select('*', { count: 'exact', head: true });
-        const { count: catCount } = await supabaseClient.from('categories').select('*', { count: 'exact', head: true });
-        const { count: teamCount } = await supabaseClient.from('teams').select('*', { count: 'exact', head: true });
-        
-        // CRITICAL FIX: Added max_mark and max_participants to properly calculate grading thresholds and points
-        const { data: allComps } = await supabaseClient.from('competitions').select('id, name, status, award_type, is_group, max_mark, max_participants, categories(name), stages(name)');
-        
+        const [
+            { count: compCount },
+            { count: partCount },
+            { count: catCount },
+            { count: teamCount },
+            { count: enrolCount },
+            { data: allCompsData },
+            { data: schedData },
+            { data: teamsData },
+            { data: judgementsData },
+            { data: participantsData }
+        ] = await Promise.all([
+            supabaseClient.from('competitions').select('*', { count: 'exact', head: true }),
+            supabaseClient.from('participants').select('*', { count: 'exact', head: true }),
+            supabaseClient.from('categories').select('*', { count: 'exact', head: true }),
+            supabaseClient.from('teams').select('*', { count: 'exact', head: true }),
+            supabaseClient.from('participant_competitions').select('*', { count: 'exact', head: true }),
+            supabaseClient.from('competitions').select('id, name, status, award_type, is_group, max_mark, max_participants, categories(name), stages(name)'),
+            supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle(),
+            supabaseClient.from('teams').select('id, name'),
+            supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark'),
+            supabaseClient.from('participants').select('id, name, team_id'),
+            loadPointSettings()
+        ]);
+
+        const allComps = allCompsData || [];
         const liveComps = allComps.filter(c => c.status === 'ongoing');
         const publishedComps = allComps.filter(c => c.status === 'published');
         
         document.getElementById('dash-program-count').innerText = compCount || 0;
         document.getElementById('dash-live-count').innerText = liveComps.length || 0;
         document.getElementById('dash-participant-count').innerText = partCount || 0;
-        
-        const { count: enrolCount } = await supabaseClient.from('participant_competitions').select('*', { count: 'exact', head: true });
         document.getElementById('dash-registered-count').innerText = enrolCount || 0;
-        
         document.getElementById('dash-category-count').innerText = catCount || 0;
         document.getElementById('dash-team-count').innerText = teamCount || 0;
         
@@ -185,7 +200,6 @@ async function loadAdminDashboard() {
         document.getElementById('pb-pub-fill').style.width = `${publishPercent}%`;
 
         // Calculate today's schedule
-        const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
         const masterSchedule = schedData?.value || {};
         const todayStr = new Date().toISOString().split('T')[0];
         let todayCount = 0;
@@ -210,10 +224,9 @@ async function loadAdminDashboard() {
             stageListEl.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1rem;">No events running currently.</p>`;
         }
 
-        await loadPointSettings(); 
-        const { data: teams } = await supabaseClient.from('teams').select('id, name');
-        const { data: judgements } = await supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark');
-        const { data: participants } = await supabaseClient.from('participants').select('id, name, team_id');
+        const teams = teamsData || [];
+        const judgements = judgementsData || [];
+        const participants = participantsData || [];
         
         const pMap = {};
         (participants || []).forEach(p => pMap[p.id] = p);
@@ -590,9 +603,11 @@ let filteredCompetitionsList = [];
 
 async function loadCompetitions() {
     try {
-        if (stagesList.length === 0) { const { data } = await supabaseClient.from('stages').select('*'); stagesList = data || []; }
-        if (categoriesList.length === 0) await loadCategories();
-        if (teamsList.length === 0) { const { data } = await supabaseClient.from('teams').select('*'); teamsList = data || []; }
+        const prereqs = [];
+        if (stagesList.length === 0) prereqs.push(supabaseClient.from('stages').select('*').then(r => { stagesList = r.data || []; }));
+        if (categoriesList.length === 0) prereqs.push(loadCategories());
+        if (teamsList.length === 0) prereqs.push(supabaseClient.from('teams').select('*').then(r => { teamsList = r.data || []; }));
+        if (prereqs.length > 0) await Promise.all(prereqs);
 
         const { data, error } = await supabaseClient
             .from('competitions')
@@ -950,14 +965,17 @@ function openConfirmModal(title, text, confirmCallback) {
 // --- STAGES & TEAMS MANAGEMENT ---
 async function loadStagesAndTeams() {
     try {
-        // Load Stages with Competition Counts
-        const { data: stages, error: stageError } = await supabaseClient
-            .from('stages')
-            .select(`*, users(username), competitions(count)`)
-            .order('stage_no');
-        if(stageError) throw stageError;
+        const [stagesRes, teamsRes] = await Promise.all([
+            supabaseClient.from('stages').select(`*, users(username), competitions(count)`).order('stage_no'),
+            supabaseClient.from('teams').select('*, participants(count), users(username, password_hash)').order('name')
+        ]);
         
-        stagesList = stages || [];
+        if (stagesRes.error) throw stagesRes.error;
+        if (teamsRes.error) throw teamsRes.error;
+        
+        stagesList = stagesRes.data || [];
+        teamsList = teamsRes.data || [];
+        
         const stbody = document.getElementById('stages-tbody');
         stbody.innerHTML = '';
         
@@ -981,14 +999,6 @@ async function loadStagesAndTeams() {
             `;
         });
 
-        // Load Teams WITH Participant Counts AND User Portal Details
-        const { data: teams, error: teamError } = await supabaseClient
-            .from('teams')
-            .select('*, participants(count), users(username, password_hash)')
-            .order('name');
-        if(teamError) throw teamError;
-        
-        teamsList = teams || [];
         const ttbody = document.getElementById('teams-tbody');
         ttbody.innerHTML = '';
         
@@ -1161,8 +1171,10 @@ let filteredParticipantsList = [];
 
 async function loadParticipants() {
     try {
-        if (categoriesList.length === 0) await loadCategories();
-        if (teamsList.length === 0) { const { data } = await supabaseClient.from('teams').select('*'); teamsList = data || []; }
+        const prereqs = [];
+        if (categoriesList.length === 0) prereqs.push(loadCategories());
+        if (teamsList.length === 0) prereqs.push(supabaseClient.from('teams').select('*').then(r => { teamsList = r.data || []; }));
+        if (prereqs.length > 0) await Promise.all(prereqs);
 
         const { data, error } = await supabaseClient.from('participants').select(`*, categories(name), teams(name)`).order('name');
         if(error) throw error;
@@ -4880,16 +4892,27 @@ let pointsRowsPerPage = 10;
 
 async function loadParticipantPoints() {
     try {
-        await loadPointSettings();
+        const [
+            pointSettings,
+            teamsRes,
+            catsRes,
+            compsRes,
+            participantsRes,
+            judgementsRes
+        ] = await Promise.all([
+            loadPointSettings(),
+            teamsList.length === 0 ? supabaseClient.from('teams').select('*') : Promise.resolve({ data: teamsList }),
+            categoriesList.length === 0 ? supabaseClient.from('categories').select('*') : Promise.resolve({ data: categoriesList }),
+            supabaseClient.from('competitions').select('*, categories(name, is_general), participant_competitions(count)'),
+            supabaseClient.from('participants').select('*, teams(name), categories(name)'),
+            supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark')
+        ]);
 
-        // --- ADD THESE TWO LINES TO FIX THE TEAM LEDGER ---
-        if (teamsList.length === 0) { const { data } = await supabaseClient.from('teams').select('*'); teamsList = data || []; }
-        if (categoriesList.length === 0) { const { data } = await supabaseClient.from('categories').select('*'); categoriesList = data || []; }
-
-        // Fetch everything needed
-        const { data: comps } = await supabaseClient.from('competitions').select('*, categories(name, is_general), participant_competitions(count)');
-        const { data: participants } = await supabaseClient.from('participants').select('*, teams(name), categories(name)');
-        const { data: judgements } = await supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark');
+        if (teamsRes.data) teamsList = teamsRes.data;
+        if (catsRes.data) categoriesList = catsRes.data;
+        const comps = compsRes.data || [];
+        const participants = participantsRes.data || [];
+        const judgements = judgementsRes.data || [];
 
         // Create mapping for fast participant lookups
         const pMap = {};
@@ -6814,21 +6837,26 @@ let masterSchedule = {}; // <-- THIS WAS MISSING
 
 let scheduleConflictsReport = { hardClashes: [], bufferWarnings: [], stageCollisions: [], totalConflicts: 0, compConflictMap: {} };
 let scheduleEnrollmentsCache = null;
+let scheduleEnrollmentsCacheTime = 0;
 let currentAuditFilter = 'all';
 let pendingOptimizedSchedule = null;
 
 async function fetchScheduleEnrollments(forceRefresh = false) {
-    if (scheduleEnrollmentsCache && !forceRefresh) return scheduleEnrollmentsCache;
+    const now = Date.now();
+    if (scheduleEnrollmentsCache && !forceRefresh && (now - scheduleEnrollmentsCacheTime < 60000)) {
+        return scheduleEnrollmentsCache;
+    }
     try {
         const { data, error } = await supabaseClient
             .from('participant_competitions')
-            .select('competition_id, participant_id, participants(id, name, unique_id, team_id, teams(name), category_id, categories(name))');
+            .select('competition_id, participant_id, participants(id, name, unique_id, team_id, teams(name))');
         if (error) throw error;
         scheduleEnrollmentsCache = data || [];
+        scheduleEnrollmentsCacheTime = now;
         return scheduleEnrollmentsCache;
     } catch(e) {
         console.warn("Could not fetch schedule enrollments:", e);
-        return [];
+        return scheduleEnrollmentsCache || [];
     }
 }
 
@@ -7007,11 +7035,14 @@ async function detectScheduleConflicts() {
 
 async function loadSchedules() {
     try {
-        if (competitionsList.length === 0) await loadCompetitions();
-        if (stagesList.length === 0) await loadStagesAndTeams(); 
+        const promises = [];
+        if (competitionsList.length === 0) promises.push(loadCompetitions());
+        if (stagesList.length === 0) promises.push(loadStagesAndTeams());
+        promises.push(supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle());
 
-        const { data, error } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
-        masterSchedule = data?.value || {};
+        const results = await Promise.all(promises);
+        const schedRes = results[results.length - 1];
+        masterSchedule = schedRes?.data?.value || {};
         
         const filterCat = document.getElementById('filterSchedCat');
         if(filterCat && filterCat.options.length === 1) {
@@ -8357,22 +8388,17 @@ let globalJudgesList = [];
 
 async function loadJudgesManagement() {
     try {
-        // 1. Fetch all users with the role of 'judge'
-        const { data: judges, error: judgesErr } = await supabaseClient
-            .from('users')
-            .select('id, username')
-            .eq('role', 'judge')
-            .order('username');
+        const [
+            { data: judges, error: judgesErr },
+            { data: assignments, error: assignErr }
+        ] = await Promise.all([
+            supabaseClient.from('users').select('id, username').eq('role', 'judge').order('username'),
+            supabaseClient.from('judgements').select('judge_id, competition_id, competitions(name, categories(name), stages(name))')
+        ]);
         
         if (judgesErr) throw judgesErr;
-        globalJudgesList = judges || [];
-
-        // 2. Fetch assignments (judgements) to see what events they are linked to
-        const { data: assignments, error: assignErr } = await supabaseClient
-            .from('judgements')
-            .select('judge_id, competition_id, competitions(name, categories(name), stages(name))');
-        
         if (assignErr) throw assignErr;
+        globalJudgesList = judges || [];
 
         // 3. Group and deduplicate assignments per judge 
         // (Since judgements might have multiple rows per comp if marks are saved)
