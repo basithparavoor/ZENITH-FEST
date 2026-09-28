@@ -1005,10 +1005,19 @@
             track.innerHTML = tickerHtml + tickerHtml;
         }
 
+        function getSpectatorBaseUrl() {
+            const loc = window.location;
+            let path = loc.pathname;
+            const lastSlash = path.lastIndexOf('/');
+            const dir = lastSlash >= 0 ? path.substring(0, lastSlash) : '';
+            return `${loc.origin}${dir}/spectator.html`;
+        }
+
         function updateDynamicQR(slideId, customUrl = null, customText = null) {
-            let targetUrl = displaySettings.qr_url && displaySettings.qr_url.trim() !== '' ? displaySettings.qr_url : (window.location.origin + '/spectator.html');
-            let mainText = displaySettings.qr_title || 'SCAN FOR LIVE DATA';
-            let subText = displaySettings.qr_subtitle || 'MOBILE SPECTATOR APP';
+            const spectatorUrl = getSpectatorBaseUrl();
+            let targetUrl = `${spectatorUrl}?view=standings`;
+            let mainText = 'SCAN FOR LIVE DATA';
+            let subText = 'MOBILE SPECTATOR APP';
 
             const qrWidget = document.getElementById('qr-widget');
             if (displaySettings.show_qr === false) {
@@ -1018,29 +1027,42 @@
                 if (qrWidget) qrWidget.style.display = 'flex';
             }
 
+            // 1. Explicit Custom URL from Slide or Settings
             if (customUrl) {
                 targetUrl = customUrl;
-                mainText = customText || 'SCAN TO VISIT';
+                mainText = customText || 'SCAN TO VIEW';
                 subText = 'EXTERNAL LINK';
             } else if (displaySettings.qr_preset === 'custom' && displaySettings.qr_url) {
                 targetUrl = displaySettings.qr_url;
                 mainText = displaySettings.qr_title || 'SCAN FOR INFO';
                 subText = displaySettings.qr_subtitle || 'POINT YOUR CAMERA';
-            } else if (displaySettings.qr_preset === 'schedule') {
-                targetUrl = window.location.origin + '/display.html?mode=schedule';
-                mainText = displaySettings.qr_title || 'EVENT SCHEDULE';
-                subText = displaySettings.qr_subtitle || 'STAGE TIMINGS & DETAILS';
-            } else if (displaySettings.qr_preset === 'scoreboard') {
-                targetUrl = window.location.origin + '/display.html?mode=leaderboard';
-                mainText = displaySettings.qr_title || 'LIVE SCOREBOARD';
-                subText = displaySettings.qr_subtitle || 'CHAMPIONSHIP STANDINGS';
             } else if (displaySettings.qr_preset === 'social') {
                 targetUrl = displaySettings.qr_url || 'https://instagram.com';
                 mainText = displaySettings.qr_title || 'FOLLOW LIVE STREAM';
                 subText = displaySettings.qr_subtitle || '@ZENITHFEST OFFICIAL';
-            } else if (slideId === 'slide-podium' && currentPodiumCompId) {
-                targetUrl = `${window.location.origin}/spectator.html?view=results&comp=${currentPodiumCompId}`;
-                mainText = 'SCAN FOR RESULTS'; subText = 'DOWNLOAD POSTER';
+            } 
+            // 2. Dynamic Mode: Context-Aware Matching to the exact slide currently visible
+            else if (slideId === 'slide-podium' && currentPodiumCompId) {
+                targetUrl = `${spectatorUrl}?view=result&comp=${currentPodiumCompId}`;
+                mainText = 'SCAN FOR RESULTS';
+                subText = 'DOWNLOAD POSTER';
+            } else if (slideId && slideId.startsWith('slide-standings')) {
+                targetUrl = `${spectatorUrl}?view=standings`;
+                mainText = 'TEAM STANDINGS';
+                subText = 'DOWNLOAD POSTER';
+            } else if (slideId && slideId.startsWith('slide-schedule')) {
+                targetUrl = `${spectatorUrl}?view=schedule`;
+                mainText = 'STAGE RADAR';
+                subText = 'LIVE TIMELINE';
+            } else if (slideId && slideId.startsWith('slide-custom')) {
+                const customEl = document.getElementById(slideId);
+                const sUrl = customEl ? customEl.getAttribute('data-qr-url') : null;
+                const sTxt = customEl ? customEl.getAttribute('data-qr-text') : null;
+                if (sUrl) {
+                    targetUrl = sUrl;
+                    mainText = sTxt || 'SCAN FOR DETAILS';
+                    subText = 'CUSTOM ATTACHMENT';
+                }
             }
 
             const qrMain = document.getElementById('qr-main-text');
