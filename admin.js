@@ -8814,3 +8814,300 @@ window.executeRouteToAdminAssignment = async function(mode) {
         }, 300);
     }
 };
+
+// ============================================================================
+// ADMIN ASSIGNMENT ENGINE V2: DUAL-VIEW, SEARCH, & ROUTING
+// ============================================================================
+
+window.switchAssignView = function(view) {
+    document.getElementById('btn-assign-view-list').className = 'btn btn-outline';
+    document.getElementById('btn-assign-view-bulk').className = 'btn btn-outline';
+    document.getElementById('assign-view-list').style.display = 'none';
+    document.getElementById('assign-view-bulk').style.display = 'none';
+    
+    if (view === 'bulk') {
+        document.getElementById('btn-assign-view-bulk').className = 'btn btn-primary';
+        document.getElementById('assign-view-bulk').style.display = 'block';
+    } else {
+        document.getElementById('btn-assign-view-list').className = 'btn btn-primary';
+        document.getElementById('assign-view-list').style.display = 'block';
+        if (typeof window.renderAssignOverview === 'function') window.renderAssignOverview();
+    }
+};
+
+// FIX: Ensure ALL required data is loaded before rendering assignments
+window.initAssignWorkspace = async function() {
+    if (categoriesList.length === 0) { const { data } = await supabaseClient.from('categories').select('*').order('name'); categoriesList = data || []; }
+    if (teamsList.length === 0) { const { data } = await supabaseClient.from('teams').select('*').order('name'); teamsList = data || []; }
+    if (participantsList.length === 0) { const { data } = await supabaseClient.from('participants').select('*').order('name'); participantsList = data || []; }
+    if (competitionsList.length === 0) { const { data } = await supabaseClient.from('competitions').select('*, categories(name)').order('name'); competitionsList = data || []; }
+    
+    // Populate Overview Filters
+    const catSelect = document.getElementById('filter-assign-overview-cat');
+    if (catSelect) {
+        catSelect.innerHTML = '<option value="all">ALL CATEGORIES</option>';
+        categoriesList.forEach(c => { catSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`; });
+    }
+    
+    const teamSelect = document.getElementById('filter-assign-overview-team');
+    if (teamSelect) {
+        teamSelect.innerHTML = '<option value="all">-- SELECT TEAM TO ENABLE ADDING --</option>';
+        teamsList.forEach(t => { teamSelect.innerHTML += `<option value="${t.id}">${t.name}</option>`; });
+    }
+    
+    // Populate Bulk Assigner Category Filter
+    const bulkCatSelect = document.getElementById('assignWorkCategory');
+    if (bulkCatSelect) {
+        bulkCatSelect.innerHTML = '<option value="">-- CHOOSE CATEGORY --</option>';
+        categoriesList.forEach(c => {
+            bulkCatSelect.innerHTML += `<option value="${c.id}" data-general="${c.is_general}">${c.name} ${c.is_general ? '(GENERAL)' : ''}</option>`;
+        });
+    }
+
+    if (typeof window.switchAssignView === 'function') window.switchAssignView('list');
+};
+
+// FIX: Search and display ALL competitions dynamically in the Bulk Assigner
+window.currentWorkspaceComps = [];
+window.loadAssignWorkspaceCompetitions = async function() {
+    const categoryId = document.getElementById('assignWorkCategory').value;
+    const compSelect = document.getElementById('assignWorkComp');
+    document.getElementById('assignStudentWorkspace').style.display = 'none';
+    
+    const searchInput = document.getElementById('assignWorkCompSearch');
+    if (searchInput) searchInput.value = ''; // Reset search
+    
+    if (!categoryId) {
+        compSelect.innerHTML = '<option value="">-- CHOOSE CATEGORY FIRST --</option>';
+        compSelect.disabled = true;
+        currentWorkspaceComps = [];
+        return;
+    }
+
+    // Pull instantly from memory rather than querying the DB, ensuring all statuses are shown
+    currentWorkspaceComps = competitionsList.filter(c => String(c.category_id) === String(categoryId));
+    window.renderAssignWorkspaceDropdown(currentWorkspaceComps);
+};
+
+window.renderAssignWorkspaceDropdown = function(comps) {
+    const compSelect = document.getElementById('assignWorkComp');
+    compSelect.innerHTML = '<option value="">-- SELECT COMPETITION TO MANAGE --</option>';
+    comps.forEach(c => {
+        compSelect.innerHTML += `<option value="${c.id}" data-limit="${c.max_participants}" data-is-group="${c.is_group}">${c.name}</option>`;
+    });
+    compSelect.disabled = false;
+};
+
+window.filterAssignWorkspaceDropdown = function() {
+    const search = document.getElementById('assignWorkCompSearch').value.toLowerCase();
+    const filtered = currentWorkspaceComps.filter(c => c.name.toLowerCase().includes(search));
+    window.renderAssignWorkspaceDropdown(filtered);
+};
+
+
+// FIX: Overview Renderer - Show ALL competitions and secure drag-and-drop IDs
+window.renderAssignOverview = async function() {
+    const tbody = document.getElementById('assign-overview-tbody');
+    if (!tbody) return;
+    
+    const search = document.getElementById('search-assign-overview').value.toLowerCase();
+    const catFilter = document.getElementById('filter-assign-overview-cat').value;
+    const teamFilter = document.getElementById('filter-assign-overview-team').value;
+    
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Fetching Live Assignments...</td></tr>';
+    
+    // Fetch fresh global assignments memory mapping
+    const { data: assigns } = await supabaseClient.from('participant_competitions').select('*, participants(name, unique_id, category_id, team_id, teams(name), categories(name))');
+    window.globalAdminAssignments = assigns || [];
+
+    tbody.innerHTML = '';
+    
+    // SHOW ALL COMPETITIONS
+    const eligibleComps = competitionsList;
+
+    if (eligibleComps.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted); font-weight: 600;">NO COMPETITIONS AVAILABLE.</td></tr>';
+        return;
+    }
+
+    eligibleComps.forEach(comp => {
+        const catName = comp.categories?.name || 'UNCATEGORIZED';
+        if (catFilter !== 'all' && String(comp.category_id) !== String(catFilter)) return;
+        if (search && !comp.name.toLowerCase().includes(search)) return;
+
+        let enrolled = window.globalAdminAssignments.filter(a => String(a.competition_id) === String(comp.id));
+        
+        if (teamFilter !== 'all') {
+            enrolled = enrolled.filter(a => String(a.participants?.team_id) === String(teamFilter));
+        }
+        
+        enrolled.sort((a, b) => (b.is_leader ? 1 : 0) - (a.is_leader ? 1 : 0));
+        
+        let studentsHtml = '';
+        if (enrolled.length === 0) {
+            studentsHtml = '<span style="color: var(--warning); font-size: 0.8rem; font-weight: 700; background: var(--warning-light); padding: 4px 8px; border-radius: 6px;">NO STUDENTS ENROLLED</span>';
+        } else {
+            studentsHtml = '<div style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">';
+            enrolled.forEach((a, index) => {
+                const student = a.participants;
+                if (!student) return;
+                
+                const pId = a.participant_id; // Absolute safe ID pull
+                
+                let leaderBadge = '';
+                if (comp.is_group && index === 0 && teamFilter !== 'all') {
+                    leaderBadge = `<span style="background: var(--primary); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800; display: inline-flex; align-items: center; margin-right: 6px;">LEADER</span>`;
+                }
+                
+                // Drag and drop is ONLY enabled if filtered down to a specific Team
+                const dragProps = (comp.is_group && teamFilter !== 'all')
+                    ? `draggable="true" class="draggable-item" data-comp-id="${comp.id}" data-student-id="${pId}" ondragstart="handleDragStart(event, '${comp.id}', '${pId}')" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, '${comp.id}', '${pId}')" ondragend="handleDragEnd(event)"` 
+                    : '';
+                const dragIcon = (comp.is_group && teamFilter !== 'all') ? `<i class="fa-solid fa-grip-vertical" style="color: #CBD5E1; cursor: grab; margin-right: 8px;"></i>` : '';
+
+                studentsHtml += `
+                    <div ${dragProps} style="background: var(--bg-surface); border: 1px solid var(--border); padding: 0.5rem 0.75rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02); width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap;">
+                            ${dragIcon}
+                            ${leaderBadge}
+                            <strong style="color: var(--text-main); font-size: 0.95rem;">${student.name}</strong>
+                            <span style="color: var(--text-muted); font-family: monospace; font-size: 0.75rem; margin-left: 4px;">${student.unique_id}</span>
+                            <span style="font-size: 0.65rem; color: var(--text-muted); background: var(--bg-main); padding: 2px 6px; border-radius: 4px; margin-left: 4px; border: 1px solid var(--border);">${student.teams?.name || 'IND'}</span>
+                        </div>
+                        <button class="btn btn-outline" style="padding: 0.35rem 0.6rem; min-height: auto; border-color: var(--danger); color: var(--danger); border-radius: 6px; width: auto; flex-shrink: 0;" onclick="quickRemoveStudent('${comp.id}', '${pId}')"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                `;
+            });
+            studentsHtml += '</div>';
+        }
+
+        let addBtn = '';
+        if (teamFilter === 'all') {
+            addBtn = `<span class="badge" style="background: var(--bg-main); color: var(--text-muted); border: 1px solid var(--border); padding: 0.6rem 1rem; text-align: center; display: block; white-space: normal;">SELECT TEAM IN FILTER TO ADD</span>`;
+        } else {
+            const isFull = comp.max_participants > 0 && enrolled.length >= comp.max_participants;
+            addBtn = isFull 
+                ? `<span class="badge" style="background: var(--bg-main); color: var(--text-muted); border: 1px solid var(--border); padding: 0.6rem 1rem; text-align: center; display: block;">TEAM LIMIT REACHED</span>`
+                : `<button class="btn btn-primary" style="padding: 0.6rem 1rem; width: 100%; justify-content: center;" onclick="openQuickAddModal('${comp.id}', '${teamFilter}')"><i class="fa-solid fa-plus"></i> ADD PARTICIPANTS</button>`;
+        }
+
+        let pubBadge = '';
+        if (comp.status === 'published' || comp.status === 'judgement_complete') {
+            pubBadge = `<br><span class="badge badge-success" style="font-size: 0.65rem; margin-top: 4px;"><i class="fa-solid fa-check-double"></i> COMPLETED</span>`;
+        }
+
+        tbody.innerHTML += `
+            <tr>
+                <td data-label="COMPETITION" style="font-weight: 800; color: var(--text-main); font-size: 1.05rem; vertical-align: top;">
+                    ${comp.name} <br><span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-top: 4px; display: inline-block;">(MAX: ${comp.max_participants} PER TEAM)</span>
+                    ${pubBadge}
+                    ${comp.is_group && enrolled.length > 0 && teamFilter !== 'all' ? `<br><span style="font-size: 0.65rem; color: var(--primary); font-weight: 800; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-hand-pointer"></i> DRAG TO ARRANGE LEADER</span>` : ''}
+                </td>
+                <td data-label="CATEGORY" style="vertical-align: top;"><span class="badge badge-gray">${catName}</span></td>
+                <td data-label="ASSIGNED STUDENTS" style="width: 50%; vertical-align: top;">${studentsHtml}</td>
+                <td data-label="ACTIONS" style="min-width: 150px; vertical-align: top;">${addBtn}</td>
+            </tr>
+        `;
+    });
+};
+
+// FIX: Drag logic secured string comparison
+window.handleDrop = async function(e, targetCompId, targetStudentId) {
+    e.preventDefault();
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    
+    const dataStr = e.dataTransfer.getData('text/plain');
+    if(!dataStr) return;
+    
+    const {compId, studentId: draggedStudentId} = JSON.parse(dataStr);
+    if(compId !== targetCompId || draggedStudentId === targetStudentId) return;
+    
+    const targetElement = e.target.closest('.draggable-item');
+    const container = targetElement.parentNode;
+    const draggedElement = document.querySelector(`[data-student-id="${draggedStudentId}"][data-comp-id="${compId}"]`);
+    
+    if(!draggedElement || !targetElement) return;
+
+    // Visual Reorder
+    const allItems = Array.from(container.children);
+    const draggedIndex = allItems.indexOf(draggedElement);
+    const targetIndex = allItems.indexOf(targetElement);
+    
+    if (draggedIndex < targetIndex) targetElement.after(draggedElement);
+    else targetElement.before(draggedElement);
+    
+    const newLeaderId = container.firstElementChild.getAttribute('data-student-id');
+    const teamFilter = document.getElementById('filter-assign-overview-team').value;
+    
+    // Instantly Update Local State UI
+    let myEnrolled = window.globalAdminAssignments.filter(a => String(a.competition_id) === String(compId) && String(a.participants?.team_id) === String(teamFilter));
+    myEnrolled.forEach(a => { a.is_leader = (String(a.participant_id) === String(newLeaderId)); });
+    window.renderAssignOverview();
+    
+    // Async background save
+    try {
+        const updates = myEnrolled.map(a => {
+            return supabaseClient.from('participant_competitions').update({ is_leader: a.is_leader }).eq('id', a.id);
+        });
+        await Promise.all(updates);
+    } catch(err) {
+        showToast("Error saving order: " + err.message, "error");
+    }
+};
+
+// ROUTING: Connects Vacancy Audit directly to the tools
+window.routeToAdminAssignment = function(catId, compId) {
+    document.getElementById('vacancyModal').classList.remove('show');
+    
+    document.getElementById('route-cat-id').value = catId;
+    document.getElementById('route-comp-id').value = compId;
+    
+    document.getElementById('assignModeModal').classList.add('show');
+};
+
+window.executeRouteToAdminAssignment = async function(mode) {
+    document.getElementById('assignModeModal').classList.remove('show');
+    
+    const catId = document.getElementById('route-cat-id').value;
+    const compId = document.getElementById('route-comp-id').value;
+    
+    switchTab('assignments');
+    
+    if (mode === 'bulk') {
+        if (typeof window.switchAssignView === 'function') window.switchAssignView('bulk');
+        
+        const catSelect = document.getElementById('assignWorkCategory');
+        if (catSelect) {
+            catSelect.value = catId;
+            await window.loadAssignWorkspaceCompetitions();
+        }
+        
+        setTimeout(async () => {
+            const compSelect = document.getElementById('assignWorkComp');
+            if (compSelect) {
+                compSelect.value = compId;
+                await window.loadAssignWorkspaceStudents();
+            }
+        }, 300);
+        
+    } else {
+        if (typeof window.switchAssignView === 'function') window.switchAssignView('list');
+        
+        const catSelect = document.getElementById('filter-assign-overview-cat');
+        if (catSelect) {
+            catSelect.value = catId;
+            window.renderAssignOverview();
+        }
+        
+        setTimeout(() => {
+            const teamFilter = document.getElementById('filter-assign-overview-team').value;
+            if (teamFilter === 'all') {
+                showToast('Please select a Team in the filter first to enable Quick Add', 'warning');
+                document.getElementById('filter-assign-overview-team').style.boxShadow = '0 0 0 3px var(--primary-ring)';
+                setTimeout(() => document.getElementById('filter-assign-overview-team').style.boxShadow = 'none', 2500);
+            } else {
+                window.openQuickAddModal(compId, teamFilter);
+            }
+        }, 400);
+    }
+};
