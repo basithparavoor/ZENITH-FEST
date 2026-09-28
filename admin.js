@@ -9266,77 +9266,113 @@ window.switchBuilderTab = function(tabId, element) {
 
 let websiteConfig = {
     domain: '',
+    password_protected: false,
+    site_password: '',
     pages: {
         home: {
             progCount: '250+', partCount: '1.2K+', teamCount: '40+', venueCount: '6',
-            aboutTitle: '', aboutSub: '', contentTitle: '', contentDesc: '',
-            contact: { title: '', email: '', phone: '', wa: '', ig: '', fb: '', yt: '', web: '', address: ''}
+            heroTitle: 'Welcome to Zenith Fest',
+            heroSub: 'Track live event schedules, real-time results, and official championship standings all in one place.',
+            heroDeskImg: '', heroMobImg: '',
+            aboutTitle: 'About Our Festival', aboutSub: 'Celebrating Talent & Artistry',
+            contentTitle: 'Where Champions Rise',
+            contentDesc: 'Zenith Fest brings together extraordinary collegiate talent across music, dance, theater, and literary arts.',
+            aboutImg: '',
+            contact: {
+                title: 'Connect With Organizers', email: 'fest@zenith.edu', phone: '+91 98765 43210',
+                wa: '+91 98765 43210', ig: 'zenithfest', fb: 'zenithfest', yt: 'zenithfest',
+                web: 'zenithfest.com', address: 'Main Auditorium, Campus Complex'
+            }
         }
     },
     visibility: {
-        page: { schedules: true, results: true, downloads: true, gallery: true, news: true, wall: true, myresult: true },
-        nav: { schedules: true, results: true, downloads: true, gallery: true, news: true, wall: true, myresult: true },
-        foot: { schedules: true, results: true, downloads: true, gallery: true, news: true, wall: true, myresult: true }
+        page: { schedules: true, results: true, downloads: true, gallery: true, news: true, wall: false, portal: true, myresult: true },
+        nav: { schedules: true, results: true, downloads: true, gallery: true, news: true, wall: false, portal: true, myresult: true },
+        foot: { schedules: true, results: true, downloads: true, gallery: true, news: true, wall: false, portal: true, myresult: true }
     },
     theme: {
-        colors: { primary: '#EF4444', secondary: '#3B82F6', accent: '#F59E0B', bg: '#FFFFFF' }
-    }
+        primary: '#3B82F6',
+        secondary: '#1E293B',
+        accent: '#F59E0B',
+        bg: '#F9FAFB',
+        font: 'Plus Jakarta Sans',
+        podium_style: 'cards',
+        show_points_breakdown: true,
+        show_milestone_filter: true,
+        show_search_filter: true,
+        results_title: 'OFFICIAL EVENT RESULTS',
+        results_subtitle: 'Real-Time Verified Standings & Graphics',
+        header_logo: '',
+        footer_logo: '',
+        og_image: '',
+        launch_logo: ''
+    },
+    gallery: [
+        { id: 'alb_1', title: 'Opening Ceremony Highlights', category: 'Stage', cover_url: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80', count: 12 },
+        { id: 'alb_2', title: 'Western Dance & Music Battle', category: 'Stage', cover_url: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80', count: 24 }
+    ],
+    downloads: [
+        { id: 'dl_1', title: 'Official Festival Rulebook & Code of Conduct 2026', category: 'Rulebook', size: '2.4 MB', url: '#' },
+        { id: 'dl_2', title: 'Master Event Schedule & Stage Map', category: 'Schedule', size: '1.8 MB', url: '#' }
+    ],
+    news: [
+        { id: 'nw_1', title: 'Grand Finale Stage Schedule & Gala Night Announced', category: 'Announcement', date: '2026-09-28', summary: 'All events on the main stage will commence from 9:00 AM with celebrity judges.' }
+    ]
 };
 
 let webAnalyticsChart = null;
 
-// Extends the existing switchTab function to initialize Builder Components
+// Extends existing switchTab
 const existingSwitchTabHook = window.switchTab;
 window.switchTab = function(tabId) {
-    if(existingSwitchTabHook) existingSwitchTabHook(tabId);
+    if (existingSwitchTabHook) existingSwitchTabHook(tabId);
     
     if (tabId === 'website-builder') {
-        // Initialize the first tab (Overview)
         switchBuilderTab('overview', document.querySelector('.builder-nav-item.active') || document.querySelectorAll('.builder-nav-item')[0]);
         loadWebsiteConfig();
     }
 };
 
 window.switchBuilderTab = function(tabId, element) {
-    // 1. Update active state on sidebar items
     const navItems = document.querySelectorAll('.builder-nav-item');
     navItems.forEach(el => el.classList.remove('active'));
     if (element) element.classList.add('active');
     
-    // 2. Hide all panes
     const allPanes = document.querySelectorAll('.builder-content-pane');
     allPanes.forEach(pane => {
         pane.classList.remove('active');
         pane.style.display = 'none';
     });
     
-    // 3. Show the target pane
     const targetPane = document.getElementById(`builder-pane-${tabId}`);
     if (targetPane) {
         targetPane.classList.add('active');
         targetPane.style.display = 'flex';
     }
 
-    // 4. Initialize specific pane features
     if (tabId === 'analytics') {
         initProfessionalAnalytics();
+    } else if (tabId === 'gallery') {
+        renderGalleryBuilder();
+    } else if (tabId === 'downloads') {
+        renderDownloadsBuilder();
+    } else if (tabId === 'news') {
+        renderNewsBuilder();
     } else if (tabId === 'overview') {
-        // Refresh iframes to ensure proper loading
         const deskFrame = document.getElementById('preview-desktop-frame');
         const mobFrame = document.getElementById('preview-mobile-frame');
-        if (deskFrame) deskFrame.src = deskFrame.src;
-        if (mobFrame) mobFrame.src = mobFrame.src;
+        if (deskFrame) deskFrame.src = 'results.html?preview=true&r=' + Date.now();
+        if (mobFrame) mobFrame.src = 'results.html?preview=true&r=' + Date.now();
     }
 };
 
-// --- Analytics Chart Initialization ---
+// --- Analytics Chart ---
 function initProfessionalAnalytics() {
     const ctx = document.getElementById('websiteAnalyticsChart');
     if (!ctx) return;
     
     if (webAnalyticsChart) webAnalyticsChart.destroy();
     
-    // Mock Data for Professional Chart matching screenshot theme
     const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const visitorsData = [1200, 1900, 3000, 5000, 2000, 3000, 4500];
     const pageviewsData = [2400, 3800, 6000, 10000, 4000, 6000, 9000];
@@ -9349,7 +9385,7 @@ function initProfessionalAnalytics() {
                 {
                     label: 'Page Views',
                     data: pageviewsData,
-                    borderColor: '#3B82F6', // Primary Blue
+                    borderColor: '#3B82F6',
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
                     borderWidth: 3,
                     fill: true,
@@ -9358,7 +9394,7 @@ function initProfessionalAnalytics() {
                 {
                     label: 'Unique Visitors',
                     data: visitorsData,
-                    borderColor: '#10B981', // Success Green
+                    borderColor: '#10B981',
                     backgroundColor: 'transparent',
                     borderWidth: 3,
                     borderDash: [5, 5],
@@ -9385,68 +9421,146 @@ function initProfessionalAnalytics() {
 // --- Loading and Saving Configuration ---
 async function loadWebsiteConfig() {
     try {
-        const { data, error } = await supabaseClient.from('settings').select('value').eq('id', 'website_config').maybeSingle();
+        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'website_config').maybeSingle();
         if (data && data.value) {
-            websiteConfig = data.value;
-            populateWebsiteForms();
+            websiteConfig = { ...websiteConfig, ...data.value };
+            // Ensure deep merges for sub-objects
+            if (data.value.pages) websiteConfig.pages = { ...websiteConfig.pages, ...data.value.pages };
+            if (data.value.visibility) websiteConfig.visibility = { ...websiteConfig.visibility, ...data.value.visibility };
+            if (data.value.theme) websiteConfig.theme = { ...websiteConfig.theme, ...data.value.theme };
+            if (data.value.gallery) websiteConfig.gallery = data.value.gallery;
+            if (data.value.downloads) websiteConfig.downloads = data.value.downloads;
+            if (data.value.news) websiteConfig.news = data.value.news;
         }
+        populateWebsiteForms();
     } catch(e) {
-        console.warn("Using default website configuration.");
-        populateWebsiteForms(); // Populate defaults
+        console.warn("Using default website configuration:", e);
+        populateWebsiteForms();
     }
 }
 
 function populateWebsiteForms() {
-    // Domains (FIXED ID REFERENCES)
-    if(document.getElementById('web-subdomain')) {
-        document.getElementById('web-subdomain').value = websiteConfig.domain || '';
-        
-        const fullUrl = websiteConfig.domain ? `${websiteConfig.domain}.festos.app` : 'festos.app';
-        
-        if(document.getElementById('overview-url-display-desk')) {
-            document.getElementById('overview-url-display-desk').innerText = fullUrl;
-        }
-        if(document.getElementById('overview-url-display-footer')) {
-            document.getElementById('overview-url-display-footer').innerText = fullUrl;
-        }
-        
-        if(websiteConfig.domain && document.getElementById('subdomain-status')) {
-            document.getElementById('subdomain-status').style.display = 'block';
-        }
+    // 1. Password Protection Toggle
+    const passToggle = document.getElementById('site-password-toggle');
+    if (passToggle) {
+        passToggle.checked = !!websiteConfig.password_protected;
+        passToggle.onchange = function() {
+            websiteConfig.password_protected = passToggle.checked;
+            if (passToggle.checked && !websiteConfig.site_password) {
+                openSitePasswordModal();
+            } else {
+                executeWebsiteSave(null);
+            }
+        };
     }
 
-    // Pages
-    const p = websiteConfig.pages.home;
-    if(document.getElementById('pg-prog-count')) document.getElementById('pg-prog-count').value = p.progCount || '';
-    if(document.getElementById('pg-part-count')) document.getElementById('pg-part-count').value = p.partCount || '';
-    if(document.getElementById('pg-team-count')) document.getElementById('pg-team-count').value = p.teamCount || '';
-    if(document.getElementById('pg-venue-count')) document.getElementById('pg-venue-count').value = p.venueCount || '';
-    if(document.getElementById('pg-about-title')) document.getElementById('pg-about-title').value = p.aboutTitle || '';
-    if(document.getElementById('pg-about-sub')) document.getElementById('pg-about-sub').value = p.aboutSub || '';
-    if(document.getElementById('pg-content-title')) document.getElementById('pg-content-title').value = p.contentTitle || '';
-    if(document.getElementById('pg-content-desc')) document.getElementById('pg-content-desc').value = p.contentDesc || '';
+    // 2. Domains
+    if (document.getElementById('web-subdomain')) {
+        document.getElementById('web-subdomain').value = websiteConfig.domain || '';
+        if (document.getElementById('web-subdomain')) document.getElementById('web-subdomain').value = websiteConfig.domain || 'zenith';
+        if (document.getElementById('web-custom-domain')) document.getElementById('web-custom-domain').value = websiteConfig.custom_domain || '';
+        
+        const fullUrl = websiteConfig.domain ? `${websiteConfig.domain}.festos.clubad.space` : 'zenith.festos.clubad.space';
+        
+        if (document.getElementById('overview-url-display-desk')) document.getElementById('overview-url-display-desk').innerText = fullUrl;
+        if (document.getElementById('overview-url-display-footer')) document.getElementById('overview-url-display-footer').innerText = fullUrl;
+        if (document.getElementById('subdomain-status')) document.getElementById('subdomain-status').style.display = websiteConfig.domain ? 'block' : 'none';
+    }
+
+    // 3. Pages
+    const p = websiteConfig.pages?.home || {};
+    if (document.getElementById('pg-prog-count')) document.getElementById('pg-prog-count').value = p.progCount || '250+';
+    if (document.getElementById('pg-part-count')) document.getElementById('pg-part-count').value = p.partCount || '1.2K+';
+    if (document.getElementById('pg-team-count')) document.getElementById('pg-team-count').value = p.teamCount || '40+';
+    if (document.getElementById('pg-venue-count')) document.getElementById('pg-venue-count').value = p.venueCount || '6';
+    if (document.getElementById('pg-hero-title')) document.getElementById('pg-hero-title').value = p.heroTitle || 'Welcome to Zenith Fest';
+    if (document.getElementById('pg-hero-sub')) document.getElementById('pg-hero-sub').value = p.heroSub || 'Real-time scores, verified stage results, and championship standings live as they happen.';
+    if (document.getElementById('pg-about-title')) document.getElementById('pg-about-title').value = p.aboutTitle || '';
+    if (document.getElementById('pg-about-sub')) document.getElementById('pg-about-sub').value = p.aboutSub || '';
+    if (document.getElementById('pg-content-title')) document.getElementById('pg-content-title').value = p.contentTitle || '';
+    if (document.getElementById('pg-content-desc')) document.getElementById('pg-content-desc').value = p.contentDesc || '';
     
     const c = p.contact || {};
-    if(document.getElementById('pg-contact-title')) document.getElementById('pg-contact-title').value = c.title || '';
-    if(document.getElementById('pg-contact-email')) document.getElementById('pg-contact-email').value = c.email || '';
-    if(document.getElementById('pg-contact-phone')) document.getElementById('pg-contact-phone').value = c.phone || '';
-    if(document.getElementById('pg-contact-wa')) document.getElementById('pg-contact-wa').value = c.wa || '';
-    if(document.getElementById('pg-contact-ig')) document.getElementById('pg-contact-ig').value = c.ig || '';
-    if(document.getElementById('pg-contact-fb')) document.getElementById('pg-contact-fb').value = c.fb || '';
-    if(document.getElementById('pg-contact-yt')) document.getElementById('pg-contact-yt').value = c.yt || '';
-    if(document.getElementById('pg-contact-web')) document.getElementById('pg-contact-web').value = c.web || '';
-    if(document.getElementById('pg-contact-address')) document.getElementById('pg-contact-address').value = c.address || '';
+    if (document.getElementById('pg-contact-title')) document.getElementById('pg-contact-title').value = c.title || '';
+    if (document.getElementById('pg-contact-email')) document.getElementById('pg-contact-email').value = c.email || '';
+    if (document.getElementById('pg-contact-phone')) document.getElementById('pg-contact-phone').value = c.phone || '';
+    if (document.getElementById('pg-contact-wa')) document.getElementById('pg-contact-wa').value = c.wa || '';
+    if (document.getElementById('pg-contact-ig')) document.getElementById('pg-contact-ig').value = c.ig || '';
+    if (document.getElementById('pg-contact-fb')) document.getElementById('pg-contact-fb').value = c.fb || '';
+    if (document.getElementById('pg-contact-yt')) document.getElementById('pg-contact-yt').value = c.yt || '';
+    if (document.getElementById('pg-contact-web')) document.getElementById('pg-contact-web').value = c.web || '';
+    if (document.getElementById('pg-contact-address')) document.getElementById('pg-contact-address').value = c.address || '';
 
-    // Visibility
+    // 4. Visibility Toggles
     const applyToggles = (category, data) => {
+        if (!data) return;
         Object.keys(data).forEach(key => {
             const el = document.getElementById(`vis-${category}-${key}`);
-            if(el) el.checked = data[key];
+            if (el) el.checked = data[key];
         });
+        // Fallback sync between portal and legacy myresult
+        const portalEl = document.getElementById(`vis-${category}-portal`);
+        if (portalEl && data.portal === undefined && data.myresult !== undefined) {
+            portalEl.checked = data.myresult;
+        }
     };
-    applyToggles('page', websiteConfig.visibility.page);
-    applyToggles('nav', websiteConfig.visibility.nav);
-    applyToggles('foot', websiteConfig.visibility.foot);
+    applyToggles('page', websiteConfig.visibility?.page);
+    applyToggles('nav', websiteConfig.visibility?.nav);
+    applyToggles('foot', websiteConfig.visibility?.foot);
+
+    // 5. Theme & Results Settings
+    const thm = websiteConfig.theme || {};
+    if (document.getElementById('thm-color-primary')) {
+        document.getElementById('thm-color-primary').value = thm.primary || '#3B82F6';
+        document.getElementById('thm-color-primary-picker').value = thm.primary || '#3B82F6';
+    }
+    if (document.getElementById('thm-color-secondary')) {
+        document.getElementById('thm-color-secondary').value = thm.secondary || '#1E293B';
+        document.getElementById('thm-color-secondary-picker').value = thm.secondary || '#1E293B';
+    }
+    if (document.getElementById('thm-color-accent')) {
+        document.getElementById('thm-color-accent').value = thm.accent || '#F59E0B';
+        document.getElementById('thm-color-accent-picker').value = thm.accent || '#F59E0B';
+    }
+    if (document.getElementById('thm-color-bg')) {
+        document.getElementById('thm-color-bg').value = thm.bg || '#F9FAFB';
+        document.getElementById('thm-color-bg-picker').value = thm.bg || '#F9FAFB';
+    }
+    if (document.getElementById('thm-font-family')) {
+        document.getElementById('thm-font-family').value = thm.font || 'Plus Jakarta Sans';
+    }
+    if (document.getElementById('thm-podium-style')) {
+        document.getElementById('thm-podium-style').value = thm.podium_style || 'cards';
+    }
+    if (document.getElementById('thm-results-title')) {
+        document.getElementById('thm-results-title').value = thm.results_title || 'OFFICIAL EVENT RESULTS';
+    }
+    if (document.getElementById('thm-results-subtitle')) {
+        document.getElementById('thm-results-subtitle').value = thm.results_subtitle || 'Real-Time Verified Standings & Graphics';
+    }
+    if (document.getElementById('thm-show-points')) {
+        document.getElementById('thm-show-points').checked = thm.show_points_breakdown !== false;
+    }
+    if (document.getElementById('thm-show-milestone')) {
+        document.getElementById('thm-show-milestone').checked = thm.show_milestone_filter !== false;
+    }
+    if (document.getElementById('thm-show-search')) {
+        document.getElementById('thm-show-search').checked = thm.show_search_filter !== false;
+    }
+
+    // Logos
+    if (thm.header_logo) {
+        const hPrev = document.getElementById('thm-header-logo-preview');
+        if (hPrev) { hPrev.src = thm.header_logo; hPrev.style.display = 'block'; }
+    }
+    if (thm.footer_logo) {
+        const fPrev = document.getElementById('thm-footer-logo-preview');
+        if (fPrev) { fPrev.src = thm.footer_logo; fPrev.style.display = 'block'; }
+    }
+
+    renderGalleryBuilder();
+    renderDownloadsBuilder();
+    renderNewsBuilder();
 }
 
 async function executeWebsiteSave(btnElement) {
@@ -9459,7 +9573,14 @@ async function executeWebsiteSave(btnElement) {
     try {
         const { error } = await supabaseClient.from('settings').upsert({ id: 'website_config', value: websiteConfig });
         if (error) throw error;
-        showToast("Website Settings Saved successfully!", "success");
+        showToast("Website Settings Saved Successfully!", "success");
+
+        // Refresh preview iframes
+        const deskFrame = document.getElementById('preview-desktop-frame');
+        const mobFrame = document.getElementById('preview-mobile-frame');
+        if (deskFrame) deskFrame.src = 'results.html?preview=true&r=' + Date.now();
+        if (mobFrame) mobFrame.src = 'results.html?preview=true&r=' + Date.now();
+
     } catch(e) {
         showToast(e.message, 'error');
     } finally {
@@ -9470,22 +9591,74 @@ async function executeWebsiteSave(btnElement) {
     }
 }
 
+// --- Color Sync Helpers ---
+window.syncColorInput = function(type, hex) {
+    const textInput = document.getElementById(`thm-color-${type}`);
+    if (textInput) textInput.value = hex.toUpperCase();
+};
+
+window.syncColorPicker = function(type, hex) {
+    const picker = document.getElementById(`thm-color-${type}-picker`);
+    if (picker && /^#[0-9A-F]{6}$/i.test(hex)) picker.value = hex;
+};
+
+// --- Logo Upload Handler ---
+window.handleWebsiteLogoUpload = function(logoKey, inputEl) {
+    if (!inputEl.files || !inputEl.files[0]) return;
+    const file = inputEl.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const base64 = e.target.result;
+        if (!websiteConfig.theme) websiteConfig.theme = {};
+        websiteConfig.theme[logoKey] = base64;
+        
+        if (logoKey === 'header_logo') {
+            const hPrev = document.getElementById('thm-header-logo-preview');
+            if (hPrev) { hPrev.src = base64; hPrev.style.display = 'block'; }
+        } else if (logoKey === 'footer_logo') {
+            const fPrev = document.getElementById('thm-footer-logo-preview');
+            if (fPrev) { fPrev.src = base64; fPrev.style.display = 'block'; }
+        }
+        showToast("Logo uploaded. Click 'Save Theme Changes' to apply.", "success");
+    };
+    reader.readAsDataURL(file);
+};
+
+// --- Password Protection Modal ---
+window.openSitePasswordModal = function() {
+    document.getElementById('site-password-input').value = websiteConfig.site_password || '';
+    document.getElementById('sitePasswordModal').classList.add('show');
+};
+window.closeSitePasswordModal = function() {
+    document.getElementById('sitePasswordModal').classList.remove('show');
+};
+window.saveSitePassword = function() {
+    const pass = document.getElementById('site-password-input').value.trim();
+    websiteConfig.site_password = pass;
+    websiteConfig.password_protected = pass !== '';
+    const toggle = document.getElementById('site-password-toggle');
+    if (toggle) toggle.checked = websiteConfig.password_protected;
+    closeSitePasswordModal();
+    executeWebsiteSave(null);
+};
+
+// --- Save Domain Pane ---
 function saveDomainConfig(event) {
     const domainInputEl = document.getElementById('web-subdomain');
-    const domainInput = domainInputEl ? domainInputEl.value.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
-    websiteConfig.domain = domainInput;
+    const customDomainEl = document.getElementById('web-custom-domain');
     
-    // Update the domain displays in the Overview pane
-    const fullUrl = domainInput ? `${domainInput}.festos.app` : 'festos.app';
+    const domainInput = domainInputEl ? domainInputEl.value.toLowerCase().replace(/[^a-z0-9]/g, '') : 'zenith';
+    const customDomain = customDomainEl ? customDomainEl.value.trim().toLowerCase() : '';
+    
+    websiteConfig.domain = domainInput;
+    websiteConfig.custom_domain = customDomain;
+    
+    const fullUrl = domainInput ? `${domainInput}.festos.clubad.space` : 'zenith.festos.clubad.space';
     const statusEl = document.getElementById('subdomain-status');
     if (statusEl) statusEl.style.display = domainInput ? 'block' : 'none';
 
-    const previewDisp = document.getElementById('preview-url-display');
-    if (previewDisp) previewDisp.innerText = fullUrl;
-
     const deskDisp = document.getElementById('overview-url-display-desk');
     if (deskDisp) deskDisp.innerText = fullUrl;
-
     const footerDisp = document.getElementById('overview-url-display-footer');
     if (footerDisp) footerDisp.innerText = fullUrl;
     
@@ -9493,12 +9666,16 @@ function saveDomainConfig(event) {
     executeWebsiteSave(btn);
 }
 
+// --- Save Page Pane ---
 function savePageConfig(event) {
+    if (!websiteConfig.pages) websiteConfig.pages = {};
     websiteConfig.pages.home = {
-        progCount: document.getElementById('pg-prog-count')?.value || '',
-        partCount: document.getElementById('pg-part-count')?.value || '',
-        teamCount: document.getElementById('pg-team-count')?.value || '',
-        venueCount: document.getElementById('pg-venue-count')?.value || '',
+        progCount: document.getElementById('pg-prog-count')?.value || '250+',
+        partCount: document.getElementById('pg-part-count')?.value || '1.2K+',
+        teamCount: document.getElementById('pg-team-count')?.value || '40+',
+        venueCount: document.getElementById('pg-venue-count')?.value || '6',
+        heroTitle: document.getElementById('pg-hero-title')?.value || 'Welcome to Zenith Fest',
+        heroSub: document.getElementById('pg-hero-sub')?.value || 'Real-time scores, verified stage results, and championship standings live as they happen.',
         aboutTitle: document.getElementById('pg-about-title')?.value || '',
         aboutSub: document.getElementById('pg-about-sub')?.value || '',
         contentTitle: document.getElementById('pg-content-title')?.value || '',
@@ -9519,37 +9696,313 @@ function savePageConfig(event) {
     executeWebsiteSave(btn);
 }
 
+// --- Save Visibility Pane ---
 function saveVisibilityConfig(event) {
-    const keys = ['schedules', 'results', 'downloads', 'gallery', 'news', 'wall', 'myresult'];
+    if (!websiteConfig.visibility) websiteConfig.visibility = { page: {}, nav: {}, foot: {} };
+    const keys = ['schedules', 'results', 'portal', 'downloads', 'gallery', 'news', 'wall', 'myresult'];
     
     keys.forEach(k => {
         const pageEl = document.getElementById(`vis-page-${k}`);
         const navEl = document.getElementById(`vis-nav-${k}`);
         const footEl = document.getElementById(`vis-foot-${k}`);
-        if (pageEl) websiteConfig.visibility.page[k] = pageEl.checked;
-        if (navEl) websiteConfig.visibility.nav[k] = navEl.checked;
-        if (footEl) websiteConfig.visibility.foot[k] = footEl.checked;
+        if (pageEl) {
+            websiteConfig.visibility.page[k] = pageEl.checked;
+            if (k === 'portal') websiteConfig.visibility.page['myresult'] = pageEl.checked;
+        }
+        if (navEl) {
+            websiteConfig.visibility.nav[k] = navEl.checked;
+            if (k === 'portal') websiteConfig.visibility.nav['myresult'] = navEl.checked;
+        }
+        if (footEl) {
+            websiteConfig.visibility.foot[k] = footEl.checked;
+            if (k === 'portal') websiteConfig.visibility.foot['myresult'] = footEl.checked;
+        }
     });
     
     const btn = event?.currentTarget || (typeof window !== 'undefined' && window.event?.currentTarget) || null;
     executeWebsiteSave(btn);
 }
 
+// --- Device Preview Switcher ---
+window.switchDevicePreview = function(mode, btnEl) {
+    const container = document.querySelector('#builder-pane-overview .mockup-container');
+    if (!container) return;
+    
+    container.classList.remove('preview-mode-desktop', 'preview-mode-mobile', 'preview-mode-split');
+    container.classList.add(`preview-mode-${mode}`);
+    
+    const btns = document.querySelectorAll('.preview-mode-btn');
+    btns.forEach(b => b.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+};
+
+// --- 1-Click Luxury Theme Preset Palettes ---
+window.applyThemePreset = function(name) {
+    const presets = {
+        indigo: { primary: '#2563EB', secondary: '#0F172A', accent: '#F59E0B', bg: '#F8FAFC', font: 'Plus Jakarta Sans' },
+        emerald: { primary: '#059669', secondary: '#064E3B', accent: '#D97706', bg: '#F0FDF4', font: 'Outfit' },
+        purple: { primary: '#7C3AED', secondary: '#1E1B4B', accent: '#F43F5E', bg: '#FAF5FF', font: 'Poppins' },
+        crimson: { primary: '#DC2626', secondary: '#18181B', accent: '#EAB308', bg: '#FEF2F2', font: 'Montserrat' },
+        midnight: { primary: '#0EA5E9', secondary: '#020617', accent: '#F97316', bg: '#0B1120', font: 'Inter' },
+        amber: { primary: '#D97706', secondary: '#292524', accent: '#E11D48', bg: '#FFFBEB', font: 'Plus Jakarta Sans' }
+    };
+    const p = presets[name];
+    if (!p) return;
+    
+    if (document.getElementById('thm-color-primary')) {
+        document.getElementById('thm-color-primary').value = p.primary;
+        document.getElementById('thm-color-primary-picker').value = p.primary;
+    }
+    if (document.getElementById('thm-color-secondary')) {
+        document.getElementById('thm-color-secondary').value = p.secondary;
+        document.getElementById('thm-color-secondary-picker').value = p.secondary;
+    }
+    if (document.getElementById('thm-color-accent')) {
+        document.getElementById('thm-color-accent').value = p.accent;
+        document.getElementById('thm-color-accent-picker').value = p.accent;
+    }
+    if (document.getElementById('thm-color-bg')) {
+        document.getElementById('thm-color-bg').value = p.bg;
+        document.getElementById('thm-color-bg-picker').value = p.bg;
+    }
+    if (document.getElementById('thm-font-family')) {
+        document.getElementById('thm-font-family').value = p.font;
+    }
+    showToast(`Applied ${name.toUpperCase()} luxury theme preset. Click 'Save Theme Changes' to sync!`, 'success');
+};
+
+// --- Save Theme & Results Page Customizer ---
 function saveThemeConfig(event) {
-    // Future expansion: Save color palette selections
+    if (!websiteConfig.theme) websiteConfig.theme = {};
+    websiteConfig.theme.primary = document.getElementById('thm-color-primary')?.value || '#3B82F6';
+    websiteConfig.theme.secondary = document.getElementById('thm-color-secondary')?.value || '#1E293B';
+    websiteConfig.theme.accent = document.getElementById('thm-color-accent')?.value || '#F59E0B';
+    websiteConfig.theme.bg = document.getElementById('thm-color-bg')?.value || '#F9FAFB';
+    websiteConfig.theme.font = document.getElementById('thm-font-family')?.value || 'Plus Jakarta Sans';
+    websiteConfig.theme.podium_style = document.getElementById('thm-podium-style')?.value || 'cards';
+    websiteConfig.theme.results_title = document.getElementById('thm-results-title')?.value || 'OFFICIAL EVENT RESULTS';
+    websiteConfig.theme.results_subtitle = document.getElementById('thm-results-subtitle')?.value || 'Real-Time Verified Standings & Graphics';
+    websiteConfig.theme.show_points_breakdown = document.getElementById('thm-show-points')?.checked !== false;
+    websiteConfig.theme.show_milestone_filter = document.getElementById('thm-show-milestone')?.checked !== false;
+    websiteConfig.theme.show_search_filter = document.getElementById('thm-show-search')?.checked !== false;
+
     const btn = event?.currentTarget || (typeof window !== 'undefined' && window.event?.currentTarget) || null;
     executeWebsiteSave(btn);
 }
 
-// Color Palette Interactivity (Mock functionality for the preview UI)
-document.addEventListener('click', function(e) {
-    if (e.target.closest('.color-circle-btn')) {
-        const btn = e.target.closest('.color-circle-btn');
-        const parent = btn.parentElement;
-        parent.querySelectorAll('.color-circle-btn').forEach(el => el.classList.remove('active'));
-        btn.classList.add('active');
+// --- GALLERY BUILDER ENGINE ---
+window.renderGalleryBuilder = function() {
+    const grid = document.getElementById('builder-gallery-grid');
+    if (!grid) return;
+    const albums = websiteConfig.gallery || [];
+    
+    if (albums.length === 0) {
+        grid.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-muted);">
+                <i class="fa-regular fa-images" style="font-size: 2.5rem; margin-bottom: 0.5rem; display: block; color: var(--text-dim);"></i>
+                <p style="font-size: 0.9rem; font-weight: 600;">No photo albums added yet.</p>
+                <button class="btn btn-primary" style="width: auto; margin-top: 1rem;" onclick="openNewAlbumModal()"><i class="fa-solid fa-plus"></i> Create First Album</button>
+            </div>
+        `;
+        return;
     }
-});
+
+    grid.innerHTML = albums.map(a => `
+        <div style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; display: flex; flex-direction: column;">
+            <img src="${a.cover_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80'}" style="width: 100%; height: 140px; object-fit: cover;">
+            <div style="padding: 0.85rem; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <span style="font-size: 0.7rem; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase;">${a.category || 'Stage'}</span>
+                    <h4 style="font-size: 0.95rem; font-weight: 700; margin-top: 0.35rem; color: var(--text-main);">${a.title}</h4>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--border);">
+                    <small style="color: var(--text-muted); font-size: 0.75rem;">${a.count || 10} Photos</small>
+                    <button class="btn btn-danger" style="width: auto; min-height: 28px; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="deleteAlbum('${a.id}')"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+};
+
+window.openNewAlbumModal = function() {
+    document.getElementById('album-title-input').value = '';
+    document.getElementById('album-cover-url').value = '';
+    document.getElementById('album-cover-preview').style.display = 'none';
+    document.getElementById('builderAlbumModal').classList.add('show');
+};
+window.closeAlbumModal = function() {
+    document.getElementById('builderAlbumModal').classList.remove('show');
+};
+window.handleAlbumCoverUpload = function(inputEl) {
+    if (!inputEl.files || !inputEl.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('album-cover-url').value = e.target.result;
+        const prev = document.getElementById('album-cover-preview');
+        prev.src = e.target.result;
+        prev.style.display = 'block';
+    };
+    reader.readAsDataURL(inputEl.files[0]);
+};
+window.saveNewAlbum = function() {
+    const title = document.getElementById('album-title-input').value.trim();
+    if (!title) return alert("Please enter an album title.");
+    const category = document.getElementById('album-category-input').value;
+    const cover = document.getElementById('album-cover-url').value.trim() || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80';
+    
+    if (!websiteConfig.gallery) websiteConfig.gallery = [];
+    websiteConfig.gallery.push({
+        id: 'alb_' + Date.now(),
+        title,
+        category,
+        cover_url: cover,
+        count: Math.floor(Math.random() * 20) + 5
+    });
+
+    closeAlbumModal();
+    renderGalleryBuilder();
+    executeWebsiteSave(null);
+};
+window.deleteAlbum = function(id) {
+    if (!confirm("Are you sure you want to delete this album?")) return;
+    websiteConfig.gallery = (websiteConfig.gallery || []).filter(a => a.id !== id);
+    renderGalleryBuilder();
+    executeWebsiteSave(null);
+};
+
+// --- DOWNLOADS BUILDER ENGINE ---
+window.renderDownloadsBuilder = function() {
+    const list = document.getElementById('builder-downloads-list');
+    if (!list) return;
+    const items = websiteConfig.downloads || [];
+    
+    if (items.length === 0) {
+        list.innerHTML = `
+            <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                <i class="fa-solid fa-file-arrow-down" style="font-size: 2.5rem; margin-bottom: 0.5rem; display: block; color: var(--text-dim);"></i>
+                <p style="font-size: 0.9rem; font-weight: 600;">No downloadable files listed.</p>
+                <button class="btn btn-primary" style="width: auto; margin-top: 1rem;" onclick="openNewDownloadModal()"><i class="fa-solid fa-plus"></i> Add Download Item</button>
+            </div>
+        `;
+        return;
+    }
+
+    list.innerHTML = items.map(d => `
+        <div style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.85rem 1.25rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.85rem; min-width: 0; flex: 1;">
+                <div style="width: 40px; height: 40px; border-radius: 8px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0;">
+                    <i class="fa-solid fa-file-pdf"></i>
+                </div>
+                <div style="min-width: 0;">
+                    <strong style="font-size: 0.95rem; color: var(--text-main); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${d.title}</strong>
+                    <small style="color: var(--text-muted); font-size: 0.75rem; font-weight: 600;">${d.category || 'Rulebook'} • ${d.size || '1.5 MB'}</small>
+                </div>
+            </div>
+            <button class="btn btn-danger" style="width: auto; min-height: 32px; padding: 0.3rem 0.8rem; font-size: 0.8rem;" onclick="deleteDownload('${d.id}')"><i class="fa-solid fa-trash"></i></button>
+        </div>
+    `).join('');
+};
+
+window.openNewDownloadModal = function() {
+    document.getElementById('download-title-input').value = '';
+    document.getElementById('download-size-input').value = '2.4 MB';
+    document.getElementById('download-url-input').value = '#';
+    document.getElementById('builderDownloadModal').classList.add('show');
+};
+window.closeDownloadModal = function() {
+    document.getElementById('builderDownloadModal').classList.remove('show');
+};
+window.saveNewDownload = function() {
+    const title = document.getElementById('download-title-input').value.trim();
+    if (!title) return alert("Please enter a title.");
+    const category = document.getElementById('download-category-input').value;
+    const size = document.getElementById('download-size-input').value.trim() || '1.5 MB';
+    const url = document.getElementById('download-url-input').value.trim() || '#';
+
+    if (!websiteConfig.downloads) websiteConfig.downloads = [];
+    websiteConfig.downloads.push({
+        id: 'dl_' + Date.now(),
+        title, category, size, url
+    });
+
+    closeDownloadModal();
+    renderDownloadsBuilder();
+    executeWebsiteSave(null);
+};
+window.deleteDownload = function(id) {
+    if (!confirm("Delete this download item?")) return;
+    websiteConfig.downloads = (websiteConfig.downloads || []).filter(d => d.id !== id);
+    renderDownloadsBuilder();
+    executeWebsiteSave(null);
+};
+
+// --- NEWS BUILDER ENGINE ---
+window.renderNewsBuilder = function() {
+    const list = document.getElementById('builder-news-list');
+    if (!list) return;
+    const news = websiteConfig.news || [];
+    
+    if (news.length === 0) {
+        list.innerHTML = `
+            <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                <i class="fa-regular fa-newspaper" style="font-size: 2.5rem; margin-bottom: 0.5rem; display: block; color: var(--text-dim);"></i>
+                <p style="font-size: 0.9rem; font-weight: 600;">No news announcements posted.</p>
+                <button class="btn btn-primary" style="width: auto; margin-top: 1rem;" onclick="openNewNewsModal()"><i class="fa-solid fa-plus"></i> Post First Bulletin</button>
+            </div>
+        `;
+        return;
+    }
+
+    list.innerHTML = news.map(n => `
+        <div style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+            <div style="min-width: 0; flex: 1;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+                    <span style="font-size: 0.7rem; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase;">${n.category || 'Announcement'}</span>
+                    <small style="color: var(--text-dim); font-size: 0.75rem;">${n.date || new Date().toISOString().split('T')[0]}</small>
+                </div>
+                <strong style="font-size: 1rem; color: var(--text-main); display: block; margin-bottom: 0.25rem;">${n.title}</strong>
+                <p style="color: var(--text-muted); font-size: 0.82rem; margin: 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${n.summary || ''}</p>
+            </div>
+            <button class="btn btn-danger" style="width: auto; min-height: 32px; padding: 0.3rem 0.8rem; font-size: 0.8rem;" onclick="deleteNews('${n.id}')"><i class="fa-solid fa-trash"></i></button>
+        </div>
+    `).join('');
+};
+
+window.openNewNewsModal = function() {
+    document.getElementById('news-title-input').value = '';
+    document.getElementById('news-cat-input').value = 'Announcement';
+    document.getElementById('news-date-input').value = new Date().toISOString().split('T')[0];
+    document.getElementById('news-summary-input').value = '';
+    document.getElementById('news-content-input').value = '';
+    document.getElementById('builderNewsModal').classList.add('show');
+};
+window.closeNewsModal = function() {
+    document.getElementById('builderNewsModal').classList.remove('show');
+};
+window.saveNewNews = function() {
+    const title = document.getElementById('news-title-input').value.trim();
+    if (!title) return alert("Please enter a headline.");
+    const category = document.getElementById('news-cat-input').value.trim() || 'Announcement';
+    const date = document.getElementById('news-date-input').value;
+    const summary = document.getElementById('news-summary-input').value.trim();
+    const content = document.getElementById('news-content-input').value.trim();
+
+    if (!websiteConfig.news) websiteConfig.news = [];
+    websiteConfig.news.push({
+        id: 'nw_' + Date.now(),
+        title, category, date, summary, content
+    });
+
+    closeNewsModal();
+    renderNewsBuilder();
+    executeWebsiteSave(null);
+};
+window.deleteNews = function(id) {
+    if (!confirm("Delete this announcement?")) return;
+    websiteConfig.news = (websiteConfig.news || []).filter(n => n.id !== id);
+    renderNewsBuilder();
+    executeWebsiteSave(null);
+};
 
 // ============================================================================
 // DUAL-VIEW ASSIGNMENT ENGINE (OVERVIEW & QUICK ADD PORTED FROM TM)

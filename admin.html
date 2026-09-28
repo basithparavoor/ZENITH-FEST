@@ -238,13 +238,24 @@ tr:hover td { background: var(--bg-main); }
 .subdomain-input-group .domain-suffix { background: var(--bg-main); border: 1px solid var(--border); padding: 0 1.25rem; display: flex; align-items: center; font-weight: 600; color: var(--text-muted); border-radius: 0 var(--radius-md) var(--radius-md) 0; }
 
 .mockup-container { position: relative; width: 100%; max-width: 850px; margin: 0 auto; padding: 2rem 2rem 4rem 2rem; display: flex; align-items: center; justify-content: flex-start; }
-.mockup-desktop { width: 80%; aspect-ratio: 16/10; background: #FFFFFF; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; }
+.mockup-desktop { width: 80%; aspect-ratio: 16/10; background: #FFFFFF; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; transition: all 0.3s ease; }
 .mockup-desktop-header { background: #F8FAFC; padding: 10px 16px; display: flex; align-items: center; border-bottom: 1px solid var(--border); }
 .mockup-dots { display: flex; gap: 6px; }
 .mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
 .mockup-url-bar { background: white; flex: 1; margin: 0 20px; border-radius: 6px; text-align: center; font-size: 0.75rem; font-weight: 500; color: var(--text-muted); padding: 4px 0; border: 1px solid var(--border); }
-.mockup-mobile { position: absolute; right: 0; bottom: 0; width: 26%; min-width: 220px; aspect-ratio: 9/19; background: white; border-radius: 30px; box-shadow: -15px 15px 40px rgba(0,0,0,0.15); border: 10px solid #1E293B; overflow: hidden; z-index: 10; }
+.mockup-mobile { position: absolute; right: 0; bottom: 0; width: 26%; min-width: 220px; aspect-ratio: 9/19; background: white; border-radius: 30px; box-shadow: -15px 15px 40px rgba(0,0,0,0.15); border: 10px solid #1E293B; overflow: hidden; z-index: 10; transition: all 0.3s ease; }
 .mockup-iframe { width: 100%; height: 100%; border: none; background: #F9FAFB; }
+
+/* Device Preview Switcher Modes */
+.preview-mode-switch { display: inline-flex; background: var(--bg-main); padding: 3px; border-radius: var(--radius-md); border: 1px solid var(--border); gap: 3px; }
+.preview-mode-btn { border: none; background: transparent; padding: 0.4rem 0.85rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: var(--transition); display: flex; align-items: center; gap: 0.4rem; }
+.preview-mode-btn.active, .preview-mode-btn:hover { background: white; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.mockup-container.preview-mode-desktop .mockup-desktop { width: 100% !important; max-width: 900px !important; margin: 0 auto; display: flex !important; }
+.mockup-container.preview-mode-desktop .mockup-mobile { display: none !important; }
+.mockup-container.preview-mode-mobile .mockup-desktop { display: none !important; }
+.mockup-container.preview-mode-mobile .mockup-mobile { position: relative !important; right: auto !important; bottom: auto !important; width: 320px !important; max-width: 90vw !important; margin: 0 auto !important; display: block !important; }
+.mockup-container.preview-mode-split .mockup-desktop { width: 80% !important; display: flex !important; }
+.mockup-container.preview-mode-split .mockup-mobile { position: absolute !important; right: 0 !important; bottom: 0 !important; width: 26% !important; min-width: 200px !important; display: block !important; }
 
 /* ==========================================================================
    MOBILE RESPONSIVENESS OVERRIDES
@@ -1543,18 +1554,25 @@ tr:hover td { background: var(--bg-main); }
     <div class="builder-main">
     <div id="builder-pane-overview" class="builder-content-pane active" style="padding: 0; background: white;">
     <!-- Header -->
-    <div class="builder-pane-header" style="border-bottom: 1px solid var(--border);">
+    <div class="builder-pane-header" style="border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 0.75rem;">
         <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main);">
             <i class="fa-solid fa-desktop" style="color: var(--primary);"></i> Live Device Preview
         </h3>
-        <button class="btn btn-outline" onclick="document.getElementById('preview-desktop-frame').src += ''; document.getElementById('preview-mobile-frame').src += '';" style="font-size: 0.85rem; padding: 0.4rem 1rem; min-height: auto; width: auto; border-radius: var(--radius-md);">
-            <i class="fa-solid fa-rotate-right"></i> Refresh
-        </button>
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <div class="preview-mode-switch">
+                <button type="button" class="preview-mode-btn" onclick="switchDevicePreview('desktop', this)"><i class="fa-solid fa-desktop"></i> Desktop</button>
+                <button type="button" class="preview-mode-btn" onclick="switchDevicePreview('mobile', this)"><i class="fa-solid fa-mobile-screen"></i> Mobile</button>
+                <button type="button" class="preview-mode-btn active" onclick="switchDevicePreview('split', this)"><i class="fa-solid fa-table-columns"></i> Split View</button>
+            </div>
+            <button class="btn btn-outline" onclick="document.getElementById('preview-desktop-frame').src += ''; document.getElementById('preview-mobile-frame').src += '';" style="font-size: 0.85rem; padding: 0.4rem 1rem; min-height: auto; width: auto; border-radius: var(--radius-md);">
+                <i class="fa-solid fa-rotate-right"></i> Refresh
+            </button>
+        </div>
     </div>
     
     <!-- Preview Area[cite: 11] -->
     <div class="builder-pane-body" style="background: #F8FAFC; display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; flex: 1;">
-        <div class="mockup-container">
+        <div class="mockup-container preview-mode-split">
             <!-- Desktop Mockup -->
             <div class="mockup-desktop">
                 <div class="mockup-desktop-header">
@@ -1563,7 +1581,7 @@ tr:hover td { background: var(--bg-main); }
                         <span class="mockup-dot" style="background: #F59E0B;"></span>
                         <span class="mockup-dot" style="background: #10B981;"></span>
                     </div>
-                    <div class="mockup-url-bar" id="overview-url-display-desk">hi.festos.app</div>
+                    <div class="mockup-url-bar" id="overview-url-display-desk">zenith.festos.clubad.space</div>
                 </div>
                 <!-- Points to your live results page -->
                 <iframe id="preview-desktop-frame" src="results.html?preview=true" class="mockup-iframe"></iframe>
@@ -1576,35 +1594,34 @@ tr:hover td { background: var(--bg-main); }
         </div>
     </div>
 
-    <!-- Bottom Controls[cite: 12] -->
+    <!-- Bottom Controls -->
     <div class="builder-controls-footer">
         <!-- Password Row -->
         <div class="builder-controls-row" style="border-bottom: 1px solid var(--border); padding-bottom: 1.25rem; margin-bottom: 1.25rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--text-main); font-weight: 500; font-size: 0.95rem;">
                 <i class="fa-solid fa-lock" style="color: #EF4444;"></i> Password protected
                 <label class="builder-toggle" style="margin-bottom: 0;">
-                    <input type="checkbox" id="site-password-toggle">
+                    <input type="checkbox" id="site-password-toggle" onchange="if(this.checked){openSitePasswordModal()}else{websiteConfig.password_protected=false;executeWebsiteSave(null);}">
                     <span class="builder-toggle-slider"></span>
                 </label>
             </div>
-            <button class="btn btn-outline" style="border-radius: 50px; font-size: 0.85rem; padding: 0.4rem 1.25rem; min-height: auto; width: auto; font-weight: 600;">Edit password</button>
+            <button class="btn btn-outline" style="border-radius: 50px; font-size: 0.85rem; padding: 0.4rem 1.25rem; min-height: auto; width: auto; font-weight: 600;" onclick="openSitePasswordModal()">Edit password</button>
         </div>
 
         <!-- Theme & Actions Row -->
         <div class="builder-controls-row">
             <div style="display: flex; flex-direction: column; gap: 0.35rem;">
                 <div style="font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.6rem; font-size: 1rem;">
-                    Theme 1 
-                    <span style="background: #FEE2E2; color: #EF4444; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 50px; font-weight: 700;">Current theme</span>
+                    Active Portal
+                    <span style="background: #DCFCE7; color: #16A34A; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 50px; font-weight: 700;">Live</span>
                 </div>
                 <div style="color: var(--text-main); font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem;">
-                    <i class="fa-solid fa-globe" style="color: var(--text-muted);"></i> <span id="overview-url-display-footer">eee.festie.app</span>
+                    <i class="fa-solid fa-globe" style="color: var(--text-muted);"></i> <span id="overview-url-display-footer">zenith.festos.clubad.space</span>
                 </div>
             </div>
-            <div style="display: flex; gap: 0.5rem;">
-                <button class="btn btn-outline" style="border-radius: 50px; font-size: 0.85rem; padding: 0.5rem 1.25rem; min-height: auto; width: auto; font-weight: 600;" onclick="window.open('results.html', '_blank')">View website</button>
-                <button class="btn" style="background: #EF4444; color: white; border: none; border-radius: 50px; font-size: 0.85rem; padding: 0.5rem 1.25rem; min-height: auto; width: auto; box-shadow: 0 4px 10px rgba(239,68,68,0.2);">Launch</button>
-                <button class="btn btn-outline" style="border-radius: 50%; width: 36px; height: 36px; padding: 0; min-height: auto; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-ellipsis"></i></button>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button class="btn btn-outline" style="border-radius: 50px; font-size: 0.85rem; padding: 0.5rem 1.25rem; min-height: auto; width: auto; font-weight: 600;" onclick="window.open('results.html', '_blank')"><i class="fa-solid fa-arrow-up-right-from-square" style="margin-right: 4px;"></i> View website</button>
+                <button class="btn btn-primary" style="border-radius: 50px; font-size: 0.85rem; padding: 0.5rem 1.25rem; min-height: auto; width: auto;" onclick="showToast('Website configuration live & synced!', 'success')"><i class="fa-solid fa-bolt" style="margin-right: 4px;"></i> Sync Live</button>
             </div>
         </div>
     </div>
@@ -1613,7 +1630,7 @@ tr:hover td { background: var(--bg-main); }
     <!-- PANE: ANALYTICS -->
     <div id="builder-pane-analytics" class="builder-content-pane">
         <div class="builder-pane-header">
-            <h3 style="font-size: 1.25rem; font-weight: 700;"><i class="fa-solid fa-chart-simple" style="color: var(--primary);"></i> Professional Analytics</h3>
+            <h3 style="font-size: 1.25rem; font-weight: 700;"><i class="fa-solid fa-chart-simple" style="color: var(--primary);"></i> Portal Analytics</h3>
             <select style="padding: 0.5rem; border-radius: var(--radius-md); border: 1px solid var(--border); outline: none;"><option>Last 7 Days</option><option>Last 30 Days</option></select>
         </div>
         <div class="builder-pane-body">
@@ -1642,35 +1659,52 @@ tr:hover td { background: var(--bg-main); }
             <button class="btn btn-primary" onclick="saveDomainConfig()"><i class="fa-solid fa-floppy-disk"></i> Save Domain</button>
         </div>
         <div class="builder-pane-body">
-            <div class="builder-card" style="background: white;">
-                <h4 style="margin-bottom: 0.5rem; font-weight: 600;">Custom Subdomain</h4>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">Choose a unique subdomain for your festival under our primary domain.</p>
+            <div class="builder-card" style="background: white; margin-bottom: 1.5rem;">
+                <h4 style="margin-bottom: 0.5rem; font-weight: 700;">Subdomain (festos.clubad.space)</h4>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">Choose a unique subdomain for your festival portal hosted on our high-speed global CDN.</p>
                 
                 <div class="form-group">
                     <label>Subdomain Prefix</label>
                     <div class="subdomain-input-group">
-                        <input type="text" id="web-subdomain" placeholder="e.g. mycollegefest" style="flex: 1;">
-                        <div class="domain-suffix">.festos.app</div>
+                        <input type="text" id="web-subdomain" placeholder="e.g. zenithfest" style="flex: 1; text-transform: lowercase;">
+                        <div class="domain-suffix" style="font-weight: 700; color: var(--primary);">.festos.clubad.space</div>
                     </div>
-                    <p style="font-size: 0.75rem; color: var(--success); margin-top: 0.5rem; font-weight: 600; display: none;" id="subdomain-status"><i class="fa-solid fa-check-circle"></i> Subdomain is available and active!</p>
+                    <div style="margin-top: 0.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                        <p style="font-size: 0.8rem; color: var(--success); font-weight: 700;" id="subdomain-status"><i class="fa-solid fa-circle-check"></i> Subdomain is connected and active!</p>
+                        <a href="results.html" target="_blank" class="btn btn-outline" style="font-size: 0.8rem; padding: 0.35rem 1rem; width: auto; min-height: auto;"><i class="fa-solid fa-external-link"></i> Test Live Link</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="builder-card" style="background: white;">
+                <h4 style="margin-bottom: 0.5rem; font-weight: 700;">Custom Domain (Optional)</h4>
+                <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.25rem;">Point your own branded institutional domain (e.g. <code>results.yourcollege.edu</code>) by adding a <code>CNAME</code> DNS record.</p>
+                
+                <div class="form-group">
+                    <label>Your Custom Domain</label>
+                    <input type="text" id="web-custom-domain" placeholder="e.g. live.zenithfest.org" style="text-transform: lowercase; width: 100%;">
+                </div>
+                <div style="background: var(--bg-main); padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.82rem; color: var(--text-muted);">
+                    <strong style="color: var(--text-main); display: block; margin-bottom: 0.25rem;"><i class="fa-solid fa-circle-info" style="color: var(--primary);"></i> DNS Setup Instruction:</strong>
+                    Create a <code>CNAME</code> record pointing your custom domain or subdomain to <code>festos.clubad.space</code>.
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- PANE: PAGES MANAGEMENT (Based on Screenshot 162752 & 162803) -->
+    <!-- PANE: PAGES MANAGEMENT -->
     <div id="builder-pane-pages" class="builder-content-pane">
         <div class="builder-pane-header">
             <div>
-                <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-solid fa-arrow-left" style="font-size: 0.9rem; color: var(--text-muted); cursor: pointer;"></i> Home</h3>
-                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Main landing page content, hero images, about media, and selected gallery images.</p>
+                <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-solid fa-house" style="font-size: 1rem; color: var(--primary);"></i> Home Page Customization</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Main landing page content, dynamic counters, hero text, about section, and contact channels.</p>
             </div>
-            <button class="btn btn-danger" style="background: #FCA5A5; color: #991B1B; border: none; width: auto;" onclick="savePageConfig()">Save Changes</button>
+            <button class="btn btn-primary" style="width: auto;" onclick="savePageConfig()"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
         </div>
         <div class="builder-pane-body">
             <!-- Homepage Counts -->
             <div class="builder-card" style="background: white;">
-                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">Homepage Counts</h4>
+                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">Homepage Display Counters</h4>
                 <div class="grid-2">
                     <div class="form-group"><label>Programs count</label><input type="text" id="pg-prog-count" value="250+"></div>
                     <div class="form-group"><label>Participants count</label><input type="text" id="pg-part-count" value="1.2K+"></div>
@@ -1679,301 +1713,392 @@ tr:hover td { background: var(--bg-main); }
                 </div>
             </div>
 
-            <!-- Hero Images -->
+            <!-- Hero Section -->
             <div class="builder-card" style="background: white;">
-                <h4 style="margin-bottom: 0.25rem; font-weight: 700; font-size: 0.9rem;">Hero Images</h4>
-                <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1rem;">Use separate images so the landing page fits desktop and mobile layouts cleanly.</p>
-                
-                <div style="margin-bottom: 1.5rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <span style="font-size: 0.85rem; font-weight: 600;"><i class="fa-solid fa-desktop" style="margin-right: 5px;"></i> Desktop hero images</span>
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">Approx. 1440 x 900 px, landscape.</span>
-                    </div>
-                    <div class="builder-upload-box" onclick="document.getElementById('upload-hero-desk').click()">
-                        <i class="fa-solid fa-display"></i>
-                        <span>Select file</span>
-                        <small>Browse from file library or upload new</small>
-                        <input type="file" id="upload-hero-desk" style="display: none;">
-                    </div>
-                </div>
-
-                <div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <span style="font-size: 0.85rem; font-weight: 600;"><i class="fa-solid fa-mobile-screen" style="margin-right: 5px;"></i> Mobile hero images</span>
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">Approx. 390 x 700 px, portrait.</span>
-                    </div>
-                    <div class="builder-upload-box" onclick="document.getElementById('upload-hero-mob').click()">
-                        <i class="fa-solid fa-mobile-screen"></i>
-                        <span>Select file</span>
-                        <small>Browse from file library or upload new</small>
-                        <input type="file" id="upload-hero-mob" style="display: none;">
-                    </div>
-                </div>
+                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">Hero Section Text</h4>
+                <div class="form-group"><label>Hero Main Title</label><input type="text" id="pg-hero-title" value="Welcome to Zenith Fest" style="width: 100%;"></div>
+                <div class="form-group"><label>Hero Subtitle / Description</label><textarea id="pg-hero-sub" rows="2" style="width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.75rem; outline: none; font-size: 0.9rem; text-transform: none !important;">Real-time scores, verified stage results, and championship standings live as they happen.</textarea></div>
             </div>
 
             <!-- About Content -->
             <div class="builder-card" style="background: white;">
-                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">About Content</h4>
+                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">About & Championship Story</h4>
                 <div class="grid-2">
-                    <div class="form-group"><label>About title</label><input type="text" id="pg-about-title"></div>
-                    <div class="form-group"><label>About subtitle</label><input type="text" id="pg-about-sub"></div>
+                    <div class="form-group"><label>About title</label><input type="text" id="pg-about-title" value="The Grand Championship"></div>
+                    <div class="form-group"><label>About subtitle</label><input type="text" id="pg-about-sub" value="Celebrating Arts, Culture & Innovation"></div>
                 </div>
-                <div class="form-group"><label>Content title</label><input type="text" id="pg-content-title"></div>
-                <div class="form-group"><label>Content description</label><textarea id="pg-content-desc" rows="4" style="width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.75rem; outline: none; text-transform: none !important;"></textarea></div>
-                <div class="form-group">
-                    <label>About image</label>
-                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: #F9FAFB;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <div style="width: 32px; height: 32px; background: white; border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="fa-regular fa-file"></i></div>
-                            <div>
-                                <div style="font-size: 0.8rem; font-weight: 600;">Selected file</div>
-                                <div style="font-size: 0.7rem; color: var(--text-muted);">No file selected</div>
-                            </div>
-                        </div>
-                        <button class="btn btn-outline" style="min-height: 32px; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.8rem;" onclick="document.getElementById('upload-about-img').click()">Choose</button>
-                        <input type="file" id="upload-about-img" style="display: none;">
-                    </div>
-                </div>
+                <div class="form-group"><label>Content section title</label><input type="text" id="pg-content-title" value="Live Festival Stage Architecture"></div>
+                <div class="form-group"><label>Content description</label><textarea id="pg-content-desc" rows="3" style="width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.75rem; outline: none; text-transform: none !important;">Zenith Fest powers hundreds of competitive events across multiple stages. Built for speed, transparency, and accuracy in live festival scorekeeping.</textarea></div>
             </div>
 
             <!-- Contact -->
             <div class="builder-card" style="background: white;">
-                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">Contact</h4>
+                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">Contact & Social Channels</h4>
                 <div class="grid-2">
-                    <div class="form-group"><label>Contact title</label><input type="text" id="pg-contact-title"></div>
-                    <div class="form-group"><label>Email</label><input type="text" id="pg-contact-email" style="text-transform: none !important;"></div>
-                    <div class="form-group"><label>Phone</label><input type="text" id="pg-contact-phone"></div>
-                    <div class="form-group"><label>WhatsApp</label><input type="text" id="pg-contact-wa"></div>
-                    <div class="form-group"><label>Instagram</label><input type="text" id="pg-contact-ig" style="text-transform: none !important;"></div>
-                    <div class="form-group"><label>Facebook</label><input type="text" id="pg-contact-fb" style="text-transform: none !important;"></div>
-                    <div class="form-group"><label>YouTube</label><input type="text" id="pg-contact-yt" style="text-transform: none !important;"></div>
-                    <div class="form-group"><label>Website</label><input type="text" id="pg-contact-web" style="text-transform: none !important;"></div>
+                    <div class="form-group"><label>Email Address</label><input type="text" id="pg-contact-email" style="text-transform: none !important;" placeholder="contact@fest.org"></div>
+                    <div class="form-group"><label>Phone Number</label><input type="text" id="pg-contact-phone" placeholder="+91 98765 43210"></div>
+                    <div class="form-group"><label>WhatsApp Link / Number</label><input type="text" id="pg-contact-wa" placeholder="https://wa.me/..."></div>
+                    <div class="form-group"><label>Instagram Profile URL</label><input type="text" id="pg-contact-ig" style="text-transform: none !important;" placeholder="https://instagram.com/..."></div>
+                    <div class="form-group"><label>Facebook Profile URL</label><input type="text" id="pg-contact-fb" style="text-transform: none !important;" placeholder="https://facebook.com/..."></div>
+                    <div class="form-group"><label>YouTube Channel URL</label><input type="text" id="pg-contact-yt" style="text-transform: none !important;" placeholder="https://youtube.com/..."></div>
+                    <div class="form-group"><label>Official Website URL</label><input type="text" id="pg-contact-web" style="text-transform: none !important;" placeholder="https://..."></div>
+                    <div class="form-group"><label>Campus / Arena Address</label><input type="text" id="pg-contact-address" placeholder="Main Stadium Complex"></div>
                 </div>
-                <div class="form-group"><label>Address</label><textarea id="pg-contact-address" rows="3" style="width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.75rem; outline: none; text-transform: none !important;"></textarea></div>
             </div>
         </div>
     </div>
 
-    <!-- PANE: VISIBILITY (Based on Screenshot 162920) -->
+    <!-- PANE: VISIBILITY -->
     <div id="builder-pane-visibility" class="builder-content-pane">
         <div class="builder-pane-header">
             <h3 style="font-size: 1.25rem; font-weight: 700;"><i class="fa-solid fa-lock" style="color: var(--primary);"></i> Visibility Settings</h3>
-            <button class="btn btn-danger" style="background: #FCA5A5; color: #991B1B; border: none; width: auto;" onclick="saveVisibilityConfig()">Save Changes</button>
+            <button class="btn btn-primary" style="width: auto;" onclick="saveVisibilityConfig(event)"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
         </div>
         <div class="builder-pane-body">
             <!-- Page Visibility -->
-            <div class="builder-card" style="background: white;">
-                <h4 style="margin-bottom: 0.25rem; font-weight: 700; font-size: 0.9rem;">Page Visibility</h4>
-                <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1.5rem;">Choose which sections are visible on the public website.</p>
+            <div class="builder-card" style="background: white; margin-bottom: 1.5rem;">
+                <h4 style="margin-bottom: 0.25rem; font-weight: 700; font-size: 0.9rem;">Page Section Visibility</h4>
+                <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1.25rem;">Choose which major views are accessible on the public portal.</p>
                 <div class="grid-2">
-                    ${['Schedules', 'Results', 'Downloads', 'Gallery', 'News', 'Wall', 'My Result'].map(item => `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
-                            <span style="font-weight: 600; font-size: 0.9rem;">${item}</span>
-                            <label class="builder-toggle"><input type="checkbox" id="vis-page-${item.toLowerCase().replace(' ', '')}" checked><span class="builder-toggle-slider"></span></label>
-                        </div>
-                    `).join('')}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Schedules</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-page-schedules" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Results</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-page-results" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Participant Portal (Login)</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-page-portal" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Downloads Hub</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-page-downloads" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Photo Gallery</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-page-gallery" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">News & Bulletins</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-page-news" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
                 </div>
             </div>
 
             <!-- Navbar Visibility -->
-            <div class="builder-card" style="background: white;">
-                <h4 style="margin-bottom: 1.5rem; font-weight: 700; font-size: 0.9rem;">Navbar Visibility</h4>
+            <div class="builder-card" style="background: white; margin-bottom: 1.5rem;">
+                <h4 style="margin-bottom: 0.25rem; font-weight: 700; font-size: 0.9rem;">Navbar Links Visibility</h4>
+                <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1.25rem;">Control which links appear in the top navbar on desktop and mobile.</p>
                 <div class="grid-2">
-                    ${['Schedules', 'Results', 'Downloads', 'Gallery', 'News', 'Wall', 'My Result'].map(item => `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
-                            <span style="font-weight: 600; font-size: 0.9rem;">${item}</span>
-                            <label class="builder-toggle"><input type="checkbox" id="vis-nav-${item.toLowerCase().replace(' ', '')}" checked><span class="builder-toggle-slider"></span></label>
-                        </div>
-                    `).join('')}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Schedules</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-nav-schedules" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Results</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-nav-results" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Participant Portal (Login)</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-nav-portal" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Downloads Hub</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-nav-downloads" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Photo Gallery</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-nav-gallery" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">News & Bulletins</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-nav-news" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
                 </div>
             </div>
 
             <!-- Footer Visibility -->
             <div class="builder-card" style="background: white;">
-                <h4 style="margin-bottom: 1.5rem; font-weight: 700; font-size: 0.9rem;">Footer Visibility</h4>
+                <h4 style="margin-bottom: 0.25rem; font-weight: 700; font-size: 0.9rem;">Footer Links Visibility</h4>
+                <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1.25rem;">Control which links appear in the portal footer.</p>
                 <div class="grid-2">
-                    ${['Schedules', 'Results', 'Downloads', 'Gallery', 'News', 'Wall', 'My Result'].map(item => `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
-                            <span style="font-weight: 600; font-size: 0.9rem;">${item}</span>
-                            <label class="builder-toggle"><input type="checkbox" id="vis-foot-${item.toLowerCase().replace(' ', '')}" checked><span class="builder-toggle-slider"></span></label>
-                        </div>
-                    `).join('')}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Schedules</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-foot-schedules" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Results</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-foot-results" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Participant Portal (Login)</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-foot-portal" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Downloads Hub</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-foot-downloads" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Photo Gallery</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-foot-gallery" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <span style="font-weight: 600; font-size: 0.9rem;">News & Bulletins</span>
+                        <label class="builder-toggle"><input type="checkbox" id="vis-foot-news" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- PANE: THEME CUSTOMIZER (Based on Screenshot 163023) -->
+    <!-- PANE: THEME CUSTOMIZER & RESULTS PAGE CONFIGURATION -->
     <div id="builder-pane-theme" class="builder-content-pane">
         <div class="builder-pane-header">
-            <h3 style="font-size: 1.25rem; font-weight: 700;"><i class="fa-solid fa-palette" style="color: var(--primary);"></i> Theme Customizer</h3>
-            <button class="btn btn-danger" style="background: #FCA5A5; color: #991B1B; border: none; width: auto;" onclick="saveThemeConfig()">Save Changes</button>
+            <h3 style="font-size: 1.25rem; font-weight: 700;"><i class="fa-solid fa-palette" style="color: var(--primary);"></i> Theme & Results Customizer</h3>
+            <button class="btn btn-danger" style="background: #FCA5A5; color: #991B1B; border: none; width: auto;" onclick="saveThemeConfig(event)">Save Theme Changes</button>
         </div>
         <div class="builder-pane-body">
+            <!-- Results Page Customization Card -->
             <div class="builder-card" style="background: white;">
-                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">Live Theme Preview</h4>
-                <div style="background: #F1F5F9; border-radius: var(--radius-md); padding: 1rem; height: 300px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; margin-bottom: 1.5rem;">
-                    <!-- Mock Navbar inside preview -->
-                    <div style="position: absolute; top: 10px; background: white; padding: 0.5rem 1.5rem; border-radius: 8px; box-shadow: var(--shadow-sm); display: flex; gap: 1rem; align-items: center;">
-                        <span style="font-weight: 800; color: #EF4444;"><i class="fa-solid fa-layer-group"></i> FESTIE</span>
-                        <span style="background: #EF4444; color: white; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;"><i class="fa-solid fa-house"></i> Home</span>
-                        <span style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted);"><i class="fa-regular fa-calendar"></i> Schedules</span>
-                        <span style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted);"><i class="fa-solid fa-trophy"></i> Results</span>
+                <h4 style="margin-bottom: 0.25rem; font-weight: 700; font-size: 0.95rem; color: var(--text-main);">
+                    <i class="fa-solid fa-trophy" style="color: var(--primary); margin-right: 6px;"></i> Results Page Customization
+                </h4>
+                <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1.25rem;">Fine-tune layout, podium styling, and display toggles for results.html</p>
+                
+                <div class="grid-2" style="margin-bottom: 1rem;">
+                    <div class="form-group">
+                        <label>Leaderboard Podium Display Style</label>
+                        <select id="thm-podium-style" style="width: 100%;">
+                            <option value="cards">Luxury Medallion Cards (Gold / Silver / Bronze)</option>
+                            <option value="linear">Linear Table Rows</option>
+                        </select>
                     </div>
-                    <i class="fa-regular fa-image" style="font-size: 4rem; color: #CBD5E1;"></i>
+                    <div class="form-group">
+                        <label>Typography Font Family</label>
+                        <select id="thm-font-family" style="width: 100%; text-transform: none !important;">
+                            <option value="Plus Jakarta Sans">Plus Jakarta Sans (Modern & Bold)</option>
+                            <option value="Inter">Inter (Clean Corporate)</option>
+                            <option value="Outfit">Outfit (Geometric Elegance)</option>
+                            <option value="Montserrat">Montserrat (Classic Editorial)</option>
+                            <option value="Poppins">Poppins (Vibrant Contemporary)</option>
+                        </select>
+                    </div>
                 </div>
 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h4 style="font-weight: 700; font-size: 0.9rem;">Color Palette</h4>
-                    <button class="btn btn-outline" style="border: none; font-size: 0.8rem; color: var(--text-muted); padding: 0;"><i class="fa-solid fa-rotate-right"></i> Reset to defaults</button>
+                <div class="grid-2" style="margin-bottom: 1rem;">
+                    <div class="form-group">
+                        <label>Results Portal Hero Title</label>
+                        <input type="text" id="thm-results-title" placeholder="e.g. OFFICIAL EVENT RESULTS">
+                    </div>
+                    <div class="form-group">
+                        <label>Results Portal Subtitle</label>
+                        <input type="text" id="thm-results-subtitle" placeholder="e.g. Real-Time Verified Standings & Graphics">
+                    </div>
                 </div>
 
-                <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
-                    <!-- Primary Colors -->
-                    <div>
-                        <label style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.5rem;">Primary</label>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <div class="color-circle-btn active" style="border-color: #EF4444;"><div class="color-circle-inner" style="background: #EF4444;"></div></div>
-                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #FFFFFF;"></div></div>
-                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #3B82F6;"></div></div>
-                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #10B981;"></div></div>
+                <div class="grid-2">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <div>
+                            <span style="font-weight: 600; font-size: 0.88rem; display: block;">Show Points & Grades Breakdown</span>
+                            <small style="color: var(--text-muted); font-size: 0.75rem;">Display pts + grade pills on winner tiles</small>
+                        </div>
+                        <label class="builder-toggle"><input type="checkbox" id="thm-show-points" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <div>
+                            <span style="font-weight: 600; font-size: 0.88rem; display: block;">Show Milestone Interval Filter</span>
+                            <small style="color: var(--text-muted); font-size: 0.75rem;">Enable interval standings dropdown</small>
+                        </div>
+                        <label class="builder-toggle"><input type="checkbox" id="thm-show-milestone" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                        <div>
+                            <span style="font-weight: 600; font-size: 0.88rem; display: block;">Show Search & Category Filter</span>
+                            <small style="color: var(--text-muted); font-size: 0.75rem;">Event search bar & category selector</small>
+                        </div>
+                        <label class="builder-toggle"><input type="checkbox" id="thm-show-search" checked><span class="builder-toggle-slider"></span></label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 1-Click Luxury Theme Presets -->
+            <div class="builder-card" style="background: white;">
+                <h4 style="margin-bottom: 0.25rem; font-weight: 700; font-size: 0.95rem; color: var(--text-main);">
+                    <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--primary); margin-right: 6px;"></i> 1-Click Luxury Theme Presets
+                </h4>
+                <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1.25rem;">Select an expertly crafted color palette and typography style for instant luxury branding.</p>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem;">
+                    <button type="button" class="btn btn-outline" style="padding: 0.85rem; text-align: left; display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; height: auto; border-radius: var(--radius-md); background: white;" onclick="applyThemePreset('indigo')">
+                        <div style="display: flex; gap: 4px; width: 100%;">
+                            <span style="height: 14px; flex: 2; background: #2563EB; border-radius: 4px;"></span>
+                            <span style="height: 14px; flex: 1; background: #0F172A; border-radius: 4px;"></span>
+                            <span style="height: 14px; flex: 1; background: #F59E0B; border-radius: 4px;"></span>
+                        </div>
+                        <strong style="font-size: 0.82rem; color: var(--text-main);"><i class="fa-solid fa-sparkles" style="color: #2563EB; margin-right: 4px;"></i> Modern Indigo</strong>
+                    </button>
+                    <button type="button" class="btn btn-outline" style="padding: 0.85rem; text-align: left; display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; height: auto; border-radius: var(--radius-md); background: white;" onclick="applyThemePreset('emerald')">
+                        <div style="display: flex; gap: 4px; width: 100%;">
+                            <span style="height: 14px; flex: 2; background: #059669; border-radius: 4px;"></span>
+                            <span style="height: 14px; flex: 1; background: #064E3B; border-radius: 4px;"></span>
+                            <span style="height: 14px; flex: 1; background: #D97706; border-radius: 4px;"></span>
+                        </div>
+                        <strong style="font-size: 0.82rem; color: var(--text-main);"><i class="fa-solid fa-sparkles" style="color: #059669; margin-right: 4px;"></i> Emerald Gold</strong>
+                    </button>
+                    <button type="button" class="btn btn-outline" style="padding: 0.85rem; text-align: left; display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; height: auto; border-radius: var(--radius-md); background: white;" onclick="applyThemePreset('purple')">
+                        <div style="display: flex; gap: 4px; width: 100%;">
+                            <span style="height: 14px; flex: 2; background: #7C3AED; border-radius: 4px;"></span>
+                            <span style="height: 14px; flex: 1; background: #1E1B4B; border-radius: 4px;"></span>
+                            <span style="height: 14px; flex: 1; background: #F43F5E; border-radius: 4px;"></span>
+                        </div>
+                        <strong style="font-size: 0.82rem; color: var(--text-main);"><i class="fa-solid fa-sparkles" style="color: #7C3AED; margin-right: 4px;"></i> Royal Velvet</strong>
+                    </button>
+                    <button type="button" class="btn btn-outline" style="padding: 0.85rem; text-align: left; display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; height: auto; border-radius: var(--radius-md); background: white;" onclick="applyThemePreset('crimson')">
+                        <div style="display: flex; gap: 4px; width: 100%;">
+                            <span style="height: 14px; flex: 2; background: #DC2626; border-radius: 4px;"></span>
+                            <span style="height: 14px; flex: 1; background: #18181B; border-radius: 4px;"></span>
+                            <span style="height: 14px; flex: 1; background: #EAB308; border-radius: 4px;"></span>
+                        </div>
+                        <strong style="font-size: 0.82rem; color: var(--text-main);"><i class="fa-solid fa-sparkles" style="color: #DC2626; margin-right: 4px;"></i> Crimson Flame</strong>
+                    </button>
+                    <button type="button" class="btn btn-outline" style="padding: 0.85rem; text-align: left; display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; height: auto; border-radius: var(--radius-md); background: white;" onclick="applyThemePreset('midnight')">
+                        <div style="display: flex; gap: 4px; width: 100%;">
+                            <span style="height: 14px; flex: 2; background: #0EA5E9; border-radius: 4px;"></span>
+                            <span style="height: 14px; flex: 1; background: #020617; border-radius: 4px;"></span>
+                            <span style="height: 14px; flex: 1; background: #F97316; border-radius: 4px;"></span>
+                        </div>
+                        <strong style="font-size: 0.82rem; color: var(--text-main);"><i class="fa-solid fa-sparkles" style="color: #0EA5E9; margin-right: 4px;"></i> Midnight Onyx</strong>
+                    </button>
+                    <button type="button" class="btn btn-outline" style="padding: 0.85rem; text-align: left; display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; height: auto; border-radius: var(--radius-md); background: white;" onclick="applyThemePreset('amber')">
+                        <div style="display: flex; gap: 4px; width: 100%;">
+                            <span style="height: 14px; flex: 2; background: #D97706; border-radius: 4px;"></span>
+                            <span style="height: 14px; flex: 1; background: #292524; border-radius: 4px;"></span>
+                            <span style="height: 14px; flex: 1; background: #E11D48; border-radius: 4px;"></span>
+                        </div>
+                        <strong style="font-size: 0.82rem; color: var(--text-main);"><i class="fa-solid fa-sparkles" style="color: #D97706; margin-right: 4px;"></i> Amber Sunset</strong>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Color Palette Controls -->
+            <div class="builder-card" style="background: white;">
+                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">Color Palette</h4>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Primary Brand Color</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <input type="color" id="thm-color-primary-picker" value="#3B82F6" style="width: 44px; height: 42px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;" oninput="syncColorInput('primary', this.value)">
+                            <input type="text" id="thm-color-primary" value="#3B82F6" style="flex: 1; text-transform: uppercase;" oninput="syncColorPicker('primary', this.value)">
                         </div>
                     </div>
-                    <!-- Secondary Colors -->
-                    <div>
-                        <label style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.5rem;">Secondary</label>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #1F2937;"></div></div>
-                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #FFFFFF;"></div></div>
-                            <div class="color-circle-btn active" style="border-color: #3B82F6;"><div class="color-circle-inner" style="background: #3B82F6;"></div></div>
-                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #10B981;"></div></div>
+                    <div class="form-group">
+                        <label>Secondary Accent Color</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <input type="color" id="thm-color-secondary-picker" value="#1E293B" style="width: 44px; height: 42px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;" oninput="syncColorInput('secondary', this.value)">
+                            <input type="text" id="thm-color-secondary" value="#1E293B" style="flex: 1; text-transform: uppercase;" oninput="syncColorPicker('secondary', this.value)">
                         </div>
                     </div>
-                    <!-- Accent Colors -->
-                    <div>
-                        <label style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.5rem;">Accent</label>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <div class="color-circle-btn active" style="border-color: #F59E0B;"><div class="color-circle-inner" style="background: #1F2937;"></div></div>
-                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #FFFFFF;"></div></div>
-                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #3B82F6;"></div></div>
-                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #EF4444;"></div></div>
+                    <div class="form-group">
+                        <label>Highlight Gold / Accent</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <input type="color" id="thm-color-accent-picker" value="#F59E0B" style="width: 44px; height: 42px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;" oninput="syncColorInput('accent', this.value)">
+                            <input type="text" id="thm-color-accent" value="#F59E0B" style="flex: 1; text-transform: uppercase;" oninput="syncColorPicker('accent', this.value)">
                         </div>
                     </div>
-                    <!-- Background Colors -->
-                    <div>
-                        <label style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.5rem;">Background</label>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #1F2937;"></div></div>
-                            <div class="color-circle-btn active" style="border-color: #EF4444;"><div class="color-circle-inner" style="background: #FFFFFF;"></div></div>
-                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #3B82F6;"></div></div>
-                            <div class="color-circle-btn"><div class="color-circle-inner" style="background: #10B981;"></div></div>
+                    <div class="form-group">
+                        <label>Page Background Color</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <input type="color" id="thm-color-bg-picker" value="#F9FAFB" style="width: 44px; height: 42px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;" oninput="syncColorInput('bg', this.value)">
+                            <input type="text" id="thm-color-bg" value="#F9FAFB" style="flex: 1; text-transform: uppercase;" oninput="syncColorPicker('bg', this.value)">
                         </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Branding Logos -->
             <div class="builder-card" style="background: white;">
-                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">Branding & Media</h4>
-                <div class="grid-2" style="grid-template-columns: repeat(3, 1fr);">
+                <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">Branding & Media Logos</h4>
+                <div class="grid-2">
                     <div class="form-group">
-                        <label>Header logo</label>
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: #F9FAFB;">
-                            <div style="display: flex; align-items: center; gap: 0.5rem;"><div style="width: 32px; height: 32px; background: white; border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="fa-regular fa-file"></i></div><div><div style="font-size: 0.8rem; font-weight: 600;">Selected file</div><div style="font-size: 0.7rem; color: var(--text-muted);">No file selected</div></div></div>
-                            <button class="btn btn-outline" style="min-height: 32px; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.8rem;">Choose</button>
+                        <label>Header Navbar Logo</label>
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: #F9FAFB;">
+                            <div style="display: flex; align-items: center; gap: 0.6rem; min-width: 0; flex: 1;">
+                                <img id="thm-header-logo-preview" src="" style="width: 40px; height: 40px; object-fit: contain; border-radius: 6px; background: white; border: 1px solid var(--border); display: none;">
+                                <div style="min-width: 0;">
+                                    <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-main);" id="thm-header-logo-name">Navbar Logo</div>
+                                    <div style="font-size: 0.72rem; color: var(--text-muted);">PNG or SVG recommended</div>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline" style="min-height: 32px; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.8rem; width: auto;" onclick="document.getElementById('upload-thm-header-logo').click()">Upload</button>
+                            <input type="file" id="upload-thm-header-logo" accept="image/*" style="display: none;" onchange="handleWebsiteLogoUpload('header_logo', this)">
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>Footer logo</label>
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: #F9FAFB;">
-                            <div style="display: flex; align-items: center; gap: 0.5rem;"><div style="width: 32px; height: 32px; background: white; border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="fa-regular fa-file"></i></div><div><div style="font-size: 0.8rem; font-weight: 600;">Selected file</div><div style="font-size: 0.7rem; color: var(--text-muted);">No file selected</div></div></div>
-                            <button class="btn btn-outline" style="min-height: 32px; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.8rem;">Choose</button>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>OG Image (Social preview)</label>
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: #F9FAFB;">
-                            <div style="display: flex; align-items: center; gap: 0.5rem;"><div style="width: 32px; height: 32px; background: white; border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="fa-regular fa-file"></i></div><div><div style="font-size: 0.8rem; font-weight: 600;">Selected file</div><div style="font-size: 0.7rem; color: var(--text-muted);">No file selected</div></div></div>
-                            <button class="btn btn-outline" style="min-height: 32px; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.8rem;">Choose</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <div class="builder-card" style="background: white;">
-                <h4 style="margin-bottom: 0.25rem; font-weight: 700; font-size: 0.9rem;">Launch Settings</h4>
-                <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1rem;">Configure branding and assets for the festival launch screen (/launch)</p>
-                <div class="form-group" style="max-width: 300px;">
-                    <label>Launching logo</label>
-                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: #F9FAFB;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;"><div style="width: 32px; height: 32px; background: white; border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="fa-regular fa-file"></i></div><div><div style="font-size: 0.8rem; font-weight: 600;">Selected file</div><div style="font-size: 0.7rem; color: var(--text-muted);">No file selected</div></div></div>
-                        <button class="btn btn-outline" style="min-height: 32px; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.8rem;">Choose</button>
+                    <div class="form-group">
+                        <label>Footer Logo</label>
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: #F9FAFB;">
+                            <div style="display: flex; align-items: center; gap: 0.6rem; min-width: 0; flex: 1;">
+                                <img id="thm-footer-logo-preview" src="" style="width: 40px; height: 40px; object-fit: contain; border-radius: 6px; background: white; border: 1px solid var(--border); display: none;">
+                                <div style="min-width: 0;">
+                                    <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-main);" id="thm-footer-logo-name">Footer Logo</div>
+                                    <div style="font-size: 0.72rem; color: var(--text-muted);">PNG or SVG</div>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline" style="min-height: 32px; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.8rem; width: auto;" onclick="document.getElementById('upload-thm-footer-logo').click()">Upload</button>
+                            <input type="file" id="upload-thm-footer-logo" accept="image/*" style="display: none;" onchange="handleWebsiteLogoUpload('footer_logo', this)">
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- PANE: GALLERY (Empty State) -->
+    <!-- PANE: GALLERY -->
     <div id="builder-pane-gallery" class="builder-content-pane">
         <div class="builder-pane-header">
             <div>
-                <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-regular fa-images" style="color: #EF4444;"></i> Global Gallery <i class="fa-regular fa-circle-question" style="font-size: 0.9rem; color: var(--text-muted);"></i></h3>
+                <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-regular fa-images" style="color: var(--primary);"></i> Global Photo Gallery</h3>
+                <p style="font-size: 0.82rem; color: var(--text-muted);">Manage photo albums and event highlights on the results website.</p>
             </div>
-            <button class="btn btn-danger" style="background: #EF4444; border: none; width: auto;"><i class="fa-regular fa-folder-open"></i> New Album</button>
+            <button class="btn btn-primary" style="width: auto;" onclick="openNewAlbumModal()"><i class="fa-solid fa-plus"></i> New Album</button>
         </div>
-        <div class="builder-pane-body" style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); margin: 1.5rem;">
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 2rem;">
-                <div style="display: flex; gap: 0.5rem;">
-                    <button class="btn btn-danger" style="background: #EF4444; border: none; padding: 0.4rem 1.5rem; border-radius: 50px; font-size: 0.8rem;">ALL</button>
-                    <button class="btn btn-outline" style="padding: 0.4rem 1.5rem; border-radius: 50px; font-size: 0.8rem; border: none; background: #F3F4F6;">PUBLIC</button>
-                </div>
-                <div style="display: flex; gap: 0.5rem;">
-                    <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; border-radius: 50px; font-size: 0.9rem; border: none; background: #F3F4F6;"><i class="fa-solid fa-magnifying-glass"></i></button>
-                    <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; border-radius: 50px; font-size: 0.9rem; border: none; background: #F3F4F6;"><i class="fa-solid fa-sliders"></i></button>
-                    <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; border-radius: 50px; font-size: 0.9rem; border: none; background: #F3F4F6;"><i class="fa-solid fa-arrow-down-a-z"></i></button>
-                </div>
-            </div>
-            <div class="empty-state">
-                <div class="empty-state-icon"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23EF4444' width='40' height='40'><path d='M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.96-2.36L6.5 17h11l-3.54-4.71z'/></svg>" /></div>
-                <h3>No albums yet</h3>
-                <p>Create your first album to start organizing gallery images.</p>
-                <button class="btn btn-danger" style="background: #EF4444; width: auto; border: none;">New Album</button>
+        <div class="builder-pane-body" style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); margin: 1.25rem; padding: 1.5rem;">
+            <div id="builder-gallery-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem;">
+                <!-- Dynamically populated albums -->
             </div>
         </div>
     </div>
 
-    <!-- PANE: DOWNLOADS (Empty State) -->
+    <!-- PANE: DOWNLOADS -->
     <div id="builder-pane-downloads" class="builder-content-pane">
         <div class="builder-pane-header">
             <div>
-                <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-solid fa-file-arrow-down" style="color: #EF4444;"></i> Global Downloads <i class="fa-regular fa-circle-question" style="font-size: 0.9rem; color: var(--text-muted);"></i></h3>
+                <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-solid fa-file-arrow-down" style="color: var(--primary);"></i> Public Downloads Hub</h3>
+                <p style="font-size: 0.82rem; color: var(--text-muted);">Share festival rulebooks, schedules, circulars, and certificates with attendees.</p>
             </div>
-            <button class="btn btn-danger" style="background: #EF4444; border: none; width: auto;"><i class="fa-solid fa-plus"></i> Add Download</button>
+            <button class="btn btn-primary" style="width: auto;" onclick="openNewDownloadModal()"><i class="fa-solid fa-plus"></i> Add Download</button>
         </div>
-        <div class="builder-pane-body">
-            <div class="empty-state" style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg);">
-                <div class="empty-state-icon"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23EF4444' width='40' height='40'><path d='M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z'/></svg>" /></div>
-                <h3>No downloads yet</h3>
-                <p>Add your first download to get started.</p>
-                <button class="btn btn-danger" style="background: #EF4444; width: auto; border: none;"><i class="fa-solid fa-plus"></i> Add Download</button>
+        <div class="builder-pane-body" style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); margin: 1.25rem; padding: 1.5rem;">
+            <div id="builder-downloads-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <!-- Dynamically populated downloads -->
             </div>
         </div>
     </div>
 
-    <!-- PANE: NEWS (Empty State) -->
+    <!-- PANE: NEWS & ANNOUNCEMENTS -->
     <div id="builder-pane-news" class="builder-content-pane">
         <div class="builder-pane-header">
             <div>
-                <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-regular fa-newspaper" style="color: #EF4444;"></i> Global News <i class="fa-regular fa-circle-question" style="font-size: 0.9rem; color: var(--text-muted);"></i></h3>
+                <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-regular fa-newspaper" style="color: var(--primary);"></i> Global News & Bulletins</h3>
+                <p style="font-size: 0.82rem; color: var(--text-muted);">Broadcast flash updates, schedule adjustments, and news to the public portal.</p>
             </div>
-            <button class="btn btn-danger" style="background: #EF4444; border: none; width: auto;"><i class="fa-solid fa-plus"></i> Add News</button>
+            <button class="btn btn-primary" style="width: auto;" onclick="openNewNewsModal()"><i class="fa-solid fa-plus"></i> Post Announcement</button>
         </div>
-        <div class="builder-pane-body">
-            <div class="empty-state" style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg);">
-                <div class="empty-state-icon"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23EF4444' width='40' height='40'><path d='M20 3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H4V5h16v14zM14 7h4v2h-4zm0 4h4v2h-4zM6 7h6v6H6zm0 8h12v2H6z'/></svg>" /></div>
-                <h3>No news yet</h3>
-                <p>Add your first news item to get started.</p>
-                <button class="btn btn-danger" style="background: #EF4444; width: auto; border: none;"><i class="fa-solid fa-plus"></i> Add News</button>
+        <div class="builder-pane-body" style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); margin: 1.25rem; padding: 1.5rem;">
+            <div id="builder-news-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <!-- Dynamically populated news -->
             </div>
         </div>
     </div>
@@ -3920,6 +4045,152 @@ tr:hover td { background: var(--bg-main); }
             <button class="btn btn-success" id="btn-apply-optimized-schedule" style="display: none; padding: 0.75rem 1.5rem;" onclick="applyOptimizedSchedule()">
                 <i class="fa-solid fa-check-double"></i> Apply & Save to Master Schedule
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= WEBSITE CUSTOMIZER MODALS ================= -->
+
+<!-- Site Password Modal -->
+<div id="sitePasswordModal" class="modal-overlay" style="z-index: 2100;">
+    <div class="modal" style="max-width: 440px;">
+        <div class="modal-header">
+            <h2 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-lock" style="color: var(--primary);"></i> Public Site Password
+            </h2>
+            <button class="modal-close" onclick="closeSitePasswordModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div style="margin-bottom: 1.25rem;">
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Set a security passcode to restrict access to results.html. Visitors must enter this passcode to view the website.</p>
+            <div class="form-group">
+                <label>Access Passcode / Password</label>
+                <input type="text" id="site-password-input" placeholder="e.g. FEST2026" style="text-transform: none !important; width: 100%;">
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+            <button class="btn btn-outline" style="width: auto;" onclick="closeSitePasswordModal()">Cancel</button>
+            <button class="btn btn-primary" style="width: auto;" onclick="saveSitePassword()">Save Password</button>
+        </div>
+    </div>
+</div>
+
+<!-- New Album Modal -->
+<div id="builderAlbumModal" class="modal-overlay" style="z-index: 2100;">
+    <div class="modal" style="max-width: 540px;">
+        <div class="modal-header">
+            <h2 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-regular fa-images" style="color: var(--primary);"></i> Create Photo Album
+            </h2>
+            <button class="modal-close" onclick="closeAlbumModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.25rem;">
+            <div class="form-group">
+                <label>Album Title</label>
+                <input type="text" id="album-title-input" placeholder="e.g. Inauguration & Cultural Night" style="width: 100%;">
+            </div>
+            <div class="form-group">
+                <label>Category Tag</label>
+                <select id="album-category-input" style="width: 100%;">
+                    <option value="Stage">Stage Performance</option>
+                    <option value="Audience">Audience & Atmosphere</option>
+                    <option value="Off-Stage">Off-Stage Events</option>
+                    <option value="Awards">Awards & Felicitation</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Cover Photo Image URL or Upload</label>
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <input type="text" id="album-cover-url" placeholder="https://... or upload below" style="flex: 1; text-transform: none !important;">
+                    <button class="btn btn-outline" style="width: auto; padding: 0.5rem 1rem;" onclick="document.getElementById('upload-album-cover').click()"><i class="fa-solid fa-upload"></i></button>
+                    <input type="file" id="upload-album-cover" accept="image/*" style="display: none;" onchange="handleAlbumCoverUpload(this)">
+                </div>
+                <img id="album-cover-preview" src="" style="width: 100%; height: 160px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); display: none;">
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+            <button class="btn btn-outline" style="width: auto;" onclick="closeAlbumModal()">Cancel</button>
+            <button class="btn btn-primary" style="width: auto;" onclick="saveNewAlbum()">Create Album</button>
+        </div>
+    </div>
+</div>
+
+<!-- New Download Modal -->
+<div id="builderDownloadModal" class="modal-overlay" style="z-index: 2100;">
+    <div class="modal" style="max-width: 520px;">
+        <div class="modal-header">
+            <h2 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-file-arrow-down" style="color: var(--primary);"></i> Add Public Download
+            </h2>
+            <button class="modal-close" onclick="closeDownloadModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.25rem;">
+            <div class="form-group">
+                <label>Document Title</label>
+                <input type="text" id="download-title-input" placeholder="e.g. Official Rulebook & Guidelines 2026" style="width: 100%;">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="download-category-input" style="width: 100%;">
+                        <option value="Rulebook">Rulebook & Manual</option>
+                        <option value="Schedule">Schedule PDF</option>
+                        <option value="Circular">Official Circular</option>
+                        <option value="Brochure">Festival Brochure</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>File Size Label</label>
+                    <input type="text" id="download-size-input" placeholder="e.g. 2.4 MB" style="width: 100%;">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Direct File URL or Cloud Link</label>
+                <input type="text" id="download-url-input" placeholder="https://..." style="text-transform: none !important; width: 100%;">
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+            <button class="btn btn-outline" style="width: auto;" onclick="closeDownloadModal()">Cancel</button>
+            <button class="btn btn-primary" style="width: auto;" onclick="saveNewDownload()">Add Download</button>
+        </div>
+    </div>
+</div>
+
+<!-- New News Modal -->
+<div id="builderNewsModal" class="modal-overlay" style="z-index: 2100;">
+    <div class="modal" style="max-width: 580px;">
+        <div class="modal-header">
+            <h2 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-regular fa-newspaper" style="color: var(--primary);"></i> Post News Announcement
+            </h2>
+            <button class="modal-close" onclick="closeNewsModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.25rem;">
+            <div class="form-group">
+                <label>Headline Title</label>
+                <input type="text" id="news-title-input" placeholder="e.g. Grand Finale Stage Schedule Released" style="width: 100%;">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Badge / Category</label>
+                    <input type="text" id="news-cat-input" placeholder="e.g. Announcement, Flash, Alert" value="Announcement" style="width: 100%;">
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="news-date-input" style="width: 100%;">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Short Summary (for card preview)</label>
+                <textarea id="news-summary-input" rows="2" placeholder="Brief summary..." style="width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; outline: none; text-transform: none !important;"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Full Content</label>
+                <textarea id="news-content-input" rows="4" placeholder="Full announcement text..." style="width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; outline: none; text-transform: none !important;"></textarea>
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+            <button class="btn btn-outline" style="width: auto;" onclick="closeNewsModal()">Cancel</button>
+            <button class="btn btn-primary" style="width: auto;" onclick="saveNewNews()">Publish Bulletin</button>
         </div>
     </div>
 </div>

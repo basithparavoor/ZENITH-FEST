@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FestOS | Premium Live Results</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 320 512%22><path fill=%22%234f46e5%22 d=%22M296 160H180.6l42.6-129.8C227.2 15 215.7 0 200 0H56C44 0 33.8 8.9 32.2 20.8l-32 240C-.5 273.6 9.3 288 24 288h118.7L96.6 482.5c-3.6 15.2 8 29.5 23.3 29.5 8.4 0 16.4-4.4 20.8-12l176-304c9.3-15.9-2.2-36-20.7-36z%22/></svg>">
+    <title>FestOS | Live Public Results & Championship Portal</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 320 512%22><path fill=%22%233b82f6%22 d=%22M296 160H180.6l42.6-129.8C227.2 15 215.7 0 200 0H56C44 0 33.8 8.9 32.2 20.8l-32 240C-.5 273.6 9.3 288 24 288h118.7L96.6 482.5c-3.6 15.2 8 29.5 23.3 29.5 8.4 0 16.4-4.4 20.8-12l176-304c9.3-15.9-2.2-36-20.7-36z%22/></svg>">
     
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -12,20 +12,21 @@
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
+    <!-- QR Code Generator for Admit Card -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+    <link id="dynamic-font-link" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Poppins:wght@500;600;700&family=Cinzel:wght@600;700;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
-
+    <style id="custom-theme-vars">
         :root {
-            --bg-light: #F9FAFB;
+            --bg-light: #F8FAFC;
             --surface: #FFFFFF;
-            --surface-hover: #FFFFFF;
+            --surface-hover: #F1F5F9;
             --surface-solid: #FFFFFF;
-            --surface-border: #E5E7EB;
+            --surface-border: #E2E8F0;
             --surface-border-active: rgba(59, 130, 246, 0.4);
             
             --primary: #3B82F6;
@@ -35,19 +36,22 @@
             --primary-glow: rgba(59, 130, 246, 0.15);
             --primary-gradient: linear-gradient(135deg, #3B82F6 0%, #6366F1 100%);
             
-            --text-main: #1F2937;
-            --text-muted: #6B7280;
-            --text-dim: #9CA3AF;
+            --secondary: #1E293B;
+            --accent: #F59E0B;
+            
+            --text-main: #0F172A;
+            --text-muted: #64748B;
+            --text-dim: #94A3B8;
             
             --gold: #F59E0B;
-            --gold-glow: rgba(245, 158, 11, 0.15);
-            --gold-border: rgba(245, 158, 11, 0.3);
-            --silver: #9CA3AF;
-            --silver-glow: rgba(156, 163, 175, 0.15);
-            --silver-border: rgba(156, 163, 175, 0.3);
+            --gold-glow: rgba(245, 158, 11, 0.18);
+            --gold-border: rgba(245, 158, 11, 0.4);
+            --silver: #94A3B8;
+            --silver-glow: rgba(148, 163, 184, 0.18);
+            --silver-border: rgba(148, 163, 184, 0.4);
             --bronze: #D97706;
-            --bronze-glow: rgba(217, 119, 6, 0.15);
-            --bronze-border: rgba(217, 119, 6, 0.3);
+            --bronze-glow: rgba(217, 119, 6, 0.18);
+            --bronze-border: rgba(217, 119, 6, 0.4);
             
             --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
             --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
@@ -61,14 +65,13 @@
             --radius-md: 12px;
             --radius-sm: 8px;
 
-            --transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            --font-family: 'Plus Jakarta Sans', sans-serif;
+            --transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
+    </style>
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-
-        h1, h2, h3, h4, .brand, .btn, .tab {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-        }
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-family); -webkit-tap-highlight-color: transparent; }
 
         body { 
             background-color: var(--bg-light);
@@ -79,7 +82,7 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             overflow-x: hidden;
-            padding-bottom: calc(40px + env(safe-area-inset-bottom));
+            padding-bottom: calc(65px + env(safe-area-inset-bottom));
         }
 
         /* --- Ambient Motion Background --- */
@@ -91,10 +94,10 @@
             mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, black 20%, transparent 100%);
             -webkit-mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, black 20%, transparent 100%);
         }
-        .orb { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.5; animation: floatOrb 22s infinite alternate cubic-bezier(0.4, 0, 0.2, 1); }
-        .orb-1 { width: 500px; height: 500px; background: rgba(59, 130, 246, 0.15); top: -200px; left: -150px; }
-        .orb-2 { width: 400px; height: 400px; background: rgba(139, 92, 246, 0.1); bottom: -150px; right: -100px; animation-delay: -7s; }
-        .orb-3 { width: 350px; height: 350px; background: rgba(14, 165, 233, 0.1); top: 35%; left: 30%; animation-delay: -12s; }
+        .orb { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.45; animation: floatOrb 22s infinite alternate cubic-bezier(0.4, 0, 0.2, 1); }
+        .orb-1 { width: 500px; height: 500px; background: var(--primary-glow); top: -200px; left: -150px; }
+        .orb-2 { width: 400px; height: 400px; background: rgba(99, 102, 241, 0.1); bottom: -150px; right: -100px; animation-delay: -7s; }
+        .orb-3 { width: 350px; height: 350px; background: rgba(14, 165, 233, 0.08); top: 35%; left: 30%; animation-delay: -12s; }
 
         @keyframes floatOrb {
             0% { transform: translate(0, 0) scale(1); }
@@ -107,35 +110,35 @@
 
         /* --- Public Website Navigation --- */
         .public-navbar {
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.94);
             backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-            padding: 1rem 6%; display: flex; justify-content: space-between; align-items: center;
+            padding: 0.9rem 6%; display: flex; justify-content: space-between; align-items: center;
             position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--surface-border); box-shadow: var(--shadow-nav);
         }
         .public-navbar .brand { 
-            font-weight: 800; font-size: 1.4rem; letter-spacing: -0.02em; 
-            color: var(--primary); display: flex; align-items: center; gap: 0.6rem; text-transform: uppercase;
+            font-weight: 800; font-size: 1.35rem; letter-spacing: -0.02em; 
+            color: var(--primary); display: flex; align-items: center; gap: 0.65rem; text-transform: uppercase;
+            cursor: pointer; user-select: none;
         }
         .nav-links {
-            display: flex; gap: 2rem; align-items: center;
+            display: flex; gap: 1.5rem; align-items: center;
         }
         .nav-link {
-            font-size: 0.95rem; font-weight: 600; color: var(--text-muted);
+            font-size: 0.88rem; font-weight: 700; color: var(--text-muted);
             cursor: pointer; transition: var(--transition); text-transform: uppercase;
-            position: relative;
-            padding: 0.5rem 0;
+            position: relative; padding: 0.5rem 0.2rem; display: inline-flex; align-items: center; gap: 0.4rem;
         }
         .nav-link:hover { color: var(--primary); }
         .nav-link.active { color: var(--primary); }
         .nav-link.active::after {
-            content: ''; position: absolute; bottom: 0px; left: 0; right: 0; height: 2px;
+            content: ''; position: absolute; bottom: 0px; left: 0; right: 0; height: 2.5px;
             background: var(--primary); border-radius: 2px;
         }
 
         /* Live Radar Ping */
         .live-badge {
-            background: rgba(16, 185, 129, 0.1); color: #059669; border: 1px solid rgba(16, 185, 129, 0.2);
-            padding: 0.4rem 0.85rem; border-radius: 999px; font-weight: 600; font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;
+            background: rgba(16, 185, 129, 0.1); color: #059669; border: 1px solid rgba(16, 185, 129, 0.25);
+            padding: 0.4rem 0.85rem; border-radius: 999px; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase;
             display: flex; align-items: center; gap: 0.5rem;
         }
         .live-dot-container { position: relative; width: 8px; height: 8px; }
@@ -143,99 +146,130 @@
         .live-ping { position: absolute; inset: -3px; border: 2px solid #10B981; border-radius: 50%; animation: radarPing 2s infinite cubic-bezier(0, 0, 0.2, 1); z-index: 1; }
         @keyframes radarPing { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
 
-        /* --- Hero Section (Home) --- */
-        .hero-section {
-            text-align: center; padding: 6rem 1.5rem; position: relative; z-index: 10;
-        }
-        .hero-title {
-            font-size: 3.5rem; font-weight: 800; color: var(--text-main);
-            margin-bottom: 1rem; line-height: 1.1; letter-spacing: -0.03em;
-        }
-        .hero-subtitle {
-            font-size: 1.25rem; color: var(--text-muted); font-weight: 500;
-            max-width: 600px; margin: 0 auto 2.5rem auto;
-        }
-
-        /* --- Public Footer --- */
-        .public-footer {
-            background: var(--surface); border-top: 1px solid var(--surface-border);
-            padding: 3rem 6%; text-align: center; margin-top: auto; position: relative; z-index: 10;
-        }
-        .footer-brand { font-size: 1.25rem; font-weight: 700; color: var(--text-main); margin-bottom: 1rem; text-transform: uppercase; }
-        .footer-links { display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 1.5rem; }
-        .footer-links a { color: var(--text-muted); text-decoration: none; font-weight: 600; text-transform: uppercase; transition: var(--transition); font-size: 0.9rem;}
-        .footer-links a:hover { color: var(--primary); }
-        .copyright { font-size: 0.85rem; color: var(--text-dim); }
-
-        /* Schedule Table */
-        .schedule-table-container { background: var(--surface); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); border: 1px solid var(--surface-border); overflow: hidden; margin-bottom: 3rem;}
-        .schedule-table { width: 100%; border-collapse: collapse; text-align: left; }
-        .schedule-table th { padding: 1rem 1.5rem; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); background: var(--bg-light); border-bottom: 1px solid var(--surface-border); }
-        .schedule-table td { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--surface-border); font-size: 0.95rem; font-weight: 600; color: var(--text-main); }
-        .schedule-table tr:last-child td { border-bottom: none; }
-
         /* --- Main Container --- */
-        .container { max-width: 960px; margin: 2rem auto; padding: 0 1.5rem; flex: 1; width: 100%; }
+        .container { max-width: 1040px; margin: 1.5rem auto 3rem auto; padding: 0 1.5rem; flex: 1; width: 100%; }
 
         .view-section { display: none; }
         .view-section.active { display: block; animation: fadeIn 0.3s ease; }
         .results-sub-view { display: none; }
         .results-sub-view.active { display: block; animation: fadeIn 0.3s ease; }
 
-        /* --- Tabs (For Results) --- */
+        /* --- Hero Section (Home) --- */
+        .hero-section {
+            text-align: center; padding: 4.5rem 1rem 3rem 1rem; position: relative; z-index: 10;
+        }
+        .hero-pill {
+            display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.45rem 1.1rem;
+            background: var(--primary-light); color: var(--primary); border-radius: 999px;
+            font-weight: 700; font-size: 0.8rem; margin-bottom: 1.5rem; border: 1px solid var(--primary-ring);
+            text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .hero-title {
+            font-size: 3.25rem; font-weight: 800; color: var(--text-main);
+            margin-bottom: 1.25rem; line-height: 1.12; letter-spacing: -0.03em;
+        }
+        .hero-subtitle {
+            font-size: 1.15rem; color: var(--text-muted); font-weight: 500;
+            max-width: 680px; margin: 0 auto 2.5rem auto; line-height: 1.6;
+        }
+
+        /* --- Homepage Stats Grid --- */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 3.5rem;
+        }
+        .stat-card {
+            background: var(--surface); padding: 1.5rem 1rem; border-radius: var(--radius-lg);
+            border: 1px solid var(--surface-border); box-shadow: var(--card-shadow); text-align: center;
+            transition: var(--transition);
+        }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--surface-border-active); }
+        .stat-num { font-size: 2.2rem; font-weight: 800; color: var(--primary); line-height: 1; margin-bottom: 0.4rem; }
+        .stat-label { font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+        /* --- Quick Nav Hub Cards --- */
+        .quick-hub-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 3.5rem;
+        }
+        .hub-card {
+            background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-lg);
+            padding: 1.5rem; cursor: pointer; transition: var(--transition); box-shadow: var(--card-shadow);
+            display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;
+        }
+        .hub-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--primary); }
+        .hub-icon-wrap {
+            width: 48px; height: 48px; border-radius: var(--radius-md); background: var(--primary-light);
+            color: var(--primary); display: flex; align-items: center; justify-content: center;
+            font-size: 1.35rem; margin-bottom: 1.2rem;
+        }
+        .hub-card h3 { font-size: 1.15rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.4rem; text-transform: uppercase; }
+        .hub-card p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; }
+
+        /* --- About / Contact Section --- */
+        .about-card {
+            background: var(--surface); border-radius: var(--radius-xl); padding: 2.5rem;
+            border: 1px solid var(--surface-border); box-shadow: var(--card-shadow); margin-bottom: 3rem;
+        }
+        .social-links { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem; }
+        .social-btn {
+            display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.1rem;
+            border-radius: 999px; background: var(--bg-light); border: 1px solid var(--surface-border);
+            color: var(--text-main); font-size: 0.82rem; font-weight: 600; text-decoration: none; transition: var(--transition);
+        }
+        .social-btn:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); transform: translateY(-2px); }
+
+        /* --- Tabs --- */
         .tabs { 
-            display: flex; gap: 0.35rem; margin-bottom: 2rem; 
-            background: rgba(243, 244, 246, 0.9); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            display: flex; gap: 0.35rem; margin-bottom: 1.75rem; 
+            background: rgba(243, 244, 246, 0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             padding: 0.35rem; border-radius: 999px; border: 1px solid var(--surface-border);
             overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
         }
         .tabs::-webkit-scrollbar { display: none; }
         .tab { 
             flex: 1; text-align: center; padding: 0.75rem 1.25rem; 
-            cursor: pointer; font-weight: 600; color: var(--text-muted); 
+            cursor: pointer; font-weight: 700; color: var(--text-muted); 
             border-radius: 999px; transition: var(--transition); text-transform: uppercase;
-            font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+            font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
             white-space: nowrap; flex-shrink: 0;
         }
         .tab:hover { color: var(--text-main); background: rgba(255, 255, 255, 0.6); }
         .tab.active { 
             background: var(--primary-gradient); color: #ffffff; 
-            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25);
+            box-shadow: 0 4px 12px var(--primary-ring);
         }
 
         /* --- Standings Header Controls --- */
         .standings-header-card {
             display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; 
-            margin-bottom: 1.5rem; gap: 1rem; 
-            background: var(--surface);
+            margin-bottom: 1.5rem; gap: 1rem; background: var(--surface);
             padding: 1.25rem 1.5rem; border-radius: var(--radius-lg); 
             border: 1px solid var(--surface-border); box-shadow: var(--card-shadow);
             animation: popIn 0.4s ease backwards;
         }
 
-        select, input[type="text"] {
+        select, input[type="text"], input[type="date"], input[type="password"] {
             color: var(--text-main); background: var(--bg-light); text-transform: uppercase;
             border: 1px solid var(--surface-border); border-radius: var(--radius-md);
-            padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; outline: none;
+            padding: 0.7rem 1.1rem; font-size: 0.9rem; font-weight: 600; outline: none;
             transition: var(--transition); appearance: none;
         }
         select {
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
-            background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.2rem; padding-right: 2.75rem; cursor: pointer;
+            background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.1rem; padding-right: 2.75rem; cursor: pointer;
         }
-        select:focus, input[type="text"]:focus {
+        select:focus, input:focus {
             border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); background: #FFFFFF;
         }
 
         /* --- Published Results Badge --- */
         .published-count-badge {
-            background: var(--primary-light); border: 1px solid rgba(59, 130, 246, 0.2); color: var(--primary);
-            padding: 0.65rem 1.25rem; border-radius: 999px; font-weight: 600; font-size: 0.85rem;
+            background: var(--primary-light); border: 1px solid var(--primary-ring); color: var(--primary);
+            padding: 0.65rem 1.2rem; border-radius: 999px; font-weight: 700; font-size: 0.82rem;
             display: flex; align-items: center; gap: 0.5rem; box-shadow: var(--shadow-sm);
             animation: popIn 0.4s ease backwards; white-space: nowrap; text-transform: uppercase;
         }
 
-        /* --- Leaderboard Styles --- */
+        /* --- Leaderboard Styles (Cards vs Linear) --- */
         .leaderboard-card {
             background: var(--surface); text-transform: uppercase;
             border-radius: var(--radius-md); padding: 1.15rem 1.5rem;
@@ -254,28 +288,37 @@
         .leaderboard-card.bronze-card::before { animation-delay: 1s; }
 
         .leaderboard-card:hover { 
-            transform: translateY(-2px); border-color: rgba(59, 130, 246, 0.3);
+            transform: translateY(-2px); border-color: var(--surface-border-active);
             box-shadow: var(--shadow-md);
         }
         
         .rank, .team-info, .team-score-container { position: relative; z-index: 1; }
-        .rank { font-size: 1.1rem; font-weight: 700; width: 50px; color: var(--text-dim); display: flex; align-items: center; }
-        .rank-1, .rank-2, .rank-3 { font-size: 1.5rem; width: 60px; }
+        .rank { font-size: 1.1rem; font-weight: 800; width: 55px; color: var(--text-dim); display: flex; align-items: center; gap: 0.35rem; }
+        .rank-1, .rank-2, .rank-3 { font-size: 1.45rem; width: 65px; }
         
-        .gold-card { background: linear-gradient(135deg, #FFFFFF, rgba(245, 158, 11, 0.04)); border-color: var(--gold-border); box-shadow: 0 4px 15px var(--gold-glow); }
-        .silver-card { background: linear-gradient(135deg, #FFFFFF, rgba(156, 163, 175, 0.04)); border-color: var(--silver-border); box-shadow: 0 4px 15px var(--silver-glow); }
-        .bronze-card { background: linear-gradient(135deg, #FFFFFF, rgba(217, 119, 6, 0.04)); border-color: var(--bronze-border); box-shadow: 0 4px 15px var(--bronze-glow); }
+        .gold-card { background: linear-gradient(135deg, #FFFFFF, rgba(245, 158, 11, 0.05)); border-color: var(--gold-border); box-shadow: 0 4px 15px var(--gold-glow); }
+        .silver-card { background: linear-gradient(135deg, #FFFFFF, rgba(148, 163, 184, 0.05)); border-color: var(--silver-border); box-shadow: 0 4px 15px var(--silver-glow); }
+        .bronze-card { background: linear-gradient(135deg, #FFFFFF, rgba(217, 119, 6, 0.05)); border-color: var(--bronze-border); box-shadow: 0 4px 15px var(--bronze-glow); }
         
         .team-info { flex: 1; padding-left: 0.5rem; min-width: 0; }
-        .team-name { font-size: 1.1rem; font-weight: 600; color: var(--text-main); letter-spacing: -0.01em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .team-name { font-size: 1.1rem; font-weight: 700; color: var(--text-main); letter-spacing: -0.01em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .team-score-container { text-align: right; flex-shrink: 0; }
-        .team-score { font-size: 1.5rem; font-weight: 700; color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; display: inline-block; }
-        .score-label { display: block; font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+        .team-score { font-size: 1.5rem; font-weight: 800; color: var(--primary); display: inline-block; }
+        .score-label { display: block; font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+
+        /* Linear Podium Mode */
+        .leaderboard-linear-table {
+            width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--radius-lg);
+            border: 1px solid var(--surface-border); overflow: hidden; box-shadow: var(--card-shadow);
+        }
+        .leaderboard-linear-table th { padding: 1rem 1.25rem; font-size: 0.78rem; font-weight: 700; color: var(--text-muted); background: var(--bg-light); border-bottom: 1px solid var(--surface-border); text-align: left; text-transform: uppercase; }
+        .leaderboard-linear-table td { padding: 1rem 1.25rem; border-bottom: 1px solid var(--surface-border); font-size: 0.95rem; font-weight: 600; text-transform: uppercase; }
+        .leaderboard-linear-table tr:last-child td { border-bottom: none; }
 
         /* --- Event Tiles Grid --- */
-        .competitions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; text-transform: uppercase;}
+        .competitions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 1.25rem; text-transform: uppercase;}
         .comp-tile {
-            background: var(--surface); border-radius: var(--radius-md); padding: 1.4rem;
+            background: var(--surface); border-radius: var(--radius-lg); padding: 1.5rem;
             border: 1px solid var(--surface-border); box-shadow: var(--card-shadow);
             transition: var(--transition); display: flex; flex-direction: column; justify-content: space-between;
             animation: popIn 0.4s ease backwards;
@@ -284,18 +327,27 @@
             transform: translateY(-3px); border-color: var(--surface-border-active);
             box-shadow: var(--shadow-md); 
         }
-        .tile-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
-        .tile-number { font-size: 0.75rem; font-weight: 600; color: var(--primary); background: var(--primary-light); padding: 0.2rem 0.6rem; border-radius: 999px; }
-        .tile-category { font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: var(--text-muted); letter-spacing: 0.05em; }
-        .tile-title { font-size: 1.1rem; font-weight: 600; color: var(--text-main); margin-bottom: 1.25rem; line-height: 1.35; text-transform: uppercase; }
+        .tile-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.85rem; }
+        .tile-number { font-size: 0.75rem; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 0.25rem 0.65rem; border-radius: 999px; }
+        .tile-category { font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em; }
+        .tile-title { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 1.25rem; line-height: 1.35; text-transform: uppercase; }
         
+        /* Squad Rosters & Badges */
+        .squad-chips-wrap { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.65rem; }
+        .squad-chip {
+            font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.55rem; border-radius: 6px;
+            background: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; display: inline-flex; align-items: center; gap: 0.3rem;
+            text-transform: uppercase;
+        }
+        .squad-chip.leader { background: #FEF3C7; color: #B45309; border-color: #FDE68A; font-weight: 700; }
+
         /* --- Buttons --- */
         .btn { 
             width: 100%; padding: 0.75rem 1.25rem; background: var(--primary-gradient); color: white; 
-            border: none; border-radius: var(--radius-md); font-size: 0.9rem; font-weight: 600; 
+            border: none; border-radius: var(--radius-md); font-size: 0.88rem; font-weight: 700; 
             cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); position: relative; overflow: hidden; letter-spacing: 0.01em;
-            min-height: 42px; white-space: nowrap; text-transform: uppercase;
+            box-shadow: 0 4px 10px var(--primary-ring); position: relative; overflow: hidden; letter-spacing: 0.02em;
+            min-height: 42px; white-space: nowrap; text-transform: uppercase; text-decoration: none;
         }
         .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-float); }
         .btn:active:not(:disabled) { transform: translateY(1px); }
@@ -307,14 +359,14 @@
         /* --- Modals --- */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(17, 24, 39, 0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+            background: rgba(17, 24, 39, 0.5); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
             z-index: 200; display: none; justify-content: center; align-items: center;
             opacity: 0; transition: opacity 0.3s ease; padding: 1.25rem;
         }
         .modal-overlay.active { display: flex; opacity: 1; }
         
         .modal-content {
-            background: #ffffff; width: 100%; max-width: 820px; max-height: 90vh;
+            background: #ffffff; width: 100%; max-width: 860px; max-height: 90vh;
             border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
             overflow-y: auto; position: relative; border: 1px solid var(--surface-border);
             transform: scale(0.95); transition: transform 0.3s ease;
@@ -325,7 +377,7 @@
         .modal-header {
             padding: 1.25rem 1.75rem; border-bottom: 1px solid var(--surface-border);
             display: flex; justify-content: space-between; align-items: center;
-            position: sticky; top: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); z-index: 10;
+            position: sticky; top: 0; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(12px); z-index: 10;
         }
         .modal-close {
             background: var(--bg-light); border: none; 
@@ -338,17 +390,17 @@
         .modal-body { padding: 1.75rem; display: grid; grid-template-columns: 1fr; gap: 2rem; }
         @media(min-width: 768px) { .modal-body { grid-template-columns: 1fr 1fr; } }
         
-        /* Winners List in Modal */
+        /* Winners List in Modal (Position, Name, Team, Squad - NO POINTS OR GRADES) */
         .winner-list-item {
-            display: flex; align-items: center; padding: 1rem 1.25rem; margin-bottom: 0.75rem;
+            display: flex; flex-direction: column; padding: 1rem 1.25rem; margin-bottom: 0.85rem;
             background: var(--bg-light); border-radius: var(--radius-md); border: 1px solid var(--surface-border);
             transition: var(--transition);
         }
         .winner-list-item:hover { transform: translateY(-1px); background: #ffffff; border-color: var(--surface-border-active); box-shadow: var(--shadow-sm); }
-        
-        .w-rank { font-size: 1.5rem; margin-right: 1rem; width: 35px; text-align: center; }
-        .w-details h4 { font-size: 1rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.15rem; text-transform: uppercase; }
-        .w-details p { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; }
+        .winner-main-row { display: flex; align-items: center; width: 100%; }
+        .w-rank { font-size: 1.5rem; margin-right: 1rem; width: 35px; text-align: center; font-weight: 800; }
+        .w-details h4 { font-size: 1.05rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.15rem; text-transform: uppercase; }
+        .w-details p { font-size: 0.82rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
         
         /* Template Pill Selector */
         .template-tabs-container { margin-bottom: 1rem; width: 100%; }
@@ -360,8 +412,8 @@
         .template-tabs::-webkit-scrollbar { display: none; }
         
         .template-btn { 
-            padding: 0.6rem 1rem; border-radius: 999px; border: none;
-            background: transparent; color: var(--text-muted); font-size: 0.8rem; font-weight: 600; cursor: pointer;
+            padding: 0.55rem 0.95rem; border-radius: 999px; border: none;
+            background: transparent; color: var(--text-muted); font-size: 0.78rem; font-weight: 700; cursor: pointer;
             white-space: nowrap; transition: var(--transition); text-transform: uppercase;
             display: flex; align-items: center; justify-content: center;
         }
@@ -379,51 +431,141 @@
         /* Loading States */
         .loading-pulse {
             display: inline-block; width: 1.25rem; height: 1.25rem;
-            border: 2px solid rgba(59, 130, 246, 0.2);
+            border: 2px solid var(--primary-ring);
             border-top-color: var(--primary);
-            border-radius: 50%; animation: spin 1s linear infinite;
+            border-radius: 50%; animation: spin 0.9s linear infinite;
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
         .loading-overlay {
-            position: absolute; inset: 0; background: rgba(255, 255, 255, 0.85);
+            position: absolute; inset: 0; background: rgba(255, 255, 255, 0.9);
             display: none; align-items: center; justify-content: center; flex-direction: column; gap: 0.75rem;
-            font-weight: 600; font-size: 0.9rem; color: var(--primary); backdrop-filter: blur(4px);
+            font-weight: 700; font-size: 0.88rem; color: var(--primary); backdrop-filter: blur(4px);
+        }
+
+        /* --- Downloads Hub View --- */
+        .downloads-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.25rem; }
+        .download-card {
+            background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-lg);
+            padding: 1.4rem; box-shadow: var(--card-shadow); transition: var(--transition);
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .download-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--surface-border-active); }
+        .dl-icon { width: 44px; height: 44px; border-radius: var(--radius-md); background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; margin-bottom: 1rem; }
+        .dl-title { font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem; text-transform: uppercase; }
+        .dl-desc { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.2rem; line-height: 1.4; }
+
+        /* --- Gallery View --- */
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; }
+        .gallery-item {
+            background: var(--surface); border-radius: var(--radius-lg); overflow: hidden;
+            border: 1px solid var(--surface-border); box-shadow: var(--card-shadow); transition: var(--transition);
+            cursor: pointer; position: relative;
+        }
+        .gallery-item:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+        .gallery-thumb { width: 100%; aspect-ratio: 16/10; object-fit: cover; display: block; }
+        .gallery-caption { padding: 1rem 1.25rem; }
+        .gallery-title { font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.2rem; text-transform: uppercase; }
+        .gallery-tag { font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase; }
+
+        /* --- News & Bulletins View --- */
+        .news-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+        .news-item {
+            background: var(--surface); border-radius: var(--radius-lg); padding: 1.5rem;
+            border: 1px solid var(--surface-border); box-shadow: var(--card-shadow); transition: var(--transition);
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .news-item:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--surface-border-active); }
+        .news-badge {
+            font-size: 0.72rem; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 999px;
+            text-transform: uppercase; display: inline-flex; align-items: center; gap: 0.35rem; width: fit-content;
+        }
+        .news-badge.urgent { background: #FEE2E2; color: #DC2626; border: 1px solid #FCA5A5; }
+        .news-badge.normal { background: var(--primary-light); color: var(--primary); border: 1px solid var(--primary-ring); }
+
+        /* --- Participant Portal Card --- */
+        .portal-login-card {
+            background: var(--surface); border-radius: var(--radius-xl); padding: 2.75rem 2rem;
+            border: 1px solid var(--surface-border); box-shadow: var(--shadow-md); text-align: center;
+            max-width: 480px; margin: 0 auto 2.5rem auto;
+        }
+        .portal-dashboard-header {
+            background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-xl);
+            padding: 1.75rem 2rem; margin-bottom: 2rem; box-shadow: var(--card-shadow);
+            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.25rem;
+        }
+
+        /* Admit Card Badge */
+        .admit-pass-card {
+            background: linear-gradient(135deg, #1E293B, #0F172A); color: white; border-radius: var(--radius-lg);
+            padding: 1.75rem; position: relative; overflow: hidden; box-shadow: var(--shadow-lg); border: 1px solid #334155;
+            margin-top: 1.5rem;
+        }
+
+        /* --- Public Footer --- */
+        .public-footer {
+            background: var(--surface); border-top: 1px solid var(--surface-border);
+            padding: 3.5rem 6%; text-align: center; margin-top: auto; position: relative; z-index: 10;
+        }
+        .footer-brand { font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 1.25rem; text-transform: uppercase; letter-spacing: -0.01em; }
+        .footer-links { display: flex; justify-content: center; gap: 1.75rem; margin-bottom: 1.75rem; flex-wrap: wrap; }
+        .footer-links a { color: var(--text-muted); text-decoration: none; font-weight: 600; text-transform: uppercase; transition: var(--transition); font-size: 0.85rem;}
+        .footer-links a:hover { color: var(--primary); }
+        .copyright { font-size: 0.82rem; color: var(--text-dim); }
+
+        /* Schedule Table */
+        .schedule-table-container { background: var(--surface); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); border: 1px solid var(--surface-border); overflow: hidden; margin-bottom: 3rem;}
+        .schedule-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .schedule-table th { padding: 1rem 1.5rem; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); background: var(--bg-light); border-bottom: 1px solid var(--surface-border); text-transform: uppercase; }
+        .schedule-table td { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--surface-border); font-size: 0.92rem; font-weight: 600; color: var(--text-main); }
+        .schedule-table tr:last-child td { border-bottom: none; }
+
+        /* Password Overlay Gate */
+        #password-gate-overlay {
+            position: fixed; inset: 0; background: var(--bg-light); z-index: 9999;
+            display: none; align-items: center; justify-content: center; padding: 1.5rem;
+        }
+        .gate-card {
+            background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-xl);
+            padding: 2.5rem; max-width: 440px; width: 100%; text-align: center; box-shadow: var(--shadow-lg);
         }
 
         /* --- Mobile Overrides --- */
         @media (max-width: 768px) {
             .nav-links { display: none; }
-            .hero-title { font-size: 2.5rem; }
-            .hero-subtitle { font-size: 1.05rem; }
+            .hero-title { font-size: 2.35rem; }
+            .hero-subtitle { font-size: 1rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+            .stat-num { font-size: 1.8rem; }
             
             /* Native bottom nav for mobile */
             .mobile-bottom-nav {
                 display: flex; position: fixed; bottom: 0; left: 0; right: 0;
-                background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px);
+                background: rgba(255, 255, 255, 0.97); backdrop-filter: blur(16px);
                 border-top: 1px solid var(--surface-border); z-index: 100;
                 padding: 0.5rem 0 calc(0.5rem + env(safe-area-inset-bottom)) 0;
-                box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
+                box-shadow: 0 -4px 12px rgba(0,0,0,0.05); overflow-x: auto;
             }
             .mobile-nav-item {
                 flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
-                font-size: 0.65rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;
+                font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;
+                min-width: 60px; cursor: pointer;
             }
-            .mobile-nav-item i { font-size: 1.25rem; }
+            .mobile-nav-item i { font-size: 1.2rem; }
             .mobile-nav-item.active { color: var(--primary); }
 
             .standings-header-card { flex-direction: column; align-items: stretch; gap: 1rem; padding: 1.25rem 1rem; }
             .standings-header-card > div:last-child { width: 100%; flex-direction: column; gap: 0.75rem !important; }
-            select, input[type="text"] { width: 100%; min-height: 48px; font-size: 16px !important; }
-            .btn { min-height: 48px; width: 100%; justify-content: center; font-size: 0.95rem; }
+            select, input[type="text"], input[type="date"], input[type="password"] { width: 100%; min-height: 46px; font-size: 16px !important; }
+            .btn { min-height: 46px; width: 100%; justify-content: center; font-size: 0.9rem; }
             .filters { flex-direction: column; align-items: stretch !important; gap: 0.75rem; }
             .filters > div { width: 100%; min-width: 100%; }
-            .published-count-badge { justify-content: center; min-height: 48px; }
+            .published-count-badge { justify-content: center; min-height: 46px; }
             .leaderboard-card { padding: 1rem; }
-            .rank { font-size: 0.95rem; width: 40px; }
-            .rank-1, .rank-2, .rank-3 { font-size: 1.35rem; width: 45px; }
-            .team-name { font-size: 1rem; }
-            .team-score { font-size: 1.35rem; }
+            .rank { font-size: 0.95rem; width: 45px; }
+            .rank-1, .rank-2, .rank-3 { font-size: 1.3rem; width: 50px; }
+            .team-name { font-size: 0.95rem; }
+            .team-score { font-size: 1.3rem; }
             
             /* Bottom Sheet Style Modals */
             .modal-overlay { align-items: flex-end; padding: 0; background: rgba(17, 24, 39, 0.5); }
@@ -441,8 +583,6 @@
             .modal-header { padding: 1rem 0.5rem 0.75rem 0.5rem; position: static; background: transparent; border: none; }
             .modal-body { padding: 0 0.5rem; gap: 1.5rem; }
             .poster-section .btn { margin-top: 1rem; }
-            .w-name { font-size: 0.9rem !important; }
-            .w-rank { font-size: 1.2rem !important; margin-right: 0.75rem !important; }
         }
         @media (min-width: 769px) { .mobile-bottom-nav { display: none; } }
     </style>
@@ -457,16 +597,36 @@
         <div class="orb orb-3"></div>
     </div>
 
+    <!-- Password Gate Overlay -->
+    <div id="password-gate-overlay">
+        <div class="gate-card">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1.25rem;">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <h2 style="font-size: 1.35rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem; text-transform: uppercase;">Portal Protected</h2>
+            <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.5rem;">Please enter the access PIN or password configured by the fest director to view live results.</p>
+            <input type="password" id="gate-password-input" placeholder="ENTER ACCESS PIN..." style="width: 100%; margin-bottom: 1rem; text-align: center; font-size: 1.1rem; letter-spacing: 0.1em;" onkeydown="if(event.key==='Enter') unlockPasswordGate()">
+            <div id="gate-error-msg" style="color: #EF4444; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.75rem; display: none; text-transform: uppercase;">Invalid access password!</div>
+            <button class="btn btn-primary" onclick="unlockPasswordGate()">
+                <i class="fa-solid fa-key"></i> UNLOCK PORTAL
+            </button>
+        </div>
+    </div>
+
     <!-- Public Navigation Bar -->
     <nav class="public-navbar">
-        <div class="brand">
+        <div class="brand" onclick="switchMainTab('home')">
             <img id="head-logo" src="" alt="Logo" style="height: 32px; display: none;">
             <span id="head-title">FESTOS</span>
         </div>
-        <div class="nav-links">
-            <a class="nav-link active" onclick="switchMainTab('home', this)">Home</a>
-            <a class="nav-link" onclick="switchMainTab('schedule', this)">Schedules</a>
-            <a class="nav-link" onclick="switchMainTab('results', this)">Results</a>
+        <div class="nav-links" id="desktop-nav-links">
+            <a class="nav-link active" data-nav="home" onclick="switchMainTab('home', this)"><i class="fa-solid fa-house"></i> Home</a>
+            <a class="nav-link" data-nav="schedule" onclick="switchMainTab('schedule', this)"><i class="fa-solid fa-calendar-days"></i> Schedules</a>
+            <a class="nav-link" data-nav="results" onclick="switchMainTab('results', this)"><i class="fa-solid fa-trophy"></i> Results</a>
+            <a class="nav-link" data-nav="portal" onclick="switchMainTab('portal', this)"><i class="fa-solid fa-user-lock"></i> Participant Portal</a>
+            <a class="nav-link" data-nav="downloads" onclick="switchMainTab('downloads', this)"><i class="fa-solid fa-file-arrow-down"></i> Downloads</a>
+            <a class="nav-link" data-nav="gallery" onclick="switchMainTab('gallery', this)"><i class="fa-solid fa-images"></i> Gallery</a>
+            <a class="nav-link" data-nav="news" onclick="switchMainTab('news', this)"><i class="fa-solid fa-bullhorn"></i> News</a>
         </div>
         <div class="live-badge">
             <div class="live-dot-container"><span class="live-ping"></span><span class="live-dot"></span></div>
@@ -475,40 +635,112 @@
     </nav>
 
     <!-- Main App Container -->
-    <div class="container" style="min-height: 60vh;">
+    <div class="container">
         
         <!-- HOME TAB -->
         <div id="view-home" class="view-section active">
             <div class="hero-section">
-                <div style="display: inline-block; padding: 0.5rem 1rem; background: var(--primary-light); color: var(--primary); border-radius: 50px; font-weight: 700; font-size: 0.85rem; margin-bottom: 1.5rem; border: 1px solid var(--primary-ring); text-transform: uppercase;">
-                    <i class="fa-solid fa-satellite-dish fa-fade"></i> LIVE EVENT HUB
+                <div class="hero-pill">
+                    <i class="fa-solid fa-satellite-dish fa-fade"></i> LIVE CHAMPIONSHIP HUB
                 </div>
                 <h1 class="hero-title" id="home-hero-title">Welcome to FestOS</h1>
-                <p class="hero-subtitle">Track live event schedules, real-time results, and official championship standings all in one place.</p>
-                <div style="display: flex; gap: 1rem; justify-content: center;">
-                    <button class="btn btn-primary" style="width: auto;" onclick="switchMainTab('results', document.querySelectorAll('.nav-link')[2])">View Latest Results</button>
-                    <button class="btn btn-outline" style="width: auto;" onclick="switchMainTab('schedule', document.querySelectorAll('.nav-link')[1])">Event Schedule</button>
+                <p class="hero-subtitle" id="home-hero-subtitle">Real-time scores, verified stage results, and championship standings live as they happen.</p>
+                
+                <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem;">
+                    <button class="btn" id="home-cta-results" style="width: auto; padding: 0.85rem 1.75rem;" onclick="switchMainTab('results')">
+                        <i class="fa-solid fa-trophy"></i> View Standings & Results
+                    </button>
+                    <button class="btn btn-outline" id="home-cta-schedule" style="width: auto; padding: 0.85rem 1.75rem;" onclick="switchMainTab('schedule')">
+                        <i class="fa-solid fa-calendar-days"></i> Event Schedule
+                    </button>
+                </div>
+            </div>
+
+            <!-- Animated Stats Grid -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-num" id="stat-prog-count">250+</div>
+                    <div class="stat-label">Events & Comps</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-num" id="stat-part-count">1.2K+</div>
+                    <div class="stat-label">Contestants</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-num" id="stat-team-count">40+</div>
+                    <div class="stat-label">Active Teams</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-num" id="stat-venue-count">6</div>
+                    <div class="stat-label">Live Stages</div>
+                </div>
+            </div>
+
+            <!-- Dynamic Quick Navigation Hub -->
+            <div class="quick-hub-grid" id="home-quick-hub-grid">
+                <div class="hub-card" data-hub="results" onclick="switchMainTab('results')">
+                    <div>
+                        <div class="hub-icon-wrap"><i class="fa-solid fa-trophy"></i></div>
+                        <h3>Championship Standings</h3>
+                        <p>Instant overall team leaderboards and verified winner podiums.</p>
+                    </div>
+                </div>
+                <div class="hub-card" data-hub="schedule" onclick="switchMainTab('schedule')">
+                    <div>
+                        <div class="hub-icon-wrap"><i class="fa-solid fa-calendar-check"></i></div>
+                        <h3>Stage Timelines</h3>
+                        <p>Live schedule of ongoing and upcoming stage performances.</p>
+                    </div>
+                </div>
+                <div class="hub-card" data-hub="portal" onclick="switchMainTab('portal')">
+                    <div>
+                        <div class="hub-icon-wrap"><i class="fa-solid fa-user-lock"></i></div>
+                        <h3>Participant Portal</h3>
+                        <p>Login with Chest Number & DOB to access your event scorecard and digital badge.</p>
+                    </div>
+                </div>
+                <div class="hub-card" data-hub="downloads" onclick="switchMainTab('downloads')">
+                    <div>
+                        <div class="hub-icon-wrap"><i class="fa-solid fa-file-arrow-down"></i></div>
+                        <h3>Official Downloads</h3>
+                        <p>Access rulebooks, event guidelines, entry forms, and scorecards.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- About / Championship Info Section -->
+            <div class="about-card">
+                <span class="badge" style="background: var(--primary-light); color: var(--primary); padding: 0.35rem 0.8rem; border-radius: 999px; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-bottom: 0.75rem;" id="home-about-subtitle">The Grand Championship</span>
+                <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.75rem; text-transform: uppercase;" id="home-about-title">Celebrating Arts, Culture & Innovation</h2>
+                <h4 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem; text-transform: uppercase;" id="home-content-title">Live Festival Stage Architecture</h4>
+                <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;" id="home-content-desc">Zenith Fest powers hundreds of competitive events across multiple stages. Built for speed, transparency, and accuracy in live festival scorekeeping.</p>
+                
+                <div style="border-top: 1px solid var(--surface-border); padding-top: 1.5rem;">
+                    <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Connect With Us:</span>
+                    <div class="social-links" id="home-social-links">
+                        <!-- Dynamic Social & Contact Links -->
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- SCHEDULE TAB -->
         <div id="view-schedule" class="view-section">
-            <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.75rem; font-weight: 700; margin-bottom: 0.5rem; text-align: center; text-transform: uppercase;">Official Schedule</h2>
-            <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem; font-weight: 500; text-transform: uppercase;">Upcoming timings for the main events.</p>
+            <h2 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 0.5rem; text-align: center; text-transform: uppercase;">Official Stage Schedule</h2>
+            <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem; font-weight: 600; text-transform: uppercase;">Real-time scheduled timings for all stages.</p>
             
             <div class="schedule-table-container">
                 <table class="schedule-table">
                     <thead>
                         <tr>
-                            <th>TIME</th>
+                            <th>TIMING</th>
                             <th>COMPETITION</th>
                             <th>CATEGORY</th>
-                            <th>STAGE</th>
+                            <th>STAGE / VENUE</th>
                         </tr>
                     </thead>
                     <tbody id="public-schedule-tbody">
-                        <tr><td colspan="4" style="text-align:center; padding: 2rem; color: var(--text-muted);"><span class="loading-pulse"></span> Loading schedule...</td></tr>
+                        <tr><td colspan="4" style="text-align:center; padding: 2.5rem; color: var(--text-muted);"><span class="loading-pulse"></span> Loading schedule...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -516,6 +748,11 @@
 
         <!-- RESULTS HUB TAB -->
         <div id="view-results" class="view-section">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <h2 style="font-size: 1.85rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.35rem; text-transform: uppercase;" id="results-portal-title">Championship Results</h2>
+                <p style="color: var(--text-muted); font-weight: 600; font-size: 0.92rem; text-transform: uppercase;" id="results-portal-subtitle">Official verified standings and winners podium</p>
+            </div>
+
             <!-- Navigation Sub-Tabs -->
             <div class="tabs">
                 <div class="tab active" onclick="switchResultsTab('standings', this)">
@@ -530,24 +767,24 @@
             <div id="standings" class="results-sub-view active">
                 <div class="standings-header-card">
                     <div>
-                        <h3 style="font-size: 1.15rem; font-weight: 600; color: var(--text-main); text-transform: uppercase;">Team Leaderboard</h3>
-                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.2rem; font-weight: 400; text-transform: uppercase;">Generate graphics for real-time or final overall team rankings.</p>
+                        <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); text-transform: uppercase;">Team Leaderboard</h3>
+                        <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 0.2rem; font-weight: 500; text-transform: uppercase;">Official points tally and overall team rankings.</p>
                     </div>
                     
                     <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
                         <select id="event-timeline-filter" onchange="applyTimelineFilter()">
                         </select>
                         <button class="btn btn-outline" style="width: auto;" onclick="previewTeamPoster('team', this)">
-                            <i class="fa-solid fa-eye"></i> Current Standings
+                            <i class="fa-solid fa-eye"></i> Current Graphic
                         </button>
                         <button class="btn btn-primary" style="width: auto;" onclick="previewTeamPoster('final', this)">
-                            <i class="fa-solid fa-award"></i> Final Standings
+                            <i class="fa-solid fa-award"></i> Final Graphic
                         </button>
                     </div>
                 </div>
 
                 <div id="leaderboard-container">
-                    <p style="text-align:center; color:var(--text-muted); padding: 4rem 1rem; font-weight: 500; display:flex; flex-direction:column; align-items:center; gap: 1rem; text-transform: uppercase;">
+                    <p style="text-align:center; color:var(--text-muted); padding: 4rem 1rem; font-weight: 600; display:flex; flex-direction:column; align-items:center; gap: 1rem; text-transform: uppercase;">
                         <span class="loading-pulse"></span> Syncing live metrics...
                     </p>
                 </div>
@@ -555,7 +792,7 @@
 
             <!-- Competitions Grid View -->
             <div id="individual" class="results-sub-view" style="display: none;">
-                <div class="filters" style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+                <div class="filters" id="events-filter-bar" style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; align-items: center; justify-content: space-between;">
                     <div style="display: flex; gap: 1rem; flex: 1; flex-wrap: wrap; min-width: 300px;">
                         <div style="position: relative; flex: 2; min-width: 200px;">
                             <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1.25rem; top: 50%; transform: translateY(-50%); color: var(--text-dim);"></i>
@@ -571,10 +808,144 @@
                 </div>
                 
                 <div class="competitions-grid" id="competitions-container">
-                    <p style="text-align:center; color:var(--text-muted); grid-column: 1/-1; padding: 4rem 1rem; display:flex; flex-direction:column; align-items:center; gap: 1rem; font-weight: 500; text-transform: uppercase;">
+                    <p style="text-align:center; color:var(--text-muted); grid-column: 1/-1; padding: 4rem 1rem; display:flex; flex-direction:column; align-items:center; gap: 1rem; font-weight: 600; text-transform: uppercase;">
                         <span class="loading-pulse"></span> Loading events...
                     </p>
                 </div>
+            </div>
+        </div>
+
+        <!-- PARTICIPANT PORTAL TAB (LOGIN & DASHBOARD) -->
+        <div id="view-portal" class="view-section">
+            
+            <!-- Login State -->
+            <div id="portal-login-section">
+                <div class="portal-login-card">
+                    <div style="width: 58px; height: 58px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1.25rem;">
+                        <i class="fa-solid fa-user-lock"></i>
+                    </div>
+                    <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.4rem; text-transform: uppercase;">Participant Portal</h2>
+                    <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.75rem;">Login with your assigned Chest Number and Date of Birth to view your schedule, digital pass, and results.</p>
+                    
+                    <div style="text-align: left; margin-bottom: 1.25rem;">
+                        <label style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block; text-transform: uppercase;">Chest Number / Contestant ID</label>
+                        <input type="text" id="portal-chest-input" placeholder="e.g. A-102 or Unique ID" style="width: 100%;" onkeydown="if(event.key==='Enter') loginParticipant()">
+                    </div>
+
+                    <div style="text-align: left; margin-bottom: 1.5rem;">
+                        <label style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block; text-transform: uppercase;">Date of Birth (Password)</label>
+                        <input type="date" id="portal-dob-input" style="width: 100%; text-transform: none !important;" onkeydown="if(event.key==='Enter') loginParticipant()">
+                    </div>
+
+                    <div id="portal-login-error" style="color: #EF4444; font-size: 0.82rem; font-weight: 700; margin-bottom: 1rem; display: none; text-transform: uppercase;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Invalid Chest Number or Date of Birth!
+                    </div>
+
+                    <button class="btn btn-primary" id="btn-portal-login" onclick="loginParticipant()">
+                        <i class="fa-solid fa-right-to-bracket"></i> Login to Portal
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dashboard State (Rendered after successful login) -->
+            <div id="portal-dashboard-section" style="display: none;">
+                <div class="portal-dashboard-header">
+                    <div style="display: flex; align-items: center; gap: 1.25rem;">
+                        <div id="portal-user-avatar" style="width: 60px; height: 60px; border-radius: 50%; background: var(--primary-gradient); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 800; box-shadow: var(--shadow-sm);">
+                            A
+                        </div>
+                        <div>
+                            <span class="badge" id="portal-user-cat-team" style="background: var(--primary-light); color: var(--primary); padding: 0.25rem 0.65rem; border-radius: 999px; font-weight: 700; font-size: 0.72rem; text-transform: uppercase; margin-bottom: 0.35rem; display: inline-block;">
+                                Team Alpha • Senior
+                            </span>
+                            <h2 id="portal-user-name" style="font-size: 1.45rem; font-weight: 800; color: var(--text-main); text-transform: uppercase;">Contestant Name</h2>
+                            <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">
+                                CHEST NO: <strong id="portal-user-chest" style="color: var(--primary);">#A-102</strong> • DOB: <span id="portal-user-dob">2006-05-12</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-outline" style="width: auto; padding: 0.5rem 1.25rem; font-size: 0.82rem;" onclick="logoutParticipant()">
+                        <i class="fa-solid fa-right-from-bracket"></i> Logout
+                    </button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr; gap: 2rem;">
+                    <!-- Enrolled Events & Results Card -->
+                    <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-xl); padding: 1.75rem; box-shadow: var(--card-shadow);">
+                        <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); margin-bottom: 1.25rem; text-transform: uppercase; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-list-check" style="color: var(--primary);"></i> Enrolled Events & Results
+                        </h3>
+                        <div id="portal-events-list">
+                            <p style="color: var(--text-muted); font-weight: 600; text-transform: uppercase;"><span class="loading-pulse"></span> Loading your event scorecards...</p>
+                        </div>
+                    </div>
+
+                    <!-- Digital Admit Pass Badge -->
+                    <div class="admit-pass-card">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                            <div>
+                                <span style="background: rgba(255, 255, 255, 0.15); color: #93C5FD; font-size: 0.72rem; font-weight: 700; padding: 0.3rem 0.75rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-bottom: 0.6rem;">
+                                    OFFICIAL DIGITAL CONTESTANT PASS
+                                </span>
+                                <h3 id="admit-card-fest-name" style="font-size: 1.35rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.01em;">ZENITH FEST 2026</h3>
+                            </div>
+                            <div id="admit-pass-qr" style="background: white; padding: 6px; border-radius: 8px; line-height: 0;"></div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: var(--radius-md);">
+                            <div>
+                                <small style="color: #94A3B8; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">Contestant</small>
+                                <div id="admit-name" style="font-weight: 800; font-size: 1rem; text-transform: uppercase;">Name</div>
+                            </div>
+                            <div>
+                                <small style="color: #94A3B8; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">Chest Number</small>
+                                <div id="admit-chest" style="font-weight: 800; font-size: 1rem; color: #60A5FA;">#000</div>
+                            </div>
+                            <div>
+                                <small style="color: #94A3B8; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">Team / House</small>
+                                <div id="admit-team" style="font-weight: 800; font-size: 1rem; text-transform: uppercase;">Team</div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end;">
+                            <button class="btn btn-outline" style="background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2); width: auto; font-size: 0.82rem;" onclick="window.print()">
+                                <i class="fa-solid fa-print"></i> Print Official Pass
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- DOWNLOADS TAB -->
+        <div id="view-downloads" class="view-section">
+            <h2 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 0.5rem; text-align: center; text-transform: uppercase;">Official Downloads Hub</h2>
+            <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem; font-weight: 600; text-transform: uppercase;">Download verified festival documents, rulebooks, and score sheets.</p>
+            
+            <div class="downloads-grid" id="downloads-container">
+                <p style="text-align:center; color:var(--text-muted); grid-column: 1/-1; padding: 4rem 1rem; font-weight: 600; text-transform: uppercase;">No download files published yet.</p>
+            </div>
+        </div>
+
+        <!-- GALLERY TAB -->
+        <div id="view-gallery" class="view-section">
+            <h2 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 0.5rem; text-align: center; text-transform: uppercase;">Championship Gallery</h2>
+            <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem; font-weight: 600; text-transform: uppercase;">Glimpses, podium moments, and official stage photography.</p>
+            
+            <div class="gallery-grid" id="gallery-container">
+                <p style="text-align:center; color:var(--text-muted); grid-column: 1/-1; padding: 4rem 1rem; font-weight: 600; text-transform: uppercase;">No gallery albums added yet.</p>
+            </div>
+        </div>
+
+        <!-- NEWS & BULLETINS TAB -->
+        <div id="view-news" class="view-section">
+            <h2 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 0.5rem; text-align: center; text-transform: uppercase;">Official News & Announcements</h2>
+            <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem; font-weight: 600; text-transform: uppercase;">Important circulars, venue updates, and live alerts from the festival board.</p>
+            
+            <div class="news-grid" id="news-container">
+                <p style="text-align:center; color:var(--text-muted); padding: 4rem 1rem; font-weight: 600; text-transform: uppercase;">No announcements posted yet.</p>
             </div>
         </div>
 
@@ -583,19 +954,25 @@
     <!-- Public Footer -->
     <footer class="public-footer">
         <div class="footer-brand" id="footer-title">FESTOS</div>
-        <div class="footer-links">
-            <a href="#" onclick="switchMainTab('home', document.querySelectorAll('.nav-link')[0])">Home</a>
-            <a href="#" onclick="switchMainTab('schedule', document.querySelectorAll('.nav-link')[1])">Schedule</a>
-            <a href="#" onclick="switchMainTab('results', document.querySelectorAll('.nav-link')[2])">Results</a>
+        <div class="footer-links" id="dynamic-footer-links">
+            <a href="#" onclick="switchMainTab('home'); return false;">Home</a>
+            <a href="#" onclick="switchMainTab('schedule'); return false;">Schedule</a>
+            <a href="#" onclick="switchMainTab('results'); return false;">Results</a>
+            <a href="#" onclick="switchMainTab('portal'); return false;">Participant Portal</a>
+            <a href="#" onclick="switchMainTab('downloads'); return false;">Downloads</a>
+            <a href="#" onclick="switchMainTab('gallery'); return false;">Gallery</a>
+            <a href="#" onclick="switchMainTab('news'); return false;">News</a>
         </div>
         <div class="copyright">© 2026 Powered by FestOS Event Architecture. All rights reserved.</div>
     </footer>
 
     <!-- Mobile Bottom Nav -->
-    <div class="mobile-bottom-nav">
-        <div class="mobile-nav-item active" onclick="switchMainTab('home', this)"><i class="fa-solid fa-house"></i> Home</div>
-        <div class="mobile-nav-item" onclick="switchMainTab('schedule', this)"><i class="fa-solid fa-calendar"></i> Schedule</div>
-        <div class="mobile-nav-item" onclick="switchMainTab('results', this)"><i class="fa-solid fa-trophy"></i> Results</div>
+    <div class="mobile-bottom-nav" id="mobile-bottom-nav-bar">
+        <div class="mobile-nav-item active" data-nav="home" onclick="switchMainTab('home', this)"><i class="fa-solid fa-house"></i> Home</div>
+        <div class="mobile-nav-item" data-nav="schedule" onclick="switchMainTab('schedule', this)"><i class="fa-solid fa-calendar"></i> Schedule</div>
+        <div class="mobile-nav-item" data-nav="results" onclick="switchMainTab('results', this)"><i class="fa-solid fa-trophy"></i> Results</div>
+        <div class="mobile-nav-item" data-nav="portal" onclick="switchMainTab('portal', this)"><i class="fa-solid fa-user-lock"></i> Portal</div>
+        <div class="mobile-nav-item" data-nav="downloads" onclick="switchMainTab('downloads', this)"><i class="fa-solid fa-download"></i> Files</div>
     </div>
 
     <!-- Results & Poster Modal -->
@@ -603,15 +980,15 @@
         <div class="modal-content">
             <div class="modal-header">
                 <div>
-                    <span id="modal-cat-name" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: var(--primary); letter-spacing: 0.05em; background: var(--primary-light); padding: 0.3rem 0.65rem; border-radius: 50px; margin-bottom: 0.4rem; display: inline-block;">Category</span>
-                    <h2 id="modal-comp-name" style="font-size: 1.25rem; font-weight: 600; color: var(--text-main); margin-top: 0.2rem; line-height: 1.2; text-transform: uppercase;">Competition Name</h2>
+                    <span id="modal-cat-name" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--primary); letter-spacing: 0.05em; background: var(--primary-light); padding: 0.3rem 0.65rem; border-radius: 50px; margin-bottom: 0.4rem; display: inline-block;">Category</span>
+                    <h2 id="modal-comp-name" style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-top: 0.2rem; line-height: 1.2; text-transform: uppercase;">Competition Name</h2>
                 </div>
                 <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
             <div class="modal-body">
                 <div>
-                    <h3 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-main); letter-spacing: -0.01em; text-transform: uppercase;">
+                    <h3 style="font-size: 1.05rem; font-weight: 800; margin-bottom: 1rem; color: var(--text-main); letter-spacing: -0.01em; text-transform: uppercase;">
                         <i class="fa-solid fa-medal" style="color: var(--primary); margin-right: 0.4rem;"></i> TOP STANDINGS
                     </h3>
                     <div id="modal-winners-list">
@@ -620,21 +997,21 @@
 
                 <div class="poster-section">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <h3 style="font-size: 1.05rem; font-weight: 600; color: var(--text-main); letter-spacing: -0.01em; text-transform: uppercase;">
+                        <h3 style="font-size: 1.05rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.01em; text-transform: uppercase;">
                             <i class="fa-solid fa-image" style="color: var(--primary); margin-right: 0.4rem;"></i> EXPORT GRAPHIC
                         </h3>
                     </div>
                     
                     <div class="template-tabs-container">
                         <div class="template-tabs" id="template-selector">
-                            <p style="font-size: 0.85rem; color: var(--text-muted); padding: 0.5rem; text-transform: uppercase;">Loading templates...</p>
+                            <p style="font-size: 0.82rem; color: var(--text-muted); padding: 0.5rem; text-transform: uppercase;">Loading templates...</p>
                         </div>
                     </div>
 
                     <div class="preview-wrapper">
                         <canvas id="poster-canvas" width="1080" height="1080"></canvas>
                         <div class="loading-overlay" id="preview-loader">
-                            <span class="loading-pulse"></span> <span style="text-transform: uppercase;">Rendering...</span>
+                            <span class="loading-pulse"></span> <span style="text-transform: uppercase;">Rendering Graphic...</span>
                         </div>
                     </div>
 
@@ -648,22 +1025,58 @@
 
     <!-- Team Standings Modal -->
     <div class="modal-overlay" id="team-preview-modal">
-        <div class="modal-content" style="max-width: 560px;">
+        <div class="modal-content" style="max-width: 580px;">
             <div class="modal-header">
                 <div>
-                    <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: var(--primary); letter-spacing: 0.05em; background: var(--primary-light); padding: 0.3rem 0.65rem; border-radius: 50px; margin-bottom: 0.4rem; display: inline-block;">TEAM STANDINGS</span>
-                    <h2 id="team-modal-title" style="font-size: 1.25rem; font-weight: 600; color: var(--text-main); margin-top: 0.2rem; text-transform: uppercase;">Preview</h2>
+                    <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--primary); letter-spacing: 0.05em; background: var(--primary-light); padding: 0.3rem 0.65rem; border-radius: 50px; margin-bottom: 0.4rem; display: inline-block;">CHAMPIONSHIP STANDINGS</span>
+                    <h2 id="team-modal-title" style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-top: 0.2rem; text-transform: uppercase;">Preview</h2>
                 </div>
                 <button class="modal-close" onclick="closeTeamModal()"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
             <div class="modal-body" style="grid-template-columns: 1fr; gap: 1rem;">
-                <div class="preview-wrapper" style="max-height: 50vh; background: transparent; border: none; box-shadow: none;">
-                    <img id="team-poster-preview-img" src="" style="border-radius: var(--radius-md); box-shadow: var(--card-shadow);" />
+                <div class="preview-wrapper" style="max-height: 52vh; background: transparent; border: none; box-shadow: none;">
+                    <img id="team-poster-preview-img" src="" style="border-radius: var(--radius-md); box-shadow: var(--card-shadow); max-height: 100%; object-fit: contain;" />
                 </div>
                 <button class="btn" id="btn-download-team" style="margin-top: 1rem; font-size: 0.95rem;">
                     <i class="fa-solid fa-download"></i> DOWNLOAD HIGH-RES GRAPHIC
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gallery Lightbox Modal -->
+    <div class="modal-overlay" id="gallery-modal" onclick="if(event.target===this) closeGalleryModal()">
+        <div class="modal-content" style="max-width: 800px; background: #000; border: none; padding: 0;">
+            <div style="position: absolute; top: 1rem; right: 1rem; z-index: 20;">
+                <button class="modal-close" style="background: rgba(255,255,255,0.2); color: #fff;" onclick="closeGalleryModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <img id="lightbox-img" src="" style="width: 100%; max-height: 70vh; object-fit: contain; display: block;" />
+            <div style="padding: 1.5rem; background: #111; color: #fff;">
+                <h3 id="lightbox-title" style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.35rem; text-transform: uppercase;"></h3>
+                <p id="lightbox-desc" style="color: #9CA3AF; font-size: 0.88rem;"></p>
+                <div style="margin-top: 1rem; display: flex; gap: 0.75rem;">
+                    <a id="lightbox-download-link" href="" download class="btn btn-primary" style="width: auto; padding: 0.5rem 1.25rem;">
+                        <i class="fa-solid fa-download"></i> Download Image
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- News Article Reader Modal -->
+    <div class="modal-overlay" id="news-modal">
+        <div class="modal-content" style="max-width: 640px;">
+            <div class="modal-header">
+                <div>
+                    <span id="modal-news-badge" class="news-badge normal">Bulletin</span>
+                    <h2 id="modal-news-title" style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-top: 0.35rem; text-transform: uppercase;"></h2>
+                </div>
+                <button class="modal-close" onclick="closeNewsModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="padding: 1.75rem; overflow-y: auto;">
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.25rem; font-weight: 600; text-transform: uppercase;" id="modal-news-date"></div>
+                <div id="modal-news-body" style="font-size: 0.95rem; line-height: 1.7; color: var(--text-main); white-space: pre-line; text-transform: none;"></div>
             </div>
         </div>
     </div>
@@ -676,6 +1089,7 @@
             auth: { persistSession: false }
         });
 
+        // Default System Config
         let SYSTEM_SETTINGS = {
             thresholds: { aplus: 90, a: 70, b: 60, c: 50 },
             points_solo: { aplus: 8, a: 7, b: 5, c: 3 },
@@ -685,10 +1099,74 @@
             poster_interval: 10,
             tm_access: true
         };
-        let publishedCompetitions = []; let allTeams = []; let calculatedTeamScores = {}; 
-        let competitionResults = {}; let cachedTemplates = []; let activeCompId = null;
-        let activeTemplateIndex = 0; let globalJudgements = []; let currentTeamPosterDataUrl = null;
+
+        // Default Website Customizer Config
+        let websiteConfig = {
+            domain: 'zenith',
+            custom_domain: '',
+            password_protected: false,
+            site_password: '',
+            theme: {
+                primary: '#3B82F6',
+                secondary: '#1E293B',
+                accent: '#F59E0B',
+                bg: '#F9FAFB',
+                font: 'Plus Jakarta Sans',
+                podium_style: 'cards',
+                show_points_breakdown: false,
+                show_milestone_filter: true,
+                show_search_filter: true,
+                results_title: 'Championship Results',
+                results_subtitle: 'Official certified results and verified winners podium',
+                header_logo: '',
+                footer_logo: ''
+            },
+            pages: {
+                home: {
+                    progCount: '',
+                    partCount: '',
+                    teamCount: '',
+                    venueCount: '',
+                    heroTitle: 'Welcome to Zenith Fest',
+                    heroSub: 'Real-time scores, verified stage results, and championship standings live as they happen.',
+                    aboutTitle: 'The Grand Championship',
+                    aboutSub: 'Celebrating Arts, Culture & Innovation',
+                    contentTitle: 'Live Festival Stage Architecture',
+                    contentDesc: 'Zenith Fest powers hundreds of competitive events across multiple stages. Built for speed, transparency, and accuracy in live festival scorekeeping.',
+                    contact: {
+                        email: 'contact@zenithfest.org',
+                        phone: '+91 98765 43210',
+                        wa: 'https://wa.me/919876543210',
+                        ig: 'https://instagram.com/zenithfest',
+                        fb: 'https://facebook.com/zenithfest',
+                        yt: 'https://youtube.com/zenithfest',
+                        web: 'https://zenithfest.org',
+                        address: 'Main Stadium Complex, Grand Arena'
+                    }
+                }
+            },
+            visibility: {
+                page: { schedules: true, results: true, portal: true, downloads: true, gallery: true, news: true, wall: false },
+                nav: { schedules: true, results: true, portal: true, downloads: true, gallery: true, news: true, wall: false },
+                foot: { schedules: true, results: true, portal: true, downloads: true, gallery: true, news: true, wall: false }
+            },
+            gallery: [],
+            downloads: [],
+            news: []
+        };
+
+        let publishedCompetitions = []; 
+        let allTeams = []; 
+        let calculatedTeamScores = {}; 
+        let competitionResults = {}; 
+        let competitionParticipantsMap = {}; // compId -> list of participant_competitions
+        let cachedTemplates = []; 
+        let activeCompId = null;
+        let activeTemplateIndex = 0; 
+        let globalJudgements = []; 
+        let currentTeamPosterDataUrl = null;
         let currentTeamPosterFilename = "";
+        let loggedInParticipant = null;
 
         // --- Live Counting Animation Utility ---
         function animateCounter(element, targetValue, duration = 1200) {
@@ -697,8 +1175,8 @@
                 if (!startTime) startTime = currentTime;
                 const progress = Math.min((currentTime - startTime) / duration, 1);
                 const easeOut = 1 - Math.pow(1 - progress, 3);
-                const currentVal = (progress === 1) ? targetValue : (easeOut * targetValue).toFixed(2);
-                element.innerText = parseFloat(currentVal); 
+                const currentVal = (progress === 1) ? targetValue : (easeOut * targetValue).toFixed(0);
+                element.innerText = currentVal; 
                 
                 if (progress < 1) {
                     requestAnimationFrame(step);
@@ -707,12 +1185,54 @@
             requestAnimationFrame(step);
         }
 
+        // --- Password Gate ---
+        function checkPasswordProtection() {
+            const overlay = document.getElementById('password-gate-overlay');
+            if (!websiteConfig.password_protected || !websiteConfig.site_password) {
+                overlay.style.display = 'none';
+                return;
+            }
+            const isUnlocked = sessionStorage.getItem('festos_site_unlocked') === 'true';
+            if (isUnlocked) {
+                overlay.style.display = 'none';
+            } else {
+                overlay.style.display = 'flex';
+            }
+        }
+
+        function unlockPasswordGate() {
+            const input = document.getElementById('gate-password-input');
+            const err = document.getElementById('gate-error-msg');
+            if (input.value.trim() === websiteConfig.site_password.trim()) {
+                sessionStorage.setItem('festos_site_unlocked', 'true');
+                document.getElementById('password-gate-overlay').style.display = 'none';
+                err.style.display = 'none';
+            } else {
+                err.style.display = 'block';
+                input.value = '';
+                input.focus();
+            }
+        }
+
         // --- Routing and Tab Logic ---
         function switchMainTab(tabId, element) {
+            // Check visibility settings
+            const pageVis = websiteConfig.visibility?.page || {};
+            const keyMap = { 'schedule': 'schedules', 'results': 'results', 'portal': 'portal', 'downloads': 'downloads', 'gallery': 'gallery', 'news': 'news' };
+            const visKey = keyMap[tabId] || tabId;
+
+            if (tabId !== 'home' && pageVis[visKey] === false) {
+                tabId = 'home';
+            }
+
             document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.mobile-nav-item').forEach(el => el.classList.remove('active'));
             
-            if (element) element.classList.add('active');
+            const activeDesktop = document.querySelector(`.nav-link[data-nav="${tabId}"]`);
+            if (activeDesktop) activeDesktop.classList.add('active');
+
+            const activeMobile = document.querySelector(`.mobile-nav-item[data-nav="${tabId}"]`);
+            if (activeMobile) activeMobile.classList.add('active');
 
             document.querySelectorAll('.view-section').forEach(el => {
                 el.classList.remove('active');
@@ -725,7 +1245,13 @@
                 targetView.style.display = 'block';
             }
 
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
             if (tabId === 'schedule') loadPublicSchedule();
+            if (tabId === 'downloads') renderDownloadsView();
+            if (tabId === 'gallery') renderGalleryView();
+            if (tabId === 'news') renderNewsView();
+            if (tabId === 'portal') checkExistingPortalSession();
         }
 
         function switchResultsTab(subTabId, element) {
@@ -736,10 +1262,186 @@
             if (element) element.classList.add('active');
         }
 
+        // --- Apply Theme & Website Config ---
+        function applyWebsiteCustomizerConfig(cfg) {
+            if (!cfg) return;
+            websiteConfig = { ...websiteConfig, ...cfg };
+
+            const theme = websiteConfig.theme || {};
+            const rootStyle = document.documentElement.style;
+
+            if (theme.primary) rootStyle.setProperty('--primary', theme.primary);
+            if (theme.secondary) rootStyle.setProperty('--secondary', theme.secondary);
+            if (theme.accent) rootStyle.setProperty('--accent', theme.accent);
+            if (theme.bg) rootStyle.setProperty('--bg-light', theme.bg);
+            if (theme.font) {
+                rootStyle.setProperty('--font-family', `'${theme.font}', sans-serif`);
+            }
+
+            // Results text
+            const rTitle = document.getElementById('results-portal-title');
+            const rSub = document.getElementById('results-portal-subtitle');
+            if (rTitle) rTitle.innerText = theme.results_title || 'Championship Results';
+            if (rSub) rSub.innerText = theme.results_subtitle || 'Official certified results and verified winners podium';
+
+            // Filter bars visibility
+            const timelineSelect = document.getElementById('event-timeline-filter');
+            if (timelineSelect) {
+                timelineSelect.style.display = (theme.show_milestone_filter !== false) ? 'block' : 'none';
+            }
+            const searchBar = document.getElementById('events-filter-bar');
+            if (searchBar && theme.show_search_filter === false) {
+                const searchWrap = searchBar.querySelector('div:first-child');
+                if (searchWrap) searchWrap.style.display = 'none';
+            }
+
+            // Home Page Content
+            const home = websiteConfig.pages?.home || {};
+            if (document.getElementById('home-hero-title')) document.getElementById('home-hero-title').innerText = home.heroTitle || 'Welcome to Zenith Fest';
+            if (document.getElementById('home-hero-subtitle')) document.getElementById('home-hero-subtitle').innerText = home.heroSub || 'Real-time scores, verified stage results, and championship standings live as they happen.';
+
+            if (document.getElementById('home-about-title')) document.getElementById('home-about-title').innerText = home.aboutTitle || 'The Grand Championship';
+            if (document.getElementById('home-about-subtitle')) document.getElementById('home-about-subtitle').innerText = home.aboutSub || 'Celebrating Arts & Innovation';
+            if (document.getElementById('home-content-title')) document.getElementById('home-content-title').innerText = home.contentTitle || 'Live Festival Stage Architecture';
+            if (document.getElementById('home-content-desc')) document.getElementById('home-content-desc').innerText = home.contentDesc || 'Zenith Fest powers hundreds of competitive events across multiple stages.';
+
+            // Logos
+            if (theme.header_logo) {
+                const headLogo = document.getElementById('head-logo');
+                if (headLogo) { headLogo.src = theme.header_logo; headLogo.style.display = 'block'; }
+            }
+
+            // Social & Contact links
+            renderSocialLinks(home.contact);
+
+            // Visibility for Nav, Quick Hub & Footer
+            applyVisibilityRules();
+
+            // Password check
+            checkPasswordProtection();
+        }
+
+        function renderSocialLinks(contact = {}) {
+            const container = document.getElementById('home-social-links');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const links = [
+                { key: 'wa', icon: 'fa-brands fa-whatsapp', label: 'WhatsApp', href: contact.wa },
+                { key: 'ig', icon: 'fa-brands fa-instagram', label: 'Instagram', href: contact.ig },
+                { key: 'yt', icon: 'fa-brands fa-youtube', label: 'YouTube', href: contact.yt },
+                { key: 'fb', icon: 'fa-brands fa-facebook', label: 'Facebook', href: contact.fb },
+                { key: 'email', icon: 'fa-solid fa-envelope', label: 'Email Us', href: contact.email ? `mailto:${contact.email}` : '' },
+                { key: 'phone', icon: 'fa-solid fa-phone', label: 'Call Office', href: contact.phone ? `tel:${contact.phone}` : '' },
+                { key: 'web', icon: 'fa-solid fa-globe', label: 'Website', href: contact.web }
+            ];
+
+            links.forEach(l => {
+                if (l.href && l.href.trim() !== '') {
+                    container.innerHTML += `
+                        <a href="${l.href}" target="_blank" class="social-btn">
+                            <i class="${l.icon}"></i> ${l.label}
+                        </a>`;
+                }
+            });
+
+            if (contact.address && contact.address.trim() !== '') {
+                container.innerHTML += `
+                    <div style="width: 100%; margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-location-dot" style="color: var(--primary);"></i> ${contact.address}
+                    </div>`;
+            }
+        }
+
+        function applyVisibilityRules() {
+            const vis = websiteConfig.visibility || {};
+            const pageVis = vis.page || {};
+            const navVis = vis.nav || {};
+            const footVis = vis.foot || {};
+
+            // Page Mapping
+            const pageMapping = {
+                'schedule': pageVis.schedules !== false,
+                'results': pageVis.results !== false,
+                'portal': pageVis.portal !== false && pageVis.myresult !== false,
+                'downloads': pageVis.downloads !== false,
+                'gallery': pageVis.gallery !== false,
+                'news': pageVis.news !== false
+            };
+
+            // Navbar Mapping
+            const navMapping = {
+                'home': true,
+                'schedule': navVis.schedules !== false,
+                'results': navVis.results !== false,
+                'portal': navVis.portal !== false && navVis.myresult !== false,
+                'downloads': navVis.downloads !== false,
+                'gallery': navVis.gallery !== false,
+                'news': navVis.news !== false
+            };
+
+            // Desktop Nav
+            document.querySelectorAll('#desktop-nav-links .nav-link').forEach(link => {
+                const navKey = link.getAttribute('data-nav');
+                if (navMapping[navKey] === false) {
+                    link.style.display = 'none';
+                } else {
+                    link.style.display = 'inline-flex';
+                }
+            });
+
+            // Mobile Nav
+            document.querySelectorAll('#mobile-bottom-nav-bar .mobile-nav-item').forEach(link => {
+                const navKey = link.getAttribute('data-nav');
+                if (navMapping[navKey] === false) {
+                    link.style.display = 'none';
+                } else {
+                    link.style.display = 'flex';
+                }
+            });
+
+            // Quick Hub Cards on Homepage
+            document.querySelectorAll('#home-quick-hub-grid .hub-card').forEach(card => {
+                const hubKey = card.getAttribute('data-hub');
+                if (pageMapping[hubKey] === false) {
+                    card.style.display = 'none';
+                } else {
+                    card.style.display = 'flex';
+                }
+            });
+
+            // Hero Action Buttons
+            if (document.getElementById('home-cta-results')) {
+                document.getElementById('home-cta-results').style.display = pageMapping.results !== false ? 'inline-flex' : 'none';
+            }
+            if (document.getElementById('home-cta-schedule')) {
+                document.getElementById('home-cta-schedule').style.display = pageMapping.schedule !== false ? 'inline-flex' : 'none';
+            }
+
+            // Dynamic Footer Links
+            const footerContainer = document.getElementById('dynamic-footer-links');
+            if (footerContainer) {
+                footerContainer.innerHTML = '';
+                const pages = [
+                    { id: 'home', label: 'Home', visible: true },
+                    { id: 'schedule', label: 'Schedule', visible: footVis.schedules !== false },
+                    { id: 'results', label: 'Results', visible: footVis.results !== false },
+                    { id: 'portal', label: 'Participant Portal', visible: footVis.portal !== false && footVis.myresult !== false },
+                    { id: 'downloads', label: 'Downloads', visible: footVis.downloads !== false },
+                    { id: 'gallery', label: 'Gallery', visible: footVis.gallery !== false },
+                    { id: 'news', label: 'News', visible: footVis.news !== false }
+                ];
+                pages.forEach(p => {
+                    if (p.visible) {
+                        footerContainer.innerHTML += `<a href="#" onclick="switchMainTab('${p.id}'); return false;">${p.label}</a>`;
+                    }
+                });
+            }
+        }
+
         // --- Fetch Schedule ---
         async function loadPublicSchedule() {
             const tbody = document.getElementById('public-schedule-tbody');
-            
             try {
                 const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
                 const masterSchedule = schedData?.value || {};
@@ -747,41 +1449,73 @@
                 const { data: comps } = await supabaseClient.from('competitions').select('id, name, categories(name), stages(name)');
                 
                 let scheduledItems = Object.keys(masterSchedule).map(compId => {
-                    const comp = comps.find(c => c.id == compId);
+                    const comp = (comps || []).find(c => c.id == compId);
                     return { comp, sched: masterSchedule[compId] };
                 }).filter(item => item.comp && item.sched.status === 'published');
                 
                 scheduledItems.sort((a,b) => {
-                    if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
-                    return a.sched.time.localeCompare(b.sched.time);
+                    if (a.sched.date !== b.sched.date) return (a.sched.date || '').localeCompare(b.sched.date || '');
+                    return (a.sched.time || '').localeCompare(b.sched.time || '');
                 });
 
                 if (scheduledItems.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted); text-transform: uppercase;">No events scheduled yet.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2.5rem; color: var(--text-muted); text-transform: uppercase;">No events scheduled yet.</td></tr>`;
                     return;
                 }
 
                 tbody.innerHTML = scheduledItems.map(item => `
                     <tr>
                         <td>
-                            <span style="color: var(--primary); font-weight: 700;">${item.sched.date}</span><br>
-                            <span style="font-size: 0.85rem; color: var(--text-muted);">${item.sched.time} - ${item.sched.to_time || 'TBD'}</span>
+                            <span style="color: var(--primary); font-weight: 700;">${item.sched.date || 'TBD'}</span><br>
+                            <span style="font-size: 0.82rem; color: var(--text-muted);">${item.sched.time || ''} ${item.sched.to_time ? '- ' + item.sched.to_time : ''}</span>
                         </td>
                         <td style="font-weight: 700; color: var(--text-main); text-transform: uppercase;">${item.comp.name}</td>
-                        <td><span class="badge" style="background: var(--bg-main); padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid var(--border); font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">${item.comp.categories?.name || 'GENERAL'}</span></td>
-                        <td style="font-weight: 600; color: var(--text-muted); text-transform: uppercase;"><i class="fa-solid fa-microphone-stage" style="margin-right: 4px;"></i> ${item.comp.stages?.name || 'TBD'}</td>
+                        <td><span class="badge" style="background: var(--bg-light); padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid var(--surface-border); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">${item.comp.categories?.name || 'GENERAL'}</span></td>
+                        <td style="font-weight: 600; color: var(--text-muted); text-transform: uppercase;"><i class="fa-solid fa-microphone-stage" style="margin-right: 4px; color: var(--primary);"></i> ${item.comp.stages?.name || 'STAGE 1'}</td>
                     </tr>
                 `).join('');
 
             } catch (err) {
                 console.error(err);
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--danger); text-transform: uppercase;">Failed to load schedule.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #EF4444; padding: 2rem; text-transform: uppercase;">Failed to load schedule.</td></tr>`;
             }
         }
 
+        // --- Main Init ---
         async function init() {
             try {
+                // Fetch Website Config
+                const { data: webCfgData } = await supabaseClient.from('settings').select('value').eq('id', 'website_config').maybeSingle();
+                if (webCfgData && webCfgData.value) {
+                    applyWebsiteCustomizerConfig(webCfgData.value);
+                }
+
                 await fetchAndApplyBranding();
+
+                // Live dynamic counts from database
+                const [
+                    { count: totalComps },
+                    { count: totalParticipants },
+                    { count: totalTeamsCount },
+                    { count: totalStagesCount }
+                ] = await Promise.all([
+                    supabaseClient.from('competitions').select('*', { count: 'exact', head: true }),
+                    supabaseClient.from('participants').select('*', { count: 'exact', head: true }),
+                    supabaseClient.from('teams').select('*', { count: 'exact', head: true }),
+                    supabaseClient.from('stages').select('*', { count: 'exact', head: true })
+                ]);
+
+                // Apply dynamic counts to Home dashboard
+                const homeCfg = websiteConfig.pages?.home || {};
+                const progDisplay = homeCfg.progCount && homeCfg.progCount.trim() !== '' ? homeCfg.progCount : `${totalComps || 0}+`;
+                const partDisplay = homeCfg.partCount && homeCfg.partCount.trim() !== '' ? homeCfg.partCount : `${totalParticipants || 0}`;
+                const teamDisplay = homeCfg.teamCount && homeCfg.teamCount.trim() !== '' ? homeCfg.teamCount : `${totalTeamsCount || 0}`;
+                const venueDisplay = homeCfg.venueCount && homeCfg.venueCount.trim() !== '' ? homeCfg.venueCount : `${totalStagesCount || 0}`;
+
+                if (document.getElementById('stat-prog-count')) document.getElementById('stat-prog-count').innerText = progDisplay;
+                if (document.getElementById('stat-part-count')) document.getElementById('stat-part-count').innerText = partDisplay;
+                if (document.getElementById('stat-team-count')) document.getElementById('stat-team-count').innerText = teamDisplay;
+                if (document.getElementById('stat-venue-count')) document.getElementById('stat-venue-count').innerText = venueDisplay;
 
                 const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
                 if (set_data && set_data.value) {
@@ -806,19 +1540,41 @@
 
                 const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', 'individual');
                 cachedTemplates = templates || [];
-
                 cachedTemplates.forEach(tpl => ensureFontsLoaded(tpl));
 
                 if (publishedCompetitions.length > 0) {
                     const compIds = publishedCompetitions.map(c => c.id);
-                    const { data: judgements } = await supabaseClient
+
+                    // Fetch judgements with valid columns only
+                    const { data: judgements, error: jErr } = await supabaseClient
                         .from('judgements')
-                        .select(`competition_id, awarded_mark, participants(id, name, team_id, dob, photo_url)`)
+                        .select('competition_id, awarded_mark, participant_id, participants(id, name, unique_id, team_id, photo_url)')
                         .in('competition_id', compIds)
                         .not('participant_id', 'is', null)
                         .not('awarded_mark', 'is', null);
 
+                    if (jErr) console.warn("Judgements query notice:", jErr.message);
                     globalJudgements = judgements || [];
+
+                    // Fetch squad / participant_competitions data for team members
+                    try {
+                        const { data: partComps } = await supabaseClient
+                            .from('participant_competitions')
+                            .select('competition_id, participant_id, is_leader, participants(id, name, unique_id, team_id, photo_url)')
+                            .in('competition_id', compIds);
+
+                        if (partComps) {
+                            partComps.forEach(pc => {
+                                if (!competitionParticipantsMap[pc.competition_id]) {
+                                    competitionParticipantsMap[pc.competition_id] = [];
+                                }
+                                competitionParticipantsMap[pc.competition_id].push(pc);
+                            });
+                        }
+                    } catch (e) {
+                        console.warn("Could not fetch participant_competitions:", e);
+                    }
+
                     populateTimelineDropdown(); 
                     applyTimelineFilter();
                 } else {
@@ -834,18 +1590,18 @@
                 const targetCompId = urlParams.get('comp') || null;
 
                 if (viewContext === 'results' && targetCompId) {
-                    switchMainTab('results', document.querySelectorAll('.nav-link')[2]);
+                    switchMainTab('results');
                     switchResultsTab('individual', document.querySelectorAll('.tabs .tab')[1]);
                     setTimeout(() => { openResultModal(targetCompId); }, 500);
                 } else if (viewContext === 'standings') {
-                    switchMainTab('results', document.querySelectorAll('.nav-link')[2]);
+                    switchMainTab('results');
                     switchResultsTab('standings', document.querySelectorAll('.tabs .tab')[0]);
-                } else {
-                    switchMainTab('home', document.querySelectorAll('.nav-link')[0]);
+                } else if (viewContext) {
+                    switchMainTab(viewContext);
                 }
             } catch (err) {
                 console.error("Init Error:", err);
-                document.getElementById('competitions-container').innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #ef4444; font-weight: 500;">Failed to load events. Check console for details.</p>`;
+                document.getElementById('competitions-container').innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #ef4444; font-weight: 600;">Failed to load events. Check console for details.</p>`;
             }
         }
 
@@ -863,8 +1619,8 @@
         }
 
         function applyTimelineFilter() {
-            const limitVal = document.getElementById('event-timeline-filter').value;
-            allTeams.forEach(t => calculatedTeamScores[t.id] = { name: t.name, score: 0 });
+            const limitVal = document.getElementById('event-timeline-filter')?.value || 'all';
+            allTeams.forEach(t => calculatedTeamScores[t.id] = { id: t.id, name: t.name, score: 0 });
             competitionResults = {};
             
             let activeComps = publishedCompetitions;
@@ -895,7 +1651,7 @@
             });
 
             for (const [compId, compData] of Object.entries(compGroups)) {
-                const limit = compData.comp_data.max_participants || 1;
+                const limit = compData.comp_data?.max_participants || 1;
                 const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
 
                 const participantsArr = Object.values(compData.participants).map(p => {
@@ -918,15 +1674,15 @@
                     entry.position = currentRank;
                     previousScore = entry.score;
 
-                    let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
+                    let percent = (entry.score / (compData.comp_data?.max_mark || 100)) * 100;
                     let gradePts = 0; let posPts = 0;
                     let gradeStr = '-'; 
 
                     if (percent >= 50) {
-                        if (percent >= SYSTEM_SETTINGS.thresholds.aplus) { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].aplus); gradeStr = 'A+'; }
-                        else if (percent >= SYSTEM_SETTINGS.thresholds.a) { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].a); gradeStr = 'A'; }
-                        else if (percent >= SYSTEM_SETTINGS.thresholds.b) { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].b); gradeStr = 'B'; }
-                        else { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`].c); gradeStr = 'C'; }
+                        if (percent >= SYSTEM_SETTINGS.thresholds.aplus) { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`]?.aplus || 0); gradeStr = 'A+'; }
+                        else if (percent >= SYSTEM_SETTINGS.thresholds.a) { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`]?.a || 0); gradeStr = 'A'; }
+                        else if (percent >= SYSTEM_SETTINGS.thresholds.b) { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`]?.b || 0); gradeStr = 'B'; }
+                        else { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`]?.c || 0); gradeStr = 'C'; }
                     }
                     
                     if (currentRank <= 3) {
@@ -936,6 +1692,8 @@
                     }
                     
                     entry.grade = gradeStr;
+                    entry.gradePoints = gradePts;
+                    entry.posPoints = posPts;
                     entry.points = gradePts + posPts;
 
                     const teamId = entry.participant.team_id;
@@ -954,7 +1712,37 @@
             const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score);
 
             if(sortedTeams.length === 0) {
-                container.innerHTML = `<p style="text-align:center; padding: 4rem 1rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase;">AWAITING OFFICIAL RESULTS...</p>`;
+                container.innerHTML = `<p style="text-align:center; padding: 4rem 1rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">AWAITING OFFICIAL RESULTS...</p>`;
+                return;
+            }
+
+            const podiumStyle = websiteConfig.theme?.podium_style || 'cards';
+
+            if (podiumStyle === 'linear') {
+                let rowsHtml = sortedTeams.map((team, idx) => {
+                    const rank = idx + 1;
+                    const rankIcon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+                    return `
+                        <tr>
+                            <td style="font-weight: 800; color: ${rank === 1 ? 'var(--gold)' : 'var(--text-main)'}; width: 60px;">${rankIcon}</td>
+                            <td style="font-weight: 700; color: var(--text-main);">${team.name}</td>
+                            <td style="text-align: right; font-weight: 800; color: var(--primary); font-size: 1.15rem;">${team.score}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                container.innerHTML = `
+                    <table class="leaderboard-linear-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Team Name</th>
+                                <th style="text-align: right;">Total Points</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+                `;
                 return;
             }
 
@@ -962,11 +1750,11 @@
                 const rank = index + 1;
                 let rankClass = rank <= 3 ? `rank-${rank}` : '';
                 let cardClass = rank === 1 ? 'gold-card' : rank === 2 ? 'silver-card' : rank === 3 ? 'bronze-card' : '';
-                let rankDisplay = rank === 1 ? '<i class="fa-solid fa-crown"></i>' : rank === 2 ? '<i class="fa-solid fa-medal"></i>' : rank === 3 ? '<i class="fa-solid fa-medal"></i>' : `#${rank}`;
+                let rankDisplay = rank === 1 ? '<i class="fa-solid fa-trophy" style="color: var(--gold);"></i>' : rank === 2 ? '<i class="fa-solid fa-medal" style="color: var(--silver);"></i>' : rank === 3 ? '<i class="fa-solid fa-medal" style="color: var(--bronze);"></i>' : `#${rank}`;
                 let scoreId = `score-count-${index}`;
 
                 container.innerHTML += `
-                    <div class="leaderboard-card ${cardClass}" style="animation-delay: ${index * 0.05}s">
+                    <div class="leaderboard-card ${cardClass}" style="animation-delay: ${index * 0.04}s">
                         <div class="rank ${rankClass}">${rankDisplay}</div>
                         <div class="team-info"><div class="team-name">${team.name}</div></div>
                         <div class="team-score-container">
@@ -977,7 +1765,7 @@
                 
                 setTimeout(() => {
                     const el = document.getElementById(scoreId);
-                    if (el) animateCounter(el, team.score, 1200 + (index * 100));
+                    if (el) animateCounter(el, team.score, 1000 + (index * 80));
                 }, 50);
             });
         }
@@ -1006,22 +1794,24 @@
                 if (search && !comp.name.toLowerCase().includes(search) && !catName.toLowerCase().includes(search)) return;
                 
                 count++;
+                const isGroupBadge = comp.is_group ? `<span class="badge" style="background:#EFF6FF; color:#2563EB; font-size:0.68rem; font-weight:700; padding:0.2rem 0.5rem; border-radius:4px; margin-left:0.4rem;">GROUP</span>` : '';
+
                 container.innerHTML += `
-                    <div class="comp-tile" style="animation-delay: ${count * 0.04}s">
+                    <div class="comp-tile" style="animation-delay: ${count * 0.03}s">
                         <div>
                             <div class="tile-header">
-                                <span class="tile-category">${catName}</span>
+                                <span class="tile-category">${catName} ${isGroupBadge}</span>
                                 <span class="tile-number">#${index + 1}</span>
                             </div>
                             <h3 class="tile-title">${comp.name}</h3>
                         </div>
                         <button class="btn btn-outline" onclick="openResultModal('${comp.id}')">
-                            <i class="fa-solid fa-chart-simple"></i> VIEW RESULTS & POSTER
+                            <i class="fa-solid fa-award"></i> VIEW WINNERS & POSTER
                         </button>
                     </div>`;
             });
 
-            if(count === 0) container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 4rem 1rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase;">NO MATCHING EVENTS FOUND.</p>`;
+            if(count === 0) container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 4rem 1rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">NO MATCHING EVENTS FOUND.</p>`;
         }
 
         async function previewTeamPoster(type, btnElement) {
@@ -1042,86 +1832,153 @@
                 }
 
                 const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', type).limit(1);
-                if (!templates || templates.length === 0) {
-                    alert(`No template found for ${type}. Ask admin to create one.`);
-                    btnElement.innerHTML = originalText; btnElement.disabled = false; return;
+                
+                const canvas = document.createElement('canvas'); 
+                const ctx = canvas.getContext('2d');
+                canvas.width = 1080;
+                canvas.height = 1080;
+
+                const limitVal = document.getElementById('event-timeline-filter')?.value || 'all';
+                const totalPublished = publishedCompetitions.length;
+                const interval = SYSTEM_SETTINGS.poster_interval || 10;
+                const displayCount = limitVal === 'all' ? (Math.floor(totalPublished / interval) * interval) : limitVal;
+                
+                const topTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 10);
+
+                if (templates && templates.length > 0 && templates[0].bg_base64) {
+                    const template = templates[0];
+                    const img = new Image(); 
+                    img.crossOrigin = "Anonymous";
+                    
+                    await new Promise((resolve) => {
+                        img.onload = async () => {
+                            canvas.width = img.naturalWidth || 1080; 
+                            canvas.height = img.naturalHeight || 1080;
+                            ctx.drawImage(img, 0, 0);
+                            await ensureFontsLoaded(template);
+
+                            const mappedData = {};
+                            if (type === 'team') {
+                                mappedData['ResultsCountText'] = `AFTER ${displayCount} EVENTS`; 
+                                mappedData['TotalCompetitionsCount'] = `CURRENT STANDINGS`;
+                            } else if (type === 'final') {
+                                mappedData['ResultsCountText'] = `AFTER ALL EVENTS`; 
+                                mappedData['TotalCompetitionsCount'] = `FINAL STANDINGS`;
+                            }
+
+                            for(let i = 0; i < 15; i++) {
+                                mappedData[`Rank${i+1}Team`] = topTeams[i] ? topTeams[i].name : "";
+                                mappedData[`Rank${i+1}Points`] = topTeams[i] ? `${topTeams[i].score}` : "";
+                                mappedData[`Rank${i+1}Number`] = topTeams[i] ? `${i+1}` : "";
+                            }
+
+                            if(template.fields) {
+                                for (const [key, fieldConfig] of Object.entries(template.fields)) {
+                                    if (!fieldConfig.enabled) continue;
+                                    if (fieldConfig.isImage) {
+                                        if (fieldConfig.isStaticElement && fieldConfig.src) {
+                                            try {
+                                                const staticImg = await new Promise((res) => {
+                                                    const pImg = new Image(); pImg.crossOrigin = "Anonymous";
+                                                    pImg.onload = () => res(pImg); pImg.onerror = () => res(null);
+                                                    pImg.src = fieldConfig.src;
+                                                });
+                                                if (staticImg) { ctx.drawImage(staticImg, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); }
+                                            } catch(e) {}
+                                        }
+                                        continue;
+                                    }
+                                    const text = fieldConfig.isCustom ? fieldConfig.displayName : (mappedData[key] || ""); 
+                                    if (!text) continue;
+                                    ctx.textAlign = fieldConfig.align || 'left'; 
+                                    ctx.fillStyle = fieldConfig.color || '#000000';
+                                    ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
+                                    ctx.fillText(text, fieldConfig.x, fieldConfig.y);
+                                }
+                            }
+                            resolve();
+                        };
+                        img.onerror = () => resolve();
+                        img.src = template.bg_base64;
+                    });
+                } else {
+                    // Modern Fallback Canvas Generator
+                    ctx.fillStyle = "#1E293B";
+                    ctx.fillRect(0, 0, 1080, 1080);
+
+                    // Header Gradient Bar
+                    const grad = ctx.createLinearGradient(0, 0, 1080, 0);
+                    grad.addColorStop(0, '#3B82F6');
+                    grad.addColorStop(1, '#6366F1');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, 1080, 180);
+
+                    ctx.fillStyle = "#FFFFFF";
+                    ctx.font = "800 48px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText(type === 'final' ? "FINAL CHAMPIONSHIP STANDINGS" : "OVERALL TEAM STANDINGS", 540, 90);
+
+                    ctx.font = "600 24px sans-serif";
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+                    ctx.fillText(type === 'final' ? "OFFICIAL FINAL POINT TALLY" : `CURRENT STANDINGS • AFTER ${displayCount} EVENTS`, 540, 135);
+
+                    // Top 10 Teams
+                    topTeams.forEach((t, i) => {
+                        const y = 240 + (i * 78);
+                        ctx.fillStyle = (i === 0) ? "rgba(245, 158, 11, 0.15)" : "rgba(255, 255, 255, 0.05)";
+                        ctx.strokeStyle = (i === 0) ? "#F59E0B" : "rgba(255, 255, 255, 0.1)";
+                        ctx.lineWidth = 2;
+                        
+                        if (ctx.roundRect) ctx.roundRect(80, y, 920, 64, 12);
+                        else ctx.rect(80, y, 920, 64);
+                        ctx.fill();
+                        ctx.stroke();
+
+                        ctx.textAlign = "left";
+                        ctx.fillStyle = (i === 0) ? "#F59E0B" : "#94A3B8";
+                        ctx.font = "800 28px sans-serif";
+                        ctx.fillText(`#${i + 1}`, 110, y + 42);
+
+                        ctx.fillStyle = "#FFFFFF";
+                        ctx.font = "700 26px sans-serif";
+                        ctx.fillText(t.name.toUpperCase(), 190, y + 42);
+
+                        ctx.textAlign = "right";
+                        ctx.fillStyle = "#60A5FA";
+                        ctx.font = "800 32px sans-serif";
+                        ctx.fillText(`${t.score} PTS`, 960, y + 43);
+                    });
                 }
 
-                const template = templates[0];
-                const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
-                const img = new Image(); img.crossOrigin = "Anonymous";
+                currentTeamPosterDataUrl = canvas.toDataURL("image/jpeg", 1.0);
+                currentTeamPosterFilename = `FestOS_${type}_Standings.jpg`;
+                document.getElementById('team-poster-preview-img').src = currentTeamPosterDataUrl;
+                document.getElementById('team-modal-title').innerText = type === 'final' ? 'FINAL STANDINGS' : 'CURRENT STANDINGS';
                 
-                img.onload = async () => {
-                    canvas.width = img.naturalWidth || 1080; canvas.height = img.naturalHeight || 1080;
-                    ctx.drawImage(img, 0, 0);
-                    await ensureFontsLoaded(template);
-
-                    const mappedData = {};
-                    if (type === 'team') {
-                        const limitVal = document.getElementById('event-timeline-filter').value;
-                        const totalPublished = publishedCompetitions.length;
-                        const interval = SYSTEM_SETTINGS.poster_interval || 10;
-                        const displayCount = limitVal === 'all' ? (Math.floor(totalPublished / interval) * interval) : limitVal;
-                        mappedData['ResultsCountText'] = `AFTER ${displayCount}`; mappedData['TotalCompetitionsCount'] = `CURRENT STANDINGS`;
-                    } else if (type === 'final') {
-                        mappedData['ResultsCountText'] = `AFTER ALL`; mappedData['TotalCompetitionsCount'] = `FINAL STANDINGS`;
-                    }
-
-                    const top10 = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score).slice(0, 15);
-                    for(let i = 0; i < 15; i++) {
-                        mappedData[`Rank${i+1}Team`] = top10[i] ? top10[i].name : "";
-                        mappedData[`Rank${i+1}Points`] = top10[i] ? `${top10[i].score}` : "";
-                        mappedData[`Rank${i+1}Number`] = top10[i] ? `${i+1}` : "";
-                    }
-
-                    if(template.fields) {
-                        for (const [key, fieldConfig] of Object.entries(template.fields)) {
-                            if (!fieldConfig.enabled) continue;
-                            if (fieldConfig.isImage) {
-                                if (fieldConfig.isStaticElement) {
-                                    try {
-                                        const staticImg = await new Promise((resolve) => {
-                                            const pImg = new Image(); pImg.crossOrigin = "Anonymous";
-                                            pImg.onload = () => resolve(pImg); pImg.onerror = () => resolve(null);
-                                            pImg.src = fieldConfig.src;
-                                        });
-                                        if (staticImg) { ctx.drawImage(staticImg, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); }
-                                    } catch(e) {}
-                                }
-                                continue;
-                          }
-                            const text = fieldConfig.isCustom ? fieldConfig.displayName : (mappedData[key] || ""); 
-                            if (!text) continue;
-                            ctx.textAlign = fieldConfig.align || 'left'; ctx.fillStyle = fieldConfig.color || '#000000';
-                            ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
-                            ctx.fillText(text, fieldConfig.x, fieldConfig.y);
-                        }
-                    }
-
-                    currentTeamPosterDataUrl = canvas.toDataURL("image/jpeg", 1.0);
-                    currentTeamPosterFilename = `FestOS_${type}_Standings.jpg`;
-                    document.getElementById('team-poster-preview-img').src = currentTeamPosterDataUrl;
-                    document.getElementById('team-modal-title').innerText = type === 'final' ? 'FINAL STANDINGS' : 'CURRENT STANDINGS';
-                    
-                    document.getElementById('btn-download-team').onclick = () => {
-                        const link = document.createElement('a'); link.download = currentTeamPosterFilename;
-                        link.href = currentTeamPosterDataUrl; link.click();
-                    };
-
-                    document.getElementById('team-preview-modal').classList.add('active');
-                    btnElement.innerHTML = originalText; btnElement.disabled = false;
+                document.getElementById('btn-download-team').onclick = () => {
+                    const link = document.createElement('a'); 
+                    link.download = currentTeamPosterFilename;
+                    link.href = currentTeamPosterDataUrl; 
+                    link.click();
                 };
-                img.src = template.bg_base64;
+
+                document.getElementById('team-preview-modal').classList.add('active');
             } catch (err) {
-                alert("An error occurred while generating.");
-                btnElement.innerHTML = originalText; btnElement.disabled = false;
+                console.error(err);
+                alert("An error occurred while generating standings graphic.");
+            } finally {
+                btnElement.innerHTML = originalText; 
+                btnElement.disabled = false;
             }
         }
 
         function closeTeamModal() { document.getElementById('team-preview-modal').classList.remove('active'); }
 
         function openResultModal(compId) {
-            activeCompId = compId; const comp = publishedCompetitions.find(c => c.id === compId);
+            activeCompId = compId; 
+            const comp = publishedCompetitions.find(c => c.id === compId);
+            if (!comp) return;
+
             document.getElementById('modal-cat-name').innerText = comp.categories?.name || 'EVENT';
             document.getElementById('modal-comp-name').innerText = comp.name;
 
@@ -1129,32 +1986,53 @@
             winnersList.innerHTML = '';
             
             const results = competitionResults[compId] || [];
+            const squadData = competitionParticipantsMap[compId] || [];
+
             if(results.length === 0) {
-                winnersList.innerHTML = `<p style="color: var(--text-muted); font-weight: 500; padding: 2rem 0; text-align: center; text-transform: uppercase;">RESULTS ARE STILL BEING CALCULATED.</p>`;
+                winnersList.innerHTML = `<p style="color: var(--text-muted); font-weight: 600; padding: 2rem 0; text-align: center; text-transform: uppercase;">RESULTS ARE STILL BEING CALCULATED.</p>`;
             } else {
                 results.forEach((entry, idx) => {
                     const teamName = allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent';
                     
                     let rankDisplay = '';
-                    if (entry.position === 1) rankDisplay = '<i class="fa-solid fa-crown" style="color: var(--gold);"></i>';
-                    else if (entry.position === 2) rankDisplay = '<i class="fa-solid fa-medal" style="color: var(--silver);"></i>';
-                    else if (entry.position === 3) rankDisplay = '<i class="fa-solid fa-medal" style="color: var(--bronze);"></i>';
-                    else rankDisplay = `#${entry.position}`; 
+                    let posText = '';
+                    if (entry.position === 1) { rankDisplay = '<i class="fa-solid fa-trophy" style="color: var(--gold);"></i>'; posText = '1st Place Winner'; }
+                    else if (entry.position === 2) { rankDisplay = '<i class="fa-solid fa-medal" style="color: var(--silver);"></i>'; posText = '2nd Place Winner'; }
+                    else if (entry.position === 3) { rankDisplay = '<i class="fa-solid fa-medal" style="color: var(--bronze);"></i>'; posText = '3rd Place Winner'; }
+                    else { rankDisplay = `#${entry.position}`; posText = `Rank #${entry.position}`; }
+
+                    // Check for squad roster (for group events or team entries)
+                    let squadChipsHtml = '';
+                    if (comp.is_group) {
+                        const teamMembers = squadData.filter(s => s.participants?.team_id === entry.participant.team_id);
+                        if (teamMembers.length > 0) {
+                            squadChipsHtml = `<div class="squad-chips-wrap">` + teamMembers.map(m => `
+                                <span class="squad-chip ${m.is_leader ? 'leader' : ''}">
+                                    ${m.is_leader ? '★ ' : ''}${m.participants?.name || 'Contestant'}
+                                </span>
+                            `).join('') + `</div>`;
+                        }
+                    }
                     
+                    // NOTE: NO POINTS OR GRADES SHOWN in event results as requested
                     winnersList.innerHTML += `
                         <div class="winner-list-item" style="animation: popIn 0.3s ease ${idx * 0.05}s backwards;">
-                            <div class="w-rank">${rankDisplay}</div>
-                            <div class="w-details">
-                                <h4>${entry.participant.name}</h4>
-                                <p>${teamName}</p>
+                            <div class="winner-main-row">
+                                <div class="w-rank">${rankDisplay}</div>
+                                <div class="w-details" style="flex: 1;">
+                                    <h4>${entry.participant.name}</h4>
+                                    <p>${teamName} • <span style="color: var(--primary); font-weight: 700;">${posText}</span></p>
+                                </div>
                             </div>
+                            ${squadChipsHtml}
                         </div>`;
                 });
             }
 
-            const selector = document.getElementById('template-selector'); selector.innerHTML = '';
+            const selector = document.getElementById('template-selector'); 
+            selector.innerHTML = '';
             if(cachedTemplates.length === 0) {
-                selector.innerHTML = `<span style="font-size: 0.85rem; color: #ef4444; font-weight: 500; text-transform: uppercase;">NO TEMPLATES CONFIGURED BY ADMIN.</span>`;
+                selector.innerHTML = `<span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Standard FestOS Graphic</span>`;
             } else {
                 cachedTemplates.forEach((tpl, idx) => {
                     const btn = document.createElement('button');
@@ -1162,87 +2040,168 @@
                     btn.innerHTML = `<i class="fa-solid fa-layer-group" style="margin-right: 0.4rem; opacity: 0.7;"></i> ${tpl.name || `TEMPLATE ${idx + 1}`}`;
                     btn.onclick = () => {
                         document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active'); activeTemplateIndex = idx; renderPreviewCanvas();
+                        btn.classList.add('active'); 
+                        activeTemplateIndex = idx; 
+                        renderPreviewCanvas();
                     };
                     selector.appendChild(btn);
                 });
-                activeTemplateIndex = 0; renderPreviewCanvas();
             }
+            activeTemplateIndex = 0; 
+            renderPreviewCanvas();
             document.getElementById('result-modal').classList.add('active');
         } 
         
         function closeModal() { document.getElementById('result-modal').classList.remove('active'); activeCompId = null; }
 
         function renderPreviewCanvas() {
-            if(!activeCompId || cachedTemplates.length === 0) return;
-            const loader = document.getElementById('preview-loader'); loader.style.display = 'flex';
-            const template = cachedTemplates[activeTemplateIndex];
-            const canvas = document.getElementById('poster-canvas'); const ctx = canvas.getContext('2d');
-            const img = new Image(); img.crossOrigin = "Anonymous";
+            if(!activeCompId) return;
+            const loader = document.getElementById('preview-loader'); 
+            loader.style.display = 'flex';
             
-            img.onload = async () => {
-                canvas.width = img.naturalWidth || 1080; canvas.height = img.naturalHeight || 1080;
-                ctx.drawImage(img, 0, 0);
-                await ensureFontsLoaded(template);
+            const canvas = document.getElementById('poster-canvas'); 
+            const ctx = canvas.getContext('2d');
+            const comp = publishedCompetitions.find(c => c.id === activeCompId);
+            const results = competitionResults[activeCompId] || [];
 
-                const comp = publishedCompetitions.find(c => c.id === activeCompId);
-                const results = competitionResults[activeCompId] || [];
-                const mappedData = {
-                    'ResultNumber': `#${publishedCompetitions.findIndex(c => c.id === activeCompId) + 1}`,
-                    'Category': comp.categories?.name || "", 'Competition': comp.name || ""
-                };
+            if (cachedTemplates.length > 0 && cachedTemplates[activeTemplateIndex]?.bg_base64) {
+                const template = cachedTemplates[activeTemplateIndex];
+                const img = new Image(); 
+                img.crossOrigin = "Anonymous";
+                
+                img.onload = async () => {
+                    canvas.width = img.naturalWidth || 1080; 
+                    canvas.height = img.naturalHeight || 1080;
+                    ctx.drawImage(img, 0, 0);
+                    await ensureFontsLoaded(template);
 
-                for(let i = 0; i < 3; i++) {
-                    const entry = results[i];
-                    mappedData[`Position${i+1}Name`] = entry ? entry.participant.name : "";
-                    mappedData[`Position${i+1}Team`] = entry ? (allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent') : "";
-                    mappedData[`Position${i+1}Photo`] = entry ? entry.participant.photo_url : null;
-                    mappedData[`Position${i+1}Number`] = entry ? entry.position.toString() : "";
-                }
+                    const mappedData = {
+                        'ResultNumber': `#${publishedCompetitions.findIndex(c => c.id === activeCompId) + 1}`,
+                        'Category': comp?.categories?.name || "", 
+                        'Competition': comp?.name || ""
+                    };
 
-                if(template.fields) {
-                    for (const [key, fieldConfig] of Object.entries(template.fields)) {
-                        if (!fieldConfig.enabled) continue;
-                        if (fieldConfig.isImage) {
-                            if (fieldConfig.isStaticElement) {
-                                try {
-                                    const staticImg = await new Promise((resolve) => {
-                                        const pImg = new Image(); pImg.crossOrigin = "Anonymous";
-                                        pImg.onload = () => resolve(pImg); pImg.onerror = () => resolve(null); pImg.src = fieldConfig.src;
-                                    });
-                                    if (staticImg) { ctx.drawImage(staticImg, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); }
-                                } catch (err) { }
+                    for(let i = 0; i < 3; i++) {
+                        const entry = results[i];
+                        mappedData[`Position${i+1}Name`] = entry ? entry.participant.name : "";
+                        mappedData[`Position${i+1}Team`] = entry ? (allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent') : "";
+                        mappedData[`Position${i+1}Photo`] = entry ? entry.participant.photo_url : null;
+                        mappedData[`Position${i+1}Number`] = entry ? entry.position.toString() : "";
+                    }
+
+                    if(template.fields) {
+                        for (const [key, fieldConfig] of Object.entries(template.fields)) {
+                            if (!fieldConfig.enabled) continue;
+                            if (fieldConfig.isImage) {
+                                if (fieldConfig.isStaticElement && fieldConfig.src) {
+                                    try {
+                                        const staticImg = await new Promise((resolve) => {
+                                            const pImg = new Image(); pImg.crossOrigin = "Anonymous";
+                                            pImg.onload = () => resolve(pImg); pImg.onerror = () => resolve(null);
+                                            pImg.src = fieldConfig.src;
+                                        });
+                                        if (staticImg) { ctx.drawImage(staticImg, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); }
+                                    } catch (err) { }
+                                } else {
+                                    const nameKey = key.replace('Photo', 'Name');
+                                    if (key.includes('Photo') && mappedData[nameKey] === "") continue;
+
+                                    const photoSrc = mappedData[key] || 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="600"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="40" font-weight="bold" fill="%236B7280"%3ENO PHOTO%3C/text%3E%3C/svg%3E';
+                                    try {
+                                        const pPhoto = await new Promise((resolve) => {
+                                            const pImg = new Image(); pImg.crossOrigin = "Anonymous";
+                                            pImg.onload = () => resolve(pImg); pImg.onerror = () => resolve(null);
+                                            pImg.src = photoSrc;
+                                        });
+                                        if (pPhoto) {
+                                            ctx.save(); ctx.beginPath();
+                                            if(ctx.roundRect) { ctx.roundRect(fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h, fieldConfig.radius || 0); } 
+                                            else { ctx.rect(fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); }
+                                            ctx.clip(); ctx.drawImage(pPhoto, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); ctx.restore();
+                                        }
+                                    } catch (err) { }
+                                }
                             } else {
-                                const nameKey = key.replace('Photo', 'Name');
-                                if (key.includes('Photo') && mappedData[nameKey] === "") continue;
-
-                                const photoSrc = mappedData[key] || 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="600"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="40" font-weight="bold" fill="%236B7280"%3ENO PHOTO%3C/text%3E%3C/svg%3E';
-                                try {
-                                    const pPhoto = await new Promise((resolve) => {
-                                        const pImg = new Image(); pImg.crossOrigin = "Anonymous";
-                                        pImg.onload = () => resolve(pImg); pImg.onerror = () => resolve(null); pImg.src = photoSrc;
-                                    });
-                                    if (pPhoto) {
-                                        ctx.save(); ctx.beginPath();
-                                        if(ctx.roundRect) { ctx.roundRect(fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h, fieldConfig.radius || 0); } 
-                                        else { ctx.rect(fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); }
-                                        ctx.clip(); ctx.drawImage(pPhoto, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); ctx.restore();
-                                    }
-                                } catch (err) { }
+                                const text = fieldConfig.isCustom ? fieldConfig.displayName : (mappedData[key] || ""); 
+                                if (!text) continue;
+                                
+                                ctx.textAlign = fieldConfig.align || 'left'; 
+                                ctx.fillStyle = fieldConfig.color || '#000000';
+                                ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
+                                ctx.fillText(text, fieldConfig.x, fieldConfig.y);
                             }
-                        } else {
-                            const text = fieldConfig.isCustom ? fieldConfig.displayName : (mappedData[key] || ""); 
-                            if (!text) continue;
-                            
-                            ctx.textAlign = fieldConfig.align || 'left'; ctx.fillStyle = fieldConfig.color || '#000000';
-                            ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
-                            ctx.fillText(text, fieldConfig.x, fieldConfig.y);
                         }
                     }
-                }
+                    loader.style.display = 'none';
+                };
+                img.src = template.bg_base64;
+            } else {
+                // Fallback High-Res Poster Canvas (NO POINTS OR GRADES LEAKED)
+                canvas.width = 1080;
+                canvas.height = 1080;
+                
+                // Dark Slate Background
+                ctx.fillStyle = "#0F172A";
+                ctx.fillRect(0, 0, 1080, 1080);
+
+                // Top Header Gradient
+                const headGrad = ctx.createLinearGradient(0, 0, 1080, 0);
+                headGrad.addColorStop(0, '#3B82F6');
+                headGrad.addColorStop(1, '#8B5CF6');
+                ctx.fillStyle = headGrad;
+                ctx.fillRect(0, 0, 1080, 200);
+
+                ctx.fillStyle = "#FFFFFF";
+                ctx.font = "800 44px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(comp?.name?.toUpperCase() || "EVENT RESULT", 540, 95);
+
+                ctx.font = "700 24px sans-serif";
+                ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+                ctx.fillText(`${comp?.categories?.name?.toUpperCase() || 'GENERAL'} • OFFICIAL CERTIFIED RESULT`, 540, 145);
+
+                // Podium Winners
+                const podiumSlots = [
+                    { rank: 1, color: '#F59E0B', label: '1ST PLACE WINNER', y: 260 },
+                    { rank: 2, color: '#94A3B8', label: '2ND PLACE WINNER', y: 510 },
+                    { rank: 3, color: '#D97706', label: '3RD PLACE WINNER', y: 760 }
+                ];
+
+                podiumSlots.forEach(slot => {
+                    const winner = results.find(r => r.position === slot.rank);
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+                    ctx.strokeStyle = slot.color;
+                    ctx.lineWidth = 3;
+
+                    if (ctx.roundRect) ctx.roundRect(80, slot.y, 920, 210, 16);
+                    else ctx.rect(80, slot.y, 920, 210);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Rank pill
+                    ctx.fillStyle = slot.color;
+                    ctx.font = "800 24px sans-serif";
+                    ctx.textAlign = "left";
+                    ctx.fillText(slot.label, 120, slot.y + 55);
+
+                    if (winner) {
+                        ctx.fillStyle = "#FFFFFF";
+                        ctx.font = "800 36px sans-serif";
+                        ctx.fillText(winner.participant.name.toUpperCase(), 120, slot.y + 115);
+
+                        const tName = allTeams.find(t => t.id === winner.participant.team_id)?.name || 'Independent';
+                        ctx.fillStyle = "#94A3B8";
+                        ctx.font = "700 24px sans-serif";
+                        ctx.fillText(tName.toUpperCase(), 120, slot.y + 160);
+                    } else {
+                        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+                        ctx.font = "600 28px sans-serif";
+                        ctx.fillText("NOT AWARDED", 120, slot.y + 120);
+                    }
+                });
+
                 loader.style.display = 'none';
-            };
-            img.src = template.bg_base64;
+            }
         }
 
         function downloadCurrentPoster() {
@@ -1251,9 +2210,308 @@
             const safeName = comp ? comp.name.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'event';
             const link = document.createElement('a');
             link.download = `FestOS_${safeName}_results.jpg`;
-            link.href = canvas.toDataURL("image/jpeg", 1.0); link.click();
+            link.href = canvas.toDataURL("image/jpeg", 1.0); 
+            link.click();
         }
 
+        // --- PARTICIPANT PORTAL ENGINE (LOGIN & ADMIT PASS) ---
+        function checkExistingPortalSession() {
+            const saved = sessionStorage.getItem('festos_participant_auth');
+            if (saved) {
+                try {
+                    loggedInParticipant = JSON.parse(saved);
+                    renderParticipantDashboard(loggedInParticipant);
+                    return;
+                } catch(e) {}
+            }
+            document.getElementById('portal-login-section').style.display = 'block';
+            document.getElementById('portal-dashboard-section').style.display = 'none';
+        }
+
+        async function loginParticipant() {
+            const chestInput = document.getElementById('portal-chest-input')?.value.trim();
+            const dobInput = document.getElementById('portal-dob-input')?.value.trim();
+            const errorEl = document.getElementById('portal-login-error');
+            const btn = document.getElementById('btn-portal-login');
+
+            if (!chestInput || !dobInput) {
+                errorEl.innerText = "Please enter both Chest Number and Date of Birth.";
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-pulse" style="width:1rem;height:1rem;border-width:2px;"></span> Authenticating...';
+            errorEl.style.display = 'none';
+
+            try {
+                // Query participant with unique_id (Chest No)
+                const { data, error } = await supabaseClient
+                    .from('participants')
+                    .select('*, teams(name), categories(name)')
+                    .eq('unique_id', chestInput)
+                    .maybeSingle();
+
+                if (error) throw error;
+
+                if (!data) {
+                    errorEl.innerText = "Contestant Chest Number not found. Check your registration.";
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                // Check DOB (matches YYYY-MM-DD or standard string)
+                if (!data.dob || data.dob.trim() !== dobInput.trim()) {
+                    errorEl.innerText = "Incorrect Date of Birth password for this Chest Number.";
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                // Successful login
+                loggedInParticipant = data;
+                sessionStorage.setItem('festos_participant_auth', JSON.stringify(data));
+                renderParticipantDashboard(data);
+
+            } catch (err) {
+                console.error("Portal Login Error:", err);
+                errorEl.innerText = "Login error: " + err.message;
+                errorEl.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Login to Portal';
+            }
+        }
+
+        function logoutParticipant() {
+            sessionStorage.removeItem('festos_participant_auth');
+            loggedInParticipant = null;
+            document.getElementById('portal-chest-input').value = '';
+            document.getElementById('portal-dob-input').value = '';
+            document.getElementById('portal-login-section').style.display = 'block';
+            document.getElementById('portal-dashboard-section').style.display = 'none';
+        }
+
+        async function renderParticipantDashboard(p) {
+            document.getElementById('portal-login-section').style.display = 'none';
+            document.getElementById('portal-dashboard-section').style.display = 'block';
+
+            const teamName = p.teams?.name || 'Independent';
+            const catName = p.categories?.name || 'General';
+
+            document.getElementById('portal-user-avatar').innerText = p.name.charAt(0).toUpperCase();
+            document.getElementById('portal-user-name').innerText = p.name;
+            document.getElementById('portal-user-cat-team').innerText = `${teamName} • ${catName}`;
+            document.getElementById('portal-user-chest').innerText = `#${p.unique_id || 'N/A'}`;
+            document.getElementById('portal-user-dob').innerText = p.dob || 'N/A';
+
+            // Populate Admit Card Pass
+            document.getElementById('admit-name').innerText = p.name;
+            document.getElementById('admit-chest').innerText = `#${p.unique_id || 'N/A'}`;
+            document.getElementById('admit-team').innerText = teamName;
+            
+            const brandTitle = document.getElementById('footer-title')?.innerText || 'ZENITH FEST';
+            document.getElementById('admit-card-fest-name').innerText = `${brandTitle} 2026`;
+
+            // Generate QR Code for Admit Pass
+            const qrContainer = document.getElementById('admit-pass-qr');
+            if (qrContainer && typeof QRCode !== 'undefined') {
+                qrContainer.innerHTML = '';
+                const qrCanvas = document.createElement('canvas');
+                QRCode.toCanvas(qrCanvas, `FESTOS:CONTESTANT:${p.unique_id}:${p.id}`, { width: 72, margin: 0 }, (err) => {
+                    if (!err) qrContainer.appendChild(qrCanvas);
+                });
+            }
+
+            // Load enrolled competitions and published results
+            const eventsContainer = document.getElementById('portal-events-list');
+            eventsContainer.innerHTML = `<p style="color:var(--text-muted);"><span class="loading-pulse"></span> Fetching your stage events...</p>`;
+
+            try {
+                // Fetch assigned competitions
+                const { data: assignments } = await supabaseClient
+                    .from('participant_competitions')
+                    .select('competition_id, is_leader, competitions(id, name, is_group, stages(name), categories(name))')
+                    .eq('participant_id', p.id);
+
+                const enrolledComps = (assignments || []).map(a => ({
+                    comp: a.competitions,
+                    is_leader: a.is_leader
+                })).filter(item => item.comp);
+
+                if (enrolledComps.length === 0) {
+                    eventsContainer.innerHTML = `<p style="color: var(--text-muted); font-size: 0.88rem; font-weight: 600; text-transform: uppercase;">No competition enrollments found for this chest number.</p>`;
+                    return;
+                }
+
+                eventsContainer.innerHTML = enrolledComps.map(item => {
+                    const comp = item.comp;
+                    const isPublished = publishedCompetitions.some(pc => pc.id === comp.id);
+                    const compResult = competitionResults[comp.id]?.find(r => r.participant?.id === p.id);
+                    
+                    let statusBadge = '';
+                    if (isPublished) {
+                        if (compResult) {
+                            const pos = compResult.position;
+                            if (pos === 1) statusBadge = `<span class="badge" style="background:#FEF3C7; color:#B45309; font-weight:800; padding:0.3rem 0.75rem; border-radius:999px;">🥇 1ST PLACE WINNER</span>`;
+                            else if (pos === 2) statusBadge = `<span class="badge" style="background:#F1F5F9; color:#475569; font-weight:800; padding:0.3rem 0.75rem; border-radius:999px;">🥈 2ND PLACE WINNER</span>`;
+                            else if (pos === 3) statusBadge = `<span class="badge" style="background:#FFEDD5; color:#C2410C; font-weight:800; padding:0.3rem 0.75rem; border-radius:999px;">🥉 3RD PLACE WINNER</span>`;
+                            else statusBadge = `<span class="badge" style="background:var(--primary-light); color:var(--primary); font-weight:800; padding:0.3rem 0.75rem; border-radius:999px;">PARTICIPATED (RANK #${pos})</span>`;
+                        } else {
+                            statusBadge = `<span class="badge" style="background:#F1F5F9; color:#64748B; font-weight:700; padding:0.3rem 0.65rem; border-radius:999px;">PARTICIPATED</span>`;
+                        }
+                    } else {
+                        statusBadge = `<span class="badge" style="background:#F3F4F6; color:#9CA3AF; font-weight:700; padding:0.3rem 0.65rem; border-radius:999px;">AWAITING EVALUATION</span>`;
+                    }
+
+                    const roleBadge = comp.is_group ? (item.is_leader ? '<span class="squad-chip leader" style="margin-left:6px;">★ Leader</span>' : '<span class="squad-chip" style="margin-left:6px;">Member</span>') : '';
+
+                    return `
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding: 1rem 1.25rem; background: var(--bg-light); border-radius: var(--radius-md); margin-bottom: 0.75rem; border: 1px solid var(--surface-border); flex-wrap: wrap; gap: 0.75rem;">
+                            <div>
+                                <div style="font-weight: 800; color: var(--text-main); font-size: 1rem; text-transform: uppercase;">
+                                    ${comp.name} ${roleBadge}
+                                </div>
+                                <div style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-top: 0.2rem;">
+                                    ${comp.categories?.name || 'General'} • <i class="fa-solid fa-microphone-stage" style="color:var(--primary);"></i> ${comp.stages?.name || 'Stage 1'}
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                ${statusBadge}
+                                ${isPublished ? `<button class="btn btn-outline" style="width:auto; min-height:34px; padding:0.2rem 0.75rem; font-size:0.75rem;" onclick="openResultModal('${comp.id}')"><i class="fa-solid fa-image"></i> Poster</button>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                console.error("Dashboard event load error:", err);
+                eventsContainer.innerHTML = `<p style="color:#EF4444;">Could not load events.</p>`;
+            }
+        }
+
+        // --- Downloads View ---
+        function renderDownloadsView() {
+            const container = document.getElementById('downloads-container');
+            if (!container) return;
+            const items = websiteConfig.downloads || [];
+
+            if (items.length === 0) {
+                container.innerHTML = `<p style="text-align:center; color:var(--text-muted); grid-column: 1/-1; padding: 4rem 1rem; font-weight: 600; text-transform: uppercase;">No download files published yet.</p>`;
+                return;
+            }
+
+            container.innerHTML = items.map(d => `
+                <div class="download-card">
+                    <div>
+                        <div class="dl-icon"><i class="${d.icon || 'fa-solid fa-file-pdf'}"></i></div>
+                        <span class="badge" style="background: var(--bg-light); color: var(--text-muted); font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase; margin-bottom: 0.4rem; display: inline-block;">${d.category || 'General'}</span>
+                        <h3 class="dl-title">${d.title}</h3>
+                        <p class="dl-desc">${d.desc || 'Official document released by Fest Committee.'}</p>
+                    </div>
+                    <a href="${d.fileUrl || '#'}" ${d.isExternal ? 'target="_blank"' : `download="${d.fileName || 'document.pdf'}"`} class="btn btn-outline" style="font-size: 0.82rem; width: 100%;">
+                        <i class="fa-solid fa-download"></i> Download (${d.fileSize || 'PDF'})
+                    </a>
+                </div>
+            `).join('');
+        }
+
+        // --- Gallery View ---
+        function renderGalleryView() {
+            const container = document.getElementById('gallery-container');
+            if (!container) return;
+            const items = websiteConfig.gallery || [];
+
+            if (items.length === 0) {
+                container.innerHTML = `<p style="text-align:center; color:var(--text-muted); grid-column: 1/-1; padding: 4rem 1rem; font-weight: 600; text-transform: uppercase;">No gallery albums added yet.</p>`;
+                return;
+            }
+
+            container.innerHTML = items.map((g, idx) => `
+                <div class="gallery-item" onclick="openGalleryLightbox(${idx})">
+                    <img src="${g.image || g.cover_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80'}" alt="${g.title}" class="gallery-thumb" loading="lazy">
+                    <div class="gallery-caption">
+                        <span class="gallery-tag">${g.tag || g.category || 'Highlights'}</span>
+                        <h4 class="gallery-title">${g.title}</h4>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openGalleryLightbox(index) {
+            const items = websiteConfig.gallery || [];
+            const item = items[index];
+            if (!item) return;
+
+            const imgSrc = item.image || item.cover_url || '';
+            document.getElementById('lightbox-img').src = imgSrc;
+            document.getElementById('lightbox-title').innerText = item.title;
+            document.getElementById('lightbox-desc').innerText = item.desc || '';
+            document.getElementById('lightbox-download-link').href = imgSrc;
+            document.getElementById('gallery-modal').classList.add('active');
+        }
+
+        function closeGalleryModal() {
+            document.getElementById('gallery-modal').classList.remove('active');
+        }
+
+        // --- News & Bulletins View ---
+        function renderNewsView() {
+            const container = document.getElementById('news-container');
+            if (!container) return;
+            const items = websiteConfig.news || [];
+
+            if (items.length === 0) {
+                container.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding: 4rem 1rem; font-weight: 600; text-transform: uppercase;">No announcements posted yet.</p>`;
+                return;
+            }
+
+            container.innerHTML = items.map((n, idx) => {
+                const isUrgent = n.priority === 'urgent' || n.priority === 'high';
+                const badgeClass = isUrgent ? 'urgent' : 'normal';
+                const badgeIcon = isUrgent ? '<i class="fa-solid fa-triangle-exclamation"></i>' : '<i class="fa-solid fa-bullhorn"></i>';
+                
+                return `
+                    <div class="news-item">
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                                <span class="news-badge ${badgeClass}">${badgeIcon} ${n.priority || 'Notice'}</span>
+                                <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">${n.published_at || 'Today'}</span>
+                            </div>
+                            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.6rem; text-transform: uppercase;">${n.title}</h3>
+                            <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1.25rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-transform: none;">
+                                ${n.body}
+                            </p>
+                        </div>
+                        <button class="btn btn-outline" style="font-size: 0.82rem; width: fit-content;" onclick="openNewsModal(${idx})">
+                            Read Full Bulletin <i class="fa-solid fa-arrow-right" style="margin-left: 4px;"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openNewsModal(index) {
+            const items = websiteConfig.news || [];
+            const item = items[index];
+            if (!item) return;
+
+            const isUrgent = item.priority === 'urgent' || item.priority === 'high';
+            const badge = document.getElementById('modal-news-badge');
+            badge.className = `news-badge ${isUrgent ? 'urgent' : 'normal'}`;
+            badge.innerText = item.priority || 'Notice';
+
+            document.getElementById('modal-news-title').innerText = item.title;
+            document.getElementById('modal-news-date').innerText = `PUBLISHED ON: ${item.published_at || 'TODAY'}`;
+            document.getElementById('modal-news-body').innerText = item.body;
+
+            document.getElementById('news-modal').classList.add('active');
+        }
+
+        function closeNewsModal() {
+            document.getElementById('news-modal').classList.remove('active');
+        }
+
+        // --- Global Branding ---
         async function fetchAndApplyBranding() {
             try {
                 const { data, error } = await supabaseClient
@@ -1275,9 +2533,7 @@
             const displayMode = brandingData.display_mode || 'both'; 
             
             const festName = validName ? brandingData.fest_name : 'FestOS';
-            const titleParts = document.title.split('|');
-            const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Live';
-            document.title = `${festName} | ${pageContext}`;
+            document.title = `${festName} | Live Public Results`;
 
             if (validLogo) {
                 let iconLinks = document.querySelectorAll("link[rel~='icon']");
@@ -1296,7 +2552,7 @@
             const logoEl = document.getElementById('head-logo');
             const titleEl = document.getElementById('head-title');
 
-            if (logoEl) {
+            if (logoEl && !websiteConfig.theme?.header_logo) {
                 if (showLogo) {
                     logoEl.src = brandingData.fest_logo;
                     logoEl.style.display = 'block';
@@ -1307,21 +2563,15 @@
             
             if (titleEl) {
                 if (showName) {
-                    titleEl.innerText = validName ? brandingData.fest_name : 'FestOS';
+                    titleEl.innerText = festName;
                     titleEl.style.display = 'block';
                 } else {
                     titleEl.style.display = 'none';
                 }
             }
 
-            const heroTitle = document.getElementById('home-hero-title');
             const footerTitle = document.getElementById('footer-title');
-            const targetName = validName ? brandingData.fest_name : 'FestOS';
-            
-            if (heroTitle) heroTitle.innerText = `Welcome to ${targetName}`;
-            if (footerTitle) footerTitle.innerText = targetName;
-
-            if (typeof window !== 'undefined') window.systemBranding = brandingData;
+            if (footerTitle) footerTitle.innerText = festName;
         }
 
         const loadedFontFamilies = new Set();
@@ -1332,7 +2582,8 @@
                     try {
                         const customFont = new FontFace(fontData.family, `url(${fontData.url})`);
                         const loadedFace = await customFont.load();
-                        document.fonts.add(loadedFace); loadedFontFamilies.add(fontData.family);
+                        document.fonts.add(loadedFace); 
+                        loadedFontFamilies.add(fontData.family);
                     } catch (e) {}
                 }
             });
