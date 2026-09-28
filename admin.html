@@ -2508,71 +2508,114 @@ tr:hover td { background: var(--bg-main); }
         </div>
 
         <div id="assignments" class="content-section">
-            <div class="action-bar">
-                <button class="btn btn-primary" onclick="exportAssignmentsPDF()"><i class="fa-solid fa-file-pdf"></i> Premium PDF</button>
+            <div class="action-bar" style="margin-bottom: 1.5rem; align-items: flex-end;">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">Structural Assignment</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Enroll or remove multiple students simultaneously across teams.</p>
+                </div>
                 <div class="bulk-actions">
+                    <button class="btn btn-outline" style="color: #D97706; border-color: #D97706;" onclick="openVacancyReportModal()"><i class="fa-solid fa-user-clock"></i> Vacancy Audit</button>
+                    <button class="btn btn-primary" onclick="exportAssignmentsPDF()"><i class="fa-solid fa-file-pdf"></i> Premium PDF</button>
                     <button class="btn btn-outline" onclick="exportAssignmentsCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
                 </div>
             </div>
-            <div class="controls-bar" style="background: var(--primary-light); border: 1px solid var(--primary-ring); padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.5rem;">
-                <div class="filter-box" style="flex: 1; min-width: 250px;">
-                    <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">1. SELECT CATEGORY</label>
-                    <select id="assignWorkCategory" onchange="loadAssignWorkspaceCompetitions()" style="width: 100%; border-color: var(--primary); background-color: white;">
-                        <option value="">-- CHOOSE CATEGORY --</option>
-                    </select>
-                </div>
-                <div class="filter-box" style="flex: 1; min-width: 250px;">
-                    <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">2. SELECT COMPETITION</label>
-                    <select id="assignWorkComp" onchange="loadAssignWorkspaceStudents()" style="width: 100%; border-color: var(--primary); background-color: white;" disabled>
-                        <option value="">-- CHOOSE COMPETITION FIRST --</option>
-                    </select>
-                </div>
+            <div class="controls-bar" style="display: flex; gap: 0.75rem; background: transparent; padding: 0; box-shadow: none; border: none; margin-bottom: 1rem; overflow-x: auto; flex-wrap: nowrap;">
+                <button class="btn btn-primary" id="btn-assign-view-list" onclick="switchAssignView('list')" style="border-radius: 50px; white-space: nowrap;"><i class="fa-solid fa-list-check"></i> OVERVIEW & QUICK ADD</button>
+                <button class="btn btn-outline" id="btn-assign-view-bulk" onclick="switchAssignView('bulk')" style="border-radius: 50px; white-space: nowrap;"><i class="fa-solid fa-layer-group"></i> BULK ASSIGNER</button>
             </div>
-            <div id="assignStudentWorkspace" style="display: none; animation: slideUp 0.4s ease;">
-                <div class="controls-bar" style="margin-top: 1rem;">
+
+            <!-- VIEW 1: OVERVIEW & QUICK ADD -->
+            <div id="assign-view-list">
+                <div class="controls-bar">
                     <div class="search-box">
                         <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="assignSearch" placeholder="Search student name or ID..." onkeyup="filterAssignTable()">
+                        <input type="text" id="search-assign-overview" placeholder="Search competitions..." onkeyup="renderAssignOverview()">
                     </div>
                     <div class="filter-box">
-                        <select id="assignFilterTeam" onchange="filterAssignTable()">
-                            <option value="">All Teams</option>
+                        <select id="filter-assign-overview-cat" onchange="renderAssignOverview()">
+                            <option value="all">ALL CATEGORIES</option>
                         </select>
                     </div>
-                    <div class="filter-box">
-                        <input type="date" id="assignFilterDob" onchange="filterAssignTable()" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none; background: var(--bg-main); color: var(--text-main);">
-                    </div>
-                    <div class="filter-box">
-                        <select id="assignFilterStatus" onchange="filterAssignTable()">
-                            <option value="">All Statuses</option>
-                            <option value="assigned">Assigned</option>
-                            <option value="unassigned">Unassigned</option>
+                    <div class="filter-box" style="flex: 2;">
+                        <select id="filter-assign-overview-team" onchange="renderAssignOverview()">
+                            <option value="all">-- SELECT TEAM TO ENABLE ADDING --</option>
                         </select>
-                    </div>
-                    <div style="display: flex; gap: 0.5rem; flex: 1; min-width: 250px; justify-content: flex-end; flex-wrap: wrap;">
-                        <button class="btn btn-success" id="btnWorkspaceAssign" onclick="executeWorkspaceAssign()" style="flex: 1;"><i class="fa-solid fa-check"></i> Assign Selected</button>
-                        <button class="btn btn-danger" id="btnWorkspaceRemove" onclick="executeWorkspaceRemove()" style="flex: 1;"><i class="fa-solid fa-xmark"></i> Remove</button>
                     </div>
                 </div>
                 <div class="table-container">
-                    <div style="padding: 1rem 1.5rem; background: var(--bg-main); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                        <span id="assignLimitIndicator" style="font-weight: 600; font-size: 0.9rem; color: var(--text-main);">
-                            <i class="fa-solid fa-users"></i> Enrollment: 0 / 0 Limit
-                        </span>
-                    </div>
                     <table>
-                        <thead>
-                            <tr>
-                                <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAll('assign-workspace-tbody', this)"></th>
-                                <th>Unique ID</th>
-                                <th>Participant Name</th>
-                                <th>Team</th>
-                                <th>Batch</th>
-                                <th>Current Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="assign-workspace-tbody"></tbody>
+                        <thead><tr><th>COMPETITION</th><th>CATEGORY</th><th>ASSIGNED STUDENTS</th><th>ACTIONS</th></tr></thead>
+                        <tbody id="assign-overview-tbody"></tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- VIEW 2: BULK ASSIGNER -->
+            <div id="assign-view-bulk" style="display: none;">
+                <div class="controls-bar" style="background: var(--primary-light); border: 1px solid var(--primary-ring); padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-end;">
+                    <div class="filter-box" style="flex: 1; min-width: 200px;">
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">1. SELECT CATEGORY</label>
+                        <select id="assignWorkCategory" onchange="loadAssignWorkspaceCompetitions()" style="width: 100%; border-color: var(--primary); background-color: white;">
+                            <option value="">-- CHOOSE CATEGORY --</option>
+                        </select>
+                    </div>
+                    <div class="filter-box" style="flex: 1; min-width: 200px;">
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">2. SEARCH COMPETITION</label>
+                        <input type="text" id="assignWorkCompSearch" placeholder="Type to filter..." onkeyup="filterAssignWorkspaceDropdown()" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none; background: white; color: var(--text-main); transition: var(--transition);">
+                    </div>
+                    <div class="filter-box" style="flex: 1.5; min-width: 250px;">
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">3. SELECT COMPETITION</label>
+                        <select id="assignWorkComp" onchange="loadAssignWorkspaceStudents()" style="width: 100%; border-color: var(--primary); background-color: white;" disabled>
+                            <option value="">-- CHOOSE CATEGORY FIRST --</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="assignStudentWorkspace" style="display: none; animation: slideUp 0.4s ease;">
+                    <div class="controls-bar" style="margin-top: 1rem;">
+                        <div class="search-box">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="assignSearch" placeholder="Search student name or ID..." onkeyup="filterAssignTable()">
+                        </div>
+                        <div class="filter-box">
+                            <select id="assignFilterTeam" onchange="filterAssignTable()">
+                                <option value="">All Teams</option>
+                            </select>
+                        </div>
+                        <div class="filter-box">
+                            <input type="date" id="assignFilterDob" onchange="filterAssignTable()" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none; background: var(--bg-main); color: var(--text-main);">
+                        </div>
+                        <div class="filter-box">
+                            <select id="assignFilterStatus" onchange="filterAssignTable()">
+                                <option value="">All Statuses</option>
+                                <option value="assigned">Assigned</option>
+                                <option value="unassigned">Unassigned</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; flex: 1; min-width: 250px; justify-content: flex-end; flex-wrap: wrap;">
+                            <button class="btn btn-success" id="btnWorkspaceAssign" onclick="executeWorkspaceAssign()" style="flex: 1;"><i class="fa-solid fa-check"></i> Assign Selected</button>
+                            <button class="btn btn-danger" id="btnWorkspaceRemove" onclick="executeWorkspaceRemove()" style="flex: 1;"><i class="fa-solid fa-xmark"></i> Remove</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <div style="padding: 1rem 1.5rem; background: var(--bg-main); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                            <span id="assignLimitIndicator" style="font-weight: 600; font-size: 0.9rem; color: var(--text-main);">
+                                <i class="fa-solid fa-users"></i> Enrollment: 0 / 0 Limit
+                            </span>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAll('assign-workspace-tbody', this)"></th>
+                                    <th>Unique ID</th>
+                                    <th>Participant Name</th>
+                                    <th>Team</th>
+                                    <th>DOB</th>
+                                    <th>Current Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assign-workspace-tbody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -3326,8 +3369,6 @@ tr:hover td { background: var(--bg-main); }
 </div>
 
 
-<div id="toast-container"></div>
-
 <div id="cropperModal" class="modal-overlay" style="z-index: 1000;">
     <div class="modal" style="max-width: 450px; text-align: center;">
         <h3 style="margin-bottom: 1rem; font-weight: 600; color: var(--text-main);">Adjust Photo (2:3 Ratio)</h3>
@@ -3420,12 +3461,13 @@ tr:hover td { background: var(--bg-main); }
 
         <div class="table-container" style="max-height: 55vh; overflow-y: auto;">
             <table>
-                <thead style="position: sticky; top: 0; z-index: 10;">
+               <thead style="position: sticky; top: 0; z-index: 10;">
                     <tr>
                         <th>COMPETITION</th>
                         <th>CATEGORY</th>
                         <th>ENROLLED / TOTAL</th>
                         <th>TEAMS WITH VACANCIES</th>
+                        <th>ACTIONS</th>
                     </tr>
                 </thead>
                 <tbody id="vacancy-tbody"></tbody>
@@ -3438,6 +3480,43 @@ tr:hover td { background: var(--bg-main); }
         </div>
     </div>
 </div>
+
+<!-- Premium Routing Modal for Admin Vacancy Audit -->
+<div id="assignModeModal" class="modal-overlay" style="z-index: 1100;">
+    <div class="modal" style="max-width: 450px; text-align: center; border-radius: 24px; padding: 2.5rem 1.5rem;">
+        <div style="width: 60px; height: 60px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 1rem;">
+            <i class="fa-solid fa-route"></i>
+        </div>
+        <h2 style="margin-bottom: 0.5rem; font-size: 1.4rem; font-weight: 800;">Choose Assignment Mode</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 0.95rem; font-weight: 500;">How would you like to enroll students for this competition?</p>
+        
+        <input type="hidden" id="route-cat-id">
+        <input type="hidden" id="route-comp-id">
+        
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <button class="btn btn-primary" style="padding: 1rem; justify-content: flex-start; gap: 1rem; min-height: 60px; border-radius: 16px;" onclick="executeRouteToAdminAssignment('list')">
+                <div style="background: rgba(255,255,255,0.2); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-bolt"></i></div>
+                <div style="text-align: left;">
+                    <div style="font-weight: 800; font-size: 1rem; letter-spacing: 0.02em;">Quick Add Mode</div>
+                    <div style="font-size: 0.75rem; font-weight: 600; opacity: 0.8;">Drag & Drop Visual Assigner</div>
+                </div>
+            </button>
+            <button class="btn btn-outline" style="padding: 1rem; justify-content: flex-start; gap: 1rem; min-height: 60px; border-radius: 16px; border: 2px solid var(--border);" onclick="executeRouteToAdminAssignment('bulk')">
+                <div style="background: var(--bg-main); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--text-main);"><i class="fa-solid fa-layer-group"></i></div>
+                <div style="text-align: left;">
+                    <div style="font-weight: 800; font-size: 1rem; color: var(--text-main); letter-spacing: 0.02em;">Bulk Assigner Mode</div>
+                    <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted);">Select Multiple from List</div>
+                </div>
+            </button>
+            <button class="btn btn-outline" style="margin-top: 0.5rem; border: none; color: var(--text-muted);" onclick="document.getElementById('assignModeModal').classList.remove('show')">Cancel</button>
+        </div>
+    </div>
+</div>
+
+
+
+<div id="toast-container"></div>
+
 
 <script src="admin.js"></script>
 </body>

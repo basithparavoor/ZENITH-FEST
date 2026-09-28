@@ -91,8 +91,7 @@
             z-index: 100; overflow-y: auto; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); 
             box-shadow: var(--shadow-sm);
         }
-        .brand { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.35rem; font-weight: 700; color: var(--primary); margin-bottom: 2.5rem; display: flex; align-items: center; gap: 0.75rem; padding-left: 0.75rem; letter-spacing: -0.02em; }
-        
+        .brand { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.35rem; font-weight: 700; color: var(--primary); margin-bottom: 2.5rem; display: flex; align-items: center; gap: 0.75rem; padding-left: 0.75rem; flex-wrap: nowrap; line-height: 1.2; word-break: break-word; letter-spacing: -0.02em; }        
         .nav-item { padding: 0.85rem 1.25rem; margin-bottom: 0.4rem; border-radius: var(--radius-md); cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 0.9rem; transition: var(--transition); display: flex; align-items: center; gap: 1rem; text-decoration: none; border: none; background: transparent; width: 100%; text-align: left; }
         .nav-item i { font-size: 1.1rem; width: 22px; text-align: center; transition: var(--transition); color: #9CA3AF; }
         .nav-item:hover { background: var(--bg-main); color: var(--text-main); }
@@ -205,8 +204,19 @@
         .toast.error { border-left-color: var(--danger); }
         @keyframes slideInToast { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
+        /* --- DRAG & DROP UTILS --- */
+        .draggable-item { cursor: grab; transition: transform 0.1s, box-shadow 0.1s; }
+        .draggable-item:active { cursor: grabbing; transform: scale(0.99); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .drag-over { border: 2px dashed var(--primary) !important; background: var(--primary-light) !important; opacity: 0.8; }
+        
+        /* Leader Box Label */
+        .leader-box {
+            background: var(--primary); color: white; padding: 2px 8px; border-radius: 4px; 
+            font-size: 0.65rem; font-weight: 800; letter-spacing: 0.05em; display: inline-flex; align-items: center;
+        }
+
         /* ========================================================================
-           SEPARATE MOBILE UI (NATIVE BOTTOM NAVIGATION & CARDS)
+           SEPARATE MOBILE UI (ADMIN-STYLE DRAWER & CARDS)
            ======================================================================== */
         @media (max-width: 768px) {
             body { flex-direction: column; background-color: #F3F4F6; }
@@ -221,54 +231,29 @@
             .header .btn-outline { border: none; background: var(--bg-main); border-radius: 50%; width: 40px; height: 40px; padding: 0; font-size: 0; min-height: auto;}
             .header .btn-outline i { font-size: 1.1rem; margin: 0; color: var(--danger); }
             
-            /* Convert Sidebar to Native iOS-style Bottom Navigation */
-            #sidebar.sidebar { 
-                position: fixed; bottom: 0; left: 0; right: 0; width: 100%; height: auto;
-                flex-direction: row; align-items: center; justify-content: space-between;
-                padding: 0.5rem 0.25rem calc(0.5rem + env(safe-area-inset-bottom)) 0.25rem; 
-                background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-                border-right: none; border-top: 1px solid var(--border);
-                box-shadow: 0 -4px 6px -1px rgba(0,0,0,0.05); z-index: 100; transform: none;
-            }
-            #sidebar .brand { display: none !important; } 
-            
-            /* Show only primary tabs in bottom nav, fit them evenly */
-            #sidebar .nav-item { 
-                flex-direction: column; gap: 0.25rem; padding: 0.4rem 0.2rem; 
-                font-size: 0.65rem; text-align: center; border-radius: 12px;
-                flex: 1; justify-content: center; font-weight: 600; margin: 0;
-                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-            }
-            #sidebar .nav-item i { font-size: 1.25rem; width: auto; margin-bottom: 2px; }
-            #sidebar .nav-item.active { box-shadow: none; background: transparent; color: var(--primary); }
-            #sidebar .nav-item.active i { transform: scale(1.1); }
-            
-            #sidebar .nav-item:nth-child(5), /* Tracking */
-            #sidebar .nav-item:nth-child(7), /* Grievances */
-            #sidebar > div:last-child { display: none; } 
-            
             /* Add Mobile Menu Toggle to Header */
             .menu-toggle { 
                 display: flex; background: transparent; border: none; box-shadow: none;
                 color: var(--text-main); font-size: 1.25rem; width: auto; height: auto; padding: 0.5rem; cursor: pointer;
             }
             
-            /* Slide-over mobile menu for the hidden items */
-            .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.4); z-index: 150; opacity: 0; transition: opacity 0.3s; }
+            /* Slide-over mobile menu (Mimicking Admin Dashboard) */
+            .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.6); z-index: 9999; opacity: 0; transition: opacity 0.4s; }
             .mobile-overlay.open { display: block; opacity: 1; }
             
-            .mobile-drawer {
-                display: flex; position: fixed; top: 0; left: 0; bottom: 0; width: 280px; background: var(--bg-surface);
-                z-index: 200; transform: translateX(-100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-                padding: 1.5rem 1.25rem; flex-direction: column; gap: 0.5rem;
+            #sidebar.sidebar { 
+                position: fixed; top: 0; left: 0; bottom: 0; width: 280px; height: 100vh;
+                transform: translateX(-100%); flex-direction: column; align-items: stretch; justify-content: flex-start;
+                padding: 1.5rem; background: var(--bg-surface); z-index: 10000;
+                transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+                border-right: none; border-radius: 0 24px 24px 0; box-shadow: 0 10px 40px rgba(0,0,0,0.3);
             }
-            .mobile-drawer.open { transform: translateX(0); }
-            .mobile-drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
-            .mobile-drawer .brand { display: flex; margin: 0; font-size: 1.25rem; }
+            #sidebar.sidebar.open { transform: translateX(0); }
+            #sidebar .brand { display: flex !important; }
             
             /* Main Content Adjustments */
-            .main-content { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
-            .content-section { padding: 1.25rem 1rem; }
+            .main-content { padding-bottom: 2rem; width: 100vw; overflow-x: hidden; }
+            .content-section { padding: 1.25rem 1rem; width: 100%; box-sizing: border-box; }
             .content-section h2 { font-size: 1.3rem; }
             
             /* Toolbar Stacking */
@@ -287,58 +272,70 @@
             
             tbody tr { 
                 background: var(--bg-surface); border-radius: var(--radius-lg); 
-                padding: 1.25rem; margin-bottom: 1rem; box-shadow: var(--shadow-sm); 
-                border: 1px solid var(--border); position: relative; 
+                padding: 1.25rem; margin-bottom: 1.25rem; box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
+                border: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.5rem;
+                position: relative;
             }
             
             td { 
                 display: flex; justify-content: space-between; align-items: center; 
-                padding: 0.75rem 0; border-bottom: 1px solid var(--bg-main); 
-                text-align: right; font-size: 0.9rem; gap: 1rem; min-height: 40px;
+                padding: 0.5rem 0; border-bottom: 1px dashed var(--border); 
+                text-align: right; font-size: 0.9rem; gap: 1rem; min-height: auto;
             }
             
             td::before { 
-                font-weight: 600; color: var(--text-muted); font-size: 0.75rem; 
+                font-weight: 700; color: var(--text-muted); font-size: 0.75rem; 
                 text-align: left; content: attr(data-label); letter-spacing: 0.05em; 
-                flex-shrink: 0; width: 35%; line-height: 1.3;
+                flex-shrink: 0; width: 35%; line-height: 1.3; text-transform: uppercase;
             }
             
             td > span, td > div { 
                 flex: 1; justify-content: flex-end; text-align: right; word-break: break-word; display: flex; align-items: center;
             }
             
-            /* The last row (Action row) styling */
-            td:last-child { 
-                border-bottom: none; padding-bottom: 0; padding-top: 1.25rem; 
+            /* Safely Make the First Data Row the Title of the Card */
+            td:not(.checkbox-cell):first-child,
+            .checkbox-cell + td {
+                border-bottom: none; padding-bottom: 0; margin-bottom: 0.5rem; padding-top: 0;
+                font-size: 1.15rem; font-weight: 800; color: var(--text-main); justify-content: flex-start; text-align: left;
+            }
+            td:not(.checkbox-cell):first-child::before,
+            .checkbox-cell + td::before { display: none !important; }
+            
+            td:not(.checkbox-cell):first-child > span, td:not(.checkbox-cell):first-child > div,
+            .checkbox-cell + td > span, .checkbox-cell + td > div { justify-content: flex-start; text-align: left; }
+
+            /* Safely Target the Actions Row (Prevents Breaking Status Rows) */
+            td[data-label="ACTIONS"] { 
+                border-bottom: none; padding-bottom: 0; padding-top: 1rem; 
                 margin-top: 0.5rem; justify-content: center; flex-direction: column; gap: 0.75rem;
                 align-items: stretch; border-top: 1px dashed var(--border);
             }
-            td:last-child::before { display: none !important; }
-            td:last-child .btn, td:last-child .badge { width: 100%; margin: 0; display: flex; justify-content: center; padding: 0.75rem; }
+            td[data-label="ACTIONS"]::before { display: none !important; }
+            td[data-label="ACTIONS"] .btn, td[data-label="ACTIONS"] .badge { width: 100%; margin: 0; display: flex; justify-content: center; padding: 0.75rem; }
             
             /* Checkbox Targeting Fix */
             .checkbox-cell { position: absolute; top: 1.25rem; left: 1.25rem; padding: 0 !important; border: none !important; width: auto; min-height: auto; }
             .checkbox-cell::before { display: none !important; }
             .checkbox-cell ~ td:nth-of-type(2) { padding-left: 2.75rem; }
-            
-            /* Native Bottom Sheet Modals */
-            .modal-overlay { align-items: flex-end; padding: 0; background: rgba(0, 0, 0, 0.5); }
-            .modal { 
-                padding: 2rem 1.5rem calc(2rem + env(safe-area-inset-bottom)) 1.5rem; 
-                border-radius: 24px 24px 0 0; transform: translateY(100%); 
-                transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); max-height: 85vh; 
-                border: none; border-top: 1px solid rgba(255,255,255,0.8);
+
+            /* --- ASSIGNMENT TAB SPECIFIC REFINEMENTS --- */
+            #assign-overview-tbody td[data-label="ASSIGNED STUDENTS"] {
+                flex-direction: column; align-items: flex-start; gap: 0.5rem; border-bottom: none; padding-bottom: 0;
             }
-            .modal::before {
-                content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-                width: 40px; height: 5px; background: var(--border); border-radius: 10px;
+            #assign-overview-tbody td[data-label="ASSIGNED STUDENTS"]::before { width: 100%; margin-bottom: 0.5rem; }
+            #assign-overview-tbody td[data-label="ASSIGNED STUDENTS"] > div { 
+                width: 100%; flex-direction: column; justify-content: flex-start; align-items: stretch; text-align: left;
             }
-            .modal-overlay.show .modal { transform: translateY(0); }
-            .modal-header { padding-top: 0.5rem; }
             
             /* Mobile Toasts */
-            #toast-container { bottom: calc(85px + env(safe-area-inset-bottom)); right: 1rem; left: 1rem; align-items: stretch; width: auto; }
+            #toast-container { bottom: 1rem; right: 1rem; left: 1rem; align-items: stretch; width: auto; }
             .toast { width: 100%; box-sizing: border-box; justify-content: flex-start; }
+            
+            /* Ensure Modals behave nicely */
+            .modal-overlay { padding: 0; align-items: flex-end; }
+            .modal { border-radius: 24px 24px 0 0; border: none; padding: 2rem 1.5rem calc(2rem + env(safe-area-inset-bottom)) 1.5rem; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+            .modal-overlay.show .modal { transform: translateY(0); }
         }
     </style>
 </head>
@@ -353,47 +350,33 @@
 
     <!-- Mobile Drawer Overlay -->
     <div class="mobile-overlay" onclick="toggleMobileMenu()"></div>
-    
-    <!-- Mobile Hidden Drawer (Fixed UI) -->
-    <div class="mobile-drawer" id="mobile-drawer">
-        <div class="mobile-drawer-header">
-            <div class="brand"><i class="fa-solid fa-bolt"></i> MENU</div>
-            <button class="menu-toggle" style="margin: 0; border-radius: 50%; width: 40px; height: 40px; background: var(--bg-main); display: flex; justify-content: center; align-items: center;" onclick="toggleMobileMenu()"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="nav-item" onclick="switchTab('competitions'); toggleMobileMenu();"><i class="fa-solid fa-satellite-dish"></i> TRACKING</div>
-        <div class="nav-item" onclick="switchTab('schedule'); toggleMobileMenu();"><i class="fa-solid fa-calendar-days"></i> SCHEDULE</div>
-        <div class="nav-item" onclick="switchTab('appeals'); toggleMobileMenu();"><i class="fa-solid fa-scale-balanced"></i> GRIEVANCES</div>
-        <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
-            <div class="nav-item" onclick="openScanModal(); toggleMobileMenu();"><i class="fa-solid fa-qrcode"></i> SCAN PORTAL</div>
-        </div>
-    </div>
 
-    <!-- Desktop Sidebar / Mobile Bottom Nav -->
+    <!-- Unified Slide-out Sidebar -->
     <div class="sidebar" id="sidebar">
-        <div class="brand"><i class="fa-solid fa-bolt"></i> FESTOS TM</div>
+        <!-- Unified Branding Engine Target -->
+        <div class="brand"></div>
         <div class="nav-item active" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i> <span class="nav-label">DASHBOARD</span></div>
         <div class="nav-item" onclick="switchTab('my-team')"><i class="fa-solid fa-users"></i> <span class="nav-label">DIRECTORY</span></div>
         <div class="nav-item" onclick="switchTab('event-catalog')"><i class="fa-solid fa-book-open"></i> <span class="nav-label">CATALOG</span></div>
         <div class="nav-item" onclick="switchTab('schedule')"><i class="fa-solid fa-calendar-days"></i> <span class="nav-label">SCHEDULE</span></div>
-        <div class="nav-item desktop-only" onclick="switchTab('competitions')"><i class="fa-solid fa-satellite-dish"></i> <span class="nav-label">TRACKING</span></div>
+        <div class="nav-item" onclick="switchTab('competitions')"><i class="fa-solid fa-satellite-dish"></i> <span class="nav-label">TRACKING</span></div>
         <div class="nav-item" onclick="switchTab('assignments')"><i class="fa-solid fa-clipboard-check"></i> <span class="nav-label">ASSIGN</span></div>
-        <div class="nav-item desktop-only" onclick="switchTab('appeals')" style="border:none; background:transparent; width:100%; text-align:left;"><i class="fa-solid fa-scale-balanced"></i> <span class="nav-label">GRIEVANCES</span></div>
-        <div class="desktop-only" style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
+        <div class="nav-item" onclick="switchTab('appeals')" style="border:none; background:transparent; width:100%; text-align:left;"><i class="fa-solid fa-scale-balanced"></i> <span class="nav-label">GRIEVANCES</span></div>
+        <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
             <div class="nav-item" onclick="openScanModal()"><i class="fa-solid fa-qrcode"></i> <span class="nav-label">SCAN PORTAL</span></div>
         </div>
     </div>
 
     <div class="main-content">
         <nav class="navbar header">
-            <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 1rem; flex: 1; min-width: 0;">
                 <button class="menu-toggle" onclick="toggleMobileMenu()"><i class="fa-solid fa-bars"></i></button>
-                <div class="brand" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--primary); margin: 0;"></div>
-                <div class="user-info">
-                    <h1 id="team-name-title">LOADING TEAM...</h1>
-                    <p style="color: var(--text-muted); font-size: 0.85rem; display: none; font-weight: 500;" id="desktop-subtitle">TEAM MANAGER DASHBOARD</p>
+                <div class="user-info" style="min-width: 0; overflow: hidden;">
+                    <h1 id="team-name-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0;">LOADING TEAM...</h1>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; display: none; font-weight: 500; margin-top: 0.2rem;" id="desktop-subtitle">TEAM MANAGER DASHBOARD</p>
                 </div>
             </div>
-            <div class="navbar-actions" style="display: flex; gap: 0.75rem; align-items: center;">
+            <div class="navbar-actions" style="display: flex; gap: 0.75rem; align-items: center; flex-shrink: 0;">
                 <button class="btn btn-outline" style="padding: 0.5rem; min-height: 40px; min-width: 40px; display: flex; align-items: center; justify-content: center; color: var(--primary); border-color: var(--border);" onclick="refreshDashboard(this)" title="Sync Latest Data">
                     <i class="fa-solid fa-rotate-right"></i>
                 </button>
@@ -403,6 +386,7 @@
             </div>
         </nav>
 
+        <!-- DASHBOARD -->
         <div id="dashboard" class="content-section active">
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
                 <div>
@@ -417,25 +401,31 @@
             </div>
             
             <div class="stat-grid">
-                <div class="stat-card">
-                    <div class="icon" style="background: var(--primary-light); color: var(--primary);"><i class="fa-solid fa-users"></i></div>
-                    <h3>TOTAL STUDENTS</h3>
-                    <div class="value" id="stat-total-students">0</div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%); border: none;">
+                    <div class="icon" style="background: #0284C7; color: white;"><i class="fa-solid fa-users"></i></div>
+                    <h3 style="color: #0C4A6E;">TOTAL STUDENTS</h3>
+                    <div class="value" id="stat-total-students" style="color: #082F49;">0</div>
                 </div>
-                <div class="stat-card">
-                    <div class="icon" style="background: var(--bg-main); color: var(--text-main);"><i class="fa-solid fa-clipboard-list"></i></div>
-                    <h3>TOTAL EVENTS</h3>
-                    <div class="value" id="stat-total-events">0</div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #F3E8FF 0%, #E9D5FF 100%); border: none;">
+                    <div class="icon" style="background: #7E22CE; color: white;"><i class="fa-solid fa-clipboard-list"></i></div>
+                    <h3 style="color: #4C1D95;">EVENTS ENROLLED</h3>
+                    <div class="value" id="stat-total-events" style="color: #3B0764;">0</div>
                 </div>
-                <div class="stat-card">
-                    <div class="icon" style="background: var(--success-light); color: var(--success-hover);"><i class="fa-solid fa-check-circle"></i></div>
-                    <h3>EVENTS COMPLETED</h3>
-                    <div class="value" id="stat-completed-events">0</div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%); border: none;">
+                    <div class="icon" style="background: #059669; color: white;"><i class="fa-solid fa-check-double"></i></div>
+                    <h3 style="color: #064E3B;">COMPLETED EVENTS</h3>
+                    <div class="value" id="stat-completed-events" style="color: #022C22;">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border: none;">
+                    <div class="icon" style="background: #D97706; color: white;"><i class="fa-solid fa-trophy"></i></div>
+                    <h3 style="color: #92400E;">ESTIMATED TEAM POINTS</h3>
+                    <div class="value" id="stat-total-points" style="color: #78350F;">0</div>
                 </div>
             </div>
         </div>
 
-       <div id="my-team" class="content-section">
+        <!-- DIRECTORY -->
+        <div id="my-team" class="content-section">
             <h2 style="margin-bottom: 0.25rem;">STUDENT DIRECTORY</h2>
             <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 500;">VIEW ALL STUDENTS ASSIGNED TO YOUR TEAM AND THEIR ACTIVE ENROLLMENTS.</p>
             
@@ -459,11 +449,17 @@
             </div>
         </div>
 
+        <!-- CATALOG -->
         <div id="event-catalog" class="content-section">
-            <h2 style="margin-bottom: 0.25rem;">EVENT CATALOG</h2>
-            <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 500;">REVIEW RULES, STAGES, AND LIMITS FOR ALL COMPETITIONS.</p>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h2 style="margin-bottom: 0.25rem;">EVENT CATALOG</h2>
+                    <p style="color: var(--text-muted); font-weight: 500;">REVIEW RULES, TYPES, AND LIMITS FOR ALL COMPETITIONS.</p>
+                </div>
+                <button class="btn btn-outline" onclick="exportCatalogPDF()"><i class="fa-solid fa-file-pdf" style="color: var(--danger);"></i> CATALOG PDF</button>
+            </div>
             
-         <div class="controls-bar">
+            <div class="controls-bar">
                 <div class="search-box">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="text" id="search-catalog" placeholder="SEARCH EVENTS..." onkeyup="renderCatalog()">
@@ -484,12 +480,13 @@
 
             <div class="table-container">
                 <table>
-                    <thead><tr><th>EVENT NAME</th><th>CATEGORY</th><th>STAGE</th><th>TYPE & LIMIT</th></tr></thead>
+                    <thead><tr><th>EVENT NAME</th><th>CATEGORY</th><th>STAGE PRESENCE</th><th>TYPE & LIMIT</th></tr></thead>
                     <tbody id="catalog-tbody"></tbody>
                 </table>
             </div>
         </div>
 
+        <!-- APPEALS -->
         <div id="appeals" class="content-section">
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
                 <div>
@@ -500,10 +497,10 @@
                     <button class="btn btn-primary" onclick="openAppealModal()"><i class="fa-solid fa-plus"></i> RAISE NEW TICKET</button>
                 </div>
             </div>
-            
             <div id="appeals-container" style="display: flex; flex-direction: column; gap: 1.25rem;"></div>
         </div>
 
+        <!-- LIVE TRACKING -->
         <div id="competitions" class="content-section">
             <h2 style="margin-bottom: 0.25rem;">LIVE TRACKING</h2>
             <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 500;">TRACK THE REAL-TIME STATUS OF EVENTS YOUR STUDENTS ARE IN.</p>
@@ -517,7 +514,7 @@
                     <select id="filter-comp-status" onchange="renderLiveTracking()">
                         <option value="all">ALL STATUSES</option>
                         <option value="pending">UPCOMING</option>
-                        <option value="ongoing">ONGOING</option>
+                        <option value="ongoing">ONGOING / LIVE</option>
                         <option value="published">COMPLETED</option>
                     </select>
                 </div>
@@ -531,9 +528,15 @@
             </div>
         </div>
 
+        <!-- SCHEDULE -->
         <div id="schedule" class="content-section">
-            <h2 style="margin-bottom: 0.25rem;">EVENT SCHEDULE</h2>
-            <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 500;">VIEW TIMINGS AND DATES FOR PUBLISHED COMPETITIONS.</p>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h2 style="margin-bottom: 0.25rem;">EVENT SCHEDULE</h2>
+                    <p style="color: var(--text-muted); font-weight: 500;">VIEW TIMINGS AND DATES FOR PUBLISHED COMPETITIONS.</p>
+                </div>
+                <button class="btn btn-outline" onclick="exportTMSchedulePDF()"><i class="fa-solid fa-file-pdf" style="color: var(--danger);"></i> SCHEDULE PDF</button>
+            </div>
             
             <div class="controls-bar">
                 <div class="search-box">
@@ -545,65 +548,102 @@
                         <option value="all">ALL CATEGORIES</option>
                     </select>
                 </div>
+                <div class="filter-box">
+                    <select id="filter-schedule-stage" onchange="renderTMSchedule()">
+                        <option value="all">ALL STAGES</option>
+                    </select>
+                </div>
             </div>
 
             <div class="table-container">
                 <table>
-                    <thead><tr><th>DATE</th><th>FROM TIME</th><th>TO TIME</th><th>EVENT NAME</th><th>CATEGORY</th></tr></thead>
+                    <thead><tr><th>DATE</th><th>FROM TIME</th><th>TO TIME</th><th>EVENT NAME</th><th>STAGE</th><th>CATEGORY</th></tr></thead>
                     <tbody id="tm-schedule-tbody"></tbody>
                 </table>
             </div>
         </div>
 
+        <!-- ASSIGNMENTS -->
         <div id="assignments" class="content-section">
-            <div style="margin-bottom: 1.5rem;">
-                <h2 style="margin-bottom: 0.25rem;">STRUCTURAL ASSIGNMENT</h2>
-                <p style="color: var(--text-muted); font-weight: 500;">ENROLL OR REMOVE MULTIPLE STUDENTS SIMULTANEOUSLY.</p>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h2 style="margin-bottom: 0.25rem;">STRUCTURAL ASSIGNMENT</h2>
+                    <p style="color: var(--text-muted); font-weight: 500;">ENROLL OR REMOVE MULTIPLE STUDENTS SIMULTANEOUSLY.</p>
+                </div>
+                <button class="btn btn-outline" onclick="openTMVacancyModal()"><i class="fa-solid fa-triangle-exclamation" style="color: #D97706;"></i> VACANCY AUDIT</button>
             </div>
 
             <div id="lock-banner"><i class="fa-solid fa-lock"></i> MASTER ADMIN HAS DISABLED ASSIGNMENTS.</div>
 
-           <div class="controls-bar" style="background: var(--bg-surface); border: 1px solid var(--border); display: flex; flex-wrap: wrap; align-items: flex-end;">
-    <!-- 1. CATEGORY DROPDOWN -->
-    <div class="filter-box" style="flex: 1; min-width: 200px;">
-        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem;">1. SELECT CATEGORY</label>
-        <select id="bulkAssignCategory" onchange="populateBulkAssignDropdown()">
-            <option value="">-- CHOOSE A CATEGORY --</option>
-        </select>
-    </div>
-    
-    <!-- 2. COMPETITION DROPDOWN -->
-    <div class="filter-box" style="flex: 1; min-width: 200px;">
-        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem;">2. SELECT COMPETITION</label>
-        <select id="bulkAssignComp" onchange="renderBulkAssignmentTable()" disabled>
-            <option value="">-- CHOOSE CATEGORY FIRST --</option>
-        </select>
-    </div>
-    
-    <div class="bulk-actions-wrapper" style="display: flex; gap: 0.75rem; flex: 1; justify-content: flex-end; min-width: 200px;">
-        <button class="btn btn-success" id="btn-bulk-enroll" style="flex: 1;" onclick="executeBulkAction('enroll')"><i class="fa-solid fa-check"></i> ENROLL</button>
-        <button class="btn btn-outline" id="btn-bulk-remove" style="flex: 1; color: var(--danger); border-color: var(--border);" onclick="executeBulkAction('remove')"><i class="fa-solid fa-xmark"></i> REMOVE</button>
-    </div>
-</div>
+            <div class="controls-bar" style="display: flex; gap: 0.75rem; background: transparent; padding: 0; box-shadow: none; border: none; margin-bottom: 1rem; overflow-x: auto; flex-wrap: nowrap;">
+                <button class="btn btn-primary" id="btn-assign-view-list" onclick="switchAssignView('list')" style="border-radius: 50px; white-space: nowrap;"><i class="fa-solid fa-list-check"></i> OVERVIEW & QUICK ADD</button>
+                <button class="btn btn-outline" id="btn-assign-view-bulk" onclick="switchAssignView('bulk')" style="border-radius: 50px; white-space: nowrap;"><i class="fa-solid fa-layer-group"></i> BULK ASSIGNER</button>
+            </div>
 
-            <div class="table-container" id="bulk-table-wrapper" style="display: none;">
-                <div style="padding: 1.25rem 1.5rem; background: var(--bg-main); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                    <span id="bulk-comp-info" style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">SELECT STUDENTS BELOW</span>
+            <!-- VIEW 1: OVERVIEW & QUICK ADD -->
+            <div id="assign-view-list">
+                <div class="controls-bar">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="search-assign-overview" placeholder="SEARCH COMPETITIONS..." onkeyup="renderAssignOverview()">
+                    </div>
+                    <div class="filter-box">
+                        <select id="filter-assign-overview-cat" onchange="renderAssignOverview()">
+                            <option value="all">ALL CATEGORIES</option>
+                        </select>
+                    </div>
                 </div>
-                <table>
-                    <thead>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>COMPETITION</th><th>CATEGORY</th><th>ASSIGNED STUDENTS</th><th>ACTIONS</th></tr></thead>
+                        <tbody id="assign-overview-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VIEW 2: BULK ASSIGNER -->
+            <div id="assign-view-bulk" style="display: none;">
+                <div class="controls-bar" style="background: var(--bg-surface); border: 1px solid var(--border); display: flex; flex-wrap: wrap; align-items: flex-end;">
+                    <div class="filter-box" style="flex: 1; min-width: 200px;">
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem;">1. SELECT CATEGORY</label>
+                        <select id="bulkAssignCategory" onchange="populateBulkAssignDropdown()">
+                            <option value="">-- CHOOSE A CATEGORY --</option>
+                        </select>
+                    </div>
+                    <div class="filter-box" style="flex: 1; min-width: 200px;">
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem;">2. SELECT COMPETITION</label>
+                        <select id="bulkAssignComp" onchange="renderBulkAssignmentTable()" disabled>
+                            <option value="">-- CHOOSE CATEGORY FIRST --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="bulk-actions-wrapper" style="display: flex; gap: 0.75rem; flex: 1; justify-content: flex-end; min-width: 200px;">
+                        <button class="btn btn-success" id="btn-bulk-enroll" style="flex: 1;" onclick="executeBulkAction('enroll')"><i class="fa-solid fa-check"></i> ENROLL</button>
+                        <button class="btn btn-outline" id="btn-bulk-remove" style="flex: 1; color: var(--danger); border-color: var(--border);" onclick="executeBulkAction('remove')"><i class="fa-solid fa-xmark"></i> REMOVE</button>
+                    </div>
+                </div>
+
+                <div class="table-container" id="bulk-table-wrapper" style="display: none;">
+                    <div style="padding: 1.25rem 1.5rem; background: var(--bg-main); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <span id="bulk-comp-info" style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">SELECT STUDENTS BELOW</span>
+                    </div>
+                    <table>
+                        <thead>
                         <tr>
                             <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAllBulk(this)"></th>
                             <th>STUDENT NAME</th>
                             <th>UNIQUE ID</th>
+                            <th>CATEGORY</th>
                             <th id="th-leader" style="display: none; text-align: center;">GROUP LEADER</th>
                             <th>STATUS</th>
                         </tr>
                     </thead>
-                    <tbody id="bulk-assignments-tbody"></tbody>
-                </table>
+                        <tbody id="bulk-assignments-tbody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
+
     </div>
 
     <!-- Modals -->
@@ -675,6 +715,100 @@
         </div>
     </div>
     
+
+<!-- Premium Action Confirmation Bottom Sheet -->
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal" style="max-width: 400px; text-align: center; border-radius: 24px; padding: 2rem 1.5rem;">
+            <div style="font-size: 3.5rem; color: var(--warning); margin-bottom: 1rem;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h2 style="margin-bottom: 0.5rem; font-size: 1.5rem; font-weight: 700; color: var(--text-main);" id="confirmModalTitle">Are you sure?</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 0.95rem; font-weight: 500;" id="confirmModalText">This action cannot be undone.</p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button class="btn btn-outline" style="flex: 1; border-radius: 14px; min-height: 48px;" onclick="closeConfirmModal()">Cancel</button>
+                <button class="btn btn-danger" style="flex: 1; background: var(--danger); color: white; border: none; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3); border-radius: 14px; min-height: 48px;" id="confirmModalBtn">Yes, Proceed</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TM Vacancy Audit Modal -->
+    <div id="vacancyModal" class="modal-overlay">
+        <div class="modal" style="max-width: 900px; padding: 2rem 1.5rem;">
+            <div class="modal-header">
+                <div>
+                    <span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:600; font-size:0.75rem;"><i class="fa-solid fa-triangle-exclamation"></i> MY TEAM AUDIT</span>
+                    <h2 style="margin-top: 0.35rem; font-size: 1.4rem;">Under-Enrolled Events</h2>
+                </div>
+                <button class="btn btn-outline" style="border: none; background: var(--bg-main); border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); box-shadow: var(--shadow-sm); padding: 0; transition: all 0.2s ease;" onclick="document.getElementById('vacancyModal').classList.remove('show')" onmouseover="this.style.color='var(--danger)'; this.style.background='var(--danger-light)';" onmouseout="this.style.color='var(--text-muted)'; this.style.background='var(--bg-main)';">
+                    <i class="fa-solid fa-xmark" style="font-size: 1.25rem;"></i>
+                </button>
+            </div>
+
+            <div class="controls-bar" style="margin: 1.25rem 0; padding: 0.75rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                <div class="search-box" style="flex: 2; min-width: 200px;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="vacancySearchInput" placeholder="Filter competition..." onkeyup="renderTMVacancyTable()">
+                </div>
+                <div class="filter-box" style="flex: 1; min-width: 180px;">
+                    <select id="vacancyCategoryFilter" onchange="renderTMVacancyTable()">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+                <button class="btn btn-outline" onclick="exportTMVacancyPDF()">
+                    <i class="fa-solid fa-file-pdf" style="color: var(--danger);"></i> PDF
+                </button>
+            </div>
+
+            <div class="table-container" style="max-height: 50vh; overflow-y: auto;">
+                <table>
+                    <thead style="position: sticky; top: 0; z-index: 10;">
+                        <tr>
+                            <th>COMPETITION</th>
+                            <th>CATEGORY</th>
+                            <th>ENROLLED / TOTAL / BALANCE</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vacancy-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Premium Routing Modal for Vacancy Audit -->
+    <div id="assignModeModal" class="modal-overlay" style="z-index: 1100;">
+        <div class="modal" style="max-width: 450px; text-align: center; border-radius: 24px; padding: 2.5rem 1.5rem;">
+            <div style="width: 60px; height: 60px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 1rem;">
+                <i class="fa-solid fa-route"></i>
+            </div>
+            <h2 style="margin-bottom: 0.5rem; font-size: 1.4rem; font-weight: 800;">Choose Assignment Mode</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 0.95rem; font-weight: 500;">How would you like to enroll students for this competition?</p>
+            
+            <input type="hidden" id="route-cat-id">
+            <input type="hidden" id="route-comp-id">
+            
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <button class="btn btn-primary" style="padding: 1rem; justify-content: flex-start; gap: 1rem; min-height: 60px; border-radius: 16px;" onclick="executeRouteToAssignment('list')">
+                    <div style="background: rgba(255,255,255,0.2); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-bolt"></i></div>
+                    <div style="text-align: left;">
+                        <div style="font-weight: 800; font-size: 1rem; letter-spacing: 0.02em;">Quick Add Mode</div>
+                        <div style="font-size: 0.75rem; font-weight: 600; opacity: 0.8;">Drag & Drop Visual Assigner</div>
+                    </div>
+                </button>
+                <button class="btn btn-outline" style="padding: 1rem; justify-content: flex-start; gap: 1rem; min-height: 60px; border-radius: 16px; border: 2px solid var(--border);" onclick="executeRouteToAssignment('bulk')">
+                    <div style="background: var(--bg-main); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--text-main);"><i class="fa-solid fa-layer-group"></i></div>
+                    <div style="text-align: left;">
+                        <div style="font-weight: 800; font-size: 1rem; color: var(--text-main); letter-spacing: 0.02em;">Bulk Assigner Mode</div>
+                        <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted);">Select Multiple from List</div>
+                    </div>
+                </button>
+                <button class="btn btn-outline" style="margin-top: 0.5rem; border: none; color: var(--text-muted);" onclick="document.getElementById('assignModeModal').classList.remove('show')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+
     <div id="toast-container"></div>
     <script src="team-manager.js"></script>
 </body>

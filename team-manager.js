@@ -29,11 +29,6 @@ function showToast(message, type = 'success') {
     setTimeout(() => { toast.remove(); }, 3500);
 }
 
-function toggleMobileMenu() {
-    document.getElementById('mobile-drawer').classList.toggle('open');
-    document.querySelector('.mobile-overlay').classList.toggle('open');
-}
-
 // Modal & Loading Utils
 function openModal(title, bodyHTML, saveFunction) {
     document.getElementById('modalTitle').innerText = title;
@@ -65,29 +60,55 @@ function setLoading(btnId, isLoading) {
     }
 }
 
+function toggleMobileMenu() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.querySelector('.mobile-overlay').classList.toggle('open');
+}
+
 function switchTab(tabId) {
     document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     
-    // Desktop and Mobile Bottom Nav tracking
     document.querySelectorAll(`[onclick*="switchTab('${tabId}')"]`).forEach(el => {
         el.classList.add('active');
     });
 
     if (tabId === 'appeals') loadAppeals();
     if (tabId === 'assignments') populateBulkAssignCategoryDropdown();
-    // ADD THIS NEW ROUTE:
     if (tabId === 'schedule') { populateSchedCatFilter(); renderTMSchedule(); }
 
-    
     const mainContent = document.querySelector('.main-content');
     if(mainContent) mainContent.scrollTop = 0;
+    
+    // Auto-close sidebar on mobile
+    if(window.innerWidth <= 768) {
+        document.getElementById('sidebar').classList.remove('open');
+        document.querySelector('.mobile-overlay').classList.remove('open');
+    }
+}
+
+// Modal Controllers
+function openConfirmModal(title, text, confirmCallback) {
+    document.getElementById('confirmModalTitle').innerText = title;
+    document.getElementById('confirmModalText').innerText = text;
+    const confirmBtn = document.getElementById('confirmModalBtn');
+    confirmBtn.onclick = () => {
+        closeConfirmModal();
+        if (confirmCallback) confirmCallback();
+    };
+    document.getElementById('confirmModal').classList.add('show');
+}
+
+function closeConfirmModal() {
+    document.getElementById('confirmModal').classList.remove('show');
 }
 
 function logout() {
-    localStorage.removeItem('festUser');
-    window.location.href = 'index.html';
+    openConfirmModal("Sign Out", "Are you sure you want to securely log out of the Team Manager portal?", () => {
+        localStorage.removeItem('festUser');
+        window.location.href = 'index.html';
+    });
 }
 
 async function initDashboard() {
@@ -247,13 +268,79 @@ async function fetchAllData() {
     }
 }
 
-function updateDashboardStats() {
+async function updateDashboardStats() {
     document.getElementById('stat-total-students').innerText = globalStudents.length;
     const uniqueEvents = new Set(globalAssignments.map(a => a.competition_id)).size;
     document.getElementById('stat-total-events').innerText = uniqueEvents;
     
     const completedComps = globalComps.filter(c => c.status === 'published' || c.status === 'judgement_complete');
     document.getElementById('stat-completed-events').innerText = completedComps.length;
+
+    // Calculate Estimated Team Points natively
+    let totalPoints = 0;
+    try {
+        const publishedCompIds = globalComps.filter(c => c.status === 'published').map(c => c.id);
+        if (publishedCompIds.length > 0) {
+            const { data: judgements } = await supabaseClient
+                .from('judgements')
+                .select('participant_id, competition_id, awarded_mark')
+                .in('competition_id', publishedCompIds);
+            
+            const myStudentIds = globalStudents.map(s => s.id);
+            const compAverages = {};
+            
+            (judgements || []).forEach(j => {
+                if(!compAverages[j.competition_id]) compAverages[j.competition_id] = {};
+                if(!compAverages[j.competition_id][j.participant_id]) compAverages[j.competition_id][j.participant_id] = [];
+                compAverages[j.competition_id][j.participant_id].push(parseFloat(j.awarded_mark));
+            });
+
+            publishedCompIds.forEach(compId => {
+                const comp = globalComps.find(c => c.id === compId);
+                if (!comp || !compAverages[compId]) return;
+
+                const participantsArr = Object.entries(compAverages[compId]).map(([pId, marks]) => {
+                    let sortedMarks = marks.sort((a, b) => a - b);
+                    if (sortedMarks.length >= 3) sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
+                    const avg = sortedMarks.reduce((a, b) => a + b, 0) / sortedMarks.length;
+                    return { id: pId, mark: avg };
+                }).sort((a, b) => b.mark - a.mark);
+
+                const limit = comp.max_participants || 1;
+                const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
+                
+                let currentRank = 1;
+                let previousScore = -1;
+
+                participantsArr.forEach((p, index) => {
+                    if (p.mark !== previousScore) currentRank = index + 1;
+                    previousScore = p.mark;
+
+                    let percent = (p.mark / (comp.max_mark || 100)) * 100;
+                    let gradePts = 0; let posPts = 0;
+
+                    if (percent >= 50 && systemSettings.thresholds) {
+                        if (percent >= systemSettings.thresholds.aplus) gradePts = Number(systemSettings[`points_${sizeCat}`]?.aplus) || 0;
+                        else if (percent >= systemSettings.thresholds.a) gradePts = Number(systemSettings[`points_${sizeCat}`]?.a) || 0;
+                        else if (percent >= systemSettings.thresholds.b) gradePts = Number(systemSettings[`points_${sizeCat}`]?.b) || 0;
+                        else gradePts = Number(systemSettings[`points_${sizeCat}`]?.c) || 0;
+                    }
+                    if (currentRank <= 3 && systemSettings.pos_points) {
+                        if (currentRank === 1) posPts = Number(systemSettings.pos_points.p1) || 0;
+                        else if (currentRank === 2) posPts = Number(systemSettings.pos_points.p2) || 0;
+                        else if (currentRank === 3) posPts = Number(systemSettings.pos_points.p3) || 0;
+                    }
+                    
+                    // If the participant belongs to MY team, add the points to the TM dashboard
+                    if (myStudentIds.includes(p.id)) {
+                        totalPoints += (gradePts + posPts);
+                    }
+                });
+            });
+        }
+    } catch (e) { console.error("Point calculation error", e); }
+    
+    document.getElementById('stat-total-points').innerText = totalPoints;
 }
 
 // ---------------- STUDENT DIRECTORY ----------------
@@ -525,26 +612,76 @@ function renderCatalog() {
         if (catFilter !== 'all' && catName !== catFilter) return;
         if (search && !comp.name.toLowerCase().includes(search) && !catName.toLowerCase().includes(search)) return;
 
+        // FIXED: Replaced explicit stage names with pure "OFFSTAGE" or "STAGE" label
         const stageName = comp.is_offstage 
             ? '<span style="color:#D97706; font-weight:800; background: #FEF3C7; padding: 4px 8px; border-radius: 6px;"><i class="fa-solid fa-pen-nib"></i> OFFSTAGE</span>' 
-            : `<span style="color: var(--text-muted); font-weight: 700;"><i class="fa-solid fa-microphone-stage" style="margin-right: 4px;"></i> ${comp.stages?.name || 'TBD'}</span>`;
+            : `<span style="color: var(--primary); font-weight: 800; background: var(--primary-light); padding: 4px 8px; border-radius: 6px;"><i class="fa-solid fa-microphone-stage"></i> STAGE</span>`;
             
         const limitDisplay = comp.max_participants ? comp.max_participants : 'NO LIMIT';
         
         const typeBadge = comp.is_group 
-            ? `<span class="badge" style="background:var(--primary-light); color:var(--primary); cursor:pointer;" onclick="viewCatalogEnrollments('${comp.id}')"><i class="fa-solid fa-users"></i> GROUP (LIMIT: ${limitDisplay})</span>`
-            : `<span class="badge" style="background:var(--success-light); color:#059669; cursor:pointer;" onclick="viewCatalogEnrollments('${comp.id}')"><i class="fa-solid fa-user"></i> SOLO (LIMIT: ${limitDisplay})</span>`;
+            ? `<span class="badge" style="background:var(--primary-light); color:var(--primary);"><i class="fa-solid fa-users"></i> GROUP (LIMIT: ${limitDisplay})</span>`
+            : `<span class="badge" style="background:var(--success-light); color:#059669;"><i class="fa-solid fa-user"></i> SOLO (LIMIT: ${limitDisplay})</span>`;
 
         tbody.innerHTML += `
             <tr>
-                <td data-label="EVENT NAME"></td>
+                <td data-label="EVENT NAME" style="font-weight: 700; color: var(--text-main);"></td>
                 <td data-label="CATEGORY"><span class="badge badge-gray">${catName}</span></td>
-                <td data-label="STAGE">${stageName}</td>
+                <td data-label="STAGE PRESENCE">${stageName}</td>
                 <td data-label="TYPE & LIMIT">${typeBadge}</td>
             </tr>
         `;
         tbody.lastElementChild.firstElementChild.innerText = comp.name;
     });
+}
+
+async function exportCatalogPDF() {
+    showToast('Generating Catalog PDF...', 'success');
+    
+    const search = document.getElementById('search-catalog').value.toLowerCase();
+    const typeFilter = document.getElementById('filter-catalog-type').value;
+    const catFilter = document.getElementById('filter-catalog-cat').value;
+    
+    const filteredComps = globalComps.filter(comp => {
+        const catName = comp.categories?.name || 'UNCATEGORIZED';
+        if (typeFilter === 'group' && !comp.is_group) return false;
+        if (typeFilter === 'individual' && comp.is_group) return false;
+        if (catFilter !== 'all' && catName !== catFilter) return false;
+        if (search && !comp.name.toLowerCase().includes(search) && !catName.toLowerCase().includes(search)) return false;
+        return true;
+    });
+
+    const container = document.createElement('div');
+    container.style.padding = '40px';
+    container.style.fontFamily = 'Inter, sans-serif';
+    container.innerHTML = getPDFHeaderHTML(`Event Catalog`);
+
+    let tableRows = filteredComps.map((c, i) => {
+        const stageName = c.is_offstage ? 'OFFSTAGE' : 'STAGE';
+        const typeBadge = c.is_group ? `GROUP (MAX ${c.max_participants})` : `SOLO (MAX ${c.max_participants})`;
+        return `
+        <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${i + 1}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A;">${c.name.toUpperCase()}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${(c.categories?.name || 'GENERAL').toUpperCase()}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #4F46E5;">${stageName}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${typeBadge}</td>
+        </tr>
+    `}).join('');
+
+    container.innerHTML += `
+        <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
+            <thead>
+                <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;">
+                    <th style="padding: 10px;">#</th><th style="padding: 10px;">EVENT NAME</th><th style="padding: 10px;">CATEGORY</th><th style="padding: 10px;">PRESENCE</th><th style="padding: 10px;">TYPE & LIMIT</th>
+                </tr>
+            </thead>
+            <tbody style="font-size: 12px; color: #334155;">${tableRows}</tbody>
+        </table>
+    `;
+
+    const opt = { margin: 10, filename: `Event_Catalog.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
 }
 
 function viewCatalogEnrollments(compId) {
@@ -617,6 +754,13 @@ function renderLiveTracking() {
 function viewEnrolledDetails(compId) {
     const comp = globalComps.find(c => c.id === compId);
     const assignments = globalAssignments.filter(a => a.competition_id === compId);
+    
+    // Check if the event is closed/live
+    const isEventClosed = ['ongoing', 'valuation', 'judgement_complete', 'published'].includes(comp.status);
+    const pendingLabel = isEventClosed ? 'NOT PARTICIPATED' : 'PENDING';
+    const pendingBg = isEventClosed ? 'var(--danger-light)' : 'var(--warning-light)';
+    const pendingColor = isEventClosed ? 'var(--danger)' : '#D97706';
+    const pendingBorder = isEventClosed ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)';
 
     let checkedInHtml = '';
     let pendingHtml = '';
@@ -627,17 +771,22 @@ function viewEnrolledDetails(compId) {
             if(a.is_present) {
                 checkedInHtml += `<div style="padding: 1rem; background: var(--success-light); color: #059669; border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-md); font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">${s.name} <span style="font-family: monospace; font-size: 0.8rem; background: white; padding: 4px 8px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">${s.unique_id}</span></div>`;
             } else {
-                pendingHtml += `<div style="padding: 1rem; background: var(--warning-light); color: #D97706; border: 1px solid rgba(245, 158, 11, 0.2); border-radius: var(--radius-md); font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">${s.name} <span style="font-family: monospace; font-size: 0.8rem; background: white; padding: 4px 8px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">${s.unique_id}</span></div>`;
+                pendingHtml += `<div style="padding: 1rem; background: ${pendingBg}; color: ${pendingColor}; border: 1px solid ${pendingBorder}; border-radius: var(--radius-md); font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">${s.name} <div style="display: flex; gap: 0.5rem; align-items: center;"><span style="font-size: 0.7rem; font-weight: 800;">${pendingLabel}</span><span style="font-family: monospace; font-size: 0.8rem; background: white; padding: 4px 8px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">${s.unique_id}</span></div></div>`;
             }
         }
     });
 
     if(!checkedInHtml) checkedInHtml = '<div style="padding: 2.5rem; text-align: center; background: var(--bg-main); border-radius: var(--radius-md); color: var(--text-muted); font-weight: 700;">NO STUDENTS CHECKED IN</div>';
-    if(!pendingHtml) pendingHtml = '<div style="padding: 2.5rem; text-align: center; background: var(--bg-main); border-radius: var(--radius-md); color: var(--text-muted); font-weight: 700;">NO PENDING STUDENTS</div>';
+    if(!pendingHtml) pendingHtml = `<div style="padding: 2.5rem; text-align: center; background: var(--bg-main); border-radius: var(--radius-md); color: var(--text-muted); font-weight: 700;">NO ${pendingLabel} STUDENTS</div>`;
 
     document.getElementById('enroll-modal-title').innerText = comp.name;
     document.getElementById('enroll-modal-enrolled').innerHTML = checkedInHtml;
     document.getElementById('enroll-modal-pending').innerHTML = pendingHtml;
+    
+    // Update the pending column header
+    document.getElementById('enroll-modal-pending-title').innerHTML = `<i class="fa-solid fa-clock"></i> ${pendingLabel}`;
+    document.getElementById('enroll-modal-pending-title').style.color = pendingColor;
+    
     document.getElementById('enrollmentDetailsModal').classList.add('show');
 }
 
@@ -742,8 +891,9 @@ function renderBulkAssignmentTable() {
 
     document.getElementById('bulk-comp-info').innerHTML = `<i class="fa-solid fa-users"></i> ${comp.name} <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 10px;">(Max ${comp.max_participants} per team)</span>`;
 
-    if (eligibleStudents.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${comp.is_group ? 5 : 4}" style="text-align:center; padding: 2rem; color: var(--text-muted);">NO ELIGIBLE STUDENTS FOUND FOR THIS CATEGORY.</td></tr>`;
+   if (eligibleStudents.length === 0) {
+        // Adjusted colspan from 5 to 6 for the new Category column
+        tbody.innerHTML = `<tr><td colspan="${comp.is_group ? 6 : 5}" style="text-align:center; padding: 2rem; color: var(--text-muted);">NO ELIGIBLE STUDENTS FOUND FOR THIS CATEGORY.</td></tr>`;
         return;
     }
 
@@ -773,6 +923,7 @@ function renderBulkAssignmentTable() {
                 <td class="checkbox-cell" data-label=""><input type="checkbox" class="bulk-row-cb" value="${student.id}"></td>
                 <td data-label="STUDENT NAME" style="font-weight: 800; color: var(--text-main);">${student.name}</td>
                 <td data-label="UNIQUE ID" style="font-family: monospace; color: var(--text-muted); font-weight: 600;">${student.unique_id}</td>
+                <td data-label="CATEGORY"><span class="badge badge-gray" style="font-size: 0.65rem;">${student.categories?.name || 'GEN'}</span></td>
                 ${comp.is_group ? `<td data-label="GROUP LEADER" style="text-align: right;">${leaderCellHtml}</td>` : ''} 
                 <td data-label="STATUS">${statusBadge}</td>
             </tr>
@@ -1030,53 +1181,6 @@ async function fetchAndApplyBranding() {
     }
 }
 
-function applyGlobalBranding(brandingData) {
-    const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
-    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
-    const displayMode = brandingData.display_mode || 'both'; // 'both', 'logo', 'name'
-    
-    // 1. Update Document Title dynamically
-    const festName = validName ? brandingData.fest_name : 'FestOS';
-    const titleParts = document.title.split('|');
-    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Team Manager';
-    document.title = `${festName} | ${pageContext}`;
-
-    // 2. Global Favicon Injection
-    if (validLogo) {
-        let iconLinks = document.querySelectorAll("link[rel~='icon']");
-        if (iconLinks.length === 0) {
-            let newIcon = document.createElement('link');
-            newIcon.rel = 'icon';
-            document.head.appendChild(newIcon);
-            iconLinks = [newIcon];
-        }
-        iconLinks.forEach(link => link.href = brandingData.fest_logo);
-    }
-
-    // 3. UI Header Updates
-    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text');
-    brandContainers.forEach(container => {
-        let html = '';
-        const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
-        const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
-        
-        if (showLogo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">`;
-        } else if (!validLogo && displayMode !== 'name') {
-            html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
-        }
-        
-        if (showName) {
-            html += `<span style="letter-spacing: -0.5px;">${validName ? brandingData.fest_name : 'FestOS'}</span>`;
-        }
-        
-        container.innerHTML = html;
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-    });
-
-    if (typeof window !== 'undefined') window.systemBranding = brandingData;
-}
 
 function getPDFHeaderHTML(reportTitle) {
     const cachedBranding = JSON.parse(localStorage.getItem('festBranding') || JSON.stringify(window.systemBranding || {}));
@@ -1242,9 +1346,30 @@ function populateSchedCatFilter() {
     uniqueArray.forEach(cat => filter.innerHTML += `<option value="${cat.id}">${cat.name}</option>`);
 }
 
+function populateSchedCatFilter() {
+    const catFilter = document.getElementById('filter-schedule-cat');
+    const stageFilter = document.getElementById('filter-schedule-stage');
+    
+    if(catFilter && catFilter.options.length <= 1) {
+        const catSet = new Set();
+        const stageSet = new Set();
+        
+        globalComps.forEach(c => {
+            if(tmScheduleData[c.id] && tmScheduleData[c.id].status === 'published') {
+                catSet.add(JSON.stringify({ id: c.category_id, name: c.categories?.name || 'UNCATEGORIZED' }));
+                stageSet.add(JSON.stringify({ id: c.stage_id, name: c.stages?.name || 'OFFSTAGE' }));
+            }
+        });
+        
+        Array.from(catSet).map(JSON.parse).forEach(cat => catFilter.innerHTML += `<option value="${cat.id}">${cat.name}</option>`);
+        Array.from(stageSet).map(JSON.parse).forEach(stage => stageFilter.innerHTML += `<option value="${stage.id}">${stage.name}</option>`);
+    }
+}
+
 function renderTMSchedule() {
     const search = document.getElementById('search-schedule').value.toLowerCase();
     const catFilter = document.getElementById('filter-schedule-cat').value;
+    const stageFilter = document.getElementById('filter-schedule-stage').value;
     const tbody = document.getElementById('tm-schedule-tbody');
     tbody.innerHTML = '';
 
@@ -1254,6 +1379,7 @@ function renderTMSchedule() {
         
         const catName = c.categories?.name || 'UNCATEGORIZED';
         if (catFilter !== 'all' && c.category_id != catFilter) return false;
+        if (stageFilter !== 'all' && c.stage_id != stageFilter) return false;
         if (search && !c.name.toLowerCase().includes(search) && !catName.toLowerCase().includes(search)) return false;
         
         return true;
@@ -1267,22 +1393,694 @@ function renderTMSchedule() {
     });
 
     if(scheduledComps.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted);">NO PUBLISHED SCHEDULES FOUND.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">NO PUBLISHED SCHEDULES FOUND.</td></tr>`;
         return;
     }
 
     scheduledComps.forEach(comp => {
         const sched = tmScheduleData[comp.id];
         const catName = comp.categories?.name || 'UNCATEGORIZED';
+        const stageName = comp.is_offstage ? 'OFFSTAGE' : (comp.stages?.name || 'TBD');
         
         tbody.innerHTML += `
             <tr>
                 <td data-label="DATE" style="font-weight: 700; color: var(--primary);">${sched.date}</td>
                 <td data-label="FROM TIME" style="font-weight: 700;">${sched.time}</td>
-                <td data-label="TO TIME" style="font-weight: 700;">${sched.to_time || '-'}</td>
-                <td data-label="EVENT NAME" style="font-weight: 800; color: var(--text-main);">${comp.name}</td>
+                <td data-label="TO TIME" style="font-weight: 700; color: var(--text-muted);">${sched.to_time || '-'}</td>
+                <td data-label="EVENT NAME" style="font-weight: 800; color: var(--text-main); font-size: 1.05rem;">${comp.name}</td>
+                <td data-label="STAGE"><span style="font-weight: 600; color: var(--primary);"><i class="fa-solid fa-microphone-stage" style="margin-right: 4px;"></i> ${stageName}</span></td>
                 <td data-label="CATEGORY"><span class="badge badge-gray">${catName}</span></td>
             </tr>
         `;
     });
+}
+
+async function exportTMSchedulePDF() {
+    showToast('Generating Schedule PDF...', 'success');
+    const search = document.getElementById('search-schedule').value.toLowerCase();
+    const catFilter = document.getElementById('filter-schedule-cat').value;
+    const stageFilter = document.getElementById('filter-schedule-stage').value;
+
+    const scheduledComps = globalComps.filter(c => {
+        const sched = tmScheduleData[c.id];
+        if (!sched || sched.status !== 'published') return false;
+        if (catFilter !== 'all' && c.category_id != catFilter) return false;
+        if (stageFilter !== 'all' && c.stage_id != stageFilter) return false;
+        if (search && !c.name.toLowerCase().includes(search)) return false;
+        return true;
+    }).sort((a,b) => {
+        if (tmScheduleData[a.id].date !== tmScheduleData[b.id].date) return tmScheduleData[a.id].date.localeCompare(tmScheduleData[b.id].date);
+        return tmScheduleData[a.id].time.localeCompare(tmScheduleData[b.id].time);
+    });
+
+    const container = document.createElement('div');
+    container.style.padding = '40px';
+    container.style.fontFamily = 'Inter, sans-serif';
+    container.innerHTML = getPDFHeaderHTML(`Event Schedule`);
+
+    let tableRows = scheduledComps.map((c, i) => {
+        const sched = tmScheduleData[c.id];
+        const stageName = c.is_offstage ? 'OFFSTAGE' : (c.stages?.name || 'TBD');
+        return `
+        <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${sched.date}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${sched.time}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A;">${c.name.toUpperCase()}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; color: #4F46E5; font-weight: 600;">${stageName.toUpperCase()}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${(c.categories?.name || 'GENERAL').toUpperCase()}</td>
+        </tr>
+    `}).join('');
+
+    container.innerHTML += `
+        <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
+            <thead><tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;"><th style="padding: 10px;">DATE</th><th style="padding: 10px;">TIME</th><th style="padding: 10px;">EVENT NAME</th><th style="padding: 10px;">STAGE</th><th style="padding: 10px;">CATEGORY</th></tr></thead>
+            <tbody style="font-size: 12px; color: #334155;">${tableRows}</tbody>
+        </table>
+    `;
+
+    const opt = { margin: 10, filename: `Schedule.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+}
+
+let tmVacancyData = [];
+
+function openTMVacancyModal() {
+    // Calculate Vacancies for MY TEAM
+    tmVacancyData = [];
+    
+    // Populate Category Dropdown inside modal
+    const catSelect = document.getElementById('vacancyCategoryFilter');
+    catSelect.innerHTML = '<option value="">All Categories</option>';
+    globalCategories.forEach(c => catSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+    
+    document.getElementById('vacancySearchInput').value = '';
+    
+    globalComps.forEach(comp => {
+        // Exclude closed events
+        if (['judgement_complete', 'published'].includes(comp.status)) return;
+        
+        const limit = comp.max_participants || 0;
+        if (limit === 0) return; // No limit events don't have vacancies
+        
+        const myEnrolledCount = globalAssignments.filter(a => a.competition_id === comp.id).length;
+        const remaining = limit - myEnrolledCount;
+        
+        if (remaining > 0) {
+            tmVacancyData.push({
+                id: comp.id,
+                name: comp.name,
+                category_id: comp.category_id,
+                categoryName: comp.categories?.name || 'General',
+                limit: limit,
+                enrolled: myEnrolledCount,
+                balance: remaining
+            });
+        }
+    });
+    
+    renderTMVacancyTable();
+    document.getElementById('vacancyModal').classList.add('show');
+}
+
+function renderTMVacancyTable() {
+    const search = document.getElementById('vacancySearchInput').value.toLowerCase();
+    const catFilter = document.getElementById('vacancyCategoryFilter').value;
+    const tbody = document.getElementById('vacancy-tbody');
+    tbody.innerHTML = '';
+
+    const filtered = tmVacancyData.filter(v => {
+        const matchName = v.name.toLowerCase().includes(search);
+        const matchCat = catFilter === '' || String(v.category_id) === String(catFilter);
+        return matchName && matchCat;
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted); font-weight: 600;">NO VACANCIES FOUND FOR YOUR TEAM. ALL QUOTAS FILLED!</td></tr>`;
+        return;
+    }
+
+    filtered.forEach(v => {
+        tbody.innerHTML += `
+            <tr>
+                <td data-label="COMPETITION" style="font-weight: 800; color: var(--text-main); font-size: 1.05rem;">${v.name}</td>
+                <td data-label="CATEGORY"><span class="badge badge-gray">${v.categoryName}</span></td>
+                <td data-label="ENROLLED / BALANCE">
+                    <span style="font-weight: 800; font-size: 1.1rem; color: var(--primary);">${v.enrolled} / ${v.limit}</span>
+                    <span style="font-weight: 700; color: var(--danger); margin-left: 10px; background: var(--danger-light); padding: 4px 8px; border-radius: 6px;">${v.balance} OPEN SLOTS</span>
+                </td>
+                <td data-label="ACTIONS">
+                    <button class="btn btn-outline" style="color: var(--success); border-color: var(--success);" onclick="routeToAssignment('${v.category_id}', '${v.id}')">
+                        <i class="fa-solid fa-user-plus"></i> ASSIGN NOW
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+window.routeToAssignment = function(catId, compId) {
+    if (isAssignmentLocked) return showToast("Registration is currently locked.", "error");
+    
+    // Hide vacancy modal, show mode selection modal
+    document.getElementById('vacancyModal').classList.remove('show');
+    
+    document.getElementById('route-cat-id').value = catId;
+    document.getElementById('route-comp-id').value = compId;
+    
+    document.getElementById('assignModeModal').classList.add('show');
+}
+
+window.executeRouteToAssignment = function(mode) {
+    document.getElementById('assignModeModal').classList.remove('show');
+    
+    const catId = document.getElementById('route-cat-id').value;
+    const compId = document.getElementById('route-comp-id').value;
+    
+    switchTab('assignments');
+    
+    if (mode === 'bulk') {
+        switchAssignView('bulk');
+        const catSelect = document.getElementById('bulkAssignCategory');
+        catSelect.value = catId;
+        populateBulkAssignDropdown();
+        
+        setTimeout(() => {
+            const compSelect = document.getElementById('bulkAssignComp');
+            if (compSelect) {
+                compSelect.value = compId;
+                renderBulkAssignmentTable();
+            }
+        }, 100);
+    } else {
+        switchAssignView('list');
+        const catSelect = document.getElementById('filter-assign-overview-cat');
+        if (catSelect) {
+            catSelect.value = catId;
+            renderAssignOverview();
+        }
+        setTimeout(() => {
+            openQuickAddModal(compId);
+        }, 100);
+    }
+}
+
+async function exportTMVacancyPDF() {
+    showToast('Generating Vacancy PDF...', 'success');
+    
+    const search = document.getElementById('vacancySearchInput').value.toLowerCase();
+    const catFilter = document.getElementById('vacancyCategoryFilter').value;
+    
+    const filtered = tmVacancyData.filter(v => {
+        const matchName = v.name.toLowerCase().includes(search);
+        const matchCat = catFilter === '' || String(v.category_id) === String(catFilter);
+        return matchName && matchCat;
+    });
+
+    const container = document.createElement('div');
+    container.style.padding = '40px';
+    container.style.fontFamily = 'Inter, sans-serif';
+    container.innerHTML = getPDFHeaderHTML(`My Team Vacancy Audit`);
+
+    let tableRows = filtered.map((v, i) => `
+        <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${i + 1}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A;">${v.name.toUpperCase()}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${v.categoryName.toUpperCase()}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; text-align: center; font-weight: 800; color: #4F46E5;">${v.enrolled} / ${v.limit}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; text-align: center; font-weight: 800; color: #EF4444;">${v.balance} OPEN</td>
+        </tr>
+    `).join('');
+
+    container.innerHTML += `
+        <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
+            <thead>
+                <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;">
+                    <th style="padding: 10px;">#</th><th style="padding: 10px;">COMPETITION</th><th style="padding: 10px;">CATEGORY</th><th style="padding: 10px; text-align: center;">ENROLLED / TOTAL</th><th style="padding: 10px; text-align: center;">BALANCE (VACANCY)</th>
+                </tr>
+            </thead>
+            <tbody style="font-size: 12px; color: #334155;">${tableRows}</tbody>
+        </table>
+    `;
+
+    const opt = { margin: 10, filename: `Team_Vacancy_Audit.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    html2pdf().set(opt).from(container).save().then(() => showToast('Vacancy PDF Exported!'));
+}
+
+// ==========================================
+// UNIFIED GLOBAL BRANDING ENGINE
+// ==========================================
+function applyGlobalBranding(brandingData) {
+    const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
+    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+    
+    const festName = validName ? brandingData.fest_name : 'FestOS';
+    document.title = `${festName} | Team Manager`;
+
+    if (validLogo) {
+        let iconLinks = document.querySelectorAll("link[rel~='icon']");
+        if (iconLinks.length === 0) {
+            let newIcon = document.createElement('link');
+            newIcon.rel = 'icon';
+            document.head.appendChild(newIcon);
+            iconLinks = [newIcon];
+        }
+        iconLinks.forEach(link => link.href = brandingData.fest_logo);
+    }
+
+    const brandContainers = document.querySelectorAll('.brand, .navbar-brand');
+    brandContainers.forEach(container => {
+        let html = '';
+        if (validLogo) {
+            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 36px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: 10px; display: inline-block; vertical-align: middle;">`;
+        } else {
+            html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
+        }
+        
+        // CRITICAL FIX: Hide text if this container is inside the sidebar
+        if (!container.closest('.sidebar')) {
+            html += `<span style="letter-spacing: -0.5px; display: inline-block; vertical-align: middle;">${festName} TM</span>`;
+        }
+        
+        container.innerHTML = html;
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        
+        // Center the logo nicely in the sidebar since it no longer has text next to it
+        if (container.closest('.sidebar')) {
+            container.style.justifyContent = 'center';
+            container.style.marginBottom = '2rem';
+        }
+    });
+}
+
+// ==========================================
+// DUAL-VIEW ASSIGNMENT ENGINE
+// ==========================================
+
+// Ensure switchTab triggers the correct default view
+const originalSwitchTab = window.switchTab;
+window.switchTab = function(tabId) {
+    if(originalSwitchTab) originalSwitchTab(tabId);
+    if(tabId === 'assignments') {
+        if(typeof window.switchAssignView === 'function') window.switchAssignView('list');
+    }
+};
+
+window.switchAssignView = function(view) {
+    document.getElementById('btn-assign-view-list').className = 'btn btn-outline';
+    document.getElementById('btn-assign-view-bulk').className = 'btn btn-outline';
+    document.getElementById('assign-view-list').style.display = 'none';
+    document.getElementById('assign-view-bulk').style.display = 'none';
+    
+    if (view === 'bulk') {
+        document.getElementById('btn-assign-view-bulk').className = 'btn btn-primary';
+        document.getElementById('assign-view-bulk').style.display = 'block';
+        populateBulkAssignCategoryDropdown();
+    } else {
+        document.getElementById('btn-assign-view-list').className = 'btn btn-primary';
+        document.getElementById('assign-view-list').style.display = 'block';
+        populateAssignOverviewCategoryDropdown();
+        renderAssignOverview();
+    }
+};
+
+function populateAssignOverviewCategoryDropdown() {
+    const catSelect = document.getElementById('filter-assign-overview-cat');
+    if (!catSelect) return;
+    catSelect.innerHTML = '<option value="all">ALL CATEGORIES</option>';
+    globalCategories.forEach(c => {
+        catSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+    });
+}
+
+function renderAssignOverview() {
+    const search = document.getElementById('search-assign-overview').value.toLowerCase();
+    const catFilter = document.getElementById('filter-assign-overview-cat').value;
+    const tbody = document.getElementById('assign-overview-tbody');
+    tbody.innerHTML = '';
+
+    const eligibleComps = globalComps.filter(c => 
+        c.status !== 'published' && c.status !== 'judgement_complete'
+    );
+
+    if (eligibleComps.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted); font-weight: 600;">NO OPEN COMPETITIONS AVAILABLE.</td></tr>';
+        return;
+    }
+
+    eligibleComps.forEach(comp => {
+        const catName = comp.categories?.name || 'UNCATEGORIZED';
+        if (catFilter !== 'all' && comp.category_id != catFilter) return;
+        if (search && !comp.name.toLowerCase().includes(search)) return;
+
+        // Fetch enrolled and sort so Leader is always first
+        let enrolled = globalAssignments.filter(a => a.competition_id === comp.id);
+        enrolled.sort((a, b) => (b.is_leader ? 1 : 0) - (a.is_leader ? 1 : 0));
+        
+        let studentsHtml = '';
+        if (enrolled.length === 0) {
+            studentsHtml = '<span style="color: var(--warning); font-size: 0.8rem; font-weight: 700; background: var(--warning-light); padding: 4px 8px; border-radius: 6px;">NO STUDENTS ENROLLED</span>';
+        } else {
+            studentsHtml = '<div style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">';
+            enrolled.forEach((a, index) => {
+                const student = globalStudents.find(s => s.id === a.participant_id);
+                if (!student) return;
+                
+                let leaderBadge = '';
+                if (comp.is_group && index === 0) {
+                    // Automatically label the first item as the leader
+                    leaderBadge = `<span class="leader-box">LEADER</span>`;
+                }
+                
+                // Add draggable properties if it's a group event
+                const dragProps = comp.is_group 
+                    ? `draggable="true" class="draggable-item" data-comp-id="${comp.id}" data-student-id="${student.id}" ondragstart="handleDragStart(event, '${comp.id}', '${student.id}')" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, '${comp.id}', '${student.id}')" ondragend="handleDragEnd(event)"` 
+                    : '';
+
+                const dragIcon = comp.is_group ? `<i class="fa-solid fa-grip-vertical" style="color: #CBD5E1; cursor: grab; margin-right: 8px;"></i>` : '';
+
+                studentsHtml += `
+                    <div ${dragProps} style="background: var(--bg-surface); border: 1px solid var(--border); padding: 0.5rem 0.75rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02); width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap;">
+                            ${dragIcon}
+                            ${leaderBadge}
+                            <strong style="color: var(--text-main); font-size: 0.95rem;">${student.name}</strong>
+                            <span style="color: var(--text-muted); font-family: monospace; font-size: 0.75rem; margin-left: 4px;">${student.unique_id}</span>
+                            <span style="font-size: 0.65rem; color: var(--text-muted); background: var(--bg-main); padding: 2px 6px; border-radius: 4px; margin-left: 4px;">${student.categories?.name || 'GEN'}</span>
+                        </div>
+                        <button class="btn btn-outline" style="padding: 0.35rem 0.6rem; min-height: auto; border-color: var(--danger); color: var(--danger); border-radius: 6px; width: auto; flex-shrink: 0;" onclick="quickRemoveStudent('${comp.id}', '${student.id}')"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                `;
+            });
+            studentsHtml += '</div>';
+        }
+
+        const limitText = comp.max_participants > 0 ? `(MAX: ${comp.max_participants})` : '';
+        const isFull = comp.max_participants > 0 && enrolled.length >= comp.max_participants;
+        const addBtn = isFull 
+            ? `<span class="badge" style="background: var(--bg-main); color: var(--text-muted); border: 1px solid var(--border); padding: 0.6rem 1rem;">FULL LIMIT REACHED</span>`
+            : `<button class="btn btn-primary" style="padding: 0.6rem 1rem; width: 100%; justify-content: center;" onclick="openQuickAddModal('${comp.id}')"><i class="fa-solid fa-plus"></i> ADD PARTICIPANTS</button>`;
+
+        tbody.innerHTML += `
+            <tr>
+                <td data-label="COMPETITION" style="font-weight: 800; color: var(--text-main); font-size: 1.05rem; vertical-align: top;">
+                    ${comp.name} <br><span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-top: 4px; display: inline-block;">${limitText}</span>
+                    ${comp.is_group && enrolled.length > 0 ? `<br><span style="font-size: 0.65rem; color: var(--primary); font-weight: 800; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-hand-pointer"></i> DRAG TO ARRANGE LEADER</span>` : ''}
+                </td>
+                <td data-label="CATEGORY" style="vertical-align: top;"><span class="badge badge-gray">${catName}</span></td>
+                <td data-label="ASSIGNED STUDENTS" style="width: 50%; vertical-align: top;">${studentsHtml}</td>
+                <td data-label="ACTIONS" style="min-width: 150px; vertical-align: top;">${addBtn}</td>
+            </tr>
+        `;
+    });
+}
+
+// --- DRAG & DROP LOGIC ---
+window.handleDragStart = function(e, compId, studentId) {
+    e.dataTransfer.setData('text/plain', JSON.stringify({compId, studentId}));
+    e.target.style.opacity = '0.5';
+};
+
+window.handleDragEnd = function(e) {
+    e.target.style.opacity = '1';
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+};
+
+window.handleDragOver = function(e) {
+    e.preventDefault();
+    const target = e.target.closest('.draggable-item');
+    if(target) target.classList.add('drag-over');
+};
+
+window.handleDragLeave = function(e) {
+    const target = e.target.closest('.draggable-item');
+    if(target) target.classList.remove('drag-over');
+};
+
+window.handleDrop = async function(e, targetCompId, targetStudentId) {
+    e.preventDefault();
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    
+    const dataStr = e.dataTransfer.getData('text/plain');
+    if(!dataStr) return;
+    
+    const {compId, studentId: draggedStudentId} = JSON.parse(dataStr);
+    if(compId !== targetCompId || draggedStudentId === targetStudentId) return;
+    
+    const targetElement = e.target.closest('.draggable-item');
+    const container = targetElement.parentNode;
+    const draggedElement = document.querySelector(`[data-student-id="${draggedStudentId}"][data-comp-id="${compId}"]`);
+    
+    if(!draggedElement || !targetElement) return;
+
+    // Visual Reorder
+    const allItems = Array.from(container.children);
+    const draggedIndex = allItems.indexOf(draggedElement);
+    const targetIndex = allItems.indexOf(targetElement);
+    
+    if (draggedIndex < targetIndex) targetElement.after(draggedElement);
+    else targetElement.before(draggedElement);
+    
+    // The top element is now the Leader
+    const newFirstElement = container.firstElementChild;
+    const newLeaderId = newFirstElement.getAttribute('data-student-id');
+    
+    // Instantly Update Local State (No fetchAllData required)
+    let myEnrolled = globalAssignments.filter(a => a.competition_id === compId);
+    myEnrolled.forEach(a => { a.is_leader = (a.participant_id === newLeaderId); });
+    
+    renderAssignOverview(); // Instantly apply UI badges
+    
+    // Async Background Update to DB
+    try {
+        const updates = myEnrolled.map(a => {
+            return supabaseClient.from('participant_competitions')
+                .update({ is_leader: a.is_leader })
+                .eq('id', a.id);
+        });
+        await Promise.all(updates);
+    } catch(err) {
+        showToast("Error saving order to cloud: " + err.message, "error");
+    }
+};
+
+// --- PERFORMANCE OPTIMIZED QUICK REMOVE ---
+window.quickRemoveStudent = async function(compId, studentId) {
+    if (isAssignmentLocked) return showToast("Registration is locked.", "error");
+    
+    openConfirmModal("Remove Student?", "Are you sure you want to remove this student from the competition?", async () => {
+        try {
+            // Optimistic UI Update: Remove from local memory instantly
+            const recordIndex = globalAssignments.findIndex(a => a.competition_id === compId && a.participant_id === studentId);
+            if (recordIndex > -1) {
+                // If we remove the leader, transfer leadership to the next person automatically
+                const wasLeader = globalAssignments[recordIndex].is_leader;
+                globalAssignments.splice(recordIndex, 1);
+                
+                if (wasLeader) {
+                    const remaining = globalAssignments.filter(a => a.competition_id === compId);
+                    if (remaining.length > 0) remaining[0].is_leader = true;
+                }
+            }
+            
+            renderAssignOverview(); // Instantly disappear from UI
+            
+            // Background DB call
+            const { error } = await supabaseClient.from('participant_competitions')
+                .delete()
+                .eq('competition_id', compId)
+                .eq('participant_id', studentId);
+                
+            if (error) throw error;
+            showToast("Student removed.", "success");
+            
+        } catch(e) {
+            showToast(e.message, "error");
+            await fetchAllData(); // Revert to source of truth if DB error
+            renderAssignOverview();
+        }
+    });
+}
+
+// --- NEW MULTI-SELECT QUICK ADD POPUP ---
+window.tempSelectedStudents = [];
+window.tempAvailableStudents = [];
+
+window.openQuickAddModal = function(compId) {
+    if (isAssignmentLocked) return showToast("Registration is locked.", "error");
+    const comp = globalComps.find(c => c.id === compId);
+    if (!comp) return;
+
+    // Filter Eligible Students
+    const eligibleStudents = globalStudents.filter(student => {
+        if (student.category_id == comp.category_id) return true;
+        if (comp.categories?.is_general) {
+            const studentCategory = globalCategories.find(c => c.id == student.category_id);
+            if (studentCategory) {
+                let allowedCats = [];
+                try {
+                    let rawAllowed = studentCategory.allowed_general_categories;
+                    if (typeof rawAllowed === 'string') allowedCats = JSON.parse(rawAllowed);
+                    else if (Array.isArray(rawAllowed)) allowedCats = rawAllowed;
+                } catch(e) {}
+                if (allowedCats.some(id => id == comp.category_id)) return true;
+            }
+        }
+        return false;
+    });
+
+    const enrolledIds = globalAssignments.filter(a => a.competition_id === compId).map(a => a.participant_id);
+    window.tempAvailableStudents = eligibleStudents.filter(s => !enrolledIds.includes(s.id));
+    window.tempSelectedStudents = [];
+    window.tempCompLimit = comp.max_participants > 0 ? comp.max_participants : 999;
+    window.tempSlotsLeft = window.tempCompLimit - enrolledIds.length;
+    window.tempCompId = compId;
+    window.tempIsGroup = comp.is_group;
+
+    openModal(`ADD TO ${comp.name}`, `
+        <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 1rem;">
+            REMAINING CAPACITY: <span id="qa-slots-left" style="color: var(--primary); font-size: 1rem;">${window.tempCompLimit > 100 ? 'UNLIMITED' : window.tempSlotsLeft}</span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div style="border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); overflow: hidden; display: flex; flex-direction: column;">
+                <div style="padding: 0.75rem; background: var(--bg-main); font-size: 0.8rem; font-weight: 800; border-bottom: 1px solid var(--border);">AVAILABLE STUDENTS</div>
+                <div id="qa-available-list" style="height: 280px; overflow-y: auto; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;"></div>
+            </div>
+            
+            <div style="border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); overflow: hidden; display: flex; flex-direction: column;">
+                <div style="padding: 0.75rem; background: var(--bg-main); font-size: 0.8rem; font-weight: 800; border-bottom: 1px solid var(--border); color: var(--primary);">SELECTED (DRAG TO REORDER)</div>
+                <div id="qa-selected-list" style="height: 280px; overflow-y: auto; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;"></div>
+            </div>
+        </div>
+    `, async () => {
+        if (window.tempSelectedStudents.length === 0) return showToast("Select at least one student.", "error");
+        
+        setLoading('modalSaveBtn', true);
+        try {
+            const existingGroup = globalAssignments.filter(a => a.competition_id === window.tempCompId);
+            const isGroup = window.tempIsGroup;
+            const groupId = isGroup ? (existingGroup.length > 0 ? existingGroup[0].group_id : `GRP_${window.tempCompId}_${myTeamId}_${Date.now()}`) : null;
+            
+            // If a leader already exists in the enrolled data, DO NOT assign a new leader.
+            const hasExistingLeader = existingGroup.some(a => a.is_leader);
+
+            const payload = window.tempSelectedStudents.map((s, index) => ({
+                participant_id: s.id,
+                competition_id: window.tempCompId,
+                group_id: groupId,
+                is_leader: isGroup && !hasExistingLeader && index === 0
+            }));
+
+            const { data, error } = await supabaseClient.from('participant_competitions').insert(payload).select();
+            if (error) throw error;
+            
+            // Instantly update Local UI State (No 2-second reload)
+            if(data) globalAssignments.push(...data);
+
+            showToast("Students added successfully!", "success");
+            closeModal();
+            renderAssignOverview();
+        } catch (e) {
+            showToast(e.message, "error");
+            await fetchAllData(); // Force sync if error
+            renderAssignOverview();
+        } finally {
+            setLoading('modalSaveBtn', false);
+        }
+    });
+    
+    renderQAUI();
+};
+
+window.renderQAUI = function() {
+    const availList = document.getElementById('qa-available-list');
+    const selList = document.getElementById('qa-selected-list');
+    const slotsEl = document.getElementById('qa-slots-left');
+    
+    if(!availList || !selList) return;
+    
+    const slotsLeft = window.tempSlotsLeft - window.tempSelectedStudents.length;
+    slotsEl.innerText = window.tempCompLimit > 100 ? 'UNLIMITED' : Math.max(0, slotsLeft);
+    slotsEl.style.color = slotsLeft <= 0 ? 'var(--danger)' : 'var(--primary)';
+
+    availList.innerHTML = window.tempAvailableStudents.map(s => `
+        <div style="background: var(--bg-main); padding: 0.5rem; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border);">
+            <div>
+                <div style="font-size: 0.8rem; font-weight: 700;">${s.name}</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted); font-family: monospace;">${s.unique_id} <span style="background:var(--border); color:var(--text-main); padding: 1px 4px; border-radius:4px; margin-left:4px;">${s.categories?.name || 'GEN'}</span></div>
+            </div>
+            <button class="btn btn-outline" style="min-height: auto; padding: 0.3rem 0.6rem; font-size: 0.75rem;" onclick="qaAdd('${s.id}')" ${slotsLeft <= 0 ? 'disabled' : ''}><i class="fa-solid fa-plus"></i></button>
+        </div>
+    `).join('') || '<div style="font-size:0.75rem; color:var(--text-muted); text-align:center; padding:1rem; font-weight:600;">No available students left</div>';
+
+    // Check if the current competition already has a leader
+    const existingGroup = globalAssignments.filter(a => a.competition_id === window.tempCompId);
+    const hasExistingLeader = existingGroup.some(a => a.is_leader);
+
+    selList.innerHTML = window.tempSelectedStudents.map((s, index) => {
+        const isLeader = window.tempIsGroup && !hasExistingLeader && index === 0;
+        const leaderBadge = isLeader ? '<span class="leader-box" style="margin-left:6px; font-size:0.55rem;">LEADER</span>' : '';
+        const dragIcon = window.tempIsGroup && !hasExistingLeader ? `<i class="fa-solid fa-grip-vertical" style="color: #CBD5E1; margin-right: 4px;"></i>` : '';
+        
+        return `
+        <div class="qa-draggable" draggable="${window.tempIsGroup && !hasExistingLeader}" data-id="${s.id}" ondragstart="qaDragStart(event, '${s.id}')" ondragover="qaDragOver(event)" ondrop="qaDrop(event, '${s.id}')" ondragend="qaDragEnd(event)" style="background: white; padding: 0.5rem; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--primary); cursor: ${window.tempIsGroup && !hasExistingLeader ? 'grab' : 'default'}; box-shadow: var(--shadow-sm);">
+            <div>
+                <div style="font-size: 0.8rem; font-weight: 700;">${dragIcon}${s.name} ${leaderBadge}</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted); font-family: monospace;">${s.unique_id} <span style="background:var(--bg-main); color:var(--text-main); padding: 1px 4px; border-radius:4px; margin-left:4px; border: 1px solid var(--border);">${s.categories?.name || 'GEN'}</span></div>
+            </div>
+            <button class="btn btn-outline" style="min-height: auto; padding: 0.3rem 0.6rem; font-size: 0.75rem; border-color: var(--danger); color: var(--danger);" onclick="qaRemove('${s.id}')"><i class="fa-solid fa-minus"></i></button>
+        </div>
+    `}).join('') || '<div style="font-size:0.75rem; color:var(--text-muted); text-align:center; padding:1rem; font-weight:600;">No students selected</div>';
+
+window.qaAdd = function(id) {
+    const slotsLeft = window.tempSlotsLeft - window.tempSelectedStudents.length;
+    if(slotsLeft <= 0) return;
+    const studentIndex = window.tempAvailableStudents.findIndex(s => s.id === id);
+    if(studentIndex > -1) {
+        window.tempSelectedStudents.push(window.tempAvailableStudents[studentIndex]);
+        window.tempAvailableStudents.splice(studentIndex, 1);
+        renderQAUI();
+    }
+};
+
+window.qaRemove = function(id) {
+    const studentIndex = window.tempSelectedStudents.findIndex(s => s.id === id);
+    if(studentIndex > -1) {
+        window.tempAvailableStudents.push(window.tempSelectedStudents[studentIndex]);
+        window.tempSelectedStudents.splice(studentIndex, 1);
+        window.tempAvailableStudents.sort((a,b) => a.name.localeCompare(b.name));
+        renderQAUI();
+    }
+};
+
+// --- QUICK ADD DRAG AND DROP ---
+window.qaDragStart = function(e, id) {
+    e.dataTransfer.setData('text/plain', id);
+    e.target.style.opacity = '0.5';
+};
+window.qaDragEnd = function(e) {
+    e.target.style.opacity = '1';
+    document.querySelectorAll('.qa-draggable').forEach(el => el.classList.remove('drag-over'));
+};
+window.qaDragOver = function(e) {
+    e.preventDefault();
+    const target = e.target.closest('.qa-draggable');
+    if(target) target.classList.add('drag-over');
+};
+window.qaDrop = function(e, targetId) {
+    e.preventDefault();
+    document.querySelectorAll('.qa-draggable').forEach(el => el.classList.remove('drag-over'));
+    const draggedId = e.dataTransfer.getData('text/plain');
+    if(!draggedId || draggedId === targetId) return;
+
+    const draggedIndex = window.tempSelectedStudents.findIndex(s => s.id === draggedId);
+    const targetIndex = window.tempSelectedStudents.findIndex(s => s.id === targetId);
+    
+    if (draggedIndex > -1 && targetIndex > -1) {
+        const item = window.tempSelectedStudents.splice(draggedIndex, 1)[0];
+        window.tempSelectedStudents.splice(targetIndex, 0, item);
+        renderQAUI(); // Automatically reassigns leader badge to index 0
+    }
+};
 }
