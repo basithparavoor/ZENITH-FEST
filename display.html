@@ -8,240 +8,425 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 320 512%22><path fill=%22%234F46E5%22 d=%22M296 160H180.6l42.6-129.8C227.2 15 215.7 0 200 0H56C44 0 33.8 8.9 32.2 20.8l-32 240C-.5 273.6 9.3 288 24 288h118.7L96.6 482.5c-3.6 15.2 8 29.5 23.3 29.5 8.4 0 16.4-4.4 20.8-12l176-304c9.3-15.9-2.2-36-20.7-36z%22/></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Softened font weights for a more premium, modern look -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Bebas+Neue&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&family=Bebas+Neue&family=Cinzel:wght@600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
         :root {
-            /* Refined Premium Dark Palette */
+            /* Premium Broadcast Dark Palette */
             --primary: #3B82F6;
-            --primary-glow: rgba(59, 130, 246, 0.4);
-            --bg-dark: #0B1121; /* Deep, smooth slate instead of harsh black */
-            --surface: rgba(30, 41, 59, 0.65);
-            --surface-border: rgba(255, 255, 255, 0.08);
+            --primary-glow: rgba(59, 130, 246, 0.45);
+            --bg-dark: #070B14;
+            --surface: rgba(15, 23, 42, 0.75);
+            --surface-border: rgba(255, 255, 255, 0.1);
             
-            --gold: #F59E0B; --gold-glow: rgba(245, 158, 11, 0.3);
-            --silver: #9CA3AF; --silver-glow: rgba(156, 163, 175, 0.2);
-            --bronze: #D97706; --bronze-glow: rgba(217, 119, 6, 0.2);
+            --gold: #F59E0B; --gold-glow: rgba(245, 158, 11, 0.45);
+            --silver: #9CA3AF; --silver-glow: rgba(156, 163, 175, 0.35);
+            --bronze: #D97706; --bronze-glow: rgba(217, 119, 6, 0.35);
             
             --slide-duration: 12s; 
         }
         * { margin: 0; padding: 0; box-sizing: border-box; text-transform: uppercase; }
         
-        body { 
-            background: var(--bg-dark); 
-            color: white; 
-            overflow: hidden; 
-            height: 100vh; 
-            display: flex; 
-            flex-direction: column; 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            transition: background 1s ease; 
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000000;
+            color: #FFFFFF;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
 
-        /* Ambient Motion Background */
-        .ambient-bg { position: fixed; inset: 0; z-index: -2; pointer-events: none; }
-        .grid-overlay {
-            position: fixed; inset: 0; z-index: -1; pointer-events: none;
-            background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-            background-size: 60px 60px;
-            mask-image: radial-gradient(circle at center, black 30%, transparent 90%);
-            -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 90%);
+        /* MASTER SCALED VIEWPORT (Fit to any screen: 4K, 1080p, 720p, mobile, preview iframe) */
+        #display-stage {
+            position: absolute;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            background: var(--bg-dark);
+            transform-origin: top left;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            transition: background 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .orb { position: absolute; border-radius: 50%; filter: blur(140px); opacity: 0.4; animation: float 25s infinite alternate ease-in-out; transition: background 1s ease;}
-        .orb-1 { background: var(--primary); width: 65vw; height: 65vw; top: -20%; left: -10%; }
-        .orb-2 { background: rgba(139, 92, 246, 0.3); width: 55vw; height: 55vw; bottom: -15%; right: -10%; animation-delay: -5s; }
-        @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(-5%, 10%) scale(1.15); } }
 
-        /* Header */
+        /* Ambient Background Modes */
+        .ambient-bg { position: absolute; inset: 0; z-index: -2; pointer-events: none; }
+        .grid-overlay {
+            position: absolute; inset: 0; z-index: -1; pointer-events: none;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            mask-image: radial-gradient(circle at center, black 40%, transparent 95%);
+            -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 95%);
+        }
+        .orb { position: absolute; border-radius: 50%; filter: blur(140px); opacity: 0.45; animation: float 25s infinite alternate ease-in-out; transition: background 0.8s ease, transform 0.8s ease;}
+        .orb-1 { background: var(--primary); width: 850px; height: 850px; top: -20%; left: -10%; }
+        .orb-2 { background: rgba(139, 92, 246, 0.35); width: 750px; height: 750px; bottom: -15%; right: -10%; animation-delay: -5s; }
+        @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(-5%, 8%) scale(1.15); } }
+
+        /* 8 EXPANDED LUXURY THEMES */
+        /* 1. Cyber Aurora */
+        body.bg-cyber-aurora #display-stage { background: #070B14; }
+        body.bg-cyber-aurora .ambient-bg { display: block; }
+        body.bg-cyber-aurora .grid-overlay { display: block; }
+        body.bg-cyber-aurora #stardust-canvas { display: none; }
+
+        /* 2. Golden Stardust */
+        body.bg-golden-stardust #display-stage { background: radial-gradient(circle at center, #1A1305 0%, #080602 100%); }
+        body.bg-golden-stardust .ambient-bg { display: none; }
+        body.bg-golden-stardust .grid-overlay { display: none; }
+        body.bg-golden-stardust #stardust-canvas { display: block; }
+
+        /* 3. Corporate Slate */
+        body.bg-corporate-slate #display-stage { background: #0A0E17; }
+        body.bg-corporate-slate .ambient-bg { display: none; }
+        body.bg-corporate-slate .grid-overlay { opacity: 0.45; display: block; }
+        body.bg-corporate-slate #stardust-canvas { display: none; }
+
+        /* 4. Cosmic Nebula */
+        body.bg-cosmic-nebula #display-stage { background: radial-gradient(ellipse at bottom, #1B0B2E 0%, #06020E 100%); }
+        body.bg-cosmic-nebula .ambient-bg { display: block; }
+        body.bg-cosmic-nebula .orb-1 { background: #EC4899; opacity: 0.35; }
+        body.bg-cosmic-nebula .orb-2 { background: #8B5CF6; opacity: 0.45; }
+        body.bg-cosmic-nebula .grid-overlay { opacity: 0.3; display: block; }
+        body.bg-cosmic-nebula #stardust-canvas { display: none; }
+
+        /* 5. Crimson Grandeur */
+        body.bg-crimson-grandeur #display-stage { background: radial-gradient(ellipse at center, #26050C 0%, #0A0103 100%); }
+        body.bg-crimson-grandeur .ambient-bg { display: block; }
+        body.bg-crimson-grandeur .orb-1 { background: #E11D48; opacity: 0.35; }
+        body.bg-crimson-grandeur .orb-2 { background: #D97706; opacity: 0.25; }
+        body.bg-crimson-grandeur .grid-overlay { opacity: 0.2; display: block; }
+        body.bg-crimson-grandeur #stardust-canvas { display: none; }
+
+        /* 6. Emerald Matrix */
+        body.bg-emerald-matrix #display-stage { background: radial-gradient(ellipse at center, #021C14 0%, #010A07 100%); }
+        body.bg-emerald-matrix .ambient-bg { display: block; }
+        body.bg-emerald-matrix .orb-1 { background: #10B981; opacity: 0.35; }
+        body.bg-emerald-matrix .orb-2 { background: #06B6D4; opacity: 0.35; }
+        body.bg-emerald-matrix .grid-overlay { opacity: 0.4; display: block; }
+        body.bg-emerald-matrix #stardust-canvas { display: none; }
+
+        /* 7. Synthwave Sunset */
+        body.bg-synthwave-sunset #display-stage { background: linear-gradient(180deg, #090214 0%, #1A0730 65%, #380C3F 100%); }
+        body.bg-synthwave-sunset .ambient-bg { display: block; }
+        body.bg-synthwave-sunset .orb-1 { background: #F43F5E; opacity: 0.4; top: -10%; }
+        body.bg-synthwave-sunset .orb-2 { background: #06B6D4; opacity: 0.35; }
+        body.bg-synthwave-sunset .grid-overlay { opacity: 0.55; display: block; }
+        body.bg-synthwave-sunset #stardust-canvas { display: none; }
+
+        /* 8. Midnight Quartz */
+        body.bg-midnight-quartz #display-stage { background: radial-gradient(circle at 50% 30%, #0C1A30 0%, #030710 100%); }
+        body.bg-midnight-quartz .ambient-bg { display: block; }
+        body.bg-midnight-quartz .orb-1 { background: #38BDF8; opacity: 0.35; }
+        body.bg-midnight-quartz .orb-2 { background: #6366F1; opacity: 0.35; }
+        body.bg-midnight-quartz .grid-overlay { opacity: 0.35; display: block; }
+        body.bg-midnight-quartz #stardust-canvas { display: none; }
+
+        /* Top Progress Bar */
+        .progress-bar-container { width: 100%; height: 5px; background: rgba(255,255,255,0.08); position: absolute; top: 0; left: 0; z-index: 500; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, var(--primary), #60A5FA); width: 0%; box-shadow: 0 0 15px var(--primary-glow); }
+        .progress-bar.animating { transition: width var(--slide-duration) linear; width: 100%; }
+
+        /* Header HUD */
         .header { 
-            padding: 1.5rem 3rem; display: flex; justify-content: space-between; align-items: center; 
-            background: linear-gradient(to bottom, rgba(11, 17, 33, 0.95), transparent); z-index: 10; 
+            height: 110px; padding: 0 3.5rem; display: flex; justify-content: space-between; align-items: center; 
+            background: linear-gradient(to bottom, rgba(7, 11, 20, 0.98), rgba(7, 11, 20, 0.6) 80%, transparent); z-index: 200; 
+            flex-shrink: 0;
         }
         .header-left { display: flex; align-items: center; gap: 1.5rem; }
         .header-right { display: flex; align-items: center; gap: 2rem; }
-        .clock { font-family: 'Inter', sans-serif; font-size: 1.5rem; font-weight: 600; color: rgba(255,255,255,0.9); letter-spacing: 2px; }
+        .clock { font-family: 'Inter', sans-serif; font-size: 1.6rem; font-weight: 700; color: rgba(255,255,255,0.95); letter-spacing: 2px; }
         .live-badge { 
-            background: rgba(239, 68, 68, 0.15); color: #FCA5A5; padding: 0.5rem 1.25rem; border-radius: 50px; 
-            border: 1px solid rgba(239, 68, 68, 0.3); font-size: 1.1rem; font-weight: 700; 
-            display: flex; align-items: center; gap: 0.75rem; box-shadow: 0 0 15px rgba(239, 68, 68, 0.15); letter-spacing: 0.02em;
+            background: rgba(239, 68, 68, 0.16); color: #FCA5A5; padding: 0.5rem 1.25rem; border-radius: 50px; 
+            border: 1px solid rgba(239, 68, 68, 0.4); font-size: 1.05rem; font-weight: 800; 
+            display: flex; align-items: center; gap: 0.75rem; box-shadow: 0 0 20px rgba(239, 68, 68, 0.25); letter-spacing: 0.04em;
         }
-        .live-dot { width: 12px; height: 12px; background: #FCA5A5; border-radius: 50%; animation: pulse 1.5s infinite; box-shadow: 0 0 10px #FCA5A5; }
-        @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.5; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.5; } }
+        .live-dot { width: 12px; height: 12px; background: #EF4444; border-radius: 50%; animation: pulseDot 1.5s infinite; box-shadow: 0 0 12px #EF4444; }
+        @keyframes pulseDot { 0% { transform: scale(0.9); opacity: 0.5; } 50% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(0.9); opacity: 0.5; } }
+
+        /* Milestone Widget */
+        .milestone-widget {
+            display: flex; align-items: center; gap: 1.25rem;
+            background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 0.55rem 1.4rem; border-radius: 50px; backdrop-filter: blur(20px);
+            font-size: 0.9rem; font-weight: 800; letter-spacing: 0.04em;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.35);
+        }
+        .milestone-bar-bg { width: 140px; height: 8px; background: rgba(255,255,255,0.15); border-radius: 6px; overflow: hidden; }
+        .milestone-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), #10B981); border-radius: 6px; transition: width 1s ease; }
 
         /* Slides Base */
-        .slide-container { flex: 1; position: relative; padding: 1.5rem 3rem 4rem 3rem; display: flex; flex-direction: column; overflow: hidden; }
-        .slide { position: absolute; inset: 0; padding: 1.5rem 3rem; opacity: 0; transition: opacity 0.8s ease, transform 0.8s ease; display: flex; flex-direction: column; pointer-events: none; transform: scale(0.98); }
+        .slide-container { flex: 1; position: relative; padding: 1rem 3.5rem 5rem 3.5rem; display: flex; flex-direction: column; overflow: hidden; }
+        .slide { position: absolute; inset: 0; padding: 1rem 3.5rem 5.5rem 3.5rem; opacity: 0; transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; pointer-events: none; transform: scale(0.97); }
         .slide.active { opacity: 1; pointer-events: all; transform: scale(1); }
-        .slide-title { font-size: 3rem; font-weight: 700; color: #FFFFFF; margin-bottom: 1.5rem; text-shadow: 0 8px 25px rgba(0,0,0,0.6); letter-spacing: -0.02em; text-align: center; flex-shrink: 0; z-index: 10; position: relative; }
-        .page-indicator { font-size: 1.5rem; color: rgba(255,255,255,0.4); vertical-align: middle; margin-left: 1rem; font-weight: 500; }
+        .slide-title { font-size: 3rem; font-weight: 800; color: #FFFFFF; margin-bottom: 2rem; text-shadow: 0 8px 25px rgba(0,0,0,0.7); letter-spacing: -0.02em; text-align: center; flex-shrink: 0; z-index: 10; position: relative; }
+        .page-indicator { font-size: 1.4rem; color: rgba(255,255,255,0.45); vertical-align: middle; margin-left: 1rem; font-weight: 600; }
 
-        /* --- LANDSCAPE RESULTS LAYOUT --- */
-        .results-layout { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 0; }        
-        .v-podium-stack { display: flex; flex-direction: column; gap: 1.5rem; width: 850px; }
+        /* --- 🏆 SPECTACULAR PODIUM RESULTS SCREEN --- */
+        .results-layout { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; padding-bottom: 2rem; }        
+        .v-podium-stack { display: flex; flex-direction: column; gap: 1.25rem; width: 1100px; max-width: 100%; }
         
         .v-podium-card { 
-            display: flex; flex-direction: row; border-radius: 20px; overflow: hidden; 
-            box-shadow: 0 15px 35px rgba(0,0,0,0.3); opacity: 0; transform: translateX(100px); 
-            transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.6s; height: 140px; 
+            display: flex; flex-direction: row; border-radius: 22px; overflow: hidden; 
+            box-shadow: 0 20px 45px rgba(0,0,0,0.4); opacity: 0; transform: translateX(80px); 
+            transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.7s ease; height: 145px; 
+            position: relative;
         }
         .slide.active .v-podium-card { opacity: 1; transform: translateX(0); }
         
-        .v-podium-card.p1 { transform: scale(1.05) translateX(100px); z-index: 10; box-shadow: 0 20px 40px var(--gold-glow); border: 1px solid rgba(245, 158, 11, 0.4); height: 160px; }
-        .slide.active .v-podium-card.p1 { transform: scale(1.05) translateX(0); }
+        /* 1st Place Gold */
+        .v-podium-card.p1 { 
+            height: 165px; z-index: 10; transform: scale(1.03) translateX(80px); 
+            border: 2px solid rgba(245, 158, 11, 0.75); box-shadow: 0 25px 60px var(--gold-glow); 
+            background: linear-gradient(90deg, rgba(245, 158, 11, 0.18), rgba(15, 23, 42, 0.9));
+        }
+        .slide.active .v-podium-card.p1 { transform: scale(1.03) translateX(0); transition-delay: 0.1s; }
         
-        .v-podium-card.p2 { border: 1px solid rgba(156, 163, 175, 0.3); box-shadow: 0 15px 35px var(--silver-glow); }
-        .v-podium-card.p3 { border: 1px solid rgba(217, 119, 6, 0.3); box-shadow: 0 15px 35px var(--bronze-glow); }
+        /* 2nd Place Silver */
+        .v-podium-card.p2 { 
+            border: 1px solid rgba(156, 163, 175, 0.45); box-shadow: 0 15px 40px var(--silver-glow); 
+            background: linear-gradient(90deg, rgba(156, 163, 175, 0.12), rgba(15, 23, 42, 0.88));
+        }
+        .slide.active .v-podium-card.p2 { transition-delay: 0.35s; }
         
-        .slide.active .v-podium-card.p1 { transition-delay: 0.1s; }
-        .slide.active .v-podium-card.p2 { transition-delay: 0.4s; }
-        .slide.active .v-podium-card.p3 { transition-delay: 0.7s; }
+        /* 3rd Place Bronze */
+        .v-podium-card.p3 { 
+            border: 1px solid rgba(217, 119, 6, 0.45); box-shadow: 0 15px 40px var(--bronze-glow); 
+            background: linear-gradient(90deg, rgba(217, 119, 6, 0.12), rgba(15, 23, 42, 0.88));
+        }
+        .slide.active .v-podium-card.p3 { transition-delay: 0.6s; }
 
         .v-card-info { 
-            flex: 1; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-            padding: 0 2.5rem; display: flex; flex-direction: column; justify-content: center; text-align: center; 
-            border-top: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05); border-left: 1px solid rgba(255,255,255,0.05); 
+            flex: 1; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(24px);
+            padding: 0 3rem; display: flex; flex-direction: column; justify-content: center; text-align: left; 
         }        
-        .v-card-rank { width: 160px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 0.5rem; padding: 1rem; }
+        .v-card-rank { 
+            width: 200px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 0.35rem; padding: 0.75rem; 
+            flex-shrink: 0; position: relative;
+        }
         
-        .p1 .v-card-rank { background: linear-gradient(135deg, #B45309, var(--gold), #B45309); }
-        .p2 .v-card-rank { background: linear-gradient(135deg, #4B5563, var(--silver), #4B5563); }
-        .p3 .v-card-rank { background: linear-gradient(135deg, #92400E, var(--bronze), #92400E); }
+        .p1 .v-card-rank { background: linear-gradient(135deg, #78350F 0%, #B45309 40%, #D97706 100%); }
+        .p2 .v-card-rank { background: linear-gradient(135deg, #1E293B 0%, #334155 40%, #475569 100%); }
+        .p3 .v-card-rank { background: linear-gradient(135deg, #451A03 0%, #78350F 40%, #92400E 100%); }
         
-        .v-rank-num { font-size: 3.8rem; font-weight: 700; color: white; line-height: 1; text-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-        .p1 .v-rank-num { font-size: 4.2rem; }
+        /* --- 🌟 LUXURY EMBLEM MEDALLIONS --- */
+        .pos-badge-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
+        .pos-medal-svg { width: 90px; height: 90px; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5)); }
+        .p1 .pos-medal-svg { width: 105px; height: 105px; }
         
-        .v-name { font-size: 2rem; font-weight: 700; color: white; margin-bottom: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 8px rgba(0,0,0,0.4); letter-spacing: -0.01em; }
-        .p1 .v-name { font-size: 2.4rem; }
+        .pos-badge-ribbon {
+            font-size: 0.72rem; font-weight: 900; letter-spacing: 0.08em; padding: 2px 10px; border-radius: 4px;
+            margin-top: 2px; text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+        }
+        .gold-ribbon { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; }
+        .silver-ribbon { background: #F1F5F9; color: #334155; border: 1px solid #CBD5E1; }
+        .bronze-ribbon { background: #FFEDD5; color: #7C2D12; border: 1px solid #FDBA74; }
         
-        .v-team { font-size: 1.1rem; font-weight: 600; color: rgba(255,255,255,0.7); letter-spacing: 1px; }
-        .p1 .v-team { color: var(--gold); font-size: 1.25rem; text-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+        .v-name { font-size: 2.2rem; font-weight: 800; color: white; margin-bottom: 0.35rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 10px rgba(0,0,0,0.5); letter-spacing: -0.01em; }
+        .p1 .v-name { font-size: 2.6rem; color: #FFFFFF; text-shadow: 0 0 20px rgba(245, 158, 11, 0.4); }
         
-        /* --- LEADERBOARD & SCHEDULE --- */
-        .leaderboard { display: flex; flex-direction: column; gap: 1rem; max-width: 1300px; margin: 0 auto; width: 100%; }
+        .v-team { font-size: 1.2rem; font-weight: 700; color: rgba(255,255,255,0.75); letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.75rem; }
+        .p1 .v-team { color: var(--gold); font-size: 1.35rem; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+
+        /* --- 🏅 CHAMPIONSHIP LEADERBOARD MEDALS --- */
+        .leaderboard { display: flex; flex-direction: column; gap: 1.1rem; max-width: 1450px; margin: 0 auto; width: 100%; }
         .lb-row { 
-            background: var(--surface); border: 1px solid var(--surface-border); padding: 1rem 2.5rem; 
-            border-radius: 20px; display: flex; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
-            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); opacity: 0; 
-            transform: translateX(-30px); transition: all 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); 
+            background: var(--surface); border: 1px solid var(--surface-border); padding: 1.25rem 2.75rem; 
+            border-radius: 20px; display: flex; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
+            backdrop-filter: blur(24px); opacity: 0; 
+            transform: translateX(-40px); transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); 
         }
         .slide.active .lb-row { opacity: 1; transform: translateX(0); }
-        .slide.active .lb-row:nth-child(1) { transition-delay: 0.1s; } .slide.active .lb-row:nth-child(2) { transition-delay: 0.2s; }
-        .slide.active .lb-row:nth-child(3) { transition-delay: 0.3s; } .slide.active .lb-row:nth-child(4) { transition-delay: 0.4s; }
-        .slide.active .lb-row:nth-child(5) { transition-delay: 0.5s; } .slide.active .lb-row:nth-child(6) { transition-delay: 0.6s; }
+        .slide.active .lb-row:nth-child(1) { transition-delay: 0.08s; } .slide.active .lb-row:nth-child(2) { transition-delay: 0.16s; }
+        .slide.active .lb-row:nth-child(3) { transition-delay: 0.24s; } .slide.active .lb-row:nth-child(4) { transition-delay: 0.32s; }
+        .slide.active .lb-row:nth-child(5) { transition-delay: 0.40s; } .slide.active .lb-row:nth-child(6) { transition-delay: 0.48s; }
         
-        .lb-row.gold { border-left: 6px solid var(--gold); background: linear-gradient(90deg, rgba(245, 158, 11, 0.1), var(--surface)); transform: scale(1.02); box-shadow: 0 15px 35px var(--gold-glow); z-index: 10; }
-        .lb-row.silver { border-left: 6px solid var(--silver); background: linear-gradient(90deg, rgba(156, 163, 175, 0.1), var(--surface)); }
-        .lb-row.bronze { border-left: 6px solid var(--bronze); background: linear-gradient(90deg, rgba(217, 119, 6, 0.1), var(--surface)); }
+        .lb-row.gold { border-left: 8px solid var(--gold); background: linear-gradient(90deg, rgba(245, 158, 11, 0.18), var(--surface)); transform: scale(1.02); box-shadow: 0 15px 40px var(--gold-glow); z-index: 10; }
+        .lb-row.silver { border-left: 8px solid var(--silver); background: linear-gradient(90deg, rgba(156, 163, 175, 0.16), var(--surface)); }
+        .lb-row.bronze { border-left: 8px solid var(--bronze); background: linear-gradient(90deg, rgba(217, 119, 6, 0.16), var(--surface)); }
         
-        .lb-rank { font-size: 2.2rem; font-weight: 700; width: 80px; color: rgba(255,255,255,0.4); }
-        .lb-row.gold .lb-rank { color: var(--gold); text-shadow: 0 0 20px var(--gold-glow); }
-        .lb-team { flex: 1; font-size: 2rem; font-weight: 700; letter-spacing: 0.5px; color: #FFFFFF; text-shadow: 0 2px 8px rgba(0,0,0,0.4); }
-        .lb-score { font-size: 3rem; font-weight: 700; color: white; display: flex; align-items: baseline; gap: 0.5rem; text-shadow: 0 4px 12px rgba(0,0,0,0.4); }
-        .lb-score span { font-size: 1.1rem; color: rgba(255,255,255,0.7); font-weight: 600; letter-spacing: 1px; }
+        .lb-rank { width: 100px; display: flex; align-items: center; justify-content: flex-start; }
+        .lb-medal { 
+            width: 54px; height: 54px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+            font-weight: 900; font-size: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.35); position: relative;
+        }
+        .lb-gold-medal { 
+            background: linear-gradient(135deg, #FFE259 0%, #FFA751 100%); color: #78350F; 
+            border: 2px solid #FFF3C4; box-shadow: 0 0 20px var(--gold-glow); font-size: 1.6rem;
+        }
+        .lb-silver-medal { 
+            background: linear-gradient(135deg, #FFFFFF 0%, #94A3B8 100%); color: #0F172A; 
+            border: 2px solid #F1F5F9; box-shadow: 0 0 15px var(--silver-glow); 
+        }
+        .lb-bronze-medal { 
+            background: linear-gradient(135deg, #FDE68A 0%, #B45309 100%); color: #451A03; 
+            border: 2px solid #FED7AA; box-shadow: 0 0 15px var(--bronze-glow); 
+        }
+        .lb-plain-medal { 
+            background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.6); 
+            border: 1px solid rgba(255, 255, 255, 0.15); font-size: 1.3rem; 
+        }
 
-        /* --- WIDGETS & TICKER --- */
+        .lb-team { flex: 1; font-size: 2.2rem; font-weight: 800; letter-spacing: 0.02em; color: #FFFFFF; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+        .lb-score { font-size: 3.2rem; font-weight: 800; color: white; display: flex; align-items: baseline; gap: 0.6rem; text-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .lb-score span { font-size: 1.2rem; color: rgba(255,255,255,0.7); font-weight: 700; letter-spacing: 1px; }
+
+        /* --- 📅 EVENT SCHEDULE & RADAR --- */
+        .sch-card {
+            border-radius: 20px; background: var(--surface); border: 1px solid var(--surface-border);
+            padding: 1.35rem 2.5rem; display: flex; align-items: center; justify-content: space-between;
+            backdrop-filter: blur(24px); box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            opacity: 0; transform: translateY(30px); transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .slide.active .sch-card { opacity: 1; transform: translateY(0); }
+        .slide.active .sch-card:nth-child(1) { transition-delay: 0.1s; } .slide.active .sch-card:nth-child(2) { transition-delay: 0.2s; }
+        .slide.active .sch-card:nth-child(3) { transition-delay: 0.3s; } .slide.active .sch-card:nth-child(4) { transition-delay: 0.4s; }
+        .slide.active .sch-card:nth-child(5) { transition-delay: 0.5s; }
+
+        /* --- HOLOGRAPHIC QR HUD --- */
         .qr-widget { 
-            position: fixed; bottom: 4.5rem; right: 2rem; background: rgba(15, 23, 42, 0.75); 
-            border: 1px solid rgba(255, 255, 255, 0.1); padding: 1rem; border-radius: 20px; 
-            display: flex; align-items: center; gap: 1rem; backdrop-filter: blur(24px); 
-            z-index: 100; box-shadow: 0 15px 35px rgba(0,0,0,0.4); transition: all 0.5s ease; 
+            position: absolute; bottom: 5rem; right: 3rem; background: rgba(15, 23, 42, 0.85); 
+            border: 1px solid rgba(255, 255, 255, 0.15); padding: 1.1rem 1.4rem; border-radius: 24px; 
+            display: flex; align-items: center; gap: 1.25rem; backdrop-filter: blur(28px); 
+            z-index: 300; box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 25px rgba(59, 130, 246, 0.2); 
             animation: floatQR 6s infinite ease-in-out; 
         }
-        @keyframes floatQR { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        .qr-text-block { display: flex; flex-direction: column; gap: 0.2rem; max-width: 130px; }
-        .qr-widget span { font-size: 0.9rem; font-weight: 700; color: white; line-height: 1.2; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-        .qr-widget small { font-size: 0.7rem; color: var(--primary); font-weight: 600; letter-spacing: 0.05em; }
-        #display-qr { background: white; padding: 6px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        @keyframes floatQR { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        .qr-text-block { display: flex; flex-direction: column; gap: 0.3rem; max-width: 150px; }
+        .qr-widget span { font-size: 1rem; font-weight: 800; color: white; line-height: 1.2; text-shadow: 0 2px 6px rgba(0,0,0,0.6); }
+        .qr-widget small { font-size: 0.75rem; color: #60A5FA; font-weight: 700; letter-spacing: 0.05em; }
+        #display-qr { background: white; padding: 8px; border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
 
+        /* --- BOTTOM TICKER MARQUEE --- */
         .ticker-wrap { 
-            position: fixed; bottom: 0; left: 0; width: 100%; height: 3rem; 
-            background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(20px); 
-            border-top: 1px solid var(--primary); z-index: 150; overflow: hidden; 
-            display: flex; align-items: center; box-shadow: 0 -5px 25px rgba(0,0,0,0.4); 
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 3.5rem; 
+            background: rgba(11, 17, 33, 0.96); backdrop-filter: blur(24px); 
+            border-top: 1px solid rgba(59, 130, 246, 0.4); z-index: 400; overflow: hidden; 
+            display: flex; align-items: center; box-shadow: 0 -10px 35px rgba(0,0,0,0.6); 
         }
-        .ticker-move { display: inline-block; white-space: nowrap; padding-right: 100%; animation: ticker 80s linear infinite; }
+        .ticker-move { display: inline-block; white-space: nowrap; padding-right: 100%; animation: ticker 75s linear infinite; }
         .ticker-move:hover { animation-play-state: paused; }
-        @keyframes ticker { 0% { transform: translate3d(100vw, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
-        .ticker-item { display: inline-flex; align-items: center; gap: 0.75rem; font-size: 0.95rem; font-weight: 600; color: white; margin-right: 3rem; letter-spacing: 0.02em; }
-        .t-badge { padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.8rem; font-weight: 700; }
+        @keyframes ticker { 0% { transform: translate3d(1920px, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
+        .ticker-item { display: inline-flex; align-items: center; gap: 0.85rem; font-size: 1.1rem; font-weight: 700; color: white; margin-right: 3.5rem; letter-spacing: 0.03em; }
+        .t-badge { padding: 0.25rem 0.65rem; border-radius: 8px; font-size: 0.85rem; font-weight: 800; }
         .t-live { background: #10B981; color: #022C22; }
         .t-reg { background: #3B82F6; color: #1E3A8A; }
         .t-val { background: #F59E0B; color: #451A03; }
 
-        .progress-bar-container { width: 100%; height: 4px; background: rgba(255,255,255,0.05); position: fixed; top: 0; left: 0; z-index: 200; }
-        .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: none; box-shadow: 0 0 15px var(--primary); }
-        .progress-bar.animating { transition: width var(--slide-duration) linear; width: 100%; }
-
         /* Custom Slides */
-        .cs-bg { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; opacity: 0.5; filter: brightness(0.6); }
-        .cs-content { text-align: center; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 2rem; }
-        .cs-title { font-size: 5.5rem; font-weight: 700; color: var(--primary); text-shadow: 0 10px 30px rgba(0,0,0,0.8); line-height: 1.1; letter-spacing: -0.02em; }
-        .cs-text { font-size: 2.8rem; font-weight: 500; line-height: 1.4; max-width: 1400px; text-shadow: 0 4px 20px rgba(0,0,0,0.8); color: #F8FAFC; }
+        .cs-bg { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; opacity: 0.45; filter: brightness(0.65); }
+        .cs-content { text-align: center; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 2rem; }
+        .cs-title { font-size: 5.5rem; font-weight: 800; color: var(--primary); text-shadow: 0 10px 35px rgba(0,0,0,0.9); line-height: 1.1; letter-spacing: -0.02em; }
+        .cs-text { font-size: 2.6rem; font-weight: 600; line-height: 1.4; max-width: 1400px; text-shadow: 0 4px 25px rgba(0,0,0,0.9); color: #F8FAFC; }
 
         /* Dynamic Transitions */
-        .trans-fade .slide { transition: opacity 1s ease-in-out; }
-        .trans-slide .slide { transform: translateX(100%); transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.8s; opacity: 0; }
+        .trans-fade .slide { transition: opacity 0.8s ease-in-out; }
+        .trans-slide .slide { transform: translateX(100%); transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.8s; opacity: 0; }
         .trans-slide .slide.active { transform: translateX(0); opacity: 1; }
         .trans-slide .slide.exit { transform: translateX(-100%); opacity: 0; }
-        .trans-zoom .slide { transform: scale(1.15); transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.8s; opacity: 0; }
+        .trans-zoom .slide { transform: scale(1.15); transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.8s; opacity: 0; }
         .trans-zoom .slide.active { transform: scale(1); opacity: 1; }
+
+        /* --- BLACKOUT OVERLAY --- */
+        #blackout-overlay {
+            position: absolute; inset: 0; background: #000000; z-index: 99999;
+            opacity: 0; pointer-events: none; transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        body.blackout-active #blackout-overlay { opacity: 1; pointer-events: all; }
+
+        /* --- PINNED SLIDE BADGE --- */
+        #pinned-badge {
+            position: absolute; top: 7rem; left: 3.5rem; background: rgba(59, 130, 246, 0.25);
+            border: 1px solid rgba(59, 130, 246, 0.5); color: #93C5FD; padding: 0.45rem 1rem;
+            border-radius: 50px; font-size: 0.85rem; font-weight: 800; z-index: 300;
+            display: none; align-items: center; gap: 0.5rem; backdrop-filter: blur(16px);
+        }
 
         /* --- LIVE FLASH ALERT --- */
         #flash-alert {
-            position: fixed; inset: 0; background: rgba(239, 68, 68, 0.95); z-index: 9999;
+            position: absolute; inset: 0; background: rgba(220, 38, 38, 0.97); z-index: 99998;
             display: none; flex-direction: column; justify-content: center; align-items: center;
-            color: white; text-align: center; padding: 4rem; backdrop-filter: blur(24px);
+            color: white; text-align: center; padding: 4rem; backdrop-filter: blur(35px);
         }
-        .flash-text { font-size: 6.5rem; font-weight: 700; line-height: 1.1; text-shadow: 0 10px 40px rgba(0,0,0,0.6); animation: pulseAlert 1s infinite alternate; letter-spacing: -0.02em; }
-        @keyframes pulseAlert { from { transform: scale(1); opacity: 1; } to { transform: scale(1.05); opacity: 0.8; } }
+        .flash-text { font-size: 6.2rem; font-weight: 800; line-height: 1.15; text-shadow: 0 10px 40px rgba(0,0,0,0.7); animation: pulseAlert 1s infinite alternate; letter-spacing: -0.02em; }
+        @keyframes pulseAlert { from { transform: scale(1); opacity: 1; } to { transform: scale(1.04); opacity: 0.85; } }
     </style>
 </head>
-<body class="trans-fade" id="app-body">
-    <div class="ambient-bg"><div class="orb orb-1"></div><div class="orb orb-2"></div></div>
-    <div class="grid-overlay"></div>
+<body class="trans-fade bg-cyber-aurora" id="app-body">
 
-    <div class="progress-bar-container"><div class="progress-bar" id="progress"></div></div>
+    <!-- MASTER SCALED 1920x1080 STAGE -->
+    <div id="display-stage">
+        <div id="blackout-overlay"></div>
+        <canvas id="stardust-canvas" style="position: absolute; inset: 0; z-index: -2; pointer-events: none; width: 1920px; height: 1080px;"></canvas>
 
-    <div class="header">
-        <div class="header-left" id="branding-header-left"></div>
-        <div class="header-right">
-            <div class="clock" id="live-clock">00:00:00</div>
-            <div class="live-badge"><div class="live-dot"></div> LIVE BROADCAST</div>
+        <div class="ambient-bg"><div class="orb orb-1"></div><div class="orb orb-2"></div></div>
+        <div class="grid-overlay"></div>
+
+        <div class="progress-bar-container"><div class="progress-bar" id="progress"></div></div>
+
+        <div id="pinned-badge"><i class="fa-solid fa-thumbtack"></i> <span>SLIDE LOCKED BY DIRECTOR</span></div>
+
+        <!-- BROADCAST HEADER -->
+        <div class="header">
+            <div class="header-left" id="branding-header-left"></div>
+            
+            <!-- Center Fest Milestones Widget -->
+            <div id="fest-milestones-widget" class="milestone-widget" style="display: none;">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <span style="color: #94A3B8;">FEST PROGRESS:</span>
+                    <span id="ms-percent" style="color: #FFFFFF;">0%</span>
+                    <div class="milestone-bar-bg"><div id="ms-bar-fill" class="milestone-bar-fill" style="width: 0%;"></div></div>
+                    <span id="ms-counts" style="color: #94A3B8; font-size: 0.8rem;">(0/0)</span>
+                </div>
+                <div style="width: 1px; height: 18px; background: rgba(255,255,255,0.2);"></div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; color: #F59E0B;">
+                    <i class="fa-solid fa-trophy"></i>
+                    <span id="ms-medals" style="color: white;">0</span> <span style="font-size: 0.8rem; color: #F59E0B;">MEDALS</span>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <div class="clock" id="live-clock">00:00:00</div>
+                <div class="live-badge"><div class="live-dot"></div> LIVE BROADCAST</div>
+            </div>
         </div>
-    </div>
 
-    <!-- Instant Flash Alert Overlay -->
-    <div id="flash-alert">
-        <i class="fa-solid fa-triangle-exclamation" style="font-size: 9rem; margin-bottom: 2rem; color: white;"></i>
-        <div class="flash-text" id="flash-msg">ATTENTION PLEASE</div>
-    </div>
-
-    <!-- PLAYLIST CONTAINER -->
-    <div class="slide-container" id="slide-container">
-        <div class="slide active" style="text-align: center; align-items: center; justify-content: center;">
-            <i class="fa-solid fa-satellite-dish fa-beat-fade" style="font-size: 6rem; color: var(--primary); margin-bottom: 2rem;"></i>
-            <h1 class="theme-font" style="font-size: 4rem; font-weight: 700; color: white;">ESTABLISHING CONNECTION...</h1>
-            <p style="font-size: 2rem; color: rgba(255,255,255,0.6); margin-top: 1rem; font-weight: 500;">WAITING FOR DATA FROM CONTROL DESK</p>
+        <!-- Instant Flash Alert Overlay -->
+        <div id="flash-alert">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size: 8rem; margin-bottom: 2rem; color: white;"></i>
+            <div class="flash-text" id="flash-msg">ATTENTION PLEASE</div>
         </div>
-    </div>
 
-    <div id="qr-widget" class="qr-widget">
-        <div id="display-qr"></div>
-        <div class="qr-text-block">
-            <span id="qr-main-text" class="theme-font">SCAN FOR LIVE DATA</span>
-            <small id="qr-sub-text">POINT YOUR CAMERA</small>
+        <!-- PLAYLIST CONTAINER -->
+        <div class="slide-container" id="slide-container">
+            <div class="slide active" style="text-align: center; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-satellite-dish fa-beat-fade" style="font-size: 6rem; color: var(--primary); margin-bottom: 2rem;"></i>
+                <h1 class="theme-font" style="font-size: 4rem; font-weight: 800; color: white;">ESTABLISHING BROADCAST FEED...</h1>
+                <p style="font-size: 2rem; color: rgba(255,255,255,0.65); margin-top: 1rem; font-weight: 600;">SYNCING WITH STAGE DIRECTOR NETWORK</p>
+            </div>
         </div>
-    </div>
 
-    <div class="ticker-wrap" id="ticker-wrap">
-        <div class="ticker-move" id="live-ticker-track">
-            <div class="ticker-item">SYNCING LIVE DATA TO FESTOS NETWORK...</div>
+        <!-- DYNAMIC QR HUD WIDGET -->
+        <div id="qr-widget" class="qr-widget">
+            <div id="display-qr"></div>
+            <div class="qr-text-block">
+                <span id="qr-main-text" class="theme-font">SCAN FOR LIVE DATA</span>
+                <small id="qr-sub-text">POINT YOUR CAMERA</small>
+            </div>
+        </div>
+
+        <!-- BOTTOM TICKER MARQUEE -->
+        <div class="ticker-wrap" id="ticker-wrap">
+            <div class="ticker-move" id="live-ticker-track">
+                <div class="ticker-item">SYNCING LIVE DATA TO FESTOS BROADCAST NETWORK...</div>
+            </div>
         </div>
     </div>
 
@@ -253,10 +438,34 @@
         const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // --- DYNAMIC SCREEN FIT SCALER (4K, 1080p, 720p, mobile, iframe) ---
+        function autoScaleDisplay() {
+            const stage = document.getElementById('display-stage');
+            if (!stage) return;
+
+            const targetW = 1920;
+            const targetH = 1080;
+            const winW = window.innerWidth;
+            const winH = window.innerHeight;
+
+            const scaleX = winW / targetW;
+            const scaleY = winH / targetH;
+            const scale = Math.min(scaleX, scaleY);
+
+            stage.style.transform = `scale(${scale})`;
+            stage.style.left = `${(winW - (targetW * scale)) / 2}px`;
+            stage.style.top = `${(winH - (targetH * scale)) / 2}px`;
+        }
+
+        window.addEventListener('resize', autoScaleDisplay);
+        window.addEventListener('orientationchange', autoScaleDisplay);
+
         // --- GLOBALS ---
         let displaySettings = {};
         let systemBranding = {};
         let slideTimer = null;
+        let flashTimer = null;
+        let isStardustRunning = false;
         let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_solo: { aplus: 8, a: 7, b: 5, c: 3 }, points_small: { aplus: 12, a: 10, b: 7, c: 5 }, points_large: { aplus: 15, a: 12, b: 10, c: 7 }, pos_points: { p1: 3, p2: 2, p3: 1 } };        
         
         let allTeams = [];
@@ -276,10 +485,58 @@
 
         const qrInstance = new QRCode(document.getElementById('display-qr'), { 
             text: window.location.origin + '/spectator.html', 
-            width: 75, height: 75, colorDark: "#0F172A", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.L 
+            width: 85, height: 85, colorDark: "#0F172A", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.L 
         });
 
-        setInterval(() => { document.getElementById('live-clock').innerText = new Date().toLocaleTimeString('en-US', { hour12: false }); }, 1000);
+        setInterval(() => { 
+            const clockEl = document.getElementById('live-clock');
+            if (clockEl) clockEl.innerText = new Date().toLocaleTimeString('en-US', { hour12: false }); 
+        }, 1000);
+
+        // --- STARDUST CANVAS PARTICLES ENGINE ---
+        const stardustCanvas = document.getElementById('stardust-canvas');
+        const stardustCtx = stardustCanvas ? stardustCanvas.getContext('2d') : null;
+        let stardustParticles = [];
+
+        function initStardustCanvas() {
+            if (!stardustCanvas) return;
+            stardustCanvas.width = 1920;
+            stardustCanvas.height = 1080;
+            stardustParticles = [];
+            for (let i = 0; i < 80; i++) {
+                stardustParticles.push({
+                    x: Math.random() * 1920,
+                    y: Math.random() * 1080,
+                    size: Math.random() * 3 + 0.8,
+                    speedY: Math.random() * 0.45 + 0.15,
+                    speedX: (Math.random() - 0.5) * 0.35,
+                    opacity: Math.random() * 0.75 + 0.25,
+                    gold: Math.random() > 0.35
+                });
+            }
+        }
+
+        function animateStardust() {
+            if (!stardustCtx || !document.body.classList.contains('bg-golden-stardust')) {
+                isStardustRunning = false;
+                return;
+            }
+            isStardustRunning = true;
+            stardustCtx.clearRect(0, 0, 1920, 1080);
+            stardustParticles.forEach(p => {
+                p.y -= p.speedY;
+                p.x += p.speedX;
+                if (p.y < 0) p.y = 1080;
+                if (p.x < 0) p.x = 1920;
+                if (p.x > 1920) p.x = 0;
+
+                stardustCtx.fillStyle = p.gold ? `rgba(245, 158, 11, ${p.opacity})` : `rgba(255, 255, 255, ${p.opacity * 0.9})`;
+                stardustCtx.beginPath();
+                stardustCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                stardustCtx.fill();
+            });
+            requestAnimationFrame(animateStardust);
+        }
 
         async function fetchDisplayData() {
             try {
@@ -293,27 +550,20 @@
 
                     document.title = validName ? `${systemBranding.fest_name} | Display` : 'Display';
 
-                    if (validLogo) {
-                        let allIcons = document.querySelectorAll("link[rel='icon']");
-                        if (allIcons.length === 0) {
-                            let newIcon = document.createElement('link'); newIcon.rel = 'icon';
-                            document.head.appendChild(newIcon); allIcons = [newIcon];
+                    const brandContainer = document.getElementById('branding-header-left');
+                    if (brandContainer) {
+                        let brandHtml = '';
+                        if (displayMode === 'logo' && validLogo) {
+                            brandHtml = `<img src="${systemBranding.fest_logo}" style="height: 60px; object-fit: contain;">`;
+                        } else if (displayMode === 'name' && validName) {
+                            brandHtml = `<h1 class="theme-font" style="font-size: 2.2rem; font-weight: 800; color: #FFFFFF; letter-spacing: -0.01em;">${systemBranding.fest_name}</h1>`;
+                        } else {
+                            const logoPart = validLogo ? `<img src="${systemBranding.fest_logo}" style="height: 60px; object-fit: contain;">` : '';
+                            const namePart = validName ? `<h1 class="theme-font" style="font-size: 2.2rem; font-weight: 800; color: #FFFFFF; letter-spacing: -0.01em;">${systemBranding.fest_name}</h1>` : '';
+                            brandHtml = `${logoPart} ${namePart}`;
                         }
-                        allIcons.forEach(link => { if (link.type === 'image/svg+xml') link.removeAttribute('type'); link.href = systemBranding.fest_logo; });
+                        brandContainer.innerHTML = brandHtml;
                     }
-
-                    const headerLeft = document.getElementById('branding-header-left');
-                    let html = '';
-                    const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
-                    const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
-                    
-                    if (showLogo) {
-                        html += `<img id="fest-logo" src="${systemBranding.fest_logo}" alt="Logo" style="height: 60px; max-width: 200px; object-fit: contain; border-radius: 8px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5)); display: block;">`;
-                    }
-                    if (showName && validName) {
-                        html += `<h1 id="fest-title" class="theme-font" style="font-size: 2.6rem; font-weight: 700; letter-spacing: -0.02em; text-shadow: 0 0 25px var(--primary-glow); margin: 0; line-height: 1; color: #FFFFFF;">${systemBranding.fest_name.toUpperCase()}</h1>`;
-                    }
-                    headerLeft.innerHTML = html;
                 }
 
                 const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
@@ -326,8 +576,13 @@
                 if (displayData && displayData.value) {
                     displaySettings = displayData.value;
                     document.documentElement.style.setProperty('--slide-duration', `${displaySettings.slide_duration || 12}s`);
-                    document.getElementById('qr-widget').style.opacity = displaySettings.show_qr === false ? '0' : '1';
-                    document.getElementById('app-body').className = `trans-${displaySettings.transition || 'fade'}`;
+                    
+                    const bgStyle = displaySettings.bg_style || 'cyber_aurora';
+                    document.body.className = `trans-${displaySettings.transition || 'fade'} bg-${bgStyle.replace('_', '-')}`;
+                    if (bgStyle === 'golden_stardust' && !isStardustRunning) {
+                        initStardustCanvas();
+                        animateStardust();
+                    }
                     
                     if (displaySettings.primary_color) {
                         document.documentElement.style.setProperty('--primary', displaySettings.primary_color);
@@ -355,8 +610,8 @@
                     .select('*, categories(name), stages(name), participant_competitions(count)')
                     .order('updated_at', { ascending: false });
 
-                globalPublishedComps = allComps.filter(c => c.status === 'published');
-                globalActiveEvents = allComps.filter(c => ['ongoing', 'registration', 'valuation', 'pending'].includes(c.status));
+                globalPublishedComps = (allComps || []).filter(c => c.status === 'published');
+                globalActiveEvents = (allComps || []).filter(c => ['ongoing', 'registration', 'valuation', 'pending'].includes(c.status));
                 
                 if (globalPublishedComps.length > lastPublishedCount && lastPublishedCount !== 0 && !isPreviewMode) fireConfetti();
                 lastPublishedCount = globalPublishedComps.length;
@@ -442,7 +697,7 @@
                     }
                 }
 
-                // --- BUILD THE PAGINATED PLAYLIST ---
+                // --- BUILD PLAYLIST ---
                 buildPlaylist(scheduleData, customSlidesArray);
 
             } catch (error) { console.error("Display Fetch Error:", error); }
@@ -450,9 +705,9 @@
 
         // --- DYNAMIC PAGINATED PLAYLIST BUILDER ---
         function buildPlaylist(scheduleData, customSlidesArray) {
-            activeSlides = []; // Clear array
+            activeSlides = [];
             const container = document.getElementById('slide-container');
-            container.innerHTML = ''; // Wipe DOM
+            container.innerHTML = '';
 
             // 1. HORIZONTAL LANDSCAPE RESULTS SLIDE
             if (globalPublishedComps.length > 0 && latestCompResults && latestCompResults.length > 0) {
@@ -462,41 +717,111 @@
                 
                 let podiumHtml = `
                     <div class="slide" id="slide-podium" data-qr-type="results" data-qr-comp="${comp.id}">
-<h2 class="slide-title theme-font" style="margin-bottom: 3rem; z-index: 10; text-align: center;">OFFICIAL RESULTS: <span style="color:var(--gold);">${comp.name}</span></h2>                        
+                        <h2 class="slide-title theme-font">OFFICIAL RESULTS: <span style="color:var(--gold);">${comp.name}</span></h2>                        
                         <div class="results-layout">
                             <div class="v-podium-stack">
                                 
-                                <!-- RANK 1 -->
+                                <!-- RANK 1 (GOLD) -->
                                 <div class="v-podium-card p1">
                                     <div class="v-card-info">
                                         <div class="v-name theme-font">${p1.name}</div>
-                                        <div class="v-team theme-font">${p1.team}</div>
+                                        <div class="v-team theme-font"><i class="fa-solid fa-users" style="font-size:0.9rem;"></i> ${p1.team}</div>
                                     </div>
                                     <div class="v-card-rank">
-                                        <i class="fa-solid fa-crown" style="font-size: 2.2rem; color: white; text-shadow: 0 2px 10px rgba(0,0,0,0.3);"></i>
-                                        <span class="v-rank-num theme-font">1</span>
+                                        <div class="pos-badge-wrap">
+                                            <svg class="pos-medal-svg" viewBox="0 0 120 120">
+                                                <defs>
+                                                    <linearGradient id="p1Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                        <stop offset="0%" stop-color="#FFF3C4"/>
+                                                        <stop offset="35%" stop-color="#F59E0B"/>
+                                                        <stop offset="70%" stop-color="#D97706"/>
+                                                        <stop offset="100%" stop-color="#78350F"/>
+                                                    </linearGradient>
+                                                    <linearGradient id="p1Ring" x1="0%" y1="0%" x2="0%" y2="100%">
+                                                        <stop offset="0%" stop-color="#FFFBEB"/>
+                                                        <stop offset="100%" stop-color="#B45309"/>
+                                                    </linearGradient>
+                                                </defs>
+                                                <!-- Laurel Wreath -->
+                                                <path d="M22 65 C18 45 30 25 50 18 C45 28 48 40 54 48 C42 46 32 52 28 62 Z" fill="url(#p1Grad)" opacity="0.95"/>
+                                                <path d="M98 65 C102 45 90 25 70 18 C75 28 72 40 66 48 C78 46 88 52 92 62 Z" fill="url(#p1Grad)" opacity="0.95"/>
+                                                <path d="M20 75 C15 90 32 105 52 108 C46 98 48 88 52 78 C40 82 28 80 22 75 Z" fill="url(#p1Grad)" opacity="0.95"/>
+                                                <path d="M100 75 C105 90 88 105 68 108 C74 98 72 88 68 78 C80 82 92 80 98 75 Z" fill="url(#p1Grad)" opacity="0.95"/>
+                                                <!-- Outer Ring -->
+                                                <circle cx="60" cy="60" r="44" fill="url(#p1Ring)" stroke="#FEF3C7" stroke-width="2"/>
+                                                <!-- Inner Seal -->
+                                                <circle cx="60" cy="60" r="37" fill="#1C1304" stroke="url(#p1Grad)" stroke-width="2"/>
+                                                <!-- Top Star -->
+                                                <polygon points="60,29 63,36 70,37 65,42 66,49 60,46 54,49 55,42 50,37 57,36" fill="#FDE68A"/>
+                                                <!-- Rank Digit -->
+                                                <text x="60" y="77" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="34" fill="url(#p1Grad)" text-anchor="middle">1</text>
+                                            </svg>
+                                            <div class="pos-badge-ribbon gold-ribbon">CHAMPION</div>
+                                        </div>
                                     </div>
                                 </div>
                                 
-                                <!-- RANK 2 -->
+                                <!-- RANK 2 (SILVER) -->
                                 <div class="v-podium-card p2">
                                     <div class="v-card-info">
                                         <div class="v-name theme-font">${p2.name}</div>
-                                        <div class="v-team theme-font">${p2.team}</div>
+                                        <div class="v-team theme-font"><i class="fa-solid fa-users" style="font-size:0.85rem;"></i> ${p2.team}</div>
                                     </div>
                                     <div class="v-card-rank">
-                                        <span class="v-rank-num theme-font">2</span>
+                                        <div class="pos-badge-wrap">
+                                            <svg class="pos-medal-svg" viewBox="0 0 120 120">
+                                                <defs>
+                                                    <linearGradient id="p2Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                        <stop offset="0%" stop-color="#FFFFFF"/>
+                                                        <stop offset="40%" stop-color="#E2E8F0"/>
+                                                        <stop offset="75%" stop-color="#94A3B8"/>
+                                                        <stop offset="100%" stop-color="#475569"/>
+                                                    </linearGradient>
+                                                </defs>
+                                                <!-- Laurel Wreath -->
+                                                <path d="M24 65 C20 47 31 28 50 20 C46 29 48 40 54 48 C42 46 33 53 30 62 Z" fill="url(#p2Grad)" opacity="0.85"/>
+                                                <path d="M96 65 C100 47 89 28 70 20 C74 29 72 40 66 48 C78 46 87 53 90 62 Z" fill="url(#p2Grad)" opacity="0.85"/>
+                                                <!-- Outer Ring -->
+                                                <circle cx="60" cy="60" r="42" fill="url(#p2Grad)" stroke="#FFFFFF" stroke-width="1.5"/>
+                                                <!-- Inner Seal -->
+                                                <circle cx="60" cy="60" r="35" fill="#0F172A" stroke="url(#p2Grad)" stroke-width="1.5"/>
+                                                <!-- Rank Digit -->
+                                                <text x="60" y="73" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="32" fill="url(#p2Grad)" text-anchor="middle">2</text>
+                                            </svg>
+                                            <div class="pos-badge-ribbon silver-ribbon">2ND PLACE</div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <!-- RANK 3 -->
+                                <!-- RANK 3 (BRONZE) -->
                                 <div class="v-podium-card p3">
                                     <div class="v-card-info">
                                         <div class="v-name theme-font">${p3.name}</div>
-                                        <div class="v-team theme-font">${p3.team}</div>
+                                        <div class="v-team theme-font"><i class="fa-solid fa-users" style="font-size:0.85rem;"></i> ${p3.team}</div>
                                     </div>
                                     <div class="v-card-rank">
-                                        <span class="v-rank-num theme-font">3</span>
+                                        <div class="pos-badge-wrap">
+                                            <svg class="pos-medal-svg" viewBox="0 0 120 120">
+                                                <defs>
+                                                    <linearGradient id="p3Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                        <stop offset="0%" stop-color="#FDE68A"/>
+                                                        <stop offset="35%" stop-color="#D97706"/>
+                                                        <stop offset="70%" stop-color="#B45309"/>
+                                                        <stop offset="100%" stop-color="#78350F"/>
+                                                    </linearGradient>
+                                                </defs>
+                                                <!-- Laurel Wreath -->
+                                                <path d="M24 65 C20 47 31 28 50 20 C46 29 48 40 54 48 C42 46 33 53 30 62 Z" fill="url(#p3Grad)" opacity="0.85"/>
+                                                <path d="M96 65 C100 47 89 28 70 20 C74 29 72 40 66 48 C78 46 87 53 90 62 Z" fill="url(#p3Grad)" opacity="0.85"/>
+                                                <!-- Outer Ring -->
+                                                <circle cx="60" cy="60" r="42" fill="url(#p3Grad)" stroke="#FDE68A" stroke-width="1.5"/>
+                                                <!-- Inner Seal -->
+                                                <circle cx="60" cy="60" r="35" fill="#1C1004" stroke="url(#p3Grad)" stroke-width="1.5"/>
+                                                <!-- Rank Digit -->
+                                                <text x="60" y="73" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="32" fill="url(#p3Grad)" text-anchor="middle">3</text>
+                                            </svg>
+                                            <div class="pos-badge-ribbon bronze-ribbon">3RD PLACE</div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -511,7 +836,7 @@
             // 2. PAGINATED TEAM LEADERBOARD SLIDES
             const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score);
             if (sortedTeams.length > 0) {
-                const CHUNK = 6; 
+                const CHUNK = 5; 
                 for (let i = 0; i < sortedTeams.length; i += CHUNK) {
                     const chunk = sortedTeams.slice(i, i + CHUNK);
                     const pageInfo = sortedTeams.length > CHUNK ? `<span class="page-indicator">(PAGE ${Math.floor(i/CHUNK)+1})</span>` : '';
@@ -523,9 +848,15 @@
                     chunk.forEach((team, idx) => {
                         const rank = i + idx + 1;
                         let cardClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+                        let medalMarkup = '';
+                        if (rank === 1) medalMarkup = '<div class="lb-medal lb-gold-medal"><span>1</span></div>';
+                        else if (rank === 2) medalMarkup = '<div class="lb-medal lb-silver-medal"><span>2</span></div>';
+                        else if (rank === 3) medalMarkup = '<div class="lb-medal lb-bronze-medal"><span>3</span></div>';
+                        else medalMarkup = `<div class="lb-medal lb-plain-medal"><span>${rank}</span></div>`;
+                        
                         lbHtml += `
                             <div class="lb-row ${cardClass}">
-                                <div class="lb-rank theme-font">#${rank}</div>
+                                <div class="lb-rank">${medalMarkup}</div>
                                 <div class="lb-team theme-font">${team.name}</div>
                                 <div class="lb-score">${team.score} <span>PTS</span></div>
                             </div>
@@ -544,33 +875,33 @@
                     return getW(a.status) - getW(b.status);
                 });
 
-                const SCH_CHUNK = 5; 
+                const SCH_CHUNK = 4; 
                 for (let i = 0; i < upcoming.length; i += SCH_CHUNK) {
                     const chunk = upcoming.slice(i, i + SCH_CHUNK);
                     const pageInfo = upcoming.length > SCH_CHUNK ? `<span class="page-indicator">(PAGE ${Math.floor(i/SCH_CHUNK)+1})</span>` : '';
                     
                     let schHtml = `<div class="slide" id="slide-schedule-${i}" data-qr-type="live">
-                        <h2 class="slide-title theme-font">EVENT SCHEDULE & STATUS ${pageInfo}</h2>
+                        <h2 class="slide-title theme-font">EVENT RADAR & STAGE TIMELINE ${pageInfo}</h2>
                         <div class="leaderboard">`;
                     
-                   chunk.forEach(comp => {
+                    chunk.forEach(comp => {
                         let cStatus = comp.status || 'pending';
-                        let bText = "UPCOMING"; let col = "#9CA3AF"; let bBg = "rgba(255,255,255,0.05)";
+                        let bText = "UPCOMING"; let col = "#9CA3AF"; let bBg = "rgba(255,255,255,0.06)";
                         
-                        if(cStatus === 'ongoing') { bText = "LIVE ON STAGE"; col = "#10B981"; bBg = "rgba(16,185,129,0.15)"; }
-                        else if(cStatus === 'registration') { bText = "CALLING NOW"; col = "#3B82F6"; bBg = "rgba(59,130,246,0.15)"; }
-                        else if(cStatus === 'valuation') { bText = "IN VALUATION"; col = "#F59E0B"; bBg = "rgba(245,158,11,0.15)"; }
+                        if(cStatus === 'ongoing') { bText = "🔴 LIVE ON STAGE"; col = "#10B981"; bBg = "rgba(16,185,129,0.18)"; }
+                        else if(cStatus === 'registration') { bText = "🔵 CALLING NOW"; col = "#3B82F6"; bBg = "rgba(59,130,246,0.18)"; }
+                        else if(cStatus === 'valuation') { bText = "🟡 IN VALUATION"; col = "#F59E0B"; bBg = "rgba(245,158,11,0.18)"; }
 
                         let sTime = scheduleData[comp.id]?.time || '--:--';
-                        let sToTime = scheduleData[comp.id]?.to_time ? `<span style="font-size:1.4rem; color:var(--text-muted);">- ${scheduleData[comp.id].to_time}</span>` : '';
+                        let sToTime = scheduleData[comp.id]?.to_time ? `<span style="font-size:1.2rem; color:var(--text-muted);">- ${scheduleData[comp.id].to_time}</span>` : '';
 
                         schHtml += `
-                            <div class="lb-row" style="border-left: 6px solid ${col}; padding: 1.25rem 2rem;">
+                            <div class="sch-card" style="border-left: 8px solid ${col};">
                                 <div style="flex:1;">
-                                    <div style="font-size: 0.95rem; color: ${col}; font-weight: 700; margin-bottom:0.2rem; letter-spacing: 0.05em;"><i class="fa-regular fa-clock"></i> ${sTime} ${sToTime} &nbsp;|&nbsp; ${comp.stages?.name || 'TBD'}</div>
-                                    <div class="theme-font" style="font-size: 2rem; font-weight: 700; line-height: 1; text-shadow: 0 2px 8px rgba(0,0,0,0.4); color: #FFFFFF;">${comp.name}</div>
+                                    <div style="font-size: 1.05rem; color: ${col}; font-weight: 800; margin-bottom:0.35rem; letter-spacing: 0.05em;"><i class="fa-regular fa-clock"></i> ${sTime} ${sToTime} &nbsp;|&nbsp; <i class="fa-solid fa-microphone-stage"></i> ${comp.stages?.name || 'GLOBAL VENUE'}</div>
+                                    <div class="theme-font" style="font-size: 2.2rem; font-weight: 800; line-height: 1.1; text-shadow: 0 2px 10px rgba(0,0,0,0.5); color: #FFFFFF;">${comp.name}</div>
                                 </div>
-                                <div style="background: ${bBg}; padding: 0.8rem 1.5rem; border-radius: 12px; font-size: 1.1rem; font-weight: 700; color: ${col}; text-align: center; border: 1px solid ${col};">
+                                <div style="background: ${bBg}; padding: 0.9rem 1.8rem; border-radius: 14px; font-size: 1.15rem; font-weight: 800; color: ${col}; text-align: center; border: 1px solid ${col}; box-shadow: 0 0 15px rgba(0,0,0,0.3);">
                                     ${bText}
                                 </div>
                             </div>
@@ -605,10 +936,10 @@
             // 5. FALLBACK SLIDE IF EMPTY
             if (activeSlides.length === 0) {
                 container.innerHTML = `
-                    <div class="slide active" id="slide-fallback" style="text-align:center; align-items: center; justify-content: center;">
-                        <i class="fa-solid fa-hourglass-half fa-spin-pulse" style="font-size: 5rem; color: var(--primary); margin-bottom: 2rem;"></i>
-                        <h1 class="theme-font" style="font-size: 4.5rem; font-weight: 700; color: #FFFFFF;">NEXT UPDATES SHORTLY</h1>
-                        <p style="font-size: 2.2rem; color: rgba(255,255,255,0.6); margin-top: 1rem; font-weight: 500;">STAY TUNED</p>
+                    <div class="slide active" id="slide-fallback" style="text-align:center; align-items: center; justify-content: center; height: 100%;">
+                        <i class="fa-solid fa-hourglass-half fa-spin-pulse" style="font-size: 6rem; color: var(--primary); margin-bottom: 2rem;"></i>
+                        <h1 class="theme-font" style="font-size: 4.5rem; font-weight: 800; color: #FFFFFF;">EVENTS UNDERWAY</h1>
+                        <p style="font-size: 2.2rem; color: rgba(255,255,255,0.65); margin-top: 1rem; font-weight: 600;">RESULTS & SCHEDULE BROADCASTING SHORTLY</p>
                     </div>
                 `;
                 activeSlides.push('slide-fallback');
@@ -623,33 +954,51 @@
             const track = document.getElementById('live-ticker-track');
             let tickerHtml = '';
             
-            activeEvents.filter(c => c.status === 'ongoing').forEach(c => { tickerHtml += `<div class="ticker-item"><span class="t-badge t-live">LIVE ON STAGE</span> ${c.name} (${c.stages?.name || 'GLOBAL'})</div>`; });
+            activeEvents.filter(c => c.status === 'ongoing').forEach(c => { tickerHtml += `<div class="ticker-item"><span class="t-badge t-live">LIVE ON STAGE</span> ${c.name} (${c.stages?.name || 'MAIN STAGE'})</div>`; });
             activeEvents.filter(c => c.status === 'valuation').forEach(c => { tickerHtml += `<div class="ticker-item"><span class="t-badge t-val">IN VALUATION</span> ${c.name}</div>`; });
             if(publishedComps.length > 0) { tickerHtml += `<div class="ticker-item"><span class="t-badge" style="background:var(--primary); color:white;">LATEST RESULT</span> ${publishedComps[0].name}</div>`; }
             activeEvents.filter(c => c.status === 'registration').forEach(c => { tickerHtml += `<div class="ticker-item"><span class="t-badge t-reg">CALLING NOW</span> ${c.name}</div>`; });
             
-            if(tickerHtml === '') tickerHtml = '<div class="ticker-item">WELCOME TO FESTOS LIVE • SYNCED WITH DASHBOARD</div>';
+            if(tickerHtml === '') tickerHtml = '<div class="ticker-item">WELCOME TO ZENITH FEST BROADCAST • LIVE NETWORK SYNCED</div>';
             track.innerHTML = tickerHtml + tickerHtml;
         }
 
         function updateDynamicQR(slideId, customUrl = null, customText = null) {
-            let targetUrl = window.location.origin + '/spectator.html';
-            let mainText = 'SCAN FOR LIVE DATA';
-            let subText = 'MOBILE SPECTATOR APP';
+            let targetUrl = displaySettings.qr_url && displaySettings.qr_url.trim() !== '' ? displaySettings.qr_url : (window.location.origin + '/spectator.html');
+            let mainText = displaySettings.qr_title || 'SCAN FOR LIVE DATA';
+            let subText = displaySettings.qr_subtitle || 'MOBILE SPECTATOR APP';
+
+            const qrWidget = document.getElementById('qr-widget');
+            if (displaySettings.show_qr === false) {
+                if (qrWidget) qrWidget.style.display = 'none';
+                return;
+            } else {
+                if (qrWidget) qrWidget.style.display = 'flex';
+            }
 
             if (customUrl) {
                 targetUrl = customUrl;
                 mainText = customText || 'SCAN TO VISIT';
                 subText = 'EXTERNAL LINK';
+            } else if (displaySettings.qr_preset === 'custom' && displaySettings.qr_url) {
+                targetUrl = displaySettings.qr_url;
+                mainText = displaySettings.qr_title || 'SCAN FOR INFO';
+                subText = displaySettings.qr_subtitle || 'POINT YOUR CAMERA';
+            } else if (displaySettings.qr_preset === 'schedule') {
+                targetUrl = window.location.origin + '/display.html?mode=schedule';
+                mainText = displaySettings.qr_title || 'EVENT SCHEDULE';
+                subText = displaySettings.qr_subtitle || 'STAGE TIMINGS & DETAILS';
+            } else if (displaySettings.qr_preset === 'scoreboard') {
+                targetUrl = window.location.origin + '/display.html?mode=leaderboard';
+                mainText = displaySettings.qr_title || 'LIVE SCOREBOARD';
+                subText = displaySettings.qr_subtitle || 'CHAMPIONSHIP STANDINGS';
+            } else if (displaySettings.qr_preset === 'social') {
+                targetUrl = displaySettings.qr_url || 'https://instagram.com';
+                mainText = displaySettings.qr_title || 'FOLLOW LIVE STREAM';
+                subText = displaySettings.qr_subtitle || '@ZENITHFEST OFFICIAL';
             } else if (slideId === 'slide-podium' && currentPodiumCompId) {
-                targetUrl += `?view=results&comp=${currentPodiumCompId}`;
-                mainText = 'SCAN FOR RESULTS'; subText = 'DOWNLOAD THE POSTER';
-            } else if (slideId && slideId.startsWith('slide-schedule')) {
-                targetUrl += `?view=live`;
-                mainText = 'SCAN SCHEDULE'; subText = 'SEE ALL ACTIVE EVENTS';
-            } else if (slideId && slideId.startsWith('slide-standings')) {
-                targetUrl += `?view=standings`;
-                mainText = 'SCAN STANDINGS'; subText = 'DOWNLOAD LEADERBOARD';
+                targetUrl = `${window.location.origin}/spectator.html?view=results&comp=${currentPodiumCompId}`;
+                mainText = 'SCAN FOR RESULTS'; subText = 'DOWNLOAD POSTER';
             }
 
             const qrMain = document.getElementById('qr-main-text');
@@ -662,14 +1011,35 @@
                 qrInstance.makeCode(targetUrl);
             }
             
-            const widget = document.getElementById('qr-widget');
-            if (widget) {
-                widget.style.transform = 'scale(1.05)';
-                setTimeout(() => widget.style.transform = '', 300);
+            if (qrWidget) {
+                qrWidget.style.transform = 'scale(1.05)';
+                setTimeout(() => qrWidget.style.transform = '', 300);
             }
         }
 
-        // --- FAST POLLING ---
+        // --- FEST MILESTONES CALCULATOR ---
+        function updateMilestonesWidget(totalCompsCount, completedCompsCount) {
+            const widget = document.getElementById('fest-milestones-widget');
+            if (!widget) return;
+
+            if (displaySettings.show_milestones === false) {
+                widget.style.display = 'none';
+                return;
+            }
+
+            widget.style.display = 'flex';
+            const total = Math.max(1, totalCompsCount || 0);
+            const completed = completedCompsCount || 0;
+            const percent = Math.min(100, Math.round((completed / total) * 100));
+            const medalsTotal = completed * 3;
+
+            document.getElementById('ms-percent').innerText = `${percent}%`;
+            document.getElementById('ms-bar-fill').style.width = `${percent}%`;
+            document.getElementById('ms-counts').innerText = `(${completed}/${total})`;
+            document.getElementById('ms-medals').innerText = `${medalsTotal}`;
+        }
+
+        // --- FAST POLLING & REAL-TIME REMOTE ACTION ENGINE ---
         async function pollLiveTriggers() {
             try {
                 const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
@@ -680,43 +1050,109 @@
 
                 displaySettings = newSettings;
                 
-                // Live Styles Update
+                // 1. Theme Color & Transitions
                 document.documentElement.style.setProperty('--primary', displaySettings.primary_color || '#3B82F6');
                 const hex = (displaySettings.primary_color || '#3B82F6').replace('#','');
                 const r = parseInt(hex.substring(0,2), 16), g = parseInt(hex.substring(2,4), 16), b = parseInt(hex.substring(4,6), 16);
-                document.documentElement.style.setProperty('--primary-glow', `rgba(${r},${g},${b},0.4)`);
+                document.documentElement.style.setProperty('--primary-glow', `rgba(${r},${g},${b},0.5)`);
                 document.body.style.fontFamily = `"${displaySettings.font_family || 'Plus Jakarta Sans'}", sans-serif`;
-                document.getElementById('app-body').className = `trans-${displaySettings.transition || 'fade'}`;
 
-                // Process Live Actions
+                // 2. Ambient Background Style
+                const bgStyle = displaySettings.bg_style || 'cyber_aurora';
+                document.body.className = `trans-${displaySettings.transition || 'fade'} bg-${bgStyle.replace('_', '-')}`;
+                if (bgStyle === 'golden_stardust') {
+                    if (!isStardustRunning) { initStardustCanvas(); animateStardust(); }
+                }
+
+                // 3. Stage Blackout State
+                if (displaySettings.blackout) {
+                    document.body.classList.add('blackout-active');
+                } else {
+                    document.body.classList.remove('blackout-active');
+                }
+
+                // 4. Pinned Slide State
+                const pinnedBadge = document.getElementById('pinned-badge');
+                if (displaySettings.pinned_slide) {
+                    if (pinnedBadge) {
+                        pinnedBadge.style.display = 'flex';
+                        pinnedBadge.querySelector('span').innerText = `PINNED: ${displaySettings.pinned_slide.replace('slide-','').toUpperCase()}`;
+                    }
+                    const targetEl = document.getElementById(displaySettings.pinned_slide);
+                    if (targetEl && !targetEl.classList.contains('active')) {
+                        document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+                        targetEl.classList.add('active');
+                        clearTimeout(slideTimer);
+                        document.getElementById('progress')?.classList.remove('animating');
+                    }
+                } else {
+                    if (pinnedBadge) pinnedBadge.style.display = 'none';
+                }
+
+                // 5. Process Live Remote Actions
                 if (displaySettings.live_action && displaySettings.live_action.timestamp > lastActionTimestamp) {
                     lastActionTimestamp = displaySettings.live_action.timestamp;
                     const action = displaySettings.live_action;
                     
                     if (action.type === 'confetti') {
-                        document.getElementById('sfx-applause').play().catch(()=>{});
+                        document.getElementById('sfx-applause')?.play().catch(()=>{});
                         fireConfetti();
                     } 
-                    else if (action.type === 'applause') {
-                        document.getElementById('sfx-applause').play().catch(()=>{});
+                    else if (action.type === 'next_slide') {
+                        clearTimeout(slideTimer);
+                        rotateSlides();
+                    }
+                    else if (action.type === 'prev_slide') {
+                        clearTimeout(slideTimer);
+                        currentSlide = (currentSlide - 2 + activeSlides.length) % activeSlides.length;
+                        rotateSlides();
+                    }
+                    else if (action.type === 'pause') {
+                        clearTimeout(slideTimer);
+                        document.getElementById('progress')?.classList.remove('animating');
+                    }
+                    else if (action.type === 'resume') {
+                        rotateSlides();
+                    }
+                    else if (action.type === 'pin') {
+                        const targetEl = document.getElementById(action.target_slide);
+                        if (targetEl) {
+                            document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+                            targetEl.classList.add('active');
+                            clearTimeout(slideTimer);
+                            document.getElementById('progress')?.classList.remove('animating');
+                        }
+                    }
+                    else if (action.type === 'unpin') {
+                        rotateSlides();
                     }
                     else if (action.type === 'flash_alert') {
-                        document.getElementById('sfx-alert').play().catch(()=>{});
+                        document.getElementById('sfx-alert')?.play().catch(()=>{});
                         const alertDiv = document.getElementById('flash-alert');
-                        document.getElementById('flash-msg').innerText = action.message || "ATTENTION";
+                        document.getElementById('flash-msg').innerText = action.message || "ATTENTION PLEASE";
                         alertDiv.style.display = 'flex';
                         clearTimeout(slideTimer); 
+                        clearTimeout(flashTimer);
                         
-                        setTimeout(() => {
-                            alertDiv.style.display = 'none';
-                            rotateSlides(); 
-                        }, 15000);
+                        const dur = action.duration && action.duration > 0 ? action.duration * 1000 : 0;
+                        if (dur > 0) {
+                            flashTimer = setTimeout(() => {
+                                alertDiv.style.display = 'none';
+                                rotateSlides(); 
+                            }, dur);
+                        }
+                    }
+                    else if (action.type === 'clear_flash') {
+                        clearTimeout(flashTimer);
+                        const alertDiv = document.getElementById('flash-alert');
+                        if (alertDiv) alertDiv.style.display = 'none';
+                        rotateSlides();
                     }
                 }
 
                 if (requiresPlaylistRebuild) fetchDisplayData(); 
 
-            } catch (e) { console.error("Polling error"); }
+            } catch (e) { console.error("Polling error:", e); }
         }
 
         function fireConfetti() {
@@ -725,21 +1161,23 @@
 
             (function frame() {
                 confetti({
-                    particleCount: 5, angle: 60, spread: 55, origin: { x: 0 },
-                    colors: ['#FBBF24', '#3B82F6', '#FFFFFF']
+                    particleCount: 6, angle: 60, spread: 60, origin: { x: 0 },
+                    colors: ['#FBBF24', '#3B82F6', '#10B981', '#FFFFFF']
                 });
                 confetti({
-                    particleCount: 5, angle: 120, spread: 55, origin: { x: 1 },
-                    colors: ['#FBBF24', '#3B82F6', '#FFFFFF']
+                    particleCount: 6, angle: 120, spread: 60, origin: { x: 1 },
+                    colors: ['#FBBF24', '#3B82F6', '#10B981', '#FFFFFF']
                 });
 
                 if (Date.now() < end) requestAnimationFrame(frame);
             }());
         }
 
-        // --- NEW SLIDE ROTATION ENGINE ---
+        // --- SLIDE ROTATION ENGINE ---
         function rotateSlides() {
             if (activeSlides.length === 0) return;
+            if (displaySettings.pinned_slide || displaySettings.is_paused) return; // Halt if pinned or paused
+
             if (currentSlide >= activeSlides.length) currentSlide = 0;
 
             document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
@@ -752,17 +1190,16 @@
             const customQrUrl = slideEl ? slideEl.getAttribute('data-qr-url') : null;
             const customQrText = slideEl ? slideEl.getAttribute('data-qr-text') : null;
             const customTicker = slideEl ? slideEl.getAttribute('data-ticker') : null;
-            const qrType = slideEl ? slideEl.getAttribute('data-qr-type') : null;
 
             // Determine Timing
-            const defaultDurationSecs = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--slide-duration')) || 12;
+            const defaultDurationSecs = parseInt(displaySettings.slide_duration) || 12;
             const durationSecs = customDuration && customDuration > 0 ? customDuration : defaultDurationSecs;
             const durationMs = durationSecs * 1000;
 
             // Apply Dynamic QR
             if (customQrUrl) {
                 updateDynamicQR(activeSlideId, customQrUrl, customQrText);
-            } else if (qrType) {
+            } else {
                 updateDynamicQR(activeSlideId);
             }
 
@@ -778,12 +1215,17 @@
                 updateLiveTicker(globalActiveEvents, globalPublishedComps); 
             }
 
+            // Update Milestones Progress
+            updateMilestonesWidget((globalActiveEvents.length + globalPublishedComps.length), globalPublishedComps.length);
+
             // Animate Progress Bar
             const progressBar = document.getElementById('progress');
-            progressBar.classList.remove('animating');
-            void progressBar.offsetWidth; 
-            progressBar.style.transition = `width ${durationSecs}s linear`;
-            progressBar.classList.add('animating');
+            if (progressBar) {
+                progressBar.classList.remove('animating');
+                void progressBar.offsetWidth; 
+                progressBar.style.transition = `width ${durationSecs}s linear`;
+                progressBar.classList.add('animating');
+            }
             
             currentSlide++;
             if (currentSlide >= activeSlides.length) {
@@ -796,9 +1238,153 @@
             slideTimer = setTimeout(rotateSlides, durationMs);
         }
 
+        // --- PRESENTER KEYBOARD SHORTCUTS ---
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                displaySettings.is_paused = !displaySettings.is_paused;
+                if (displaySettings.is_paused) {
+                    clearTimeout(slideTimer);
+                    document.getElementById('progress')?.classList.remove('animating');
+                } else {
+                    rotateSlides();
+                }
+            } else if (e.code === 'ArrowRight') {
+                clearTimeout(slideTimer);
+                rotateSlides();
+            } else if (e.code === 'ArrowLeft') {
+                clearTimeout(slideTimer);
+                currentSlide = (currentSlide - 2 + activeSlides.length) % activeSlides.length;
+                rotateSlides();
+            } else if (e.code === 'KeyF') {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(() => {});
+                } else {
+                    document.exitFullscreen().catch(() => {});
+                }
+            } else if (e.code === 'KeyB') {
+                document.body.classList.toggle('blackout-active');
+            } else if (e.code === 'KeyC') {
+                fireConfetti();
+            }
+        });
+
+        // --- INSTANT ZERO-LATENCY WINDOW MESSAGE RECEIVER (PREVIEW & REAL-TIME SYNC) ---
+        window.addEventListener('message', (event) => {
+            if (!event.data) return;
+            
+            // 1. Instant Theme & Styling Update
+            if (event.data.type === 'theme_update' && event.data.settings) {
+                const s = event.data.settings;
+                displaySettings = { ...displaySettings, ...s };
+                
+                if (s.primary_color) {
+                    document.documentElement.style.setProperty('--primary', s.primary_color);
+                    const hex = s.primary_color.replace('#','');
+                    const r = parseInt(hex.substring(0,2), 16), g = parseInt(hex.substring(2,4), 16), b = parseInt(hex.substring(4,6), 16);
+                    document.documentElement.style.setProperty('--primary-glow', `rgba(${r},${g},${b},0.5)`);
+                }
+                
+                if (s.font_family) {
+                    document.body.style.fontFamily = `"${s.font_family}", sans-serif`;
+                    document.querySelectorAll('.theme-font, .slide-title, .lb-team, .p-name').forEach(el => el.style.fontFamily = `"${s.font_family}", sans-serif`);
+                }
+                
+                const bgStyle = s.bg_style || 'cyber_aurora';
+                document.body.className = `trans-${s.transition || 'fade'} bg-${bgStyle.replace(/_/g, '-')}`;
+                if (bgStyle === 'golden_stardust') {
+                    if (!isStardustRunning) { initStardustCanvas(); animateStardust(); }
+                }
+                
+                if (s.slide_duration) {
+                    document.documentElement.style.setProperty('--slide-duration', `${s.slide_duration}s`);
+                }
+                
+                if (s.show_milestones !== undefined) {
+                    const mw = document.getElementById('fest-milestones-widget');
+                    if (mw) mw.style.display = s.show_milestones ? 'flex' : 'none';
+                }
+                
+                if (s.show_qr !== undefined) {
+                    const qw = document.getElementById('qr-widget');
+                    if (qw) qw.style.display = s.show_qr ? 'flex' : 'none';
+                }
+                
+                if (s.qr_preset || s.qr_url) {
+                    updateDynamicQR(activeSlides[currentSlide] || 'slide-podium');
+                }
+            }
+
+            // 2. Instant Remote Action Receiver
+            if (event.data.type === 'display_action' && event.data.action) {
+                const action = event.data.action;
+                if (action.type === 'confetti') {
+                    document.getElementById('sfx-applause')?.play().catch(()=>{});
+                    fireConfetti();
+                } else if (action.type === 'next_slide') {
+                    clearTimeout(slideTimer);
+                    rotateSlides();
+                } else if (action.type === 'prev_slide') {
+                    clearTimeout(slideTimer);
+                    currentSlide = (currentSlide - 2 + activeSlides.length) % activeSlides.length;
+                    rotateSlides();
+                } else if (action.type === 'pause') {
+                    displaySettings.is_paused = true;
+                    clearTimeout(slideTimer);
+                    document.getElementById('progress')?.classList.remove('animating');
+                } else if (action.type === 'resume') {
+                    displaySettings.is_paused = false;
+                    rotateSlides();
+                } else if (action.type === 'blackout') {
+                    if (action.blackout) document.body.classList.add('blackout-active');
+                    else document.body.classList.remove('blackout-active');
+                } else if (action.type === 'pin') {
+                    const targetEl = document.getElementById(action.target_slide);
+                    if (targetEl) {
+                        displaySettings.pinned_slide = action.target_slide;
+                        document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+                        targetEl.classList.add('active');
+                        clearTimeout(slideTimer);
+                        document.getElementById('progress')?.classList.remove('animating');
+                        const pb = document.getElementById('pinned-badge');
+                        if (pb) {
+                            pb.style.display = 'flex';
+                            pb.querySelector('span').innerText = `PINNED: ${action.target_slide.replace('slide-','').toUpperCase()}`;
+                        }
+                    }
+                } else if (action.type === 'unpin') {
+                    displaySettings.pinned_slide = null;
+                    const pb = document.getElementById('pinned-badge');
+                    if (pb) pb.style.display = 'none';
+                    rotateSlides();
+                } else if (action.type === 'flash_alert') {
+                    document.getElementById('sfx-alert')?.play().catch(()=>{});
+                    const alertDiv = document.getElementById('flash-alert');
+                    document.getElementById('flash-msg').innerText = action.message || "ATTENTION PLEASE";
+                    alertDiv.style.display = 'flex';
+                    clearTimeout(slideTimer); 
+                    clearTimeout(flashTimer);
+                    const dur = action.duration && action.duration > 0 ? action.duration * 1000 : 0;
+                    if (dur > 0) {
+                        flashTimer = setTimeout(() => {
+                            alertDiv.style.display = 'none';
+                            rotateSlides(); 
+                        }, dur);
+                    }
+                } else if (action.type === 'clear_flash') {
+                    clearTimeout(flashTimer);
+                    const alertDiv = document.getElementById('flash-alert');
+                    if (alertDiv) alertDiv.style.display = 'none';
+                    rotateSlides();
+                }
+            }
+        });
+
+        // Initialize display and scaling
+        autoScaleDisplay();
         fetchDisplayData().then(() => {
-            if (isPreviewMode) document.body.style.zoom = "0.45";
-            setInterval(pollLiveTriggers, 3000); 
+            autoScaleDisplay();
+            setInterval(pollLiveTriggers, 2000); 
         });
     </script>
 </body>

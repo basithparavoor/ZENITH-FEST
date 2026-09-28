@@ -3008,73 +3008,306 @@ tr:hover td { background: var(--bg-main); }
 <div id="display-control" class="content-section">
     <div class="action-bar" style="margin-bottom: 1.5rem;">
         <div>
-            <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">Spectator Display Hub</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Total control over the live projector feed. Themes, custom slides, and preview.</p>
+            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Live Display & Stage Director Hub</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Real-time remote control over projector feeds, ambient motion graphics, emergency alerts, and live output.</p>
         </div>
-        <div class="bulk-actions">
-            <button class="btn btn-outline" style="color: var(--warning); border-color: var(--warning);" onclick="triggerManualConfetti()"><i class="fa-solid fa-wand-magic-sparkles"></i> Trigger Celebration</button>
-            <button class="btn btn-success" onclick="window.open('display.html', '_blank')"><i class="fa-solid fa-up-right-from-square"></i> Launch Display</button>
+        <div class="bulk-actions" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <button class="btn btn-outline" style="color: var(--warning); border-color: var(--warning);" onclick="sendDisplayLiveAction('confetti')"><i class="fa-solid fa-wand-magic-sparkles"></i> Confetti Celebration</button>
+            <button class="btn btn-success" onclick="window.open('display.html', '_blank')"><i class="fa-solid fa-up-right-from-square"></i> Open Fullscreen Display</button>
+        </div>
+    </div>
+
+    <!-- Mobile Responsive Display Styles -->
+    <style>
+        .remote-btn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+        .remote-sub-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 1.25rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 1.25rem;
+        }
+        .disp-main-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 1.75rem;
+        }
+        .theme-chip-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 0.5rem;
+            margin-top: 0.6rem;
+        }
+        .theme-chip {
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            border: 1px solid var(--border);
+            background: var(--bg-main);
+            color: var(--text-main);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .theme-chip:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+        .theme-chip.active {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 2px 8px var(--primary-glow);
+        }
+        @media (max-width: 900px) {
+            .disp-main-grid {
+                grid-template-columns: 1fr;
+            }
+            .remote-sub-grid {
+                grid-template-columns: 1fr;
+            }
+            .remote-btn-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .disp-preview-card {
+                position: relative !important;
+                top: 0 !important;
+                margin-bottom: 1.5rem;
+                order: -1;
+            }
+        }
+    </style>
+
+    <!-- 🎮 STAGE DIRECTOR REMOTE CONTROL DECK (TOP PRIORITY) -->
+    <div class="card" style="background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); color: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 25px rgba(0,0,0,0.3); margin-bottom: 1.75rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="background: #3B82F6; color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;"><i class="fa-solid fa-gamepad"></i></div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: white; letter-spacing: -0.01em;">Live Stage Director Remote</h3>
+                    <p style="margin: 0; font-size: 0.8rem; color: #94A3B8;">Broadcast instant actions, pin slides, and control screen transitions remotely</p>
+                </div>
+            </div>
+            <div id="disp-remote-status-badge" style="background: rgba(16, 185, 129, 0.15); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.4rem 0.9rem; border-radius: 50px; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                <span style="width: 8px; height: 8px; background: #34D399; border-radius: 50%; box-shadow: 0 0 8px #34D399;"></span>
+                <span>LIVE ROTATION ACTIVE</span>
+            </div>
+        </div>
+
+        <!-- Action Control Buttons Row -->
+        <div class="remote-btn-grid">
+            <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); padding: 0.75rem 1rem; font-weight: 600; min-height: 46px; justify-content: center;" onclick="sendDisplayLiveAction('prev_slide')">
+                <i class="fa-solid fa-backward-step" style="margin-right: 0.4rem;"></i> Prev
+            </button>
+            <button id="btn-remote-pause" class="btn btn-outline" style="color: #FBBF24; border-color: rgba(251, 191, 36, 0.3); background: rgba(251, 191, 36, 0.08); padding: 0.75rem 1rem; font-weight: 600; min-height: 46px; justify-content: center;" onclick="toggleDisplayPause()">
+                <i class="fa-solid fa-pause" style="margin-right: 0.4rem;"></i> Pause
+            </button>
+            <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); padding: 0.75rem 1rem; font-weight: 600; min-height: 46px; justify-content: center;" onclick="sendDisplayLiveAction('next_slide')">
+                Next <i class="fa-solid fa-forward-step" style="margin-left: 0.4rem;"></i>
+            </button>
+            <button id="btn-remote-blackout" class="btn btn-outline" style="color: #F87171; border-color: rgba(248, 113, 113, 0.3); background: rgba(248, 113, 113, 0.08); padding: 0.75rem 1rem; font-weight: 600; min-height: 46px; justify-content: center;" onclick="toggleDisplayBlackout()">
+                <i class="fa-solid fa-moon" style="margin-right: 0.4rem;"></i> Blackout
+            </button>
+            <button class="btn btn-primary" style="padding: 0.75rem 1rem; font-weight: 600; background: #3B82F6; min-height: 46px; justify-content: center; grid-column: span 1;" onclick="sendDisplayLiveAction('confetti')">
+                <i class="fa-solid fa-sparkles" style="margin-right: 0.4rem;"></i> Confetti
+            </button>
+        </div>
+
+        <!-- Two Columns: Pin Slide & Priority Flash Alert -->
+        <div class="remote-sub-grid">
+            <!-- Pin / Force Slide -->
+            <div style="background: rgba(0,0,0,0.25); padding: 1rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
+                <div style="font-size: 0.85rem; font-weight: 700; color: #93C5FD; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+                    <i class="fa-solid fa-thumbtack"></i> Pin / Force Specific Slide
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <select id="disp-pin-slide-select" style="flex: 1; min-width: 140px; background: #0F172A; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 0.55rem 0.6rem; font-size: 0.85rem;">
+                        <option value="">-- Choose Slide to Lock --</option>
+                        <option value="slide-leaderboard">🏆 Overall Team Leaderboard</option>
+                        <option value="slide-schedule">📅 Live Upcoming Schedule</option>
+                    </select>
+                    <button class="btn btn-primary" style="padding: 0.55rem 0.85rem; font-size: 0.85rem; white-space: nowrap;" onclick="setPinnedDisplaySlide()">
+                        <i class="fa-solid fa-lock"></i> Pin
+                    </button>
+                    <button class="btn btn-outline" style="color: #94A3B8; border-color: rgba(255,255,255,0.2); padding: 0.55rem 0.85rem; font-size: 0.85rem; white-space: nowrap;" onclick="clearPinnedDisplaySlide()" title="Release and resume normal rotation">
+                        <i class="fa-solid fa-unlock"></i> Free
+                    </button>
+                </div>
+            </div>
+
+            <!-- Priority Emergency Flash Alert -->
+            <div style="background: rgba(0,0,0,0.25); padding: 1rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
+                <div style="font-size: 0.85rem; font-weight: 700; color: #FCA5A5; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fa-solid fa-triangle-exclamation"></i> Instant Priority Flash Broadcast</span>
+                    <span style="font-size: 0.75rem; color: #94A3B8; font-weight: normal;">Takes over screens</span>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <input type="text" id="disp-flash-message" placeholder="e.g. Calling Chest #A-104 to Stage 2..." style="flex: 1; min-width: 160px; background: #0F172A; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 0.55rem 0.6rem; font-size: 0.85rem;">
+                    <select id="disp-flash-duration" style="width: 80px; background: #0F172A; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 0.55rem 0.4rem; font-size: 0.85rem;">
+                        <option value="10">10s</option>
+                        <option value="20">20s</option>
+                        <option value="30">30s</option>
+                        <option value="0">Fixed</option>
+                    </select>
+                    <button class="btn btn-danger" style="padding: 0.55rem 0.85rem; font-size: 0.85rem; white-space: nowrap; font-weight: 700;" onclick="sendDisplayFlashAlert()">
+                        <i class="fa-solid fa-bullhorn"></i> Alert
+                    </button>
+                    <button class="btn btn-outline" style="color: #94A3B8; border-color: rgba(255,255,255,0.2); padding: 0.55rem 0.75rem; font-size: 0.85rem;" onclick="clearDisplayFlashAlert()" title="Dismiss active alert">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
     
-    <div class="grid-2" style="grid-template-columns: 1fr 1fr; gap: 2rem;">
+    <div class="disp-main-grid">
         <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <!-- THEME, MOTION & VISUAL CUSTOMIZATION CARD -->
             <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h3 style="margin: 0; font-weight: 600; color: var(--text-main);"><i class="fa-solid fa-palette" style="color: var(--primary);"></i> Theme & Engine</h3>
-                    <button class="btn btn-primary" onclick="saveDisplaySettings()" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;"><i class="fa-solid fa-cloud-arrow-up"></i> Sync Changes</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <h3 style="margin: 0; font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-palette" style="color: var(--primary);"></i> Theme & Motion Graphics</h3>
+                        <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">Ambient backgrounds, typography, and live physics (Instant Sync)</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveDisplaySettings()" style="padding: 0.45rem 0.9rem; font-size: 0.85rem;"><i class="fa-solid fa-cloud-arrow-up"></i> Save & Sync</button>
                 </div>
                 
-                <div class="grid-2" style="gap: 1rem;">
+                <div class="grid-2" style="gap: 1rem; margin-bottom: 1rem;">
                     <div class="form-group">
-                        <label>Default Slide Duration (Secs)</label>
-                        <input type="number" id="disp-duration" value="12" min="5" max="60" style="width: 100%;">
+                        <label style="font-weight: 600; font-size: 0.85rem;">Ambient Background Theme</label>
+                        <select id="disp-bg-style" style="width: 100%;" onchange="handleDisplayThemeChange(this.value)">
+                            <option value="cyber_aurora">🌌 Cyber Aurora (Neon Floating Orbs)</option>
+                            <option value="golden_stardust">✨ Golden Stardust (Gala Celebration Particles)</option>
+                            <option value="corporate_slate">🏢 Corporate Slate (Minimalist Clean Matte)</option>
+                            <option value="cosmic_nebula">🪐 Cosmic Nebula (Electric Violet & Pink)</option>
+                            <option value="crimson_grandeur">🍷 Crimson Grandeur (Royal Ruby Velvet)</option>
+                            <option value="emerald_matrix">🌿 Emerald Prism (Imperial Jade & Cyan)</option>
+                            <option value="synthwave_sunset">🌅 Synthwave Sunset (80s Neon Magenta)</option>
+                            <option value="midnight_quartz">💎 Midnight Quartz (Obsidian & Diamond)</option>
+                        </select>
+                        <!-- Quick Theme Presets Chips -->
+                        <div class="theme-chip-grid">
+                            <div class="theme-chip" onclick="quickApplyDisplayTheme('cyber_aurora')">🌌 Cyber</div>
+                            <div class="theme-chip" onclick="quickApplyDisplayTheme('golden_stardust')">✨ Stardust</div>
+                            <div class="theme-chip" onclick="quickApplyDisplayTheme('corporate_slate')">🏢 Slate</div>
+                            <div class="theme-chip" onclick="quickApplyDisplayTheme('cosmic_nebula')">🪐 Cosmic</div>
+                            <div class="theme-chip" onclick="quickApplyDisplayTheme('crimson_grandeur')">🍷 Crimson</div>
+                            <div class="theme-chip" onclick="quickApplyDisplayTheme('emerald_matrix')">🌿 Emerald</div>
+                            <div class="theme-chip" onclick="quickApplyDisplayTheme('synthwave_sunset')">🌅 Synthwave</div>
+                            <div class="theme-chip" onclick="quickApplyDisplayTheme('midnight_quartz')">💎 Quartz</div>
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label>Primary Highlight Color</label>
-                        <input type="color" id="disp-color" value="#4F46E5" style="width: 100%; height: 42px; padding: 0; border: 1px solid var(--border); border-radius: 8px;">
+                        <label style="font-weight: 600; font-size: 0.85rem;">Slide Transition Animation</label>
+                        <select id="disp-transition" style="width: 100%;" onchange="broadcastInstantThemeUpdate()">
+                            <option value="fade">Smooth Fade</option>
+                            <option value="slide">Horizontal Slide</option>
+                            <option value="zoom">Zoom Reveal</option>
+                        </select>
+                        <div style="margin-top: 1rem;">
+                            <label style="font-weight: 600; font-size: 0.85rem;">Default Slide Duration (Secs)</label>
+                            <input type="number" id="disp-duration" value="12" min="5" max="60" style="width: 100%;" oninput="broadcastInstantThemeUpdate()">
+                        </div>
                     </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>Display Font Architecture</label>
-                    <select id="disp-font" style="width: 100%;">
-                        <option value="Plus Jakarta Sans">Plus Jakarta Sans (Modern Default)</option>
-                        <option value="Inter">Inter (Clean & Flat)</option>
-                        <option value="Bebas Neue">Bebas Neue (Cinematic & Bold)</option>
-                        <option value="Cinzel">Cinzel (Elegant & Classic)</option>
-                    </select>
-                </div>
-                
-                <div class="form-group" style="margin-top: 1rem;">
-                    <label>Slide Transition Animation</label>
-                    <select id="disp-transition" style="width: 100%;">
-                        <option value="fade">Smooth Fade</option>
-                        <option value="slide">Horizontal Slide</option>
-                        <option value="zoom">Zoom Reveal</option>
-                    </select>
-                </div>
-                
-                <div class="form-group" style="margin-top: 1rem;">
-                    <label>Global Ticker Marquee (Scrolling Text)</label>
-                    <input type="text" id="disp-global-ticker" placeholder="e.g. WELCOME TO FESTOS! NEXT EVENT AT STAGE 2..." style="width: 100%; border: 1px solid var(--border); border-radius: 8px;">
                 </div>
 
-                <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-main); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); margin-top: 1rem;">
-                    <div>
-                        <label style="margin: 0; font-weight: 500; color: var(--text-main);">Show Default QR Code</label>
+                <div class="grid-2" style="gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group">
+                        <label style="font-weight: 600; font-size: 0.85rem;">Display Font Architecture</label>
+                        <select id="disp-font" style="width: 100%;" onchange="broadcastInstantThemeUpdate()">
+                            <option value="Plus Jakarta Sans">Plus Jakarta Sans (Modern Default)</option>
+                            <option value="Inter">Inter (Clean & Flat)</option>
+                            <option value="Bebas Neue">Bebas Neue (Cinematic & Bold)</option>
+                            <option value="Cinzel">Cinzel (Elegant & Classic)</option>
+                        </select>
                     </div>
-                    <label style="position: relative; display: inline-block; width: 44px; height: 24px;">
-                        <input type="checkbox" id="disp-show-qr" style="opacity: 0; width: 0; height: 0;" checked onchange="this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#D1D5DB'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(20px)' : 'translateX(0)';">
+                    <div class="form-group">
+                        <label style="font-weight: 600; font-size: 0.85rem;">Primary Accent Glow Color</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <input type="color" id="disp-color" value="#3B82F6" style="width: 50px; height: 42px; padding: 0; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;" oninput="broadcastInstantThemeUpdate()">
+                            <span style="font-size: 0.8rem; color: var(--text-muted);">Custom Glow</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label style="font-weight: 600; font-size: 0.85rem;">Global Ticker Marquee (Scrolling Bottom Bar)</label>
+                    <input type="text" id="disp-global-ticker" placeholder="e.g. WELCOME TO ZENITH FEST! NEXT EVENT AT STAGE 2..." style="width: 100%; border: 1px solid var(--border); border-radius: 8px;" oninput="broadcastInstantThemeUpdate()">
+                </div>
+
+                <!-- Live Fest Milestones Progress Toggle -->
+                <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-main); padding: 0.9rem 1.25rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1rem;">
+                    <div>
+                        <div style="font-weight: 600; color: var(--text-main); font-size: 0.9rem;">Fest Milestones Tracker Widget</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Displays top progress meter: "% Completed (Events) • Medals Declared"</div>
+                    </div>
+                    <label style="position: relative; display: inline-block; width: 44px; height: 24px; margin: 0;">
+                        <input type="checkbox" id="disp-show-milestones" style="opacity: 0; width: 0; height: 0;" checked onchange="broadcastInstantThemeUpdate(); this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#D1D5DB'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(20px)' : 'translateX(0)';">
                         <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .3s; border-radius: 34px;"></span>
                         <span style="position: absolute; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; transform: translateX(20px); box-shadow: 0 1px 2px rgba(0,0,0,0.1);"></span>
                     </label>
                 </div>
+
+                <!-- DYNAMIC QR CODE SWITCHER -->
+                <div style="background: var(--bg-main); padding: 1.1rem; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <div>
+                            <span style="font-weight: 700; color: var(--text-main); font-size: 0.9rem;"><i class="fa-solid fa-qrcode" style="color: var(--primary);"></i> Dynamic QR Code Switcher</span>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Configure audience scan destination on the screen</div>
+                        </div>
+                        <label style="position: relative; display: inline-block; width: 44px; height: 24px; margin: 0;">
+                            <input type="checkbox" id="disp-show-qr" style="opacity: 0; width: 0; height: 0;" checked onchange="broadcastInstantThemeUpdate(); this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#D1D5DB'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(20px)' : 'translateX(0)';">
+                            <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .3s; border-radius: 34px;"></span>
+                            <span style="position: absolute; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; transform: translateX(20px); box-shadow: 0 1px 2px rgba(0,0,0,0.1);"></span>
+                        </label>
+                    </div>
+
+                    <div class="grid-2" style="gap: 0.75rem;">
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 0.75rem; font-weight: 600;">QR Destination Preset</label>
+                            <select id="disp-qr-preset" style="width: 100%; font-size: 0.85rem;" onchange="handleDisplayQRPresetChange(this.value); broadcastInstantThemeUpdate();">
+                                <option value="scoreboard">🏆 Live Audience Scoreboard</option>
+                                <option value="schedule">📅 Event Catalog & Schedule</option>
+                                <option value="social">📸 Social Media / Livestream</option>
+                                <option value="custom">⚡ Custom Target URL</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 0.75rem; font-weight: 600;">Target Link (URL)</label>
+                            <input type="text" id="disp-qr-url" placeholder="https://..." style="width: 100%; font-size: 0.85rem;" oninput="broadcastInstantThemeUpdate()">
+                        </div>
+                    </div>
+
+                    <div class="grid-2" style="gap: 0.75rem; margin-top: 0.75rem;">
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 0.75rem; font-weight: 600;">QR Badge Label</label>
+                            <input type="text" id="disp-qr-title" value="SCAN FOR LIVE DATA" placeholder="e.g. SCAN FOR LIVE SCORES" style="width: 100%; font-size: 0.85rem;" oninput="broadcastInstantThemeUpdate()">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 0.75rem; font-weight: 600;">QR Subtext</label>
+                            <input type="text" id="disp-qr-subtitle" value="POINT YOUR CAMERA" placeholder="e.g. POINT YOUR CAMERA" style="width: 100%; font-size: 0.85rem;" oninput="broadcastInstantThemeUpdate()">
+                        </div>
+                    </div>
+                </div>
             </div>
 
+            <!-- CUSTOM SLIDES HUB CARD -->
             <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h3 style="font-weight: 600; color: var(--text-main); margin: 0;"><i class="fa-solid fa-images" style="color: var(--primary);"></i> Custom Slides Hub</h3>
+                    <div>
+                        <h3 style="font-weight: 700; color: var(--text-main); margin: 0;"><i class="fa-solid fa-images" style="color: var(--primary);"></i> Custom Slides Hub</h3>
+                        <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">Sponsor shoutouts, announcements, and poster graphics</p>
+                    </div>
                     <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;" onclick="openCustomSlideModal()">
                         <i class="fa-solid fa-plus"></i> New Slide
                     </button>
@@ -3085,10 +3318,11 @@ tr:hover td { background: var(--bg-main); }
             </div>
         </div>
 
-        <div class="card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; background: #0F172A; border-radius: var(--radius-lg); border: 4px solid #D1D5DB; box-shadow: var(--shadow-lg);">
+        <!-- RIGHT COLUMN: LIVE OUTPUT PREVIEW -->
+        <div class="card disp-preview-card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; background: #0F172A; border-radius: var(--radius-lg); border: 4px solid #D1D5DB; box-shadow: var(--shadow-lg); height: fit-content; position: sticky; top: 1rem;">
             <div style="background: #1F2937; padding: 0.75rem 1rem; color: white; font-size: 0.85rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
                 <span><i class="fa-solid fa-tv" style="margin-right: 0.5rem;"></i> LIVE OUTPUT PREVIEW</span>
-                <span style="color: var(--success); font-size: 0.75rem;"><i class="fa-solid fa-circle-dot fa-fade" style="margin-right: 0.25rem;"></i> SYNCED</span>
+                <span style="color: var(--success); font-size: 0.75rem;"><i class="fa-solid fa-circle-dot fa-fade" style="margin-right: 0.25rem;"></i> INSTANT SYNC</span>
             </div>
             <div style="flex: 1; position: relative; width: 100%; aspect-ratio: 16/9; overflow: hidden; background: #000;">
                 <iframe id="display-preview-frame" src="display.html?preview=true" style="width: 1920px; height: 1080px; border: none; transform-origin: top left; position: absolute; top: 0; left: 0; pointer-events: none;"></iframe>

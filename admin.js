@@ -6547,50 +6547,384 @@ let globalCustomSlides = [];
 let pendingCSFile = null;
 let pendingCSImagePreview = null;
 
+let displayState = {
+    is_paused: false,
+    blackout: false,
+    pinned_slide: null
+};
+
 async function loadDisplaySettings() {
     try {
         const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
         if (data && data.value) {
             const v = data.value;
             if(document.getElementById('disp-duration')) document.getElementById('disp-duration').value = v.slide_duration || 12;
-            if(document.getElementById('disp-color')) document.getElementById('disp-color').value = v.primary_color || '#4F46E5';
+            if(document.getElementById('disp-color')) document.getElementById('disp-color').value = v.primary_color || '#3B82F6';
             if(document.getElementById('disp-font')) document.getElementById('disp-font').value = v.font_family || 'Plus Jakarta Sans';
+            if(document.getElementById('disp-transition')) document.getElementById('disp-transition').value = v.transition || 'fade';
+            if(document.getElementById('disp-bg-style')) document.getElementById('disp-bg-style').value = v.bg_style || 'cyber_aurora';
+            if(document.getElementById('disp-global-ticker')) document.getElementById('disp-global-ticker').value = v.global_ticker || '';
             
+            const milestoneCheck = document.getElementById('disp-show-milestones');
+            if (milestoneCheck) { milestoneCheck.checked = v.show_milestones !== false; milestoneCheck.dispatchEvent(new Event('change')); }
+
             const qrCheck = document.getElementById('disp-show-qr');
             if (qrCheck) { qrCheck.checked = v.show_qr !== false; qrCheck.dispatchEvent(new Event('change')); }
+
+            if(document.getElementById('disp-qr-preset')) document.getElementById('disp-qr-preset').value = v.qr_preset || 'scoreboard';
+            if(document.getElementById('disp-qr-url')) document.getElementById('disp-qr-url').value = v.qr_url || '';
+            if(document.getElementById('disp-qr-title')) document.getElementById('disp-qr-title').value = v.qr_title || 'SCAN FOR LIVE DATA';
+            if(document.getElementById('disp-qr-subtitle')) document.getElementById('disp-qr-subtitle').value = v.qr_subtitle || 'POINT YOUR CAMERA';
             
+            // Sync remote state
+            displayState.is_paused = !!v.is_paused;
+            displayState.blackout = !!v.blackout;
+            displayState.pinned_slide = v.pinned_slide || null;
+
+            updateDisplayRemoteStatusUI();
+            updateActiveThemeChipUI(v.bg_style || 'cyber_aurora');
+
             // Load custom slides array
             globalCustomSlides = v.custom_slides || [];
         }
+
+        await populateDisplayPinSlideDropdown();
         renderCustomSlidesList();
         scalePreviewIframe();
-    } catch(e) { console.warn("Using default display settings."); }
+    } catch(e) { console.warn("Using default display settings:", e); }
+}
+
+let dispThemeDebounceTimer = null;
+
+// --- INSTANT 0-MS THEME & MOTION GRAPHICS BROADCASTER ---
+function broadcastInstantThemeUpdate() {
+    const bgStyle = document.getElementById('disp-bg-style')?.value || 'cyber_aurora';
+    const primaryColor = document.getElementById('disp-color')?.value || '#3B82F6';
+    const fontFamily = document.getElementById('disp-font')?.value || 'Plus Jakarta Sans';
+    const transition = document.getElementById('disp-transition')?.value || 'fade';
+    const duration = parseInt(document.getElementById('disp-duration')?.value) || 12;
+    const showMilestones = document.getElementById('disp-show-milestones')?.checked !== false;
+    const showQr = document.getElementById('disp-show-qr')?.checked !== false;
+    const qrPreset = document.getElementById('disp-qr-preset')?.value || 'scoreboard';
+    const qrUrl = document.getElementById('disp-qr-url')?.value || '';
+
+    const settings = {
+        bg_style: bgStyle,
+        primary_color: primaryColor,
+        font_family: fontFamily,
+        transition: transition,
+        slide_duration: duration,
+        show_milestones: showMilestones,
+        show_qr: showQr,
+        qr_preset: qrPreset,
+        qr_url: qrUrl
+    };
+
+    // 1. Instant local postMessage to preview iframe (0ms latency)
+    const iframe = document.getElementById('display-preview-frame');
+    if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: 'theme_update', settings: settings }, '*');
+    }
+
+    // 2. Update active chip highlight
+    updateActiveThemeChipUI(bgStyle);
+
+    // 3. Debounced silent save to Supabase DB (350ms)
+    clearTimeout(dispThemeDebounceTimer);
+    dispThemeDebounceTimer = setTimeout(() => {
+        saveDisplaySettings(true);
+    }, 350);
+}
+
+function updateActiveThemeChipUI(activeKey) {
+    document.querySelectorAll('.theme-chip').forEach(chip => {
+        const text = chip.innerText.toLowerCase();
+        const keyBase = activeKey.replace('bg-', '').replace('_', '');
+        if (text.includes(keyBase.substring(0, 4))) {
+            chip.classList.add('active');
+        } else {
+            chip.classList.remove('active');
+        }
+    });
+}
+
+function quickApplyDisplayTheme(themeKey) {
+    const select = document.getElementById('disp-bg-style');
+    if (select) select.value = themeKey;
+
+    // Smart default accent colors for theme harmony
+    const colorInput = document.getElementById('disp-color');
+    if (colorInput) {
+        if (themeKey === 'cyber_aurora') colorInput.value = '#3B82F6';
+        else if (themeKey === 'golden_stardust') colorInput.value = '#F59E0B';
+        else if (themeKey === 'corporate_slate') colorInput.value = '#64748B';
+        else if (themeKey === 'cosmic_nebula') colorInput.value = '#EC4899';
+        else if (themeKey === 'crimson_grandeur') colorInput.value = '#E11D48';
+        else if (themeKey === 'emerald_matrix') colorInput.value = '#10B981';
+        else if (themeKey === 'synthwave_sunset') colorInput.value = '#F43F5E';
+        else if (themeKey === 'midnight_quartz') colorInput.value = '#38BDF8';
+    }
+
+    broadcastInstantThemeUpdate();
+}
+
+function handleDisplayThemeChange(themeKey) {
+    broadcastInstantThemeUpdate();
+}
+
+window.broadcastInstantThemeUpdate = broadcastInstantThemeUpdate;
+window.quickApplyDisplayTheme = quickApplyDisplayTheme;
+window.handleDisplayThemeChange = handleDisplayThemeChange;
+
+function updateDisplayRemoteStatusUI() {
+    const badge = document.getElementById('disp-remote-status-badge');
+    const pauseBtn = document.getElementById('btn-remote-pause');
+    const blackoutBtn = document.getElementById('btn-remote-blackout');
+
+    if (pauseBtn) {
+        if (displayState.is_paused) {
+            pauseBtn.innerHTML = '<i class="fa-solid fa-play" style="margin-right:0.4rem;"></i> Resume';
+            pauseBtn.style.color = '#34D399';
+            pauseBtn.style.borderColor = 'rgba(52, 211, 153, 0.4)';
+            pauseBtn.style.background = 'rgba(52, 211, 153, 0.12)';
+        } else {
+            pauseBtn.innerHTML = '<i class="fa-solid fa-pause" style="margin-right:0.4rem;"></i> Pause';
+            pauseBtn.style.color = '#FBBF24';
+            pauseBtn.style.borderColor = 'rgba(251, 191, 36, 0.3)';
+            pauseBtn.style.background = 'rgba(251, 191, 36, 0.08)';
+        }
+    }
+
+    if (blackoutBtn) {
+        if (displayState.blackout) {
+            blackoutBtn.innerHTML = '<i class="fa-solid fa-sun" style="margin-right:0.4rem;"></i> Wake Screen';
+            blackoutBtn.style.color = '#FFFFFF';
+            blackoutBtn.style.borderColor = '#EF4444';
+            blackoutBtn.style.background = '#EF4444';
+        } else {
+            blackoutBtn.innerHTML = '<i class="fa-solid fa-moon" style="margin-right:0.4rem;"></i> Blackout';
+            blackoutBtn.style.color = '#F87171';
+            blackoutBtn.style.borderColor = 'rgba(248, 113, 113, 0.3)';
+            blackoutBtn.style.background = 'rgba(248, 113, 113, 0.08)';
+        }
+    }
+
+    if (badge) {
+        if (displayState.blackout) {
+            badge.style.background = 'rgba(239, 68, 68, 0.2)';
+            badge.style.color = '#FCA5A5';
+            badge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+            badge.innerHTML = '<span style="width:8px; height:8px; background:#EF4444; border-radius:50%; box-shadow:0 0 8px #EF4444;"></span><span>STAGE BLACKOUT ACTIVE</span>';
+        } else if (displayState.pinned_slide) {
+            badge.style.background = 'rgba(59, 130, 246, 0.2)';
+            badge.style.color = '#93C5FD';
+            badge.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+            badge.innerHTML = `<span style="width:8px; height:8px; background:#3B82F6; border-radius:50%; box-shadow:0 0 8px #3B82F6;"></span><span>PINNED: ${displayState.pinned_slide.replace('slide-','').toUpperCase()}</span>`;
+        } else if (displayState.is_paused) {
+            badge.style.background = 'rgba(245, 158, 11, 0.2)';
+            badge.style.color = '#FCD34D';
+            badge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+            badge.innerHTML = '<span style="width:8px; height:8px; background:#F59E0B; border-radius:50%; box-shadow:0 0 8px #F59E0B;"></span><span>ROTATION PAUSED</span>';
+        } else {
+            badge.style.background = 'rgba(16, 185, 129, 0.15)';
+            badge.style.color = '#34D399';
+            badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+            badge.innerHTML = '<span style="width:8px; height:8px; background:#34D399; border-radius:50%; box-shadow:0 0 8px #34D399;"></span><span>LIVE ROTATION ACTIVE</span>';
+        }
+    }
+}
+
+async function populateDisplayPinSlideDropdown() {
+    const select = document.getElementById('disp-pin-slide-select');
+    if (!select) return;
+
+    const currentVal = select.value || displayState.pinned_slide || '';
+    select.innerHTML = `
+        <option value="">-- Choose Slide to Lock --</option>
+        <option value="slide-leaderboard">🏆 Overall Team Leaderboard</option>
+        <option value="slide-schedule">📅 Live Upcoming Schedule</option>
+    `;
+
+    // Add Published Competitions
+    if (competitionsList.length === 0) await loadCompetitions();
+    const published = competitionsList.filter(c => c.status === 'published');
+    if (published.length > 0) {
+        const group = document.createElement('optgroup');
+        group.label = '🥇 Declared Results Podiums';
+        published.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = `slide-results-${c.id}`;
+            opt.innerText = `Result: ${c.name}`;
+            group.appendChild(opt);
+        });
+        select.appendChild(group);
+    }
+
+    // Add Custom Slides
+    if (globalCustomSlides.length > 0) {
+        const cGroup = document.createElement('optgroup');
+        cGroup.label = '🎨 Custom Slides';
+        globalCustomSlides.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = `slide-custom-${s.id}`;
+            opt.innerText = `Slide: ${s.title || 'Untitled'}`;
+            cGroup.appendChild(opt);
+        });
+        select.appendChild(cGroup);
+    }
+
+    if (currentVal) select.value = currentVal;
+}
+
+function handleDisplayQRPresetChange(preset) {
+    const urlInput = document.getElementById('disp-qr-url');
+    const titleInput = document.getElementById('disp-qr-title');
+    const subInput = document.getElementById('disp-qr-subtitle');
+
+    const origin = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+
+    if (preset === 'scoreboard') {
+        if (urlInput) urlInput.value = origin + '/display.html?mode=leaderboard';
+        if (titleInput) titleInput.value = 'SCAN FOR LIVE SCORES';
+        if (subInput) subInput.value = 'OVERALL TEAM STANDINGS';
+    } else if (preset === 'schedule') {
+        if (urlInput) urlInput.value = origin + '/display.html?mode=schedule';
+        if (titleInput) titleInput.value = 'EVENT SCHEDULE';
+        if (subInput) subInput.value = 'STAGE TIMINGS & DETAILS';
+    } else if (preset === 'social') {
+        if (urlInput) urlInput.value = 'https://instagram.com';
+        if (titleInput) titleInput.value = 'FOLLOW LIVE STREAM';
+        if (subInput) subInput.value = '@ZENITHFEST OFFICIAL';
+    } else if (preset === 'custom') {
+        if (titleInput && !titleInput.value) titleInput.value = 'SCAN FOR INFO';
+        if (subInput && !subInput.value) subInput.value = 'POINT YOUR CAMERA';
+    }
+}
+
+async function sendDisplayLiveAction(type, extraPayload = {}) {
+    try {
+        const actionPayload = {
+            type: type,
+            timestamp: Date.now(),
+            ...extraPayload
+        };
+
+        // 1. Instant local postMessage to iframe preview (0ms latency)
+        const iframe = document.getElementById('display-preview-frame');
+        if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({ type: 'display_action', action: actionPayload }, '*');
+        }
+
+        // 2. Update local state immediately
+        if (type === 'pause') displayState.is_paused = true;
+        if (type === 'resume') displayState.is_paused = false;
+        if (type === 'blackout') displayState.blackout = !!extraPayload.blackout;
+        if (type === 'pin') displayState.pinned_slide = extraPayload.target_slide;
+        if (type === 'unpin') displayState.pinned_slide = null;
+
+        updateDisplayRemoteStatusUI();
+        showToast(`Action: ${type.toUpperCase()}`, 'info');
+
+        // 3. Persist to DB for live projector synchronization
+        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+        const currentSettings = data?.value || {};
+
+        const updatedSettings = {
+            ...currentSettings,
+            live_action: actionPayload,
+            is_paused: displayState.is_paused,
+            blackout: displayState.blackout,
+            pinned_slide: displayState.pinned_slide
+        };
+
+        await supabaseClient.from('settings').upsert({ id: 'display_settings', value: updatedSettings });
+    } catch(e) {
+        showToast(`Remote action failed: ${e.message}`, 'error');
+    }
+}
+
+function toggleDisplayPause() {
+    const newPaused = !displayState.is_paused;
+    sendDisplayLiveAction(newPaused ? 'pause' : 'resume');
+}
+
+function toggleDisplayBlackout() {
+    const newBlackout = !displayState.blackout;
+    sendDisplayLiveAction('blackout', { blackout: newBlackout });
+}
+
+function setPinnedDisplaySlide() {
+    const select = document.getElementById('disp-pin-slide-select');
+    const slideId = select?.value;
+    if (!slideId) {
+        showToast("Please choose a slide from the dropdown to pin.", "warning");
+        return;
+    }
+    sendDisplayLiveAction('pin', { target_slide: slideId });
+}
+
+function clearPinnedDisplaySlide() {
+    const select = document.getElementById('disp-pin-slide-select');
+    if (select) select.value = '';
+    sendDisplayLiveAction('unpin');
+}
+
+function sendDisplayFlashAlert() {
+    const msg = document.getElementById('disp-flash-message')?.value?.trim();
+    const duration = parseInt(document.getElementById('disp-flash-duration')?.value) || 10;
+    
+    if (!msg) {
+        showToast("Please enter an urgent alert message to broadcast.", "warning");
+        return;
+    }
+
+    sendDisplayLiveAction('flash_alert', { message: msg, duration: duration, sound: true });
+}
+
+function clearDisplayFlashAlert() {
+    sendDisplayLiveAction('clear_flash');
+    const msgInput = document.getElementById('disp-flash-message');
+    if (msgInput) msgInput.value = '';
 }
 
 async function saveDisplaySettings(silent = false) {
     if(!silent) setLoading('display-control .btn-primary', true);
     
-    // Fetch current state to avoid overwriting trigger_confetti
+    // Fetch current state to preserve live action
     const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
-    let trigger_confetti = data && data.value ? data.value.trigger_confetti : 0;
+    const existing = data?.value || {};
 
     const payload = {
-        slide_duration: parseInt(document.getElementById('disp-duration').value) || 12,
-        primary_color: document.getElementById('disp-color').value || '#4F46E5',
-        font_family: document.getElementById('disp-font').value || 'Plus Jakarta Sans',
-        show_qr: document.getElementById('disp-show-qr').checked,
+        ...existing,
+        slide_duration: parseInt(document.getElementById('disp-duration')?.value) || 12,
+        primary_color: document.getElementById('disp-color')?.value || '#3B82F6',
+        font_family: document.getElementById('disp-font')?.value || 'Plus Jakarta Sans',
+        transition: document.getElementById('disp-transition')?.value || 'fade',
+        bg_style: document.getElementById('disp-bg-style')?.value || 'cyber_aurora',
+        global_ticker: document.getElementById('disp-global-ticker')?.value || '',
+        show_milestones: document.getElementById('disp-show-milestones')?.checked !== false,
+        show_qr: document.getElementById('disp-show-qr')?.checked !== false,
+        qr_preset: document.getElementById('disp-qr-preset')?.value || 'scoreboard',
+        qr_url: document.getElementById('disp-qr-url')?.value || '',
+        qr_title: document.getElementById('disp-qr-title')?.value || 'SCAN FOR LIVE DATA',
+        qr_subtitle: document.getElementById('disp-qr-subtitle')?.value || 'POINT YOUR CAMERA',
         custom_slides: globalCustomSlides,
-        trigger_confetti: trigger_confetti
+        is_paused: displayState.is_paused,
+        blackout: displayState.blackout,
+        pinned_slide: displayState.pinned_slide
     };
     
     try {
         const { error } = await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
         if (error) throw error;
         
-        if(!silent) showToast("Display Settings Saved & Synced!");
+        if(!silent) showToast("Display Engine Settings Saved & Synced!", "success");
         
+        // Broadcast instant update to iframe without reloading
         const iframe = document.getElementById('display-preview-frame');
-        if(iframe) iframe.src = iframe.src; 
+        if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({ type: 'theme_update', settings: payload }, '*');
+        }
 
     } catch(e) {
         if(!silent) showToast(e.message, 'error');
