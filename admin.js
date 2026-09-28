@@ -2105,74 +2105,7 @@ async function fetchAndSyncBranding() {
     }
 }
 
-function applyGlobalBranding(brandingData) {
-    const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
-    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
-    const displayMode = brandingData.display_mode || 'both'; // 'both', 'logo', 'name'
-    
-    // 1. Update Document Title dynamically
-    const festName = validName ? brandingData.fest_name : 'FestOS';
-    const titleParts = document.title.split('|');
-    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
-    document.title = `${festName} | ${pageContext}`;
 
-    // 2. Global Favicon Injection (Fixes missing Favicons)
-    if (validLogo) {
-        let iconLinks = document.querySelectorAll("link[rel~='icon']");
-        if (iconLinks.length === 0) {
-            let newIcon = document.createElement('link');
-            newIcon.rel = 'icon';
-            document.head.appendChild(newIcon);
-            iconLinks = [newIcon];
-        }
-        iconLinks.forEach(link => link.href = brandingData.fest_logo);
-    }
-
-    // 3. UI Header Updates (Fixes display preferences & sizing)
-    // Grabs the sidebar brand, navbar brand, and the main header h1
-    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text, .header h1');
-    
-    brandContainers.forEach(container => {
-        // Safety check to avoid overwriting page titles like "Workspace Overview"
-        if(container.id === 'page-title') return; 
-
-        let html = '';
-        const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
-        const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
-        
-        // Dynamic Logo Sizing
-        if (showLogo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 32px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '8px' : '0'}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">`;
-        } else if (!validLogo && displayMode !== 'name') {
-            html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
-        }
-        
-        // Dynamic Text
-        if (showName) {
-            let textToDisplay = validName ? brandingData.fest_name : 'FestOS';
-            
-            // If this is the specific Program Report header, append its title
-            if (window.location.pathname.includes('program_report') && container.tagName === 'H1') {
-                textToDisplay += ' Reports Engine';
-            }
-            
-            html += `<span style="letter-spacing: -0.5px;">${textToDisplay}</span>`;
-        }
-        
-        container.innerHTML = html;
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        container.style.flexWrap = 'wrap'; // Prevents layout crunching
-        
-        // Keeps centered strictly on Login and Scan screens
-        if (window.location.pathname.includes('scan') || window.location.pathname.includes('login') || window.location.pathname.includes('index') || window.location.pathname === '/') {
-            container.style.justifyContent = 'center';
-        }
-    });
-
-    // Store globally so the PDF Generators can read the display preference
-    if (typeof window !== 'undefined') window.systemBranding = brandingData;
-}
 
 // --- NEW CROPPER LIFECYCLE ---
 
@@ -2259,18 +2192,24 @@ function editExistingCrop() {
 // --- ASSIGNMENTS MANAGEMENT ---
 async function loadAssignments() {
     try {
+        if (typeof renderAssignOverview === 'function') {
+            renderAssignOverview();
+        }
+        
+        const tbody = document.getElementById('assignments-tbody');
+        if (!tbody) return; // Active view uses #assign-overview-tbody or #assign-workspace-tbody
+        
         const { data, error } = await supabaseClient
             .from('participant_competitions')
             .select(`id, participants(name, teams(name), categories(name)), competitions(name)`);
             
         if(error) throw error;
         
-        const tbody = document.getElementById('assignments-tbody');
         tbody.innerHTML = '';
         
         // 1. Populate Filter Dropdown
         const filterComp = document.getElementById('filterAssignComp');
-        if(filterComp && filterComp.options.length === 1) {
+        if(filterComp && filterComp.options.length === 1 && typeof competitionsList !== 'undefined') {
             competitionsList.forEach(c => filterComp.innerHTML += `<option value="${c.name}">${c.name}</option>`);
         }
 
@@ -3576,12 +3515,7 @@ function closeTemplateStudio() {
 }
 
 
-function selectStudioLayer(key) {
-    studioActiveField = key;
-    renderLayersPanel(); // Update Highlights
-    renderPropertiesPanel(); // Show Controls
-    drawStudioCanvas(); // Highlight on canvas
-}
+
 
 function toggleLayerVisibility(event, key) {
     event.stopPropagation(); // Prevent layer selection click
@@ -4086,23 +4020,7 @@ function alignSelected(type) {
     renderPropertiesPanel();
 }
 
-function groupSelected() {
-    if (multiSelectedLayers.size < 2) return;
-    saveHistoryState();
-    const groupId = 'GRP_' + Date.now();
-    multiSelectedLayers.forEach(k => { studioActiveData.fields[k].groupId = groupId; });
-    showToast("Layers Grouped Successfully!", "success");
-    renderLayersPanel();
-    renderPropertiesPanel();
-}
 
-function ungroupSelected() {
-    saveHistoryState();
-    multiSelectedLayers.forEach(k => { studioActiveData.fields[k].groupId = null; });
-    showToast("Layers Ungrouped!", "success");
-    renderLayersPanel();
-    renderPropertiesPanel();
-}
 
 // NEW: Shifts all selected layers precisely
 function shiftSelected(axis, val) {
@@ -6890,7 +6808,204 @@ window.addEventListener('resize', scalePreviewIframe);
 // ==========================================
 let masterSchedule = {}; // <-- THIS WAS MISSING
 
-async function loadSchedules() { // <-- THIS FUNCTION WAS MISSING
+// ========================================================================
+// ⚡ SCHEDULE MANAGEMENT, CONFLICT DETECTOR & AUTO-OPTIMIZER
+// ========================================================================
+
+let scheduleConflictsReport = { hardClashes: [], bufferWarnings: [], stageCollisions: [], totalConflicts: 0, compConflictMap: {} };
+let scheduleEnrollmentsCache = null;
+let currentAuditFilter = 'all';
+let pendingOptimizedSchedule = null;
+
+async function fetchScheduleEnrollments(forceRefresh = false) {
+    if (scheduleEnrollmentsCache && !forceRefresh) return scheduleEnrollmentsCache;
+    try {
+        const { data, error } = await supabaseClient
+            .from('participant_competitions')
+            .select('competition_id, participant_id, participants(id, name, unique_id, team_id, teams(name), category_id, categories(name))');
+        if (error) throw error;
+        scheduleEnrollmentsCache = data || [];
+        return scheduleEnrollmentsCache;
+    } catch(e) {
+        console.warn("Could not fetch schedule enrollments:", e);
+        return [];
+    }
+}
+
+function timeStringToMinutes(timeStr) {
+    if (!timeStr) return 0;
+    const parts = timeStr.split(':').map(Number);
+    return (parts[0] || 0) * 60 + (parts[1] || 0);
+}
+
+function minutesToTimeString(mins) {
+    const h = Math.floor(mins / 60) % 24;
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+async function detectScheduleConflicts() {
+    const enrollments = await fetchScheduleEnrollments();
+    
+    const compStudentsMap = {};
+    enrollments.forEach(e => {
+        if (!e.competition_id || !e.participant_id) return;
+        if (!compStudentsMap[e.competition_id]) compStudentsMap[e.competition_id] = [];
+        compStudentsMap[e.competition_id].push(e.participants);
+    });
+
+    const scheduledCompIds = Object.keys(masterSchedule).filter(id => {
+        const comp = competitionsList.find(c => c.id == id);
+        return comp && masterSchedule[id]?.date && masterSchedule[id]?.time;
+    });
+
+    const hardClashes = [];
+    const bufferWarnings = [];
+    const stageCollisions = [];
+    const compConflictMap = {};
+
+    for (let i = 0; i < scheduledCompIds.length; i++) {
+        const idA = scheduledCompIds[i];
+        const compA = competitionsList.find(c => c.id == idA);
+        const schedA = masterSchedule[idA];
+        
+        const startMinsA = timeStringToMinutes(schedA.time);
+        let endMinsA = schedA.to_time ? timeStringToMinutes(schedA.to_time) : (startMinsA + (parseInt(schedA.manual_time) || 30));
+        if (endMinsA <= startMinsA) endMinsA = startMinsA + 30;
+
+        for (let j = i + 1; j < scheduledCompIds.length; j++) {
+            const idB = scheduledCompIds[j];
+            const compB = competitionsList.find(c => c.id == idB);
+            const schedB = masterSchedule[idB];
+
+            // Only check conflicts if on the SAME DATE
+            if (schedA.date !== schedB.date) continue;
+
+            const startMinsB = timeStringToMinutes(schedB.time);
+            let endMinsB = schedB.to_time ? timeStringToMinutes(schedB.to_time) : (startMinsB + (parseInt(schedB.manual_time) || 30));
+            if (endMinsB <= startMinsB) endMinsB = startMinsB + 30;
+
+            const isTimeOverlapping = (startMinsA < endMinsB) && (startMinsB < endMinsA);
+
+            // 1. Stage Collision Check
+            if (compA.stage_id && compB.stage_id && String(compA.stage_id) === String(compB.stage_id)) {
+                if (isTimeOverlapping) {
+                    const stageName = stagesList.find(s => s.id == compA.stage_id)?.name || `Stage ${compA.stage_id}`;
+                    stageCollisions.push({
+                        type: 'stage',
+                        date: schedA.date,
+                        stageName,
+                        compA,
+                        compB,
+                        timeA: `${schedA.time} - ${schedA.to_time || minutesToTimeString(endMinsA)}`,
+                        timeB: `${schedB.time} - ${schedB.to_time || minutesToTimeString(endMinsB)}`
+                    });
+
+                    if (!compConflictMap[idA]) compConflictMap[idA] = [];
+                    if (!compConflictMap[idB]) compConflictMap[idB] = [];
+                    compConflictMap[idA].push({ type: 'stage', otherComp: compB, desc: `Double booked on ${stageName}` });
+                    compConflictMap[idB].push({ type: 'stage', otherComp: compA, desc: `Double booked on ${stageName}` });
+                }
+            }
+
+            // 2. Student Clashes Check
+            const studentsA = compStudentsMap[idA] || [];
+            const studentsB = compStudentsMap[idB] || [];
+            
+            // Find common participants
+            const commonStudents = studentsA.filter(sA => sA && studentsB.some(sB => sB && sB.id === sA.id));
+
+            if (commonStudents.length > 0) {
+                commonStudents.forEach(student => {
+                    const stageNameA = stagesList.find(s => s.id == compA.stage_id)?.name || 'Stage TBD';
+                    const stageNameB = stagesList.find(s => s.id == compB.stage_id)?.name || 'Stage TBD';
+
+                    if (isTimeOverlapping) {
+                        // Hard Clash
+                        hardClashes.push({
+                            type: 'hard',
+                            date: schedA.date,
+                            student,
+                            compA,
+                            compB,
+                            stageNameA,
+                            stageNameB,
+                            timeA: `${schedA.time} - ${schedA.to_time || minutesToTimeString(endMinsA)}`,
+                            timeB: `${schedB.time} - ${schedB.to_time || minutesToTimeString(endMinsB)}`
+                        });
+
+                        if (!compConflictMap[idA]) compConflictMap[idA] = [];
+                        if (!compConflictMap[idB]) compConflictMap[idB] = [];
+                        compConflictMap[idA].push({ type: 'hard', student, otherComp: compB, desc: `Student ${student.name} clashing with ${compB.name}` });
+                        compConflictMap[idB].push({ type: 'hard', student, otherComp: compA, desc: `Student ${student.name} clashing with ${compA.name}` });
+                    } else {
+                        // Check Buffer (< 15 mins between events on different stages)
+                        let gapMins = 0;
+                        if (endMinsA <= startMinsB) {
+                            gapMins = startMinsB - endMinsA;
+                        } else if (endMinsB <= startMinsA) {
+                            gapMins = startMinsA - endMinsB;
+                        }
+
+                        if (gapMins < 15 && String(compA.stage_id) !== String(compB.stage_id)) {
+                            bufferWarnings.push({
+                                type: 'buffer',
+                                date: schedA.date,
+                                student,
+                                gapMins,
+                                compA,
+                                compB,
+                                stageNameA,
+                                stageNameB,
+                                timeA: `${schedA.time} - ${schedA.to_time || minutesToTimeString(endMinsA)}`,
+                                timeB: `${schedB.time} - ${schedB.to_time || minutesToTimeString(endMinsB)}`
+                            });
+
+                            if (!compConflictMap[idA]) compConflictMap[idA] = [];
+                            if (!compConflictMap[idB]) compConflictMap[idB] = [];
+                            compConflictMap[idA].push({ type: 'buffer', student, otherComp: compB, desc: `Only ${gapMins}m buffer for ${student.name}` });
+                            compConflictMap[idB].push({ type: 'buffer', student, otherComp: compA, desc: `Only ${gapMins}m buffer for ${student.name}` });
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    const totalConflicts = hardClashes.length + bufferWarnings.length + stageCollisions.length;
+    scheduleConflictsReport = { hardClashes, bufferWarnings, stageCollisions, totalConflicts, compConflictMap };
+
+    // Update UI Elements
+    const banner = document.getElementById('schedule-conflict-banner');
+    const badgeCount = document.getElementById('conflict-badge-count');
+    const titleElem = document.getElementById('conflict-banner-title');
+    const descElem = document.getElementById('conflict-banner-desc');
+
+    if (badgeCount) {
+        if (totalConflicts > 0) {
+            badgeCount.innerText = totalConflicts;
+            badgeCount.style.display = 'inline-block';
+        } else {
+            badgeCount.style.display = 'none';
+        }
+    }
+
+    if (banner) {
+        if (totalConflicts > 0) {
+            banner.style.display = 'flex';
+            if (titleElem) titleElem.innerText = `${totalConflicts} Schedule Conflict${totalConflicts > 1 ? 's' : ''} Detected`;
+            if (descElem) {
+                descElem.innerText = `${hardClashes.length} hard student clash(es), ${bufferWarnings.length} tight buffer(s) (<15m), ${stageCollisions.length} stage double-booking(s).`;
+            }
+        } else {
+            banner.style.display = 'none';
+        }
+    }
+
+    return scheduleConflictsReport;
+}
+
+async function loadSchedules() {
     try {
         if (competitionsList.length === 0) await loadCompetitions();
         if (stagesList.length === 0) await loadStagesAndTeams(); 
@@ -6908,16 +7023,17 @@ async function loadSchedules() { // <-- THIS FUNCTION WAS MISSING
             stagesList.forEach(s => filterStage.innerHTML += `<option value="${s.id}">${s.name}</option>`);
         }
         
+        await detectScheduleConflicts();
         filterScheduleTable();
     } catch(e) { showToast(e.message, 'error'); }
 }
 
 function filterScheduleTable() {
-   const search = document.getElementById('searchSchedInput').value.toLowerCase();
+    const search = document.getElementById('searchSchedInput').value.toLowerCase();
     const catId = document.getElementById('filterSchedCat').value;
     const stageId = document.getElementById('filterSchedStage').value; 
     const statusVal = document.getElementById('filterSchedStatus').value;
-    const compStatusVal = document.getElementById('filterSchedCompStatus') ? document.getElementById('filterSchedCompStatus').value : ""; // NEW
+    const compStatusVal = document.getElementById('filterSchedCompStatus') ? document.getElementById('filterSchedCompStatus').value : ""; 
     
     const tbody = document.getElementById('schedule-tbody');
     tbody.innerHTML = '';
@@ -6943,9 +7059,9 @@ function filterScheduleTable() {
         const matchCat = catId === "" || compCatId == catId;
         const matchStage = stageId === "" || compStageId == stageId; 
         const matchStatus = statusVal === "" || item.sched.status === statusVal;
-        const matchCompStatus = compStatusVal === "" || item.comp.status === compStatusVal; // NEW
+        const matchCompStatus = compStatusVal === "" || item.comp.status === compStatusVal; 
         
-        if (!(matchSearch && matchCat && matchStage && matchStatus && matchCompStatus)) return; // UPDATED
+        if (!(matchSearch && matchCat && matchStage && matchStatus && matchCompStatus)) return; 
         
         const isPub = item.sched.status === 'published';
         const publishBadge = isPub 
@@ -6953,7 +7069,7 @@ function filterScheduleTable() {
             : `<span class="badge" style="background:var(--warning-light); color:var(--warning);"><i class="fa-solid fa-lock"></i> Draft</span>`;
             
         let compStateStr = item.comp.status.toUpperCase().replace('_', ' ');
-        let compStateColor = '#64748B'; // Default muted gray
+        let compStateColor = '#64748B';
         if (item.comp.status === 'registration') compStateColor = '#1D4ED8';
         if (item.comp.status === 'ongoing') compStateColor = '#059669';
         if (item.comp.status === 'valuation') compStateColor = '#D97706';
@@ -6961,7 +7077,18 @@ function filterScheduleTable() {
 
         const stateBadge = `<br><span style="font-size: 0.7rem; font-weight: 800; color: ${compStateColor}; margin-top: 4px; display: inline-block;">${compStateStr}</span>`;
         
-        const badge = publishBadge + stateBadge;
+        // Conflict Badge for Row
+        let conflictBadge = '';
+        const compConflicts = scheduleConflictsReport.compConflictMap[item.compId] || [];
+        if (compConflicts.length > 0) {
+            const hasHard = compConflicts.some(c => c.type === 'hard' || c.type === 'stage');
+            const bBg = hasHard ? '#FEE2E2' : '#FEF3C7';
+            const bColor = hasHard ? '#DC2626' : '#D97706';
+            const bBorder = hasHard ? '#FCA5A5' : '#FDE68A';
+            conflictBadge = `<br><span class="badge" style="background:${bBg}; color:${bColor}; border:1px solid ${bBorder}; cursor:pointer; font-weight:700; margin-top:4px; display:inline-flex; align-items:center; gap:4px;" onclick="openConflictAuditModal()" title="${compConflicts.length} conflict(s)"><i class="fa-solid fa-triangle-exclamation"></i> ${compConflicts.length} Clash${compConflicts.length > 1 ? 'es' : ''}</span>`;
+        }
+
+        const badge = publishBadge + stateBadge + conflictBadge;
 
         const actionBtn = isPub
             ? `<button class="btn btn-outline" style="padding:0.4rem 0.75rem; color:var(--warning); border-color:var(--warning);" onclick="toggleScheduleStatus('${item.compId}', 'draft')" title="Unpublish"><i class="fa-solid fa-eye-slash"></i></button>`
@@ -6989,6 +7116,692 @@ function filterScheduleTable() {
     
     if(tbody.innerHTML === '') {
         tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">No scheduled events found.</td></tr>`;
+    }
+}
+
+// ==========================================
+// CONFLICT AUDIT MODAL FUNCTIONS
+// ==========================================
+
+async function openConflictAuditModal() {
+    // Show modal first or display loading if needed
+    document.getElementById('conflictAuditModal').classList.add('show');
+    
+    // Detect fresh conflicts
+    await detectScheduleConflicts();
+
+    const hardCount = document.getElementById('audit-hard-count');
+    const bufferCount = document.getElementById('audit-buffer-count');
+    const stageCount = document.getElementById('audit-stage-count');
+    const totalCount = document.getElementById('audit-total-count');
+
+    if (hardCount) hardCount.innerText = scheduleConflictsReport.hardClashes.length;
+    if (bufferCount) bufferCount.innerText = scheduleConflictsReport.bufferWarnings.length;
+    if (stageCount) stageCount.innerText = scheduleConflictsReport.stageCollisions.length;
+    if (totalCount) totalCount.innerText = scheduleConflictsReport.totalConflicts;
+
+    filterAuditList('all');
+}
+
+function filterAuditList(type) {
+    currentAuditFilter = type;
+
+    // Reset button states
+    ['all', 'hard', 'buffer', 'stage'].forEach(t => {
+        const btn = document.getElementById(`btn-filter-${t}-conflicts`);
+        if (!btn) return;
+        if (t === type) {
+            btn.className = 'btn btn-primary';
+        } else {
+            btn.className = 'btn btn-outline';
+        }
+    });
+
+    const container = document.getElementById('conflict-audit-list');
+    if (!container) return;
+
+    let items = [];
+    if (type === 'all') {
+        items = [...scheduleConflictsReport.hardClashes, ...scheduleConflictsReport.bufferWarnings, ...scheduleConflictsReport.stageCollisions];
+    } else if (type === 'hard') {
+        items = scheduleConflictsReport.hardClashes;
+    } else if (type === 'buffer') {
+        items = scheduleConflictsReport.bufferWarnings;
+    } else if (type === 'stage') {
+        items = scheduleConflictsReport.stageCollisions;
+    }
+
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 3rem; color: var(--success); font-weight: 600;">
+                <i class="fa-solid fa-circle-check" style="font-size: 2.5rem; margin-bottom: 0.75rem; display: block;"></i>
+                No schedule conflicts found in this category!
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = items.map((item, idx) => {
+        if (item.type === 'hard') {
+            return `
+                <div style="background: #FEF2F2; border: 1.5px solid #FCA5A5; border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="badge" style="background: #DC2626; color: white; font-weight: 800;"><i class="fa-solid fa-triangle-exclamation"></i> HARD CLASH</span>
+                            <strong style="color: #991B1B; font-size: 0.95rem;">${item.student.name} (${item.student.unique_id || 'ID'}) • ${item.student.teams?.name || 'IND'}</strong>
+                        </div>
+                        <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);">${item.date}</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: white; padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid #FECACA;">
+                        <div>
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Event A</div>
+                            <strong style="color: var(--text-main); font-size: 0.9rem;">${item.compA.name}</strong>
+                            <div style="font-size: 0.8rem; color: #DC2626; font-weight: 600;"><i class="fa-regular fa-clock"></i> ${item.timeA} (${item.stageNameA})</div>
+                            <button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; margin-top: 0.35rem;" onclick="document.getElementById('conflictAuditModal').classList.remove('show'); openScheduleModal('${item.compA.id}')"><i class="fa-solid fa-pen"></i> Reschedule A</button>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Event B</div>
+                            <strong style="color: var(--text-main); font-size: 0.9rem;">${item.compB.name}</strong>
+                            <div style="font-size: 0.8rem; color: #DC2626; font-weight: 600;"><i class="fa-regular fa-clock"></i> ${item.timeB} (${item.stageNameB})</div>
+                            <button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; margin-top: 0.35rem;" onclick="document.getElementById('conflictAuditModal').classList.remove('show'); openScheduleModal('${item.compB.id}')"><i class="fa-solid fa-pen"></i> Reschedule B</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (item.type === 'buffer') {
+            return `
+                <div style="background: #FFFBEB; border: 1.5px solid #FDE68A; border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="badge" style="background: #D97706; color: white; font-weight: 800;"><i class="fa-solid fa-hourglass-half"></i> TIGHT BUFFER (${item.gapMins}m)</span>
+                            <strong style="color: #92400E; font-size: 0.95rem;">${item.student.name} (${item.student.unique_id || 'ID'}) • ${item.student.teams?.name || 'IND'}</strong>
+                        </div>
+                        <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);">${item.date}</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: white; padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid #FDE68A;">
+                        <div>
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">1st Performance</div>
+                            <strong style="color: var(--text-main); font-size: 0.9rem;">${item.compA.name}</strong>
+                            <div style="font-size: 0.8rem; color: #D97706; font-weight: 600;"><i class="fa-regular fa-clock"></i> ${item.timeA} (${item.stageNameA})</div>
+                            <button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; margin-top: 0.35rem;" onclick="document.getElementById('conflictAuditModal').classList.remove('show'); openScheduleModal('${item.compA.id}')"><i class="fa-solid fa-pen"></i> Adjust Timing</button>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">2nd Performance</div>
+                            <strong style="color: var(--text-main); font-size: 0.9rem;">${item.compB.name}</strong>
+                            <div style="font-size: 0.8rem; color: #D97706; font-weight: 600;"><i class="fa-regular fa-clock"></i> ${item.timeB} (${item.stageNameB})</div>
+                            <button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; margin-top: 0.35rem;" onclick="document.getElementById('conflictAuditModal').classList.remove('show'); openScheduleModal('${item.compB.id}')"><i class="fa-solid fa-pen"></i> Adjust Timing</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (item.type === 'stage') {
+            return `
+                <div style="background: #F5F3FF; border: 1.5px solid #DDD6FE; border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="badge" style="background: #7C3AED; color: white; font-weight: 800;"><i class="fa-solid fa-layer-group"></i> STAGE COLLISION</span>
+                            <strong style="color: #5B21B6; font-size: 0.95rem;">${item.stageName} (Double Booked)</strong>
+                        </div>
+                        <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);">${item.date}</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: white; padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid #DDD6FE;">
+                        <div>
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Event 1</div>
+                            <strong style="color: var(--text-main); font-size: 0.9rem;">${item.compA.name}</strong>
+                            <div style="font-size: 0.8rem; color: #7C3AED; font-weight: 600;"><i class="fa-regular fa-clock"></i> ${item.timeA}</div>
+                            <button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; margin-top: 0.35rem;" onclick="document.getElementById('conflictAuditModal').classList.remove('show'); openScheduleModal('${item.compA.id}')"><i class="fa-solid fa-pen"></i> Reschedule</button>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Event 2</div>
+                            <strong style="color: var(--text-main); font-size: 0.9rem;">${item.compB.name}</strong>
+                            <div style="font-size: 0.8rem; color: #7C3AED; font-weight: 600;"><i class="fa-regular fa-clock"></i> ${item.timeB}</div>
+                            <button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; margin-top: 0.35rem;" onclick="document.getElementById('conflictAuditModal').classList.remove('show'); openScheduleModal('${item.compB.id}')"><i class="fa-solid fa-pen"></i> Reschedule</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        return '';
+    }).join('');
+}
+
+async function exportConflictReportPDF() {
+    showToast('Generating Schedule Conflict Audit PDF...', 'success');
+    try {
+        const container = document.createElement('div');
+        container.style.padding = '40px';
+        container.style.fontFamily = 'Inter, sans-serif';
+        container.innerHTML = getPDFHeaderHTML('Schedule Conflict & Overlap Audit Report');
+
+        const allIssues = [
+            ...scheduleConflictsReport.hardClashes.map(c => ['HARD CLASH', c.date, c.student?.name || 'N/A', `${c.compA?.name} (${c.timeA})`, `${c.compB?.name} (${c.timeB})`, 'Overlapping Time']),
+            ...scheduleConflictsReport.bufferWarnings.map(c => ['TIGHT BUFFER', c.date, c.student?.name || 'N/A', `${c.compA?.name} (${c.timeA})`, `${c.compB?.name} (${c.timeB})`, `${c.gapMins} mins gap`]),
+            ...scheduleConflictsReport.stageCollisions.map(c => ['STAGE COLLISION', c.date, c.stageName, `${c.compA?.name} (${c.timeA})`, `${c.compB?.name} (${c.timeB})`, 'Same Stage Overlap'])
+        ];
+
+        let rowsHtml = allIssues.map(r => `
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: ${r[0] === 'HARD CLASH' ? '#DC2626' : (r[0] === 'TIGHT BUFFER' ? '#D97706' : '#7C3AED')};">${r[0]}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${r[1]}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${r[2]}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${r[3]}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${r[4]}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${r[5]}</td>
+            </tr>
+        `).join('');
+
+        if (allIssues.length === 0) {
+            rowsHtml = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: #059669; font-weight: 700;">No schedule conflicts found! Festival schedule is 100% optimal.</td></tr>`;
+        }
+
+        container.innerHTML += `
+            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; font-size: 0.85rem;">
+                <thead>
+                    <tr style="background: #F8FAFC;">
+                        <th style="padding: 10px; border-bottom: 2px solid #CBD5E1; text-align: left;">TYPE</th>
+                        <th style="padding: 10px; border-bottom: 2px solid #CBD5E1; text-align: left;">DATE</th>
+                        <th style="padding: 10px; border-bottom: 2px solid #CBD5E1; text-align: left;">STUDENT / STAGE</th>
+                        <th style="padding: 10px; border-bottom: 2px solid #CBD5E1; text-align: left;">EVENT 1</th>
+                        <th style="padding: 10px; border-bottom: 2px solid #CBD5E1; text-align: left;">EVENT 2</th>
+                        <th style="padding: 10px; border-bottom: 2px solid #CBD5E1; text-align: left;">DETAILS</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+        `;
+
+        const opt = {
+            margin: 10,
+            filename: `Schedule_Conflict_Audit_${new Date().toISOString().split('T')[0]}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+        };
+        await html2pdf().set(opt).from(container).save();
+    } catch(e) {
+        showToast("PDF Export failed: " + e.message, "error");
+    }
+}
+
+// ==========================================
+// AUTO-SCHEDULE OPTIMIZER ENGINE
+// ==========================================
+
+function openAutoSchedulerModal() {
+    const optDateInput = document.getElementById('opt-date');
+    if (optDateInput && !optDateInput.value) {
+        // Find earliest date from schedule or default to today
+        const dates = Object.values(masterSchedule).map(s => s.date).filter(Boolean).sort();
+        optDateInput.value = dates.length > 0 ? dates[0] : new Date().toISOString().split('T')[0];
+    }
+
+    pendingOptimizedSchedule = null;
+    const previewContainer = document.getElementById('opt-preview-container');
+    const applyBtn = document.getElementById('btn-apply-optimized-schedule');
+    const metricsBadge = document.getElementById('opt-metrics-badge');
+    const statusIndicator = document.getElementById('opt-status-indicator');
+
+    if (previewContainer) {
+        previewContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 3rem; font-size: 0.9rem; font-weight: 500;"><div class="spinner" style="display:inline-block; margin-bottom: 0.5rem;"></div><br>Analyzing constraints and generating clash-free timeline...</div>`;
+    }
+    if (applyBtn) applyBtn.style.display = 'none';
+    if (metricsBadge) metricsBadge.style.display = 'none';
+    if (statusIndicator) statusIndicator.innerText = 'Initializing optimizer...';
+
+    document.getElementById('autoSchedulerModal').classList.add('show');
+
+    // Automatically run the optimizer calculation
+    setTimeout(() => {
+        generateOptimizedSchedule();
+    }, 150);
+}
+
+async function generateOptimizedSchedule() {
+    const targetDate = document.getElementById('opt-date')?.value;
+    const startTimeStr = document.getElementById('opt-start-time')?.value || '09:00';
+    const endTimeStr = document.getElementById('opt-end-time')?.value || '18:00';
+    const bufferMins = parseInt(document.getElementById('opt-buffer-mins')?.value) || 15;
+    const stageStrategy = document.getElementById('opt-stage-strategy')?.value || 'auto_balance';
+    const breakWindow = document.getElementById('opt-break-window')?.value || '13:00-14:00';
+    const scope = document.getElementById('opt-scope')?.value || 'unscheduled_only';
+
+    if (!targetDate) {
+        alert("Please choose a target fest date.");
+        return;
+    }
+
+    const startMins = timeStringToMinutes(startTimeStr);
+    const endLimitMins = timeStringToMinutes(endTimeStr);
+
+    if (endLimitMins <= startMins) {
+        alert("End time must be after start time.");
+        return;
+    }
+
+    const statusIndicator = document.getElementById('opt-status-indicator');
+    if (statusIndicator) statusIndicator.innerText = 'Analyzing constraints, participant graph, and stage capacities...';
+
+    // Ensure baseline data is loaded
+    if (competitionsList.length === 0) await loadCompetitions();
+    if (stagesList.length === 0) await loadStagesAndTeams();
+
+    const enrollments = await fetchScheduleEnrollments(true);
+    const compStudentsMap = {};
+    enrollments.forEach(e => {
+        if (!e.competition_id || !e.participant_id) return;
+        if (!compStudentsMap[e.competition_id]) compStudentsMap[e.competition_id] = [];
+        compStudentsMap[e.competition_id].push(e.participant_id);
+    });
+
+    // Parse Break Window
+    let breakStartMins = -1;
+    let breakEndMins = -1;
+    if (breakWindow && breakWindow !== 'none') {
+        const [bStart, bEnd] = breakWindow.split('-');
+        if (bStart && bEnd) {
+            breakStartMins = timeStringToMinutes(bStart);
+            breakEndMins = timeStringToMinutes(bEnd);
+        }
+    }
+
+    // 1. Filter Candidate Competitions based on Scope
+    let candidates = [];
+    if (scope === 'unscheduled_only') {
+        candidates = competitionsList.filter(c => {
+            const s = masterSchedule[c.id];
+            return !s || !s.date || !s.time;
+        });
+    } else {
+        candidates = [...competitionsList];
+    }
+
+    if (candidates.length === 0) {
+        alert("No candidate competitions found matching the selected optimization scope.");
+        if (statusIndicator) statusIndicator.innerText = 'No candidates to schedule.';
+        return;
+    }
+
+    // 2. Compute Durations & MRV Sort (Most Constrained First)
+    candidates.forEach(c => {
+        const enrolled = compStudentsMap[c.id] || [];
+        const enrolledCount = enrolled.length;
+        
+        let duration = 30;
+        if (c.is_offstage) {
+            duration = parseInt(c.time_per_student) || 45;
+        } else {
+            const perStudent = parseInt(c.time_per_student) || 5;
+            if (enrolledCount > 0) {
+                duration = Math.max(15, enrolledCount * perStudent);
+            } else {
+                duration = Math.max(20, (parseInt(c.max_participants) || 6) * perStudent);
+            }
+        }
+        
+        // Cap single event duration between 15 and 150 minutes
+        c.calculatedDuration = Math.min(150, Math.max(15, duration));
+
+        // MRV Degree: Count how many enrolled students overlap with OTHER candidate competitions
+        let sharedStudentsCount = 0;
+        candidates.forEach(otherC => {
+            if (otherC.id === c.id) return;
+            const otherStudents = compStudentsMap[otherC.id] || [];
+            const shared = enrolled.filter(id => otherStudents.includes(id));
+            sharedStudentsCount += shared.length;
+        });
+
+        c.constraintDegree = (sharedStudentsCount * 3) + enrolledCount;
+    });
+
+    // Sort by constraint degree descending (hardest constraints first)
+    candidates.sort((a, b) => b.constraintDegree - a.constraintDegree);
+
+    // 3. Initialize Stage and Offstage Timelines
+    const stageTimelines = {};
+    stagesList.forEach(s => {
+        stageTimelines[s.id] = [];
+    });
+    // Dedicated track for offstage
+    stageTimelines['offstage'] = [];
+
+    const studentTimelines = {}; // { studentId: [ { start, end } ] }
+
+    // If scope is unscheduled_only, load existing slots on targetDate
+    if (scope === 'unscheduled_only') {
+        Object.entries(masterSchedule).forEach(([compId, sched]) => {
+            if (sched.date !== targetDate) return;
+            const comp = competitionsList.find(c => c.id == compId);
+            if (!comp) return;
+
+            const sStart = timeStringToMinutes(sched.time);
+            let sEnd = sched.to_time ? timeStringToMinutes(sched.to_time) : (sStart + (parseInt(sched.manual_time) || 30));
+            if (sEnd <= sStart) sEnd = sStart + 30;
+
+            const stageKey = comp.is_offstage ? 'offstage' : (comp.stage_id || stagesList[0]?.id);
+            if (stageTimelines[stageKey]) {
+                stageTimelines[stageKey].push({ compId, start: sStart, end: sEnd });
+            }
+
+            const sList = compStudentsMap[compId] || [];
+            sList.forEach(sId => {
+                if (!studentTimelines[sId]) studentTimelines[sId] = [];
+                studentTimelines[sId].push({ start: sStart, end: sEnd });
+            });
+        });
+    }
+
+    // 4. Constraint-Satisfaction Greedy Placement
+    const proposedSchedule = {};
+    let scheduledCount = 0;
+    let unplacedList = [];
+
+    candidates.forEach(comp => {
+        const compDuration = comp.calculatedDuration;
+        const compStudents = compStudentsMap[comp.id] || [];
+
+        // Determine eligible stages
+        let eligibleStages = [];
+        if (comp.is_offstage) {
+            eligibleStages = ['offstage'];
+        } else if (stageStrategy === 'preserve' && comp.stage_id) {
+            eligibleStages = [comp.stage_id];
+        } else {
+            // If auto_balance or unassigned: try pre-assigned first, then all available stages sorted by current load
+            if (comp.stage_id && stagesList.some(s => s.id == comp.stage_id)) {
+                eligibleStages = [comp.stage_id, ...stagesList.map(s => s.id).filter(id => id != comp.stage_id)];
+            } else {
+                eligibleStages = stagesList.map(s => s.id);
+            }
+        }
+
+        let bestSlot = null;
+
+        // Try candidate stages
+        for (const stageKey of eligibleStages) {
+            let candidateStart = startMins;
+
+            while (candidateStart + compDuration <= endLimitMins) {
+                const candidateEnd = candidateStart + compDuration;
+
+                // Check Break / Lunch Window
+                if (breakStartMins !== -1 && breakEndMins !== -1) {
+                    if (candidateStart < breakEndMins && candidateEnd > breakStartMins) {
+                        candidateStart = breakEndMins;
+                        continue;
+                    }
+                }
+
+                // Check Stage Occupancy
+                if (stageKey !== 'offstage') {
+                    const stageOccupied = (stageTimelines[stageKey] || []).some(slot => 
+                        (candidateStart < slot.end + bufferMins) && (candidateEnd > slot.start)
+                    );
+                    if (stageOccupied) {
+                        candidateStart += 10;
+                        continue;
+                    }
+                }
+
+                // Check Student Clash across all stages
+                let hasStudentClash = false;
+                for (const sId of compStudents) {
+                    const sSlots = studentTimelines[sId] || [];
+                    const clash = sSlots.some(slot => 
+                        (candidateStart < slot.end + bufferMins) && (candidateEnd > slot.start - bufferMins)
+                    );
+                    if (clash) {
+                        hasStudentClash = true;
+                        break;
+                    }
+                }
+
+                if (!hasStudentClash) {
+                    // Valid slot found for this stage
+                    if (!bestSlot || candidateStart < bestSlot.start) {
+                        bestSlot = {
+                            stageKey,
+                            start: candidateStart,
+                            end: candidateEnd
+                        };
+                    }
+                    break;
+                }
+
+                candidateStart += 10;
+            }
+
+            // If we found a slot on the primary stage, prioritize it
+            if (bestSlot && bestSlot.stageKey === comp.stage_id) break;
+        }
+
+        if (bestSlot) {
+            proposedSchedule[comp.id] = {
+                date: targetDate,
+                time: minutesToTimeString(bestSlot.start),
+                to_time: minutesToTimeString(bestSlot.end),
+                manual_time: compDuration,
+                status: 'draft',
+                stage_id: bestSlot.stageKey === 'offstage' ? (comp.stage_id || null) : bestSlot.stageKey,
+                is_offstage: comp.is_offstage
+            };
+
+            // Update timelines
+            if (stageTimelines[bestSlot.stageKey]) {
+                stageTimelines[bestSlot.stageKey].push({ compId: comp.id, start: bestSlot.start, end: bestSlot.end });
+            }
+            compStudents.forEach(sId => {
+                if (!studentTimelines[sId]) studentTimelines[sId] = [];
+                studentTimelines[sId].push({ start: bestSlot.start, end: bestSlot.end });
+            });
+
+            scheduledCount++;
+        } else {
+            unplacedList.push(comp);
+        }
+    });
+
+    pendingOptimizedSchedule = proposedSchedule;
+
+    // 5. Render Visual Timeline Gantt Preview
+    renderOptimizationPreview(proposedSchedule, targetDate, startMins, endLimitMins, breakStartMins, breakEndMins, unplacedList);
+
+    // Update Badges & Actions
+    const metricsBadge = document.getElementById('opt-metrics-badge');
+    const badgeSuccess = document.getElementById('opt-badge-success');
+    const badgeClash = document.getElementById('opt-badge-clash');
+    const applyBtn = document.getElementById('btn-apply-optimized-schedule');
+
+    if (metricsBadge) metricsBadge.style.display = 'flex';
+    if (badgeSuccess) badgeSuccess.innerText = `${scheduledCount} Events Scheduled`;
+    if (badgeClash) {
+        if (unplacedList.length === 0) {
+            badgeClash.innerText = `0 Clashes • 100% Conflict Free`;
+            badgeClash.style.background = '#D1FAE5';
+            badgeClash.style.color = '#059669';
+        } else {
+            badgeClash.innerText = `${unplacedList.length} Unplaced (Time Window Full)`;
+            badgeClash.style.background = '#FEF3C7';
+            badgeClash.style.color = '#D97706';
+        }
+    }
+    if (statusIndicator) {
+        statusIndicator.innerText = unplacedList.length === 0 
+            ? `Optimization Complete! 100% Clash-Free Schedule Generated.` 
+            : `Scheduled ${scheduledCount} events. Extend operating hours to fit all ${unplacedList.length} remaining.`;
+    }
+    if (applyBtn) applyBtn.style.display = 'inline-flex';
+}
+
+function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540, endLimitMins = 1080, breakStartMins = -1, breakEndMins = -1, unplacedList = []) {
+    const container = document.getElementById('opt-preview-container');
+    if (!container) return;
+
+    const compIds = Object.keys(proposedSchedule);
+    if (compIds.length === 0 && unplacedList.length === 0) {
+        container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 2rem;">No slots could be assigned within the time window. Try extending the operating hours.</div>`;
+        return;
+    }
+
+    const totalDuration = endLimitMins - startMins;
+
+    // Build timeline hourly markers
+    let timeMarkersHtml = '';
+    const startHour = Math.floor(startMins / 60);
+    const endHour = Math.ceil(endLimitMins / 60);
+    for (let h = startHour; h <= endHour; h++) {
+        const markerMins = h * 60;
+        if (markerMins < startMins || markerMins > endLimitMins) continue;
+        const leftPercent = ((markerMins - startMins) / totalDuration) * 100;
+        const displayTime = `${h % 12 === 0 ? 12 : h % 12} ${h >= 12 ? 'PM' : 'AM'}`;
+        timeMarkersHtml += `
+            <div style="position: absolute; left: ${leftPercent}%; top: 0; bottom: 0; border-left: 1px dashed var(--border); pointer-events: none;">
+                <span style="position: absolute; top: 4px; left: 4px; font-size: 0.7rem; font-weight: 700; color: var(--text-muted);">${displayTime}</span>
+            </div>
+        `;
+    }
+
+    // Break Window shading
+    let breakShadeHtml = '';
+    if (breakStartMins !== -1 && breakEndMins !== -1 && breakEndMins > startMins && breakStartMins < endLimitMins) {
+        const bLeft = Math.max(0, ((breakStartMins - startMins) / totalDuration) * 100);
+        const bWidth = Math.min(100 - bLeft, ((breakEndMins - breakStartMins) / totalDuration) * 100);
+        breakShadeHtml = `
+            <div style="position: absolute; left: ${bLeft}%; width: ${bWidth}%; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.08) 8px, rgba(245, 158, 11, 0.15) 8px, rgba(245, 158, 11, 0.15) 16px); border-left: 1px solid rgba(245, 158, 11, 0.3); border-right: 1px solid rgba(245, 158, 11, 0.3); z-index: 1; pointer-events: none; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 0.75rem; font-weight: 800; color: #B45309; transform: rotate(-90deg); letter-spacing: 0.05em;">LUNCH BREAK</span>
+            </div>
+        `;
+    }
+
+    // Build stage swimlanes
+    const stageTracks = [
+        ...stagesList.map(s => ({ id: s.id, name: s.name, isOffstage: false })),
+        { id: 'offstage', name: 'Offstage Venues', isOffstage: true }
+    ];
+
+    let swimlanesHtml = '';
+
+    stageTracks.forEach(track => {
+        // Collect items in this track
+        const trackItems = compIds
+            .map(id => {
+                const sched = proposedSchedule[id];
+                const comp = competitionsList.find(c => c.id == id);
+                return { id, sched, comp };
+            })
+            .filter(item => {
+                if (track.isOffstage) return item.comp?.is_offstage;
+                return !item.comp?.is_offstage && String(item.sched.stage_id) === String(track.id);
+            });
+
+        if (track.isOffstage && trackItems.length === 0) return; // Hide offstage lane if empty
+
+        let blocksHtml = '';
+        trackItems.forEach(item => {
+            const itemStart = timeStringToMinutes(item.sched.time);
+            const itemEnd = timeStringToMinutes(item.sched.to_time);
+            const leftPct = Math.max(0, ((itemStart - startMins) / totalDuration) * 100);
+            const widthPct = Math.min(100 - leftPct, ((itemEnd - itemStart) / totalDuration) * 100);
+
+            blocksHtml += `
+                <div style="position: absolute; left: ${leftPct}%; width: ${Math.max(widthPct, 2)}%; top: 6px; bottom: 6px; background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%); border-radius: 6px; color: white; padding: 4px 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.25); border: 1px solid rgba(255,255,255,0.2); cursor: pointer; z-index: 2; transition: var(--transition);" 
+                     title="${item.comp.name} (${item.comp.categories?.name || 'Gen'}) | ${item.sched.time} - ${item.sched.to_time} (${item.sched.manual_time}m)"
+                     onmouseover="this.style.transform='scale(1.03)'; this.style.zIndex='10';"
+                     onmouseout="this.style.transform='none'; this.style.zIndex='2';">
+                    <div style="font-weight: 700; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.comp.name}</div>
+                    <div style="font-size: 0.65rem; opacity: 0.85; white-space: nowrap;">${item.sched.time} - ${item.sched.to_time}</div>
+                </div>
+            `;
+        });
+
+        swimlanesHtml += `
+            <div style="display: flex; border-bottom: 1px solid var(--border); min-height: 52px;">
+                <div style="width: 140px; min-width: 140px; padding: 0.6rem 0.75rem; background: var(--bg-main); border-right: 1px solid var(--border); font-size: 0.8rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem;">
+                    <i class="${track.isOffstage ? 'fa-solid fa-layer-group' : 'fa-solid fa-microphone-stage'}" style="color: var(--primary);"></i>
+                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</span>
+                </div>
+                <div style="flex: 1; position: relative; min-height: 52px; background: white;">
+                    ${timeMarkersHtml}
+                    ${breakShadeHtml}
+                    ${blocksHtml}
+                </div>
+            </div>
+        `;
+    });
+
+    let unplacedHtml = '';
+    if (unplacedList.length > 0) {
+        unplacedHtml = `
+            <div style="margin-top: 1rem; padding: 0.85rem 1rem; background: #FFFBEB; border: 1.5px solid #FDE68A; border-radius: 8px;">
+                <strong style="color: #92400E; font-size: 0.85rem; display: block; margin-bottom: 0.25rem;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> ${unplacedList.length} Events Could Not Fit Into Time Limit (${startTimeStr} - ${endTimeStr})
+                </strong>
+                <span style="font-size: 0.8rem; color: #B45309;">Consider extending operating hours or adding more stages. Unplaced events: ${unplacedList.map(c => c.name).join(', ')}.</span>
+            </div>
+        `;
+    }
+
+    container.innerHTML = `
+        <div style="overflow-x: auto; border: 1px solid var(--border); border-radius: 8px;">
+            <div style="min-width: 650px;">
+                ${swimlanesHtml}
+            </div>
+        </div>
+        ${unplacedHtml}
+    `;
+}
+
+async function applyOptimizedSchedule() {
+    if (!pendingOptimizedSchedule || Object.keys(pendingOptimizedSchedule).length === 0) {
+        alert("No optimized schedule to apply.");
+        return;
+    }
+
+    const applyBtn = document.getElementById('btn-apply-optimized-schedule');
+    if (applyBtn) {
+        applyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Applying & Saving...';
+        applyBtn.disabled = true;
+    }
+
+    try {
+        const stageUpdates = [];
+
+        // 1. Merge pending into masterSchedule & check stage updates
+        Object.keys(pendingOptimizedSchedule).forEach(id => {
+            const item = pendingOptimizedSchedule[id];
+            masterSchedule[id] = {
+                date: item.date,
+                time: item.time,
+                to_time: item.to_time,
+                manual_time: item.manual_time,
+                status: 'draft'
+            };
+
+            const existingComp = competitionsList.find(c => c.id == id);
+            if (existingComp && item.stage_id && String(existingComp.stage_id) !== String(item.stage_id) && !existingComp.is_offstage) {
+                stageUpdates.push(supabaseClient.from('competitions').update({ stage_id: item.stage_id }).eq('id', id));
+            }
+        });
+
+        // 2. Persist stage updates if any
+        if (stageUpdates.length > 0) {
+            await Promise.all(stageUpdates);
+            await loadCompetitions();
+        }
+
+        // 3. Save master_schedule in Supabase settings
+        const { error } = await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+        if (error) throw error;
+
+        showToast("Auto-Schedule successfully applied and persisted!", "success");
+        document.getElementById('autoSchedulerModal').classList.remove('show');
+        await loadSchedules();
+    } catch(e) {
+        showToast("Failed to apply schedule: " + e.message, "error");
+    } finally {
+        if (applyBtn) {
+            applyBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> Apply & Save to Master Schedule';
+            applyBtn.disabled = false;
+        }
     }
 }
 
@@ -8253,9 +9066,11 @@ function populateWebsiteForms() {
 }
 
 async function executeWebsiteSave(btnElement) {
-    const originalText = btnElement.innerHTML;
-    btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
-    btnElement.disabled = true;
+    const originalText = btnElement ? btnElement.innerHTML : null;
+    if (btnElement) {
+        btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        btnElement.disabled = true;
+    }
 
     try {
         const { error } = await supabaseClient.from('settings').upsert({ id: 'website_config', value: websiteConfig });
@@ -8264,59 +9079,82 @@ async function executeWebsiteSave(btnElement) {
     } catch(e) {
         showToast(e.message, 'error');
     } finally {
-        btnElement.innerHTML = originalText;
-        btnElement.disabled = false;
+        if (btnElement && originalText !== null) {
+            btnElement.innerHTML = originalText;
+            btnElement.disabled = false;
+        }
     }
 }
 
-function saveDomainConfig() {
-    const domainInput = document.getElementById('web-subdomain').value.toLowerCase().replace(/[^a-z0-9]/g, '');
+function saveDomainConfig(event) {
+    const domainInputEl = document.getElementById('web-subdomain');
+    const domainInput = domainInputEl ? domainInputEl.value.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
     websiteConfig.domain = domainInput;
-    document.getElementById('subdomain-status').style.display = domainInput ? 'block' : 'none';
-    document.getElementById('preview-url-display').innerText = domainInput ? `${domainInput}.festos.app` : 'festos.app';
-    executeWebsiteSave(event.currentTarget);
+    
+    // Update the domain displays in the Overview pane
+    const fullUrl = domainInput ? `${domainInput}.festos.app` : 'festos.app';
+    const statusEl = document.getElementById('subdomain-status');
+    if (statusEl) statusEl.style.display = domainInput ? 'block' : 'none';
+
+    const previewDisp = document.getElementById('preview-url-display');
+    if (previewDisp) previewDisp.innerText = fullUrl;
+
+    const deskDisp = document.getElementById('overview-url-display-desk');
+    if (deskDisp) deskDisp.innerText = fullUrl;
+
+    const footerDisp = document.getElementById('overview-url-display-footer');
+    if (footerDisp) footerDisp.innerText = fullUrl;
+    
+    const btn = event?.currentTarget || (typeof window !== 'undefined' && window.event?.currentTarget) || null;
+    executeWebsiteSave(btn);
 }
 
-function savePageConfig() {
+function savePageConfig(event) {
     websiteConfig.pages.home = {
-        progCount: document.getElementById('pg-prog-count').value,
-        partCount: document.getElementById('pg-part-count').value,
-        teamCount: document.getElementById('pg-team-count').value,
-        venueCount: document.getElementById('pg-venue-count').value,
-        aboutTitle: document.getElementById('pg-about-title').value,
-        aboutSub: document.getElementById('pg-about-sub').value,
-        contentTitle: document.getElementById('pg-content-title').value,
-        contentDesc: document.getElementById('pg-content-desc').value,
+        progCount: document.getElementById('pg-prog-count')?.value || '',
+        partCount: document.getElementById('pg-part-count')?.value || '',
+        teamCount: document.getElementById('pg-team-count')?.value || '',
+        venueCount: document.getElementById('pg-venue-count')?.value || '',
+        aboutTitle: document.getElementById('pg-about-title')?.value || '',
+        aboutSub: document.getElementById('pg-about-sub')?.value || '',
+        contentTitle: document.getElementById('pg-content-title')?.value || '',
+        contentDesc: document.getElementById('pg-content-desc')?.value || '',
         contact: {
-            title: document.getElementById('pg-contact-title').value,
-            email: document.getElementById('pg-contact-email').value,
-            phone: document.getElementById('pg-contact-phone').value,
-            wa: document.getElementById('pg-contact-wa').value,
-            ig: document.getElementById('pg-contact-ig').value,
-            fb: document.getElementById('pg-contact-fb').value,
-            yt: document.getElementById('pg-contact-yt').value,
-            web: document.getElementById('pg-contact-web').value,
-            address: document.getElementById('pg-contact-address').value
+            title: document.getElementById('pg-contact-title')?.value || '',
+            email: document.getElementById('pg-contact-email')?.value || '',
+            phone: document.getElementById('pg-contact-phone')?.value || '',
+            wa: document.getElementById('pg-contact-wa')?.value || '',
+            ig: document.getElementById('pg-contact-ig')?.value || '',
+            fb: document.getElementById('pg-contact-fb')?.value || '',
+            yt: document.getElementById('pg-contact-yt')?.value || '',
+            web: document.getElementById('pg-contact-web')?.value || '',
+            address: document.getElementById('pg-contact-address')?.value || ''
         }
     };
-    executeWebsiteSave(event.currentTarget);
+    const btn = event?.currentTarget || (typeof window !== 'undefined' && window.event?.currentTarget) || null;
+    executeWebsiteSave(btn);
 }
 
-function saveVisibilityConfig() {
+function saveVisibilityConfig(event) {
     const keys = ['schedules', 'results', 'downloads', 'gallery', 'news', 'wall', 'myresult'];
     
     keys.forEach(k => {
-        websiteConfig.visibility.page[k] = document.getElementById(`vis-page-${k}`).checked;
-        websiteConfig.visibility.nav[k] = document.getElementById(`vis-nav-${k}`).checked;
-        websiteConfig.visibility.foot[k] = document.getElementById(`vis-foot-${k}`).checked;
+        const pageEl = document.getElementById(`vis-page-${k}`);
+        const navEl = document.getElementById(`vis-nav-${k}`);
+        const footEl = document.getElementById(`vis-foot-${k}`);
+        if (pageEl) websiteConfig.visibility.page[k] = pageEl.checked;
+        if (navEl) websiteConfig.visibility.nav[k] = navEl.checked;
+        if (footEl) websiteConfig.visibility.foot[k] = footEl.checked;
     });
     
-    executeWebsiteSave(event.currentTarget);
+    const btn = event?.currentTarget || (typeof window !== 'undefined' && window.event?.currentTarget) || null;
+    executeWebsiteSave(btn);
 }
 
-function saveThemeConfig() {
+function saveThemeConfig(event) {
     // Future expansion: Save color palette selections
-    executeWebsiteSave(event.currentTarget);
+    const btn = event?.currentTarget || (typeof window !== 'undefined' && window.event?.currentTarget) || null;
+    executeWebsiteSave(btn);
 }
 
 // Color Palette Interactivity (Mock functionality for the preview UI)
@@ -8328,22 +9166,6 @@ document.addEventListener('click', function(e) {
         btn.classList.add('active');
     }
 });
-
-
-// Add this inside your admin.js to ensure the subdomain text updates dynamically
-function saveDomainConfig() {
-    const domainInput = document.getElementById('web-subdomain').value.toLowerCase().replace(/[^a-z0-9]/g, '');
-    websiteConfig.domain = domainInput;
-    
-    // Update the domain displays in the Overview pane
-    const fullUrl = domainInput ? `${domainInput}.festos.app` : 'festos.app';
-    document.getElementById('subdomain-status').style.display = domainInput ? 'block' : 'none';
-    document.getElementById('preview-url-display').innerText = fullUrl;
-    document.getElementById('overview-url-display-desk').innerText = fullUrl;
-    document.getElementById('overview-url-display-footer').innerText = fullUrl;
-    
-    executeWebsiteSave(event.currentTarget);
-}
 
 // ============================================================================
 // DUAL-VIEW ASSIGNMENT ENGINE (OVERVIEW & QUICK ADD PORTED FROM TM)

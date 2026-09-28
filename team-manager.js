@@ -1331,20 +1331,6 @@ document.addEventListener('DOMContentLoaded', initDashboard);
 // ==========================================
 // TM SCHEDULE VIEWER
 // ==========================================
-function populateSchedCatFilter() {
-    const filter = document.getElementById('filter-schedule-cat');
-    if(!filter || filter.options.length > 1) return;
-    
-    const catSet = new Set();
-    globalComps.forEach(c => {
-        if(tmScheduleData[c.id] && tmScheduleData[c.id].status === 'published') {
-            catSet.add({ id: c.category_id, name: c.categories?.name || 'UNCATEGORIZED' });
-        }
-    });
-    
-    const uniqueArray = Array.from(new Set(Array.from(catSet).map(JSON.stringify))).map(JSON.parse);
-    uniqueArray.forEach(cat => filter.innerHTML += `<option value="${cat.id}">${cat.name}</option>`);
-}
 
 function populateSchedCatFilter() {
     const catFilter = document.getElementById('filter-schedule-cat');
@@ -1366,12 +1352,86 @@ function populateSchedCatFilter() {
     }
 }
 
+function timeStringToMinutes(timeStr) {
+    if (!timeStr) return 0;
+    const parts = timeStr.split(':').map(Number);
+    return (parts[0] || 0) * 60 + (parts[1] || 0);
+}
+
+function detectTMStudentScheduleConflicts() {
+    const conflicts = [];
+    const compConflictMap = {};
+
+    globalStudents.forEach(student => {
+        const studentComps = (globalAssignments || [])
+            .filter(a => a.participant_id === student.id)
+            .map(a => globalComps.find(c => c.id === a.competition_id))
+            .filter(c => c && tmScheduleData[c.id] && tmScheduleData[c.id].status === 'published' && tmScheduleData[c.id].date && tmScheduleData[c.id].time);
+
+        for (let i = 0; i < studentComps.length; i++) {
+            for (let j = i + 1; j < studentComps.length; j++) {
+                const compA = studentComps[i];
+                const compB = studentComps[j];
+                const schedA = tmScheduleData[compA.id];
+                const schedB = tmScheduleData[compB.id];
+
+                if (schedA.date !== schedB.date) continue;
+
+                const startA = timeStringToMinutes(schedA.time);
+                let endA = schedA.to_time ? timeStringToMinutes(schedA.to_time) : (startA + (parseInt(schedA.manual_time) || 30));
+                if (endA <= startA) endA = startA + 30;
+
+                const startB = timeStringToMinutes(schedB.time);
+                let endB = schedB.to_time ? timeStringToMinutes(schedB.to_time) : (startB + (parseInt(schedB.manual_time) || 30));
+                if (endB <= startB) endB = startB + 30;
+
+                const isOverlap = (startA < endB) && (startB < endA);
+                if (isOverlap) {
+                    conflicts.push({
+                        student,
+                        compA,
+                        compB,
+                        date: schedA.date,
+                        timeA: `${schedA.time} - ${schedA.to_time || ''}`,
+                        timeB: `${schedB.time} - ${schedB.to_time || ''}`
+                    });
+                    if (!compConflictMap[compA.id]) compConflictMap[compA.id] = [];
+                    if (!compConflictMap[compB.id]) compConflictMap[compB.id] = [];
+                    compConflictMap[compA.id].push({ student, otherComp: compB });
+                    compConflictMap[compB.id].push({ student, otherComp: compA });
+                }
+            }
+        }
+    });
+
+    const banner = document.getElementById('tm-schedule-conflict-banner');
+    const titleElem = document.getElementById('tm-conflict-banner-title');
+    const descElem = document.getElementById('tm-conflict-banner-desc');
+
+    if (banner) {
+        if (conflicts.length > 0) {
+            banner.style.display = 'flex';
+            if (titleElem) titleElem.innerText = `⚠️ ${conflicts.length} Schedule Conflict${conflicts.length > 1 ? 's' : ''} Detected in Your Team`;
+            if (descElem) {
+                const studentNames = Array.from(new Set(conflicts.map(c => c.student.name))).join(', ');
+                descElem.innerText = `Students with overlapping event schedules: ${studentNames}. Contact admin if adjustments are needed.`;
+            }
+        } else {
+            banner.style.display = 'none';
+        }
+    }
+
+    return compConflictMap;
+}
+
 function renderTMSchedule() {
     const search = document.getElementById('search-schedule').value.toLowerCase();
     const catFilter = document.getElementById('filter-schedule-cat').value;
     const stageFilter = document.getElementById('filter-schedule-stage').value;
     const tbody = document.getElementById('tm-schedule-tbody');
     tbody.innerHTML = '';
+
+    const compConflictMap = detectTMStudentScheduleConflicts();
 
     const scheduledComps = globalComps.filter(c => {
         const sched = tmScheduleData[c.id];
@@ -1402,12 +1462,19 @@ function renderTMSchedule() {
         const catName = comp.categories?.name || 'UNCATEGORIZED';
         const stageName = comp.is_offstage ? 'OFFSTAGE' : (comp.stages?.name || 'TBD');
         
+        const clashes = compConflictMap[comp.id] || [];
+        let clashBadge = '';
+        if (clashes.length > 0) {
+            const names = clashes.map(c => c.student.name).join(', ');
+            clashBadge = `<br><span class="badge" style="background:#FEE2E2; color:#DC2626; border:1px solid #FCA5A5; font-weight:700; margin-top:4px; display:inline-flex; align-items:center; gap:4px;" title="Clash for: ${names}"><i class="fa-solid fa-triangle-exclamation"></i> Student Overlap (${clashes.length})</span>`;
+        }
+
         tbody.innerHTML += `
             <tr>
                 <td data-label="DATE" style="font-weight: 700; color: var(--primary);">${sched.date}</td>
                 <td data-label="FROM TIME" style="font-weight: 700;">${sched.time}</td>
                 <td data-label="TO TIME" style="font-weight: 700; color: var(--text-muted);">${sched.to_time || '-'}</td>
-                <td data-label="EVENT NAME" style="font-weight: 800; color: var(--text-main); font-size: 1.05rem;">${comp.name}</td>
+                <td data-label="EVENT NAME" style="font-weight: 800; color: var(--text-main); font-size: 1.05rem;">${comp.name} ${clashBadge}</td>
                 <td data-label="STAGE"><span style="font-weight: 600; color: var(--primary);"><i class="fa-solid fa-microphone-stage" style="margin-right: 4px;"></i> ${stageName}</span></td>
                 <td data-label="CATEGORY"><span class="badge badge-gray">${catName}</span></td>
             </tr>

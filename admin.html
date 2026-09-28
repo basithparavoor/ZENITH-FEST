@@ -3163,13 +3163,31 @@ tr:hover td { background: var(--bg-main); }
             <div class="action-bar">
                 <div>
                     <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">Event Schedule</h2>
-                    <p style="color: var(--text-muted); font-size: 0.9rem;">Plan event timings and publish schedules to Team Managers.</p>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Plan event timings, detect participant clashes, and publish schedules to Team Managers.</p>
                 </div>
                 <div class="bulk-actions" style="flex-wrap: wrap; gap: 0.5rem;">
+                    <button class="btn btn-primary" style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); border: none;" onclick="openAutoSchedulerModal()"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Schedule Optimizer</button>
+                    <button class="btn btn-outline" id="btn-conflict-audit" onclick="openConflictAuditModal()"><i class="fa-solid fa-triangle-exclamation" style="color: #F59E0B;"></i> Conflict Audit <span id="conflict-badge-count" style="display:none; background:#EF4444; color:white; border-radius:999px; padding:2px 7px; font-size:0.75rem; font-weight:700; margin-left:4px;">0</span></button>
                     <button class="btn btn-primary" onclick="openScheduleModal()"><i class="fa-solid fa-plus"></i> Schedule Event</button>
                     <button class="btn btn-outline" onclick="exportSchedulePDF()"><i class="fa-solid fa-file-pdf"></i> Export PDF</button>
                     <button class="btn btn-outline" onclick="exportScheduleCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
                 </div>
+            </div>
+
+            <!-- Schedule Conflict Alert Banner -->
+            <div id="schedule-conflict-banner" style="display: none; background: #FEF2F2; border: 1.5px solid #FCA5A5; border-radius: var(--radius-md); padding: 1rem 1.25rem; margin-bottom: 1.25rem; align-items: center; justify-content: space-between; gap: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.85rem;">
+                    <div style="width: 36px; height: 36px; border-radius: 8px; background: #FEE2E2; color: #DC2626; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <strong style="color: #991B1B; font-size: 0.95rem; display: block;" id="conflict-banner-title">Schedule Conflicts Detected</strong>
+                        <span style="color: #B91C1C; font-size: 0.85rem;" id="conflict-banner-desc">Students are assigned to simultaneous events or stage collisions exist.</span>
+                    </div>
+                </div>
+                <button class="btn btn-danger" style="padding: 0.45rem 1rem; font-size: 0.85rem; white-space: nowrap;" onclick="openConflictAuditModal()">
+                    <i class="fa-solid fa-magnifying-glass"></i> View & Resolve
+                </button>
             </div>
             
             <div class="controls-bar">
@@ -3513,6 +3531,164 @@ tr:hover td { background: var(--bg-main); }
     </div>
 </div>
 
+<!-- ================= CONFLICT AUDIT MODAL ================= -->
+<div id="conflictAuditModal" class="modal-overlay" style="z-index: 1050;">
+    <div class="modal" style="max-width: 850px; width: 95%;">
+        <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: #FEE2E2; color: #DC2626; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                    <h2 style="font-size: 1.35rem; font-weight: 800; margin: 0;">Schedule Conflict & Overlap Audit</h2>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0; font-weight: 500;">Live detection of student double-bookings, <15min tight buffers, and stage collisions.</p>
+                </div>
+            </div>
+            <button class="close-btn" onclick="document.getElementById('conflictAuditModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div style="padding: 1.25rem 0 0 0;">
+            <!-- Conflict Category Tabs / Metrics -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="background: #FEF2F2; border: 1.5px solid #FCA5A5; border-radius: 12px; padding: 1rem; text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #DC2626;" id="audit-hard-count">0</div>
+                    <div style="font-size: 0.75rem; font-weight: 700; color: #991B1B; text-transform: uppercase;">Hard Student Clashes</div>
+                </div>
+                <div style="background: #FFFBEB; border: 1.5px solid #FDE68A; border-radius: 12px; padding: 1rem; text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #D97706;" id="audit-buffer-count">0</div>
+                    <div style="font-size: 0.75rem; font-weight: 700; color: #92400E; text-transform: uppercase;">Tight Buffers (&lt;15m)</div>
+                </div>
+                <div style="background: #F5F3FF; border: 1.5px solid #DDD6FE; border-radius: 12px; padding: 1rem; text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #7C3AED;" id="audit-stage-count">0</div>
+                    <div style="font-size: 0.75rem; font-weight: 700; color: #5B21B6; text-transform: uppercase;">Stage Double-Bookings</div>
+                </div>
+            </div>
+
+            <!-- Filter Type -->
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                <button class="btn btn-primary" id="btn-filter-all-conflicts" onclick="filterAuditList('all')" style="padding: 0.4rem 0.85rem; font-size: 0.8rem;">All Issues (<span id="audit-total-count">0</span>)</button>
+                <button class="btn btn-outline" id="btn-filter-hard-conflicts" onclick="filterAuditList('hard')" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; color: #DC2626; border-color: #FCA5A5;">Hard Clashes Only</button>
+                <button class="btn btn-outline" id="btn-filter-buffer-conflicts" onclick="filterAuditList('buffer')" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; color: #D97706; border-color: #FDE68A;">Tight Buffers</button>
+                <button class="btn btn-outline" id="btn-filter-stage-conflicts" onclick="filterAuditList('stage')" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; color: #7C3AED; border-color: #DDD6FE;">Stage Overlaps</button>
+            </div>
+
+            <!-- List Container -->
+            <div class="table-container" style="max-height: 48vh; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                <div id="conflict-audit-list" style="display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem;">
+                    <!-- Dynamically populated conflict cards -->
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer" style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">Conflict detection updates in real-time as you modify schedule timings.</span>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-outline" onclick="exportConflictReportPDF()"><i class="fa-solid fa-file-pdf"></i> Export PDF</button>
+                <button class="btn btn-primary" onclick="document.getElementById('conflictAuditModal').classList.remove('show')">Done</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= AUTO-SCHEDULE OPTIMIZER MODAL ================= -->
+<div id="autoSchedulerModal" class="modal-overlay" style="z-index: 1050;">
+    <div class="modal" style="max-width: 950px; width: 95%;">
+        <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </div>
+                <div>
+                    <h2 style="font-size: 1.35rem; font-weight: 800; margin: 0;">Auto-Schedule Optimizer (AI Engine)</h2>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0; font-weight: 500;">Constraint-satisfaction algorithm: automatically slots events minimizing student overlap and maximizing stage throughput.</p>
+                </div>
+            </div>
+            <button class="close-btn" onclick="document.getElementById('autoSchedulerModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div style="padding: 1.25rem 0 0 0;">
+            <!-- Configuration Form Deck -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; background: var(--bg-main); padding: 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border); margin-bottom: 1.5rem;">
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">TARGET FEST DATE</label>
+                    <input type="date" id="opt-date" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
+                </div>
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">START TIME</label>
+                    <input type="time" id="opt-start-time" value="09:00" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
+                </div>
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">END TIME</label>
+                    <input type="time" id="opt-end-time" value="18:00" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
+                </div>
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">BUFFER (MINS)</label>
+                    <select id="opt-buffer-mins" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
+                        <option value="10">10 Mins</option>
+                        <option value="15" selected>15 Mins (Recommended)</option>
+                        <option value="20">20 Mins</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">STAGE STRATEGY</label>
+                    <select id="opt-stage-strategy" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
+                        <option value="auto_balance" selected>Auto-Balance Across Stages</option>
+                        <option value="preserve">Strict: Pre-Assigned Stages</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">BREAK / LUNCH</label>
+                    <select id="opt-break-window" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
+                        <option value="none">No Break</option>
+                        <option value="13:00-14:00" selected>1:00 PM - 2:00 PM (Lunch)</option>
+                        <option value="12:30-13:30">12:30 PM - 1:30 PM</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">SCOPE</label>
+                    <select id="opt-scope" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
+                        <option value="unscheduled_only" selected>Unscheduled Events Only</option>
+                        <option value="all_replace">Re-optimize All on Date</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Optimizer Control Actions -->
+            <div style="display: flex; gap: 0.75rem; margin-bottom: 1.25rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button class="btn btn-primary" style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); border: none; padding: 0.75rem 1.25rem;" onclick="generateOptimizedSchedule()">
+                        <i class="fa-solid fa-calculator"></i> Run Optimizer Algorithm
+                    </button>
+                    <span id="opt-status-indicator" style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">Ready to optimize.</span>
+                </div>
+                <div id="opt-metrics-badge" style="display: none; gap: 0.75rem; align-items: center;">
+                    <span style="font-size: 0.85rem; font-weight: 700; color: #059669; background: #D1FAE5; padding: 0.35rem 0.75rem; border-radius: 8px;" id="opt-badge-success">0 Events Scheduled</span>
+                    <span style="font-size: 0.85rem; font-weight: 700; color: #2563EB; background: #DBEAFE; padding: 0.35rem 0.75rem; border-radius: 8px;" id="opt-badge-clash">0 Clashes</span>
+                </div>
+            </div>
+
+            <!-- Optimizer Timeline / Gantt Preview -->
+            <div style="border: 1px solid var(--border); border-radius: var(--radius-lg); background: white; overflow: hidden;">
+                <div style="padding: 0.75rem 1rem; background: var(--bg-main); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                    <strong style="font-size: 0.9rem; color: var(--text-main);"><i class="fa-solid fa-chart-gantt"></i> Optimization Timeline Preview</strong>
+                    <small style="color: var(--text-muted); font-weight: 500;">Review proposed slots before applying</small>
+                </div>
+                <div id="opt-preview-container" style="max-height: 40vh; overflow-y: auto; padding: 1rem; min-height: 180px;">
+                    <div style="text-align: center; color: var(--text-muted); padding: 3rem; font-size: 0.9rem; font-weight: 500;">
+                        Click <strong>"Run Optimizer Algorithm"</strong> to generate a clash-free schedule.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer" style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <button class="btn btn-outline" onclick="document.getElementById('autoSchedulerModal').classList.remove('show')">Cancel</button>
+            <button class="btn btn-success" id="btn-apply-optimized-schedule" style="display: none; padding: 0.75rem 1.5rem;" onclick="applyOptimizedSchedule()">
+                <i class="fa-solid fa-check-double"></i> Apply & Save to Master Schedule
+            </button>
+        </div>
+    </div>
+</div>
 
 <div id="toast-container"></div>
 

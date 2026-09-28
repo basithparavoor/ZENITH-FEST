@@ -248,6 +248,68 @@
 
         .hidden { display: none !important; }
 
+        /* --- AI ANNOUNCER SUITE --- */
+        .ai-deck-card {
+            background: var(--bg-surface);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 2rem;
+        }
+        .ai-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .wave-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            height: 24px;
+            padding: 0 8px;
+        }
+        .wave-bar {
+            width: 4px;
+            background: var(--primary);
+            border-radius: 4px;
+            height: 6px;
+            transition: height 0.2s ease;
+        }
+        .speaking .wave-bar {
+            animation: waveBounce 0.8s infinite ease-in-out alternate;
+        }
+        .speaking .wave-bar:nth-child(2) { animation-delay: 0.15s; }
+        .speaking .wave-bar:nth-child(3) { animation-delay: 0.3s; }
+        .speaking .wave-bar:nth-child(4) { animation-delay: 0.45s; }
+        .speaking .wave-bar:nth-child(5) { animation-delay: 0.6s; }
+        @keyframes waveBounce {
+            0% { height: 4px; }
+            100% { height: 24px; }
+        }
+        .btn-announce-card {
+            padding: 0.45rem 0.85rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            border-radius: var(--radius-md);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            color: white;
+            box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+        }
+        .btn-announce-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+        }
+
 
 
         /* --- BOTTOM SHEET MODALS --- */
@@ -508,6 +570,9 @@
             <button class="tab-btn" onclick="switchTab('awards')">
                 <i class="fa-solid fa-trophy"></i> <span>Awards</span>
             </button>
+            <button class="tab-btn" onclick="switchTab('ai-announcer')">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> <span>AI Announcer</span>
+            </button>
         </div>
     </div>
 
@@ -600,6 +665,161 @@
                     </div>
                 </div>
                 <div id="awards-container" class="grid-layout"></div>
+            </div>
+
+            <!-- AI Stage Announcer View -->
+            <div id="view-ai-announcer" class="tab-content view-section hidden">
+                <div class="ai-deck-card">
+                    <div class="ai-header">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            </div>
+                            <div>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <h2 style="font-size: 1.35rem; font-weight: 700; margin: 0;">AI Stage Announcer Suite Pro</h2>
+                                    <span id="tts-on-air-badge" style="display: none; background: #DC2626; color: white; border-radius: 999px; padding: 0.2rem 0.65rem; font-size: 0.7rem; font-weight: 800; animation: pulseGlow 1s infinite alternate;"><i class="fa-solid fa-circle" style="font-size: 0.5rem; margin-right: 3px;"></i> LIVE ON-AIR</span>
+                                </div>
+                                <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0; font-weight: 500;">Multi-lingual automated audio broadcast, multi-chime sound FX, smart variable tokens & sequential queue.</p>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <canvas id="tts-visualizer-canvas" width="130" height="28" style="border-radius: 6px; background: var(--bg-main); border: 1px solid var(--border);"></canvas>
+                            <div id="tts-wave" class="wave-container" title="Audio Activity">
+                                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-right: 4px;" id="tts-status-label">IDLE</span>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Voice Parameters Deck -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; background: var(--bg-main); padding: 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border); margin-bottom: 1.5rem;">
+                        <div>
+                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">VOICE / ENGINE</label>
+                            <select id="tts-voice-select" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); background: white; font-size: 0.85rem; font-weight: 600; outline: none;"></select>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">SPEED (RATE): <span id="tts-rate-val">1.0x</span></label>
+                            <input type="range" id="tts-rate" min="0.7" max="1.4" step="0.05" value="1.0" oninput="document.getElementById('tts-rate-val').innerText = this.value + 'x'" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">PITCH: <span id="tts-pitch-val">1.0</span></label>
+                            <input type="range" id="tts-pitch" min="0.8" max="1.3" step="0.05" value="1.0" oninput="document.getElementById('tts-pitch-val').innerText = this.value" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">VOLUME: <span id="tts-vol-val">100%</span></label>
+                            <input type="range" id="tts-vol" min="0" max="1" step="0.05" value="1.0" oninput="document.getElementById('tts-vol-val').innerText = Math.round(this.value * 100) + '%'" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">CHIME SOUND FX</label>
+                            <select id="tts-chime-style" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); background: white; font-size: 0.85rem; font-weight: 600; outline: none;">
+                                <option value="gong" selected>📯 Harmonic Gong (D5-A5)</option>
+                                <option value="airport">🔔 Airport Double Bell (F5-C6)</option>
+                                <option value="digital">⚡ Digital Chime (A5-D6-E6)</option>
+                                <option value="fanfare">🎺 Attention Fanfare (C-E-G-C)</option>
+                                <option value="none">🚫 No Chime</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">REPEAT COUNT</label>
+                            <select id="tts-repeats" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); background: white; font-size: 0.85rem; font-weight: 600; outline: none;">
+                                <option value="1">Broadcast Once (1x)</option>
+                                <option value="2" selected>Repeat Twice (2x)</option>
+                                <option value="3">Repeat Thrice (3x)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Template & Broadcast Builder -->
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+                                <i class="fa-solid fa-bullhorn" style="color: var(--primary);"></i> ANNOUNCEMENT SCRIPT
+                            </label>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <button class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; min-height: 0;" onclick="testSelectedChime()"><i class="fa-solid fa-bell"></i> Test Sound FX</button>
+                                <button class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; min-height: 0;" onclick="testVoicePreview()"><i class="fa-solid fa-microphone"></i> Test Voice</button>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                            <div>
+                                <select id="tts-template-type" onchange="loadAnnouncementTemplate()" style="width: 100%; padding: 0.7rem 1rem; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-main); font-size: 0.85rem; font-weight: 600; outline: none;">
+                                    <option value="call_en">Stage Callout (English)</option>
+                                    <option value="call_ml">Stage Callout (Malayalam - മലയാളം)</option>
+                                    <option value="call_hi">Stage Callout (Hindi - हिन्दी)</option>
+                                    <option value="call_ar">Stage Callout (Arabic - العربية)</option>
+                                    <option value="ongoing">Event Live Notice</option>
+                                    <option value="award">Winners Felicitation</option>
+                                    <option value="custom">Custom Message</option>
+                                </select>
+                            </div>
+                            <div>
+                                <select id="tts-comp-target" onchange="loadAnnouncementTemplate()" style="width: 100%; padding: 0.7rem 1rem; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-main); font-size: 0.85rem; font-weight: 600; outline: none;">
+                                    <option value="">-- Load Competition Details --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Smart Variable Token Inserter Chips -->
+                        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.6rem; align-items: center;">
+                            <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);"><i class="fa-solid fa-tags"></i> Insert Variable:</span>
+                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: 0; border-radius: 6px;" onclick="insertTokenAtCursor('{competition}')">+ {competition}</button>
+                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: 0; border-radius: 6px;" onclick="insertTokenAtCursor('{category}')">+ {category}</button>
+                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: 0; border-radius: 6px;" onclick="insertTokenAtCursor('{stage}')">+ {stage}</button>
+                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: 0; border-radius: 6px;" onclick="insertTokenAtCursor('{winner_1}')">+ {winner_1}</button>
+                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: 0; border-radius: 6px;" onclick="insertTokenAtCursor('{winner_2}')">+ {winner_2}</button>
+                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: 0; border-radius: 6px;" onclick="insertTokenAtCursor('{winner_3}')">+ {winner_3}</button>
+                        </div>
+
+                        <textarea id="tts-text-input" rows="4" placeholder="Enter or edit announcement text here..." style="width: 100%; padding: 1rem; border-radius: 12px; border: 1.5px solid var(--border); font-size: 0.95rem; font-family: inherit; outline: none; transition: var(--transition); resize: vertical; background: white; text-transform: none !important;"></textarea>
+                    </div>
+
+                    <!-- Action Controls -->
+                    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                        <button class="btn btn-primary" style="flex: 2; min-width: 180px; padding: 0.9rem 1.5rem; justify-content: center; font-size: 1rem; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); border: none;" onclick="triggerAIAnnouncement()">
+                            <i class="fa-solid fa-play"></i> Broadcast Live AI Audio
+                        </button>
+                        <button class="btn btn-outline" style="flex: 1; min-width: 140px; padding: 0.9rem 1rem; justify-content: center; font-size: 0.95rem; border-color: var(--primary); color: var(--primary);" onclick="addToBroadcastQueue()">
+                            <i class="fa-solid fa-list-check"></i> Add to Queue
+                        </button>
+                        <button class="btn btn-danger" style="flex: 1; min-width: 120px; padding: 0.9rem 1rem; justify-content: center; font-size: 0.95rem;" onclick="stopAISpeech()">
+                            <i class="fa-solid fa-stop"></i> Stop Speech
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Broadcast Queue & History Grid -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+                    <!-- Playlist Queue Deck -->
+                    <div class="ai-deck-card" style="padding: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="font-size: 1.05rem; font-weight: 700; margin: 0;"><i class="fa-solid fa-list-ol" style="color: var(--primary);"></i> Broadcast Playlist Queue (<span id="tts-queue-count">0</span>)</h3>
+                            <div style="display: flex; gap: 0.4rem;">
+                                <button class="btn btn-success" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; min-height: 0;" onclick="playNextInQueue()"><i class="fa-solid fa-forward-step"></i> Play Next</button>
+                                <button class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; min-height: 0;" onclick="clearBroadcastQueue()">Clear</button>
+                            </div>
+                        </div>
+                        <div id="tts-playlist-queue" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 250px; overflow-y: auto;">
+                            <div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1.5rem; border: 1px dashed var(--border); border-radius: 8px;">No announcements currently queued.</div>
+                        </div>
+                    </div>
+
+                    <!-- Broadcast History Log -->
+                    <div class="ai-deck-card" style="padding: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="font-size: 1.05rem; font-weight: 700; margin: 0;"><i class="fa-solid fa-clock-rotate-left" style="color: var(--primary);"></i> Broadcast History</h3>
+                            <button class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; min-height: 0;" onclick="clearBroadcastLog()">Clear Log</button>
+                        </div>
+                        <div id="tts-history-log" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 250px; overflow-y: auto;">
+                            <div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1.5rem; border: 1px dashed var(--border); border-radius: 8px;">No recent broadcasts.</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -716,6 +936,7 @@
             (stages || []).forEach(s => stageFilter.innerHTML += `<option value="${s.id}">${s.name}</option>`);
             (categories || []).forEach(c => catFilter.innerHTML += `<option value="${c.id}">${c.name}</option>`);
 
+            initAIVoiceEngine();
             await fetchData();
             
             if(isInitialLoad) {
@@ -901,6 +1122,7 @@ if (allCompIds.length > 0) {
                 calculateResults(globalJudgements.filter(j => j.awarded_mark !== null), savedAwards || []);
 
                 applyFilters(); 
+                populateTTSCompDropdown();
             } catch (e) {
                 console.error("Data Sync Error:", e);
             }
@@ -977,7 +1199,7 @@ if (allCompIds.length > 0) {
                 let judgesStr = comp.uniqueJudges && comp.uniqueJudges.length > 0 ? comp.uniqueJudges.join(', ') : 'Awaiting';
                 const stageDisplay = `Stage ${comp.stages?.stage_no || 'TBD'} - ${comp.stages?.name || 'Global Stage'}`;
 
-                return `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><span class="badge badge-reg">${comp.status === 'pending' ? 'UPCOMING' : 'CALLING'}</span></div><div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${stageDisplay}</div>${schedBadge}<div class="metric"><i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Judges: ${judgesStr}</div>${participantsHtml}</div>`;
+                return `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><div style="display:flex; gap:0.5rem; align-items:center;"><button class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'call')" title="Broadcast AI Voice Callout"><i class="fa-solid fa-volume-high"></i> AI Call</button><span class="badge badge-reg">${comp.status === 'pending' ? 'UPCOMING' : 'CALLING'}</span></div></div><div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${stageDisplay}</div>${schedBadge}<div class="metric"><i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Judges: ${judgesStr}</div>${participantsHtml}</div>`;
             }).join('');
         }
 
@@ -995,7 +1217,7 @@ if (allCompIds.length > 0) {
                 let judgesStr = comp.uniqueJudges && comp.uniqueJudges.length > 0 ? comp.uniqueJudges.join(', ') : 'Awaiting Marks';
                 const stageDisplay = `Stage ${comp.stages?.stage_no || 'TBD'} - ${comp.stages?.name || 'Global Stage'}`;
 
-                return `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><span class="badge badge-live"><i class="fa-solid fa-satellite-dish fa-fade"></i> LIVE</span></div><div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${stageDisplay}</div>${schedBadge}<div class="metric"><i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Judges: ${judgesStr}</div></div>`;
+                return `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><div style="display:flex; gap:0.5rem; align-items:center;"><button class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'ongoing')" title="Broadcast AI Voice Notice"><i class="fa-solid fa-volume-high"></i> AI Notice</button><span class="badge badge-live"><i class="fa-solid fa-satellite-dish fa-fade"></i> LIVE</span></div></div><div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${stageDisplay}</div>${schedBadge}<div class="metric"><i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Judges: ${judgesStr}</div></div>`;
             }).join('');
         }
 
@@ -1061,7 +1283,10 @@ if (allCompIds.length > 0) {
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">${comp.name}</div>
-                        <span class="badge badge-results">PUBLISHED</span>
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <button class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'results')" title="Broadcast AI Voice Results"><i class="fa-solid fa-volume-high"></i> AI Speak</button>
+                            <span class="badge badge-results">PUBLISHED</span>
+                        </div>
                     </div>
                     <div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div>
                     <div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${stageDisplay}</div>
@@ -1190,7 +1415,10 @@ if (allCompIds.length > 0) {
                     <div class="card">
                         <div class="card-header" style="margin-bottom:0.5rem;">
                             <div class="card-title">${comp.name}</div>
-                            <span class="badge badge-awards"><i class="fa-solid fa-trophy"></i> AWARDS</span>
+                            <div style="display:flex; gap:0.5rem; align-items:center;">
+                                <button class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'awards')" title="Broadcast AI Voice Awards"><i class="fa-solid fa-volume-high"></i> AI Speak</button>
+                                <span class="badge badge-awards"><i class="fa-solid fa-trophy"></i> AWARDS</span>
+                            </div>
                         </div>
                         <div class="metric" style="margin-bottom: 1rem;"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div>
                         <div class="data-list" style="margin-top:0;">
@@ -1776,6 +2004,654 @@ if (allCompIds.length > 0) {
             });
 
             exportToCSV(`FestOS_Bulk_Results_${new Date().getTime()}.csv`, csvData);
+        }
+
+        // ========================================================================
+        // 🤖 AI TEXT-TO-SPEECH STAGE ANNOUNCER PRO ENGINE
+        // ========================================================================
+
+        let ttsVoices = [];
+        let ttsAudioCtx = null;
+        let ttsCurrentRepeat = 0;
+        let ttsTotalRepeats = 1;
+        let ttsActiveUtterance = null;
+        let ttsIsSpeaking = false;
+        let ttsQueue = [];
+        let ttsVisualizerAnimId = null;
+
+        function initAIVoiceEngine() {
+            if (!('speechSynthesis' in window)) {
+                console.warn("Speech Synthesis API not supported in this browser.");
+                const statusLabel = document.getElementById('tts-status-label');
+                if (statusLabel) statusLabel.innerText = 'NOT SUPPORTED';
+                return;
+            }
+
+            const populateVoiceList = () => {
+                ttsVoices = window.speechSynthesis.getVoices();
+                const select = document.getElementById('tts-voice-select');
+                if (!select) return;
+
+                select.innerHTML = '';
+                if (ttsVoices.length === 0) {
+                    select.innerHTML = '<option value="">Default System Voice</option>';
+                    return;
+                }
+
+                // Group by language
+                const enVoices = [];
+                const mlVoices = [];
+                const hiVoices = [];
+                const arVoices = [];
+                const otherVoices = [];
+
+                ttsVoices.forEach((voice, index) => {
+                    const item = { voice, index };
+                    if (voice.lang.startsWith('en')) enVoices.push(item);
+                    else if (voice.lang.startsWith('ml')) mlVoices.push(item);
+                    else if (voice.lang.startsWith('hi')) hiVoices.push(item);
+                    else if (voice.lang.startsWith('ar')) arVoices.push(item);
+                    else otherVoices.push(item);
+                });
+
+                const appendGroup = (label, list) => {
+                    if (list.length === 0) return;
+                    const optgroup = document.createElement('optgroup');
+                    optgroup.label = label;
+                    list.forEach(({ voice, index }) => {
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = `${voice.name} (${voice.lang})${voice.default ? ' — [DEFAULT]' : ''}`;
+                        optgroup.appendChild(option);
+                    });
+                    select.appendChild(optgroup);
+                };
+
+                appendGroup('🇬🇧 English Voices', enVoices);
+                appendGroup('🇮🇳 Malayalam Voices (മലയാളം)', mlVoices);
+                appendGroup('🇮🇳 Hindi Voices (हिन्दी)', hiVoices);
+                appendGroup('🇦🇪 Arabic Voices (العربية)', arVoices);
+                appendGroup('🌐 Other Voices', otherVoices);
+
+                // Auto-pick natural sounding voice
+                const preferredVoiceIndex = ttsVoices.findIndex(v => 
+                    (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Premium') || v.name.includes('Jenny')) && v.lang.startsWith('en')
+                );
+                if (preferredVoiceIndex !== -1) {
+                    select.value = preferredVoiceIndex;
+                }
+            };
+
+            populateVoiceList();
+            if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                window.speechSynthesis.onvoiceschanged = populateVoiceList;
+            }
+
+            renderBroadcastHistory();
+            renderBroadcastQueue();
+            initVisualizerCanvas();
+        }
+
+        function initVisualizerCanvas() {
+            const canvas = document.getElementById('tts-visualizer-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const numBars = 16;
+            const barWidth = 5;
+            const barSpacing = 3;
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                for (let i = 0; i < numBars; i++) {
+                    let barHeight = 4;
+                    if (ttsIsSpeaking) {
+                        const randomFactor = Math.sin(Date.now() / 120 + i * 0.8) * 0.5 + 0.5;
+                        barHeight = Math.max(4, randomFactor * (canvas.height - 4));
+                    }
+
+                    const x = i * (barWidth + barSpacing) + 6;
+                    const y = canvas.height - barHeight - 2;
+
+                    const grad = ctx.createLinearGradient(0, canvas.height, 0, 0);
+                    grad.addColorStop(0, '#4F46E5');
+                    grad.addColorStop(1, '#A855F7');
+
+                    ctx.fillStyle = ttsIsSpeaking ? grad : '#CBD5E1';
+                    ctx.beginPath();
+                    ctx.roundRect(x, y, barWidth, barHeight, 2);
+                    ctx.fill();
+                }
+
+                ttsVisualizerAnimId = requestAnimationFrame(draw);
+            }
+
+            if (ttsVisualizerAnimId) cancelAnimationFrame(ttsVisualizerAnimId);
+            draw();
+        }
+
+        function playChimeAudio(style = 'gong') {
+            return new Promise((resolve) => {
+                if (style === 'none') return resolve();
+
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioContext) return resolve();
+
+                    if (!ttsAudioCtx || ttsAudioCtx.state === 'closed') {
+                        ttsAudioCtx = new AudioContext();
+                    }
+                    if (ttsAudioCtx.state === 'suspended') {
+                        ttsAudioCtx.resume();
+                    }
+
+                    const now = ttsAudioCtx.currentTime;
+                    const masterVol = parseFloat(document.getElementById('tts-vol')?.value || '1.0');
+
+                    if (style === 'gong') {
+                        // Dual Harmonic Gong (D5 587.33Hz -> A5 880Hz)
+                        const osc1 = ttsAudioCtx.createOscillator();
+                        const gain1 = ttsAudioCtx.createGain();
+                        osc1.type = 'sine';
+                        osc1.frequency.setValueAtTime(587.33, now);
+                        gain1.gain.setValueAtTime(0, now);
+                        gain1.gain.linearRampToValueAtTime(0.3 * masterVol, now + 0.04);
+                        gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+                        osc1.connect(gain1);
+                        gain1.connect(ttsAudioCtx.destination);
+                        osc1.start(now);
+                        osc1.stop(now + 0.5);
+
+                        const osc2 = ttsAudioCtx.createOscillator();
+                        const gain2 = ttsAudioCtx.createGain();
+                        osc2.type = 'sine';
+                        osc2.frequency.setValueAtTime(880, now + 0.2);
+                        gain2.gain.setValueAtTime(0, now + 0.2);
+                        gain2.gain.linearRampToValueAtTime(0.35 * masterVol, now + 0.24);
+                        gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.85);
+                        osc2.connect(gain2);
+                        gain2.connect(ttsAudioCtx.destination);
+                        osc2.start(now + 0.2);
+                        osc2.stop(now + 0.9);
+
+                        setTimeout(resolve, 850);
+                    } else if (style === 'airport') {
+                        // Airport 2-tone Ding-Dong (F5 698.46Hz -> C6 1046.5Hz)
+                        const osc1 = ttsAudioCtx.createOscillator();
+                        const gain1 = ttsAudioCtx.createGain();
+                        osc1.type = 'sine';
+                        osc1.frequency.setValueAtTime(698.46, now);
+                        gain1.gain.setValueAtTime(0, now);
+                        gain1.gain.linearRampToValueAtTime(0.4 * masterVol, now + 0.03);
+                        gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+                        osc1.connect(gain1);
+                        gain1.connect(ttsAudioCtx.destination);
+                        osc1.start(now);
+                        osc1.stop(now + 0.55);
+
+                        const osc2 = ttsAudioCtx.createOscillator();
+                        const gain2 = ttsAudioCtx.createGain();
+                        osc2.type = 'sine';
+                        osc2.frequency.setValueAtTime(1046.5, now + 0.3);
+                        gain2.gain.setValueAtTime(0, now + 0.3);
+                        gain2.gain.linearRampToValueAtTime(0.45 * masterVol, now + 0.33);
+                        gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.95);
+                        osc2.connect(gain2);
+                        gain2.connect(ttsAudioCtx.destination);
+                        osc2.start(now + 0.3);
+                        osc2.stop(now + 1.0);
+
+                        setTimeout(resolve, 950);
+                    } else if (style === 'digital') {
+                        // Digital Arp Bell (A5 880Hz -> D6 1174.66Hz -> E6 1318.51Hz)
+                        [880, 1174.66, 1318.51].forEach((freq, idx) => {
+                            const o = ttsAudioCtx.createOscillator();
+                            const g = ttsAudioCtx.createGain();
+                            const t = now + (idx * 0.12);
+                            o.type = 'triangle';
+                            o.frequency.setValueAtTime(freq, t);
+                            g.gain.setValueAtTime(0, t);
+                            g.gain.linearRampToValueAtTime(0.35 * masterVol, t + 0.02);
+                            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+                            o.connect(g);
+                            g.connect(ttsAudioCtx.destination);
+                            o.start(t);
+                            o.stop(t + 0.45);
+                        });
+                        setTimeout(resolve, 750);
+                    } else if (style === 'fanfare') {
+                        // Attention Trumpet Fanfare (C5 -> E5 -> G5 -> C6)
+                        [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+                            const o = ttsAudioCtx.createOscillator();
+                            const g = ttsAudioCtx.createGain();
+                            const t = now + (idx * 0.15);
+                            o.type = 'sawtooth';
+                            o.frequency.setValueAtTime(freq, t);
+                            g.gain.setValueAtTime(0, t);
+                            g.gain.linearRampToValueAtTime(0.2 * masterVol, t + 0.03);
+                            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+                            o.connect(g);
+                            g.connect(ttsAudioCtx.destination);
+                            o.start(t);
+                            o.stop(t + 0.55);
+                        });
+                        setTimeout(resolve, 1000);
+                    } else {
+                        resolve();
+                    }
+                } catch (e) {
+                    console.warn("Chime Audio synthesis error:", e);
+                    resolve();
+                }
+            });
+        }
+
+        function testSelectedChime() {
+            const style = document.getElementById('tts-chime-style')?.value || 'gong';
+            playChimeAudio(style);
+        }
+
+        function testVoicePreview() {
+            triggerAIAnnouncement("Testing voice broadcast. This is FestOS automated stage announcer.");
+        }
+
+        function insertTokenAtCursor(token) {
+            const textarea = document.getElementById('tts-text-input');
+            if (!textarea) return;
+
+            const startPos = textarea.selectionStart;
+            const endPos = textarea.selectionEnd;
+            const text = textarea.value;
+
+            textarea.value = text.substring(0, startPos) + token + text.substring(endPos, text.length);
+            textarea.focus();
+            textarea.selectionStart = startPos + token.length;
+            textarea.selectionEnd = startPos + token.length;
+        }
+
+        function resolveScriptTokens(text) {
+            const compId = document.getElementById('tts-comp-target')?.value;
+            const allComps = [...rawRegData, ...rawOngoingData, ...publishedComps];
+            const comp = allComps.find(c => c.id === compId);
+
+            const compName = comp ? comp.name : 'Competition';
+            const catName = comp?.categories?.name || 'General';
+            const stageName = comp?.stages?.name ? `Stage ${comp.stages.stage_no || ''} (${comp.stages.name})` : 'Assigned Stage';
+
+            let p1Str = 'Winner 1';
+            let p2Str = 'Winner 2';
+            let p3Str = 'Winner 3';
+
+            if (comp && computedResults[comp.id] && computedResults[comp.id].length > 0) {
+                const results = computedResults[comp.id];
+                const p1 = results.find(r => r.position === 1);
+                const p2 = results.find(r => r.position === 2);
+                const p3 = results.find(r => r.position === 3);
+
+                if (p1) p1Str = `${p1.participant.name} (${p1.participant.teams?.name || 'IND'})`;
+                if (p2) p2Str = `${p2.participant.name} (${p2.participant.teams?.name || 'IND'})`;
+                if (p3) p3Str = `${p3.participant.name} (${p3.participant.teams?.name || 'IND'})`;
+            }
+
+            return text
+                .replace(/{competition}/gi, compName)
+                .replace(/{category}/gi, catName)
+                .replace(/{stage}/gi, stageName)
+                .replace(/{winner_1}/gi, p1Str)
+                .replace(/{winner_2}/gi, p2Str)
+                .replace(/{winner_3}/gi, p3Str);
+        }
+
+        async function triggerAIAnnouncement(overrideText) {
+            const textarea = document.getElementById('tts-text-input');
+            const rawText = (overrideText || (textarea ? textarea.value : '')).trim();
+
+            if (!rawText) {
+                alert("Please enter or select announcement text to broadcast.");
+                return;
+            }
+
+            const textToSpeak = resolveScriptTokens(rawText);
+
+            // Stop ongoing speech
+            stopAISpeech();
+
+            const chimeStyle = document.getElementById('tts-chime-style')?.value || 'gong';
+            await playChimeAudio(chimeStyle);
+
+            const voiceSelect = document.getElementById('tts-voice-select');
+            const rateInput = document.getElementById('tts-rate');
+            const pitchInput = document.getElementById('tts-pitch');
+            const volInput = document.getElementById('tts-vol');
+            const repeatsSelect = document.getElementById('tts-repeats');
+
+            const voiceIndex = voiceSelect ? parseInt(voiceSelect.value) : 0;
+            const rate = rateInput ? parseFloat(rateInput.value) : 1.0;
+            const pitch = pitchInput ? parseFloat(pitchInput.value) : 1.0;
+            const volume = volInput ? parseFloat(volInput.value) : 1.0;
+            ttsTotalRepeats = repeatsSelect ? parseInt(repeatsSelect.value) : 1;
+            ttsCurrentRepeat = 1;
+
+            const executeSpeech = () => {
+                if (!('speechSynthesis' in window)) return;
+
+                ttsIsSpeaking = true;
+                const wave = document.getElementById('tts-wave');
+                const statusLabel = document.getElementById('tts-status-label');
+                const onAirBadge = document.getElementById('tts-on-air-badge');
+
+                if (wave) wave.classList.add('speaking');
+                if (onAirBadge) onAirBadge.style.display = 'inline-flex';
+                if (statusLabel) {
+                    statusLabel.innerText = ttsTotalRepeats > 1 ? `BROADCASTING (${ttsCurrentRepeat}/${ttsTotalRepeats})...` : 'BROADCASTING...';
+                    statusLabel.style.color = 'var(--primary)';
+                }
+
+                ttsActiveUtterance = new SpeechSynthesisUtterance(textToSpeak);
+                if (ttsVoices[voiceIndex]) {
+                    ttsActiveUtterance.voice = ttsVoices[voiceIndex];
+                }
+                ttsActiveUtterance.rate = rate;
+                ttsActiveUtterance.pitch = pitch;
+                ttsActiveUtterance.volume = volume;
+
+                ttsActiveUtterance.onend = () => {
+                    if (ttsCurrentRepeat < ttsTotalRepeats && ttsIsSpeaking) {
+                        ttsCurrentRepeat++;
+                        setTimeout(executeSpeech, 850);
+                    } else {
+                        resetTTSState();
+                    }
+                };
+
+                ttsActiveUtterance.onerror = (event) => {
+                    console.warn("Speech Synthesis Error:", event);
+                    resetTTSState();
+                };
+
+                window.speechSynthesis.speak(ttsActiveUtterance);
+            };
+
+            executeSpeech();
+            logBroadcast(textToSpeak);
+        }
+
+        function stopAISpeech() {
+            ttsIsSpeaking = false;
+            ttsCurrentRepeat = 0;
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+            resetTTSState();
+        }
+
+        function resetTTSState() {
+            ttsIsSpeaking = false;
+            const wave = document.getElementById('tts-wave');
+            const statusLabel = document.getElementById('tts-status-label');
+            const onAirBadge = document.getElementById('tts-on-air-badge');
+
+            if (wave) wave.classList.remove('speaking');
+            if (onAirBadge) onAirBadge.style.display = 'none';
+            if (statusLabel) {
+                statusLabel.innerText = 'IDLE';
+                statusLabel.style.color = 'var(--text-muted)';
+            }
+        }
+
+        function speakCompCallout(compId, type) {
+            const allComps = [...rawRegData, ...rawOngoingData, ...publishedComps];
+            const comp = allComps.find(c => c.id === compId);
+            if (!comp) return;
+
+            let scriptText = '';
+            const stageName = comp.stages?.name ? `Stage ${comp.stages.stage_no || ''} - ${comp.stages.name}` : 'the assigned stage';
+            const catName = comp.categories?.name || 'General';
+
+            if (type === 'callout') {
+                const enrollments = comp.participant_competitions || [];
+                const pendingCount = enrollments.filter(e => !e.is_present).length;
+                scriptText = `Attention please. This is an official callout for competition: ${comp.name}, ${catName} category, scheduled on ${stageName}. All registered participants, please report to the stage immediately.`;
+                if (pendingCount > 0) {
+                    scriptText += ` There are ${pendingCount} participants pending check-in.`;
+                }
+            } else if (type === 'ongoing') {
+                scriptText = `Attention festival attendees. Competition: ${comp.name}, ${catName} category, is currently in progress at ${stageName}.`;
+            } else if (type === 'results' || type === 'awards') {
+                const results = computedResults[comp.id] || [];
+                scriptText = `Attention everyone! Here are the official results for competition: ${comp.name}, ${catName} category. `;
+                if (results.length > 0) {
+                    const p1 = results.find(r => r.position === 1);
+                    const p2 = results.find(r => r.position === 2);
+                    const p3 = results.find(r => r.position === 3);
+
+                    if (p1) scriptText += `First Place: ${p1.participant.name}, representing ${p1.participant.teams?.name || 'Independent'}. `;
+                    if (p2) scriptText += `Second Place: ${p2.participant.name}, representing ${p2.participant.teams?.name || 'Independent'}. `;
+                    if (p3) scriptText += `Third Place: ${p3.participant.name}, representing ${p3.participant.teams?.name || 'Independent'}. `;
+                    scriptText += `Congratulations to all participants and winners!`;
+                } else {
+                    scriptText += `Judging evaluation has completed and results are officially published.`;
+                }
+            }
+
+            const textarea = document.getElementById('tts-text-input');
+            if (textarea) textarea.value = scriptText;
+
+            const compSelect = document.getElementById('tts-comp-target');
+            if (compSelect) compSelect.value = compId;
+
+            // Switch to AI Announcer tab
+            const announcerTabBtn = document.querySelector(".tab-btn[onclick*='ai-announcer']");
+            if (announcerTabBtn) announcerTabBtn.click();
+
+            // Auto-trigger broadcast
+            triggerAIAnnouncement(scriptText);
+        }
+
+        function populateTTSCompDropdown() {
+            const compSelect = document.getElementById('tts-comp-target');
+            if (!compSelect) return;
+
+            const previousVal = compSelect.value;
+            compSelect.innerHTML = '<option value="">-- Load Competition Details --</option>';
+
+            const seen = new Set();
+            const allComps = [...rawRegData, ...rawOngoingData, ...publishedComps];
+
+            allComps.forEach(c => {
+                if (!seen.has(c.id)) {
+                    seen.add(c.id);
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = `${c.name} (${c.categories?.name || 'General'}) [Stage ${c.stages?.stage_no || 'TBD'}]`;
+                    compSelect.appendChild(opt);
+                }
+            });
+
+            if (previousVal && seen.has(previousVal)) {
+                compSelect.value = previousVal;
+            }
+        }
+
+        function loadAnnouncementTemplate() {
+            const tType = document.getElementById('tts-template-type')?.value || 'call_en';
+            const compId = document.getElementById('tts-comp-target')?.value;
+            const textarea = document.getElementById('tts-text-input');
+            if (!textarea) return;
+
+            const allComps = [...rawRegData, ...rawOngoingData, ...publishedComps];
+            const comp = allComps.find(c => c.id === compId);
+
+            const compName = comp ? comp.name : '{competition}';
+            const catName = comp?.categories?.name || '{category}';
+            const stageName = comp?.stages?.name ? `Stage ${comp.stages.stage_no || ''} (${comp.stages.name})` : '{stage}';
+
+            switch (tType) {
+                case 'call_en':
+                    textarea.value = `Attention please. Calling all participants for ${compName}, ${catName} category, to ${stageName}. Please report immediately.`;
+                    break;
+                case 'call_ml':
+                    textarea.value = `ശ്രദ്ധിക്കുക. ${catName} വിഭാഗത്തിലെ ${compName} മത്സരത്തിൽ പങ്കെടുക്കുന്ന എല്ലാ മത്സരാർത്ഥികളും ഉടൻ തന്നെ ${stageName}ൽ റിപ്പോർട്ട് ചെയ്യേണ്ടതാണ്.`;
+                    break;
+                case 'call_hi':
+                    textarea.value = `कृपया ध्यान दें। ${catName} वर्ग की ${compName} प्रतियोगिता के सभी प्रतिभागी कृपया तुरंत ${stageName} पर उपस्थित हों।`;
+                    break;
+                case 'call_ar':
+                    textarea.value = `انتباه من فضلكم. يرجى من جميع المشاركين في مسابقة ${compName} التوجه فوراً إلى ${stageName}.`;
+                    break;
+                case 'ongoing':
+                    textarea.value = `Attention please. Competition ${compName} (${catName}) is now live on ${stageName}.`;
+                    break;
+                case 'award':
+                    if (comp && computedResults[comp.id] && computedResults[comp.id].length > 0) {
+                        const results = computedResults[comp.id];
+                        const p1 = results.find(r => r.position === 1);
+                        const p2 = results.find(r => r.position === 2);
+                        const p3 = results.find(r => r.position === 3);
+                        textarea.value = `Attention everyone! Announcing the winners for ${compName} (${catName}): 1st Place: ${p1?.participant?.name || 'TBD'} (${p1?.participant?.teams?.name || 'IND'}), 2nd Place: ${p2?.participant?.name || 'TBD'} (${p2?.participant?.teams?.name || 'IND'}), 3rd Place: ${p3?.participant?.name || 'TBD'} (${p3?.participant?.teams?.name || 'IND'}). Congratulations!`;
+                    } else {
+                        textarea.value = `Attention everyone! Announcing the official winners for ${compName} (${catName}). First position, second position, and third position holders please proceed to the main stage for felicitation.`;
+                    }
+                    break;
+                case 'custom':
+                    textarea.value = `Attention festival attendees. `;
+                    break;
+            }
+        }
+
+        // ==========================================
+        // BROADCAST PLAYLIST QUEUE SYSTEM
+        // ==========================================
+
+        function addToBroadcastQueue() {
+            const textarea = document.getElementById('tts-text-input');
+            const text = (textarea ? textarea.value : '').trim();
+            if (!text) {
+                alert("Please write or select an announcement script before adding to queue.");
+                return;
+            }
+
+            const compSelect = document.getElementById('tts-comp-target');
+            const compName = compSelect && compSelect.selectedIndex > 0 ? compSelect.options[compSelect.selectedIndex].text : 'Custom Broadcast';
+
+            ttsQueue.push({
+                id: Date.now(),
+                text: text,
+                title: compName,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            });
+
+            renderBroadcastQueue();
+            showToast("Added to Broadcast Queue!");
+        }
+
+        function renderBroadcastQueue() {
+            const container = document.getElementById('tts-playlist-queue');
+            const countElem = document.getElementById('tts-queue-count');
+            if (countElem) countElem.innerText = ttsQueue.length;
+            if (!container) return;
+
+            if (ttsQueue.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1.5rem; border: 1px dashed var(--border); border-radius: 8px;">No announcements currently queued.</div>';
+                return;
+            }
+
+            container.innerHTML = ttsQueue.map((item, idx) => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: var(--bg-main); border: 1px solid var(--border); border-radius: 10px; font-size: 0.85rem; gap: 1rem;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 2px;">
+                            <span style="font-weight: 800; color: var(--primary); font-size: 0.75rem;">#${idx + 1}</span>
+                            <strong style="color: var(--text-main); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.title}</strong>
+                        </div>
+                        <span style="color: var(--text-muted); font-size: 0.8rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.text}</span>
+                    </div>
+                    <div style="display: flex; gap: 0.4rem;">
+                        <button class="btn btn-primary" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; min-height: 0;" onclick="playQueueItem(${idx})" title="Play Now"><i class="fa-solid fa-play"></i></button>
+                        <button class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; min-height: 0; color: var(--danger); border-color: #FECACA;" onclick="removeQueueItem(${idx})" title="Remove"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function playQueueItem(index) {
+            if (!ttsQueue[index]) return;
+            const item = ttsQueue[index];
+            ttsQueue.splice(index, 1);
+            renderBroadcastQueue();
+            await triggerAIAnnouncement(item.text);
+        }
+
+        async function playNextInQueue() {
+            if (ttsQueue.length === 0) {
+                alert("Queue is empty. Add announcements to the playlist first.");
+                return;
+            }
+            await playQueueItem(0);
+        }
+
+        function removeQueueItem(index) {
+            ttsQueue.splice(index, 1);
+            renderBroadcastQueue();
+        }
+
+        function clearBroadcastQueue() {
+            ttsQueue = [];
+            renderBroadcastQueue();
+        }
+
+        function logBroadcast(text) {
+            try {
+                let history = JSON.parse(localStorage.getItem('fest_tts_history') || '[]');
+                const newEntry = {
+                    id: Date.now(),
+                    text: text,
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                    date: new Date().toLocaleDateString()
+                };
+                history.unshift(newEntry);
+                if (history.length > 20) history = history.slice(0, 20);
+                localStorage.setItem('fest_tts_history', JSON.stringify(history));
+                renderBroadcastHistory();
+            } catch (e) {
+                console.warn("Could not save broadcast history:", e);
+            }
+        }
+
+        function renderBroadcastHistory() {
+            const container = document.getElementById('tts-history-log');
+            if (!container) return;
+
+            const history = JSON.parse(localStorage.getItem('fest_tts_history') || '[]');
+            if (history.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem; padding: 1rem; text-align: center; border: 1px dashed var(--border); border-radius: 8px;">No voice announcements broadcasted yet.</div>';
+                return;
+            }
+
+            container.innerHTML = history.map(item => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: var(--bg-main); border: 1px solid var(--border); border-radius: 10px; font-size: 0.85rem; gap: 1rem;">
+                    <div style="flex: 1; min-width: 0;">
+                        <span style="font-weight: 600; color: var(--text-main); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.text}</span>
+                        <small style="color: var(--text-muted); font-family: monospace;">Broadcast at ${item.time} (${item.date})</small>
+                    </div>
+                    <button class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; min-height: 0; white-space: nowrap;" onclick="triggerAIAnnouncement('${item.text.replace(/'/g, "\\'")}')" title="Re-broadcast">
+                        <i class="fa-solid fa-rotate-right"></i> Re-play
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function clearBroadcastLog() {
+            localStorage.removeItem('fest_tts_history');
+            renderBroadcastHistory();
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container') || document.body;
+            const toast = document.createElement('div');
+            toast.style.cssText = `position: fixed; bottom: 20px; right: 20px; background: ${type === 'error' ? '#EF4444' : '#10B981'}; color: white; padding: 0.75rem 1.25rem; border-radius: 10px; font-weight: 600; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 99999; animation: slideUp 0.3s ease;`;
+            toast.innerText = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
         }
 
     </script>
