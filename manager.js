@@ -139,27 +139,33 @@ async function loadAssignments() {
 
     try {
         if (availableJudges.length === 0) {
-            const { data: judges } = await supabaseClient.from('users').select('id, username').eq('role', 'judge');
+            let judgesQuery = supabaseClient.from('users').select('id, username').eq('role', 'judge');
+            if (window.festosApplyFilter) judgesQuery = window.festosApplyFilter(judgesQuery);
+            const { data: judges } = await judgesQuery;
             availableJudges = judges || [];
         }
 
         if (allStages.length === 0) {
-            const { data: stages } = await supabaseClient.from('stages').select('id, name, stage_no').order('stage_no');
+            let stagesQuery = supabaseClient.from('stages').select('id, name, stage_no').order('stage_no');
+            if (window.festosApplyFilter) stagesQuery = window.festosApplyFilter(stagesQuery);
+            const { data: stages } = await stagesQuery;
             allStages = stages || [];
         }
 
         // 1. Fetch Competitions, grabbing the stage_no alongside the name
-        const { data: comps } = await supabaseClient.from('competitions')
+        let compsQuery = supabaseClient.from('competitions')
             .select('*, categories(name), stages(name, stage_no)') 
             .in('status', ['pending', 'registration', 'ongoing']);
+        if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery);
+        const { data: comps } = await compsQuery;
             
         // 2. Fetch Master Schedule
-        const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
-        const masterSchedule = schedData?.value || {};
+        const schedVal = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : null;
+        const masterSchedule = schedVal || {};
         
         // 3. Fetch Visibility Offset Setting
-        const { data: pointData } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
-        const announcerOffset = pointData?.value?.announcer_offset !== undefined ? parseInt(pointData.value.announcer_offset) : 30;
+        const pointVal = window.festosGetSetting ? await window.festosGetSetting('point_system') : null;
+        const announcerOffset = pointVal?.announcer_offset !== undefined ? parseInt(pointVal.announcer_offset) : 30;
 
         const now = new Date();
         
@@ -190,7 +196,9 @@ async function loadAssignments() {
         allCompetitions = activeComps;
 
         // 6. Fetch Assignments
-        const { data: assignments } = await supabaseClient.from('judgements').select('competition_id, judge_id, users(username)').is('awarded_mark', null);
+        let assignQuery = supabaseClient.from('judgements').select('competition_id, judge_id, users(username)').is('awarded_mark', null);
+        if (window.festosApplyFilter) assignQuery = window.festosApplyFilter(assignQuery);
+        const { data: assignments } = await assignQuery;
         allAssignments = assignments || [];
 
         populateCategoryFilter();
@@ -801,11 +809,15 @@ async function loadPublishableComps() {
     const grid = document.getElementById('publish-grid');
     grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1;"><i class="ph ph-spinner-gap" style="font-size:2rem; animation: spin 1s linear infinite;"></i></div>`;
 
-    const { data: comps } = await window.db.from('competitions').select('*, categories(name)').eq('status', 'judgement_complete').order('name');
+    let compsQuery = window.db.from('competitions').select('*, categories(name)').eq('status', 'judgement_complete');
+    if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery);
+    const { data: comps } = await compsQuery.order('name');
     allPendingComps = comps || [];
     
     // Update the live count badge
-    const { count } = await window.db.from('competitions').select('*', { count: 'exact', head: true }).eq('status', 'published');
+    let countQuery = window.db.from('competitions').select('*', { count: 'exact', head: true }).eq('status', 'published');
+    if (window.festosApplyFilter) countQuery = window.festosApplyFilter(countQuery);
+    const { count } = await countQuery;
     const countBadge = document.getElementById('live-published-count');
     if(countBadge) countBadge.innerText = `${count || 0} Published`;
 
@@ -847,7 +859,9 @@ async function loadPublishedResults() {
     const grid = document.getElementById('published-grid');
     grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1;"><i class="ph ph-spinner-gap" style="font-size:2rem; animation: spin 1s linear infinite;"></i><p>Loading live results...</p></div>`;
 
-    const { data: comps } = await window.db.from('competitions').select('*, categories(name)').eq('status', 'published').order('name');
+    let compsQuery = window.db.from('competitions').select('*, categories(name)').eq('status', 'published');
+    if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery);
+    const { data: comps } = await compsQuery.order('name');
     allPublishedComps = comps || [];
     filterPublished();
 }
@@ -966,20 +980,21 @@ async function openStatsModal() {
 
     try {
         // Fetch all competitions to get the grand total and details
-        const { data: allComps, error } = await window.db
+        let compsQuery = window.db
             .from('competitions')
-            .select('id, name, status, categories(name)')
-            .order('name');
+            .select('id, name, status, categories(name)');
+        if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery);
+        const { data: allComps, error } = await compsQuery.order('name');
 
         if (error) throw error;
 
         // Calculate statistics based on statuses
-        const total = allComps.length;
-        const published = allComps.filter(c => c.status === 'published').length;
-        const pendingPublish = allComps.filter(c => c.status === 'judgement_complete').length;
+        const total = (allComps || []).length;
+        const published = (allComps || []).filter(c => c.status === 'published').length;
+        const pendingPublish = (allComps || []).filter(c => c.status === 'judgement_complete').length;
         
         // Unfinished = Anything NOT in 'published' or 'judgement_complete' 
-        const unfinishedComps = allComps.filter(c => c.status !== 'published' && c.status !== 'judgement_complete');
+        const unfinishedComps = (allComps || []).filter(c => c.status !== 'published' && c.status !== 'judgement_complete');
         const unfinishedCount = unfinishedComps.length;
 
         // Update UI Stats
@@ -1031,22 +1046,25 @@ loadAssignments();
 
 async function loadJudgesManagement() {
     try {
-        const { data: judges, error: judgesErr } = await supabaseClient
+        let judgesQuery = supabaseClient
             .from('users')
             .select('id, username')
-            .eq('role', 'judge')
-            .order('username');
+            .eq('role', 'judge');
+        if (window.festosApplyFilter) judgesQuery = window.festosApplyFilter(judgesQuery);
+        const { data: judges, error: judgesErr } = await judgesQuery.order('username');
         if (judgesErr) throw judgesErr;
         
         globalJudgesList = judges || [];
 
-        const { data: assignments, error: assignErr } = await supabaseClient
+        let assignQuery = supabaseClient
             .from('judgements')
             .select('judge_id, competition_id, competitions(name, categories(name), stages(name))');
+        if (window.festosApplyFilter) assignQuery = window.festosApplyFilter(assignQuery);
+        const { data: assignments, error: assignErr } = await assignQuery;
         if (assignErr) throw assignErr;
 
         globalJudgesList.forEach(judge => {
-            const judgeAssigns = assignments.filter(a => a.judge_id === judge.id);
+            const judgeAssigns = (assignments || []).filter(a => a.judge_id === judge.id);
             const uniqueCompsMap = new Map();
             
             judgeAssigns.forEach(a => {
@@ -1151,8 +1169,9 @@ async function saveJudgeProfile() {
     btn.disabled = true;
 
     try {
-        const payload = { name, username, password_hash, role: 'judge' };
+        let payload = { name, username, password_hash, role: 'judge' };
         if (id) payload.id = id;
+        if (window.festosWithFest) payload = window.festosWithFest(payload);
         
         const { error } = await supabaseClient.from('users').upsert([payload]);
         if (error) {
@@ -1197,10 +1216,11 @@ async function openAssignJudgeEvents(judgeId) {
     document.getElementById('assignJudgeEventsModal').classList.add('active');
     
     try {
-        const { data: comps, error } = await supabaseClient
+        let compsQuery = supabaseClient
             .from('competitions')
-            .select('id, name, categories(name)')
-            .order('name');
+            .select('id, name, categories(name)');
+        if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery);
+        const { data: comps, error } = await compsQuery.order('name');
         if (error) throw error;
 
         modalAssignComps = comps || [];
@@ -1274,7 +1294,8 @@ async function saveJudgeAssignments() {
             .is('participant_id', null);
         
         if(modalAssignedIds.length > 0) {
-            const inserts = modalAssignedIds.map(compId => ({ competition_id: compId, judge_id: judgeId }));
+            let inserts = modalAssignedIds.map(compId => ({ competition_id: compId, judge_id: judgeId }));
+            if (window.festosWithFest) inserts = window.festosWithFest(inserts);
             await supabaseClient.from('judgements').insert(inserts);
         }
         
@@ -1299,8 +1320,8 @@ async function viewJudgeDetails(judgeId) {
     document.getElementById('judgeDetailsModal').classList.add('active');
 
     try {
-        const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
-        const masterSchedule = schedData?.value || {};
+        const val = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : (await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle()).data?.value;
+        const masterSchedule = val || {};
 
         if (judge.assignments.length === 0) {
             tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">No events assigned to this judge.</td></tr>`;
@@ -1321,7 +1342,7 @@ async function viewJudgeDetails(judgeId) {
         scheduledAssignments.forEach(comp => {
             const timeStr = comp.sched.date !== 'TBD' 
                 ? `<span style="color: var(--primary); font-weight: 700;">${comp.sched.date}</span><br><span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">${comp.sched.time}</span>` 
-                : `<span style="color: #D97706; font-weight: 600; font-size: 0.8rem;">Unscheduled</span>`;
+                : `<span style="color: var(--warning); font-weight: 600; font-size: 0.8rem;">Unscheduled</span>`;
             
             tbody.innerHTML += `
                 <tr>
@@ -1359,8 +1380,8 @@ async function exportSpecificJudgePDF(judgeId) {
     container.style.fontFamily = 'Inter, sans-serif';
     container.innerHTML = getManagerPDFHeaderHTML(`Judge Schedule: ${judge.username}`);
 
-    const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
-    const masterSchedule = schedData?.value || {};
+    const val = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : (await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle()).data?.value;
+    const masterSchedule = val || {};
 
     let tableRows = '';
     if (judge.assignments.length === 0) {
@@ -1424,8 +1445,8 @@ async function exportJudgesPDF() {
     if (globalJudgesList.length === 0) return showToast('No judges found to export.', 'error');
     showToast('Generating Judge Roster PDF...');
     
-    const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
-    const masterSchedule = schedData?.value || {};
+    const val = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : (await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle()).data?.value;
+    const masterSchedule = val || {};
 
     const container = document.createElement('div');
     container.style.padding = '40px';

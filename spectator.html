@@ -6,6 +6,7 @@
     <title>FestOS | Spectator</title>
     <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="festos-core.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -575,17 +576,22 @@
                 }
 
                 // 2. Fetch Point System Settings
-                const { data: setData } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
+                const pointVal = window.festosGetSetting ? await window.festosGetSetting('point_system') : null;
+                const setData = pointVal ? { value: pointVal } : (await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle()).data;
                 if (setData && setData.value) systemSettings = setData.value;
 
                 // 3. Fetch Teams
-                const { data: teams } = await supabaseClient.from('teams').select('*').order('name');
+                let teamsQuery = supabaseClient.from('teams').select('*').order('name');
+                if (window.festosApplyFilter) teamsQuery = window.festosApplyFilter(teamsQuery);
+                const { data: teams } = await teamsQuery;
                 allTeams = teams || [];
 
                 // 4. Pre-fetch enrollments for team & squad member mapping
-                const { data: enrollData } = await supabaseClient
+                let enrollQuery = supabaseClient
                     .from('participant_competitions')
                     .select('competition_id, participant_id, is_leader, participants(id, name, unique_id, team_id, teams(name))');
+                if (window.festosApplyFilter) enrollQuery = window.festosApplyFilter(enrollQuery);
+                const { data: enrollData } = await enrollQuery;
                 allEnrollments = enrollData || [];
 
                 // 5. Route strictly based on QR content
@@ -641,11 +647,13 @@
                 </div>
             `;
 
-            const { data: publishedComps } = await supabaseClient
+            let pubCompsQuery = supabaseClient
                 .from('competitions')
                 .select('*, categories(name)')
                 .eq('status', 'published')
                 .order('updated_at', { ascending: true });
+            if (window.festosApplyFilter) pubCompsQuery = window.festosApplyFilter(pubCompsQuery);
+            const { data: publishedComps } = await pubCompsQuery;
 
             rawPublishedComps = publishedComps || [];
 
@@ -832,6 +840,7 @@
                 .from('competitions')
                 .select('*, categories(name), stages(name)')
                 .eq('status', 'published');
+            if (window.festosApplyFilter) compQuery = window.festosApplyFilter(compQuery);
 
             if (targetCompId) compQuery = compQuery.eq('id', targetCompId);
             else compQuery = compQuery.order('updated_at', { ascending: false }).limit(1);
@@ -953,11 +962,13 @@
                 </div>
             `;
 
-            const { data: comps } = await supabaseClient
+            let schedCompsQuery = supabaseClient
                 .from('competitions')
                 .select('*, categories(name), stages(name)')
                 .in('status', ['ongoing', 'valuation', 'registration'])
                 .order('status');
+            if (window.festosApplyFilter) schedCompsQuery = window.festosApplyFilter(schedCompsQuery);
+            const { data: comps } = await schedCompsQuery;
 
             container.innerHTML = `
                 <div class="view-header">
@@ -1364,7 +1375,6 @@
 
         init();
     </script>
-    <script src="festos-core.js"></script>
     <script src="mobile-native.js"></script>
 </body>
 </html>

@@ -55,7 +55,10 @@ async function loadDashboard() {
         document.getElementById('stage-name').innerText = "Admin Override";
         document.getElementById('master-filter-container').style.display = 'block';
         
-        const { data: stages } = await supabaseClient.from('stages').select('id, name').order('stage_no');
+        let stagesQuery = supabaseClient.from('stages').select('id, name').order('stage_no');
+        if (window.festosApplyFilter) stagesQuery = window.festosApplyFilter(stagesQuery);
+        const { data: stages } = await stagesQuery;
+
         const filterDropdown = document.getElementById('master-stage-filter');
         filterDropdown.innerHTML = '<option value="ALL">-- ALL STAGES (MASTER VIEW) --</option>';
         
@@ -94,6 +97,10 @@ async function loadCompetitions(stageId) {
         // Ensure we fetch stages(id, name, stage_no) and judgements
         .select('*, categories(name), stages(id, name, stage_no), judgements(judge_id, awarded_mark, users(username)), participant_competitions(participant_id)');
 
+    if (window.festosApplyFilter) {
+        query = window.festosApplyFilter(query);
+    }
+
     if (stageId && stageId !== 'ALL') {
         query = query.eq('stage_id', stageId);
     }
@@ -101,12 +108,12 @@ async function loadCompetitions(stageId) {
     const { data: competitionsData, error } = await query;
     
     // Fetch Master Schedule
-    const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
-    const masterSchedule = schedData?.value || {};
+    const schedVal = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : null;
+    const masterSchedule = schedVal || {};
     
     // Fetch Offset Setting
-    const { data: pointData } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
-    const announcerOffset = pointData?.value?.announcer_offset !== undefined ? parseInt(pointData.value.announcer_offset) : 30;
+    const pointVal = window.festosGetSetting ? await window.festosGetSetting('point_system') : null;
+    const announcerOffset = pointVal?.announcer_offset !== undefined ? parseInt(pointVal.announcer_offset) : 30;
 
     const container = document.getElementById('competitions-container');
     container.innerHTML = '';

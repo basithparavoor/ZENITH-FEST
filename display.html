@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Display</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="festos-core.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
@@ -495,8 +496,10 @@
         
         const isPreviewMode = new URLSearchParams(window.location.search).get('preview') === 'true';
 
+        const currentFestId = window.festosAuth ? window.festosAuth.getCurrentFestId() : (new URLSearchParams(window.location.search).get('fest') || 'fest_zenith_2026');
+
         const qrInstance = new QRCode(document.getElementById('display-qr'), { 
-            text: window.location.origin + '/spectator.html', 
+            text: window.location.origin + '/spectator.html?fest=' + encodeURIComponent(currentFestId), 
             width: 85, height: 85, colorDark: "#0F172A", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.L 
         });
 
@@ -515,7 +518,7 @@
             stardustCanvas.width = 1920;
             stardustCanvas.height = 1080;
             stardustParticles = [];
-            for (let i = 0; i < 80; i++) {
+            for (let i = 0; i < 70; i++) {
                 stardustParticles.push({
                     x: Math.random() * 1920,
                     y: Math.random() * 1080,
@@ -537,7 +540,7 @@
             stardustCtx.clearRect(0, 0, 1920, 1080);
             stardustParticles.forEach(p => {
                 p.y -= p.speedY;
-                p.x += p.speedX;
+                p.x -= p.speedX;
                 if (p.y < 0) p.y = 1080;
                 if (p.x < 0) p.x = 1920;
                 if (p.x > 1920) p.x = 0;
@@ -592,16 +595,19 @@
         async function fetchDisplayData() {
             try {
                 // Strict Branding Injection & Favicon Sync
-                const { data: brandData } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
+                const brandVal = window.festosGetSetting ? await window.festosGetSetting('system_branding') : null;
+                const brandData = brandVal ? { value: brandVal } : (await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle()).data;
                 if (brandData && brandData.value) {
                     applyDisplayBranding(brandData.value);
                 }
 
-                const { data: set_data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
+                const pointVal = window.festosGetSetting ? await window.festosGetSetting('point_system') : null;
+                const set_data = pointVal ? { value: pointVal } : (await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle()).data;
                 if (set_data && set_data.value) systemSettings = set_data.value;
 
                 // Handle Display Settings & Custom Slides
-                const { data: displayData } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+                const dispVal = window.festosGetSetting ? await window.festosGetSetting('display_settings') : null;
+                const displayData = dispVal ? { value: dispVal } : (await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle()).data;
                 let customSlidesArray = [];
 
                 if (displayData && displayData.value) {
@@ -632,20 +638,26 @@
                     }
                 }
 
-                const { data: teams } = await supabaseClient.from('teams').select('*');
+                let teamsQuery = supabaseClient.from('teams').select('*');
+                if (window.festosApplyFilter) teamsQuery = window.festosApplyFilter(teamsQuery);
+                const { data: teams } = await teamsQuery;
                 allTeams = teams || [];
                 calculatedTeamScores = {};
                 allTeams.forEach(t => calculatedTeamScores[t.id] = { name: t.name, score: 0 });
 
-                const { data: allComps } = await supabaseClient.from('competitions')
+                let compsQuery = supabaseClient.from('competitions')
                     .select('*, categories(name), stages(name), participant_competitions(count)')
                     .order('updated_at', { ascending: false });
+                if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery);
+                const { data: allComps } = await compsQuery;
 
                 // Fetch all participant enrollments to obtain full group rosters
-                const { data: allCompEnrollments } = await supabaseClient
+                let enrollQuery = supabaseClient
                     .from('participant_competitions')
                     .select('competition_id, is_leader, participant_id, participants(id, name, unique_id, team_id)')
                     .order('is_leader', { ascending: false });
+                if (window.festosApplyFilter) enrollQuery = window.festosApplyFilter(enrollQuery);
+                const { data: allCompEnrollments } = await enrollQuery;
 
                 globalPublishedComps = (allComps || []).filter(c => c.status === 'published');
                 globalActiveEvents = (allComps || []).filter(c => ['ongoing', 'registration', 'valuation', 'pending'].includes(c.status));
@@ -654,12 +666,14 @@
                 lastPublishedCount = globalPublishedComps.length;
 
                 // --- DATA PROCESSING ---
-                const { data: schedReq } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
-                const scheduleData = schedReq?.value || {};
+                const schedVal = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : null;
+                const scheduleData = schedVal || {};
                 
-                const { data: judgements } = await supabaseClient.from('judgements')
+                let judgementsQuery = supabaseClient.from('judgements')
                     .select('competition_id, awarded_mark, participant_id, participants(id, name, team_id, unique_id)')
                     .not('participant_id', 'is', null).not('awarded_mark', 'is', null);
+                if (window.festosApplyFilter) judgementsQuery = window.festosApplyFilter(judgementsQuery);
+                const { data: judgements } = await judgementsQuery;
 
                 // Core Point Engine
                 const compGroups = {};
@@ -1010,12 +1024,13 @@
             let path = loc.pathname;
             const lastSlash = path.lastIndexOf('/');
             const dir = lastSlash >= 0 ? path.substring(0, lastSlash) : '';
-            return `${loc.origin}${dir}/spectator.html`;
+            const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : (new URLSearchParams(window.location.search).get('fest') || 'fest_zenith_2026');
+            return `${loc.origin}${dir}/spectator.html?fest=${encodeURIComponent(festId)}`;
         }
 
         function updateDynamicQR(slideId, customUrl = null, customText = null) {
             const spectatorUrl = getSpectatorBaseUrl();
-            let targetUrl = `${spectatorUrl}?view=standings`;
+            let targetUrl = `${spectatorUrl}&view=standings`;
             let mainText = 'SCAN FOR LIVE DATA';
             let subText = 'MOBILE SPECTATOR APP';
 
@@ -1043,15 +1058,15 @@
             } 
             // 2. Dynamic Mode: Context-Aware Matching to the exact slide currently visible
             else if (slideId === 'slide-podium' && currentPodiumCompId) {
-                targetUrl = `${spectatorUrl}?view=result&comp=${currentPodiumCompId}`;
+                targetUrl = `${spectatorUrl}&view=result&comp=${currentPodiumCompId}`;
                 mainText = 'SCAN FOR RESULTS';
                 subText = 'DOWNLOAD POSTER';
             } else if (slideId && slideId.startsWith('slide-standings')) {
-                targetUrl = `${spectatorUrl}?view=standings`;
+                targetUrl = `${spectatorUrl}&view=standings`;
                 mainText = 'TEAM STANDINGS';
                 subText = 'DOWNLOAD POSTER';
             } else if (slideId && slideId.startsWith('slide-schedule')) {
-                targetUrl = `${spectatorUrl}?view=schedule`;
+                targetUrl = `${spectatorUrl}&view=schedule`;
                 mainText = 'STAGE RADAR';
                 subText = 'LIVE TIMELINE';
             } else if (slideId && slideId.startsWith('slide-custom')) {
@@ -1459,7 +1474,6 @@
             setInterval(pollLiveTriggers, 2000); 
         });
     </script>
-    <script src="festos-core.js"></script>
     <script src="mobile-native.js"></script>
 </body>
 </html>

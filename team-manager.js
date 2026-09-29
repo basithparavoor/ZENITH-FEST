@@ -117,12 +117,13 @@ async function initDashboard() {
     }
 
     try {
+        const pointVal = window.festosGetSetting ? await window.festosGetSetting('point_system') : null;
         const [
             { data: teamData },
-            { data: settingsData }
+            settingsData
         ] = await Promise.all([
             supabaseClient.from('teams').select('name, manager_name, assistant_manager_name').eq('id', myTeamId).single(),
-            supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle()
+            pointVal ? Promise.resolve({ data: { value: pointVal } }) : supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle()
         ]);
 
         document.getElementById('team-name-title').innerText = teamData ? teamData.name : 'MY TEAM';
@@ -177,17 +178,28 @@ async function refreshDashboard(btnElement) {
 
 async function fetchAllData() {
     try {
+        let catsQuery = supabaseClient.from('categories').select('*');
+        let compsQuery = supabaseClient.from('competitions').select('*, categories(id, name, is_general, allowed_general_categories), stages(name)').order('name');
+        if (window.festosApplyFilter) {
+            catsQuery = window.festosApplyFilter(catsQuery);
+            compsQuery = window.festosApplyFilter(compsQuery);
+        }
+
+        const schedVal = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : null;
+
         const [
-            { data: schedData },
+            schedDataRes,
             { data: cats },
             { data: students },
             { data: comps }
         ] = await Promise.all([
-            supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle(),
-            supabaseClient.from('categories').select('*'),
+            schedVal ? Promise.resolve({ data: { value: schedVal } }) : supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle(),
+            catsQuery,
             supabaseClient.from('participants').select('*, categories(name)').eq('team_id', myTeamId).order('name'),
-            supabaseClient.from('competitions').select('*, categories(id, name, is_general, allowed_general_categories), stages(name)').order('name')
+            compsQuery
         ]);
+
+        const schedData = schedDataRes.data;
 
         tmScheduleData = schedData?.value || {};
         globalCategories = cats || [];
@@ -530,10 +542,8 @@ async function saveNewMember() {
             photo_url = publicUrlData.publicUrl;
         }
 
-        const payload = { name, team_id: myTeamId, category_id, dob, unique_id };
-        if (photo_url) payload.photo_url = photo_url; 
-
-        const { error } = await supabaseClient.from('participants').insert([payload]);
+        const finalPayload = window.festosWithFest ? window.festosWithFest(payload) : payload;
+        const { error } = await supabaseClient.from('participants').insert([finalPayload]);
         if (error) throw error;
         
         showToast('Student added successfully!', 'success');

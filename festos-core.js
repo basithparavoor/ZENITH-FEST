@@ -174,14 +174,56 @@ const festosAuth = {
         return !!this.getUser() || !!this.getSuperAdmin();
     },
 
+    getCurrentFestId() {
+        // 1. Check URL parameters first (e.g., results.html?fest=fest_vib26... or spectator.html?fest=...)
+        if (typeof window !== 'undefined' && window.location && window.location.search) {
+            const params = new URLSearchParams(window.location.search);
+            const urlFest = params.get('fest') || params.get('fest_id');
+            if (urlFest && urlFest.trim() !== '') {
+                return urlFest.trim();
+            }
+        }
+
+        // 2. Check logged-in user context
+        const user = this.getUser();
+        if (user && user.fest_id) return user.fest_id;
+        
+        if (user && user.username) {
+            const prefix = user.username.split('_')[0].toLowerCase();
+            if (prefix === 'zenith26' || prefix === 'zenith') return 'fest_zenith_2026';
+            if (prefix.length > 2) return `fest_${prefix}`;
+        }
+
+        // 3. Check active fest context from storage
+        const stored = localStorage.getItem('festos_active_fest_id');
+        if (stored && stored.trim() !== '') return stored.trim();
+
+        return 'fest_zenith_2026';
+    },
+
     setUser(user, remember = true) {
         if (!user) return;
+        
+        if (!user.fest_id && user.username) {
+            const prefix = user.username.split('_')[0].toLowerCase();
+            if (prefix === 'zenith26' || prefix === 'zenith') {
+                user.fest_id = 'fest_zenith_2026';
+            } else if (prefix.length > 2) {
+                user.fest_id = `fest_${prefix}`;
+            } else {
+                user.fest_id = 'fest_zenith_2026';
+            }
+        }
+
         localStorage.setItem('festUser', JSON.stringify(user));
+        if (user.fest_id) {
+            localStorage.setItem('festos_active_fest_id', user.fest_id);
+        }
         if (remember) {
             localStorage.setItem('festSavedUsername', user.username || '');
             localStorage.setItem('festos_remember_session', 'true');
         }
-        festosLogger.log('AUTH', `User ${user.username} logged in as ${user.role}`, { userId: user.id, role: user.role }, 'INFO');
+        festosLogger.log('AUTH', `User ${user.username} logged in as ${user.role} for fest: ${user.fest_id || 'Default'}`, { userId: user.id, role: user.role, festId: user.fest_id }, 'INFO');
     },
 
     setSuperAdmin(superAdminData) {
@@ -241,15 +283,15 @@ const festosLogger = {
         const logEntry = {
             id: 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
             timestamp,
-            category, // 'AUTH', 'COMPETITION', 'JUDGING', 'SETTINGS', 'ERROR', 'SYSTEM'
+            category,
             action,
             details,
-            severity, // 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
+            severity,
             user: currentUser.username,
             url: typeof window !== 'undefined' ? window.location.pathname : ''
         };
 
-        // 1. Save to local circular buffer
+        // Save to local circular buffer
         let localLogs = this.getLogs();
         localLogs.unshift(logEntry);
         if (localLogs.length > this.MAX_LOCAL_LOGS) {
@@ -257,24 +299,6 @@ const festosLogger = {
         }
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(localLogs));
 
-        // 2. If severe error or Supabase is available, sync to settings audit trail
-        if (severity === 'ERROR' || severity === 'CRITICAL' || category === 'SYSTEM') {
-            try {
-                if (festosSupabase) {
-                    await festosSupabase
-                        .from('settings')
-                        .upsert({
-                            id: 'festos_latest_error',
-                            value: logEntry,
-                            updated_at: new Date().toISOString()
-                        });
-                }
-            } catch (e) {
-                // fail silently
-            }
-        }
-
-        console.log(`[FestOS ${severity}] [${category}] ${action}`, details);
         return logEntry;
     },
 
@@ -331,7 +355,7 @@ const festosFeatures = {
     },
 
     getActiveFestId() {
-        return localStorage.getItem('festos_active_fest_id') || 'default_fest';
+        return festosAuth.getCurrentFestId();
     },
 
     setActiveFestId(festId) {
@@ -369,6 +393,83 @@ const festosFeatures = {
     }
 };
 
+function festosFilterRows(rows, targetFestId = null) {
+    if (!rows || !Array.isArray(rows)) return [];
+    const festId = targetFestId || festosAuth.getCurrentFestId();
+    const isZenith = festId === 'fest_zenith_2026';
+
+    return rows.filter(r => {
+        if (isZenith) {
+            return r.fest_id === 'fest_zenith_2026' || !r.fest_id;
+        } else {
+            return r.fest_id === festId;
+        }
+    });
+}
+
+function festosApplyFilter(query, targetFestId = null) {
+    if (!query) return query;
+    const festId = targetFestId || festosAuth.getCurrentFestId();
+    if (festId === 'fest_zenith_2026') {
+        return query.or('fest_id.eq.fest_zenith_2026,fest_id.is.null');
+    }
+    return query.eq('fest_id', festId);
+}
+
+function festosWithFest(payload, targetFestId = null) {
+    const festId = targetFestId || festosAuth.getCurrentFestId();
+    if (!payload) return payload;
+    if (Array.isArray(payload)) {
+        return payload.map(item => ({ ...item, fest_id: item.fest_id || festId }));
+    }
+    if (typeof payload === 'object') {
+        return { ...payload, fest_id: payload.fest_id || festId };
+    }
+    return payload;
+}
+
+function festosGetSettingKey(key, targetFestId = null) {
+    const festId = targetFestId || festosAuth.getCurrentFestId();
+    if (festId === 'fest_zenith_2026' || !festId) {
+        return key;
+    }
+    return `${key}_${festId}`;
+}
+
+async function festosGetSetting(key, targetFestId = null) {
+    const client = festosSupabase || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+    if (!client) return null;
+    const festId = targetFestId || festosAuth.getCurrentFestId();
+    const festKey = festosGetSettingKey(key, festId);
+    try {
+        let { data, error } = await client.from('settings').select('value').eq('id', festKey).maybeSingle();
+        if (data && data.value) return data.value;
+
+        // Do NOT fallback to Zenith Fest for festival-specific scheduling, website customizer, branding, or point system
+        const isolatedKeys = ['master_schedule', 'website_config', 'display_settings', 'system_branding', 'point_system'];
+        if (isolatedKeys.includes(key)) {
+            return null; // Return clean empty state for new festivals
+        }
+
+        if (festKey !== key) {
+            let baseRes = await client.from('settings').select('value').eq('id', key).maybeSingle();
+            if (baseRes.data && baseRes.data.value) return baseRes.data.value;
+        }
+        return null;
+    } catch (e) {
+        console.warn(`[FestOS Setting] Error loading ${key}:`, e);
+        return null;
+    }
+}
+
+async function festosSaveSetting(key, value, targetFestId = null) {
+    const client = festosSupabase || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+    if (!client) return { error: new Error('Supabase client not initialized') };
+    const festId = targetFestId || festosAuth.getCurrentFestId();
+    const festKey = festosGetSettingKey(key, festId);
+    return await client.from('settings').upsert({ id: festKey, value });
+}
+
 // Auto-run branding and core initialization on DOM Ready
 if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') {
@@ -380,8 +481,15 @@ if (typeof document !== 'undefined') {
 
 // Expose on window object
 if (typeof window !== 'undefined') {
+    window.festosSupabase = festosSupabase;
     window.festosBranding = festosBranding;
     window.festosAuth = festosAuth;
     window.festosLogger = festosLogger;
     window.festosFeatures = festosFeatures;
+    window.festosFilterRows = festosFilterRows;
+    window.festosApplyFilter = festosApplyFilter;
+    window.festosWithFest = festosWithFest;
+    window.festosGetSettingKey = festosGetSettingKey;
+    window.festosGetSetting = festosGetSetting;
+    window.festosSaveSetting = festosSaveSetting;
 }

@@ -13,6 +13,7 @@
     
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="festos-core.js"></script>
     
     <!-- jsPDF & AutoTable for PDF Generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -919,6 +920,16 @@
 
         // --- INITIALIZATION & FETCHING ---
         async function initializePortal() {
+            let stagesQuery = supabaseClient.from('stages').select('id, name');
+            let categoriesQuery = supabaseClient.from('categories').select('id, name');
+            let teamsQuery = supabaseClient.from('teams').select('*');
+            if (window.festosApplyFilter) {
+                stagesQuery = window.festosApplyFilter(stagesQuery);
+                categoriesQuery = window.festosApplyFilter(categoriesQuery);
+                teamsQuery = window.festosApplyFilter(teamsQuery);
+            }
+            const pointVal = window.festosGetSetting ? await window.festosGetSetting('point_system') : null;
+
             const [
                 brandingRes,
                 setRes,
@@ -927,10 +938,10 @@
                 teamsRes
             ] = await Promise.all([
                 fetchAndApplyBranding(),
-                supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle(),
-                supabaseClient.from('stages').select('id, name'),
-                supabaseClient.from('categories').select('id, name'),
-                supabaseClient.from('teams').select('*')
+                pointVal ? Promise.resolve({ data: { value: pointVal } }) : supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle(),
+                stagesQuery,
+                categoriesQuery,
+                teamsQuery
             ]);
             
             if (setRes?.data?.value) systemSettings = setRes.data.value;
@@ -1042,19 +1053,29 @@ function calculateResults(judgements, savedAwards) {
 
 async function fetchData() {
             try {
+                let activeQuery = supabaseClient.from('competitions')
+                    .select(`*, categories(id, name, is_general), stages(id, name, stage_no), participant_competitions ( is_present, code_letter, is_leader, participants ( name, unique_id, teams(name) ) )`)
+                    .in('status', ['pending', 'registration', 'ongoing']);
+                let pubQuery = supabaseClient.from('competitions')
+                    .select('*, stages(id, name, stage_no), categories(id, name, is_general), participant_competitions(code_letter, is_leader, participants(id, name, team_id))')
+                    .eq('status', 'published');
+
+                if (window.festosApplyFilter) {
+                    activeQuery = window.festosApplyFilter(activeQuery);
+                    pubQuery = window.festosApplyFilter(pubQuery);
+                }
+
+                const schedVal = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : null;
+
                 // 1. Fetch Schedule, Active Comps & Published Comps in parallel
                 const [
                     schedRes,
                     activeRes,
                     pubRes
                 ] = await Promise.all([
-                    supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle(),
-                    supabaseClient.from('competitions')
-                        .select(`*, categories(id, name, is_general), stages(id, name, stage_no), participant_competitions ( is_present, code_letter, is_leader, participants ( name, unique_id, teams(name) ) )`)
-                        .in('status', ['pending', 'registration', 'ongoing']),
-                    supabaseClient.from('competitions')
-                        .select('*, stages(id, name, stage_no), categories(id, name, is_general), participant_competitions(code_letter, is_leader, participants(id, name, team_id))')
-                        .eq('status', 'published')
+                    schedVal ? Promise.resolve({ data: { value: schedVal } }) : supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle(),
+                    activeQuery,
+                    pubQuery
                 ]);
 
                 const masterSchedule = schedRes?.data?.value || {};
@@ -1066,10 +1087,12 @@ const allCompIds = [...(activeComps || []), ...publishedComps].map(c => c.id);
 let globalJudgements = [];
 
 if (allCompIds.length > 0) {
-    const { data: judgements } = await supabaseClient
+    let judgeQuery = supabaseClient
         .from('judgements')
         .select(`competition_id, awarded_mark, participants(id, name, team_id, unique_id), users(username)`)
         .in('competition_id', allCompIds);
+    if (window.festosApplyFilter) judgeQuery = window.festosApplyFilter(judgeQuery);
+    const { data: judgements } = await judgeQuery;
 
     globalJudgements = judgements || [];
 }

@@ -14,32 +14,51 @@
     <!-- FontAwesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="festos-core.js"></script>
+    
     <style>
         :root {
-            --primary: #6366F1;
-            --primary-glow: rgba(99, 102, 241, 0.4);
-            --primary-hover: #4F46E5;
-            --secondary: #EC4899;
-            --accent: #8B5CF6;
-            --cyan: #06B6D4;
-            --emerald: #10B981;
-            --amber: #F59E0B;
+            /* Ultra-Premium Light Luxury Palette */
+            --primary: #4F46E5;
+            --primary-glow: rgba(79, 70, 229, 0.25);
+            --primary-light: #EEF2FF;
+            --primary-hover: #4338CA;
+            --secondary: #DB2777;
+            --secondary-light: #FDF2F8;
+            --accent: #7C3AED;
+            --cyan: #0284C7;
+            --cyan-light: #F0F9FF;
+            --emerald: #059669;
+            --emerald-light: #ECFDF5;
+            --amber: #D97706;
+            --amber-light: #FFFBEB;
+            --rose: #E11D48;
+            --rose-light: #FFF1F2;
             
-            --bg-dark: #070A13;
-            --bg-card: rgba(15, 23, 42, 0.65);
-            --bg-card-hover: rgba(30, 41, 59, 0.85);
-            --border-glass: rgba(255, 255, 255, 0.08);
-            --border-glow: rgba(99, 102, 241, 0.4);
+            --bg-body: #F8FAFC;
+            --bg-surface: #FFFFFF;
+            --bg-surface-subtle: #F1F5F9;
             
-            --text-main: #F8FAFC;
-            --text-muted: #94A3B8;
-            --text-sub: #64748B;
+            --border: #E2E8F0;
+            --border-subtle: #F1F5F9;
+            --border-focus: #818CF8;
             
-            --radius-sm: 10px;
+            --text-main: #0F172A;
+            --text-muted: #64748B;
+            --text-sub: #94A3B8;
+            
+            --radius-sm: 8px;
             --radius-md: 16px;
             --radius-lg: 24px;
             --radius-xl: 32px;
-            --transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            
+            --shadow-subtle: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+            --shadow-card: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(226, 232, 240, 0.8);
+            --shadow-hover: 0 16px 35px -4px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(79, 70, 229, 0.2);
+            
+            --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         * {
@@ -51,30 +70,29 @@
 
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: var(--bg-dark);
+            background-color: var(--bg-body);
             color: var(--text-main);
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
             line-height: 1.6;
         }
 
-        /* Ambient Glowing Canvas Background */
+        /* Ambient subtle gradient background */
         .aurora-bg {
             position: fixed;
             inset: 0;
             z-index: -1;
             pointer-events: none;
-            overflow: hidden;
             background: 
-                radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.2), transparent 45%),
-                radial-gradient(circle at 85% 25%, rgba(236, 72, 153, 0.18), transparent 45%),
-                radial-gradient(circle at 50% 85%, rgba(6, 182, 212, 0.15), transparent 50%),
-                #070A13;
+                radial-gradient(circle at 12% 15%, rgba(79, 70, 229, 0.05), transparent 45%),
+                radial-gradient(circle at 88% 25%, rgba(219, 39, 119, 0.04), transparent 45%),
+                radial-gradient(circle at 50% 85%, rgba(2, 132, 199, 0.03), transparent 50%),
+                #F8FAFC;
         }
 
         /* Navbar */
         .navbar {
-            height: 80px;
+            height: 75px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -83,9 +101,9 @@
             top: 0;
             left: 0;
             right: 0;
-            background: rgba(7, 10, 19, 0.75);
+            background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border-glass);
+            border-bottom: 1px solid var(--border);
             z-index: 1000;
         }
 
@@ -97,18 +115,16 @@
         }
 
         .nav-logo {
-            width: 42px;
-            height: 42px;
-            filter: drop-shadow(0 0 15px var(--primary-glow));
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
         }
 
         .nav-title {
-            font-size: 1.4rem;
+            font-size: 1.35rem;
             font-weight: 800;
             letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #FFF 30%, #CBD5E1 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: var(--text-main);
         }
 
         .nav-links {
@@ -122,12 +138,12 @@
             color: var(--text-muted);
             text-decoration: none;
             font-weight: 600;
-            font-size: 0.95rem;
+            font-size: 0.92rem;
             transition: var(--transition);
         }
 
         .nav-link:hover {
-            color: #FFF;
+            color: var(--primary);
         }
 
         .nav-actions {
@@ -136,14 +152,14 @@
             gap: 1rem;
         }
 
-        .btn-saas {
+        .btn-ui {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 0.7rem 1.4rem;
+            padding: 0.65rem 1.35rem;
             border-radius: 999px;
             font-weight: 700;
-            font-size: 0.9rem;
+            font-size: 0.88rem;
             text-decoration: none;
             cursor: pointer;
             transition: var(--transition);
@@ -153,37 +169,36 @@
         .btn-gradient {
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: #FFF;
-            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.35);
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.25);
         }
 
         .btn-gradient:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(99, 102, 241, 0.5);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.35);
         }
 
         .btn-glass {
-            background: rgba(255, 255, 255, 0.05);
-            color: #FFF;
-            border: 1px solid var(--border-glass);
-            backdrop-filter: blur(10px);
+            background: #FFFFFF;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-subtle);
         }
 
         .btn-glass:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.2);
+            background: var(--bg-surface-subtle);
             transform: translateY(-2px);
         }
 
-        /* Main Container */
+        /* Container */
         .container {
-            max-width: 1280px;
+            max-width: 1240px;
             margin: 0 auto;
-            padding: 0 2rem;
+            padding: 0 1.5rem;
         }
 
         /* Hero Section */
         .hero-section {
-            padding: 160px 0 100px;
+            padding: 140px 0 80px;
             text-align: center;
             position: relative;
         }
@@ -192,38 +207,38 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 6px 18px;
+            padding: 6px 16px;
             border-radius: 999px;
-            background: rgba(99, 102, 241, 0.1);
-            border: 1px solid rgba(99, 102, 241, 0.3);
-            font-size: 0.85rem;
+            background: var(--primary-light);
+            border: 1px solid rgba(79, 70, 229, 0.2);
+            font-size: 0.82rem;
             font-weight: 700;
-            color: #A5B4FC;
+            color: var(--primary);
             margin-bottom: 1.5rem;
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
         }
 
         .hero-title {
-            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-size: clamp(2.3rem, 5vw, 4.2rem);
             font-weight: 800;
             letter-spacing: -1.5px;
-            line-height: 1.1;
+            line-height: 1.15;
             margin-bottom: 1.5rem;
-            max-width: 980px;
+            max-width: 960px;
             margin-left: auto;
             margin-right: auto;
+            color: var(--text-main);
         }
 
-        .hero-title-grad {
-            background: linear-gradient(135deg, #FFFFFF 20%, #A5B4FC 60%, #F472B6 100%);
+        .hero-grad-text {
+            background: linear-gradient(135deg, var(--primary) 20%, var(--secondary) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
         .hero-desc {
-            font-size: clamp(1.05rem, 2vw, 1.25rem);
+            font-size: clamp(1rem, 2vw, 1.2rem);
             color: var(--text-muted);
-            max-width: 780px;
+            max-width: 760px;
             margin: 0 auto 2.5rem;
             font-weight: 400;
         }
@@ -232,70 +247,84 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 1.25rem;
+            gap: 1rem;
             flex-wrap: wrap;
-            margin-bottom: 4rem;
+            margin-bottom: 3.5rem;
         }
 
-        /* Live Feature Launchpad Grid */
-        .launchpad-grid {
+        /* Highlights Grid */
+        .feature-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1.25rem;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
             margin-top: 2rem;
         }
 
-        .launch-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-glass);
+        .feature-card {
+            background: var(--bg-surface);
             border-radius: var(--radius-lg);
-            padding: 1.5rem;
+            padding: 1.75rem;
             text-align: left;
-            text-decoration: none;
-            color: var(--text-main);
             transition: var(--transition);
-            position: relative;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
+            box-shadow: var(--shadow-card);
         }
 
-        .launch-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--border-glow);
-            background: var(--bg-card-hover);
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), 0 0 30px var(--primary-glow);
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
         }
 
-        .launch-icon-wrap {
+        .feature-icon-wrap {
             width: 48px;
             height: 48px;
             border-radius: var(--radius-md);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.35rem;
+            font-size: 1.3rem;
             margin-bottom: 4px;
         }
 
-        .launch-title {
-            font-size: 1.1rem;
+        .feature-title {
+            font-size: 1.2rem;
             font-weight: 800;
+            color: var(--text-main);
+        }
+
+        .feature-desc {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .feature-bullets {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 6px;
+            font-size: 0.85rem;
+            color: var(--text-main);
+        }
+
+        .feature-bullets li {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: 8px;
         }
 
-        .launch-desc {
+        .feature-bullets li i {
+            color: var(--emerald);
             font-size: 0.85rem;
-            color: var(--text-muted);
-            line-height: 1.4;
         }
 
-        /* Interactive Showcase Section */
+        /* Interactive Showcase Sandbox */
         .showcase-section {
-            padding: 80px 0;
+            padding: 70px 0;
+            position: relative;
         }
 
         .section-tag {
@@ -303,81 +332,78 @@
             font-size: 0.8rem;
             font-weight: 800;
             letter-spacing: 1.5px;
-            color: var(--cyan);
+            color: var(--primary);
             margin-bottom: 0.5rem;
             display: block;
             text-align: center;
         }
 
         .section-headline {
-            font-size: clamp(2rem, 4vw, 3rem);
+            font-size: clamp(1.8rem, 3.5vw, 2.6rem);
             font-weight: 800;
             letter-spacing: -1px;
             text-align: center;
             margin-bottom: 1rem;
+            color: var(--text-main);
         }
 
         .section-subtext {
             text-align: center;
             color: var(--text-muted);
             max-width: 650px;
-            margin: 0 auto 3rem;
-            font-size: 1.05rem;
+            margin: 0 auto 2.5rem;
+            font-size: 1rem;
         }
 
         .showcase-tabs {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
-            margin-bottom: 2.5rem;
+            margin-bottom: 2.25rem;
         }
 
         .showcase-tab-btn {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border-glass);
-            padding: 0.75rem 1.5rem;
+            background: #FFFFFF;
+            border: 1px solid var(--border);
+            padding: 0.7rem 1.4rem;
             border-radius: 999px;
             color: var(--text-muted);
             font-weight: 700;
-            font-size: 0.9rem;
+            font-size: 0.88rem;
             cursor: pointer;
             transition: var(--transition);
             display: flex;
             align-items: center;
             gap: 8px;
+            box-shadow: var(--shadow-subtle);
         }
 
         .showcase-tab-btn:hover {
-            color: #FFF;
-            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+            background: var(--bg-surface-subtle);
         }
 
         .showcase-tab-btn.active {
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: #FFF;
             border-color: transparent;
-            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.35);
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
         }
 
-        .showcase-preview-frame {
-            background: #0B0F19;
-            border: 1px solid var(--border-glass);
+        .showcase-frame {
+            background: #FFFFFF;
+            border: 1px solid var(--border);
             border-radius: var(--radius-xl);
-            padding: 2rem;
-            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7);
-            position: relative;
-            overflow: hidden;
-            min-height: 420px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
+            padding: 2.25rem;
+            box-shadow: var(--shadow-card);
+            min-height: 400px;
         }
 
         .showcase-content {
             display: none;
-            animation: fadeIn 0.4s ease;
+            animation: fadeIn 0.3s ease;
         }
 
         .showcase-content.active {
@@ -388,135 +414,122 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(12px); }
+            from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .showcase-info h3 {
-            font-size: 1.8rem;
+        .mockup-preview-panel {
+            background: var(--bg-surface-subtle);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* Enquiry / Lead Generation Form Section */
+        .enquiry-section {
+            padding: 80px 0;
+            position: relative;
+        }
+
+        .enquiry-card {
+            background: #FFFFFF;
+            border-radius: var(--radius-xl);
+            padding: 3rem;
+            box-shadow: 0 20px 50px -10px rgba(15, 23, 42, 0.08), 0 0 0 1px var(--border);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+        }
+
+        .enquiry-info h2 {
+            font-size: 2.2rem;
             font-weight: 800;
-            margin-bottom: 1rem;
             letter-spacing: -0.5px;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+            color: var(--text-main);
         }
 
-        .showcase-info p {
+        .enquiry-info p {
             color: var(--text-muted);
+            margin-bottom: 2rem;
             font-size: 1rem;
-            margin-bottom: 1.5rem;
-            line-height: 1.6;
         }
 
-        .showcase-feature-list {
+        .enquiry-benefits {
             list-style: none;
             display: flex;
             flex-direction: column;
             gap: 12px;
-            margin-bottom: 2rem;
-        }
-
-        .showcase-feature-list li {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 600;
             font-size: 0.95rem;
         }
 
-        .showcase-feature-list li i {
-            color: var(--emerald);
+        .enquiry-benefits li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+
+        .enquiry-benefits li i {
+            color: var(--primary);
             font-size: 1.1rem;
         }
 
-        .showcase-mockup-box {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-lg);
-            padding: 1.75rem;
-            position: relative;
+        .form-group {
             display: flex;
             flex-direction: column;
-            gap: 1rem;
-        }
-
-        /* Metrics / Architecture Strip */
-        .metrics-strip {
-            padding: 60px 0;
-            border-top: 1px solid var(--border-glass);
-            border-bottom: 1px solid var(--border-glass);
-            background: rgba(255, 255, 255, 0.015);
-            margin: 60px 0;
-        }
-
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 2rem;
-            text-align: center;
-        }
-
-        .metric-item-val {
-            font-size: 3rem;
-            font-weight: 800;
-            letter-spacing: -1px;
-            background: linear-gradient(135deg, #FFF, #94A3B8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-family: 'Space Grotesk', sans-serif;
-        }
-
-        .metric-item-label {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            font-weight: 600;
-            margin-top: 4px;
-        }
-
-        /* Footer */
-        .footer {
-            padding: 80px 0 40px;
-            border-top: 1px solid var(--border-glass);
-            background: #05070D;
-        }
-
-        .footer-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr 1fr;
-            gap: 3rem;
-            margin-bottom: 3rem;
-        }
-
-        .footer-brand p {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-            margin-top: 1rem;
-            max-width: 320px;
-        }
-
-        .footer-col h4 {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: #FFF;
+            gap: 6px;
             margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
-        .footer-col ul {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .footer-col a {
-            color: var(--text-muted);
-            text-decoration: none;
+        .form-control {
+            background: #FFFFFF;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 0.8rem 1rem;
+            color: var(--text-main);
+            font-family: inherit;
             font-size: 0.9rem;
+            outline: none;
             transition: var(--transition);
         }
 
-        .footer-col a:hover {
-            color: #FFF;
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        /* Footer */
+        .footer {
+            padding: 60px 0 30px;
+            border-top: 1px solid var(--border);
+            background: #FFFFFF;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 3rem;
+            margin-bottom: 2.5rem;
         }
 
         .footer-bottom {
@@ -524,30 +537,45 @@
             align-items: center;
             justify-content: space-between;
             padding-top: 2rem;
-            border-top: 1px solid var(--border-glass);
-            color: var(--text-sub);
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
             font-size: 0.85rem;
             flex-wrap: wrap;
             gap: 1rem;
         }
 
         @media (max-width: 900px) {
-            .navbar {
-                padding: 0 1.5rem;
-            }
+            .navbar { padding: 0 1.25rem; height: 68px; }
+            .nav-links { display: none; }
+            .showcase-content.active { grid-template-columns: 1fr; }
+            .enquiry-card { grid-template-columns: 1fr; padding: 2rem 1.5rem; gap: 2rem; }
+            .form-row { grid-template-columns: 1fr; }
+            .footer-grid { grid-template-columns: 1fr; gap: 2rem; }
+            .hero-title { font-size: 2.5rem; }
+        }
 
-            .nav-links {
-                display: none;
-            }
+        @media (max-width: 600px) {
+            .navbar { padding: 0 0.85rem; height: 60px; }
+            .nav-brand { gap: 8px; }
+            .nav-logo { width: 30px; height: 30px; }
+            .nav-title { font-size: 1.15rem; }
+            .nav-actions { gap: 6px; }
+            .nav-actions .btn-ui { padding: 0.42rem 0.85rem; font-size: 0.78rem; gap: 5px; }
+            .hero-section { padding: 90px 0 40px; }
+            .hero-title { font-size: 2rem; }
+            .hero-desc { font-size: 0.95rem; }
+            .hero-cta-group { flex-direction: column; width: 100%; }
+            .hero-cta-group .btn-ui { width: 100%; justify-content: center; }
+            .hero-stats { gap: 1rem; }
+            .stat-number { font-size: 1.8rem; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .showcase-nav { overflow-x: auto; flex-wrap: nowrap; justify-content: flex-start; padding-bottom: 8px; }
+            .showcase-btn { white-space: nowrap; flex-shrink: 0; padding: 0.5rem 1rem; font-size: 0.82rem; }
+        }
 
-            .showcase-content.active {
-                grid-template-columns: 1fr;
-            }
-
-            .footer-grid {
-                grid-template-columns: 1fr;
-                gap: 2rem;
-            }
+        @media (max-width: 380px) {
+            .nav-actions .btn-glass { display: none; }
+            .nav-actions .btn-gradient { padding: 0.4rem 0.75rem; font-size: 0.75rem; }
         }
     </style>
 </head>
@@ -564,18 +592,16 @@
 
         <ul class="nav-links">
             <li><a href="#features" class="nav-link">Features</a></li>
-            <li><a href="#showcase" class="nav-link">Interactive Showcase</a></li>
-            <li><a href="results.html" class="nav-link">Live Results</a></li>
-            <li><a href="display.html" class="nav-link">Stage HUD</a></li>
-            <li><a href="superadmin.html" class="nav-link">Super Admin</a></li>
+            <li><a href="#showcase" class="nav-link">Interactive Sandbox</a></li>
+            <li><a href="#enquiry" class="nav-link">Request Demo & Pricing</a></li>
         </ul>
 
         <div class="nav-actions">
-            <a href="index.html" class="btn-saas btn-glass">
+            <a href="index.html" class="btn-ui btn-glass">
                 <i class="fa-solid fa-lock"></i> Staff Login
             </a>
-            <a href="results.html" class="btn-saas btn-gradient">
-                <i class="fa-solid fa-trophy"></i> Results Portal
+            <a href="#enquiry" class="btn-ui btn-gradient">
+                <i class="fa-solid fa-paper-plane"></i> Book a Demo
             </a>
         </div>
     </header>
@@ -586,155 +612,166 @@
         <section class="hero-section">
             <div class="container">
                 <div class="hero-badge">
-                    <i class="fa-solid fa-sparkles" style="color: #F472B6;"></i>
-                    <span>FestOS 3.5 Enterprise Aurora Edition</span>
+                    <i class="fa-solid fa-sparkles" style="color: var(--primary);"></i>
+                    <span>FestOS 3.5 Enterprise Festival Operating System</span>
                 </div>
 
                 <h1 class="hero-title">
-                    The Modern Operating System for <span class="hero-title-grad">World-Class Festivals</span>
+                    The Modern Platform for <span class="hero-grad-text">Championship Festivals</span>
                 </h1>
 
                 <p class="hero-desc">
-                    Unify talent competitions, collegiate championships, and stage festivals with real-time Olympic scoring, 4K broadcast stage HUD displays, dynamic QR spectator mobile hubs, and automated winner poster studios.
+                    FestOS powers collegiate championships, inter-university talent festivals, and cultural spectacles with 4K broadcast stage HUDs, Olympic multi-judge scoring, dynamic QR spectator mobile hubs, and automated winner poster studios.
                 </p>
 
                 <div class="hero-cta-group">
-                    <a href="results.html" class="btn-saas btn-gradient" style="padding: 0.9rem 2rem; font-size: 1.05rem;">
-                        <i class="fa-solid fa-trophy"></i> Open Results Portal
+                    <a href="#enquiry" class="btn-ui btn-gradient" style="padding: 0.85rem 2rem; font-size: 1rem;">
+                        <i class="fa-solid fa-calendar-check"></i> Schedule Institution Demo
                     </a>
-                    <a href="display.html" target="_blank" class="btn-saas btn-glass" style="padding: 0.9rem 2rem; font-size: 1.05rem;">
-                        <i class="fa-solid fa-tv"></i> Launch 4K Stage HUD
-                    </a>
-                    <a href="superadmin.html" class="btn-saas btn-glass" style="padding: 0.9rem 2rem; font-size: 1.05rem;">
-                        <i class="fa-solid fa-shield-halved"></i> Super Admin Panel
+                    <a href="#showcase" class="btn-ui btn-glass" style="padding: 0.85rem 2rem; font-size: 1rem;">
+                        <i class="fa-solid fa-sliders"></i> Explore Submodules
                     </a>
                 </div>
 
-                <!-- Live Feature Launchpad Grid -->
-                <div class="launchpad-grid" id="features">
-                    <a href="results.html" class="launch-card">
-                        <div class="launch-icon-wrap" style="background: rgba(99, 102, 241, 0.15); color: var(--primary);">
-                            <i class="fa-solid fa-square-poll-vertical"></i>
-                        </div>
-                        <div class="launch-title">
-                            <span>Public Results Portal</span>
-                            <i class="fa-solid fa-arrow-right" style="font-size: 0.85rem;"></i>
-                        </div>
-                        <p class="launch-desc">Live team standings, podium reveals, schedule timelines, and contestant admit card logins.</p>
-                    </a>
-
-                    <a href="display.html" target="_blank" class="launch-card">
-                        <div class="launch-icon-wrap" style="background: rgba(236, 72, 153, 0.15); color: var(--secondary);">
+                <!-- Feature Highlights Grid -->
+                <div class="feature-grid" id="features">
+                    <!-- Feature 1 -->
+                    <div class="feature-card">
+                        <div class="feature-icon-wrap" style="background: var(--primary-light); color: var(--primary);">
                             <i class="fa-solid fa-tv"></i>
                         </div>
-                        <div class="launch-title">
-                            <span>4K Stage Display HUD</span>
-                            <i class="fa-solid fa-arrow-right" style="font-size: 0.85rem;"></i>
-                        </div>
-                        <p class="launch-desc">Broadcast visual stage with ambient motion graphics, active event indicators & dynamic QR code.</p>
-                    </a>
+                        <h3 class="feature-title">4K Broadcast Stage Display HUD</h3>
+                        <p class="feature-desc">Transform projectors, LED video walls, and auditorium displays into live broadcast stages with real-time motion graphics.</p>
+                        <ul class="feature-bullets">
+                            <li><i class="fa-solid fa-circle-check"></i> Auto-cycling team leaderboards & podium reveals</li>
+                            <li><i class="fa-solid fa-circle-check"></i> Dynamic on-screen QR codes synced with current stage</li>
+                            <li><i class="fa-solid fa-circle-check"></i> On-deck performer callouts & emergency alerts</li>
+                        </ul>
+                    </div>
 
-                    <a href="spectator.html" class="launch-card">
-                        <div class="launch-icon-wrap" style="background: rgba(6, 182, 212, 0.15); color: var(--cyan);">
-                            <i class="fa-solid fa-mobile-screen-button"></i>
-                        </div>
-                        <div class="launch-title">
-                            <span>Dynamic QR Spectator</span>
-                            <i class="fa-solid fa-arrow-right" style="font-size: 0.85rem;"></i>
-                        </div>
-                        <p class="launch-desc">Instant mobile companion that syncs with stage QR to deliver instant event syllabus & posters.</p>
-                    </a>
-
-                    <a href="index.html" class="launch-card">
-                        <div class="launch-icon-wrap" style="background: rgba(16, 185, 129, 0.15); color: var(--emerald);">
+                    <!-- Feature 2 -->
+                    <div class="feature-card">
+                        <div class="feature-icon-wrap" style="background: var(--secondary-light); color: var(--secondary);">
                             <i class="fa-solid fa-gavel"></i>
                         </div>
-                        <div class="launch-title">
-                            <span>Multi-Judge Matrix</span>
-                            <i class="fa-solid fa-arrow-right" style="font-size: 0.85rem;"></i>
+                        <h3 class="feature-title">Olympic Multi-Judge Scoring Engine</h3>
+                        <p class="feature-desc">Eliminate tabulation delays and arithmetic mistakes. Simultaneous judge evaluation with high-low outlier dropping.</p>
+                        <ul class="feature-bullets">
+                            <li><i class="fa-solid fa-circle-check"></i> Multi-criterion weighted mark sheets</li>
+                            <li><i class="fa-solid fa-circle-check"></i> Automatic Olympic drop calculation in &lt;40ms</li>
+                            <li><i class="fa-solid fa-circle-check"></i> Offline-safe cache with automatic reconnect sync</li>
+                        </ul>
+                    </div>
+
+                    <!-- Feature 3 -->
+                    <div class="feature-card">
+                        <div class="feature-icon-wrap" style="background: var(--cyan-light); color: var(--cyan);">
+                            <i class="fa-solid fa-mobile-screen-button"></i>
                         </div>
-                        <p class="launch-desc">Olympic-grade score tabulation with criteria weights, high/low dropping, and instant sync.</p>
-                    </a>
+                        <h3 class="feature-title">Dynamic QR Spectator Mobile Hub</h3>
+                        <p class="feature-desc">Spectators scan the stage screen to unlock live festival syllabus, schedule timelines, and one-tap winner poster downloads.</p>
+                        <ul class="feature-bullets">
+                            <li><i class="fa-solid fa-circle-check"></i> Zero installation required (instant web PWA)</li>
+                            <li><i class="fa-solid fa-circle-check"></i> Context-locked to the exact event showing on stage</li>
+                            <li><i class="fa-solid fa-circle-check"></i> 1-Tap high-res social media poster export</li>
+                        </ul>
+                    </div>
+
+                    <!-- Feature 4 -->
+                    <div class="feature-card">
+                        <div class="feature-icon-wrap" style="background: var(--emerald-light); color: var(--emerald);">
+                            <i class="fa-solid fa-id-badge"></i>
+                        </div>
+                        <h3 class="feature-title">Smart Passes & Digital Lanyard Badges</h3>
+                        <p class="feature-desc">Contestants log in with chest numbers to view enrolled competitions, call times, and present scannable security badges.</p>
+                        <ul class="feature-bullets">
+                            <li><i class="fa-solid fa-circle-check"></i> Barcode & QR identity validation for security gates</li>
+                            <li><i class="fa-solid fa-circle-check"></i> Squad & team roster tracking with captain controls</li>
+                            <li><i class="fa-solid fa-circle-check"></i> Personalized schedule alerts for each participant</li>
+                        </ul>
+                    </div>
+
+                    <!-- Feature 5 -->
+                    <div class="feature-card">
+                        <div class="feature-icon-wrap" style="background: var(--amber-light); color: var(--amber);">
+                            <i class="fa-solid fa-palette"></i>
+                        </div>
+                        <h3 class="feature-title">Auto Winner & Team Poster Studio</h3>
+                        <p class="feature-desc">Instantly render luxury social media flyers and printable certificates the second results are approved.</p>
+                        <ul class="feature-bullets">
+                            <li><i class="fa-solid fa-circle-check"></i> Auto-embedded contestant photos & team badges</li>
+                            <li><i class="fa-solid fa-circle-check"></i> High-resolution 300DPI canvas rendering</li>
+                            <li><i class="fa-solid fa-circle-check"></i> Customizable typography & institution watermarks</li>
+                        </ul>
+                    </div>
+
+                    <!-- Feature 6 -->
+                    <div class="feature-card">
+                        <div class="feature-icon-wrap" style="background: #F5F3FF; color: var(--accent);">
+                            <i class="fa-solid fa-crown"></i>
+                        </div>
+                        <h3 class="feature-title">Multi-Tenant Super Admin Hub</h3>
+                        <p class="feature-desc">Manage multiple festivals, reserve dedicated subdomains, and toggle granular feature flags for each festival instance.</p>
+                        <ul class="feature-bullets">
+                            <li><i class="fa-solid fa-circle-check"></i> Reserved subdomain hierarchy ({slug}.festos.app)</li>
+                            <li><i class="fa-solid fa-circle-check"></i> Granular feature permission switchboard</li>
+                            <li><i class="fa-solid fa-circle-check"></i> Real-time system diagnostics & audit logs</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- Metrics Strip -->
-        <section class="metrics-strip">
-            <div class="container">
-                <div class="metrics-grid">
-                    <div>
-                        <div class="metric-item-val">&lt; 40ms</div>
-                        <div class="metric-item-label">Calculation Latency</div>
-                    </div>
-                    <div>
-                        <div class="metric-item-val">100%</div>
-                        <div class="metric-item-label">Real-time WebSocket Sync</div>
-                    </div>
-                    <div>
-                        <div class="metric-item-val">4K UHD</div>
-                        <div class="metric-item-label">Broadcast Visual Stages</div>
-                    </div>
-                    <div>
-                        <div class="metric-item-val">Multi-Fest</div>
-                        <div class="metric-item-label">Global Tenant Governance</div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Interactive Showcase -->
+        <!-- Interactive Showcase Sandbox -->
         <section class="showcase-section" id="showcase">
             <div class="container">
-                <span class="section-tag">Interactive Showcase</span>
-                <h2 class="section-headline">Engineered for Flawless Execution</h2>
-                <p class="section-subtext">Explore how every submodule of FestOS seamlessly connects organizers, judges, contestants, and spectators.</p>
+                <span class="section-tag">Interactive Feature Sandbox</span>
+                <h2 class="section-headline">Experience How FestOS Works</h2>
+                <p class="section-subtext">Click through each submodule below to inspect simulated live interfaces and workflows.</p>
 
                 <!-- Tabs -->
                 <div class="showcase-tabs">
-                    <button class="showcase-tab-btn active" onclick="switchShowcaseTab(0)">
-                        <i class="fa-solid fa-tv"></i> Stage HUD
+                    <button class="showcase-tab-btn active" onclick="switchDemoTab(0)">
+                        <i class="fa-solid fa-tv"></i> Stage HUD (4K)
                     </button>
-                    <button class="showcase-tab-btn" onclick="switchShowcaseTab(1)">
-                        <i class="fa-solid fa-gavel"></i> Judge Portal
+                    <button class="showcase-tab-btn" onclick="switchDemoTab(1)">
+                        <i class="fa-solid fa-gavel"></i> Multi-Judge Matrix
                     </button>
-                    <button class="showcase-tab-btn" onclick="switchShowcaseTab(2)">
-                        <i class="fa-solid fa-mobile-screen"></i> Live QR Spectator
+                    <button class="showcase-tab-btn" onclick="switchDemoTab(2)">
+                        <i class="fa-solid fa-mobile-screen"></i> QR Spectator
                     </button>
-                    <button class="showcase-tab-btn" onclick="switchShowcaseTab(3)">
-                        <i class="fa-solid fa-crown"></i> Super Admin
+                    <button class="showcase-tab-btn" onclick="switchDemoTab(3)">
+                        <i class="fa-solid fa-id-badge"></i> Smart Passes
                     </button>
                 </div>
 
                 <!-- Showcase Frame -->
-                <div class="showcase-preview-frame">
+                <div class="showcase-frame">
                     <!-- Tab 0: Stage HUD -->
-                    <div class="showcase-content active" id="showcase-0">
-                        <div class="showcase-info">
-                            <h3>4K Stage Display & Dynamic Broadcast</h3>
-                            <p>Turn any projector, LED wall, or auditorium screen into an intelligent broadcast stage. Auto-rotates team leaderboards, displays on-deck performers, and renders real-time dynamic QR codes.</p>
-                            <ul class="showcase-feature-list">
-                                <li><i class="fa-solid fa-circle-check"></i> 8 Luxury Motion Graphics Stage Themes</li>
-                                <li><i class="fa-solid fa-circle-check"></i> Dynamic Stage-Synced QR Code Generation</li>
-                                <li><i class="fa-solid fa-circle-check"></i> Live On-Deck Participant Announcer Cards</li>
-                            </ul>
-                            <a href="display.html" target="_blank" class="btn-saas btn-gradient">Preview Stage HUD</a>
+                    <div class="showcase-content active" id="demo-0">
+                        <div>
+                            <h3 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 0.75rem; color: var(--text-main);">Intelligent Broadcast Stage HUD</h3>
+                            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">The Stage Display HUD runs in full-screen on any 4K/1080p LED screen or projector. It cycles live team standings, announces upcoming contestants, and provides a dynamic QR code for audience engagement.</p>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <span style="padding: 6px 12px; background: var(--primary-light); color: var(--primary); border-radius: 999px; font-size: 0.8rem; font-weight: 700;">8 Motion Graphics Themes</span>
+                                <span style="padding: 6px 12px; background: var(--emerald-light); color: var(--emerald); border-radius: 999px; font-size: 0.8rem; font-weight: 700;">4K UHD Optimized</span>
+                            </div>
                         </div>
-                        <div class="showcase-mockup-box">
-                            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-glass); padding-bottom: 0.75rem;">
-                                <span style="font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-sparkles" style="color: var(--amber);"></i> Live Leaderboard Telemetry</span>
-                                <span class="status-pill" style="font-size: 0.7rem;"><div class="status-dot"></div> Broadcast Active</span>
+                        <div class="mockup-preview-panel">
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                                <strong style="color: var(--text-main);"><i class="fa-solid fa-sparkles" style="color: var(--amber);"></i> Main Stadium Stage 1</strong>
+                                <span style="font-size: 0.75rem; color: var(--emerald); font-weight: 700;"><i class="fa-solid fa-circle"></i> Live Broadcast</span>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 8px;">
-                                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: #FFFFFF; border-radius: 8px; border: 1px solid var(--border);">
                                     <span>🥇 1. Phoenix Warriors</span>
                                     <strong style="color: var(--emerald);">485 pts</strong>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: #FFFFFF; border-radius: 8px; border: 1px solid var(--border);">
                                     <span>🥈 2. Cyber Dragons</span>
                                     <strong style="color: var(--cyan);">450 pts</strong>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.02); border-radius: 8px;">
+                                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: #FFFFFF; border-radius: 8px; border: 1px solid var(--border);">
                                     <span>🥉 3. Astral Titans</span>
                                     <strong style="color: var(--amber);">415 pts</strong>
                                 </div>
@@ -742,82 +779,143 @@
                         </div>
                     </div>
 
-                    <!-- Tab 1: Judge Portal -->
-                    <div class="showcase-content" id="showcase-1">
-                        <div class="showcase-info">
-                            <h3>Olympic Multi-Judge Scoring Engine</h3>
-                            <p>Eliminate tabulation errors and manual scorecards. Judges enter criterion-based marks simultaneously with offline-safe caching and instant average calculations.</p>
-                            <ul class="showcase-feature-list">
-                                <li><i class="fa-solid fa-circle-check"></i> Automatic High/Low Outlier Dropping</li>
-                                <li><i class="fa-solid fa-circle-check"></i> Multi-Criteria Weight Customization</li>
-                                <li><i class="fa-solid fa-circle-check"></i> Real-time Telemetry to Master Admin Control</li>
-                            </ul>
-                            <a href="index.html" class="btn-saas btn-gradient">Access Judge Portal</a>
+                    <!-- Tab 1: Judge Matrix -->
+                    <div class="showcase-content" id="demo-1">
+                        <div>
+                            <h3 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 0.75rem; color: var(--text-main);">Olympic Tabulation Engine</h3>
+                            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Multiple judges score performers simultaneously from their mobile phones or tablets. The engine automatically applies criteria weights and calculates final standings in milliseconds.</p>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <span style="padding: 6px 12px; background: var(--secondary-light); color: var(--secondary); border-radius: 999px; font-size: 0.8rem; font-weight: 700;">Criteria-Based Weights</span>
+                                <span style="padding: 6px 12px; background: var(--cyan-light); color: var(--cyan); border-radius: 999px; font-size: 0.8rem; font-weight: 700;">Offline-Resilient</span>
+                            </div>
                         </div>
-                        <div class="showcase-mockup-box">
-                            <div style="font-weight: 700;">Scorecard: Classical Solo #402</div>
+                        <div class="mockup-preview-panel">
+                            <div style="font-weight: 700; color: var(--text-main);">Scorecard: Classical Solo #402</div>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                                <div style="padding: 10px; background: rgba(255,255,255,0.04); border-radius: 8px;">
-                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Rhythm & Timing</div>
-                                    <div style="font-size: 1.25rem; font-weight: 800; color: var(--cyan);">9.5 / 10</div>
+                                <div style="padding: 10px; background: #FFFFFF; border-radius: 8px; border: 1px solid var(--border);">
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Choreography & Rhythm</div>
+                                    <div style="font-size: 1.2rem; font-weight: 800; color: var(--cyan);">9.6 / 10</div>
                                 </div>
-                                <div style="padding: 10px; background: rgba(255,255,255,0.04); border-radius: 8px;">
-                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Stage Presence</div>
-                                    <div style="font-size: 1.25rem; font-weight: 800; color: var(--secondary);">9.8 / 10</div>
+                                <div style="padding: 10px; background: #FFFFFF; border-radius: 8px; border: 1px solid var(--border);">
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Expressions & Impact</div>
+                                    <div style="font-size: 1.2rem; font-weight: 800; color: var(--secondary);">9.8 / 10</div>
                                 </div>
                             </div>
-                            <div style="padding: 8px 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; color: var(--emerald); font-weight: 700; text-align: center; font-size: 0.85rem;">
-                                <i class="fa-solid fa-check-double"></i> Tabulation Verified
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Tab 2: Spectator -->
-                    <div class="showcase-content" id="showcase-2">
-                        <div class="showcase-info">
-                            <h3>Dynamic QR Live Spectator Mobile Hub</h3>
-                            <p>Audiences simply scan the stage screen to open a personalized festival companion. Download official winner posters, inspect live stage timelines, and view team standings instantly.</p>
-                            <ul class="showcase-feature-list">
-                                <li><i class="fa-solid fa-circle-check"></i> Instant 1-Tap Winner Poster Generator</li>
-                                <li><i class="fa-solid fa-circle-check"></i> Dynamic Scope-Lock via QR URL</li>
-                                <li><i class="fa-solid fa-circle-check"></i> Mobile-first glassmorphic responsive UI</li>
-                            </ul>
-                            <a href="spectator.html" class="btn-saas btn-gradient">Open Spectator View</a>
-                        </div>
-                        <div class="showcase-mockup-box">
-                            <div style="text-align: center; padding: 1rem;">
-                                <i class="fa-solid fa-qrcode" style="font-size: 3.5rem; color: var(--primary); margin-bottom: 0.5rem;"></i>
-                                <div style="font-weight: 700;">Scan & View Live Syllabus</div>
-                                <div style="font-size: 0.8rem; color: var(--text-muted);">Synced to Grand Arena Stage 1</div>
+                            <div style="padding: 8px; background: var(--emerald-light); border: 1px solid rgba(5,150,105,0.3); border-radius: 8px; color: var(--emerald); font-weight: 700; text-align: center; font-size: 0.85rem;">
+                                <i class="fa-solid fa-check-double"></i> Score Tabulated & Verified
                             </div>
                         </div>
                     </div>
 
-                    <!-- Tab 3: Super Admin -->
-                    <div class="showcase-content" id="showcase-3">
-                        <div class="showcase-info">
-                            <h3>Multi-Tenant Super Admin Control Plane</h3>
-                            <p>Create and govern multiple festivals simultaneously. Control feature flag matrices for every festival instance, reset credentials, and monitor system diagnostics with zero downtime.</p>
-                            <ul class="showcase-feature-list">
-                                <li><i class="fa-solid fa-circle-check"></i> Granular Per-Fest Feature Matrix Toggles</li>
-                                <li><i class="fa-solid fa-circle-check"></i> Real-time Audit & Diagnostic Logging Console</li>
-                                <li><i class="fa-solid fa-circle-check"></i> Global Rebranding & Dynamic Favicon Engine</li>
-                            </ul>
-                            <a href="superadmin.html" class="btn-saas btn-gradient">Launch Super Admin</a>
+                    <!-- Tab 2: QR Spectator -->
+                    <div class="showcase-content" id="demo-2">
+                        <div>
+                            <h3 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 0.75rem; color: var(--text-main);">Instant Stage QR Mobile Hub</h3>
+                            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Audiences scan the stage display QR to view event schedules, participant rosters, and download official high-resolution winner flyers to share on social media.</p>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <span style="padding: 6px 12px; background: var(--cyan-light); color: var(--cyan); border-radius: 999px; font-size: 0.8rem; font-weight: 700;">No App Download Needed</span>
+                                <span style="padding: 6px 12px; background: var(--amber-light); color: var(--amber); border-radius: 999px; font-size: 0.8rem; font-weight: 700;">1-Tap Flyer Download</span>
+                            </div>
                         </div>
-                        <div class="showcase-mockup-box">
-                            <div style="display: flex; flex-direction: column; gap: 8px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px;">
-                                    <span>Zenith Fest 2026</span>
-                                    <span class="fest-chip chip-active" style="padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; background: rgba(16,185,129,0.2); color: var(--emerald);">ACTIVE</span>
+                        <div class="mockup-preview-panel" style="text-align: center; padding: 1.5rem;">
+                            <i class="fa-solid fa-qrcode" style="font-size: 4rem; color: var(--primary); margin-bottom: 0.75rem;"></i>
+                            <div style="font-weight: 700; color: var(--text-main);">Stage 1: Western Group Dance</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Real-time syllabus synced with stage projector</div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: Smart Passes -->
+                    <div class="showcase-content" id="demo-3">
+                        <div>
+                            <h3 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 0.75rem; color: var(--text-main);">Digital Contestant Lanyard Pass</h3>
+                            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Contestants log in with their chest number to view event call times, stage locations, squad rosters, and display their official digital verification pass.</p>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <span style="padding: 6px 12px; background: var(--emerald-light); color: var(--emerald); border-radius: 999px; font-size: 0.8rem; font-weight: 700;">Security Gate Scanner</span>
+                                <span style="padding: 6px 12px; background: var(--primary-light); color: var(--primary); border-radius: 999px; font-size: 0.8rem; font-weight: 700;">Squad Member Rosters</span>
+                            </div>
+                        </div>
+                        <div class="mockup-preview-panel">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #FFF;">AR</div>
+                                <div>
+                                    <div style="font-weight: 800; color: var(--text-main);">Alex Rivera (Chest #104)</div>
+                                    <div style="font-size: 0.75rem; color: var(--cyan); font-weight: 600;">Team Phoenix &bull; Senior Category</div>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                                    <span>Culturama 2026</span>
-                                    <span style="padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; background: rgba(245,158,11,0.2); color: var(--amber);">UPCOMING</span>
-                                </div>
+                            </div>
+                            <div style="padding: 8px 12px; background: #FFFFFF; border-radius: 8px; font-size: 0.8rem; border: 1px solid var(--border);">
+                                <i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> Enrolled in: <strong>Classical Solo, Street Play</strong>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Client Inquiry & Demo Booking Form -->
+        <section class="enquiry-section" id="enquiry">
+            <div class="container">
+                <div class="enquiry-card">
+                    <div class="enquiry-info">
+                        <h2>Ready to Empower Your Next Festival?</h2>
+                        <p>Fill out the inquiry form to request a personalized demonstration and discuss software deployment for your institution.</p>
+                        
+                        <ul class="enquiry-benefits">
+                            <li><i class="fa-solid fa-circle-check"></i> Turnkey setup within 24 hours</li>
+                            <li><i class="fa-solid fa-circle-check"></i> 4K broadcast stage display support</li>
+                            <li><i class="fa-solid fa-circle-check"></i> Dedicated Super Admin control & custom domain</li>
+                            <li><i class="fa-solid fa-circle-check"></i> On-site & cloud hybrid fault tolerance</li>
+                        </ul>
+                    </div>
+
+                    <form id="client-enquiry-form" onsubmit="event.preventDefault(); submitClientEnquiry();">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Your Name *</label>
+                                <input type="text" class="form-control" id="enq-name" placeholder="Dr. / Prof. / Name" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Institution / College *</label>
+                                <input type="text" class="form-control" id="enq-org" placeholder="University / College Name" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Official Email *</label>
+                                <input type="email" class="form-control" id="enq-email" placeholder="dean.events@college.edu" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Contact Phone</label>
+                                <input type="tel" class="form-control" id="enq-phone" placeholder="+91 98765 43210">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Approximate Festival Date</label>
+                                <input type="date" class="form-control" id="enq-date">
+                            </div>
+                            <div class="form-group">
+                                <label>Expected Scale</label>
+                                <select class="form-control" id="enq-scale">
+                                    <option value="500-1500 Attendees">500 - 1,500 Attendees (10-25 Events)</option>
+                                    <option value="1500-5000 Attendees">1,500 - 5,000 Attendees (25-50 Events)</option>
+                                    <option value="5000+ Major State Fest">5,000+ Attendees (Championship / State Fest)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Additional Requirements / Message</label>
+                            <textarea class="form-control" id="enq-message" rows="3" placeholder="Tell us about your festival stages, number of teams, or special requirements..."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn-ui btn-gradient" id="btn-submit-enquiry" style="width: 100%; justify-content: center; padding: 0.9rem; font-size: 1rem;">
+                            <i class="fa-solid fa-paper-plane"></i> Submit Inquiry & Request Demo
+                        </button>
+                        
+                        <p id="enquiry-feedback" style="display:none; text-align:center; font-size:0.9rem; margin-top:1rem; font-weight:700;"></p>
+                    </form>
                 </div>
             </div>
         </section>
@@ -827,41 +925,32 @@
     <footer class="footer">
         <div class="container">
             <div class="footer-grid">
-                <div class="footer-brand">
+                <div>
                     <a href="landing.html" class="nav-brand" style="margin-bottom: 0.75rem;">
                         <img src="festos-logo.svg" alt="FestOS" class="nav-logo">
                         <span class="nav-title">FestOS</span>
                     </a>
-                    <p>The enterprise operating system empowering institutions to conduct seamless, broadcast-grade festivals.</p>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 320px;">
+                        The premier operating system empowering institutions to conduct seamless, broadcast-grade festivals.
+                    </p>
                 </div>
 
-                <div class="footer-col">
-                    <h4>Portals</h4>
-                    <ul>
-                        <li><a href="results.html">Results & Standings</a></li>
-                        <li><a href="display.html" target="_blank">Stage HUD (4K)</a></li>
-                        <li><a href="spectator.html">Live QR Spectator</a></li>
-                        <li><a href="scan.html">Badge QR Scanner</a></li>
+                <div>
+                    <h4 style="font-size: 0.9rem; color: var(--text-main); text-transform: uppercase; margin-bottom: 1rem;">Features</h4>
+                    <ul style="list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem;">
+                        <li><a href="#features" style="color: var(--text-muted); text-decoration: none;">4K Stage Displays</a></li>
+                        <li><a href="#features" style="color: var(--text-muted); text-decoration: none;">Olympic Score Engine</a></li>
+                        <li><a href="#features" style="color: var(--text-muted); text-decoration: none;">Dynamic QR Mobile</a></li>
+                        <li><a href="#features" style="color: var(--text-muted); text-decoration: none;">Poster Auto-Studio</a></li>
                     </ul>
                 </div>
 
-                <div class="footer-col">
-                    <h4>Management</h4>
-                    <ul>
-                        <li><a href="index.html">Staff & Judge Login</a></li>
-                        <li><a href="admin.html">Master Admin Suite</a></li>
-                        <li><a href="superadmin.html">Super Admin Hub</a></li>
-                        <li><a href="program_report.html">Reports Engine</a></li>
-                    </ul>
-                </div>
-
-                <div class="footer-col">
-                    <h4>Platform</h4>
-                    <ul>
-                        <li><a href="MOBILE_APP_GUIDE.md">Mobile App (APK)</a></li>
-                        <li><a href="#features">Feature Matrix</a></li>
-                        <li><a href="superadmin.html">Diagnostics</a></li>
-                        <li><a href="#">Security & Uptime</a></li>
+                <div>
+                    <h4 style="font-size: 0.9rem; color: var(--text-main); text-transform: uppercase; margin-bottom: 1rem;">Portals</h4>
+                    <ul style="list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem;">
+                        <li><a href="index.html" style="color: var(--text-muted); text-decoration: none;">Staff & Admin Login</a></li>
+                        <li><a href="superadmin.html" style="color: var(--text-muted); text-decoration: none;">Super Admin Hub</a></li>
+                        <li><a href="#enquiry" style="color: var(--text-muted); text-decoration: none;">Contact & Inquiries</a></li>
                     </ul>
                 </div>
             </div>
@@ -876,16 +965,78 @@
         </div>
     </footer>
 
-    <!-- Core Scripts -->
-    <script src="festos-core.js"></script>
+    <!-- Scripts -->
     <script>
-        function switchShowcaseTab(index) {
+        const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
+        const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+        function switchDemoTab(index) {
             document.querySelectorAll('.showcase-tab-btn').forEach((btn, i) => {
                 btn.classList.toggle('active', i === index);
             });
             document.querySelectorAll('.showcase-content').forEach((content, i) => {
                 content.classList.toggle('active', i === index);
             });
+        }
+
+        async function submitClientEnquiry() {
+            const name = document.getElementById('enq-name').value.trim();
+            const org = document.getElementById('enq-org').value.trim();
+            const email = document.getElementById('enq-email').value.trim();
+            const phone = document.getElementById('enq-phone').value.trim();
+            const date = document.getElementById('enq-date').value;
+            const scale = document.getElementById('enq-scale').value;
+            const message = document.getElementById('enq-message').value.trim();
+
+            const btn = document.getElementById('btn-submit-enquiry');
+            const feedback = document.getElementById('enquiry-feedback');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+
+            const payload = {
+                client_name: name,
+                organization: org,
+                email: email,
+                phone: phone,
+                fest_date: date || null,
+                expected_attendees: scale,
+                message: message,
+                status: 'new',
+                created_at: new Date().toISOString()
+            };
+
+            try {
+                if (supabaseClient) {
+                    try {
+                        await supabaseClient.from('enquiries').insert(payload);
+                    } catch (tableErr) {
+                        await supabaseClient.from('settings').upsert({
+                            id: 'latest_enquiry_' + Date.now(),
+                            value: payload
+                        });
+                    }
+                }
+
+                const cached = JSON.parse(localStorage.getItem('festos_cached_enquiries') || '[]');
+                cached.unshift({ id: 'enq_' + Date.now(), ...payload });
+                localStorage.setItem('festos_cached_enquiries', JSON.stringify(cached));
+
+                feedback.style.display = 'block';
+                feedback.style.color = '#059669';
+                feedback.innerHTML = '<i class="fa-solid fa-circle-check"></i> Thank you! Your inquiry has been submitted. Our enterprise festival team will contact you shortly.';
+                
+                document.getElementById('client-enquiry-form').reset();
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Inquiry Submitted';
+
+            } catch (err) {
+                feedback.style.display = 'block';
+                feedback.style.color = '#E11D48';
+                feedback.innerText = 'Submission error: ' + err.message;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Inquiry & Request Demo';
+            }
         }
     </script>
 </body>

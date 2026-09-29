@@ -166,11 +166,26 @@ if (loginForm) {
             if (error || !data) throw new Error('Account not found. Please check your username.');
             if (data.password_hash !== password) throw new Error('Incorrect password. Please try again.');
 
-            // Handle "Save Login" persistent session
+            // Multi-tenant festival scoping
+            if (!data.fest_id) {
+                const prefix = (data.username || '').split('_')[0].toLowerCase();
+                if (prefix === 'zenith26' || prefix === 'zenith') {
+                    data.fest_id = 'fest_zenith_2026';
+                } else if (prefix.length > 2) {
+                    data.fest_id = `fest_${prefix}`;
+                } else {
+                    data.fest_id = 'fest_zenith_2026';
+                }
+            }
+
+            // Handle "Save Login" persistent session & active fest
             if (typeof festosAuth !== 'undefined') {
                 festosAuth.setUser(data, rememberMe);
             } else {
                 localStorage.setItem('festUser', JSON.stringify(data));
+                if (data.fest_id) {
+                    localStorage.setItem('festos_active_fest_id', data.fest_id);
+                }
                 if (rememberMe) {
                     localStorage.setItem('festSavedUsername', username);
                     localStorage.setItem('festos_remember_session', 'true');

@@ -3,334 +3,297 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FestOS | Super Admin Global Control Panel</title>
+    <title>FestOS | Super Admin Control Panel</title>
     <link rel="icon" href="festos-logo.svg">
     
-    <!-- Google Fonts -->
+    <!-- External Libraries & Fonts matching Admin Page -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    
-    <!-- FontAwesome 6 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
-    <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
         :root {
-            --primary: #6366F1;
-            --primary-glow: rgba(99, 102, 241, 0.35);
-            --primary-hover: #4F46E5;
-            --secondary: #EC4899;
-            --accent: #8B5CF6;
-            --cyan: #06B6D4;
-            --emerald: #10B981;
+            /* Exact Admin Page Color Palette */
+            --primary: #3B82F6;
+            --primary-hover: #2563EB;
+            --primary-light: #EFF6FF;
+            --primary-ring: rgba(59, 130, 246, 0.2);
+            --primary-gradient: linear-gradient(135deg, #3B82F6 0%, #6366F1 100%);
+            
+            --danger: #EF4444;
+            --danger-hover: #DC2626;
+            --danger-light: #FEF2F2;
+            
+            --success: #10B981;
+            --success-hover: #059669;
+            --success-light: #ECFDF5;
+
             --amber: #F59E0B;
-            --rose: #F43F5E;
+            --amber-light: #FFFBEB;
+            --secondary: #EC4899;
+            --secondary-light: #FDF2F8;
+            --cyan: #06B6D4;
+            --cyan-light: #F0F9FF;
             
-            --bg-dark: #090D16;
-            --bg-card: rgba(17, 24, 39, 0.85);
-            --bg-card-hover: rgba(31, 41, 55, 0.9);
-            --border-glass: rgba(255, 255, 255, 0.08);
-            --border-glow: rgba(99, 102, 241, 0.3);
+            --bg-main: #F9FAFB; 
+            --bg-surface: #FFFFFF;
+            --text-main: #1F2937;
+            --text-muted: #6B7280;
+            --border: #E5E7EB;
+            --border-hover: #D1D5DB;
             
-            --text-main: #F9FAFB;
-            --text-muted: #9CA3AF;
-            --text-sub: #6B7280;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+            --shadow-float: 0 20px 25px -5px rgba(59, 130, 246, 0.15), 0 10px 10px -5px rgba(59, 130, 246, 0.05);
             
-            --sidebar-w: 270px;
-            --radius-sm: 8px;
-            --radius-md: 14px;
-            --radius-lg: 20px;
-            --radius-xl: 28px;
-            --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
-            --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.2);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --radius-xl: 20px;
+            
             --font-mono: 'JetBrains Mono', monospace;
-            --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            --transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            min-height: 100vh;
-            min-height: 100dvh;
-            display: flex;
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        html, body {
+            width: 100%;
+            max-width: 100%;
             overflow-x: hidden;
-            -webkit-font-smoothing: antialiased;
         }
 
-        /* Ambient Aurora Mesh Background */
-        .ambient-mesh {
+        body { 
+            display: flex; 
+            height: 100vh; 
+            background-color: var(--bg-main); 
+            color: var(--text-main); 
+            overflow: hidden; 
+            -webkit-font-smoothing: antialiased; 
+        }
+
+        /* Mobile Backdrop */
+        .mobile-sidebar-backdrop {
+            display: none;
             position: fixed;
             inset: 0;
-            z-index: -1;
-            pointer-events: none;
-            overflow: hidden;
-            background: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15), transparent 40%),
-                        radial-gradient(circle at 90% 80%, rgba(236, 72, 153, 0.12), transparent 40%),
-                        radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.08), transparent 50%);
-        }
-
-        /* Sidebar Navigation */
-        .sidebar {
-            width: var(--sidebar-w);
-            background: rgba(11, 15, 25, 0.95);
-            backdrop-filter: blur(20px);
-            border-right: 1px solid var(--border-glass);
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            z-index: 100;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 45;
             transition: var(--transition);
         }
+        .mobile-sidebar-backdrop.active {
+            display: block;
+        }
 
-        .brand-header {
-            padding: 1.5rem 1.25rem;
+        /* Sidebar matching Admin Page */
+        .sidebar { 
+            width: 280px; 
+            min-width: 280px;
+            background: var(--bg-surface); 
+            border-right: 1px solid var(--border); 
+            display: flex; 
+            flex-direction: column; 
+            padding: 1.5rem 1.25rem 1.25rem; 
+            z-index: 50; 
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); 
+            overflow-y: auto; 
+        }
+
+        .sidebar-header {
             display: flex;
             align-items: center;
-            gap: 12px;
-            border-bottom: 1px solid var(--border-glass);
+            justify-content: space-between;
+            margin-bottom: 1.75rem;
+            padding-left: 0.25rem;
         }
 
-        .brand-header img {
-            width: 38px;
-            height: 38px;
-            filter: drop-shadow(0 0 12px var(--primary-glow));
-        }
-
-        .brand-title {
-            font-size: 1.2rem;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #FFFFFF, #CBD5E1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .brand { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            font-size: 1.35rem; 
+            font-weight: 800; 
+            color: var(--primary); 
+            display: flex; 
+            align-items: center; 
+            gap: 0.75rem; 
+            letter-spacing: -0.02em; 
         }
 
         .brand-badge {
             font-size: 0.65rem;
             font-weight: 800;
             text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: var(--primary-gradient);
+            color: #FFF;
+        }
+
+        .mobile-close-sidebar-btn {
+            display: none;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: var(--bg-main);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+        .mobile-close-sidebar-btn:hover {
+            color: var(--danger);
+            background: var(--danger-light);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .nav-group { margin-bottom: 0.5rem; }
+        .nav-heading { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); padding: 0.75rem 0.75rem 0.35rem; }
+
+        .nav-main { 
+            padding: 0.75rem 1rem; 
+            border-radius: var(--radius-md); 
+            cursor: pointer; 
+            color: var(--text-muted); 
+            font-weight: 600; 
+            font-size: 0.9rem; 
+            transition: var(--transition); 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            text-decoration: none;
+            position: relative;
+        }
+
+        .nav-main:hover { background: var(--bg-main); color: var(--text-main); }
+        .nav-main.active { background: var(--primary-light); color: var(--primary); font-weight: 700; }
+        .nav-main.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 8px;
+            bottom: 8px;
+            width: 3.5px;
+            background: var(--primary);
+            border-radius: 0 4px 4px 0;
+        }
+        .nav-main i.icon-left { width: 22px; text-align: center; font-size: 1.05rem; color: #9CA3AF; transition: var(--transition); margin-right: 8px; }
+        .nav-main.active i.icon-left { color: var(--primary); }
+        
+        .nav-pill-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
             padding: 2px 8px;
             border-radius: 999px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: #FFF;
-            letter-spacing: 0.5px;
-            margin-left: auto;
+            background: #E5E7EB;
+            color: var(--text-main);
         }
+        .nav-main.active .nav-pill-badge { background: var(--primary); color: #FFF; }
 
-        /* Nav Links */
-        .nav-list {
-            list-style: none;
-            padding: 1rem 0.75rem;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            flex: 1;
-            overflow-y: auto;
-        }
-
-        .nav-heading {
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-sub);
-            padding: 0.75rem 0.75rem 0.25rem;
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 0.75rem 1rem;
-            border-radius: var(--radius-md);
-            color: var(--text-muted);
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: var(--transition);
-            border: 1px solid transparent;
-        }
-
-        .nav-item i {
-            font-size: 1.1rem;
-            width: 22px;
-            text-align: center;
-            transition: var(--transition);
-        }
-
-        .nav-item:hover {
-            color: #FFF;
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .nav-item.active {
-            color: #FFF;
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15));
-            border-color: var(--border-glow);
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.15);
-        }
-
-        .nav-item.active i {
-            color: var(--primary);
-            filter: drop-shadow(0 0 8px var(--primary-glow));
-        }
-
-        .nav-pill-badge {
-            margin-left: auto;
-            font-size: 0.7rem;
-            font-weight: 700;
-            padding: 2px 7px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.1);
-            color: #FFF;
-        }
-
-        /* Sidebar Footer / User Profile */
+        /* Sidebar Profile */
         .sidebar-footer {
-            padding: 1rem 1.25rem;
-            border-top: 1px solid var(--border-glass);
+            margin-top: auto;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
             display: flex;
             align-items: center;
-            gap: 12px;
-            background: rgba(0, 0, 0, 0.2);
+            gap: 10px;
         }
 
         .user-avatar {
             width: 36px;
             height: 36px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            background: var(--primary-gradient);
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 700;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: #FFF;
+            cursor: pointer;
+            flex-shrink: 0;
         }
 
-        .user-meta {
-            flex: 1;
+        .user-meta { flex: 1; min-width: 0; cursor: pointer; }
+        .user-name { font-size: 0.85rem; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .user-role { font-size: 0.72rem; color: var(--success); font-weight: 600; display: flex; align-items: center; gap: 4px; }
+
+        .btn-logout-icon {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            flex-shrink: 0;
+        }
+        .btn-logout-icon:hover { color: var(--danger); background: var(--danger-light); border-color: rgba(239, 68, 68, 0.3); }
+
+        /* Main Workspace Content matching Admin Page */
+        .main-content { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            overflow-y: auto; 
+            overflow-x: hidden;
+            scroll-behavior: smooth; 
+            width: calc(100% - 280px);
             min-width: 0;
         }
+        
+        .header { 
+            background: rgba(255, 255, 255, 0.92); 
+            padding: 1.15rem 2.5rem; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            position: sticky; 
+            top: 0; 
+            z-index: 30; 
+            backdrop-filter: blur(12px); 
+            border-bottom: 1px solid var(--border); 
+            gap: 1rem; 
+            width: 100%;
+        }
 
-        .user-name {
-            font-size: 0.85rem;
-            font-weight: 700;
+        .header h1 { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            font-size: 1.25rem; 
+            font-weight: 700; 
+            color: var(--text-main); 
+            display: flex; 
+            align-items: center; 
+            gap: 0.5rem; 
+            letter-spacing: -0.01em; 
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        .user-role {
-            font-size: 0.7rem;
-            color: var(--emerald);
-            font-weight: 600;
-            display: flex;
+        .mobile-toggle { 
+            display: none; 
+            background: var(--bg-main); 
+            border: 1px solid var(--border); 
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            font-size: 1.1rem; 
+            color: var(--text-main); 
+            cursor: pointer; 
             align-items: center;
-            gap: 4px;
-        }
-
-        .btn-logout-icon {
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            padding: 6px;
-            border-radius: 6px;
-            transition: var(--transition);
-        }
-
-        .btn-logout-icon:hover {
-            color: var(--rose);
-            background: rgba(244, 63, 94, 0.1);
-        }
-
-        /* Main Workspace Content */
-        .main-wrapper {
-            margin-left: var(--sidebar-w);
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            position: relative;
-        }
-
-        /* Top Header Bar */
-        .top-navbar {
-            height: 70px;
-            background: rgba(11, 15, 25, 0.7);
-            backdrop-filter: blur(15px);
-            border-bottom: 1px solid var(--border-glass);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 2rem;
-            position: sticky;
-            top: 0;
-            z-index: 90;
-        }
-
-        .top-left-group {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .mobile-toggle {
-            display: none;
-            background: transparent;
-            border: none;
-            color: #FFF;
-            font-size: 1.25rem;
-            cursor: pointer;
-        }
-
-        .fest-context-pill {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border-glass);
-            padding: 6px 14px;
-            border-radius: 999px;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
-
-        .fest-select {
-            background: transparent;
-            border: none;
-            color: #FFF;
-            font-weight: 700;
-            font-size: 0.85rem;
-            outline: none;
-            cursor: pointer;
-        }
-
-        .fest-select option {
-            background: #111827;
-            color: #FFF;
-        }
-
-        .top-right-group {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
+            justify-content: center;
+            flex-shrink: 0;
         }
 
         .status-pill {
@@ -339,833 +302,419 @@
             gap: 6px;
             font-size: 0.75rem;
             font-weight: 700;
-            color: var(--emerald);
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            background: var(--success-light);
+            border: 1px solid rgba(16, 185, 129, 0.25);
             padding: 4px 12px;
             border-radius: 999px;
+            white-space: nowrap;
         }
 
         .status-dot {
             width: 7px;
             height: 7px;
             border-radius: 50%;
-            background: var(--emerald);
-            box-shadow: 0 0 8px var(--emerald);
+            background: var(--success);
             animation: pulseDot 2s infinite;
         }
 
-        @keyframes pulseDot {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(0.85); }
-        }
+        @keyframes pulseDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-        .btn-quick-action {
-            display: inline-flex;
+        .content-section { display: none; padding: 2rem 2.5rem; animation: fadeUp 0.3s ease forwards; opacity: 0; width: 100%; max-width: 100%; box-sizing: border-box; }
+        .content-section.active { display: block; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* KPI Metric Cards matching Admin */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; width: 100%; }
+        .kpi-card { background: var(--bg-surface); border-radius: var(--radius-lg); padding: 1.5rem; border: 1px solid var(--border); box-shadow: var(--shadow-sm); transition: var(--transition); }
+        .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--border-hover); }
+        .kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+        .kpi-icon-wrap { width: 42px; height: 42px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0; }
+        .icon-blue { background: var(--primary-light); color: var(--primary); }
+        .icon-green { background: var(--success-light); color: var(--success); }
+        .icon-amber { background: var(--amber-light); color: var(--amber); }
+        .icon-pink { background: var(--secondary-light); color: var(--secondary); }
+
+        .kpi-val { font-size: 2.1rem; font-weight: 800; line-height: 1; margin-bottom: 0.35rem; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; }
+        .kpi-label { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+
+        /* Controls Bar & Buttons */
+        .controls-bar { display: flex; gap: 0.85rem; margin-bottom: 1.5rem; flex-wrap: wrap; background: white; padding: 1rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border); align-items: center; width: 100%; box-sizing: border-box; }
+        .search-box { flex: 2; min-width: 220px; position: relative; }
+        .search-box input { width: 100%; padding: 0.7rem 1rem 0.7rem 2.5rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.9rem; font-weight: 500; outline: none; background: var(--bg-main); transition: var(--transition); box-sizing: border-box; }
+        .search-box input:focus { border-color: var(--primary); background: #FFF; box-shadow: 0 0 0 3px var(--primary-ring); }
+        .search-box i { position: absolute; left: 0.9rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+        
+        .filter-select { padding: 0.7rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.88rem; font-weight: 500; outline: none; background: var(--bg-main); color: var(--text-main); cursor: pointer; transition: var(--transition); }
+        .filter-select:focus { border-color: var(--primary); background: #FFF; }
+
+        .btn { padding: 0.65rem 1.25rem; border-radius: var(--radius-md); font-weight: 600; font-size: 0.88rem; cursor: pointer; transition: var(--transition); border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 40px; white-space: nowrap; text-decoration: none; }
+        .btn-primary { background: var(--primary-gradient); color: white; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); }
+        .btn-primary:hover { background: var(--primary-hover); box-shadow: var(--shadow-float); transform: translateY(-1px); }
+        .btn-outline { background: white; border-color: var(--border); color: var(--text-main); }
+        .btn-outline:hover { background: var(--bg-main); border-color: var(--border-hover); }
+        .btn-danger { background: var(--danger-light); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
+        .btn-danger:hover { background: var(--danger); color: white; }
+
+        /* Bulk Action Bar */
+        .bulk-actions-toolbar {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            background: var(--primary-light);
+            border: 1px solid rgba(59, 130, 246, 0.35);
+            border-radius: var(--radius-md);
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 1.25rem;
+            animation: fadeUp 0.2s ease forwards;
+            flex-wrap: wrap;
+        }
+        .bulk-actions-toolbar.active {
+            display: flex;
+        }
+        .bulk-count-badge {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 0.9rem;
+            display: flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 16px;
-            border-radius: var(--radius-md);
-            font-weight: 600;
-            font-size: 0.85rem;
-            cursor: pointer;
-            border: none;
-            transition: var(--transition);
-            text-decoration: none;
         }
-
-        .btn-primary-gradient {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: #FFF;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-        }
-
-        .btn-primary-gradient:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
-        }
-
-        .btn-secondary-glass {
-            background: rgba(255, 255, 255, 0.05);
-            color: #FFF;
-            border: 1px solid var(--border-glass);
-        }
-
-        .btn-secondary-glass:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        /* View Container */
-        .content-body {
-            padding: 2rem;
-            flex: 1;
-            max-width: 1440px;
-            width: 100%;
-            margin: 0 auto;
-        }
-
-        /* Section View Switcher */
-        .tab-section {
-            display: none;
-            animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .tab-section.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Page Headers */
-        .section-header {
+        .bulk-btn-group {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            margin-bottom: 2rem;
+            gap: 8px;
             flex-wrap: wrap;
-            gap: 1rem;
         }
 
-        .section-title {
-            font-size: 1.6rem;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        /* Checkbox styling */
+        .custom-chk {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            cursor: pointer;
+            accent-color: var(--primary);
         }
 
-        .section-desc {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            margin-top: 4px;
-        }
+        /* Tables matching Admin Page */
+        .table-responsive { width: 100%; max-width: 100%; overflow-x: auto; background: white; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); -webkit-overflow-scrolling: touch; }
+        .admin-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; min-width: 600px; }
+        .admin-table th { background: var(--bg-main); padding: 0.85rem 1.25rem; font-weight: 700; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        .admin-table td { padding: 0.9rem 1.25rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        .admin-table tr:last-child td { border-bottom: none; }
+        .admin-table tr:hover td { background: #F8FAFC; }
+        .admin-table tr.selected td { background: var(--primary-light); }
 
-        /* Metric KPI Cards */
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1.25rem;
-            margin-bottom: 2rem;
-        }
+        /* Festival Cards Grid */
+        .fest-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; width: 100%; }
+        .fest-card { background: var(--bg-surface); border-radius: var(--radius-lg); padding: 1.5rem; border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 1rem; transition: var(--transition); cursor: pointer; box-sizing: border-box; }
+        .fest-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--border-hover); }
+        .fest-card.active-fest { border: 2px solid var(--primary); background: linear-gradient(180deg, #FFFFFF 0%, var(--primary-light) 100%); }
 
-        .kpi-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-glass);
+        .fest-card-header { display: flex; align-items: center; gap: 12px; }
+        .fest-card-logo { width: 48px; height: 48px; border-radius: var(--radius-md); object-fit: contain; background: var(--bg-main); padding: 4px; border: 1px solid var(--border); flex-shrink: 0; }
+        .fest-card-title { font-size: 1.15rem; font-weight: 800; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; word-break: break-word; }
+        .fest-domain-badge { font-size: 0.75rem; font-family: var(--font-mono); color: var(--primary); background: var(--primary-light); padding: 2px 6px; border-radius: 4px; display: inline-block; word-break: break-all; }
+
+        .fest-chip { padding: 3px 10px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+        .chip-active { background: var(--success-light); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .chip-upcoming { background: var(--amber-light); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .chip-archived { background: #E5E7EB; color: var(--text-muted); }
+
+        .fest-meta-list { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: var(--text-muted); }
+        .fest-meta-item { display: flex; align-items: center; gap: 8px; }
+        .fest-meta-item i { width: 16px; color: var(--primary); flex-shrink: 0; }
+
+        .fest-actions-bar { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+
+        /* Festival Workspace Detail Card */
+        .workspace-card { background: var(--bg-surface); border-radius: var(--radius-lg); padding: 1.75rem; border: 2px solid var(--primary); box-shadow: var(--shadow-md); margin-bottom: 2rem; width: 100%; box-sizing: border-box; }
+
+        /* Feature Matrix Switchboard */
+        .matrix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; width: 100%; }
+        .feature-card { background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1.15rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; box-sizing: border-box; }
+        .feature-info { flex: 1; min-width: 0; }
+        .feature-info h4 { font-size: 0.92rem; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 3px; color: var(--text-main); }
+        .feature-info p { font-size: 0.78rem; color: var(--text-muted); line-height: 1.35; }
+
+        .toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; inset: 0; background-color: #D1D5DB; transition: .25s; border-radius: 999px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .25s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        input:checked + .slider { background: var(--primary-gradient); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* Terminal Console */
+        .terminal-box { background: #111827; border-radius: var(--radius-md); padding: 1rem; font-family: var(--font-mono); font-size: 0.82rem; max-height: 480px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; color: #F9FAFB; width: 100%; box-sizing: border-box; }
+        .log-entry { display: flex; align-items: flex-start; gap: 10px; padding: 6px 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.04); flex-wrap: wrap; }
+        .log-time { color: #9CA3AF; white-space: nowrap; font-size: 0.75rem; }
+        .log-badge { font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+        .log-info { background: rgba(59, 130, 246, 0.25); color: #93C5FD; }
+        .log-warning { background: rgba(245, 158, 11, 0.25); color: #FDE68A; }
+        .log-error { background: rgba(239, 68, 68, 0.3); color: #FCA5A5; }
+        .log-critical { background: #DC2626; color: #FFF; }
+        .log-body { flex: 1; min-width: 200px; word-break: break-all; }
+
+        /* Health & Diagnostics Components */
+        .health-hero-card {
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
             border-radius: var(--radius-lg);
-            padding: 1.5rem;
-            position: relative;
-            overflow: hidden;
-            box-shadow: var(--shadow-card);
-            transition: var(--transition);
-        }
-
-        .kpi-card:hover {
-            border-color: var(--border-glow);
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-card), var(--shadow-glow);
-        }
-
-        .kpi-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
-            opacity: 0;
-            transition: var(--transition);
-        }
-
-        .kpi-card:hover::before {
-            opacity: 1;
-        }
-
-        .kpi-top {
+            padding: 1.75rem;
+            color: #FFF;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: var(--shadow-lg);
         }
-
-        .kpi-icon-wrap {
-            width: 44px;
-            height: 44px;
-            border-radius: var(--radius-md);
+        .health-score-badge {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .health-score-circle {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: rgba(16, 185, 129, 0.15);
+            border: 3px solid var(--success);
+            color: var(--success);
+            font-size: 1.4rem;
+            font-weight: 800;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            flex-shrink: 0;
         }
-
-        .icon-indigo { background: rgba(99, 102, 241, 0.15); color: var(--primary); }
-        .icon-emerald { background: rgba(16, 185, 129, 0.15); color: var(--emerald); }
-        .icon-pink { background: rgba(236, 72, 153, 0.15); color: var(--secondary); }
-        .icon-cyan { background: rgba(6, 182, 212, 0.15); color: var(--cyan); }
-        .icon-amber { background: rgba(245, 158, 11, 0.15); color: var(--amber); }
-
-        .kpi-val {
-            font-size: 2.2rem;
-            font-weight: 800;
-            letter-spacing: -1px;
-            line-height: 1;
-            margin-bottom: 0.35rem;
-        }
-
-        .kpi-label {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            font-weight: 600;
-        }
-
-        /* Glassmorphism Panel Containers */
-        .glass-panel {
-            background: var(--bg-card);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-lg);
-            padding: 1.75rem;
-            box-shadow: var(--shadow-card);
-            margin-bottom: 2rem;
-        }
-
-        .panel-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1.25rem;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-
-        .panel-title {
-            font-size: 1.15rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        /* Universal Filter & Search Bar */
-        .filter-row {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
+        .diag-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.25rem;
             margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-        }
-
-        .search-box {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-md);
-            padding: 0.6rem 1rem;
-            flex: 1;
-            min-width: 240px;
-        }
-
-        .search-box input {
-            background: transparent;
-            border: none;
-            color: #FFF;
-            font-family: inherit;
-            font-size: 0.9rem;
-            outline: none;
             width: 100%;
         }
-
-        .filter-select {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-md);
-            padding: 0.6rem 1rem;
-            color: #FFF;
-            font-family: inherit;
-            font-size: 0.85rem;
-            outline: none;
-            cursor: pointer;
-        }
-
-        .filter-select option {
-            background: #111827;
-            color: #FFF;
-        }
-
-        /* Modern Table Style */
-        .table-responsive {
-            width: 100%;
-            overflow-x: auto;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border-glass);
-        }
-
-        .festos-table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-            font-size: 0.9rem;
-        }
-
-        .festos-table th {
-            background: rgba(255, 255, 255, 0.03);
-            padding: 0.9rem 1.25rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            border-bottom: 1px solid var(--border-glass);
-            white-space: nowrap;
-        }
-
-        .festos-table td {
-            padding: 1rem 1.25rem;
-            border-bottom: 1px solid var(--border-glass);
-            vertical-align: middle;
-        }
-
-        .festos-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .festos-table tr:hover td {
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        /* Fest Card Grid */
-        .fest-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .fest-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-lg);
-            padding: 1.5rem;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            transition: var(--transition);
-        }
-
-        .fest-card:hover {
-            border-color: var(--border-glow);
-            transform: translateY(-4px);
-            background: rgba(255, 255, 255, 0.05);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
-        }
-
-        .fest-card.active-fest {
-            border-color: var(--primary);
-            box-shadow: 0 0 25px rgba(99, 102, 241, 0.25);
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(236, 72, 153, 0.04));
-        }
-
-        .fest-card-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .fest-card-logo {
-            width: 48px;
-            height: 48px;
-            border-radius: var(--radius-md);
-            object-fit: contain;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 4px;
-            border: 1px solid var(--border-glass);
-        }
-
-        .fest-card-title {
-            font-size: 1.15rem;
-            font-weight: 800;
-        }
-
-        .fest-slug {
-            font-size: 0.75rem;
-            font-family: var(--font-mono);
-            color: var(--cyan);
-        }
-
-        .fest-chip {
-            padding: 3px 10px;
-            border-radius: 999px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        .chip-active { background: rgba(16, 185, 129, 0.15); color: var(--emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
-        .chip-upcoming { background: rgba(245, 158, 11, 0.15); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.3); }
-        .chip-archived { background: rgba(156, 163, 175, 0.15); color: var(--text-muted); border: 1px solid rgba(156, 163, 175, 0.3); }
-
-        .fest-meta-list {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-        }
-
-        .fest-meta-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .fest-meta-item i {
-            width: 16px;
-            color: var(--primary);
-        }
-
-        .fest-actions-bar {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: auto;
-            padding-top: 1rem;
-            border-top: 1px solid var(--border-glass);
-        }
-
-        /* Feature Matrix Toggle Switchboard */
-        .matrix-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 1rem;
-        }
-
-        .feature-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border-glass);
+        .diag-item-card {
+            background: #FFFFFF;
+            border: 1px solid var(--border);
             border-radius: var(--radius-md);
             padding: 1.25rem;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
+            flex-direction: column;
+            gap: 8px;
+            box-shadow: var(--shadow-sm);
             transition: var(--transition);
         }
-
-        .feature-card:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: var(--border-glow);
+        .diag-item-card:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-2px);
         }
-
-        .feature-info h4 {
-            font-size: 0.95rem;
-            font-weight: 700;
+        .diag-header {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-bottom: 4px;
+            justify-content: space-between;
         }
-
-        .feature-info p {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            line-height: 1.35;
-        }
-
-        /* iOS style toggle switch */
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            width: 48px;
-            height: 26px;
-            flex-shrink: 0;
-        }
-
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            inset: 0;
-            background-color: rgba(255, 255, 255, 0.15);
-            transition: .3s;
+        .diag-pill {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 8px;
             border-radius: 999px;
-            border: 1px solid var(--border-glass);
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .3s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-color: var(--primary);
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(22px);
-        }
-
-        /* Logs Console & Terminal Style */
-        .terminal-box {
-            background: #050811;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: var(--radius-md);
-            padding: 1rem;
-            font-family: var(--font-mono);
-            font-size: 0.82rem;
-            max-height: 480px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .log-entry {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 8px 10px;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.02);
-            transition: var(--transition);
-        }
-
-        .log-entry:hover {
-            background: rgba(255, 255, 255, 0.06);
-        }
-
-        .log-time {
-            color: var(--text-sub);
-            white-space: nowrap;
-        }
-
-        .log-badge {
-            font-size: 0.65rem;
-            font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 4px;
             text-transform: uppercase;
         }
+        .diag-pass { background: var(--success-light); color: var(--success); }
+        .diag-warn { background: var(--amber-light); color: var(--amber); }
+        .diag-fail { background: var(--danger-light); color: var(--danger); }
 
-        .log-info { background: rgba(99, 102, 241, 0.2); color: #A5B4FC; }
-        .log-warning { background: rgba(245, 158, 11, 0.2); color: #FDE68A; }
-        .log-error { background: rgba(244, 63, 94, 0.25); color: #FDA4AF; }
-        .log-critical { background: #E11D48; color: #FFF; }
+        /* Modals matching Admin Page */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 100; display: none; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; }
+        .modal-overlay.active { display: flex; }
+        .modal-card { background: #FFFFFF; border-radius: var(--radius-lg); width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: popIn 0.2s ease forwards; border: 1px solid var(--border); box-sizing: border-box; }
+        @keyframes popIn { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-        .log-body {
-            flex: 1;
-            word-break: break-all;
-        }
+        .modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        .modal-header h3 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-main); }
+        .modal-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+        .modal-footer { padding: 1.25rem 1.5rem; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: flex-end; gap: 10px; background: var(--bg-main); border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg); flex-wrap: wrap; }
 
-        /* Modal Dialog */
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(8px);
-            z-index: 1000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 1.5rem;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .modal-card {
-            background: #0F172A;
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-xl);
-            width: 100%;
-            max-width: 580px;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px var(--primary-glow);
-            animation: modalSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        @keyframes modalSlide {
-            from { opacity: 0; transform: scale(0.95) translateY(10px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-
-        .modal-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border-glass);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .modal-body {
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1.25rem;
-        }
-
-        .modal-footer {
-            padding: 1.25rem 1.5rem;
-            border-top: 1px solid var(--border-glass);
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .form-group label {
-            font-size: 0.8rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .form-control {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-md);
-            padding: 0.75rem 1rem;
-            color: #FFF;
-            font-family: inherit;
-            font-size: 0.9rem;
-            outline: none;
-            transition: var(--transition);
-        }
-
-        .form-control:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 15px var(--primary-glow);
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
+        .form-group { display: flex; flex-direction: column; gap: 6px; width: 100%; box-sizing: border-box; }
+        .form-group label { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-control { background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.7rem 0.9rem; color: var(--text-main); font-size: 0.9rem; outline: none; transition: var(--transition); width: 100%; box-sizing: border-box; }
+        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; width: 100%; box-sizing: border-box; }
 
         /* Toast Container */
-        #toast-container {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
+        #toast-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: 90vw; }
+        .toast { background: #1F2937; color: white; padding: 0.85rem 1.25rem; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); font-size: 0.9rem; display: flex; align-items: center; gap: 10px; animation: toastIn 0.3s ease; }
+        @keyframes toastIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-        .toast-item {
-            background: #1E293B;
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-md);
-            padding: 0.9rem 1.25rem;
-            color: #FFF;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-            font-size: 0.9rem;
-            animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        @keyframes toastIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Responsive Breakpoints */
+        /* ========================================================= */
+        /* COMPREHENSIVE MOBILE LAYOUT OPTIMIZATIONS (< 900px & < 600px) */
+        /* ========================================================= */
         @media (max-width: 900px) {
-            .sidebar {
-                transform: translateX(-100%);
+            body { position: relative; }
+            .sidebar { 
+                position: fixed; 
+                left: 0; 
+                top: 0; 
+                bottom: 0; 
+                transform: translateX(-100%); 
+                width: 280px; 
+                max-width: 85vw;
+                box-shadow: none;
             }
+            .sidebar.mobile-open { 
+                transform: translateX(0); 
+                box-shadow: 0 0 40px rgba(0, 0, 0, 0.35); 
+            }
+            .mobile-close-sidebar-btn { display: flex; }
+            .main-content { margin-left: 0; width: 100%; max-width: 100vw; }
+            .mobile-toggle { display: flex; }
+            .header { padding: 0.85rem 1.15rem; gap: 0.75rem; }
+            .header h1 { font-size: 1.05rem; }
+            .content-section { padding: 1.25rem 1rem; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 0.85rem; margin-bottom: 1.25rem; }
+            .kpi-card { padding: 1.15rem; }
+            .kpi-val { font-size: 1.65rem; }
+            .controls-bar { flex-direction: column; align-items: stretch; gap: 0.75rem; padding: 0.85rem; }
+            .search-box { width: 100%; min-width: 0; }
+            .filter-select { width: 100%; }
+            .controls-bar .btn { width: 100%; justify-content: center; }
+            .fest-grid { grid-template-columns: 1fr; }
+            .matrix-grid { grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; gap: 0.85rem; }
+            .modal-card { width: 95vw; margin: 0.5rem; max-height: 92vh; }
+            .modal-header, .modal-body, .modal-footer { padding: 1.15rem 1.25rem; }
+            .bulk-actions-toolbar { flex-direction: column; align-items: stretch; }
+            .bulk-btn-group { width: 100%; }
+            .bulk-btn-group .btn { flex: 1; font-size: 0.8rem; padding: 0.5rem 0.75rem; }
+            #toast-container { bottom: 1rem; right: 1rem; left: 1rem; }
+            .toast { width: 100%; box-sizing: border-box; }
+        }
 
-            .sidebar.mobile-open {
-                transform: translateX(0);
-            }
-
-            .main-wrapper {
-                margin-left: 0;
-            }
-
-            .mobile-toggle {
-                display: block;
-            }
-
-            .content-body {
-                padding: 1.25rem;
-            }
-
-            .form-row {
-                grid-template-columns: 1fr;
-            }
+        @media (max-width: 480px) {
+            .header { padding: 0.75rem 0.85rem; }
+            .header h1 span { display: none; }
+            .status-pill { padding: 3px 8px; font-size: 0.7rem; }
+            .content-section { padding: 1rem 0.75rem; }
+            .kpi-grid { grid-template-columns: 1fr; }
+            .health-hero-card { padding: 1.25rem; flex-direction: column; align-items: flex-start; }
+            .health-hero-card .btn { width: 100%; justify-content: center; }
         }
     </style>
 </head>
 <body>
 
-    <div class="ambient-mesh"></div>
+    <!-- Mobile Backdrop Overlay -->
+    <div class="mobile-sidebar-backdrop" id="sidebarBackdrop" onclick="toggleMobileSidebar()"></div>
 
-    <!-- Sidebar -->
+    <!-- Sidebar Navigation -->
     <aside class="sidebar" id="superSidebar">
-        <div class="brand-header">
-            <img src="festos-logo.svg" alt="FestOS">
-            <div>
-                <div class="brand-title">FestOS</div>
-                <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">Control Plane</div>
+        <div class="sidebar-header">
+            <div class="brand">
+                <img src="festos-logo.svg" alt="FestOS" style="width: 30px; height: 30px;">
+                <span>FestOS</span>
+                <span class="brand-badge">Super</span>
             </div>
-            <span class="brand-badge">Super</span>
+            <button class="mobile-close-sidebar-btn" onclick="toggleMobileSidebar()" title="Close Navigation Menu">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
         </div>
 
-        <ul class="nav-list">
-            <li class="nav-heading">Global Governance</li>
-            <li>
-                <a class="nav-item active" data-tab="tab-overview">
-                    <i class="fa-solid fa-chart-pie"></i>
-                    <span>SaaS Overview</span>
-                </a>
-            </li>
-            <li>
-                <a class="nav-item" data-tab="tab-festivals">
-                    <i class="fa-solid fa-crown"></i>
-                    <span>Festivals Hub</span>
-                    <span class="nav-pill-badge" id="nav-fest-count">0</span>
-                </a>
-            </li>
-            <li>
-                <a class="nav-item" data-tab="tab-admins">
-                    <i class="fa-solid fa-user-shield"></i>
-                    <span>Master Admins</span>
-                    <span class="nav-pill-badge" id="nav-admin-count">0</span>
-                </a>
-            </li>
-            <li>
-                <a class="nav-item" data-tab="tab-features">
-                    <i class="fa-solid fa-toggle-on"></i>
-                    <span>Feature Matrix</span>
-                </a>
-            </li>
+        <div class="nav-group">
+            <div class="nav-heading">Global SaaS Control</div>
+            <a class="nav-main active" data-tab="tab-overview" onclick="switchSuperTab('tab-overview')">
+                <div style="display: flex; align-items: center;"><i class="fa-solid fa-chart-pie icon-left"></i> Dashboard</div>
+            </a>
+            <a class="nav-main" data-tab="tab-festivals" onclick="switchSuperTab('tab-festivals')">
+                <div style="display: flex; align-items: center;"><i class="fa-solid fa-crown icon-left"></i> Festivals Hub</div>
+                <span class="nav-pill-badge" id="nav-fest-count">0</span>
+            </a>
+            <a class="nav-main" data-tab="tab-enquiries" onclick="switchSuperTab('tab-enquiries')">
+                <div style="display: flex; align-items: center;"><i class="fa-solid fa-envelope-open-text icon-left"></i> Client Inquiries</div>
+                <span class="nav-pill-badge" id="nav-enquiry-count">0</span>
+            </a>
+            <a class="nav-main" data-tab="tab-admins" onclick="switchSuperTab('tab-admins')">
+                <div style="display: flex; align-items: center;"><i class="fa-solid fa-user-shield icon-left"></i> Master Admins & Staff</div>
+                <span class="nav-pill-badge" id="nav-admin-count">0</span>
+            </a>
+        </div>
 
-            <li class="nav-heading">Diagnostics & System</li>
-            <li>
-                <a class="nav-item" data-tab="tab-logs">
-                    <i class="fa-solid fa-terminal"></i>
-                    <span>System Logs & Telemetry</span>
-                </a>
-            </li>
-            <li>
-                <a class="nav-item" data-tab="tab-diagnostics">
-                    <i class="fa-solid fa-stethoscope"></i>
-                    <span>Health & Diagnostics</span>
-                </a>
-            </li>
-            <li>
-                <a class="nav-item" data-tab="tab-settings">
-                    <i class="fa-solid fa-sliders"></i>
-                    <span>Platform Config</span>
-                </a>
-            </li>
-        </ul>
+        <div class="nav-group" style="margin-top: 0.75rem;">
+            <div class="nav-heading">System & White-Label</div>
+            <a class="nav-main" data-tab="tab-global-branding" onclick="switchSuperTab('tab-global-branding')">
+                <div style="display: flex; align-items: center;"><i class="fa-solid fa-palette icon-left"></i> Global Software Branding</div>
+            </a>
+            <a class="nav-main" data-tab="tab-logs" onclick="switchSuperTab('tab-logs')">
+                <div style="display: flex; align-items: center;"><i class="fa-solid fa-terminal icon-left"></i> System Logs</div>
+            </a>
+            <a class="nav-main" data-tab="tab-diagnostics" onclick="switchSuperTab('tab-diagnostics')">
+                <div style="display: flex; align-items: center;"><i class="fa-solid fa-stethoscope icon-left"></i> Diagnostics & Health</div>
+            </a>
+        </div>
 
-        <!-- Super Admin Profile Footer -->
+        <!-- Sidebar Profile -->
         <div class="sidebar-footer">
-            <div class="user-avatar" id="sa-avatar">SA</div>
-            <div class="user-meta">
+            <div class="user-avatar" id="sa-avatar" onclick="openSuperAdminSecurityModal()" title="Super Admin Account Security">SA</div>
+            <div class="user-meta" onclick="openSuperAdminSecurityModal()" title="Change Super Admin Credentials">
                 <div class="user-name" id="sa-username">Super Administrator</div>
-                <div class="user-role"><i class="fa-solid fa-shield-halved"></i> Global Root</div>
+                <div class="user-role"><i class="fa-solid fa-key"></i> Root Access &bull; Edit</div>
             </div>
-            <button class="btn-logout-icon" onclick="superAdminLogout()" title="Logout Session">
+            <button class="btn-logout-icon" onclick="triggerSuperAdminLogoutDialog()" title="Logout Session">
                 <i class="fa-solid fa-right-from-bracket"></i>
             </button>
         </div>
     </aside>
 
-    <!-- Main Wrapper -->
-    <div class="main-wrapper">
-        <!-- Top Sticky Header -->
-        <header class="top-navbar">
-            <div class="top-left-group">
-                <button class="mobile-toggle" onclick="toggleMobileSidebar()">
-                    <i class="fa-solid fa-bars-staggered"></i>
+    <!-- Main Content Wrapper -->
+    <div class="main-content">
+        <!-- Clean Header -->
+        <header class="header">
+            <div style="display: flex; align-items: center; gap: 0.85rem; min-width: 0;">
+                <button class="mobile-toggle" onclick="toggleMobileSidebar()" aria-label="Open Menu">
+                    <i class="fa-solid fa-bars"></i>
                 </button>
-                <div class="fest-context-pill">
-                    <i class="fa-solid fa-sparkles" style="color: var(--primary);"></i>
-                    <span style="color: var(--text-muted);">Active Scope:</span>
-                    <select class="fest-select" id="global-fest-selector" onchange="changeActiveFestContext(this.value)">
-                        <!-- Populated dynamically -->
-                    </select>
-                </div>
+                <h1 id="top-page-title"><i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i> <span>Super Admin Control Panel</span></h1>
             </div>
 
-            <div class="top-right-group">
+            <div style="display: flex; align-items: center; gap: 10px;">
                 <div class="status-pill">
                     <div class="status-dot"></div>
                     <span id="system-status-text">Engine Online</span>
                 </div>
-                <a href="landing.html" target="_blank" class="btn-quick-action btn-secondary-glass" title="Visit Public Landing Page">
-                    <i class="fa-solid fa-globe"></i> Public Site
-                </a>
-                <button class="btn-quick-action btn-primary-gradient" onclick="openCreateFestModal()">
-                    <i class="fa-solid fa-plus"></i> New Festival
+                <button class="btn btn-primary" onclick="openCreateFestModal()">
+                    <i class="fa-solid fa-plus"></i> <span class="btn-text">New Fest</span>
                 </button>
             </div>
         </header>
 
         <!-- Body Views -->
-        <main class="content-body">
+        <main>
             
             <!-- ========================================================= -->
-            <!-- TAB 1: SAAS OVERVIEW -->
+            <!-- TAB 1: OVERVIEW -->
             <!-- ========================================================= -->
-            <section class="tab-section active" id="tab-overview">
-                <div class="section-header">
-                    <div>
-                        <h1 class="section-title"><i class="fa-solid fa-chart-line" style="color: var(--primary);"></i> Global SaaS Overview</h1>
-                        <p class="section-desc">Unified control and live telemetry across all festival deployments.</p>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn-quick-action btn-secondary-glass" onclick="runDiagnosticsSuite()">
-                            <i class="fa-solid fa-bolt"></i> Run Diagnostics
-                        </button>
-                    </div>
-                </div>
-
-                <!-- KPI Grid -->
+            <section class="content-section active" id="tab-overview">
                 <div class="kpi-grid">
                     <div class="kpi-card">
                         <div class="kpi-top">
-                            <span class="kpi-label">Total Festivals</span>
-                            <div class="kpi-icon-wrap icon-indigo"><i class="fa-solid fa-crown"></i></div>
+                            <span class="kpi-label">Active Festivals</span>
+                            <div class="kpi-icon-wrap icon-blue"><i class="fa-solid fa-crown"></i></div>
                         </div>
                         <div class="kpi-val" id="stat-fests-count">1</div>
-                        <p style="font-size: 0.75rem; color: var(--emerald); font-weight: 600;"><i class="fa-solid fa-arrow-trend-up"></i> Multi-tenant ready</p>
+                        <p style="font-size: 0.75rem; color: var(--success); font-weight: 700;"><i class="fa-solid fa-check"></i> Multi-tenant ready</p>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-top">
+                            <span class="kpi-label">Client Inquiries</span>
+                            <div class="kpi-icon-wrap icon-amber"><i class="fa-solid fa-envelope-open-text"></i></div>
+                        </div>
+                        <div class="kpi-val" id="stat-enquiries-count">0</div>
+                        <p style="font-size: 0.75rem; color: var(--text-muted);">From Public Website</p>
                     </div>
 
                     <div class="kpi-card">
@@ -1174,34 +723,27 @@
                             <div class="kpi-icon-wrap icon-pink"><i class="fa-solid fa-user-shield"></i></div>
                         </div>
                         <div class="kpi-val" id="stat-admins-count">0</div>
-                        <p style="font-size: 0.75rem; color: var(--text-muted);">Active Staff Credentials</p>
+                        <p style="font-size: 0.75rem; color: var(--text-muted);">Assigned to specific fests</p>
                     </div>
 
                     <div class="kpi-card">
                         <div class="kpi-top">
-                            <span class="kpi-label">Total Registered</span>
-                            <div class="kpi-icon-wrap icon-cyan"><i class="fa-solid fa-users"></i></div>
+                            <span class="kpi-label">Registered Participants</span>
+                            <div class="kpi-icon-wrap icon-green"><i class="fa-solid fa-users"></i></div>
                         </div>
                         <div class="kpi-val" id="stat-participants-count">0</div>
-                        <p style="font-size: 0.75rem; color: var(--emerald); font-weight: 600;"><i class="fa-solid fa-badge-check"></i> Enrolled Contestants</p>
-                    </div>
-
-                    <div class="kpi-card">
-                        <div class="kpi-top">
-                            <span class="kpi-label">Total Competitions</span>
-                            <div class="kpi-icon-wrap icon-amber"><i class="fa-solid fa-trophy"></i></div>
-                        </div>
-                        <div class="kpi-val" id="stat-competitions-count">0</div>
-                        <p style="font-size: 0.75rem; color: var(--text-muted);">Across all categories</p>
+                        <p style="font-size: 0.75rem; color: var(--success); font-weight: 700;"><i class="fa-solid fa-badge-check"></i> Total Enrolled</p>
                     </div>
                 </div>
 
-                <!-- Active Festival Spotlight Panel -->
-                <div class="glass-panel">
-                    <div class="panel-header">
-                        <h2 class="panel-title"><i class="fa-solid fa-sparkles" style="color: var(--primary);"></i> Active Festival Spotlight</h2>
-                        <button class="btn-quick-action btn-secondary-glass" onclick="switchNavTab('tab-festivals')">
-                            Manage All Fests <i class="fa-solid fa-arrow-right"></i>
+                <!-- Active Festival Spotlight -->
+                <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.75rem; box-shadow: var(--shadow-sm);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+                        <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">
+                            <i class="fa-solid fa-sparkles" style="color: var(--primary);"></i> Active Festival Spotlight
+                        </h2>
+                        <button class="btn btn-outline" onclick="switchSuperTab('tab-festivals')">
+                            All Festivals <i class="fa-solid fa-arrow-right"></i>
                         </button>
                     </div>
                     <div id="overview-active-spotlight">
@@ -1209,13 +751,13 @@
                     </div>
                 </div>
 
-                <!-- Recent Audit Stream -->
-                <div class="glass-panel">
-                    <div class="panel-header">
-                        <h2 class="panel-title"><i class="fa-solid fa-clock-rotate-left" style="color: var(--cyan);"></i> Real-Time Audit & Activity Stream</h2>
-                        <button class="btn-quick-action btn-secondary-glass" onclick="switchNavTab('tab-logs')">
-                            View Full Logs Console
-                        </button>
+                <!-- Recent Activity Stream -->
+                <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-sm);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+                        <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">
+                            <i class="fa-solid fa-clock-rotate-left" style="color: var(--cyan);"></i> Real-Time Audit Stream
+                        </h2>
+                        <button class="btn btn-outline" onclick="switchSuperTab('tab-logs')">Full Logs</button>
                     </div>
                     <div class="terminal-box" id="overview-audit-list">
                         <!-- Populated dynamically -->
@@ -1226,28 +768,27 @@
             <!-- ========================================================= -->
             <!-- TAB 2: FESTIVALS MANAGEMENT -->
             <!-- ========================================================= -->
-            <section class="tab-section" id="tab-festivals">
-                <div class="section-header">
-                    <div>
-                        <h1 class="section-title"><i class="fa-solid fa-crown" style="color: var(--amber);"></i> Festivals Management Hub</h1>
-                        <p class="section-desc">Create, isolate, activate, and govern multiple festivals simultaneously.</p>
-                    </div>
-                    <button class="btn-quick-action btn-primary-gradient" onclick="openCreateFestModal()">
-                        <i class="fa-solid fa-plus"></i> Create Festival
-                    </button>
-                </div>
-
-                <div class="filter-row">
+            <section class="content-section" id="tab-festivals">
+                <div class="controls-bar">
                     <div class="search-box">
-                        <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted);"></i>
-                        <input type="text" id="fest-search-input" placeholder="Search festivals by name, slug, or venue..." oninput="renderFestivalsGrid()">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="fest-search-input" placeholder="Search festivals by name, slug, code, or venue..." oninput="renderFestivalsGrid()">
                     </div>
                     <select class="filter-select" id="fest-status-filter" onchange="renderFestivalsGrid()">
                         <option value="all">All Statuses</option>
                         <option value="active">Active Only</option>
                         <option value="upcoming">Upcoming</option>
+                        <option value="completed">Completed</option>
                         <option value="archived">Archived</option>
                     </select>
+                    <button class="btn btn-primary" onclick="openCreateFestModal()">
+                        <i class="fa-solid fa-plus"></i> Create Festival
+                    </button>
+                </div>
+
+                <!-- Active Festival Workspace (Opened when clicking a fest) -->
+                <div id="fest-workspace-view" style="display: none;">
+                    <!-- Populated dynamically -->
                 </div>
 
                 <div class="fest-grid" id="festivals-cards-container">
@@ -1256,24 +797,57 @@
             </section>
 
             <!-- ========================================================= -->
-            <!-- TAB 3: MASTER ADMINS & ROLES -->
+            <!-- TAB 3: CLIENT INQUIRIES & DEMO LEADS -->
             <!-- ========================================================= -->
-            <section class="tab-section" id="tab-admins">
-                <div class="section-header">
-                    <div>
-                        <h1 class="section-title"><i class="fa-solid fa-user-shield" style="color: var(--secondary);"></i> Master Admins & Staff Governance</h1>
-                        <p class="section-desc">Manage accounts, reset passwords, and assign roles across all festivals.</p>
+            <section class="content-section" id="tab-enquiries">
+                <div class="controls-bar">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="enquiry-search-input" placeholder="Search inquiries by client name, institution, or email..." oninput="renderEnquiriesTable()">
                     </div>
-                    <button class="btn-quick-action btn-primary-gradient" onclick="openCreateUserModal()">
-                        <i class="fa-solid fa-user-plus"></i> Create Admin / Staff
+                    <select class="filter-select" id="enquiry-status-filter" onchange="renderEnquiriesTable()">
+                        <option value="all">All Statuses</option>
+                        <option value="new">New Requests</option>
+                        <option value="contacted">Contacted</option>
+                        <option value="demo_scheduled">Demo Scheduled</option>
+                        <option value="closed">Closed</option>
+                    </select>
+                    <button class="btn btn-outline" onclick="loadEnquiriesFromDatabase()">
+                        <i class="fa-solid fa-rotate-right"></i> Refresh
                     </button>
                 </div>
 
-                <div class="filter-row">
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Client / Institution</th>
+                                <th>Contact Details</th>
+                                <th>Fest Date & Scale</th>
+                                <th>Client Message</th>
+                                <th>Status</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="enquiries-table-tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ========================================================= -->
+            <!-- TAB 4: MASTER ADMINS & STAFF ACCOUNTS (WITH BULK ACTIONS) -->
+            <!-- ========================================================= -->
+            <section class="content-section" id="tab-admins">
+                <div class="controls-bar">
                     <div class="search-box">
-                        <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted);"></i>
-                        <input type="text" id="user-search-input" placeholder="Search by username, role, or ID..." oninput="renderUsersTable()">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="user-search-input" placeholder="Search by username, role, or fest code..." oninput="renderUsersTable()">
                     </div>
+                    <select class="filter-select" id="user-fest-filter" onchange="renderUsersTable()">
+                        <option value="all">All Festivals (View All)</option>
+                    </select>
                     <select class="filter-select" id="user-role-filter" onchange="renderUsersTable()">
                         <option value="all">All Roles</option>
                         <option value="master_admin">Master Admin</option>
@@ -1283,87 +857,115 @@
                         <option value="stage_controller">Stage Controller</option>
                         <option value="announcer">Announcer</option>
                     </select>
+                    <button class="btn btn-primary" onclick="openCreateUserModal()">
+                        <i class="fa-solid fa-user-plus"></i> Add Admin / Staff
+                    </button>
                 </div>
 
-                <div class="glass-panel" style="padding: 0; overflow: hidden;">
-                    <div class="table-responsive">
-                        <table class="festos-table">
-                            <thead>
-                                <tr>
-                                    <th>User / Username</th>
-                                    <th>Assigned Role</th>
-                                    <th>Associated Festival</th>
-                                    <th>Password Hash</th>
-                                    <th>Status</th>
-                                    <th style="text-align: right;">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="users-table-tbody">
-                                <!-- Populated dynamically -->
-                            </tbody>
-                        </table>
+                <!-- Bulk Actions Toolbar -->
+                <div class="bulk-actions-toolbar" id="user-bulk-toolbar">
+                    <div class="bulk-count-badge">
+                        <i class="fa-solid fa-check-double"></i>
+                        <span id="bulk-selected-count">0</span> Accounts Selected
                     </div>
+                    <div class="bulk-btn-group">
+                        <button class="btn btn-outline" style="background:#FFF;" onclick="openBulkReassignModal()">
+                            <i class="fa-solid fa-crown" style="color:var(--amber);"></i> Reassign Fest
+                        </button>
+                        <button class="btn btn-outline" style="background:#FFF;" onclick="openBulkRoleModal()">
+                            <i class="fa-solid fa-user-shield" style="color:var(--primary);"></i> Change Role
+                        </button>
+                        <button class="btn btn-danger" onclick="triggerBulkDeleteUsersDialog()">
+                            <i class="fa-solid fa-trash-can"></i> Delete Selected
+                        </button>
+                        <button class="btn btn-outline" style="background:#FFF;" onclick="clearUserSelections()">
+                            <i class="fa-solid fa-xmark"></i> Deselect
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 44px; text-align: center;">
+                                    <input type="checkbox" class="custom-chk" id="user-select-all" onchange="toggleSelectAllUsers(this.checked)" title="Select All Accounts">
+                                </th>
+                                <th>Username & Fest Code</th>
+                                <th>Assigned Festival</th>
+                                <th>Access Role</th>
+                                <th>Current Password</th>
+                                <th>Password History</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
                 </div>
             </section>
 
             <!-- ========================================================= -->
-            <!-- TAB 4: FEATURE FLAG MATRIX -->
+            <!-- TAB 5: GLOBAL SOFTWARE BRANDING -->
             <!-- ========================================================= -->
-            <section class="tab-section" id="tab-features">
-                <div class="section-header">
-                    <div>
-                        <h1 class="section-title"><i class="fa-solid fa-toggle-on" style="color: var(--emerald);"></i> Festival Feature Matrix & Permissions</h1>
-                        <p class="section-desc">Enable or restrict granular software capabilities per festival instance.</p>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn-quick-action btn-secondary-glass" onclick="applyPresetFeatureFlags('all')">
-                            Enable All (Enterprise)
-                        </button>
-                        <button class="btn-quick-action btn-primary-gradient" onclick="saveActiveFestFeatureFlags()">
-                            <i class="fa-solid fa-floppy-disk"></i> Save Matrix
-                        </button>
-                    </div>
-                </div>
-
-                <div class="glass-panel">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <section class="content-section" id="tab-global-branding">
+                <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; max-width: 780px; box-shadow: var(--shadow-sm); width: 100%; box-sizing: border-box;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
                         <div>
-                            <h3 style="font-size: 1.1rem; font-weight: 700;" id="matrix-target-fest-name">Target: Active Festival</h3>
-                            <p style="font-size: 0.85rem; color: var(--text-muted);">Toggle features that Master Admins and participants of this fest can use.</p>
+                            <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">
+                                <i class="fa-solid fa-palette" style="color: var(--primary);"></i> Global FestOS Software Branding
+                            </h2>
+                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 3px;">White-label or rebrand the entire FestOS platform name, logo, title, and theme accents.</p>
                         </div>
-                        <div class="status-pill" style="color: var(--cyan); background: rgba(6, 182, 212, 0.1); border-color: rgba(6, 182, 212, 0.2);">
-                            <i class="fa-solid fa-bolt"></i> Real-time sync enabled
-                        </div>
+                        <button class="btn btn-primary" onclick="saveGlobalSoftwareBrandingSubmit()">
+                            <i class="fa-solid fa-floppy-disk"></i> Save Global Branding
+                        </button>
                     </div>
 
-                    <div class="matrix-grid" id="feature-matrix-switches">
-                        <!-- Feature Cards populated dynamically -->
-                    </div>
+                    <form id="global-branding-form" onsubmit="event.preventDefault(); saveGlobalSoftwareBrandingSubmit();">
+                        <div class="form-group" style="margin-bottom: 1.25rem;">
+                            <label>Software Platform Name</label>
+                            <input type="text" class="form-control" id="gb-software-name" value="FestOS" required>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 1.25rem;">
+                            <label>Global Software Logo URL (SVG / PNG / WebP)</label>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input type="text" class="form-control" id="gb-software-logo" value="festos-logo.svg" placeholder="https://example.com/logo.png" style="flex: 1;">
+                                <img id="gb-logo-preview" src="festos-logo.svg" alt="Preview" style="width: 42px; height: 42px; border-radius: 8px; border: 1px solid var(--border); object-fit: contain; padding: 3px; background: var(--bg-main); flex-shrink: 0;">
+                            </div>
+                        </div>
+
+                        <div class="form-row" style="margin-bottom: 1.25rem;">
+                            <div class="form-group">
+                                <label>Browser Document Title Tagline</label>
+                                <input type="text" class="form-control" id="gb-software-tagline" value="The Modern Festival Operating System">
+                            </div>
+                            <div class="form-group">
+                                <label>Display Mode</label>
+                                <select class="form-control" id="gb-display-mode">
+                                    <option value="both">Both Logo & Name</option>
+                                    <option value="logo">Logo Only</option>
+                                    <option value="name">Name Only</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="padding: 12px 16px; background: var(--primary-light); border-radius: var(--radius-md); font-size: 0.85rem; color: var(--primary); font-weight: 600;">
+                            <i class="fa-solid fa-broadcast-tower"></i> Saving will automatically broadcast updated logos and titles to all open client screens and portals in real-time.
+                        </div>
+                    </form>
                 </div>
             </section>
 
             <!-- ========================================================= -->
-            <!-- TAB 5: SYSTEM LOGS & TELEMETRY -->
+            <!-- TAB 6: SYSTEM LOGS & TELEMETRY -->
             <!-- ========================================================= -->
-            <section class="tab-section" id="tab-logs">
-                <div class="section-header">
-                    <div>
-                        <h1 class="section-title"><i class="fa-solid fa-terminal" style="color: var(--primary);"></i> System Logs & Diagnostic Console</h1>
-                        <p class="section-desc">Audit trail, client crashes, API errors, and security telemetry.</p>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn-quick-action btn-secondary-glass" onclick="festosLogger.exportLogsJSON()">
-                            <i class="fa-solid fa-download"></i> Export JSON
-                        </button>
-                        <button class="btn-quick-action btn-secondary-glass" onclick="clearAllLogs()">
-                            <i class="fa-solid fa-trash-can"></i> Clear Logs
-                        </button>
-                    </div>
-                </div>
-
-                <div class="filter-row">
+            <section class="content-section" id="tab-logs">
+                <div class="controls-bar">
                     <div class="search-box">
-                        <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted);"></i>
+                        <i class="fa-solid fa-magnifying-glass"></i>
                         <input type="text" id="log-search-input" placeholder="Search logs by keyword, action, or user..." oninput="renderLogsConsole()">
                     </div>
                     <select class="filter-select" id="log-severity-filter" onchange="renderLogsConsole()">
@@ -1373,112 +975,119 @@
                         <option value="ERROR">Errors Only</option>
                         <option value="CRITICAL">Critical</option>
                     </select>
+                    <button class="btn btn-outline" onclick="festosLogger.exportLogsJSON()">
+                        <i class="fa-solid fa-download"></i> Export
+                    </button>
+                    <button class="btn btn-outline" onclick="triggerClearLogsDialog()">
+                        <i class="fa-solid fa-trash-can"></i> Clear
+                    </button>
                 </div>
 
-                <div class="terminal-box" id="full-logs-console" style="max-height: 600px;">
+                <div class="terminal-box" id="full-logs-console" style="max-height: 550px;">
                     <!-- Populated dynamically -->
                 </div>
             </section>
 
             <!-- ========================================================= -->
-            <!-- TAB 6: HEALTH & DIAGNOSTICS -->
+            <!-- TAB 7: ENHANCED REAL-TIME DIAGNOSTICS & SYSTEM HEALTH -->
             <!-- ========================================================= -->
-            <section class="tab-section" id="tab-diagnostics">
-                <div class="section-header">
-                    <div>
-                        <h1 class="section-title"><i class="fa-solid fa-stethoscope" style="color: var(--emerald);"></i> System Health & Self-Healing</h1>
-                        <p class="section-desc">Diagnostic test suite, database ping, storage latency, and cache purger.</p>
-                    </div>
-                    <button class="btn-quick-action btn-primary-gradient" onclick="runDiagnosticsSuite()">
-                        <i class="fa-solid fa-rotate-right"></i> Run Diagnostics Now
-                    </button>
-                </div>
-
-                <div class="kpi-grid">
-                    <div class="kpi-card" id="diag-db-card">
-                        <div class="kpi-top">
-                            <span class="kpi-label">Supabase Database</span>
-                            <div class="kpi-icon-wrap icon-emerald"><i class="fa-solid fa-database"></i></div>
+            <section class="content-section" id="tab-diagnostics">
+                
+                <!-- Health Overview Card -->
+                <div class="health-hero-card">
+                    <div class="health-score-badge">
+                        <div class="health-score-circle" id="health-overall-score">100%</div>
+                        <div>
+                            <h2 style="font-size: 1.3rem; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif;">System Status: <span id="health-overall-label" style="color: var(--success);">Operational</span></h2>
+                            <p style="font-size: 0.85rem; color: #94A3B8; margin-top: 4px;" id="health-overall-desc">All database connections, websocket channels, and local storage caches are synchronized.</p>
                         </div>
-                        <div class="kpi-val" style="font-size: 1.5rem;" id="diag-db-status">Checking...</div>
-                        <p style="font-size: 0.8rem; color: var(--text-muted);" id="diag-db-ping">Latency: -- ms</p>
                     </div>
-
-                    <div class="kpi-card" id="diag-realtime-card">
-                        <div class="kpi-top">
-                            <span class="kpi-label">Real-time WebSocket</span>
-                            <div class="kpi-icon-wrap icon-indigo"><i class="fa-solid fa-tower-broadcast"></i></div>
-                        </div>
-                        <div class="kpi-val" style="font-size: 1.5rem;" id="diag-realtime-status">Active</div>
-                        <p style="font-size: 0.8rem; color: var(--text-muted);">Channels Subscribed</p>
-                    </div>
-
-                    <div class="kpi-card">
-                        <div class="kpi-top">
-                            <span class="kpi-label">Client Session Cache</span>
-                            <div class="kpi-icon-wrap icon-cyan"><i class="fa-solid fa-memory"></i></div>
-                        </div>
-                        <div class="kpi-val" style="font-size: 1.5rem;" id="diag-cache-status">Healthy</div>
-                        <p style="font-size: 0.8rem; color: var(--text-muted);">LocalStorage Validated</p>
-                    </div>
-                </div>
-
-                <div class="glass-panel">
-                    <h2 class="panel-title" style="margin-bottom: 1rem;"><i class="fa-solid fa-toolbox" style="color: var(--primary);"></i> One-Click Self-Healing Tools</h2>
-                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                        <button class="btn-quick-action btn-secondary-glass" onclick="flushSystemCaches()">
-                            <i class="fa-solid fa-broom"></i> Flush All Local Caches
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="runDiagnosticsSuite()" id="btn-run-diag">
+                            <i class="fa-solid fa-rotate-right"></i> Run Live Diagnostics
                         </button>
-                        <button class="btn-quick-action btn-secondary-glass" onclick="forceSyncBrandingGlobally()">
-                            <i class="fa-solid fa-arrows-rotate"></i> Broadcast Global Branding Sync
-                        </button>
-                        <button class="btn-quick-action btn-secondary-glass" onclick="fixCommonOrphanedData()">
-                            <i class="fa-solid fa-wrench"></i> Repair Orphaned Records
+                        <button class="btn btn-outline" style="color: #FFF; border-color: rgba(255,255,255,0.25);" onclick="exportDiagnosticsReport()">
+                            <i class="fa-solid fa-file-arrow-down"></i> Export Report
                         </button>
                     </div>
                 </div>
-            </section>
 
-            <!-- ========================================================= -->
-            <!-- TAB 7: PLATFORM SETTINGS -->
-            <!-- ========================================================= -->
-            <section class="tab-section" id="tab-settings">
-                <div class="section-header">
-                    <div>
-                        <h1 class="section-title"><i class="fa-solid fa-sliders" style="color: var(--primary);"></i> Global Platform Configuration</h1>
-                        <p class="section-desc">Core SaaS settings, security policies, and application version control.</p>
+                <!-- Diagnostics Metrics Grid -->
+                <div class="diag-grid">
+                    <!-- 1. Supabase Cloud DB -->
+                    <div class="diag-item-card">
+                        <div class="diag-header">
+                            <span style="font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-database" style="color:var(--primary); margin-right:6px;"></i> Supabase Database</span>
+                            <span class="diag-pill diag-pass" id="diag-db-pill">Checking...</span>
+                        </div>
+                        <div style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);" id="diag-db-val">-- ms</div>
+                        <p style="font-size: 0.78rem; color: var(--text-muted);" id="diag-db-desc">Latency test against PostgreSQL cloud instance</p>
                     </div>
-                    <button class="btn-quick-action btn-primary-gradient" onclick="savePlatformSettings()">
-                        <i class="fa-solid fa-floppy-disk"></i> Save Config
-                    </button>
+
+                    <!-- 2. Tables Verification -->
+                    <div class="diag-item-card">
+                        <div class="diag-header">
+                            <span style="font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-table-cells" style="color:var(--cyan); margin-right:6px;"></i> Schema Integrity</span>
+                            <span class="diag-pill diag-pass" id="diag-tables-pill">Verified</span>
+                        </div>
+                        <div style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);" id="diag-tables-val">7 Tables Active</div>
+                        <p style="font-size: 0.78rem; color: var(--text-muted);" id="diag-tables-desc">fests, users, enquiries, settings, participants</p>
+                    </div>
+
+                    <!-- 3. WebSocket Realtime Channels -->
+                    <div class="diag-item-card">
+                        <div class="diag-header">
+                            <span style="font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-tower-broadcast" style="color:var(--success); margin-right:6px;"></i> Real-Time Engine</span>
+                            <span class="diag-pill diag-pass" id="diag-ws-pill">Active</span>
+                        </div>
+                        <div style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);" id="diag-ws-val">Synchronized</div>
+                        <p style="font-size: 0.78rem; color: var(--text-muted);" id="diag-ws-desc">Dynamic rebranding & score broadcasts ready</p>
+                    </div>
+
+                    <!-- 4. LocalStorage & Offline Cache -->
+                    <div class="diag-item-card">
+                        <div class="diag-header">
+                            <span style="font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-hard-drive" style="color:var(--amber); margin-right:6px;"></i> Local Cache & Quota</span>
+                            <span class="diag-pill diag-pass" id="diag-storage-pill">Healthy</span>
+                        </div>
+                        <div style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);" id="diag-storage-val">< 1 MB Used</div>
+                        <p style="font-size: 0.78rem; color: var(--text-muted);" id="diag-storage-desc">Offline fallback and fast-load buffer</p>
+                    </div>
                 </div>
 
-                <div class="glass-panel" style="max-width: 700px;">
-                    <form id="platform-config-form" onsubmit="event.preventDefault(); savePlatformSettings();">
-                        <div class="form-group" style="margin-bottom: 1.25rem;">
-                            <label>SaaS Platform Name</label>
-                            <input type="text" class="form-control" id="cfg-platform-name" value="FestOS">
-                        </div>
-
-                        <div class="form-group" style="margin-bottom: 1.25rem;">
-                            <label>Platform Version / Build</label>
-                            <input type="text" class="form-control" id="cfg-platform-version" value="v3.5 Enterprise Aurora" readonly style="opacity: 0.8;">
-                        </div>
-
-                        <div class="form-group" style="margin-bottom: 1.25rem;">
-                            <label>Support & Inquiries Email</label>
-                            <input type="email" class="form-control" id="cfg-support-email" value="support@festos.app">
-                        </div>
-
-                        <div class="form-group" style="margin-bottom: 1.25rem;">
-                            <label>Global Maintenance Mode</label>
-                            <select class="form-control" id="cfg-maintenance-mode">
-                                <option value="off">Off (System Normal)</option>
-                                <option value="on">On (Show Maintenance Banner to Public)</option>
-                            </select>
-                        </div>
-                    </form>
+                <!-- Self-Healing & Diagnostic Action Center -->
+                <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; box-shadow: var(--shadow-sm); margin-bottom: 1.75rem;">
+                    <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">
+                        <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--primary);"></i> One-Click Self-Healing & Maintenance Tools
+                    </h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">Resolve syncing errors, flush stale browser caches, repair multi-tenant tables, or re-verify database indexes.</p>
+                    
+                    <div style="display: flex; gap: 0.85rem; flex-wrap: wrap;">
+                        <button class="btn btn-outline" onclick="flushSystemCaches()">
+                            <i class="fa-solid fa-broom"></i> Flush Local Caches
+                        </button>
+                        <button class="btn btn-outline" onclick="repairMultiTenantData()">
+                            <i class="fa-solid fa-shield-virus"></i> Repair Tenant Isolation & Users
+                        </button>
+                        <button class="btn btn-outline" onclick="rebuildFeatureMatrices()">
+                            <i class="fa-solid fa-sliders"></i> Rebuild Feature Flags
+                        </button>
+                    </div>
                 </div>
+
+                <!-- Diagnostic Test Results Console -->
+                <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-sm);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <h4 style="font-size: 1rem; font-weight: 700; color: var(--text-main);">
+                            <i class="fa-solid fa-list-check" style="color: var(--cyan);"></i> Detailed Component Diagnostics Log
+                        </h4>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);" id="diag-last-checked">Last checked: Just now</span>
+                    </div>
+                    <div id="diag-detailed-checklist" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
             </section>
 
         </main>
@@ -1490,7 +1099,7 @@
     <div class="modal-overlay" id="festModal">
         <div class="modal-card">
             <div class="modal-header">
-                <h3 style="font-size: 1.15rem; font-weight: 800;" id="fest-modal-title">Create New Festival</h3>
+                <h3 id="fest-modal-title">Create New Festival</h3>
                 <button onclick="closeModal('festModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
@@ -1501,21 +1110,33 @@
                     
                     <div class="form-group">
                         <label>Festival Name *</label>
-                        <input type="text" class="form-control" id="modal-fest-name" placeholder="e.g. Zenith Fest 2026" required>
+                        <input type="text" class="form-control" id="modal-fest-name" placeholder="e.g. Zenith Fest 2026" required oninput="autoGenerateSlug(this.value)">
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Unique Slug / Code *</label>
-                            <input type="text" class="form-control" id="modal-fest-slug" placeholder="e.g. zenith26" required>
+                            <label>Unique Fest Code / Slug *</label>
+                            <input type="text" class="form-control" id="modal-fest-slug" placeholder="e.g. zenith26" required oninput="updateDomainPreview(this.value)">
                         </div>
+                        <div class="form-group">
+                            <label>Reserved Subdomain</label>
+                            <input type="text" class="form-control" id="modal-fest-domain" placeholder="e.g. zenith26.festos.app">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
                         <div class="form-group">
                             <label>Status</label>
                             <select class="form-control" id="modal-fest-status">
                                 <option value="active">Active</option>
                                 <option value="upcoming">Upcoming</option>
+                                <option value="completed">Completed</option>
                                 <option value="archived">Archived</option>
                             </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Public Results Sub-Slug</label>
+                            <input type="text" class="form-control" id="modal-fest-results-slug" value="results">
                         </div>
                     </div>
 
@@ -1541,20 +1162,20 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-quick-action btn-secondary-glass" onclick="closeModal('festModal')">Cancel</button>
-                    <button type="submit" class="btn-quick-action btn-primary-gradient" id="btn-save-fest">Save Festival</button>
+                    <button type="button" class="btn btn-outline" onclick="closeModal('festModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-fest">Save Festival</button>
                 </div>
             </form>
         </div>
     </div>
 
     <!-- ========================================================= -->
-    <!-- MODAL: CREATE / EDIT MASTER ADMIN OR USER -->
+    <!-- MODAL: CREATE / EDIT / ASSIGN MASTER ADMIN -->
     <!-- ========================================================= -->
     <div class="modal-overlay" id="userModal">
         <div class="modal-card">
             <div class="modal-header">
-                <h3 style="font-size: 1.15rem; font-weight: 800;" id="user-modal-title">Create Admin / Staff</h3>
+                <h3 id="user-modal-title">Create Master Admin / Staff User</h3>
                 <button onclick="closeModal('userModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
@@ -1564,44 +1185,211 @@
                     <input type="hidden" id="modal-user-id">
                     
                     <div class="form-group">
-                        <label>Username / Login ID *</label>
-                        <input type="text" class="form-control" id="modal-user-username" placeholder="e.g. admin_zenith" required>
+                        <label>Assign to Festival *</label>
+                        <select class="form-control" id="modal-user-fest" onchange="syncUsernamePrefixWithFest(this.value)">
+                            <!-- Populated dynamically -->
+                        </select>
+                        <small style="color:var(--text-muted); font-size:0.75rem;">This admin will only have access to their assigned festival.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Unique Username / Login ID *</label>
+                        <input type="text" class="form-control" id="modal-user-username" placeholder="e.g. zenith26_admin" required>
                     </div>
 
                     <div class="form-group">
                         <label>Password *</label>
-                        <input type="text" class="form-control" id="modal-user-password" placeholder="Enter secure password" required>
+                        <div style="position:relative;">
+                            <input type="text" class="form-control" id="modal-user-password" placeholder="Enter secure password" required style="padding-right:45px;">
+                            <button type="button" onclick="generateRandomPassword()" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--primary); cursor:pointer; font-size:0.9rem;" title="Auto-Generate Password">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Role *</label>
-                            <select class="form-control" id="modal-user-role">
-                                <option value="master_admin">Master Admin</option>
-                                <option value="admin">Admin</option>
-                                <option value="fest_manager">Fest Manager</option>
-                                <option value="judge">Judge</option>
-                                <option value="stage_controller">Stage Controller</option>
-                                <option value="announcer">Announcer</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Assign to Fest</label>
-                            <select class="form-control" id="modal-user-fest">
-                                <!-- Populated dynamically -->
-                            </select>
-                        </div>
+                    <div class="form-group">
+                        <label>Access Role / Permissions *</label>
+                        <select class="form-control" id="modal-user-role">
+                            <option value="master_admin">Master Admin (Full Festival Control)</option>
+                            <option value="admin">Admin</option>
+                            <option value="fest_manager">Fest Manager</option>
+                            <option value="judge">Judge</option>
+                            <option value="stage_controller">Stage Controller</option>
+                            <option value="announcer">Announcer</option>
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-quick-action btn-secondary-glass" onclick="closeModal('userModal')">Cancel</button>
-                    <button type="submit" class="btn-quick-action btn-primary-gradient" id="btn-save-user">Save User</button>
+                    <button type="button" class="btn btn-outline" onclick="closeModal('userModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-user">Save Account</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Toast Notification Container -->
+    <!-- ========================================================= -->
+    <!-- MODAL: BULK REASSIGN FESTIVAL -->
+    <!-- ========================================================= -->
+    <div class="modal-overlay" id="bulkReassignModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Bulk Reassign Festival</h3>
+                <button onclick="closeModal('bulkReassignModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 0.88rem; color: var(--text-muted);">
+                    Select the destination festival to reassign all <strong id="bulk-reassign-count" style="color:var(--text-main);">0</strong> selected accounts.
+                </p>
+                <div class="form-group">
+                    <label>Target Festival *</label>
+                    <select class="form-control" id="bulk-target-fest">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('bulkReassignModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="applyBulkReassignSubmit()">Reassign Accounts</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL: BULK CHANGE ROLE -->
+    <!-- ========================================================= -->
+    <div class="modal-overlay" id="bulkRoleModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Bulk Change Access Role</h3>
+                <button onclick="closeModal('bulkRoleModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 0.88rem; color: var(--text-muted);">
+                    Choose the new access role for all <strong id="bulk-role-count" style="color:var(--text-main);">0</strong> selected accounts.
+                </p>
+                <div class="form-group">
+                    <label>New Access Role *</label>
+                    <select class="form-control" id="bulk-target-role">
+                        <option value="master_admin">Master Admin</option>
+                        <option value="admin">Admin</option>
+                        <option value="fest_manager">Fest Manager</option>
+                        <option value="judge">Judge</option>
+                        <option value="stage_controller">Stage Controller</option>
+                        <option value="announcer">Announcer</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('bulkRoleModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="applyBulkRoleSubmit()">Update Roles</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL: PASSWORD HISTORY & RESET FOR USER -->
+    <!-- ========================================================= -->
+    <div class="modal-overlay" id="pwdHistoryModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="pwd-modal-user-title">Credentials & Password History</h3>
+                <button onclick="closeModal('pwdHistoryModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="pwd-modal-user-id">
+                
+                <div class="form-group">
+                    <label>Current Active Password</label>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="text" class="form-control" id="pwd-modal-current" readonly style="font-family:var(--font-mono); font-weight:700; background:var(--bg-main);">
+                        <button class="btn btn-outline" onclick="copyActivePassword()" title="Copy to Clipboard">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Change / Reset Password</label>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="text" class="form-control" id="pwd-modal-new" placeholder="Type new password">
+                        <button class="btn btn-primary" onclick="applyUserPasswordResetSubmit()">Save</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Previous Passwords History Log</label>
+                    <div id="pwd-modal-history-list" style="max-height:160px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('pwdHistoryModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL: SUPER ADMIN ACCOUNT SECURITY -->
+    <!-- ========================================================= -->
+    <div class="modal-overlay" id="saSecurityModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-shield-halved" style="color:var(--primary);"></i> Super Admin Account Security</h3>
+                <button onclick="closeModal('saSecurityModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="sa-security-form" onsubmit="event.preventDefault(); saveSuperAdminCredentials();">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Super Admin Master Username</label>
+                        <input type="text" class="form-control" id="sa-cfg-username" value="superadmin" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>New Super Admin Master Password</label>
+                        <input type="text" class="form-control" id="sa-cfg-password" placeholder="Enter new master password" required>
+                    </div>
+
+                    <div style="padding:12px; background:var(--primary-light); border-radius:var(--radius-md); font-size:0.85rem; color:var(--primary); font-weight:600;">
+                        <i class="fa-solid fa-circle-info"></i> Updating this changes the root master credentials required to access the Super Admin control panel.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('saSecurityModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-sa-sec">Update Credentials</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL: CUSTOM CONFIRM DIALOG -->
+    <!-- ========================================================= -->
+    <div class="modal-overlay" id="confirmDialogModal">
+        <div class="modal-card" style="max-width: 440px; text-align: center;">
+            <div class="modal-body" style="padding: 2.25rem 1.75rem 1.5rem;">
+                <div id="confirm-dialog-icon-wrap" style="width: 54px; height: 54px; border-radius: 50%; background: var(--danger-light); color: var(--danger); font-size: 1.4rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
+                    <i class="fa-solid fa-triangle-exclamation" id="confirm-dialog-icon"></i>
+                </div>
+                <h3 style="font-size: 1.2rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem;" id="confirm-dialog-title">Confirm Action</h3>
+                <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.45;" id="confirm-dialog-msg">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer" style="justify-content: center; background: #FFF; padding-bottom: 1.75rem; border-top: none;">
+                <button type="button" class="btn btn-outline" onclick="closeModal('confirmDialogModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirm-dialog-btn-action">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
     <div id="toast-container"></div>
 
     <!-- Core Scripts -->

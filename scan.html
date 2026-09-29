@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="festos-core.js"></script>
 
     <style>
         :root {
@@ -755,7 +756,7 @@
 
             try {
                 // 1. Fetch Participant Details
-                const { data: pData, error } = await supabaseClient
+                let partQuery = supabaseClient
                     .from('participants')
                     .select(`
                         *, 
@@ -773,9 +774,9 @@
                             )
                         )
                     `)
-                    .or(`unique_id.eq.${searchIdentifier},name.ilike.%${searchIdentifier}%`)
-                    .limit(1)
-                    .maybeSingle();
+                    .or(`unique_id.eq.${searchIdentifier},name.ilike.%${searchIdentifier}%`);
+                if (window.festosApplyFilter) partQuery = window.festosApplyFilter(partQuery);
+                const { data: pData, error } = await partQuery.limit(1).maybeSingle();
 
                 if (error || !pData) throw new Error("Participant record not found.");
 
@@ -786,10 +787,12 @@
 
                 let squadMembersMap = {};
                 if (groupCompIds.length > 0 && pData.team_id) {
-                    const { data: squadData } = await supabaseClient
+                    let squadQuery = supabaseClient
                         .from('participant_competitions')
                         .select('competition_id, is_leader, participants(name, unique_id, team_id)')
                         .in('competition_id', groupCompIds);
+                    if (window.festosApplyFilter) squadQuery = window.festosApplyFilter(squadQuery);
+                    const { data: squadData } = await squadQuery;
 
                     if (squadData) {
                         squadData.forEach(row => {
@@ -928,8 +931,8 @@
         // ==========================================
         async function fetchAndApplyBranding() {
             try {
-                const { data } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
-                if (data && data.value) applyGlobalBranding(data.value);
+                const val = window.festosGetSetting ? await window.festosGetSetting('system_branding') : (await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle()).data?.value;
+                if (val) applyGlobalBranding(val);
             } catch (e) {
                 console.warn("Branding error:", e.message);
             }
@@ -974,7 +977,6 @@
             }
         }
     </script>
-    <script src="festos-core.js"></script>
     <script src="mobile-native.js"></script>
 </body>
 </html>

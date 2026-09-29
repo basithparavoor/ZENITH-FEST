@@ -9,6 +9,36 @@ if (!user || (user.role !== 'admin' && user.role !== 'master_admin')) {
 }
 
 // Global cached data for dropdowns
+
+// --- FESTOS MULTI-TENANCY HELPERS ---
+function getActiveFestId() {
+    if (window.festosAuth && typeof window.festosAuth.getCurrentFestId === 'function') {
+        return window.festosAuth.getCurrentFestId();
+    }
+    const u = JSON.parse(localStorage.getItem('festUser') || '{}');
+    return u.fest_id || localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026';
+}
+
+function festQuery(query, targetFestId = null) {
+    if (window.festosApplyFilter) {
+        return window.festosApplyFilter(query, targetFestId);
+    }
+    const fid = targetFestId || getActiveFestId();
+    if (fid === 'fest_zenith_2026') return query.or('fest_id.eq.fest_zenith_2026,fest_id.is.null');
+    return query.eq('fest_id', fid);
+}
+
+function festPayload(payload, targetFestId = null) {
+    if (window.festosWithFest) {
+        return window.festosWithFest(payload, targetFestId);
+    }
+    const fid = targetFestId || getActiveFestId();
+    if (Array.isArray(payload)) {
+        return payload.map(i => ({ ...i, fest_id: i.fest_id || fid }));
+    }
+    return { ...payload, fest_id: payload.fest_id || fid };
+}
+
 let categoriesList = [];
 let stagesList = [];
 let teamsList = [];
@@ -153,23 +183,24 @@ async function loadAdminDashboard() {
             { count: teamCount },
             { count: enrolCount },
             { data: allCompsData },
-            { data: schedData },
+            schedDataVal,
             { data: teamsData },
             { data: judgementsData },
             { data: participantsData }
         ] = await Promise.all([
-            supabaseClient.from('competitions').select('*', { count: 'exact', head: true }),
-            supabaseClient.from('participants').select('*', { count: 'exact', head: true }),
-            supabaseClient.from('categories').select('*', { count: 'exact', head: true }),
-            supabaseClient.from('teams').select('*', { count: 'exact', head: true }),
-            supabaseClient.from('participant_competitions').select('*', { count: 'exact', head: true }),
-            supabaseClient.from('competitions').select('id, name, status, award_type, is_group, max_mark, max_participants, categories(name), stages(name)'),
-            supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle(),
-            supabaseClient.from('teams').select('id, name'),
-            supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark'),
-            supabaseClient.from('participants').select('id, name, team_id'),
+            festQuery(supabaseClient.from('competitions').select('*', { count: 'exact', head: true })),
+            festQuery(supabaseClient.from('participants').select('*', { count: 'exact', head: true })),
+            festQuery(supabaseClient.from('categories').select('*', { count: 'exact', head: true })),
+            festQuery(supabaseClient.from('teams').select('*', { count: 'exact', head: true })),
+            festQuery(supabaseClient.from('participant_competitions').select('*', { count: 'exact', head: true })),
+            festQuery(supabaseClient.from('competitions').select('id, name, status, award_type, is_group, max_mark, max_participants, categories(name), stages(name)')),
+            window.festosGetSetting ? window.festosGetSetting('master_schedule') : supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle().then(r => r.data?.value),
+            festQuery(supabaseClient.from('teams').select('id, name')),
+            festQuery(supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark')),
+            festQuery(supabaseClient.from('participants').select('id, name, team_id')),
             loadPointSettings()
         ]);
+        const schedData = { value: schedDataVal };
 
         const allComps = allCompsData || [];
         const liveComps = allComps.filter(c => c.status === 'ongoing');
@@ -565,7 +596,7 @@ async function saveCategory() {
         };
         if (id) payload.id = id;
 
-        const { error } = await supabaseClient.from('categories').upsert([payload]);
+        const { error } = await supabaseClient.from('categories').upsert([festPayload(payload)]);
         if (error) throw error;
         
         showToast(id ? 'Category updated!' : 'Category created!');
@@ -604,14 +635,14 @@ let filteredCompetitionsList = [];
 async function loadCompetitions() {
     try {
         const prereqs = [];
-        if (stagesList.length === 0) prereqs.push(supabaseClient.from('stages').select('*').then(r => { stagesList = r.data || []; }));
+        if (stagesList.length === 0) prereqs.push(festQuery(supabaseClient.from('stages').select('*')).then(r => { stagesList = r.data || []; }));
         if (categoriesList.length === 0) prereqs.push(loadCategories());
-        if (teamsList.length === 0) prereqs.push(supabaseClient.from('teams').select('*').then(r => { teamsList = r.data || []; }));
+        if (teamsList.length === 0) prereqs.push(festQuery(supabaseClient.from('teams').select('*')).then(r => { teamsList = r.data || []; }));
         if (prereqs.length > 0) await Promise.all(prereqs);
 
-        const { data, error } = await supabaseClient
+        const { data, error } = await festQuery(supabaseClient
             .from('competitions')
-            .select(`*, categories(name), stages(name), participant_competitions(count)`)
+            .select(`*, categories(name), stages(name), participant_competitions(count)`))
             .order('name');
             
         if(error) throw error;
@@ -930,7 +961,7 @@ const stage_id = document.getElementById('compStage').value || null;    const ma
 const payload = { name, category_id, stage_id, max_mark, max_participants, is_group, is_offstage, award_type, time_per_student };
         if (id) payload.id = id;
 
-        const { error } = await supabaseClient.from('competitions').upsert([payload]);
+        const { error } = await supabaseClient.from('competitions').upsert([festPayload(payload)]);
         if (error) throw error;
         
         showToast(id ? 'Competition updated!' : 'Competition created!');
@@ -966,8 +997,8 @@ function openConfirmModal(title, text, confirmCallback) {
 async function loadStagesAndTeams() {
     try {
         const [stagesRes, teamsRes] = await Promise.all([
-            supabaseClient.from('stages').select(`*, users(username), competitions(count)`).order('stage_no'),
-            supabaseClient.from('teams').select('*, participants(count), users(username, password_hash)').order('name')
+            festQuery(supabaseClient.from('stages').select(`*, users(username), competitions(count)`)).order('stage_no'),
+            festQuery(supabaseClient.from('teams').select('*, participants(count), users(username, password_hash)')).order('name')
         ]);
         
         if (stagesRes.error) throw stagesRes.error;
@@ -1069,7 +1100,7 @@ function deleteTeam(id, name) {
 async function openStageModal(editData = null) {
     try {
         if (availableControllers.length === 0) {
-            const { data } = await supabaseClient.from('users').select('*').eq('role', 'stage_controller');
+            const { data } = await festQuery(supabaseClient.from('users').select('*')).eq('role', 'stage_controller');
             availableControllers = data || [];
         }
         
@@ -1099,7 +1130,7 @@ async function openStageModal(editData = null) {
             const payload = { name, stage_no, controller_id };
             if (id) payload.id = id;
 
-            const { error } = await supabaseClient.from('stages').upsert([payload]);
+            const { error } = await supabaseClient.from('stages').upsert([festPayload(payload)]);
             setLoading('modalSaveBtn', false);
             
             if(error) showToast(error.message, 'error'); 
@@ -1133,7 +1164,7 @@ function openTeamModal(editData = null) {
         if (id) payload.id = id;
 
         // Added .select() to retrieve the ID of the newly created team
-        const { data: savedTeam, error } = await supabaseClient.from('teams').upsert([payload]).select();
+        const { data: savedTeam, error } = await supabaseClient.from('teams').upsert([festPayload(payload)]).select();
         setLoading('modalSaveBtn', false);
         
         if(error) {
@@ -1145,12 +1176,12 @@ function openTeamModal(editData = null) {
                 // Generates a username like "falcons_mgr"
                 const autoUsername = name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_mgr';
                 
-                await supabaseClient.from('users').insert([{
+                await supabaseClient.from('users').insert([festPayload({
                     username: autoUsername,
                     password_hash: 'fest2026', // Default password
                     role: 'team_manager',
                     team_id: teamId // Make sure 'team_id' column exists in your users table!
-                }]);
+                })]);
                 showToast(`Team added & User created: ${autoUsername}`, 'success');
             } else {
                 showToast('Team updated!', 'success'); 
@@ -1173,10 +1204,10 @@ async function loadParticipants() {
     try {
         const prereqs = [];
         if (categoriesList.length === 0) prereqs.push(loadCategories());
-        if (teamsList.length === 0) prereqs.push(supabaseClient.from('teams').select('*').then(r => { teamsList = r.data || []; }));
+        if (teamsList.length === 0) prereqs.push(festQuery(supabaseClient.from('teams').select('*')).then(r => { teamsList = r.data || []; }));
         if (prereqs.length > 0) await Promise.all(prereqs);
 
-        const { data, error } = await supabaseClient.from('participants').select(`*, categories(name), teams(name)`).order('name');
+        const { data, error } = await festQuery(supabaseClient.from('participants').select(`*, categories(name), teams(name)`)).order('name');
         if(error) throw error;
         
         participantsList = data || []; 
@@ -1228,9 +1259,9 @@ return matchName && matchCat && matchTeam && matchDob;
 
 async function loadCategories() {
     try {
-        const { data, error } = await supabaseClient
+        const { data, error } = await festQuery(supabaseClient
             .from('categories')
-            .select('*, participants(count), competitions(count)')
+            .select('*, participants(count), competitions(count)'))
             .order('name');
             
         if(error) throw error;
@@ -1827,7 +1858,7 @@ async function saveParticipant() {
         if (id) payload.id = id; 
         if (photo_url) payload.photo_url = photo_url; 
 
-        const { error } = await supabaseClient.from('participants').upsert([payload]);
+        const { error } = await supabaseClient.from('participants').upsert([festPayload(payload)]);
         if (error) throw error;
         
         showToast(id ? 'Participant updated!' : 'Participant registered successfully!');
@@ -1849,11 +1880,13 @@ async function saveParticipant() {
 // --- USER MANAGEMENT ---
 async function loadUsers() {
     try {
-        const { data, error } = await supabaseClient
+        let userQuery = supabaseClient
             .from('users')
             .select('id, name, username, role, password_hash, teams(name)')
             .neq('role', 'master_admin')
-            .order('role');
+            .neq('role', 'super_admin');
+            
+        const { data, error } = await festQuery(userQuery).order('role');
             
         if(error) throw error;
         
@@ -1945,7 +1978,7 @@ function openUserModal(editData = null) {
         const payload = { name, username, password_hash, role };
         if (id) payload.id = id;
         
-        const { error } = await supabaseClient.from('users').upsert([payload]);
+        const { error } = await supabaseClient.from('users').upsert([festPayload(payload)]);
         
         setLoading('modalSaveBtn', false);
         
@@ -2390,7 +2423,7 @@ async function openBulkAssignModal() {
         
         setLoading('modalSaveBtn', true);
         try {
-            const { error } = await supabaseClient.from('participant_competitions').insert(inserts);
+            const { error } = await supabaseClient.from('participant_competitions').insert(festPayload(inserts));
             if (error) {
                 if (error.code === '23505') throw new Error('One or more selected participants are already assigned here.');
                 throw error;
@@ -2417,8 +2450,8 @@ let currentEnrolledStudentIds = []; // Tracks who is already assigned
 
 async function initAssignWorkspace() {
     // 1. Load baseline data
-    if (categoriesList.length === 0) { const { data } = await supabaseClient.from('categories').select('*').order('name'); categoriesList = data || []; }
-    if (teamsList.length === 0) { const { data } = await supabaseClient.from('teams').select('*').order('name'); teamsList = data || []; }
+    if (categoriesList.length === 0) { const { data } = await festQuery(supabaseClient.from('categories').select('*')).order('name'); categoriesList = data || []; }
+    if (teamsList.length === 0) { const { data } = await festQuery(supabaseClient.from('teams').select('*')).order('name'); teamsList = data || []; }
 
     // 2. Populate Category Dropdown
     const catSelect = document.getElementById('assignWorkCategory');
@@ -2458,7 +2491,7 @@ window.loadAssignWorkspaceCompetitions = async function() {
     try {
         compSelect.innerHTML = '<option value="">Loading...</option>';
         // Fetch ALL competitions for the category
-        const { data, error } = await supabaseClient.from('competitions').select('*').eq('category_id', categoryId).order('name');
+        const { data, error } = await festQuery(supabaseClient.from('competitions').select('*')).eq('category_id', categoryId).order('name');
         if (error) throw error;
 
         currentWorkspaceComps = data || []; 
@@ -2520,7 +2553,7 @@ async function loadAssignWorkspaceStudents() {
             });
         }
         
-        let studentQuery = supabaseClient.from('participants').select('*, teams(name)');
+        let studentQuery = festQuery(supabaseClient.from('participants').select('*, teams(name)'));
         if (!isGeneral) {
             studentQuery = studentQuery.eq('category_id', categoryId);
         } else {
@@ -2783,9 +2816,9 @@ async function executeWorkspaceRemove() {
 // Export Full Assignment Data to CSV
 async function exportAssignmentsCSV() {
     try {
-        const { data, error } = await supabaseClient
+        const { data, error } = await festQuery(supabaseClient
             .from('participant_competitions')
-            .select(`participants(name, unique_id, teams(name), categories(name)), competitions(name)`);
+            .select(`participants(name, unique_id, teams(name), categories(name)), competitions(name)`));
             
         if(error) throw error;
         
@@ -2810,14 +2843,13 @@ async function exportAssignmentsCSV() {
 }
 
 // Generate a Branded Premium PDF Document
-// Generate a Branded Premium PDF Document
 async function exportAssignmentsPDF() {
     showToast('Generating Premium PDF...', 'success');
     try {
         // Updated query to fetch both student category and competition category
-        const { data, error } = await supabaseClient
+        const { data, error } = await festQuery(supabaseClient
             .from('participant_competitions')
-            .select(`participants(name, unique_id, teams(name), categories(name)), competitions(name, categories(name))`)
+            .select(`participants(name, unique_id, teams(name), categories(name)), competitions(name, categories(name))`))
             .order('competition_id');
             
         if(error) throw error;
@@ -3371,18 +3403,29 @@ const AVAILABLE_FONTS = [
 // --- 1. LIBRARY INIT ---
 async function loadTemplatesList() {
     showToast("Syncing templates from cloud...", "success");
-    // Fetch directly from Supabase
-    const { data: templates, error } = await supabaseClient
-        .from('templates')
-        .select('*')
-        .order('created_at', { ascending: false });
+    try {
+        let { data: templates, error } = await festQuery(supabaseClient
+            .from('templates')
+            .select('*'))
+            .order('created_at', { ascending: false });
 
-    if (error) {
-        console.error("Template Sync Error:", error);
-        showToast("Failed to load templates", "error");
+        if (error && (error.code === '42703' || error.message?.includes('column templates.fest_id does not exist'))) {
+            console.warn("templates.fest_id column not present yet in Supabase, running fallback query...");
+            const fb = await supabaseClient.from('templates').select('*').order('created_at', { ascending: false });
+            templates = fb.data;
+            error = fb.error;
+        }
+
+        if (error) {
+            console.error("Template Sync Error:", error);
+            showToast("Failed to load templates", "error");
+            savedTemplates = [];
+        } else {
+            savedTemplates = templates || [];
+        }
+    } catch(err) {
+        console.error("Template Sync Exception:", err);
         savedTemplates = [];
-    } else {
-        savedTemplates = templates || [];
     }
     
     renderTemplateLibrary();
@@ -4359,7 +4402,7 @@ async function saveActiveTemplate() {
             fields: packedFields // Save the combined object to the existing column
         };
 
-        const { error } = await supabaseClient.from('templates').upsert(savePayload);
+        const { error } = await supabaseClient.from('templates').upsert(festPayload(savePayload));
         if (error) throw error;
         
         showToast("Template Saved to Cloud Successfully!", "success");
@@ -4402,7 +4445,7 @@ let currentDVMaxMark = 100;
 async function initDirectValuation() {
     // 1. Ensure Categories are loaded
     if (categoriesList.length === 0) { 
-        const { data } = await supabaseClient.from('categories').select('*').order('name'); 
+        const { data } = await festQuery(supabaseClient.from('categories').select('*')).order('name'); 
         categoriesList = data || []; 
     }
     const catSelect = document.getElementById('dvCategory');
@@ -4411,7 +4454,7 @@ async function initDirectValuation() {
 
     // 2. Ensure Stages are loaded
     if (stagesList.length === 0) {
-        const { data } = await supabaseClient.from('stages').select('*').order('stage_no');
+        const { data } = await festQuery(supabaseClient.from('stages').select('*')).order('stage_no');
         stagesList = data || [];
     }
     const stageSelect = document.getElementById('dvStage');
@@ -4435,9 +4478,9 @@ async function loadDVCompetitions() {
     compSelect.disabled = true;
     
     // Build dynamic query based on filters
-    let query = supabaseClient
+    let query = festQuery(supabaseClient
         .from('competitions')
-        .select('*')
+        .select('*'))
         .neq('status', 'published') // Only fetch competitions that are NOT published
         .order('name');
         
@@ -4569,7 +4612,7 @@ async function submitDirectValuation() {
             await supabaseClient.from('judgements').delete().eq('competition_id', compId);
             
             // 2. Insert Final Marks
-            const { error: insertError } = await supabaseClient.from('judgements').insert(marksData);
+            const { error: insertError } = await supabaseClient.from('judgements').insert(festPayload(marksData));
             if (insertError) throw insertError;
             
             // 3. Force Status to Judgement Complete so it appears in Fest Manager's "Publish Queue"
@@ -4679,11 +4722,24 @@ function removeBrandingLogo() {
 
 async function loadBrandingSettings() {
     try {
-        const { data, error } = await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle();        
+        const val = window.festosGetSetting ? await window.festosGetSetting('system_branding') : null;
+        let data = val ? { value: val } : null;
+
+        // If no custom branding saved for this fest, pull default name & logo from fests table
+        if (!data || !data.value) {
+            const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+            if (festId && typeof supabaseClient !== 'undefined') {
+                const { data: fData } = await supabaseClient.from('fests').select('name, logo').eq('id', festId).maybeSingle();
+                if (fData) {
+                    data = { value: { fest_name: fData.name, fest_logo: fData.logo, display_mode: 'both' } };
+                }
+            }
+        }
+
         if (data && data.value) {
             document.getElementById('setting-fest-name').value = data.value.fest_name || '';
             
-            // Load the new display mode
+            // Load display mode
             const displaySelect = document.getElementById('setting-branding-display');
             if(displaySelect && data.value.display_mode) displaySelect.value = data.value.display_mode;
 
@@ -4695,7 +4751,22 @@ async function loadBrandingSettings() {
                 
                 const btnRemove = document.getElementById('btnRemoveLogo');
                 if(btnRemove) btnRemove.style.display = 'inline-flex';
+            } else {
+                const preview = document.getElementById('branding-logo-preview');
+                preview.src = '';
+                preview.style.display = 'none';
+                pendingBrandingLogoBase64 = null;
+                const btnRemove = document.getElementById('btnRemoveLogo');
+                if(btnRemove) btnRemove.style.display = 'none';
             }
+        } else {
+            document.getElementById('setting-fest-name').value = '';
+            const preview = document.getElementById('branding-logo-preview');
+            preview.src = '';
+            preview.style.display = 'none';
+            pendingBrandingLogoBase64 = null;
+            const btnRemove = document.getElementById('btnRemoveLogo');
+            if(btnRemove) btnRemove.style.display = 'none';
         }
     } catch (e) {
         console.warn("No custom branding settings found, using defaults.");
@@ -4713,7 +4784,7 @@ async function saveBrandingSettings() {
     };
 
     try {
-        const { error } = await supabaseClient.from('settings').upsert({ id: 'system_branding', value: payload });
+        const { error } = window.festosSaveSetting ? await window.festosSaveSetting('system_branding', payload) : await supabaseClient.from('settings').upsert({ id: 'system_branding', value: payload });
         if (error) throw error;
         
         showToast("Branding Settings Saved to Database!");
@@ -4740,14 +4811,18 @@ document.addEventListener("DOMContentLoaded", () => {
 // ==========================================
 async function fetchAndApplyBranding() {
     try {
-        const { data, error } = await supabaseClient
-            .from('settings')
-            .select('value')
-            .eq('id', 'system_branding')
-            .maybeSingle();
-
-        if (error) throw error;
-        if (data && data.value) applyGlobalBranding(data.value);
+        const val = window.festosGetSetting ? await window.festosGetSetting('system_branding') : (await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle()).data?.value;
+        if (val) {
+            applyGlobalBranding(val);
+        } else {
+            const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+            if (festId && typeof supabaseClient !== 'undefined') {
+                const { data: fData } = await supabaseClient.from('fests').select('name, logo').eq('id', festId).maybeSingle();
+                if (fData && fData.name) {
+                    applyGlobalBranding({ fest_name: fData.name, fest_logo: fData.logo, display_mode: 'both' });
+                }
+            }
+        }
     } catch (e) {
         console.warn("Could not fetch global branding:", e.message);
     }
@@ -4830,35 +4905,47 @@ let pointsAdminSettings = {
 
 async function loadPointSettings() {
     try {
-        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();        
-        if (data && data.value) {
-            pointsAdminSettings = data.value;
-            const v = data.value;
-            
-            // Map to UI
-            ['aplus', 'a', 'b', 'c'].forEach(g => {
-                if(document.getElementById(`th-${g}`)) document.getElementById(`th-${g}`).value = v.thresholds[g];
-                if(document.getElementById(`pt-solo-${g}`)) document.getElementById(`pt-solo-${g}`).value = v.points_solo[g];
-                if(document.getElementById(`pt-small-${g}`)) document.getElementById(`pt-small-${g}`).value = v.points_small[g];
-                if(document.getElementById(`pt-large-${g}`)) document.getElementById(`pt-large-${g}`).value = v.points_large[g];
-            });
-            if(document.getElementById('pos-1')) document.getElementById('pos-1').value = v.pos_points.p1;
-            if(document.getElementById('pos-2')) document.getElementById('pos-2').value = v.pos_points.p2;
-            if(document.getElementById('pos-3')) document.getElementById('pos-3').value = v.pos_points.p3;
-            if(document.getElementById('setting-poster-interval')) document.getElementById('setting-poster-interval').value = v.poster_interval;
-            
-            // NEW: Load Announcer Offset
-            if(document.getElementById('setting-announcer-offset')) document.getElementById('setting-announcer-offset').value = v.announcer_offset !== undefined ? v.announcer_offset : 30;
-            
-            if(document.getElementById('setting-lock-date')) document.getElementById('setting-lock-date').value = v.lock_date || '';
-            
-            if(document.getElementById('setting-tm-access')) {
-                const checkbox = document.getElementById('setting-tm-access');
-                checkbox.checked = v.tm_access !== false;
-                checkbox.dispatchEvent(new Event('change')); 
-            }
+        const val = window.festosGetSetting ? await window.festosGetSetting('point_system') : null;
+        let data = val ? { value: val } : null;
+
+        const defaults = {
+            thresholds: { aplus: 90, a: 70, b: 60, c: 50 },
+            points_solo: { aplus: 8, a: 7, b: 5, c: 3 },
+            points_small: { aplus: 12, a: 10, b: 7, c: 5 },
+            points_large: { aplus: 15, a: 12, b: 10, c: 7 },
+            pos_points: { p1: 3, p2: 2, p3: 1 },
+            poster_interval: 10,
+            announcer_offset: 30,
+            lock_date: '',
+            tm_access: true
+        };
+
+        const v = (data && data.value) ? { ...defaults, ...data.value } : defaults;
+        pointsAdminSettings = v;
+        
+        // Map to UI
+        ['aplus', 'a', 'b', 'c'].forEach(g => {
+            if(document.getElementById(`th-${g}`)) document.getElementById(`th-${g}`).value = v.thresholds?.[g] ?? defaults.thresholds[g];
+            if(document.getElementById(`pt-solo-${g}`)) document.getElementById(`pt-solo-${g}`).value = v.points_solo?.[g] ?? defaults.points_solo[g];
+            if(document.getElementById(`pt-small-${g}`)) document.getElementById(`pt-small-${g}`).value = v.points_small?.[g] ?? defaults.points_small[g];
+            if(document.getElementById(`pt-large-${g}`)) document.getElementById(`pt-large-${g}`).value = v.points_large?.[g] ?? defaults.points_large[g];
+        });
+        if(document.getElementById('pos-1')) document.getElementById('pos-1').value = v.pos_points?.p1 ?? defaults.pos_points.p1;
+        if(document.getElementById('pos-2')) document.getElementById('pos-2').value = v.pos_points?.p2 ?? defaults.pos_points.p2;
+        if(document.getElementById('pos-3')) document.getElementById('pos-3').value = v.pos_points?.p3 ?? defaults.pos_points.p3;
+        if(document.getElementById('setting-poster-interval')) document.getElementById('setting-poster-interval').value = v.poster_interval ?? defaults.poster_interval;
+        
+        // Announcer Offset
+        if(document.getElementById('setting-announcer-offset')) document.getElementById('setting-announcer-offset').value = v.announcer_offset !== undefined ? v.announcer_offset : defaults.announcer_offset;
+        
+        if(document.getElementById('setting-lock-date')) document.getElementById('setting-lock-date').value = v.lock_date || '';
+        
+        if(document.getElementById('setting-tm-access')) {
+            const checkbox = document.getElementById('setting-tm-access');
+            checkbox.checked = v.tm_access !== false;
+            checkbox.dispatchEvent(new Event('change')); 
         }
-    } catch (e) { console.warn("Using default point settings."); }
+    } catch (e) { console.warn("Using default point settings:", e); }
 }
 
 async function savePointSettings() {
@@ -4877,7 +4964,7 @@ async function savePointSettings() {
     };
 
     try {
-        const { error } = await supabaseClient.from('settings').upsert({ id: 'point_system', value: payload });
+        const { error } = window.festosSaveSetting ? await window.festosSaveSetting('point_system', payload) : await supabaseClient.from('settings').upsert({ id: 'point_system', value: payload });
         if (error) throw error;
         pointsAdminSettings = payload;
         showToast("Point Settings Saved Successfully!");
@@ -4901,11 +4988,11 @@ async function loadParticipantPoints() {
             judgementsRes
         ] = await Promise.all([
             loadPointSettings(),
-            teamsList.length === 0 ? supabaseClient.from('teams').select('*') : Promise.resolve({ data: teamsList }),
-            categoriesList.length === 0 ? supabaseClient.from('categories').select('*') : Promise.resolve({ data: categoriesList }),
-            supabaseClient.from('competitions').select('*, categories(name, is_general), participant_competitions(count)'),
-            supabaseClient.from('participants').select('*, teams(name), categories(name)'),
-            supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark')
+            festQuery(supabaseClient.from('teams').select('*').order('name')),
+            festQuery(supabaseClient.from('categories').select('*').order('name')),
+            festQuery(supabaseClient.from('competitions').select('*, categories(name, is_general), participant_competitions(count)')),
+            festQuery(supabaseClient.from('participants').select('*, teams(name), categories(name)')),
+            festQuery(supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark'))
         ]);
 
         if (teamsRes.data) teamsList = teamsRes.data;
@@ -5999,10 +6086,20 @@ async function executeFactoryReset() {
 
 async function loadAdminAppeals() {
     try {
-        const { data, error } = await supabaseClient
+        let { data, error } = await festQuery(supabaseClient
             .from('appeals')
-            .select('*, teams(name), competitions(name), participants(name)')
+            .select('*, teams(name), competitions(name), participants(name)'))
             .order('created_at', { ascending: false });
+
+        if (error && (error.code === '42703' || error.message?.includes('column appeals.fest_id does not exist'))) {
+            console.warn("appeals.fest_id column not present yet in Supabase, running fallback query...");
+            const fb = await supabaseClient
+                .from('appeals')
+                .select('*, teams(name), competitions(name), participants(name)')
+                .order('created_at', { ascending: false });
+            data = fb.data;
+            error = fb.error;
+        }
 
         if (error) throw error;
         
@@ -6579,7 +6676,8 @@ let displayState = {
 
 async function loadDisplaySettings() {
     try {
-        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+        const val = window.festosGetSetting ? await window.festosGetSetting('display_settings') : null;
+        let data = val ? { value: val } : await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle().then(r => r.data);
         if (data && data.value) {
             const v = data.value;
             if(document.getElementById('disp-duration')) document.getElementById('disp-duration').value = v.slide_duration || 12;
@@ -6647,7 +6745,7 @@ function broadcastInstantThemeUpdate() {
     // 1. Instant local postMessage to preview iframe (0ms latency)
     const iframe = document.getElementById('display-preview-frame');
     if (iframe && iframe.contentWindow) {
-        iframe.contentWindow.postMessage({ type: 'theme_update', settings: settings }, '*');
+        try { iframe.contentWindow.postMessage({ type: 'theme_update', settings: settings }, '*'); } catch(e) {}
     }
 
     // 2. Update active chip highlight
@@ -6915,8 +7013,8 @@ async function saveDisplaySettings(silent = false) {
     if(!silent) setLoading('display-control .btn-primary', true);
     
     // Fetch current state to preserve live action
-    const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
-    const existing = data?.value || {};
+    const existingVal = window.festosGetSetting ? await window.festosGetSetting('display_settings') : null;
+    const existing = existingVal || {};
 
     const payload = {
         ...existing,
@@ -6939,7 +7037,7 @@ async function saveDisplaySettings(silent = false) {
     };
     
     try {
-        const { error } = await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
+        const { error } = window.festosSaveSetting ? await window.festosSaveSetting('display_settings', payload) : await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
         if (error) throw error;
         
         if(!silent) showToast("Display Engine Settings Saved & Synced!", "success");
@@ -7143,7 +7241,7 @@ async function deleteSchedule(compId) {
     openConfirmModal("Remove Schedule?", "Remove this event from the schedule?", async () => {
         delete masterSchedule[compId];
         try {
-            const { error } = await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+            const { error } = window.festosSaveSetting ? await window.festosSaveSetting('master_schedule', masterSchedule) : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
             if (error) throw error;
             showToast(`Schedule deleted.`);
             filterScheduleTable();
@@ -7161,10 +7259,14 @@ async function deleteCustomSlide(index) {
 
 async function triggerManualConfetti() {
     try {
-        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
-        let payload = data?.value || { slide_duration: 12, show_qr: true };
+        const val = window.festosGetSetting ? await window.festosGetSetting('display_settings') : (await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle()).data?.value;
+        let payload = val || { slide_duration: 12, show_qr: true };
         payload.trigger_confetti = Date.now(); // Forces all listening displays to trigger
-        await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
+        if (window.festosSaveSetting) {
+            await window.festosSaveSetting('display_settings', payload);
+        } else {
+            await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
+        }
         showToast("Celebration triggered on live displays!", "success");
     } catch(e) {
         showToast("Failed to trigger animation.", "error");
@@ -7396,11 +7498,11 @@ async function loadSchedules() {
         const promises = [];
         if (competitionsList.length === 0) promises.push(loadCompetitions());
         if (stagesList.length === 0) promises.push(loadStagesAndTeams());
-        promises.push(supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle());
+        promises.push(window.festosGetSetting ? window.festosGetSetting('master_schedule') : supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle().then(r => r.data?.value));
 
         const results = await Promise.all(promises);
         const schedRes = results[results.length - 1];
-        masterSchedule = schedRes?.data?.value || {};
+        masterSchedule = (schedRes && typeof schedRes === 'object' && !schedRes.data) ? schedRes : (schedRes?.data?.value || schedRes || {});
         
         const filterCat = document.getElementById('filterSchedCat');
         if(filterCat && filterCat.options.length === 1) {
@@ -8178,7 +8280,7 @@ async function applyOptimizedSchedule() {
         }
 
         // 3. Save master_schedule in Supabase settings
-        const { error } = await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+        const { error } = window.festosSaveSetting ? await window.festosSaveSetting('master_schedule', masterSchedule) : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
         if (error) throw error;
 
         showToast("Auto-Schedule successfully applied and persisted!", "success");
@@ -8351,7 +8453,7 @@ async function saveSchedule(editCompId) {
     };
     
     try {
-        const { error } = await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+        const { error } = window.festosSaveSetting ? await window.festosSaveSetting('master_schedule', masterSchedule) : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
         if (error) throw error;
         showToast("Schedule Saved!");
         closeModal();
@@ -8363,7 +8465,7 @@ async function saveSchedule(editCompId) {
 async function toggleScheduleStatus(compId, newStatus) {
     masterSchedule[compId].status = newStatus;
     try {
-        const { error } = await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+        const { error } = window.festosSaveSetting ? await window.festosSaveSetting('master_schedule', masterSchedule) : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
         if (error) throw error;
         showToast(`Schedule ${newStatus}!`);
         filterScheduleTable();
@@ -8750,8 +8852,8 @@ async function loadJudgesManagement() {
             { data: judges, error: judgesErr },
             { data: assignments, error: assignErr }
         ] = await Promise.all([
-            supabaseClient.from('users').select('id, username').eq('role', 'judge').order('username'),
-            supabaseClient.from('judgements').select('judge_id, competition_id, competitions(name, categories(name), stages(name))')
+            festQuery(supabaseClient.from('users').select('id, username')).eq('role', 'judge').order('username'),
+            festQuery(supabaseClient.from('judgements').select('judge_id, competition_id, competitions(name, categories(name), stages(name))'))
         ]);
         
         if (judgesErr) throw judgesErr;
@@ -9030,8 +9132,8 @@ async function exportSpecificJudgePDF(judgeId) {
     container.innerHTML = getPDFHeaderHTML(`Judge Schedule: ${judge.username}`);
 
     // Fetch Master Schedule dynamically to get live timing data
-    const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
-    const masterSchedule = schedData?.value || {};
+    const val = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : (await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle()).data?.value;
+    const masterSchedule = val || {};
 
     let tableRows = '';
     
@@ -9102,8 +9204,8 @@ async function exportJudgesPDF() {
     showToast('Generating Judge Roster PDF...', 'success');
     
     // Fetch Master Schedule dynamically to get live timing data
-    const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
-    const masterSchedule = schedData?.value || {};
+    const val = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : (await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle()).data?.value;
+    const masterSchedule = val || {};
 
     const container = document.createElement('div');
     container.style.padding = '40px';
@@ -9196,8 +9298,8 @@ async function viewJudgeDetails(judgeId) {
 
     try {
         // Fetch Master Schedule dynamically to get live timing data
-        const { data: schedData } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
-        const masterSchedule = schedData?.value || {};
+        const val = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : (await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle()).data?.value;
+        const masterSchedule = val || {};
 
         tbody.innerHTML = '';
 
@@ -9264,61 +9366,58 @@ window.switchBuilderTab = function(tabId, element) {
 // WEBSITE BUILDER / CUSTOMIZER ENGINE
 // ==========================================
 
-let websiteConfig = {
-    domain: '',
-    password_protected: false,
-    site_password: '',
-    pages: {
-        home: {
-            progCount: '250+', partCount: '1.2K+', teamCount: '40+', venueCount: '6',
-            heroTitle: 'Welcome to Zenith Fest',
-            heroSub: 'Track live event schedules, real-time results, and official championship standings all in one place.',
-            heroDeskImg: '', heroMobImg: '',
-            aboutTitle: 'About Our Festival', aboutSub: 'Celebrating Talent & Artistry',
-            contentTitle: 'Where Champions Rise',
-            contentDesc: 'Zenith Fest brings together extraordinary collegiate talent across music, dance, theater, and literary arts.',
-            aboutImg: '',
-            contact: {
-                title: 'Connect With Organizers', email: 'fest@zenith.edu', phone: '+91 98765 43210',
-                wa: '+91 98765 43210', ig: 'zenithfest', fb: 'zenithfest', yt: 'zenithfest',
-                web: 'zenithfest.com', address: 'Main Auditorium, Campus Complex'
+function getDefaultWebsiteConfig(festName = '', festSlug = '') {
+    const title = festName ? `Welcome to ${festName}` : 'Welcome to the Festival';
+    return {
+        domain: festSlug || '',
+        password_protected: false,
+        site_password: '',
+        pages: {
+            home: {
+                progCount: '0', partCount: '0', teamCount: '0', venueCount: '0',
+                heroTitle: title,
+                heroSub: 'Track live event schedules, real-time results, and official championship standings all in one place.',
+                heroDeskImg: '', heroMobImg: '',
+                aboutTitle: 'About Our Festival', aboutSub: 'Celebrating Talent & Artistry',
+                contentTitle: 'Where Champions Rise',
+                contentDesc: festName ? `${festName} brings together extraordinary talent across diverse competitions.` : '',
+                aboutImg: '',
+                contact: {
+                    title: 'Connect With Organizers', email: '', phone: '',
+                    wa: '', ig: '', fb: '', yt: '',
+                    web: '', address: ''
+                }
             }
-        }
-    },
-    visibility: {
-        page: { schedules: true, results: true, downloads: true, gallery: true, news: true, wall: false, portal: true, myresult: true },
-        nav: { schedules: true, results: true, downloads: true, gallery: true, news: true, wall: false, portal: true, myresult: true },
-        foot: { schedules: true, results: true, downloads: true, gallery: true, news: true, wall: false, portal: true, myresult: true }
-    },
-    theme: {
-        primary: '#3B82F6',
-        secondary: '#1E293B',
-        accent: '#F59E0B',
-        bg: '#F9FAFB',
-        font: 'Plus Jakarta Sans',
-        podium_style: 'cards',
-        show_points_breakdown: true,
-        show_milestone_filter: true,
-        show_search_filter: true,
-        results_title: 'OFFICIAL EVENT RESULTS',
-        results_subtitle: 'Real-Time Verified Standings & Graphics',
-        header_logo: '',
-        footer_logo: '',
-        og_image: '',
-        launch_logo: ''
-    },
-    gallery: [
-        { id: 'alb_1', title: 'Opening Ceremony Highlights', category: 'Stage', cover_url: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80', count: 12 },
-        { id: 'alb_2', title: 'Western Dance & Music Battle', category: 'Stage', cover_url: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80', count: 24 }
-    ],
-    downloads: [
-        { id: 'dl_1', title: 'Official Festival Rulebook & Code of Conduct 2026', category: 'Rulebook', size: '2.4 MB', url: '#' },
-        { id: 'dl_2', title: 'Master Event Schedule & Stage Map', category: 'Schedule', size: '1.8 MB', url: '#' }
-    ],
-    news: [
-        { id: 'nw_1', title: 'Grand Finale Stage Schedule & Gala Night Announced', category: 'Announcement', date: '2026-09-28', summary: 'All events on the main stage will commence from 9:00 AM with celebrity judges.' }
-    ]
-};
+        },
+        visibility: {
+            page: { schedules: true, results: true, downloads: true, gallery: true, news: true, wall: false, portal: true, myresult: true },
+            nav: { schedules: true, results: true, downloads: true, gallery: true, news: true, wall: false, portal: true, myresult: true },
+            foot: { schedules: true, results: true, downloads: true, gallery: true, news: true, wall: false, portal: true, myresult: true }
+        },
+        theme: {
+            primary: '#3B82F6',
+            secondary: '#1E293B',
+            accent: '#F59E0B',
+            bg: '#F9FAFB',
+            font: 'Plus Jakarta Sans',
+            podium_style: 'cards',
+            show_points_breakdown: true,
+            show_milestone_filter: true,
+            show_search_filter: true,
+            results_title: 'OFFICIAL EVENT RESULTS',
+            results_subtitle: 'Real-Time Verified Standings & Graphics',
+            header_logo: '',
+            footer_logo: '',
+            og_image: '',
+            launch_logo: ''
+        },
+        gallery: [],
+        downloads: [],
+        news: []
+    };
+}
+
+let websiteConfig = getDefaultWebsiteConfig();
 
 let webAnalyticsChart = null;
 
@@ -9361,8 +9460,9 @@ window.switchBuilderTab = function(tabId, element) {
     } else if (tabId === 'overview') {
         const deskFrame = document.getElementById('preview-desktop-frame');
         const mobFrame = document.getElementById('preview-mobile-frame');
-        if (deskFrame) deskFrame.src = 'results.html?preview=true&r=' + Date.now();
-        if (mobFrame) mobFrame.src = 'results.html?preview=true&r=' + Date.now();
+        const fid = getActiveFestId();
+        if (deskFrame) deskFrame.src = 'results.html?preview=true&fest=' + fid + '&r=' + Date.now();
+        if (mobFrame) mobFrame.src = 'results.html?preview=true&fest=' + fid + '&r=' + Date.now();
     }
 };
 
@@ -9421,7 +9521,18 @@ function initProfessionalAnalytics() {
 // --- Loading and Saving Configuration ---
 async function loadWebsiteConfig() {
     try {
-        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'website_config').maybeSingle();
+        const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || 'fest_zenith_2026';
+        let festMeta = null;
+        if (window.availableFests && window.availableFests.length) {
+            festMeta = window.availableFests.find(f => f.id === fid);
+        }
+        const festName = festMeta ? festMeta.name : (fid === 'fest_zenith_2026' ? 'Zenith Fest' : 'Festival');
+        const festSlug = festMeta ? (festMeta.slug || festMeta.id.replace('fest_', '')) : (fid === 'fest_zenith_2026' ? 'zenith' : '');
+        
+        websiteConfig = getDefaultWebsiteConfig(festName, festSlug);
+
+        const val = window.festosGetSetting ? await window.festosGetSetting('website_config') : null;
+        let data = val ? { value: val } : (fid === 'fest_zenith_2026' ? await supabaseClient.from('settings').select('value').eq('id', 'website_config').maybeSingle().then(r => r.data) : null);
         if (data && data.value) {
             websiteConfig = { ...websiteConfig, ...data.value };
             // Ensure deep merges for sub-objects
@@ -9457,10 +9568,9 @@ function populateWebsiteForms() {
     // 2. Domains
     if (document.getElementById('web-subdomain')) {
         document.getElementById('web-subdomain').value = websiteConfig.domain || '';
-        if (document.getElementById('web-subdomain')) document.getElementById('web-subdomain').value = websiteConfig.domain || 'zenith';
         if (document.getElementById('web-custom-domain')) document.getElementById('web-custom-domain').value = websiteConfig.custom_domain || '';
         
-        const fullUrl = websiteConfig.domain ? `${websiteConfig.domain}.festos.clubad.space` : 'zenith.festos.clubad.space';
+        const fullUrl = websiteConfig.domain ? `${websiteConfig.domain}.festos.clubad.space` : (websiteConfig.custom_domain || '—');
         
         if (document.getElementById('overview-url-display-desk')) document.getElementById('overview-url-display-desk').innerText = fullUrl;
         if (document.getElementById('overview-url-display-footer')) document.getElementById('overview-url-display-footer').innerText = fullUrl;
@@ -9469,12 +9579,12 @@ function populateWebsiteForms() {
 
     // 3. Pages
     const p = websiteConfig.pages?.home || {};
-    if (document.getElementById('pg-prog-count')) document.getElementById('pg-prog-count').value = p.progCount || '250+';
-    if (document.getElementById('pg-part-count')) document.getElementById('pg-part-count').value = p.partCount || '1.2K+';
-    if (document.getElementById('pg-team-count')) document.getElementById('pg-team-count').value = p.teamCount || '40+';
-    if (document.getElementById('pg-venue-count')) document.getElementById('pg-venue-count').value = p.venueCount || '6';
-    if (document.getElementById('pg-hero-title')) document.getElementById('pg-hero-title').value = p.heroTitle || 'Welcome to Zenith Fest';
-    if (document.getElementById('pg-hero-sub')) document.getElementById('pg-hero-sub').value = p.heroSub || 'Real-time scores, verified stage results, and championship standings live as they happen.';
+    if (document.getElementById('pg-prog-count')) document.getElementById('pg-prog-count').value = p.progCount || '0';
+    if (document.getElementById('pg-part-count')) document.getElementById('pg-part-count').value = p.partCount || '0';
+    if (document.getElementById('pg-team-count')) document.getElementById('pg-team-count').value = p.teamCount || '0';
+    if (document.getElementById('pg-venue-count')) document.getElementById('pg-venue-count').value = p.venueCount || '0';
+    if (document.getElementById('pg-hero-title')) document.getElementById('pg-hero-title').value = p.heroTitle || '';
+    if (document.getElementById('pg-hero-sub')) document.getElementById('pg-hero-sub').value = p.heroSub || '';
     if (document.getElementById('pg-about-title')) document.getElementById('pg-about-title').value = p.aboutTitle || '';
     if (document.getElementById('pg-about-sub')) document.getElementById('pg-about-sub').value = p.aboutSub || '';
     if (document.getElementById('pg-content-title')) document.getElementById('pg-content-title').value = p.contentTitle || '';
@@ -9549,13 +9659,15 @@ function populateWebsiteForms() {
     }
 
     // Logos
-    if (thm.header_logo) {
-        const hPrev = document.getElementById('thm-header-logo-preview');
-        if (hPrev) { hPrev.src = thm.header_logo; hPrev.style.display = 'block'; }
+    const hPrev = document.getElementById('thm-header-logo-preview');
+    if (hPrev) {
+        hPrev.src = thm.header_logo || '';
+        hPrev.style.display = thm.header_logo ? 'block' : 'none';
     }
-    if (thm.footer_logo) {
-        const fPrev = document.getElementById('thm-footer-logo-preview');
-        if (fPrev) { fPrev.src = thm.footer_logo; fPrev.style.display = 'block'; }
+    const fPrev = document.getElementById('thm-footer-logo-preview');
+    if (fPrev) {
+        fPrev.src = thm.footer_logo || '';
+        fPrev.style.display = thm.footer_logo ? 'block' : 'none';
     }
 
     renderGalleryBuilder();
@@ -9571,15 +9683,16 @@ async function executeWebsiteSave(btnElement) {
     }
 
     try {
-        const { error } = await supabaseClient.from('settings').upsert({ id: 'website_config', value: websiteConfig });
+        const { error } = window.festosSaveSetting ? await window.festosSaveSetting('website_config', websiteConfig) : await supabaseClient.from('settings').upsert({ id: 'website_config', value: websiteConfig });
         if (error) throw error;
         showToast("Website Settings Saved Successfully!", "success");
 
         // Refresh preview iframes
         const deskFrame = document.getElementById('preview-desktop-frame');
         const mobFrame = document.getElementById('preview-mobile-frame');
-        if (deskFrame) deskFrame.src = 'results.html?preview=true&r=' + Date.now();
-        if (mobFrame) mobFrame.src = 'results.html?preview=true&r=' + Date.now();
+        const fid = getActiveFestId();
+        if (deskFrame) deskFrame.src = 'results.html?preview=true&fest=' + fid + '&r=' + Date.now();
+        if (mobFrame) mobFrame.src = 'results.html?preview=true&fest=' + fid + '&r=' + Date.now();
 
     } catch(e) {
         showToast(e.message, 'error');
@@ -9647,13 +9760,13 @@ function saveDomainConfig(event) {
     const domainInputEl = document.getElementById('web-subdomain');
     const customDomainEl = document.getElementById('web-custom-domain');
     
-    const domainInput = domainInputEl ? domainInputEl.value.toLowerCase().replace(/[^a-z0-9]/g, '') : 'zenith';
+    const domainInput = domainInputEl ? domainInputEl.value.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
     const customDomain = customDomainEl ? customDomainEl.value.trim().toLowerCase() : '';
     
     websiteConfig.domain = domainInput;
     websiteConfig.custom_domain = customDomain;
     
-    const fullUrl = domainInput ? `${domainInput}.festos.clubad.space` : 'zenith.festos.clubad.space';
+    const fullUrl = domainInput ? `${domainInput}.festos.clubad.space` : (customDomain || '—');
     const statusEl = document.getElementById('subdomain-status');
     if (statusEl) statusEl.style.display = domainInput ? 'block' : 'none';
 
@@ -9670,12 +9783,12 @@ function saveDomainConfig(event) {
 function savePageConfig(event) {
     if (!websiteConfig.pages) websiteConfig.pages = {};
     websiteConfig.pages.home = {
-        progCount: document.getElementById('pg-prog-count')?.value || '250+',
-        partCount: document.getElementById('pg-part-count')?.value || '1.2K+',
-        teamCount: document.getElementById('pg-team-count')?.value || '40+',
-        venueCount: document.getElementById('pg-venue-count')?.value || '6',
-        heroTitle: document.getElementById('pg-hero-title')?.value || 'Welcome to Zenith Fest',
-        heroSub: document.getElementById('pg-hero-sub')?.value || 'Real-time scores, verified stage results, and championship standings live as they happen.',
+        progCount: document.getElementById('pg-prog-count')?.value || '0',
+        partCount: document.getElementById('pg-part-count')?.value || '0',
+        teamCount: document.getElementById('pg-team-count')?.value || '0',
+        venueCount: document.getElementById('pg-venue-count')?.value || '0',
+        heroTitle: document.getElementById('pg-hero-title')?.value || '',
+        heroSub: document.getElementById('pg-hero-sub')?.value || '',
         aboutTitle: document.getElementById('pg-about-title')?.value || '',
         aboutSub: document.getElementById('pg-about-sub')?.value || '',
         contentTitle: document.getElementById('pg-content-title')?.value || '',
@@ -10496,10 +10609,10 @@ window.switchAssignView = function(view) {
 
 // FIX: Ensure ALL required data is loaded before rendering assignments
 window.initAssignWorkspace = async function() {
-    if (categoriesList.length === 0) { const { data } = await supabaseClient.from('categories').select('*').order('name'); categoriesList = data || []; }
-    if (teamsList.length === 0) { const { data } = await supabaseClient.from('teams').select('*').order('name'); teamsList = data || []; }
-    if (participantsList.length === 0) { const { data } = await supabaseClient.from('participants').select('*').order('name'); participantsList = data || []; }
-    if (competitionsList.length === 0) { const { data } = await supabaseClient.from('competitions').select('*, categories(name)').order('name'); competitionsList = data || []; }
+    if (categoriesList.length === 0) { const { data } = await festQuery(supabaseClient.from('categories').select('*')).order('name'); categoriesList = data || []; }
+    if (teamsList.length === 0) { const { data } = await festQuery(supabaseClient.from('teams').select('*')).order('name'); teamsList = data || []; }
+    if (participantsList.length === 0) { const { data } = await festQuery(supabaseClient.from('participants').select('*')).order('name'); participantsList = data || []; }
+    if (competitionsList.length === 0) { const { data } = await festQuery(supabaseClient.from('competitions').select('*, categories(name)')).order('name'); competitionsList = data || []; }
     
     // Populate Overview Filters
     const catSelect = document.getElementById('filter-assign-overview-cat');
@@ -10576,7 +10689,7 @@ window.renderAssignOverview = async function() {
     tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Fetching Live Assignments...</td></tr>';
     
     // Fetch fresh global assignments memory mapping
-    const { data: assigns } = await supabaseClient.from('participant_competitions').select('*, participants(name, unique_id, category_id, team_id, teams(name), categories(name))');
+    const { data: assigns } = await festQuery(supabaseClient.from('participant_competitions').select('*, participants(name, unique_id, category_id, team_id, teams(name), categories(name))'));
     window.globalAdminAssignments = assigns || [];
 
     tbody.innerHTML = '';
@@ -10768,5 +10881,40 @@ window.executeRouteToAdminAssignment = async function(mode) {
                 window.openQuickAddModal(compId, teamFilter);
             }
         }, 400);
+    }
+};
+
+// Master Admin Self-Service Password & Credential Changer with History
+window.changeMasterAdminCredentials = async function(newUsername, newPassword) {
+    const activeUser = JSON.parse(localStorage.getItem('festUser'));
+    if (!activeUser || !activeUser.id) return showToast('User session not found', 'error');
+
+    try {
+        const oldPwd = activeUser.password_hash;
+        let history = activeUser.password_history || [];
+        if (oldPwd && !history.some(h => (h.password || h) === oldPwd)) {
+            history.unshift({ password: oldPwd, changed_at: new Date().toISOString() });
+        }
+
+        const { error } = await supabaseClient.from('users').update({
+            username: newUsername || activeUser.username,
+            password_hash: newPassword || activeUser.password_hash,
+            password_history: history
+        }).eq('id', activeUser.id);
+
+        if (error) throw error;
+
+        activeUser.username = newUsername || activeUser.username;
+        activeUser.password_hash = newPassword || activeUser.password_hash;
+        activeUser.password_history = history;
+        localStorage.setItem('festUser', JSON.stringify(activeUser));
+
+        if (typeof festosLogger !== 'undefined') {
+            festosLogger.log('AUTH', `Master Admin "${activeUser.username}" changed their own password`, { userId: activeUser.id }, 'INFO');
+        }
+
+        showToast('Your credentials have been updated successfully!', 'success');
+    } catch (e) {
+        showToast('Failed to update credentials: ' + e.message, 'error');
     }
 };

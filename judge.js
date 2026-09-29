@@ -41,17 +41,28 @@ async function loadDashboard() {
 
     if (user.role === 'master_admin' || user.role === 'admin') {
         
-        const { data: allComps, error } = await supabaseClient
+        let compQuery = supabaseClient
             .from('competitions')
             .select('*, categories(name)')
-            .in('status', ['registration', 'ongoing', 'valuation']); // NEW: Added valuation
+            .in('status', ['registration', 'ongoing', 'valuation']);
+            
+        if (window.festosApplyFilter) {
+            compQuery = window.festosApplyFilter(compQuery);
+        }
+
+        const { data: allComps, error } = await compQuery;
             
         if (error) return container.innerHTML = `<p style="color: #EF4444; text-align:center; font-weight: 600; padding: 2rem;">Failed to load competitions.</p>`;
         
-        const { data: gradedRecords } = await supabaseClient
+        let gradedQuery = supabaseClient
             .from('judgements')
             .select('competition_id')
             .not('awarded_mark', 'is', null);
+        if (window.festosApplyFilter) {
+            gradedQuery = window.festosApplyFilter(gradedQuery);
+        }
+
+        const { data: gradedRecords } = await gradedQuery;
 
         const gradedIds = new Set(gradedRecords?.map(m => m.competition_id) || []);
 
@@ -316,9 +327,10 @@ async function submitJudgement() {
     btn.disabled = true;
     btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Submitting...`;
 
+    const payload = window.festosWithFest ? window.festosWithFest(marksData) : marksData;
     const { error } = await supabaseClient
         .from('judgements')
-        .upsert(marksData, { onConflict: 'competition_id,judge_id,participant_id' });
+        .upsert(payload, { onConflict: 'competition_id,judge_id,participant_id' });
 
     if (error) {
         showToast('Error submitting marks: ' + error.message, "error");
@@ -395,14 +407,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function fetchAndApplyBranding() {
     try {
-        const { data, error } = await supabaseClient
-            .from('settings')
-            .select('value')
-            .eq('id', 'system_branding')
-            .maybeSingle();
-
-        if (error) throw error;
-        if (data && data.value) applyGlobalBranding(data.value);
+        const val = window.festosGetSetting ? await window.festosGetSetting('system_branding') : (await supabaseClient.from('settings').select('value').eq('id', 'system_branding').maybeSingle()).data?.value;
+        if (val) applyGlobalBranding(val);
     } catch (e) {
         console.warn("Could not fetch global branding:", e.message);
     }

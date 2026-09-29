@@ -8,6 +8,7 @@
     
     <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="festos-core.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -545,13 +546,15 @@
         async function fetchData() {
             try {
                 // Fetch the central join table combining participants and competitions
-                const { data, error } = await supabaseClient
+                let query = supabaseClient
                     .from('participant_competitions')
                     .select(`
                         id,
                         participants ( name, unique_id, teams ( name ) ),
                         competitions ( name, categories ( name ), stages ( name ) )
                     `);
+                if (window.festosApplyFilter) query = window.festosApplyFilter(query);
+                const { data, error } = await query;
 
                 if (error) throw error;
 
