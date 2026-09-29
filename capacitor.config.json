@@ -1,6 +1,6 @@
 {
-  "appId": "com.festos.zenithfest",
-  "appName": "FestOS Zenith",
+  "appId": "com.festos.app",
+  "appName": "FestOS",
   "webDir": "www",
   "bundledWebRuntime": false,
   "server": {

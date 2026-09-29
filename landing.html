@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FestOS | The Modern Festival Operating System</title>
+    <link rel="icon" href="festos-logo.svg">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #6366F1;
+            --primary-glow: rgba(99, 102, 241, 0.4);
+            --primary-hover: #4F46E5;
+            --secondary: #EC4899;
+            --accent: #8B5CF6;
+            --cyan: #06B6D4;
+            --emerald: #10B981;
+            --amber: #F59E0B;
+            
+            --bg-dark: #070A13;
+            --bg-card: rgba(15, 23, 42, 0.65);
+            --bg-card-hover: rgba(30, 41, 59, 0.85);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(99, 102, 241, 0.4);
+            
+            --text-main: #F8FAFC;
+            --text-muted: #94A3B8;
+            --text-sub: #64748B;
+            
+            --radius-sm: 10px;
+            --radius-md: 16px;
+            --radius-lg: 24px;
+            --radius-xl: 32px;
+            --transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            line-height: 1.6;
+        }
+
+        /* Ambient Glowing Canvas Background */
+        .aurora-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+            background: 
+                radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.2), transparent 45%),
+                radial-gradient(circle at 85% 25%, rgba(236, 72, 153, 0.18), transparent 45%),
+                radial-gradient(circle at 50% 85%, rgba(6, 182, 212, 0.15), transparent 50%),
+                #070A13;
+        }
+
+        /* Navbar */
+        .navbar {
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 3rem;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(7, 10, 19, 0.75);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-glass);
+            z-index: 1000;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+
+        .nav-logo {
+            width: 42px;
+            height: 42px;
+            filter: drop-shadow(0 0 15px var(--primary-glow));
+        }
+
+        .nav-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #FFF 30%, #CBD5E1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: var(--transition);
+        }
+
+        .nav-link:hover {
+            color: #FFF;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .btn-saas {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0.7rem 1.4rem;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+        }
+
+        .btn-gradient {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #FFF;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.35);
+        }
+
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(99, 102, 241, 0.5);
+        }
+
+        .btn-glass {
+            background: rgba(255, 255, 255, 0.05);
+            color: #FFF;
+            border: 1px solid var(--border-glass);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            padding: 160px 0 100px;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 18px;
+            border-radius: 999px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #A5B4FC;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+        }
+
+        .hero-title {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 800;
+            letter-spacing: -1.5px;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            max-width: 980px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-title-grad {
+            background: linear-gradient(135deg, #FFFFFF 20%, #A5B4FC 60%, #F472B6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-desc {
+            font-size: clamp(1.05rem, 2vw, 1.25rem);
+            color: var(--text-muted);
+            max-width: 780px;
+            margin: 0 auto 2.5rem;
+            font-weight: 400;
+        }
+
+        .hero-cta-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+            margin-bottom: 4rem;
+        }
+
+        /* Live Feature Launchpad Grid */
+        .launchpad-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.25rem;
+            margin-top: 2rem;
+        }
+
+        .launch-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            text-align: left;
+            text-decoration: none;
+            color: var(--text-main);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .launch-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--border-glow);
+            background: var(--bg-card-hover);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), 0 0 30px var(--primary-glow);
+        }
+
+        .launch-icon-wrap {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.35rem;
+            margin-bottom: 4px;
+        }
+
+        .launch-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .launch-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Interactive Showcase Section */
+        .showcase-section {
+            padding: 80px 0;
+        }
+
+        .section-tag {
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            color: var(--cyan);
+            margin-bottom: 0.5rem;
+            display: block;
+            text-align: center;
+        }
+
+        .section-headline {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 800;
+            letter-spacing: -1px;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .section-subtext {
+            text-align: center;
+            color: var(--text-muted);
+            max-width: 650px;
+            margin: 0 auto 3rem;
+            font-size: 1.05rem;
+        }
+
+        .showcase-tabs {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 2.5rem;
+        }
+
+        .showcase-tab-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-glass);
+            padding: 0.75rem 1.5rem;
+            border-radius: 999px;
+            color: var(--text-muted);
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .showcase-tab-btn:hover {
+            color: #FFF;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .showcase-tab-btn.active {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #FFF;
+            border-color: transparent;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.35);
+        }
+
+        .showcase-preview-frame {
+            background: #0B0F19;
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7);
+            position: relative;
+            overflow: hidden;
+            min-height: 420px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .showcase-content {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .showcase-content.active {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2.5rem;
+            align-items: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .showcase-info h3 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            letter-spacing: -0.5px;
+        }
+
+        .showcase-info p {
+            color: var(--text-muted);
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .showcase-feature-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 2rem;
+        }
+
+        .showcase-feature-list li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .showcase-feature-list li i {
+            color: var(--emerald);
+            font-size: 1.1rem;
+        }
+
+        .showcase-mockup-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 1.75rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* Metrics / Architecture Strip */
+        .metrics-strip {
+            padding: 60px 0;
+            border-top: 1px solid var(--border-glass);
+            border-bottom: 1px solid var(--border-glass);
+            background: rgba(255, 255, 255, 0.015);
+            margin: 60px 0;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            text-align: center;
+        }
+
+        .metric-item-val {
+            font-size: 3rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, #FFF, #94A3B8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .metric-item-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        /* Footer */
+        .footer {
+            padding: 80px 0 40px;
+            border-top: 1px solid var(--border-glass);
+            background: #05070D;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        .footer-brand p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            max-width: 320px;
+        }
+
+        .footer-col h4 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #FFF;
+            margin-bottom: 1.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .footer-col ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .footer-col a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: var(--transition);
+        }
+
+        .footer-col a:hover {
+            color: #FFF;
+        }
+
+        .footer-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border-glass);
+            color: var(--text-sub);
+            font-size: 0.85rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        @media (max-width: 900px) {
+            .navbar {
+                padding: 0 1.5rem;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .showcase-content.active {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="aurora-bg"></div>
+
+    <!-- Navigation Header -->
+    <header class="navbar">
+        <a href="landing.html" class="nav-brand">
+            <img src="festos-logo.svg" alt="FestOS Logo" class="nav-logo">
+            <span class="nav-title">FestOS</span>
+        </a>
+
+        <ul class="nav-links">
+            <li><a href="#features" class="nav-link">Features</a></li>
+            <li><a href="#showcase" class="nav-link">Interactive Showcase</a></li>
+            <li><a href="results.html" class="nav-link">Live Results</a></li>
+            <li><a href="display.html" class="nav-link">Stage HUD</a></li>
+            <li><a href="superadmin.html" class="nav-link">Super Admin</a></li>
+        </ul>
+
+        <div class="nav-actions">
+            <a href="index.html" class="btn-saas btn-glass">
+                <i class="fa-solid fa-lock"></i> Staff Login
+            </a>
+            <a href="results.html" class="btn-saas btn-gradient">
+                <i class="fa-solid fa-trophy"></i> Results Portal
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="container">
+                <div class="hero-badge">
+                    <i class="fa-solid fa-sparkles" style="color: #F472B6;"></i>
+                    <span>FestOS 3.5 Enterprise Aurora Edition</span>
+                </div>
+
+                <h1 class="hero-title">
+                    The Modern Operating System for <span class="hero-title-grad">World-Class Festivals</span>
+                </h1>
+
+                <p class="hero-desc">
+                    Unify talent competitions, collegiate championships, and stage festivals with real-time Olympic scoring, 4K broadcast stage HUD displays, dynamic QR spectator mobile hubs, and automated winner poster studios.
+                </p>
+
+                <div class="hero-cta-group">
+                    <a href="results.html" class="btn-saas btn-gradient" style="padding: 0.9rem 2rem; font-size: 1.05rem;">
+                        <i class="fa-solid fa-trophy"></i> Open Results Portal
+                    </a>
+                    <a href="display.html" target="_blank" class="btn-saas btn-glass" style="padding: 0.9rem 2rem; font-size: 1.05rem;">
+                        <i class="fa-solid fa-tv"></i> Launch 4K Stage HUD
+                    </a>
+                    <a href="superadmin.html" class="btn-saas btn-glass" style="padding: 0.9rem 2rem; font-size: 1.05rem;">
+                        <i class="fa-solid fa-shield-halved"></i> Super Admin Panel
+                    </a>
+                </div>
+
+                <!-- Live Feature Launchpad Grid -->
+                <div class="launchpad-grid" id="features">
+                    <a href="results.html" class="launch-card">
+                        <div class="launch-icon-wrap" style="background: rgba(99, 102, 241, 0.15); color: var(--primary);">
+                            <i class="fa-solid fa-square-poll-vertical"></i>
+                        </div>
+                        <div class="launch-title">
+                            <span>Public Results Portal</span>
+                            <i class="fa-solid fa-arrow-right" style="font-size: 0.85rem;"></i>
+                        </div>
+                        <p class="launch-desc">Live team standings, podium reveals, schedule timelines, and contestant admit card logins.</p>
+                    </a>
+
+                    <a href="display.html" target="_blank" class="launch-card">
+                        <div class="launch-icon-wrap" style="background: rgba(236, 72, 153, 0.15); color: var(--secondary);">
+                            <i class="fa-solid fa-tv"></i>
+                        </div>
+                        <div class="launch-title">
+                            <span>4K Stage Display HUD</span>
+                            <i class="fa-solid fa-arrow-right" style="font-size: 0.85rem;"></i>
+                        </div>
+                        <p class="launch-desc">Broadcast visual stage with ambient motion graphics, active event indicators & dynamic QR code.</p>
+                    </a>
+
+                    <a href="spectator.html" class="launch-card">
+                        <div class="launch-icon-wrap" style="background: rgba(6, 182, 212, 0.15); color: var(--cyan);">
+                            <i class="fa-solid fa-mobile-screen-button"></i>
+                        </div>
+                        <div class="launch-title">
+                            <span>Dynamic QR Spectator</span>
+                            <i class="fa-solid fa-arrow-right" style="font-size: 0.85rem;"></i>
+                        </div>
+                        <p class="launch-desc">Instant mobile companion that syncs with stage QR to deliver instant event syllabus & posters.</p>
+                    </a>
+
+                    <a href="index.html" class="launch-card">
+                        <div class="launch-icon-wrap" style="background: rgba(16, 185, 129, 0.15); color: var(--emerald);">
+                            <i class="fa-solid fa-gavel"></i>
+                        </div>
+                        <div class="launch-title">
+                            <span>Multi-Judge Matrix</span>
+                            <i class="fa-solid fa-arrow-right" style="font-size: 0.85rem;"></i>
+                        </div>
+                        <p class="launch-desc">Olympic-grade score tabulation with criteria weights, high/low dropping, and instant sync.</p>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Metrics Strip -->
+        <section class="metrics-strip">
+            <div class="container">
+                <div class="metrics-grid">
+                    <div>
+                        <div class="metric-item-val">&lt; 40ms</div>
+                        <div class="metric-item-label">Calculation Latency</div>
+                    </div>
+                    <div>
+                        <div class="metric-item-val">100%</div>
+                        <div class="metric-item-label">Real-time WebSocket Sync</div>
+                    </div>
+                    <div>
+                        <div class="metric-item-val">4K UHD</div>
+                        <div class="metric-item-label">Broadcast Visual Stages</div>
+                    </div>
+                    <div>
+                        <div class="metric-item-val">Multi-Fest</div>
+                        <div class="metric-item-label">Global Tenant Governance</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Interactive Showcase -->
+        <section class="showcase-section" id="showcase">
+            <div class="container">
+                <span class="section-tag">Interactive Showcase</span>
+                <h2 class="section-headline">Engineered for Flawless Execution</h2>
+                <p class="section-subtext">Explore how every submodule of FestOS seamlessly connects organizers, judges, contestants, and spectators.</p>
+
+                <!-- Tabs -->
+                <div class="showcase-tabs">
+                    <button class="showcase-tab-btn active" onclick="switchShowcaseTab(0)">
+                        <i class="fa-solid fa-tv"></i> Stage HUD
+                    </button>
+                    <button class="showcase-tab-btn" onclick="switchShowcaseTab(1)">
+                        <i class="fa-solid fa-gavel"></i> Judge Portal
+                    </button>
+                    <button class="showcase-tab-btn" onclick="switchShowcaseTab(2)">
+                        <i class="fa-solid fa-mobile-screen"></i> Live QR Spectator
+                    </button>
+                    <button class="showcase-tab-btn" onclick="switchShowcaseTab(3)">
+                        <i class="fa-solid fa-crown"></i> Super Admin
+                    </button>
+                </div>
+
+                <!-- Showcase Frame -->
+                <div class="showcase-preview-frame">
+                    <!-- Tab 0: Stage HUD -->
+                    <div class="showcase-content active" id="showcase-0">
+                        <div class="showcase-info">
+                            <h3>4K Stage Display & Dynamic Broadcast</h3>
+                            <p>Turn any projector, LED wall, or auditorium screen into an intelligent broadcast stage. Auto-rotates team leaderboards, displays on-deck performers, and renders real-time dynamic QR codes.</p>
+                            <ul class="showcase-feature-list">
+                                <li><i class="fa-solid fa-circle-check"></i> 8 Luxury Motion Graphics Stage Themes</li>
+                                <li><i class="fa-solid fa-circle-check"></i> Dynamic Stage-Synced QR Code Generation</li>
+                                <li><i class="fa-solid fa-circle-check"></i> Live On-Deck Participant Announcer Cards</li>
+                            </ul>
+                            <a href="display.html" target="_blank" class="btn-saas btn-gradient">Preview Stage HUD</a>
+                        </div>
+                        <div class="showcase-mockup-box">
+                            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-glass); padding-bottom: 0.75rem;">
+                                <span style="font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-sparkles" style="color: var(--amber);"></i> Live Leaderboard Telemetry</span>
+                                <span class="status-pill" style="font-size: 0.7rem;"><div class="status-dot"></div> Broadcast Active</span>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                                    <span>🥇 1. Phoenix Warriors</span>
+                                    <strong style="color: var(--emerald);">485 pts</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                                    <span>🥈 2. Cyber Dragons</span>
+                                    <strong style="color: var(--cyan);">450 pts</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.02); border-radius: 8px;">
+                                    <span>🥉 3. Astral Titans</span>
+                                    <strong style="color: var(--amber);">415 pts</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 1: Judge Portal -->
+                    <div class="showcase-content" id="showcase-1">
+                        <div class="showcase-info">
+                            <h3>Olympic Multi-Judge Scoring Engine</h3>
+                            <p>Eliminate tabulation errors and manual scorecards. Judges enter criterion-based marks simultaneously with offline-safe caching and instant average calculations.</p>
+                            <ul class="showcase-feature-list">
+                                <li><i class="fa-solid fa-circle-check"></i> Automatic High/Low Outlier Dropping</li>
+                                <li><i class="fa-solid fa-circle-check"></i> Multi-Criteria Weight Customization</li>
+                                <li><i class="fa-solid fa-circle-check"></i> Real-time Telemetry to Master Admin Control</li>
+                            </ul>
+                            <a href="index.html" class="btn-saas btn-gradient">Access Judge Portal</a>
+                        </div>
+                        <div class="showcase-mockup-box">
+                            <div style="font-weight: 700;">Scorecard: Classical Solo #402</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <div style="padding: 10px; background: rgba(255,255,255,0.04); border-radius: 8px;">
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Rhythm & Timing</div>
+                                    <div style="font-size: 1.25rem; font-weight: 800; color: var(--cyan);">9.5 / 10</div>
+                                </div>
+                                <div style="padding: 10px; background: rgba(255,255,255,0.04); border-radius: 8px;">
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Stage Presence</div>
+                                    <div style="font-size: 1.25rem; font-weight: 800; color: var(--secondary);">9.8 / 10</div>
+                                </div>
+                            </div>
+                            <div style="padding: 8px 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; color: var(--emerald); font-weight: 700; text-align: center; font-size: 0.85rem;">
+                                <i class="fa-solid fa-check-double"></i> Tabulation Verified
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Spectator -->
+                    <div class="showcase-content" id="showcase-2">
+                        <div class="showcase-info">
+                            <h3>Dynamic QR Live Spectator Mobile Hub</h3>
+                            <p>Audiences simply scan the stage screen to open a personalized festival companion. Download official winner posters, inspect live stage timelines, and view team standings instantly.</p>
+                            <ul class="showcase-feature-list">
+                                <li><i class="fa-solid fa-circle-check"></i> Instant 1-Tap Winner Poster Generator</li>
+                                <li><i class="fa-solid fa-circle-check"></i> Dynamic Scope-Lock via QR URL</li>
+                                <li><i class="fa-solid fa-circle-check"></i> Mobile-first glassmorphic responsive UI</li>
+                            </ul>
+                            <a href="spectator.html" class="btn-saas btn-gradient">Open Spectator View</a>
+                        </div>
+                        <div class="showcase-mockup-box">
+                            <div style="text-align: center; padding: 1rem;">
+                                <i class="fa-solid fa-qrcode" style="font-size: 3.5rem; color: var(--primary); margin-bottom: 0.5rem;"></i>
+                                <div style="font-weight: 700;">Scan & View Live Syllabus</div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted);">Synced to Grand Arena Stage 1</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: Super Admin -->
+                    <div class="showcase-content" id="showcase-3">
+                        <div class="showcase-info">
+                            <h3>Multi-Tenant Super Admin Control Plane</h3>
+                            <p>Create and govern multiple festivals simultaneously. Control feature flag matrices for every festival instance, reset credentials, and monitor system diagnostics with zero downtime.</p>
+                            <ul class="showcase-feature-list">
+                                <li><i class="fa-solid fa-circle-check"></i> Granular Per-Fest Feature Matrix Toggles</li>
+                                <li><i class="fa-solid fa-circle-check"></i> Real-time Audit & Diagnostic Logging Console</li>
+                                <li><i class="fa-solid fa-circle-check"></i> Global Rebranding & Dynamic Favicon Engine</li>
+                            </ul>
+                            <a href="superadmin.html" class="btn-saas btn-gradient">Launch Super Admin</a>
+                        </div>
+                        <div class="showcase-mockup-box">
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                                    <span>Zenith Fest 2026</span>
+                                    <span class="fest-chip chip-active" style="padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; background: rgba(16,185,129,0.2); color: var(--emerald);">ACTIVE</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                                    <span>Culturama 2026</span>
+                                    <span style="padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; background: rgba(245,158,11,0.2); color: var(--amber);">UPCOMING</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <a href="landing.html" class="nav-brand" style="margin-bottom: 0.75rem;">
+                        <img src="festos-logo.svg" alt="FestOS" class="nav-logo">
+                        <span class="nav-title">FestOS</span>
+                    </a>
+                    <p>The enterprise operating system empowering institutions to conduct seamless, broadcast-grade festivals.</p>
+                </div>
+
+                <div class="footer-col">
+                    <h4>Portals</h4>
+                    <ul>
+                        <li><a href="results.html">Results & Standings</a></li>
+                        <li><a href="display.html" target="_blank">Stage HUD (4K)</a></li>
+                        <li><a href="spectator.html">Live QR Spectator</a></li>
+                        <li><a href="scan.html">Badge QR Scanner</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-col">
+                    <h4>Management</h4>
+                    <ul>
+                        <li><a href="index.html">Staff & Judge Login</a></li>
+                        <li><a href="admin.html">Master Admin Suite</a></li>
+                        <li><a href="superadmin.html">Super Admin Hub</a></li>
+                        <li><a href="program_report.html">Reports Engine</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-col">
+                    <h4>Platform</h4>
+                    <ul>
+                        <li><a href="MOBILE_APP_GUIDE.md">Mobile App (APK)</a></li>
+                        <li><a href="#features">Feature Matrix</a></li>
+                        <li><a href="superadmin.html">Diagnostics</a></li>
+                        <li><a href="#">Security & Uptime</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <div>&copy; 2026 FestOS Platform. All rights reserved.</div>
+                <div style="display: flex; gap: 1.5rem;">
+                    <span>v3.5 Enterprise Aurora</span>
+                    <span>Multi-Tenant Architecture</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Core Scripts -->
+    <script src="festos-core.js"></script>
+    <script>
+        function switchShowcaseTab(index) {
+            document.querySelectorAll('.showcase-tab-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i === index);
+            });
+            document.querySelectorAll('.showcase-content').forEach((content, i) => {
+                content.classList.toggle('active', i === index);
+            });
+        }
+    </script>
+</body>
+</html>

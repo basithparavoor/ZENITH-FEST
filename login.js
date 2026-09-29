@@ -1,6 +1,12 @@
+/**
+ * FestOS Universal Authentication Engine (login.js)
+ * Persistent Multi-Role Authentication, Dynamic Branding, and Auto-Reconnect
+ */
+
 const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+if (typeof window !== 'undefined') window.supabaseClient = supabaseClient;
 
 // DOM Elements
 const loginForm = document.getElementById('loginForm');
@@ -11,190 +17,195 @@ const togglePasswordBtn = document.getElementById('togglePassword');
 const submitBtn = document.getElementById('submitBtn');
 const errorBox = document.getElementById('error-message');
 
-// Load saved username on initialization
+// Role routing matrix
+const ROLE_ROUTES = {
+    'super_admin': 'superadmin.html',
+    'master_admin': 'admin.html',
+    'admin': 'admin.html',
+    'fest_manager': 'manager.html', 
+    'team_manager': 'team-manager.html', 
+    'stage_controller': 'stage-controller.html',
+    'judge': 'judge.html',
+    'announcer': 'announcements.html'
+};
+
+// Initialize & Check Persistent Session
 document.addEventListener('DOMContentLoaded', () => {
+    checkExistingSession();
+    loadSavedUsername();
+});
+
+function loadSavedUsername() {
     const savedUser = localStorage.getItem('festSavedUsername');
-    if (savedUser) {
+    if (savedUser && usernameInput) {
         usernameInput.value = savedUser;
-        rememberMeCheckbox.checked = true;
-    }
-});
-
-// Show/Hide Password Logic
-togglePasswordBtn.addEventListener('click', () => {
-    const isPassword = passwordInput.getAttribute('type') === 'password';
-    passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
-    passwordInput.classList.toggle('password-visible');
-    
-    // Swap SVG icons
-    if (isPassword) {
-        togglePasswordBtn.innerHTML = `
-            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
-            </svg>`;
-    } else {
-        togglePasswordBtn.innerHTML = `
-            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.543 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-            </svg>`;
-    }
-});
-
-// Authentication Logic
-// Authentication Logic
-loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const username = usernameInput.value.trim();
-    const password = passwordInput.value.trim();
-    const rememberMe = rememberMeCheckbox.checked;
-
-    submitBtn.textContent = 'Verifying...';
-    submitBtn.disabled = true;
-    errorBox.style.display = 'none';
-
-    try {
-        const { data, error } = await supabaseClient
-            .from('users')
-            .select('*')
-            .eq('username', username)
-            .single();
-
-        if (error || !data) throw new Error('Account not found. Please check your username.');
-        if (data.password_hash !== password) throw new Error('Incorrect password. Please try again.');
-
-        // Handle "Save Login" choice
-        if (rememberMe) {
-            localStorage.setItem('festSavedUsername', username);
-        } else {
-            localStorage.removeItem('festSavedUsername');
-        }
-
-        // Store active session
-        localStorage.setItem('festUser', JSON.stringify(data));
-        
-        // Updated Routing Dictionary
-        const routes = {
-            'master_admin': 'admin.html',
-            'admin': 'admin.html',
-            'fest_manager': 'manager.html', 
-            'team_manager': 'team-manager.html', 
-            'stage_controller': 'stage-controller.html',
-            'judge': 'judge.html',
-            'announcer': 'announcements.html' // <-- Added Announcer Route
-        };
-
-        const targetPage = routes[data.role];
-
-        if (targetPage) {
-            submitBtn.textContent = 'Success!';
-            submitBtn.style.background = '#10b981'; // Green for success
-            
-            // Reduced timing delay from 600ms to 150ms for snappier experience
-            setTimeout(() => {
-                window.location.href = targetPage;
-            }, 150);
-        } else {
-            throw new Error('Unrecognized access level. Contact system administrator.');
-        }
-
-    } catch (err) {
-        errorBox.textContent = err.message;
-        errorBox.style.display = 'block';
-        
-        submitBtn.textContent = 'Authenticate';
-        submitBtn.disabled = false;
-        
-        // Faster, tighter shake animation
-        const form = document.querySelector('.login-container');
-        form.style.transform = 'translateX(5px)';
-        setTimeout(() => form.style.transform = 'translateX(-5px)', 40);
-        setTimeout(() => form.style.transform = 'translateX(5px)', 80);
-        setTimeout(() => form.style.transform = 'translateX(0)', 120);
-    }
-});
-
-document.addEventListener("DOMContentLoaded", () => {
-    // Other init functions...
-    fetchAndApplyBranding();
-});
-
-async function fetchAndApplyBranding() {
-    try {
-        const { data, error } = await supabaseClient
-            .from('settings')
-            .select('value')
-            .eq('id', 'system_branding')
-            .maybeSingle();
-
-        if (error) throw error;
-        if (data && data.value) applyGlobalBranding(data.value);
-    } catch (e) {
-        console.warn("Could not fetch global branding:", e.message);
+        if (rememberMeCheckbox) rememberMeCheckbox.checked = true;
     }
 }
 
-function applyGlobalBranding(brandingData) {
-    const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
-    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
-    const displayMode = brandingData.display_mode || 'both'; // 'both', 'logo', 'name'
-    
-    // 1. Update Document Title dynamically
-    const festName = validName ? brandingData.fest_name : 'FestOS';
-    const titleParts = document.title.split('|');
-    const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
-    document.title = `${festName} | ${pageContext}`;
+function checkExistingSession() {
+    const activeUser = festosAuth ? festosAuth.getUser() : JSON.parse(localStorage.getItem('festUser') || 'null');
+    const isRemembered = localStorage.getItem('festos_remember_session') === 'true';
 
-    // 2. Global Favicon Injection (Works on Master Admin, Login, and all pages)
-    if (validLogo) {
-        let iconLinks = document.querySelectorAll("link[rel~='icon']");
-        if (iconLinks.length === 0) {
-            let newIcon = document.createElement('link');
-            newIcon.rel = 'icon';
-            document.head.appendChild(newIcon);
-            iconLinks = [newIcon];
+    if (activeUser && isRemembered && activeUser.role) {
+        const targetRoute = ROLE_ROUTES[activeUser.role];
+        if (targetRoute) {
+            renderQuickReconnectBanner(activeUser, targetRoute);
         }
-        iconLinks.forEach(link => link.href = brandingData.fest_logo);
     }
+}
 
-    // 3. UI Header & Logo Sizing Engine
-    const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text, .header h1');
-    
-    brandContainers.forEach(container => {
-        if(container.id === 'page-title') return; 
+function renderQuickReconnectBanner(user, targetRoute) {
+    const container = document.querySelector('.login-container');
+    if (!container) return;
 
-        let html = '';
-        const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
-        const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
-        
-        // Configurable Logo Sizing (Clean height parameter with max constraints)
-        if (showLogo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 36px; width: auto; max-width: 180px; object-fit: contain; border-radius: 6px; margin-right: ${showName ? '10px' : '0'}; display: inline-block; vertical-align: middle;">`;
-        } else if (!validLogo && displayMode !== 'name') {
-            html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
-        }
-        
-        // Dynamic Text
-        if (showName) {
-            let textToDisplay = validName ? brandingData.fest_name : 'FestOS';
-            
-            if (window.location.pathname.includes('program_report') && container.tagName === 'H1') {
-                textToDisplay += ' Reports Engine';
-            }
-            
-            html += `<span style="letter-spacing: -0.5px; display: inline-block; vertical-align: middle;">${textToDisplay}</span>`;
-        }
-        
-        container.innerHTML = html;
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        container.style.flexWrap = 'nowrap'; // Keeps logo and text side-by-side cleanly
-        
-        if (window.location.pathname.includes('scan') || window.location.pathname.includes('login') || window.location.pathname.includes('index') || window.location.pathname === '/') {
-            container.style.justifyContent = 'center';
-        }
+    const existingBanner = document.getElementById('reconnect-banner');
+    if (existingBanner) existingBanner.remove();
+
+    const banner = document.createElement('div');
+    banner.id = 'reconnect-banner';
+    banner.style.cssText = `
+        background: rgba(99, 102, 241, 0.1);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 16px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        text-align: center;
+        animation: fadeUp 0.4s ease;
+    `;
+
+    banner.innerHTML = `
+        <div style="font-size: 0.85rem; color: #64748B; margin-bottom: 4px;">Welcome back!</div>
+        <div style="font-size: 1.1rem; font-weight: 800; color: #0F172A; margin-bottom: 2px;">${user.username}</div>
+        <div style="font-size: 0.75rem; font-weight: 700; color: #4F46E5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem;">${user.role.replace('_', ' ')}</div>
+        <div style="display: flex; gap: 8px;">
+            <button type="button" id="btn-reconnect-continue" style="flex: 1; padding: 0.75rem; border-radius: 12px; background: #4F46E5; color: #FFF; font-weight: 700; border: none; cursor: pointer; font-size: 0.9rem;">
+                Continue to Dashboard &rarr;
+            </button>
+            <button type="button" id="btn-reconnect-switch" style="padding: 0.75rem 1rem; border-radius: 12px; background: rgba(0,0,0,0.05); color: #64748B; font-weight: 600; border: none; cursor: pointer; font-size: 0.85rem;">
+                Switch
+            </button>
+        </div>
+    `;
+
+    container.insertBefore(banner, loginForm);
+
+    document.getElementById('btn-reconnect-continue').addEventListener('click', () => {
+        window.location.href = targetRoute;
     });
 
-    if (typeof window !== 'undefined') window.systemBranding = brandingData;
+    document.getElementById('btn-reconnect-switch').addEventListener('click', () => {
+        localStorage.removeItem('festUser');
+        localStorage.removeItem('festos_remember_session');
+        banner.remove();
+    });
+}
+
+// Show/Hide Password Logic
+if (togglePasswordBtn && passwordInput) {
+    togglePasswordBtn.addEventListener('click', () => {
+        const isPassword = passwordInput.getAttribute('type') === 'password';
+        passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+        passwordInput.classList.toggle('password-visible');
+        
+        if (isPassword) {
+            togglePasswordBtn.innerHTML = `
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                </svg>`;
+        } else {
+            togglePasswordBtn.innerHTML = `
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.543 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>`;
+        }
+    });
+}
+
+// Authentication Logic
+if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value.trim();
+        const rememberMe = rememberMeCheckbox ? rememberMeCheckbox.checked : true;
+
+        submitBtn.textContent = 'Verifying...';
+        submitBtn.disabled = true;
+        if (errorBox) errorBox.style.display = 'none';
+
+        try {
+            // Super Admin hardcoded root bypass or Database Lookup
+            if (username.toLowerCase() === 'superadmin' && password === 'superadmin123') {
+                const superAdminUser = {
+                    id: 'sa_root_01',
+                    username: 'SuperAdmin',
+                    role: 'super_admin'
+                };
+                if (typeof festosAuth !== 'undefined') {
+                    festosAuth.setSuperAdmin(superAdminUser);
+                    festosAuth.setUser(superAdminUser, rememberMe);
+                } else {
+                    localStorage.setItem('festSuperAdmin', JSON.stringify(superAdminUser));
+                    localStorage.setItem('festUser', JSON.stringify(superAdminUser));
+                }
+                submitBtn.textContent = 'Success!';
+                submitBtn.style.background = '#10b981';
+                setTimeout(() => window.location.href = 'superadmin.html', 150);
+                return;
+            }
+
+            const { data, error } = await supabaseClient
+                .from('users')
+                .select('*')
+                .eq('username', username)
+                .single();
+
+            if (error || !data) throw new Error('Account not found. Please check your username.');
+            if (data.password_hash !== password) throw new Error('Incorrect password. Please try again.');
+
+            // Handle "Save Login" persistent session
+            if (typeof festosAuth !== 'undefined') {
+                festosAuth.setUser(data, rememberMe);
+            } else {
+                localStorage.setItem('festUser', JSON.stringify(data));
+                if (rememberMe) {
+                    localStorage.setItem('festSavedUsername', username);
+                    localStorage.setItem('festos_remember_session', 'true');
+                }
+            }
+
+            const targetPage = ROLE_ROUTES[data.role];
+
+            if (targetPage) {
+                submitBtn.textContent = 'Success!';
+                submitBtn.style.background = '#10b981';
+                
+                setTimeout(() => {
+                    window.location.href = targetPage;
+                }, 150);
+            } else {
+                throw new Error('Unrecognized access level. Contact system administrator.');
+            }
+
+        } catch (err) {
+            if (errorBox) {
+                errorBox.textContent = err.message;
+                errorBox.style.display = 'block';
+            }
+            
+            submitBtn.textContent = 'Authenticate';
+            submitBtn.disabled = false;
+            
+            const form = document.querySelector('.login-container');
+            if (form) {
+                form.style.transform = 'translateX(5px)';
+                setTimeout(() => form.style.transform = 'translateX(-5px)', 40);
+                setTimeout(() => form.style.transform = 'translateX(5px)', 80);
+                setTimeout(() => form.style.transform = 'translateX(0)', 120);
+            }
+        }
+    });
 }

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="auroraGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1" />
+      <stop offset="50%" stop-color="#8B5CF6" />
+      <stop offset="100%" stop-color="#EC4899" />
+    </linearGradient>
+    <linearGradient id="gemGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#06B6D4" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#FDE68A" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background Shield Glow -->
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#auroraGrad)" opacity="0.15" filter="url(#glow)"/>
+  
+  <!-- Outer Rounded Badge -->
+  <rect x="48" y="48" width="416" height="416" rx="96" fill="#0B0F19" stroke="rgba(255,255,255,0.12)" stroke-width="6"/>
+  <rect x="56" y="56" width="400" height="400" rx="88" fill="none" stroke="url(#auroraGrad)" stroke-width="2" opacity="0.6"/>
+
+  <!-- Futuristic Geometric 'F' & Crown Falcon Icon -->
+  <!-- Top Bar of F with Crown Crest -->
+  <path d="M148 140 H364 C378 140 388 152 386 166 L376 210 C374 218 366 224 358 224 H236 L218 290 H318 C332 290 342 302 340 316 L332 352 C330 360 322 366 314 366 H198 L162 472 C158 484 144 492 132 488 C122 484 116 474 118 464 L190 156 C192 146 200 140 210 140 Z" fill="url(#auroraGrad)"/>
+  
+  <!-- Prismatic Gem Accent on Top Wing -->
+  <polygon points="256,76 310,132 202,132" fill="url(#goldGrad)" filter="url(#glow)"/>
+  <circle cx="256" cy="74" r="8" fill="#FFF" />
+  <circle cx="202" cy="132" r="5" fill="#FDE68A" />
+  <circle cx="310" cy="132" r="5" fill="#FDE68A" />
+
+  <!-- Inner High-Tech Energy Core -->
+  <polygon points="256,170 340,170 325,205 248,205" fill="#FFFFFF" opacity="0.9" />
+  <polygon points="238,245 306,245 294,275 230,275" fill="url(#gemGrad)" opacity="0.95" />
+</svg>

@@ -1,22 +1,26 @@
 {
-  "name": "festos-zenith-app",
-  "version": "1.0.0",
-  "description": "FestOS Zenith Festival Mobile App (Capacitor Native Android & iOS)",
-  "main": "index.html",
+  "name": "festos",
+  "version": "3.5.0",
+  "description": "FestOS - The Modern Multi-Tenant Festival Operating System (Web, Android APK, Desktop)",
+  "main": "electron/main.js",
   "scripts": {
     "prepare-www": "node scripts/prepare-www.js",
     "cap:sync": "npm run prepare-www && npx cap sync",
     "cap:android": "npm run prepare-www && npx cap sync android && npx cap open android",
     "build:apk": "npm run prepare-www && npx cap sync android && cd android && gradlew.bat assembleDebug",
-    "build:release-apk": "npm run prepare-www && npx cap sync android && cd android && gradlew.bat assembleRelease"
+    "build:release-apk": "npm run prepare-www && npx cap sync android && cd android && gradlew.bat assembleRelease",
+    "desktop:dev": "npx electron .",
+    "desktop:start": "npx electron ."
   },
   "keywords": [
     "festos",
-    "zenith-fest",
+    "festival-management",
+    "multi-tenant",
+    "super-admin",
     "capacitor",
+    "electron",
     "android",
-    "ios",
-    "mobile-app"
+    "desktop-app"
   ],
   "author": "FestOS Engineering",
   "license": "MIT",
@@ -28,5 +32,8 @@
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.3"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1"
   }
 }
