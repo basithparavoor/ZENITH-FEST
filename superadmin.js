@@ -34,6 +34,7 @@ const FEATURE_DEFINITIONS = [
 document.addEventListener('DOMContentLoaded', async () => {
     initAuthAndProfile();
     await loadInitialData();
+    await loadGlobalSoftwareBranding();
     renderAllViews();
     runQuickPing();
     runDiagnosticsSuite(); // Run initial health scan
@@ -228,6 +229,7 @@ function switchSuperTab(tabId) {
     if (tabId === 'tab-festivals') renderFestivalsGrid();
     if (tabId === 'tab-enquiries') renderEnquiriesTable();
     if (tabId === 'tab-admins') renderUsersTable();
+    if (tabId === 'tab-global-branding') loadGlobalSoftwareBranding();
     if (tabId === 'tab-logs') renderLogsConsole();
     if (tabId === 'tab-diagnostics') runDiagnosticsSuite();
 }
@@ -626,21 +628,67 @@ function triggerDeleteFestDialog(festId, festName) {
     }
     openConfirmDialog(
         `Delete Festival "${festName}"`,
-        `Are you sure you want to permanently delete "${festName}"? All assigned routes and scope data will be removed.`,
+        `Are you sure you want to permanently delete "${festName}"? All assigned routes, accounts, and scope data for this festival will be permanently removed.`,
         'fa-trash-can',
         'var(--danger)',
         async () => {
-            globalFests = globalFests.filter(f => f.id !== festId);
-            if (activeFestId === festId) {
-                activeFestId = globalFests[0].id;
-                festosFeatures.setActiveFestId(activeFestId);
-            }
-            await syncFestsToDatabase();
-            festosLogger.log('SYSTEM', `Deleted festival: ${festName}`, { festId }, 'WARNING');
-            renderAllViews();
-            showToast(`Festival "${festName}" deleted`, 'info');
+            await deleteFestivalPermanently(festId, festName);
         }
     );
+}
+
+async function deleteFestivalPermanently(festId, festName) {
+    try {
+        // 1. Remove from local memory
+        globalFests = globalFests.filter(f => f.id !== festId);
+        if (activeFestId === festId) {
+            activeFestId = globalFests.length > 0 ? globalFests[0].id : 'default_fest';
+            festosFeatures.setActiveFestId(activeFestId);
+        }
+
+        // 2. Cascade delete from Supabase
+        if (festosSupabase) {
+            try {
+                // Delete dependent rows first to prevent foreign key errors
+                await festosSupabase.from('appeals').delete().eq('fest_id', festId);
+                await festosSupabase.from('judgements').delete().eq('fest_id', festId);
+                await festosSupabase.from('scores').delete().eq('fest_id', festId);
+                await festosSupabase.from('participants').delete().eq('fest_id', festId);
+                await festosSupabase.from('teams').delete().eq('fest_id', festId);
+                await festosSupabase.from('competitions').delete().eq('fest_id', festId);
+                await festosSupabase.from('users').delete().eq('fest_id', festId);
+                await festosSupabase.from('settings').delete().ilike('id', `%_${festId}`);
+                await festosSupabase.from('settings').delete().eq('id', `features_${festId}`);
+            } catch(childErr) {
+                console.warn('Child table cleanup error:', childErr);
+            }
+
+            // Delete from fests table
+            const { error: festDeleteError } = await festosSupabase.from('fests').delete().eq('id', festId);
+            if (festDeleteError) {
+                console.warn('Fests table delete notice:', festDeleteError);
+            }
+
+            // Sync updated multi_fests list to settings
+            await festosSupabase.from('settings').upsert({
+                id: 'festos_multi_fests',
+                value: globalFests,
+                updated_at: new Date().toISOString()
+            });
+        }
+
+        // 3. Clear local storage caches for this festival
+        localStorage.removeItem(`festos_features_${festId}`);
+        localStorage.removeItem(`festos_settings_cache_${festId}`);
+
+        festosLogger.log('SYSTEM', `Permanently deleted festival: ${festName}`, { festId }, 'WARNING');
+        closeFestWorkspace();
+        renderAllViews();
+        showToast(`Festival "${festName}" deleted permanently!`, 'success');
+    } catch(err) {
+        console.error('Delete festival error:', err);
+        showToast('Error deleting festival: ' + err.message, 'error');
+    }
 }
 
 // =========================================================================
@@ -1238,13 +1286,128 @@ async function saveSuperAdminCredentials() {
 }
 
 // =========================================================================
-// 8. GLOBAL SOFTWARE BRANDING
+// 8. GLOBAL SOFTWARE BRANDING STUDIO
 // =========================================================================
+async function loadGlobalSoftwareBranding() {
+    try {
+        let branding = null;
+        if (festosSupabase) {
+            const { data } = await festosSupabase.from('settings').select('value').eq('id', 'system_branding').maybeSingle();
+            if (data && data.value) branding = data.value;
+        }
+        if (!branding) {
+            const cached = localStorage.getItem('festos_branding_cache');
+            if (cached) {
+                try { branding = JSON.parse(cached); } catch(e) {}
+            }
+        }
+
+        const nameEl = document.getElementById('gb-software-name');
+        const logoEl = document.getElementById('gb-software-logo');
+        const taglineEl = document.getElementById('gb-software-tagline');
+        const modeEl = document.getElementById('gb-display-mode');
+        const previewEl = document.getElementById('gb-logo-preview');
+
+        if (branding) {
+            if (nameEl) nameEl.value = branding.fest_name || 'FestOS';
+            if (logoEl) logoEl.value = branding.fest_logo || 'festos-logo.svg';
+            if (taglineEl) taglineEl.value = branding.tagline || 'The Modern Festival Operating System';
+            if (modeEl) modeEl.value = branding.display_mode || 'both';
+            if (previewEl) previewEl.src = branding.fest_logo || 'festos-logo.svg';
+        } else {
+            if (nameEl) nameEl.value = 'FestOS';
+            if (logoEl) logoEl.value = 'festos-logo.svg';
+            if (taglineEl) taglineEl.value = 'The Modern Festival Operating System';
+            if (modeEl) modeEl.value = 'both';
+            if (previewEl) previewEl.src = 'festos-logo.svg';
+        }
+
+        updateGlobalBrandingPreview();
+    } catch(e) {
+        console.warn('Error loading global software branding:', e);
+    }
+}
+
+function updateGlobalBrandingPreview() {
+    const name = document.getElementById('gb-software-name')?.value.trim() || 'FestOS';
+    const logo = document.getElementById('gb-software-logo')?.value.trim() || 'festos-logo.svg';
+    const tagline = document.getElementById('gb-software-tagline')?.value.trim() || 'The Modern Festival Operating System';
+    const displayMode = document.getElementById('gb-display-mode')?.value || 'both';
+
+    // Update Thumbnail preview in form
+    const formPrev = document.getElementById('gb-logo-preview');
+    if (formPrev) formPrev.src = logo;
+
+    // Update Mockup Elements
+    const tabTitle = document.getElementById('preview-tab-title');
+    if (tabTitle) tabTitle.innerText = `${name} | Control Panel`;
+
+    const brandText = document.getElementById('preview-brand-text');
+    if (brandText) {
+        brandText.innerText = name;
+        brandText.style.display = (displayMode === 'both' || displayMode === 'name') ? 'inline' : 'none';
+    }
+
+    const logoImg = document.getElementById('preview-logo-img');
+    if (logoImg) {
+        logoImg.src = logo;
+        logoImg.style.display = (displayMode === 'both' || displayMode === 'logo') ? 'inline-block' : 'none';
+    }
+
+    const sampleTitle = document.getElementById('preview-sample-title');
+    if (sampleTitle) sampleTitle.innerText = `${name} Championship Engine`;
+
+    const sampleTagline = document.getElementById('preview-sample-tagline');
+    if (sampleTagline) sampleTagline.innerText = tagline;
+
+    const faviconImg = document.getElementById('preview-favicon-img');
+    if (faviconImg) faviconImg.src = logo;
+
+    const footerPowered = document.getElementById('preview-footer-powered');
+    if (footerPowered) footerPowered.innerText = `Powered by ${name} Platform`;
+}
+
+function handleGlobalLogoUpload(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const base64 = e.target.result;
+        const logoInput = document.getElementById('gb-software-logo');
+        if (logoInput) logoInput.value = base64;
+        updateGlobalBrandingPreview();
+        showToast('Logo image loaded. Click "Save & Broadcast" to apply.', 'info');
+    };
+    reader.readAsDataURL(file);
+}
+
+function resetGlobalBrandingDefaults() {
+    const nameEl = document.getElementById('gb-software-name');
+    const logoEl = document.getElementById('gb-software-logo');
+    const taglineEl = document.getElementById('gb-software-tagline');
+    const modeEl = document.getElementById('gb-display-mode');
+
+    if (nameEl) nameEl.value = 'FestOS';
+    if (logoEl) logoEl.value = 'festos-logo.svg';
+    if (taglineEl) taglineEl.value = 'The Modern Festival Operating System';
+    if (modeEl) modeEl.value = 'both';
+
+    updateGlobalBrandingPreview();
+    showToast('Reset to default FestOS branding. Click "Save & Broadcast" to apply.', 'info');
+}
+
 async function saveGlobalSoftwareBrandingSubmit() {
-    const name = document.getElementById('gb-software-name').value.trim() || 'FestOS';
-    const logo = document.getElementById('gb-software-logo').value.trim() || 'festos-logo.svg';
-    const tagline = document.getElementById('gb-software-tagline').value.trim();
-    const displayMode = document.getElementById('gb-display-mode').value;
+    const btn = document.getElementById('btn-save-global-branding') || document.querySelector('#tab-global-branding .btn-primary');
+    const originalText = btn ? btn.innerHTML : null;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    }
+
+    const name = document.getElementById('gb-software-name')?.value.trim() || 'FestOS';
+    const logo = document.getElementById('gb-software-logo')?.value.trim() || 'festos-logo.svg';
+    const tagline = document.getElementById('gb-software-tagline')?.value.trim() || '';
+    const displayMode = document.getElementById('gb-display-mode')?.value || 'both';
 
     const brandingData = {
         fest_name: name,
@@ -1258,18 +1421,27 @@ async function saveGlobalSoftwareBrandingSubmit() {
         localStorage.setItem('festos_branding_cache', JSON.stringify(brandingData));
 
         if (festosSupabase) {
-            await festosSupabase.from('settings').upsert({
+            const { error } = await festosSupabase.from('settings').upsert({
                 id: 'system_branding',
                 value: brandingData,
                 updated_at: new Date().toISOString()
             });
+            if (error) throw error;
         }
 
-        festosBranding.apply(brandingData);
+        if (window.festosBranding) {
+            festosBranding.apply(brandingData);
+        }
         festosLogger.log('SETTINGS', `Global software branding updated: ${name}`, brandingData, 'INFO');
-        showToast('Global software branding updated and broadcasted!', 'success');
+        showToast('Global software branding saved and broadcasted across all portals!', 'success');
     } catch(e) {
+        console.error('Failed to save branding:', e);
         showToast('Failed to save branding: ' + e.message, 'error');
+    } finally {
+        if (btn && originalText !== null) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
     }
 }
 
