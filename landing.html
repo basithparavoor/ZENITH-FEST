@@ -949,7 +949,6 @@
                     <h4 style="font-size: 0.9rem; color: var(--text-main); text-transform: uppercase; margin-bottom: 1rem;">Portals</h4>
                     <ul style="list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem;">
                         <li><a href="index.html" style="color: var(--text-muted); text-decoration: none;">Staff & Admin Login</a></li>
-                        <li><a href="superadmin.html" style="color: var(--text-muted); text-decoration: none;">Super Admin Hub</a></li>
                         <li><a href="#enquiry" style="color: var(--text-muted); text-decoration: none;">Contact & Inquiries</a></li>
                     </ul>
                 </div>
@@ -968,8 +967,8 @@
     <!-- Scripts -->
     <script>
         const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
-        const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+        const supabaseClient = window.supabaseClient || (window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null);
+        if (typeof window !== 'undefined') window.supabaseClient = supabaseClient;
 
         function switchDemoTab(index) {
             document.querySelectorAll('.showcase-tab-btn').forEach((btn, i) => {

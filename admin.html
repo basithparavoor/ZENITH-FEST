@@ -2377,6 +2377,11 @@ tr:hover td { background: var(--bg-main); }
                         <option value="">All Teams</option>
                     </select>
                 </div>
+                <div class="filter-box" id="filterPartClassBox" style="display: none;">
+                    <select id="filterPartClass" onchange="filterParticipants(true)">
+                        <option value="">All Classes</option>
+                    </select>
+                </div>
                 <div class="filter-box">
                     <input type="date" id="filterPartDob" onchange="filterParticipants(true)" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none; background: var(--bg-main); color: var(--text-main);">
                 </div>
@@ -2408,6 +2413,7 @@ tr:hover td { background: var(--bg-main); }
                             <th>Name</th>
                             <th>Team</th>
                             <th>Category</th>
+                            <th id="th-part-class" style="display: none;">Class</th>
                             <th>DOB</th>
                             <th>Actions</th>
                         </tr>
@@ -2957,6 +2963,70 @@ tr:hover td { background: var(--bg-main); }
                         <label>Auto-Lock Registration Deadline</label>
                         <input type="datetime-local" id="setting-lock-date" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border); text-transform: none !important;">
                         <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">After this exact time, Team Managers will be in read-only mode.</p>
+                    </div>
+                </div>
+
+                <!-- STUDENT CLASS & GRADE CONFIGURATION CARD -->
+                <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); grid-column: 1 / -1;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+                        <div>
+                            <h3 style="margin: 0; color: var(--text-main); font-weight: 700; display: flex; align-items: center; gap: 0.5rem; font-size: 1.15rem;">
+                                <i class="fa-solid fa-graduation-cap" style="color: var(--primary);"></i> Student Class & Grade Configuration
+                            </h3>
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">Toggle class tracking, define available classes/grades, and enforce mandatory class selection.</p>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div style="display: flex; align-items: center; gap: 0.65rem; background: var(--bg-main); padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border);">
+                                <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-main);">Enable Class Feature</span>
+                                <label style="position: relative; display: inline-block; width: 44px; height: 24px; margin: 0;">
+                                    <input type="checkbox" id="setting-class-enabled" style="opacity: 0; width: 0; height: 0;" onchange="window.toggleClassSettingsUI(this.checked)">
+                                    <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #D1D5DB; transition: .3s; border-radius: 34px;"></span>
+                                    <span id="class-toggle-knob" style="position: absolute; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; transform: translateX(0); box-shadow: 0 1px 2px rgba(0,0,0,0.1);"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="class-settings-details" style="display: none; border-top: 1px dashed var(--border); padding-top: 1.25rem;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+                            <!-- Mandatory Toggle -->
+                            <div style="background: var(--bg-main); padding: 1rem 1.25rem; border-radius: 8px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <label style="margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--text-main);">Mandatory Class Selection</label>
+                                    <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">Require a class to be selected when registering/editing participants</p>
+                                </div>
+                                <label style="position: relative; display: inline-block; width: 44px; height: 24px; margin: 0;">
+                                    <input type="checkbox" id="setting-class-mandatory" style="opacity: 0; width: 0; height: 0;" onchange="this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#D1D5DB'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(20px)' : 'translateX(0)';">
+                                    <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #D1D5DB; transition: .3s; border-radius: 34px;"></span>
+                                    <span style="position: absolute; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; transform: translateX(0); box-shadow: 0 1px 2px rgba(0,0,0,0.1);"></span>
+                                </label>
+                            </div>
+
+                            <!-- Preset Actions -->
+                            <div style="background: var(--bg-main); padding: 1rem 1.25rem; border-radius: 8px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <label style="margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--text-main);">Standard Presets</label>
+                                    <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">Auto-fill standard school or college grades</p>
+                                </div>
+                                <div style="display: flex; gap: 0.4rem;">
+                                    <button type="button" class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem;" onclick="window.loadClassPreset('class-1-12')">Class 1-12</button>
+                                    <button type="button" class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem;" onclick="window.loadClassPreset('grade-1-12')">Grade 1-12</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Class List & Add Form -->
+                        <div class="form-group">
+                            <label style="font-weight: 700; font-size: 0.85rem; color: var(--text-main); margin-bottom: 0.5rem; display: block;">Configured Class Names (Shows in Participant Dropdowns)</label>
+                            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; max-width: 600px;">
+                                <input type="text" id="new-class-input" placeholder="e.g. Class 5, Grade 10, Std 12..." style="flex: 1; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px;" onkeydown="if(event.key === 'Enter') { event.preventDefault(); window.addClassTag(); }">
+                                <button type="button" class="btn btn-primary" style="padding: 0.5rem 1rem; white-space: nowrap;" onclick="window.addClassTag()"><i class="fa-solid fa-plus"></i> Add Class</button>
+                            </div>
+                            <!-- Chips -->
+                            <div id="configured-classes-container" style="display: flex; flex-wrap: wrap; gap: 0.5rem; min-height: 44px; padding: 0.75rem; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px;">
+                                <!-- dynamically rendered -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

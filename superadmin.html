@@ -14,626 +14,923 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
-        :root {
-            /* Exact Admin Page Color Palette */
-            --primary: #3B82F6;
-            --primary-hover: #2563EB;
-            --primary-light: #EFF6FF;
-            --primary-ring: rgba(59, 130, 246, 0.2);
-            --primary-gradient: linear-gradient(135deg, #3B82F6 0%, #6366F1 100%);
-            
-            --danger: #EF4444;
-            --danger-hover: #DC2626;
-            --danger-light: #FEF2F2;
-            
-            --success: #10B981;
-            --success-hover: #059669;
-            --success-light: #ECFDF5;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-            --amber: #F59E0B;
-            --amber-light: #FFFBEB;
-            --secondary: #EC4899;
-            --secondary-light: #FDF2F8;
-            --cyan: #06B6D4;
-            --cyan-light: #F0F9FF;
-            
-            --bg-main: #F9FAFB; 
-            --bg-surface: #FFFFFF;
-            --text-main: #1F2937;
-            --text-muted: #6B7280;
-            --border: #E5E7EB;
-            --border-hover: #D1D5DB;
-            
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
-            --shadow-float: 0 20px 25px -5px rgba(59, 130, 246, 0.15), 0 10px 10px -5px rgba(59, 130, 246, 0.05);
-            
-            --radius-sm: 6px;
-            --radius-md: 10px;
-            --radius-lg: 14px;
-            --radius-xl: 20px;
-            
-            --font-mono: 'JetBrains Mono', monospace;
-            --transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
-        }
+:root {
+    /* Exact Master Admin Refined Premium Palette */
+    --primary: #3B82F6;
+    --primary-hover: #2563EB;
+    --primary-light: #EFF6FF;
+    --primary-ring: rgba(59, 130, 246, 0.2);
+    --primary-gradient: linear-gradient(135deg, #3B82F6 0%, #6366F1 100%);
+    
+    --danger: #EF4444;
+    --danger-hover: #DC2626;
+    --danger-light: #FEF2F2;
+    
+    --success: #10B981;
+    --success-hover: #059669;
+    --success-light: #ECFDF5;
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        
-        html, body {
-            width: 100%;
-            max-width: 100%;
-            overflow-x: hidden;
-        }
+    --amber: #F59E0B;
+    --amber-light: #FFFBEB;
+    --secondary: #EC4899;
+    --secondary-light: #FDF2F8;
+    --cyan: #06B6D4;
+    --cyan-light: #F0F9FF;
+    
+    --bg-main: #F9FAFB; 
+    --bg-surface: #FFFFFF;
+    --text-main: #1F2937;
+    --text-muted: #6B7280;
+    --border: #E5E7EB;
+    --border-hover: #D1D5DB;
+    
+    /* Smooth, Deep Layered Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+    --shadow-float: 0 20px 25px -5px rgba(59, 130, 246, 0.15), 0 10px 10px -5px rgba(59, 130, 246, 0.05);
+    
+    /* Elegant Radii */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    
+    --font-mono: 'JetBrains Mono', monospace;
+    --transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
 
-        body { 
-            display: flex; 
-            height: 100vh; 
-            background-color: var(--bg-main); 
-            color: var(--text-main); 
-            overflow: hidden; 
-            -webkit-font-smoothing: antialiased; 
-        }
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; -webkit-tap-highlight-color: transparent; }
 
-        /* Mobile Backdrop */
-        .mobile-sidebar-backdrop {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.5);
-            backdrop-filter: blur(4px);
-            z-index: 45;
-            transition: var(--transition);
-        }
-        .mobile-sidebar-backdrop.active {
-            display: block;
-        }
+body { display: flex; height: 100vh; background-color: var(--bg-main); color: var(--text-main); overflow: hidden; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
-        /* Sidebar matching Admin Page */
-        .sidebar { 
-            width: 280px; 
-            min-width: 280px;
-            background: var(--bg-surface); 
-            border-right: 1px solid var(--border); 
-            display: flex; 
-            flex-direction: column; 
-            padding: 1.5rem 1.25rem 1.25rem; 
-            z-index: 50; 
-            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); 
-            overflow-y: auto; 
-        }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
-        .sidebar-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1.75rem;
-            padding-left: 0.25rem;
-        }
+input, select, textarea, table td:not(.checkbox-cell) { text-transform: uppercase !important; }
+input[type="password"], input[type="file"], .file-input, textarea[style*="text-transform: none"], .cmd-input, #bcast-message, #modal-fest-notes { text-transform: none !important; }
+::placeholder { text-transform: uppercase; opacity: 0.5; font-size: 0.85rem; font-weight: 500; }
 
-        .brand { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            font-size: 1.35rem; 
-            font-weight: 800; 
-            color: var(--primary); 
-            display: flex; 
-            align-items: center; 
-            gap: 0.75rem; 
-            letter-spacing: -0.02em; 
-        }
+/* Sidebar matching Admin Page */
+.sidebar { 
+    width: 280px; 
+    min-width: 280px; 
+    background: var(--bg-surface); 
+    border-right: 1px solid var(--border); 
+    display: flex; 
+    flex-direction: column; 
+    padding: 2rem 1.25rem; 
+    z-index: 40; 
+    transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); 
+    overflow-y: auto; 
+}
 
-        .brand-badge {
-            font-size: 0.65rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            padding: 3px 8px;
-            border-radius: 999px;
-            background: var(--primary-gradient);
-            color: #FFF;
-        }
+.brand { 
+    font-family: 'Plus Jakarta Sans', sans-serif; 
+    font-size: 1.35rem; 
+    font-weight: 700; 
+    color: var(--primary); 
+    margin-bottom: 2.25rem; 
+    display: flex; 
+    align-items: center; 
+    gap: 0.75rem; 
+    padding-left: 0.75rem; 
+    flex-wrap: nowrap; 
+    line-height: 1.2; 
+    word-break: break-word; 
+    letter-spacing: -0.02em; 
+}
 
-        .mobile-close-sidebar-btn {
-            display: none;
-            width: 34px;
-            height: 34px;
-            border-radius: 8px;
-            background: var(--bg-main);
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: var(--transition);
-        }
-        .mobile-close-sidebar-btn:hover {
-            color: var(--danger);
-            background: var(--danger-light);
-            border-color: rgba(239, 68, 68, 0.3);
-        }
+.brand-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--primary-light);
+    color: var(--primary);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
 
-        .nav-group { margin-bottom: 0.5rem; }
-        .nav-heading { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); padding: 0.75rem 0.75rem 0.35rem; }
+.nav-group { margin-bottom: 0.35rem; }
+.nav-heading { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem; padding-left: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
 
-        .nav-main { 
-            padding: 0.75rem 1rem; 
-            border-radius: var(--radius-md); 
-            cursor: pointer; 
-            color: var(--text-muted); 
-            font-weight: 600; 
-            font-size: 0.9rem; 
-            transition: var(--transition); 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between; 
-            text-decoration: none;
-            position: relative;
-        }
+.nav-main { 
+    padding: 0.85rem 1.25rem; 
+    border-radius: var(--radius-md); 
+    cursor: pointer; 
+    color: var(--text-muted); 
+    font-weight: 500; 
+    font-size: 0.95rem; 
+    transition: var(--transition); 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    text-decoration: none;
+}
+.nav-main:hover { background: var(--bg-main); color: var(--text-main); }
+.nav-main.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+.nav-main i.icon-left { width: 22px; text-align: center; font-size: 1.1rem; color: #9CA3AF; transition: var(--transition); margin-right: 8px; }
+.nav-main.active i.icon-left { color: var(--primary); }
 
-        .nav-main:hover { background: var(--bg-main); color: var(--text-main); }
-        .nav-main.active { background: var(--primary-light); color: var(--primary); font-weight: 700; }
-        .nav-main.active::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 8px;
-            bottom: 8px;
-            width: 3.5px;
-            background: var(--primary);
-            border-radius: 0 4px 4px 0;
-        }
-        .nav-main i.icon-left { width: 22px; text-align: center; font-size: 1.05rem; color: #9CA3AF; transition: var(--transition); margin-right: 8px; }
-        .nav-main.active i.icon-left { color: var(--primary); }
-        
-        .nav-pill-badge {
-            font-size: 0.7rem;
-            font-weight: 700;
-            padding: 2px 8px;
-            border-radius: 999px;
-            background: #E5E7EB;
-            color: var(--text-main);
-        }
-        .nav-main.active .nav-pill-badge { background: var(--primary); color: #FFF; }
+.nav-pill-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #E5E7EB;
+    color: var(--text-main);
+}
+.nav-main.active .nav-pill-badge { background: var(--primary); color: #FFF; }
 
-        /* Sidebar Profile */
-        .sidebar-footer {
-            margin-top: auto;
-            padding-top: 1rem;
-            border-top: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+/* Sidebar Profile Footer */
+.sidebar-footer {
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--primary-gradient);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #FFF;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.user-meta { flex: 1; min-width: 0; cursor: pointer; }
+.user-name { font-size: 0.85rem; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-role { font-size: 0.72rem; color: var(--success); font-weight: 600; display: flex; align-items: center; gap: 4px; }
+.btn-logout-icon {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+.btn-logout-icon:hover { color: var(--danger); background: var(--danger-light); border-color: rgba(239, 68, 68, 0.3); }
 
-        .user-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: var(--primary-gradient);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 0.85rem;
-            color: #FFF;
-            cursor: pointer;
-            flex-shrink: 0;
-        }
+/* Main Content Layout */
+.main-content { 
+    flex: 1; 
+    display: flex; 
+    flex-direction: column; 
+    overflow-y: auto; 
+    scroll-behavior: smooth; 
+    min-width: 0;
+}
 
-        .user-meta { flex: 1; min-width: 0; cursor: pointer; }
-        .user-name { font-size: 0.85rem; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .user-role { font-size: 0.72rem; color: var(--success); font-weight: 600; display: flex; align-items: center; gap: 4px; }
+.content-section { display: none; padding: 2rem 2.5rem; animation: fadeUp 0.4s ease forwards; opacity: 0; width: 100%; box-sizing: border-box; }
+.content-section.active { display: block; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .btn-logout-icon {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            cursor: pointer;
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: var(--transition);
-            flex-shrink: 0;
-        }
-        .btn-logout-icon:hover { color: var(--danger); background: var(--danger-light); border-color: rgba(239, 68, 68, 0.3); }
+/* Header matching Admin Page */
+.header { 
+    background: rgba(255, 255, 255, 0.85); 
+    padding: 1.25rem 2.5rem; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    position: sticky; 
+    top: 0; 
+    z-index: 20; 
+    backdrop-filter: blur(12px); 
+    -webkit-backdrop-filter: blur(12px); 
+    border-bottom: 1px solid var(--border); 
+    gap: 1rem; 
+    flex-wrap: nowrap; 
+}
+.header h1 { 
+    font-family: 'Plus Jakarta Sans', sans-serif; 
+    font-size: 1.3rem; 
+    font-weight: 600; 
+    color: var(--text-main); 
+    display: flex; 
+    align-items: center; 
+    gap: 0.5rem; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    line-height: 1.2; 
+    letter-spacing: -0.01em; 
+}
 
-        /* Main Workspace Content matching Admin Page */
-        .main-content { 
-            flex: 1; 
-            display: flex; 
-            flex-direction: column; 
-            overflow-y: auto; 
-            overflow-x: hidden;
-            scroll-behavior: smooth; 
-            width: calc(100% - 280px);
-            min-width: 0;
-        }
-        
-        .header { 
-            background: rgba(255, 255, 255, 0.92); 
-            padding: 1.15rem 2.5rem; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            position: sticky; 
-            top: 0; 
-            z-index: 30; 
-            backdrop-filter: blur(12px); 
-            border-bottom: 1px solid var(--border); 
-            gap: 1rem; 
-            width: 100%;
-        }
+.action-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap; }
+.action-bar h2 { font-size: 1.6rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem; letter-spacing: -0.02em; }
+.action-bar p { color: var(--text-muted); font-size: 0.95rem; }
 
-        .header h1 { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            font-size: 1.25rem; 
-            font-weight: 700; 
-            color: var(--text-main); 
-            display: flex; 
-            align-items: center; 
-            gap: 0.5rem; 
-            letter-spacing: -0.01em; 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+.controls-bar { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; background: white; padding: 1rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border); align-items: center; }
+.search-box { flex: 2; min-width: 260px; position: relative; }
+.search-box input { width: 100%; padding: 0.75rem 1rem 0.75rem 2.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; font-weight: 500; outline: none; transition: var(--transition); background: var(--bg-main); color: var(--text-main); }
+.search-box input:focus { border-color: var(--primary); background: #FFFFFF; box-shadow: 0 0 0 3px var(--primary-ring); }
+.search-box i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
 
-        .mobile-toggle { 
-            display: none; 
-            background: var(--bg-main); 
-            border: 1px solid var(--border); 
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            font-size: 1.1rem; 
-            color: var(--text-main); 
-            cursor: pointer; 
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
+.filter-box, .filter-select-wrap { flex: 1; min-width: 180px; }
+.filter-box select, .filter-select { width: 100%; padding: 0.75rem 2.5rem 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; font-weight: 500; outline: none; appearance: none; background: var(--bg-main) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E") no-repeat right 1rem center/1.2rem; color: var(--text-main); transition: var(--transition); }
+.filter-box select:focus, .filter-select:focus { border-color: var(--primary); background: #FFFFFF; box-shadow: 0 0 0 3px var(--primary-ring); }
 
-        .status-pill {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: var(--success);
-            background: var(--success-light);
-            border: 1px solid rgba(16, 185, 129, 0.25);
-            padding: 4px 12px;
-            border-radius: 999px;
-            white-space: nowrap;
-        }
+/* Buttons matching Admin Page */
+.btn { padding: 0.65rem 1.25rem; border-radius: var(--radius-md); font-weight: 500; font-size: 0.9rem; cursor: pointer; transition: var(--transition); border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 42px; white-space: nowrap; text-decoration: none; }
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--primary-gradient); color: white; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); }
+.btn-primary:hover { background: var(--primary-hover); box-shadow: var(--shadow-float); transform: translateY(-1px); }
+.btn-outline { background: white; border-color: var(--border); color: var(--text-main); }
+.btn-outline:hover { background: var(--bg-main); border-color: var(--border-hover); }
+.btn-danger { background: var(--danger-light); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
+.btn-danger:hover { background: var(--danger); color: white; }
+.btn-success { background: var(--success); color: white; }
 
-        .status-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: var(--success);
-            animation: pulseDot 2s infinite;
-        }
+/* Tables matching Admin Page */
+.table-responsive { width: 100%; max-width: 100%; overflow-x: auto; background: white; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); -webkit-overflow-scrolling: touch; }
+.admin-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; min-width: 600px; }
+.admin-table th { background: var(--bg-main); padding: 0.85rem 1.25rem; font-weight: 700; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.admin-table td { padding: 0.9rem 1.25rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table tr:hover td { background: #F8FAFC; }
+.admin-table tr.selected td { background: var(--primary-light); }
 
-        @keyframes pulseDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+/* Modals matching Admin Page */
+.modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 100; display: none; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; }
+.modal-overlay.active { display: flex; }
+.modal-card { background: #FFFFFF; border-radius: var(--radius-lg); width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: popIn 0.2s ease forwards; border: 1px solid var(--border); box-sizing: border-box; }
+@keyframes popIn { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-        .content-section { display: none; padding: 2rem 2.5rem; animation: fadeUp 0.3s ease forwards; opacity: 0; width: 100%; max-width: 100%; box-sizing: border-box; }
-        .content-section.active { display: block; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.modal-header h3 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-main); }
+.modal-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+.modal-footer { padding: 1.25rem 1.5rem; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: flex-end; gap: 10px; background: var(--bg-main); border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg); flex-wrap: wrap; }
 
-        /* KPI Metric Cards matching Admin */
-        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; width: 100%; }
-        .kpi-card { background: var(--bg-surface); border-radius: var(--radius-lg); padding: 1.5rem; border: 1px solid var(--border); box-shadow: var(--shadow-sm); transition: var(--transition); }
-        .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--border-hover); }
-        .kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
-        .kpi-icon-wrap { width: 42px; height: 42px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0; }
-        .icon-blue { background: var(--primary-light); color: var(--primary); }
-        .icon-green { background: var(--success-light); color: var(--success); }
-        .icon-amber { background: var(--amber-light); color: var(--amber); }
-        .icon-pink { background: var(--secondary-light); color: var(--secondary); }
+.form-group { display: flex; flex-direction: column; gap: 6px; width: 100%; box-sizing: border-box; }
+.form-group label { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.form-control { background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.7rem 0.9rem; color: var(--text-main); font-size: 0.9rem; outline: none; transition: var(--transition); width: 100%; box-sizing: border-box; }
+.form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; width: 100%; box-sizing: border-box; }
 
-        .kpi-val { font-size: 2.1rem; font-weight: 800; line-height: 1; margin-bottom: 0.35rem; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; }
-        .kpi-label { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+/* Mini-HUD & Omnisearch Controls */
+.mini-hud-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px 11px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    box-shadow: var(--shadow-sm);
+    white-space: nowrap;
+}
+.mini-hud-pill.latency-good { color: var(--success); border-color: rgba(16, 185, 129, 0.3); }
+.mini-hud-pill.latency-fair { color: var(--amber); border-color: rgba(245, 158, 11, 0.3); }
+.mini-hud-pill.latency-poor { color: var(--danger); border-color: rgba(239, 68, 68, 0.3); }
 
-        /* Controls Bar & Buttons */
-        .controls-bar { display: flex; gap: 0.85rem; margin-bottom: 1.5rem; flex-wrap: wrap; background: white; padding: 1rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border); align-items: center; width: 100%; box-sizing: border-box; }
-        .search-box { flex: 2; min-width: 220px; position: relative; }
-        .search-box input { width: 100%; padding: 0.7rem 1rem 0.7rem 2.5rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.9rem; font-weight: 500; outline: none; background: var(--bg-main); transition: var(--transition); box-sizing: border-box; }
-        .search-box input:focus { border-color: var(--primary); background: #FFF; box-shadow: 0 0 0 3px var(--primary-ring); }
-        .search-box i { position: absolute; left: 0.9rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
-        
-        .filter-select { padding: 0.7rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.88rem; font-weight: 500; outline: none; background: var(--bg-main); color: var(--text-main); cursor: pointer; transition: var(--transition); }
-        .filter-select:focus { border-color: var(--primary); background: #FFF; }
+.status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: pulseDot 2s infinite;
+}
+@keyframes pulseDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-        .btn { padding: 0.65rem 1.25rem; border-radius: var(--radius-md); font-weight: 600; font-size: 0.88rem; cursor: pointer; transition: var(--transition); border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 40px; white-space: nowrap; text-decoration: none; }
-        .btn-primary { background: var(--primary-gradient); color: white; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); }
-        .btn-primary:hover { background: var(--primary-hover); box-shadow: var(--shadow-float); transform: translateY(-1px); }
-        .btn-outline { background: white; border-color: var(--border); color: var(--text-main); }
-        .btn-outline:hover { background: var(--bg-main); border-color: var(--border-hover); }
-        .btn-danger { background: var(--danger-light); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
-        .btn-danger:hover { background: var(--danger); color: white; }
+.cmd-palette-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 6px 14px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition);
+}
+.cmd-palette-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+.cmd-palette-btn kbd {
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 0.68rem;
+    font-family: var(--font-mono);
+    color: var(--text-main);
+}
 
-        /* Bulk Action Bar */
-        .bulk-actions-toolbar {
-            display: none;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            background: var(--primary-light);
-            border: 1px solid rgba(59, 130, 246, 0.35);
-            border-radius: var(--radius-md);
-            padding: 0.75rem 1.25rem;
-            margin-bottom: 1.25rem;
-            animation: fadeUp 0.2s ease forwards;
-            flex-wrap: wrap;
-        }
-        .bulk-actions-toolbar.active {
-            display: flex;
-        }
-        .bulk-count-badge {
-            font-weight: 700;
-            color: var(--primary);
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .bulk-btn-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
+.view-switch-group {
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 3px;
+    gap: 3px;
+}
+.view-btn {
+    padding: 5px 11px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.view-btn.active {
+    background: var(--bg-surface);
+    color: var(--primary);
+    box-shadow: var(--shadow-sm);
+    font-weight: 700;
+}
 
-        /* Checkbox styling */
-        .custom-chk {
-            width: 18px;
-            height: 18px;
-            border-radius: 4px;
-            cursor: pointer;
-            accent-color: var(--primary);
-        }
+.filter-chips-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 0.5rem 0 0.85rem;
+    flex-wrap: wrap;
+}
+.filter-chip-btn {
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+.filter-chip-btn:hover { border-color: var(--primary); color: var(--primary); }
+.filter-chip-btn.active {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+    font-weight: 700;
+}
 
-        /* Tables matching Admin Page */
-        .table-responsive { width: 100%; max-width: 100%; overflow-x: auto; background: white; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); -webkit-overflow-scrolling: touch; }
-        .admin-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; min-width: 600px; }
-        .admin-table th { background: var(--bg-main); padding: 0.85rem 1.25rem; font-weight: 700; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-        .admin-table td { padding: 0.9rem 1.25rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
-        .admin-table tr:last-child td { border-bottom: none; }
-        .admin-table tr:hover td { background: #F8FAFC; }
-        .admin-table tr.selected td { background: var(--primary-light); }
+/* Command Palette Modal */
+.cmd-palette-card {
+    max-width: 620px !important;
+    border-radius: var(--radius-xl) !important;
+    padding: 0 !important;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+.cmd-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 1.15rem 1.35rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-surface);
+}
+.cmd-header i { font-size: 1.15rem; color: var(--primary); }
+.cmd-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-main);
+    background: transparent;
+}
+.cmd-results {
+    max-height: 380px;
+    overflow-y: auto;
+    padding: 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.cmd-group-label {
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 8px 10px 4px;
+    letter-spacing: 0.6px;
+}
+.cmd-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 12px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition);
+    color: var(--text-main);
+    text-decoration: none;
+}
+.cmd-row:hover, .cmd-row.active-row {
+    background: var(--primary-light);
+    color: var(--primary);
+}
+.cmd-row-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cmd-row-icon { width: 28px; height: 28px; border-radius: 6px; background: var(--bg-main); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; color: var(--primary); flex-shrink: 0; }
+.cmd-row-title { font-size: 0.88rem; font-weight: 700; }
+.cmd-row-sub { font-size: 0.75rem; color: var(--text-muted); }
+.cmd-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 1.25rem;
+    border-top: 1px solid var(--border);
+    background: var(--bg-main);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
 
-        /* Festival Cards Grid */
-        .fest-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; width: 100%; }
-        .fest-card { background: var(--bg-surface); border-radius: var(--radius-lg); padding: 1.5rem; border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 1rem; transition: var(--transition); cursor: pointer; box-sizing: border-box; position: relative; overflow: hidden; }
-        .fest-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: transparent; transition: var(--transition); }
-        .fest-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--border-hover); }
-        .fest-card:hover::before { background: var(--primary-gradient); }
-        .fest-card.active-fest { border: 2px solid var(--primary); background: linear-gradient(180deg, #FFFFFF 0%, var(--primary-light) 100%); }
-        .fest-card.active-fest::before { background: var(--primary); }
+/* Festival Cards Grid */
+.fest-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; width: 100%; }
+.fest-card { background: var(--bg-surface); border-radius: var(--radius-lg); padding: 1.5rem; border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 1rem; transition: var(--transition); cursor: pointer; box-sizing: border-box; position: relative; overflow: hidden; }
+.fest-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: transparent; transition: var(--transition); }
+.fest-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--border-hover); }
+.fest-card:hover::before { background: var(--primary-gradient); }
+.fest-card.active-fest { border: 2px solid var(--primary); background: linear-gradient(180deg, #FFFFFF 0%, var(--primary-light) 100%); }
+.fest-card.active-fest::before { background: var(--primary); }
 
-        .fest-card-header { display: flex; align-items: center; gap: 12px; }
-        .fest-card-logo { width: 48px; height: 48px; border-radius: var(--radius-md); object-fit: contain; background: var(--bg-main); padding: 4px; border: 1px solid var(--border); flex-shrink: 0; }
-        .fest-card-title { font-size: 1.15rem; font-weight: 800; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; word-break: break-word; }
-        .fest-domain-badge { font-size: 0.75rem; font-family: var(--font-mono); color: var(--primary); background: var(--primary-light); padding: 2px 6px; border-radius: 4px; display: inline-block; word-break: break-all; }
+.fest-card-header { display: flex; align-items: center; gap: 12px; }
+.fest-card-logo { width: 48px; height: 48px; border-radius: var(--radius-md); object-fit: contain; background: var(--bg-main); padding: 4px; border: 1px solid var(--border); flex-shrink: 0; }
+.fest-card-title { font-size: 1.15rem; font-weight: 800; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; word-break: break-word; }
+.fest-domain-badge { font-size: 0.75rem; font-family: var(--font-mono); color: var(--primary); background: var(--primary-light); padding: 2px 6px; border-radius: 4px; display: inline-block; word-break: break-all; }
 
-        .fest-chip { padding: 3px 10px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
-        .chip-active { background: var(--success-light); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
-        .chip-upcoming { background: var(--amber-light); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.3); }
-        .chip-archived { background: #E5E7EB; color: var(--text-muted); }
+.fest-chip { padding: 3px 10px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+.chip-active { background: var(--success-light); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+.chip-upcoming { background: var(--amber-light); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+.chip-archived { background: #E5E7EB; color: var(--text-muted); }
 
-        .fest-meta-list { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: var(--text-muted); }
-        .fest-meta-item { display: flex; align-items: center; gap: 8px; }
-        .fest-meta-item i { width: 16px; color: var(--primary); flex-shrink: 0; }
+.fest-meta-list { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: var(--text-muted); }
+.fest-meta-item { display: flex; align-items: center; gap: 8px; }
+.fest-meta-item i { width: 16px; color: var(--primary); flex-shrink: 0; }
 
-        .fest-actions-bar { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.fest-actions-bar { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
 
-        /* Festival Workspace Detail Card */
-        .workspace-card { background: var(--bg-surface); border-radius: var(--radius-lg); padding: 1.75rem; border: 2px solid var(--primary); box-shadow: var(--shadow-md); margin-bottom: 2rem; width: 100%; box-sizing: border-box; animation: popIn 0.25s ease forwards; }
+.workspace-card { background: var(--bg-surface); border-radius: var(--radius-lg); padding: 1.75rem; border: 2px solid var(--primary); box-shadow: var(--shadow-md); margin-bottom: 2rem; width: 100%; box-sizing: border-box; animation: popIn 0.25s ease forwards; }
 
-        /* Branding Studio Grid */
-        .branding-studio-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.75rem; width: 100%; }
-        @media (max-width: 1024px) {
-            .branding-studio-grid { grid-template-columns: 1fr; }
-        }
-        .branding-preview-mockup { background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border-radius: var(--radius-lg); padding: 1.5rem; color: white; border: 1px solid rgba(255,255,255,0.1); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 1.25rem; }
-        .mockup-window { background: #FFFFFF; border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-md); color: var(--text-main); }
-        .mockup-header { background: #F8FAFC; border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; }
-        .mockup-dots { display: flex; gap: 5px; }
-        .mockup-dot { width: 9px; height: 9px; border-radius: 50%; }
-        .mockup-dot.red { background: #EF4444; }
-        .mockup-dot.yellow { background: #F59E0B; }
-        .mockup-dot.green { background: #10B981; }
-        .mockup-body { padding: 1.25rem; }
+.matrix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; width: 100%; }
+.feature-card { background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1.15rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; box-sizing: border-box; transition: var(--transition); }
+.feature-card:hover { border-color: var(--border-hover); background: #FFF; }
+.feature-info { flex: 1; min-width: 0; }
+.feature-info h4 { font-size: 0.92rem; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 3px; color: var(--text-main); }
+.feature-info p { font-size: 0.78rem; color: var(--text-muted); line-height: 1.35; }
 
-        /* Feature Matrix Switchboard */
-        .matrix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; width: 100%; }
-        .feature-card { background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1.15rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; box-sizing: border-box; transition: var(--transition); }
-        .feature-card:hover { border-color: var(--border-hover); background: #FFF; }
-        .feature-info { flex: 1; min-width: 0; }
-        .feature-info h4 { font-size: 0.92rem; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 3px; color: var(--text-main); }
-        .feature-info p { font-size: 0.78rem; color: var(--text-muted); line-height: 1.35; }
+.toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; inset: 0; background-color: #D1D5DB; transition: .25s; border-radius: 999px; }
+.slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .25s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+input:checked + .slider { background: var(--primary-gradient); }
+input:checked + .slider:before { transform: translateX(20px); }
 
-        .toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
-        .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; inset: 0; background-color: #D1D5DB; transition: .25s; border-radius: 999px; }
-        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .25s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
-        input:checked + .slider { background: var(--primary-gradient); }
-        input:checked + .slider:before { transform: translateX(20px); }
+/* Resource Consumption Progress Meters */
+.resource-meter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; margin-top: 1rem; }
+.progress-track { width: 100%; height: 8px; border-radius: 999px; background: var(--border); overflow: hidden; margin-top: 6px; }
+.progress-fill { height: 100%; border-radius: 999px; transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
 
-        /* Terminal Console */
-        .terminal-box { background: #111827; border-radius: var(--radius-md); padding: 1rem; font-family: var(--font-mono); font-size: 0.82rem; max-height: 480px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; color: #F9FAFB; width: 100%; box-sizing: border-box; }
-        .log-entry { display: flex; align-items: flex-start; gap: 10px; padding: 6px 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.04); flex-wrap: wrap; }
-        .log-time { color: #9CA3AF; white-space: nowrap; font-size: 0.75rem; }
-        .log-badge { font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
-        .log-info { background: rgba(59, 130, 246, 0.25); color: #93C5FD; }
-        .log-warning { background: rgba(245, 158, 11, 0.25); color: #FDE68A; }
-        .log-error { background: rgba(239, 68, 68, 0.3); color: #FCA5A5; }
-        .log-critical { background: #DC2626; color: #FFF; }
-        .log-body { flex: 1; min-width: 200px; word-break: break-all; }
+/* Toast Container */
+#toast-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: 90vw; }
+.toast { background: #1F2937; color: white; padding: 0.85rem 1.25rem; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); font-size: 0.9rem; display: flex; align-items: center; gap: 10px; animation: toastIn 0.3s ease; }
+@keyframes toastIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-        /* Health & Diagnostics Components */
-        .health-hero-card {
-            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
-            border-radius: var(--radius-lg);
-            padding: 1.75rem;
-            color: #FFF;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-            gap: 1.25rem;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: var(--shadow-lg);
-        }
-        .health-score-badge {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-        .health-score-circle {
-            width: 64px;
-            height: 64px;
-            border-radius: 50%;
-            background: rgba(16, 185, 129, 0.15);
-            border: 3px solid var(--success);
-            color: var(--success);
-            font-size: 1.4rem;
-            font-weight: 800;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            flex-shrink: 0;
-        }
-        .diag-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 1.25rem;
-            margin-bottom: 1.5rem;
-            width: 100%;
-        }
-        .diag-item-card {
-            background: #FFFFFF;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: 1.25rem;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            box-shadow: var(--shadow-sm);
-            transition: var(--transition);
-        }
-        .diag-item-card:hover {
-            border-color: var(--border-hover);
-            transform: translateY(-2px);
-        }
-        .diag-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .diag-pill {
-            font-size: 0.72rem;
-            font-weight: 700;
-            padding: 2px 8px;
-            border-radius: 999px;
-            text-transform: uppercase;
-        }
-        .diag-pass { background: var(--success-light); color: var(--success); }
-        .diag-warn { background: var(--amber-light); color: var(--amber); }
-        .diag-fail { background: var(--danger-light); color: var(--danger); }
+/* Desktop Default: Never show mobile menu button or close buttons */
+.menu-toggle, .mobile-toggle, .mobile-close-sidebar-btn { display: none !important; }
 
-        /* Modals matching Admin Page */
-        .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 100; display: none; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; }
-        .modal-overlay.active { display: flex; }
-        .modal-card { background: #FFFFFF; border-radius: var(--radius-lg); width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: popIn 0.2s ease forwards; border: 1px solid var(--border); box-sizing: border-box; }
-        @keyframes popIn { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+/* System Logs & Telemetry Console (Polished Light Theme) */
+.terminal-box, .logs-console-box {
+    background: #FFFFFF !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 1.25rem !important;
+    font-family: var(--font-sans) !important;
+    font-size: 0.86rem !important;
+    max-height: 520px !important;
+    overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    color: var(--text-main) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+.log-entry {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0.85rem 1.15rem;
+    border-radius: var(--radius-md);
+    background: #F8FAFC;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--primary);
+    transition: var(--transition);
+}
+.log-entry:hover {
+    background: #F1F5F9;
+    border-color: var(--border-hover);
+}
+.log-entry.severity-info { border-left-color: #3B82F6; }
+.log-entry.severity-warning { border-left-color: #F59E0B; background: #FFFDF5; }
+.log-entry.severity-error { border-left-color: #EF4444; background: #FEF2F2; }
+.log-entry.severity-critical { border-left-color: #DC2626; background: #FEE2E2; }
 
-        .modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-        .modal-header h3 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-main); }
-        .modal-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
-        .modal-footer { padding: 1.25rem 1.5rem; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: flex-end; gap: 10px; background: var(--bg-main); border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg); flex-wrap: wrap; }
+.log-time {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.log-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+.log-info { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+.log-warning { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
+.log-error { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+.log-critical { background: #DC2626; color: #FFFFFF; }
 
-        .form-group { display: flex; flex-direction: column; gap: 6px; width: 100%; box-sizing: border-box; }
-        .form-group label { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-        .form-control { background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.7rem 0.9rem; color: var(--text-main); font-size: 0.9rem; outline: none; transition: var(--transition); width: 100%; box-sizing: border-box; }
-        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; width: 100%; box-sizing: border-box; }
+.log-body {
+    width: 100%;
+    line-height: 1.45;
+    font-size: 0.86rem;
+}
+.log-user-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: #E2E8F0;
+    color: #334155;
+    padding: 2px 7px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+.log-details-block {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border);
+}
+.log-detail-chip {
+    font-size: 0.72rem;
+    font-family: var(--font-mono);
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    padding: 2px 7px;
+    border-radius: 4px;
+    color: #475569;
+    word-break: break-all;
+}
 
-        /* Toast Container */
-        #toast-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: 90vw; }
-        .toast { background: #1F2937; color: white; padding: 0.85rem 1.25rem; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); font-size: 0.9rem; display: flex; align-items: center; gap: 10px; animation: toastIn 0.3s ease; }
-        @keyframes toastIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+/* Diagnostics & Health Cards */
+.health-hero-card {
+    background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+    color: #FFFFFF;
+    border-radius: var(--radius-lg);
+    padding: 1.75rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    margin-bottom: 1.75rem;
+    box-shadow: var(--shadow-md);
+    flex-wrap: wrap;
+}
+.health-score-badge {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+.health-score-circle {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(16, 185, 129, 0.2);
+    border: 3px solid var(--success);
+    color: var(--success);
+    font-weight: 800;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.diag-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem; width: 100%; }
+.diag-item-card { background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column; gap: 8px; box-shadow: var(--shadow-sm); transition: var(--transition); }
+.diag-item-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+.diag-header { display: flex; align-items: center; justify-content: space-between; }
+.diag-pill { font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; }
+.diag-pass { background: var(--success-light); color: var(--success); }
+.diag-warn { background: var(--amber-light); color: var(--amber); }
+.diag-fail { background: var(--danger-light); color: var(--danger); }
 
-        /* ========================================================= */
-        /* COMPREHENSIVE MOBILE LAYOUT OPTIMIZATIONS (< 900px & < 600px) */
-        /* ========================================================= */
-        @media (max-width: 900px) {
-            body { position: relative; }
-            .sidebar { 
-                position: fixed; 
-                left: 0; 
-                top: 0; 
-                bottom: 0; 
-                transform: translateX(-100%); 
-                width: 280px; 
-                max-width: 85vw;
-                box-shadow: none;
-            }
-            .sidebar.mobile-open { 
-                transform: translateX(0); 
-                box-shadow: 0 0 40px rgba(0, 0, 0, 0.35); 
-            }
-            .mobile-close-sidebar-btn { display: flex; }
-            .main-content { margin-left: 0; width: 100%; max-width: 100vw; }
-            .mobile-toggle { display: flex; }
-            .header { padding: 0.85rem 1.15rem; gap: 0.75rem; }
-            .header h1 { font-size: 1.05rem; }
-            .content-section { padding: 1.25rem 1rem; }
-            .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 0.85rem; margin-bottom: 1.25rem; }
-            .kpi-card { padding: 1.15rem; }
-            .kpi-val { font-size: 1.65rem; }
-            .controls-bar { flex-direction: column; align-items: stretch; gap: 0.75rem; padding: 0.85rem; }
-            .search-box { width: 100%; min-width: 0; }
-            .filter-select { width: 100%; }
-            .controls-bar .btn { width: 100%; justify-content: center; }
-            .fest-grid { grid-template-columns: 1fr; }
-            .matrix-grid { grid-template-columns: 1fr; }
-            .form-row { grid-template-columns: 1fr; gap: 0.85rem; }
-            .modal-card { width: 95vw; margin: 0.5rem; max-height: 92vh; }
-            .modal-header, .modal-body, .modal-footer { padding: 1.15rem 1.25rem; }
-            .bulk-actions-toolbar { flex-direction: column; align-items: stretch; }
-            .bulk-btn-group { width: 100%; }
-            .bulk-btn-group .btn { flex: 1; font-size: 0.8rem; padding: 0.5rem 0.75rem; }
-            #toast-container { bottom: 1rem; right: 1rem; left: 1rem; }
-            .toast { width: 100%; box-sizing: border-box; }
-        }
+/* Live Visual Mockup Preview Studio */
+.branding-studio-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.75rem;
+    width: 100%;
+}
+.branding-preview-mockup {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.75rem;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+.mockup-window {
+    background: #FFFFFF;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+}
+.mockup-header {
+    background: #F8FAFC;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.mockup-dots {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.mockup-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+.mockup-dot.red { background: #EF4444; }
+.mockup-dot.yellow { background: #F59E0B; }
+.mockup-dot.green { background: #10B981; }
+.mockup-address-bar {
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    background: #FFFFFF;
+    padding: 3px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.mockup-body {
+    padding: 1.25rem;
+    background: #FAFAFA;
+}
+.mockup-navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 14px;
+}
 
-        @media (max-width: 480px) {
-            .header { padding: 0.75rem 0.85rem; }
-            .header h1 span { display: none; }
-            .status-pill { padding: 3px 8px; font-size: 0.7rem; }
-            .content-section { padding: 1rem 0.75rem; }
-            .kpi-grid { grid-template-columns: 1fr; }
-            .health-hero-card { padding: 1.25rem; flex-direction: column; align-items: flex-start; }
-            .health-hero-card .btn { width: 100%; justify-content: center; }
-        }
+.bulk-actions-toolbar { display: none; align-items: center; justify-content: space-between; gap: 1rem; background: var(--primary-light); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: var(--radius-md); padding: 0.75rem 1.25rem; margin-bottom: 1.25rem; animation: fadeUp 0.2s ease forwards; flex-wrap: wrap; }
+.bulk-actions-toolbar.active { display: flex; }
+.bulk-count-badge { font-weight: 700; color: var(--primary); font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+.bulk-btn-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Domain preview card */
+.domain-preview-card { border: 1px solid var(--border); background: var(--bg-main); border-radius: var(--radius-md); padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.domain-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.domain-preview-base { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 2px 8px; border-radius: 999px; text-transform: none; letter-spacing: 0; }
+.domain-preview-row { display: flex; align-items: center; gap: 8px; }
+.domain-preview-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); width: 92px; flex-shrink: 0; }
+.domain-preview-row code { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-main); background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.domain-mini-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; text-decoration: none; flex-shrink: 0; transition: var(--transition); }
+.domain-mini-btn:hover { color: var(--primary); border-color: var(--primary); background: var(--primary-light); }
+
+/* ==========================================================================
+   MOBILE RESPONSIVENESS OVERRIDES (CLEAN, POLISHED UX)
+   ========================================================================== */
+@media (max-width: 768px) {
+    /* 1. Base Layout & Scroll Locks */
+    body { background-color: #F3F4F6; overflow-x: hidden; width: 100vw; position: relative; } 
+    .main-content { width: 100%; max-width: 100vw; overflow-x: hidden; }
+    .content-section { padding: 1.25rem 1rem; width: 100%; box-sizing: border-box; }
+    
+    /* 2. Off-Canvas Sidebar */
+    .sidebar { 
+        position: fixed; top: 0; left: 0; bottom: 0;
+        height: 100vh; height: 100dvh;
+        transform: translateX(-100%); 
+        width: 280px; border-radius: 0 24px 24px 0; border: none; 
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3); z-index: 10000;
+        background: var(--bg-surface);
+        transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+        overflow-y: auto;
+    }
+    .sidebar.open, .sidebar.mobile-open { transform: translateX(0); }
+    .mobile-overlay, .mobile-sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.6); z-index: 9999; opacity: 0; transition: opacity 0.4s; }
+    .mobile-overlay.open, .mobile-overlay.active, .mobile-sidebar-backdrop.active { display: block; opacity: 1; }
+    
+    /* Mobile Menu & Close Buttons */
+    .menu-toggle, .mobile-toggle {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        color: var(--text-main);
+        font-size: 1.1rem;
+        cursor: pointer;
+        box-shadow: var(--shadow-sm);
+        flex-shrink: 0;
+    }
+    .mobile-close-sidebar-btn {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: var(--bg-main);
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: var(--transition);
+        flex-shrink: 0;
+    }
+    .mobile-close-sidebar-btn:hover {
+        color: var(--danger);
+        background: var(--danger-light);
+    }
+    
+    /* 3. Streamlined Clean Mobile Topbar */
+    .header { 
+        padding: 0.75rem 1rem !important;
+        border-bottom: 1px solid var(--border) !important; 
+        background: rgba(255, 255, 255, 0.96) !important; 
+        backdrop-filter: blur(16px) !important; 
+        position: sticky !important; 
+        top: 0 !important; 
+        z-index: 90 !important; 
+        box-shadow: var(--shadow-sm) !important; 
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+    }
+    .header h1 {
+        font-size: 1.05rem !important;
+        font-weight: 700 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        margin: 0 !important;
+    }
+    .header .header-actions {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        flex-shrink: 0 !important;
+    }
+    .header .cmd-palette-btn {
+        padding: 0 !important;
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: var(--radius-md) !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 0 !important;
+    }
+    .header .cmd-palette-btn i {
+        font-size: 0.95rem !important;
+        margin: 0 !important;
+        color: var(--primary) !important;
+    }
+    .header .cmd-palette-btn kbd,
+    .header .cmd-palette-btn span,
+    .header .mini-hud-pill {
+        display: none !important;
+    }
+    .header .btn-primary {
+        padding: 0.45rem 0.85rem !important;
+        min-height: 36px !important;
+        font-size: 0.8rem !important;
+    }
+    .header .btn-primary .btn-text {
+        display: inline !important;
+    }
+    
+    /* 4. Aggressive Grid Overrides */
+    .grid-2, 
+    .diag-grid,
+    .resource-meter-grid,
+    .fest-grid,
+    .matrix-grid,
+    .kpi-grid,
+    .branding-studio-grid,
+    div[style*="grid-template-columns: 350px 1fr"], 
+    div[style*="grid-template-columns: 1fr 1fr"],
+    div[style*="grid-template-columns: 1fr 3fr"],
+    div[style*="grid-template-columns: 2fr 1fr"],
+    div[style*="grid-template-columns: repeat(3, 1fr)"] { 
+        display: flex !important; 
+        flex-direction: column !important; 
+        gap: 1rem !important; 
+        width: 100% !important;
+    }
+    
+    div[style*="display: flex; justify-content: space-between; align-items: center; background: white; padding: 1.5rem;"] {
+        flex-direction: column !important; align-items: stretch !important; gap: 1rem !important;
+    }
+    div[style*="width: 1px; height: 40px; background: var(--border);"] {
+        width: 100% !important; height: 1px !important; margin: 0.5rem 0 !important;
+    }
+
+    .action-bar { flex-direction: column; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; width: 100%; text-align: left; }
+    .action-bar > div { text-align: left; width: 100%; }
+    .action-bar .btn { width: 100%; min-height: 48px; justify-content: center; }
+    .bulk-actions-toolbar { flex-direction: column; align-items: stretch; background: transparent; border: none; padding: 0; box-shadow: none; gap: 0.75rem; width: 100%; }
+    
+    .controls-bar { flex-direction: column; padding: 1rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); gap: 0.75rem; margin-bottom: 1.5rem; background: white; }
+    .search-box, .filter-box, .controls-bar input, .controls-bar select, .filter-select { width: 100%; min-width: 100%; min-height: 48px; font-size: 16px !important; }
+    .controls-bar > div:last-child { width: 100%; display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
+    
+    /* 5. Native Bottom-Sheet Modals */
+    .modal-overlay { align-items: flex-end; padding: 0; background: rgba(0, 0, 0, 0.6); z-index: 2000; }
+    .modal-card, .modal { 
+        padding: 2rem 1.5rem calc(2rem + env(safe-area-inset-bottom)) 1.5rem; 
+        border-radius: 24px 24px 0 0 !important; margin: 0; max-width: 100vw; width: 100%;
+        transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); 
+        max-height: 90vh; border: none; overflow-x: hidden;
+    }
+    .modal-overlay.active .modal-card,
+    .modal-overlay.active .modal { transform: translateY(0); }
+    .modal-footer { flex-direction: column; gap: 0.75rem; margin-top: 1.5rem; }
+    .modal-footer .btn { width: 100%; min-height: 48px; margin: 0; }
+}
     </style>
 </head>
 <body>
 
     <!-- Mobile Backdrop Overlay -->
-    <div class="mobile-sidebar-backdrop" id="sidebarBackdrop" onclick="toggleMobileSidebar()"></div>
+    <div class="mobile-overlay mobile-sidebar-backdrop" id="sidebarBackdrop" onclick="toggleMobileSidebar()"></div>
 
     <!-- Sidebar Navigation -->
     <aside class="sidebar" id="superSidebar">
-        <div class="sidebar-header">
-            <div class="brand">
+        <div class="sidebar-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+            <div class="brand" style="margin-bottom: 0; padding-left: 0;">
                 <img src="festos-logo.svg" alt="FestOS" style="width: 30px; height: 30px;">
                 <span>FestOS</span>
                 <span class="brand-badge">Super</span>
@@ -651,6 +948,10 @@
             <a class="nav-main" data-tab="tab-festivals" onclick="switchSuperTab('tab-festivals')">
                 <div style="display: flex; align-items: center;"><i class="fa-solid fa-crown icon-left"></i> Festivals Hub</div>
                 <span class="nav-pill-badge" id="nav-fest-count">0</span>
+            </a>
+            <a class="nav-main" data-tab="tab-broadcasts" onclick="switchSuperTab('tab-broadcasts')">
+                <div style="display: flex; align-items: center;"><i class="fa-solid fa-bullhorn icon-left"></i> Broadcasts & Alerts</div>
+                <span class="nav-pill-badge" id="nav-broadcast-count">0</span>
             </a>
             <a class="nav-main" data-tab="tab-enquiries" onclick="switchSuperTab('tab-enquiries')">
                 <div style="display: flex; align-items: center;"><i class="fa-solid fa-envelope-open-text icon-left"></i> Client Inquiries</div>
@@ -693,16 +994,25 @@
         <!-- Clean Header -->
         <header class="header">
             <div style="display: flex; align-items: center; gap: 0.85rem; min-width: 0;">
-                <button class="mobile-toggle" onclick="toggleMobileSidebar()" aria-label="Open Menu">
+                <button class="menu-toggle mobile-toggle" onclick="toggleMobileSidebar()" aria-label="Open Menu">
                     <i class="fa-solid fa-bars"></i>
                 </button>
-                <h1 id="top-page-title"><i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i> <span>Super Admin Control Panel</span></h1>
+                <h1 id="top-page-title">Super Admin Control Panel</h1>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <div class="status-pill">
+            <div class="header-actions" style="display: flex; align-items: center; gap: 8px;">
+                <button class="cmd-palette-btn" onclick="openCommandPalette()" title="Press Ctrl+K to Omnisearch">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <span>Omnisearch...</span>
+                    <kbd>Ctrl+K</kbd>
+                </button>
+                <div class="mini-hud-pill latency-good" id="header-latency-pill" title="Supabase Database Ping Latency">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span id="header-latency-val">-- ms</span>
+                </div>
+                <div class="mini-hud-pill" id="header-ws-pill" title="Realtime Sync Channel">
                     <div class="status-dot"></div>
-                    <span id="system-status-text">Engine Online</span>
+                    <span id="header-ws-text">Sync Live</span>
                 </div>
                 <button class="btn btn-primary" onclick="openCreateFestModal()">
                     <i class="fa-solid fa-plus"></i> <span class="btn-text">New Fest</span>
@@ -717,49 +1027,144 @@
             <!-- TAB 1: OVERVIEW -->
             <!-- ========================================================= -->
             <section class="content-section active" id="tab-overview">
-                <div class="kpi-grid">
-                    <div class="kpi-card">
-                        <div class="kpi-top">
-                            <span class="kpi-label">Active Festivals</span>
-                            <div class="kpi-icon-wrap icon-blue"><i class="fa-solid fa-crown"></i></div>
+                <div class="action-bar" style="margin-bottom: 1.5rem; align-items: flex-end;">
+                    <div>
+                        <h2 style="font-size: 1.6rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem; letter-spacing: -0.02em;">Control Room</h2>
+                        <p style="color: var(--text-muted); font-size: 1.15rem; font-weight: 600;" id="sa-dash-greeting">Global Platform Health &amp; Multi-Tenant Telemetry</p>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                        <button class="btn btn-outline" onclick="loadInitialData(); renderAllViews();" title="Refresh Live Data">
+                            <i class="fa-solid fa-rotate-right"></i> Refresh
+                        </button>
+                        <button class="btn btn-primary" onclick="openCreateFestModal()">
+                            <i class="fa-solid fa-plus"></i> New Fest
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Top Stat Cards (Pastel colored - EXACT MATCH with admin.html) -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                    <!-- Rose -->
+                    <div style="background: linear-gradient(135deg, #FFE4E6 0%, #FECDD3 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
+                        <i class="fa-solid fa-crown" style="color: #E11D48; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                        <div style="font-size: 2rem; font-weight: 800; color: #881337; line-height: 1.2;" id="stat-fests-count">0</div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: #BE123C; margin-bottom: 0.5rem;"><span id="stat-active-fests-count">0</span> active tenants</div>
+                        <div style="font-size: 0.75rem; font-weight: 700; color: #9F1239; text-transform: uppercase;">Festivals Hub</div>
+                    </div>
+                    <!-- Sky Blue -->
+                    <div style="background: linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
+                        <i class="fa-solid fa-users" style="color: #0284C7; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                        <div style="font-size: 2rem; font-weight: 800; color: #0C4A6E; line-height: 1.2;" id="stat-participants-count">0</div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: #0369A1; margin-bottom: 0.5rem;"><span id="stat-comp-count-kpi">0</span> programmes across tenants</div>
+                        <div style="font-size: 0.75rem; font-weight: 700; color: #075985; text-transform: uppercase;">Total Participants</div>
+                    </div>
+                    <!-- Purple -->
+                    <div style="background: linear-gradient(135deg, #F3E8FF 0%, #E9D5FF 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
+                        <i class="fa-solid fa-user-shield" style="color: #7E22CE; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                        <div style="font-size: 2rem; font-weight: 800; color: #4C1D95; line-height: 1.2;" id="stat-admins-count">0</div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: #6B21A8; margin-bottom: 0.5rem;">Registered organizers &amp; staff</div>
+                        <div style="font-size: 0.75rem; font-weight: 700; color: #581C87; text-transform: uppercase;">Master Admins</div>
+                    </div>
+                    <!-- Emerald -->
+                    <div style="background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
+                        <i class="fa-solid fa-envelope-open-text" style="color: #059669; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                        <div style="font-size: 2rem; font-weight: 800; color: #064E3B; line-height: 1.2;" id="stat-enquiries-count">0</div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: #047857; margin-bottom: 0.5rem;">Lead inquiries received</div>
+                        <div style="font-size: 0.75rem; font-weight: 700; color: #065F46; text-transform: uppercase;">Client Inquiries</div>
+                    </div>
+                </div>
+
+                <!-- Middle row: Black card + Quick stats flex row -->
+                <div style="display: grid; grid-template-columns: 1fr 3fr; gap: 1.5rem; margin-bottom: 2rem;">
+                    <!-- Active Festival Spotlight (Black card) -->
+                    <div style="background: #000000; padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); color: white; display: flex; flex-direction: column; justify-content: space-between;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="font-size: 0.8rem; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.05em;">Active Festival</div>
+                            <i class="fa-solid fa-crown" style="color: #FBBF24;"></i>
                         </div>
-                        <div class="kpi-val" id="stat-fests-count">1</div>
-                        <p style="font-size: 0.75rem; color: var(--success); font-weight: 700;"><i class="fa-solid fa-check"></i> Multi-tenant ready</p>
+                        <div style="margin-top: 1rem;">
+                            <div style="font-size: 1.6rem; font-weight: 800; color: white; line-height: 1.2; word-break: break-word;" id="dash-active-fest-name">Loading...</div>
+                            <div style="font-size: 0.9rem; font-weight: 600; color: #9CA3AF;" id="dash-active-fest-slug">festos.app</div>
+                        </div>
                     </div>
 
-                    <div class="kpi-card">
-                        <div class="kpi-top">
-                            <span class="kpi-label">Client Inquiries</span>
-                            <div class="kpi-icon-wrap icon-amber"><i class="fa-solid fa-envelope-open-text"></i></div>
+                    <!-- Stats flex row with dividers -->
+                    <div class="stats-flex-row" style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); overflow-x: auto;">
+                        <div style="padding: 0 1rem;">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Multi-Tenant Status</div>
+                            <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);"><span id="dash-live-fests-val">100%</span> Online</div>
                         </div>
-                        <div class="kpi-val" id="stat-enquiries-count">0</div>
-                        <p style="font-size: 0.75rem; color: var(--text-muted);">From Public Website</p>
+                        <div style="width: 1px; height: 40px; background: var(--border);"></div>
+                        <div style="padding: 0 1rem;">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Active Broadcasts</div>
+                            <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);"><span id="dash-broadcast-count-val">0</span> published</div>
+                        </div>
+                        <div style="width: 1px; height: 40px; background: var(--border);"></div>
+                        <div style="padding: 0 1rem;">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Cloud Storage</div>
+                            <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);"><span id="dash-storage-val">&lt; 5 MB</span> used</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Multi-Tenant Resource Consumption & Progress HUD -->
+                <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.75rem; box-shadow: var(--shadow-sm);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+                        <div>
+                            <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">
+                                Multi-Tenant Resource &amp; Progress Meter
+                            </h2>
+                            <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">Real-time resource distribution, competition completion rates, and storage consumption across all tenants.</p>
+                        </div>
+                        <button class="btn btn-outline" onclick="loadInitialData(); renderAllViews();" title="Refresh Telemetry">
+                            <i class="fa-solid fa-rotate-right"></i> Refresh
+                        </button>
                     </div>
 
-                    <div class="kpi-card">
-                        <div class="kpi-top">
-                            <span class="kpi-label">Master Admins</span>
-                            <div class="kpi-icon-wrap icon-pink"><i class="fa-solid fa-user-shield"></i></div>
+                    <div class="resource-meter-grid">
+                        <!-- Competitions Conducted -->
+                        <div class="resource-meter-card">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 700;">
+                                <span style="color: var(--text-main);">Competitions Judged</span>
+                                <span id="meter-comp-ratio" style="color: var(--primary);">0 / 0 (0%)</span>
+                            </div>
+                            <div class="progress-track" style="margin-top: 8px;">
+                                <div class="progress-fill" id="meter-comp-bar" style="width: 0%; background: var(--primary-gradient);"></div>
+                            </div>
+                            <p style="font-size: 0.74rem; color: var(--text-muted); margin-top: 8px;" id="meter-comp-sub">0 total programs active across tenants</p>
                         </div>
-                        <div class="kpi-val" id="stat-admins-count">0</div>
-                        <p style="font-size: 0.75rem; color: var(--text-muted);">Assigned to specific fests</p>
-                    </div>
 
-                    <div class="kpi-card">
-                        <div class="kpi-top">
-                            <span class="kpi-label">Registered Participants</span>
-                            <div class="kpi-icon-wrap icon-green"><i class="fa-solid fa-users"></i></div>
+                        <!-- Judgements Submitted -->
+                        <div class="resource-meter-card">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 700;">
+                                <span style="color: var(--text-main);">Scoring Evaluations</span>
+                                <span id="meter-judge-count" style="color: var(--amber);">0 Scores</span>
+                            </div>
+                            <div class="progress-track" style="margin-top: 8px;">
+                                <div class="progress-fill" id="meter-judge-bar" style="width: 0%; background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);"></div>
+                            </div>
+                            <p style="font-size: 0.74rem; color: var(--text-muted); margin-top: 8px;">Live Olympic &amp; weighted judge score submissions</p>
                         </div>
-                        <div class="kpi-val" id="stat-participants-count">0</div>
-                        <p style="font-size: 0.75rem; color: var(--success); font-weight: 700;"><i class="fa-solid fa-badge-check"></i> Total Enrolled</p>
+
+                        <!-- Storage & Media Assets -->
+                        <div class="resource-meter-card">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 700;">
+                                <span style="color: var(--text-main);">Media &amp; Asset Storage</span>
+                                <span id="meter-storage-est" style="color: var(--success);">< 5 MB</span>
+                            </div>
+                            <div class="progress-track" style="margin-top: 8px;">
+                                <div class="progress-fill" id="meter-storage-bar" style="width: 15%; background: linear-gradient(135deg, #10B981 0%, #059669 100%);"></div>
+                            </div>
+                            <p style="font-size: 0.74rem; color: var(--text-muted); margin-top: 8px;">Photos, chest barcodes, audio files &amp; posters</p>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Active Festival Spotlight -->
-                <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.75rem; box-shadow: var(--shadow-sm);">
+                <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.75rem; box-shadow: var(--shadow-sm);">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
                         <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">
-                            <i class="fa-solid fa-sparkles" style="color: var(--primary);"></i> Active Festival Spotlight
+                            Active Festival Spotlight
                         </h2>
                         <button class="btn btn-outline" onclick="switchSuperTab('tab-festivals')">
                             All Festivals <i class="fa-solid fa-arrow-right"></i>
@@ -771,14 +1176,14 @@
                 </div>
 
                 <!-- Recent Activity Stream -->
-                <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-sm);">
+                <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-sm);">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
                         <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">
-                            <i class="fa-solid fa-clock-rotate-left" style="color: var(--cyan);"></i> Real-Time Audit Stream
+                            Real-Time Audit Stream
                         </h2>
                         <button class="btn btn-outline" onclick="switchSuperTab('tab-logs')">Full Logs</button>
                     </div>
-                    <div class="terminal-box" id="overview-audit-list">
+                    <div class="logs-console-box" id="overview-audit-list">
                         <!-- Populated dynamically -->
                     </div>
                 </div>
@@ -788,6 +1193,13 @@
             <!-- TAB 2: FESTIVALS MANAGEMENT -->
             <!-- ========================================================= -->
             <section class="content-section" id="tab-festivals">
+                <div class="section-head">
+                    <div>
+                        <h2>Festivals Hub</h2>
+                        <p>Create tenants, reserve their subdomain under <strong>festos.clubad.space</strong>, and control each festival's module access.</p>
+                    </div>
+                </div>
+
                 <div class="controls-bar">
                     <div class="search-box">
                         <i class="fa-solid fa-magnifying-glass"></i>
@@ -800,8 +1212,49 @@
                         <option value="completed">Completed</option>
                         <option value="archived">Archived</option>
                     </select>
+
+                    <div class="view-switch-group">
+                        <button class="view-btn active" id="btn-view-cards" onclick="setFestivalsViewMode('cards')" title="Card Grid View">
+                            <i class="fa-solid fa-grip"></i> Cards
+                        </button>
+                        <button class="view-btn" id="btn-view-table" onclick="setFestivalsViewMode('table')" title="Compact Data Table View">
+                            <i class="fa-solid fa-list"></i> Table
+                        </button>
+                    </div>
+
+                    <button class="btn btn-outline" onclick="openRestoreFestModal()" title="Restore Festival from JSON Backup">
+                        <i class="fa-solid fa-upload"></i> Restore
+                    </button>
                     <button class="btn btn-primary" onclick="openCreateFestModal()">
                         <i class="fa-solid fa-plus"></i> Create Festival
+                    </button>
+                </div>
+
+                <!-- Multi-Column Quick Filter Chips -->
+                <div class="filter-chips-row" id="fest-filter-chips">
+                    <button class="filter-chip-btn active" data-filter="all" onclick="applyFestFilterChip('all')">
+                        <i class="fa-solid fa-layer-group"></i> All Festivals
+                    </button>
+                    <button class="filter-chip-btn" data-filter="active" onclick="applyFestFilterChip('active')">
+                        <i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Active
+                    </button>
+                    <button class="filter-chip-btn" data-filter="upcoming" onclick="applyFestFilterChip('upcoming')">
+                        <i class="fa-solid fa-calendar-days" style="color:var(--amber);"></i> Upcoming
+                    </button>
+                    <button class="filter-chip-btn" data-filter="completed" onclick="applyFestFilterChip('completed')">
+                        <i class="fa-solid fa-flag-checkered" style="color:var(--primary);"></i> Completed
+                    </button>
+                    <button class="filter-chip-btn" data-filter="archived" onclick="applyFestFilterChip('archived')">
+                        <i class="fa-solid fa-box-archive"></i> Archived
+                    </button>
+                    <button class="filter-chip-btn" data-filter="feat_judging" onclick="applyFestFilterChip('feat_judging')">
+                        <i class="fa-solid fa-gavel"></i> Judging Engine
+                    </button>
+                    <button class="filter-chip-btn" data-filter="feat_stage" onclick="applyFestFilterChip('feat_stage')">
+                        <i class="fa-solid fa-tv"></i> Stage Display
+                    </button>
+                    <button class="filter-chip-btn" data-filter="feat_qr" onclick="applyFestFilterChip('feat_qr')">
+                        <i class="fa-solid fa-qrcode"></i> Spectator QR
                     </button>
                 </div>
 
@@ -810,8 +1263,95 @@
                     <!-- Populated dynamically -->
                 </div>
 
+                <!-- Card Grid View -->
                 <div class="fest-grid" id="festivals-cards-container">
                     <!-- Populated dynamically -->
+                </div>
+
+                <!-- Table View -->
+                <div class="table-responsive" id="festivals-table-container" style="display: none;">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Festival & Domain</th>
+                                <th>Slug Prefix</th>
+                                <th>Status</th>
+                                <th>Dates & Venue</th>
+                                <th>Staff & Admins</th>
+                                <th style="text-align: right;">Quick Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="festivals-table-tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ========================================================= -->
+            <!-- TAB: EMERGENCY BROADCASTS & MASTER NOTIFICATIONS -->
+            <!-- ========================================================= -->
+            <section class="content-section" id="tab-broadcasts">
+                <div class="section-head">
+                    <div>
+                        <h2>Emergency Broadcasts &amp; Master Notices</h2>
+                        <p>Publish real-time banners and notices across all active portals (Admin, Stage, Judge, Manager) with optional file attachments.</p>
+                    </div>
+                </div>
+
+                <div class="controls-bar">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="broadcast-search-input" placeholder="Search broadcasts by title or message..." oninput="renderBroadcastsTab()">
+                    </div>
+                    <select class="filter-select" id="broadcast-severity-filter" onchange="renderBroadcastsTab()">
+                        <option value="all">All Severities</option>
+                        <option value="info">Info (Blue)</option>
+                        <option value="warning">Warning (Amber)</option>
+                        <option value="danger">Urgent / Critical (Red)</option>
+                        <option value="success">Success (Green)</option>
+                    </select>
+                    <button class="btn btn-outline" onclick="loadBroadcastsFromDatabase();" title="Refresh Broadcasts">
+                        <i class="fa-solid fa-rotate-right"></i> Refresh
+                    </button>
+                    <button class="btn btn-primary" onclick="openCreateBroadcastModal()">
+                        <i class="fa-solid fa-plus"></i> New Broadcast
+                    </button>
+                </div>
+
+                <!-- Active Broadcasts Grid -->
+                <div style="margin-bottom: 2rem;">
+                    <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 1rem;">
+                        Active Emergency Banners
+                    </h3>
+                    <div id="broadcasts-active-grid" class="fest-grid">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Broadcasts History Table -->
+                <div>
+                    <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 1rem;">
+                        Broadcasts History &amp; Archives
+                    </h3>
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Severity</th>
+                                    <th>Title & Message</th>
+                                    <th>Audience Target</th>
+                                    <th>Attachment</th>
+                                    <th>Status</th>
+                                    <th>Created Time</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="broadcasts-history-tbody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
 
@@ -888,16 +1428,16 @@
                         <span id="bulk-selected-count">0</span> Accounts Selected
                     </div>
                     <div class="bulk-btn-group">
-                        <button class="btn btn-outline" style="background:#FFF;" onclick="openBulkReassignModal()">
+                        <button class="btn btn-outline" style="background: var(--bg-surface);" onclick="openBulkReassignModal()">
                             <i class="fa-solid fa-crown" style="color:var(--amber);"></i> Reassign Fest
                         </button>
-                        <button class="btn btn-outline" style="background:#FFF;" onclick="openBulkRoleModal()">
+                        <button class="btn btn-outline" style="background: var(--bg-surface);" onclick="openBulkRoleModal()">
                             <i class="fa-solid fa-user-shield" style="color:var(--primary);"></i> Change Role
                         </button>
                         <button class="btn btn-danger" onclick="triggerBulkDeleteUsersDialog()">
                             <i class="fa-solid fa-trash-can"></i> Delete Selected
                         </button>
-                        <button class="btn btn-outline" style="background:#FFF;" onclick="clearUserSelections()">
+                        <button class="btn btn-outline" style="background: var(--bg-surface);" onclick="clearUserSelections()">
                             <i class="fa-solid fa-xmark"></i> Deselect
                         </button>
                     </div>
@@ -931,11 +1471,11 @@
             <section class="content-section" id="tab-global-branding">
                 <div class="branding-studio-grid">
                     <!-- Left: Configuration Form -->
-                    <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; box-shadow: var(--shadow-sm); width: 100%; box-sizing: border-box;">
+                    <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; box-shadow: var(--shadow-sm); width: 100%; box-sizing: border-box;">
                         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
                             <div>
                                 <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">
-                                    <i class="fa-solid fa-palette" style="color: var(--primary);"></i> Global Software Branding
+                                    Global Software Branding
                                 </h2>
                                 <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 3px;">White-label or rebrand the entire FestOS platform name, logo, title, and theme accents.</p>
                             </div>
@@ -998,8 +1538,7 @@
                     <!-- Right: Live Visual Preview Mockup -->
                     <div class="branding-preview-mockup">
                         <div style="display: flex; align-items: center; justify-content: space-between;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <i class="fa-solid fa-eye" style="color: var(--cyan);"></i>
+                            <div>
                                 <span style="font-weight: 700; font-size: 0.95rem;">Live Visual Mockup Preview</span>
                             </div>
                             <span class="diag-pill diag-pass">Real-Time Sync</span>
@@ -1080,7 +1619,7 @@
                     </button>
                 </div>
 
-                <div class="terminal-box" id="full-logs-console" style="max-height: 550px;">
+                <div class="logs-console-box" id="full-logs-console" style="max-height: 550px;">
                     <!-- Populated dynamically -->
                 </div>
             </section>
@@ -1114,7 +1653,7 @@
                     <!-- 1. Supabase Cloud DB -->
                     <div class="diag-item-card">
                         <div class="diag-header">
-                            <span style="font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-database" style="color:var(--primary); margin-right:6px;"></i> Supabase Database</span>
+                            <span style="font-weight: 700; font-size: 0.9rem;">Supabase Database</span>
                             <span class="diag-pill diag-pass" id="diag-db-pill">Checking...</span>
                         </div>
                         <div style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);" id="diag-db-val">-- ms</div>
@@ -1124,7 +1663,7 @@
                     <!-- 2. Tables Verification -->
                     <div class="diag-item-card">
                         <div class="diag-header">
-                            <span style="font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-table-cells" style="color:var(--cyan); margin-right:6px;"></i> Schema Integrity</span>
+                            <span style="font-weight: 700; font-size: 0.9rem;">Schema Integrity</span>
                             <span class="diag-pill diag-pass" id="diag-tables-pill">Verified</span>
                         </div>
                         <div style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);" id="diag-tables-val">7 Tables Active</div>
@@ -1134,7 +1673,7 @@
                     <!-- 3. WebSocket Realtime Channels -->
                     <div class="diag-item-card">
                         <div class="diag-header">
-                            <span style="font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-tower-broadcast" style="color:var(--success); margin-right:6px;"></i> Real-Time Engine</span>
+                            <span style="font-weight: 700; font-size: 0.9rem;">Real-Time Engine</span>
                             <span class="diag-pill diag-pass" id="diag-ws-pill">Active</span>
                         </div>
                         <div style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);" id="diag-ws-val">Synchronized</div>
@@ -1144,7 +1683,7 @@
                     <!-- 4. LocalStorage & Offline Cache -->
                     <div class="diag-item-card">
                         <div class="diag-header">
-                            <span style="font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-hard-drive" style="color:var(--amber); margin-right:6px;"></i> Local Cache & Quota</span>
+                            <span style="font-weight: 700; font-size: 0.9rem;">Local Cache & Quota</span>
                             <span class="diag-pill diag-pass" id="diag-storage-pill">Healthy</span>
                         </div>
                         <div style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);" id="diag-storage-val">< 1 MB Used</div>
@@ -1153,9 +1692,9 @@
                 </div>
 
                 <!-- Self-Healing & Diagnostic Action Center -->
-                <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; box-shadow: var(--shadow-sm); margin-bottom: 1.75rem;">
+                <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; box-shadow: var(--shadow-sm); margin-bottom: 1.75rem;">
                     <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">
-                        <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--primary);"></i> One-Click Self-Healing & Maintenance Tools
+                        One-Click Self-Healing &amp; Maintenance Tools
                     </h3>
                     <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">Resolve syncing errors, flush stale browser caches, repair multi-tenant tables, or re-verify database indexes.</p>
                     
@@ -1172,11 +1711,31 @@
                     </div>
                 </div>
 
+                <!-- Supabase Cloud Storage Buckets & Media Assets Inspector -->
+                <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; box-shadow: var(--shadow-sm); margin-bottom: 1.75rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+                        <div>
+                            <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">
+                                Supabase Storage Buckets &amp; Media Inspector
+                            </h3>
+                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">Inspect cloud storage buckets, file counts, and media assets (photos, audio submissions, admit cards).</p>
+                        </div>
+                        <button class="btn btn-outline" onclick="inspectStorageBuckets()">
+                            <i class="fa-solid fa-magnifying-glass-chart"></i> Inspect Storage
+                        </button>
+                    </div>
+                    <div id="storage-inspector-results" style="display: flex; flex-direction: column; gap: 10px;">
+                        <div style="text-align: center; padding: 1.25rem; color: var(--text-muted); font-size: 0.85rem;">
+                            Click "Inspect Storage" to scan Supabase storage buckets and count media assets across all festivals.
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Diagnostic Test Results Console -->
-                <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-sm);">
+                <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-sm);">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
                         <h4 style="font-size: 1rem; font-weight: 700; color: var(--text-main);">
-                            <i class="fa-solid fa-list-check" style="color: var(--cyan);"></i> Detailed Component Diagnostics Log
+                            Detailed Component Diagnostics Log
                         </h4>
                         <span style="font-size: 0.75rem; color: var(--text-muted);" id="diag-last-checked">Last checked: Just now</span>
                     </div>
@@ -1213,11 +1772,11 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Unique Fest Code / Slug *</label>
-                            <input type="text" class="form-control" id="modal-fest-slug" placeholder="e.g. zenith26" required oninput="updateDomainPreview(this.value)">
+                            <input type="text" class="form-control" id="modal-fest-slug" placeholder="e.g. sahi26" required oninput="updateDomainPreview(this.value)">
                         </div>
                         <div class="form-group">
                             <label>Reserved Subdomain</label>
-                            <input type="text" class="form-control" id="modal-fest-domain" placeholder="e.g. zenith26.festos.app">
+                            <input type="text" class="form-control" id="modal-fest-domain" placeholder="e.g. sahi26.festos.clubad.space" oninput="refreshModalDomainPreview()">
                         </div>
                     </div>
 
@@ -1233,7 +1792,27 @@
                         </div>
                         <div class="form-group">
                             <label>Public Results Sub-Slug</label>
-                            <input type="text" class="form-control" id="modal-fest-results-slug" value="results">
+                            <input type="text" class="form-control" id="modal-fest-results-slug" value="results" oninput="refreshModalDomainPreview()">
+                        </div>
+                    </div>
+
+                    <!-- Live domain / URL preview -->
+                    <div class="domain-preview-card" id="modal-domain-preview">
+                        <div class="domain-preview-head">
+                            <span><i class="fa-solid fa-globe"></i> Live Domain Preview</span>
+                            <span class="domain-preview-base">festos.clubad.space</span>
+                        </div>
+                        <div class="domain-preview-row">
+                            <span class="domain-preview-label">Festival site</span>
+                            <code id="preview-fest-url">—</code>
+                            <button type="button" class="domain-mini-btn" onclick="copyPreviewUrl('preview-fest-url')" title="Copy URL"><i class="fa-solid fa-copy"></i></button>
+                            <a class="domain-mini-btn" id="preview-fest-open" href="#" target="_blank" rel="noopener" title="Open URL"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                        </div>
+                        <div class="domain-preview-row">
+                            <span class="domain-preview-label">Public results</span>
+                            <code id="preview-results-url">—</code>
+                            <button type="button" class="domain-mini-btn" onclick="copyPreviewUrl('preview-results-url')" title="Copy URL"><i class="fa-solid fa-copy"></i></button>
+                            <a class="domain-mini-btn" id="preview-results-open" href="#" target="_blank" rel="noopener" title="Open URL"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
                         </div>
                     </div>
 
@@ -1254,8 +1833,16 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Logo URL (PNG / SVG / WebP)</label>
-                        <input type="url" class="form-control" id="modal-fest-logo" placeholder="https://example.com/logo.png">
+                        <label>Festival Logo (URL, Upload Image, or Base64)</label>
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <input type="text" class="form-control" id="modal-fest-logo" placeholder="festos-logo.svg, https://... or image data" style="flex: 1; min-width: 200px;" oninput="updateModalFestLogoPreview(this.value)">
+                            <label class="btn btn-outline" style="cursor: pointer; margin: 0; padding: 0.65rem 1rem; display: flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 0.85rem;">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> Upload
+                                <input type="file" id="modal-fest-logo-file" accept="image/*" style="display: none;" onchange="handleModalFestLogoUpload(this)">
+                            </label>
+                            <img id="modal-fest-logo-preview" src="festos-logo.svg" alt="Preview" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--border); object-fit: contain; padding: 4px; background: var(--bg-main); flex-shrink: 0;" onerror="this.onerror=null; this.src='festos-logo.svg';">
+                        </div>
+                        <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px;">Custom logo uploaded by the Master Admin in festival branding settings is automatically reflected here.</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1438,7 +2025,7 @@
     <div class="modal-overlay" id="saSecurityModal">
         <div class="modal-card">
             <div class="modal-header">
-                <h3><i class="fa-solid fa-shield-halved" style="color:var(--primary);"></i> Super Admin Account Security</h3>
+                <h3>Super Admin Account Security</h3>
                 <button onclick="closeModal('saSecurityModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
@@ -1479,9 +2066,156 @@
                 <h3 style="font-size: 1.2rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem;" id="confirm-dialog-title">Confirm Action</h3>
                 <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.45;" id="confirm-dialog-msg">Are you sure you want to proceed?</p>
             </div>
-            <div class="modal-footer" style="justify-content: center; background: #FFF; padding-bottom: 1.75rem; border-top: none;">
+            <div class="modal-footer" style="justify-content: center; background: var(--bg-surface); padding-bottom: 1.75rem; border-top: none;">
                 <button type="button" class="btn btn-outline" onclick="closeModal('confirmDialogModal')">Cancel</button>
                 <button type="button" class="btn btn-primary" id="confirm-dialog-btn-action">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL: GLOBAL OMNISEARCH COMMAND PALETTE (CTRL+K) -->
+    <!-- ========================================================= -->
+    <div class="modal-overlay" id="commandPaletteModal" onclick="if(event.target===this) closeCommandPalette()">
+        <div class="modal-card cmd-palette-card">
+            <div class="cmd-header">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" class="cmd-input" id="cmd-palette-input" placeholder="Search festivals, master admins, leads, or actions..." oninput="onCommandPaletteInput(this.value)">
+                <button onclick="closeCommandPalette()" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.1rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="cmd-results" id="cmd-palette-results">
+                <!-- Dynamically populated -->
+            </div>
+            <div class="cmd-footer">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span><kbd style="padding:1px 4px; border:1px solid var(--border); border-radius:3px;">&uarr;</kbd> <kbd style="padding:1px 4px; border:1px solid var(--border); border-radius:3px;">&darr;</kbd> Navigate</span>
+                    <span><kbd style="padding:1px 4px; border:1px solid var(--border); border-radius:3px;">Enter</kbd> Select</span>
+                    <span><kbd style="padding:1px 4px; border:1px solid var(--border); border-radius:3px;">Esc</kbd> Close</span>
+                </div>
+                <div>FestOS Omnisearch Engine</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL: COMPOSE EMERGENCY BROADCAST / NOTICE -->
+    <!-- ========================================================= -->
+    <div class="modal-overlay" id="broadcastModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="broadcast-modal-title">Send System Broadcast &amp; Alert</h3>
+                <button onclick="closeModal('broadcastModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="broadcast-form" onsubmit="event.preventDefault(); submitBroadcastForm();">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Broadcast Title *</label>
+                        <input type="text" class="form-control" id="bcast-title" placeholder="e.g. Scheduled System Maintenance / Important Update" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Message Content *</label>
+                        <textarea class="form-control" id="bcast-message" rows="3" placeholder="Provide full details, timing, or instructions for master admins & staff..." required style="resize:vertical;"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Severity Level</label>
+                            <select class="form-control" id="bcast-severity">
+                                <option value="info">Info (Blue Notice)</option>
+                                <option value="warning">Warning (Amber Attention)</option>
+                                <option value="danger">Urgent / Critical (Red Alert)</option>
+                                <option value="success">Success / Resolution (Green)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Audience Target</label>
+                            <select class="form-control" id="bcast-target">
+                                <option value="all">All Portals (Admin, Stage, Judge, Manager)</option>
+                                <option value="master_admin">Master Admins & Staff Only</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Target Specific Festival (Optional)</label>
+                        <select class="form-control" id="bcast-fest-target">
+                            <option value="all">Global Broadcast (All Active Festivals)</option>
+                            <!-- Dynamically populated with festivals -->
+                        </select>
+                    </div>
+
+                    <!-- File Attachment Section -->
+                    <div class="form-group">
+                        <label>Attach File or Document (Optional)</label>
+                        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                            <label class="btn btn-outline" style="cursor:pointer; margin:0; padding:0.65rem 1rem; display:flex; align-items:center; gap:6px; font-size:0.85rem;">
+                                <i class="fa-solid fa-paperclip"></i> Choose File
+                                <input type="file" id="bcast-file-input" style="display:none;" onchange="handleBroadcastFileSelect(this)">
+                            </label>
+                            <span id="bcast-file-name" style="font-size:0.8rem; color:var(--text-muted); font-style:italic;">No file selected</span>
+                            <button type="button" id="bcast-clear-file-btn" onclick="clearBroadcastFile()" style="display:none; background:none; border:none; color:var(--danger); cursor:pointer; font-size:0.9rem;" title="Remove attachment">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--bg-main); border:1px solid var(--border); border-radius:var(--radius-md);">
+                        <input type="checkbox" id="bcast-is-banner" checked class="custom-chk" style="width:18px; height:18px; cursor:pointer;">
+                        <label for="bcast-is-banner" style="font-size:0.85rem; font-weight:600; cursor:pointer; margin:0; text-transform:none;">
+                            Display as persistent top banner on active client screens
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('broadcastModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-broadcast">
+                        <i class="fa-solid fa-paper-plane"></i> Publish Broadcast
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL: RESTORE FESTIVAL SNAPSHOT -->
+    <!-- ========================================================= -->
+    <div class="modal-overlay" id="restoreFestModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Restore Festival From JSON Snapshot</h3>
+                <button onclick="closeModal('restoreFestModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:0.88rem; color:var(--text-muted); line-height:1.45;">
+                    Upload an official FestOS backup snapshot JSON file. The system will inspect categories, competitions, participants, judgements, and restore them securely.
+                </p>
+                <div style="border: 2px dashed var(--border); border-radius:var(--radius-lg); padding:2rem 1.5rem; text-align:center; background:var(--bg-main);">
+                    <i class="fa-solid fa-file-code" style="font-size:2.5rem; color:var(--primary); margin-bottom:0.75rem;"></i>
+                    <div style="font-weight:700; font-size:0.95rem; margin-bottom:4px;">Select FestOS Snapshot File (.JSON)</div>
+                    <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:1rem;">Exports created with FestOS v2.0</div>
+                    <label class="btn btn-primary" style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;">
+                        <i class="fa-solid fa-folder-open"></i> Browse Files
+                        <input type="file" id="restore-file-input" accept=".json,application/json" style="display:none;" onchange="handleRestoreFileSelected(this)">
+                    </label>
+                </div>
+
+                <div id="restore-preview-area" style="display:none; background:var(--bg-main); border:1px solid var(--border); border-radius:var(--radius-md); padding:1rem;">
+                    <h4 style="font-size:0.9rem; font-weight:800; margin-bottom:6px; color:var(--text-main);" id="restore-fest-name-preview">Festival: Zenith Fest 2026</h4>
+                    <div style="font-size:0.78rem; color:var(--text-muted);" id="restore-stats-preview">0 participants, 0 competitions, 0 judgements</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('restoreFestModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btn-proceed-restore" onclick="executeFestivalRestore()" disabled>
+                    <i class="fa-solid fa-check"></i> Restore Data
+                </button>
             </div>
         </div>
     </div>

@@ -5,7 +5,7 @@
 
 const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
-const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+const supabaseClient = window.supabaseClient || (window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null);
 if (typeof window !== 'undefined') window.supabaseClient = supabaseClient;
 
 // DOM Elements
@@ -167,11 +167,13 @@ if (loginForm) {
             if (data.password_hash !== password) throw new Error('Incorrect password. Please try again.');
 
             // Multi-tenant festival scoping
-            if (!data.fest_id) {
-                const prefix = (data.username || '').split('_')[0].toLowerCase();
+            if (data.role === 'super_admin') {
+                data.fest_id = null;
+            } else if (!data.fest_id) {
+                const prefix = (data.username || '').split('_')[0].toLowerCase().trim();
                 if (prefix === 'zenith26' || prefix === 'zenith') {
                     data.fest_id = 'fest_zenith_2026';
-                } else if (prefix.length > 2) {
+                } else if (/^[a-z0-9]{3,20}$/.test(prefix) && prefix !== 'superadmin' && prefix !== 'admin') {
                     data.fest_id = `fest_${prefix}`;
                 } else {
                     data.fest_id = 'fest_zenith_2026';
@@ -180,10 +182,15 @@ if (loginForm) {
 
             // Handle "Save Login" persistent session & active fest
             if (typeof festosAuth !== 'undefined') {
+                if (data.role === 'super_admin') {
+                    festosAuth.setSuperAdmin(data);
+                }
                 festosAuth.setUser(data, rememberMe);
             } else {
                 localStorage.setItem('festUser', JSON.stringify(data));
-                if (data.fest_id) {
+                if (data.role === 'super_admin') {
+                    localStorage.setItem('festSuperAdmin', JSON.stringify(data));
+                } else if (data.fest_id) {
                     localStorage.setItem('festos_active_fest_id', data.fest_id);
                 }
                 if (rememberMe) {

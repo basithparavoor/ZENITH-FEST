@@ -1315,9 +1315,10 @@
         const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
 
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        const supabaseClient = window.supabaseClient || (window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
             auth: { persistSession: false }
-        });
+        }) : null);
+        if (typeof window !== 'undefined') window.supabaseClient = supabaseClient;
 
         // Default System Config
         let SYSTEM_SETTINGS = {
@@ -1854,6 +1855,8 @@
         // --- Main Init ---
         async function init() {
             try {
+                // Wait for subdomain -> festival resolution (e.g. sahi26.festos.clubad.space)
+                if (window.festosHostFestReady) { try { await window.festosHostFestReady; } catch (e) {} }
                 // Fetch Website Config
                 const webCfgVal = window.festosGetSetting ? await window.festosGetSetting('website_config') : null;
                 const webCfgData = webCfgVal ? { value: webCfgVal } : (await supabaseClient.from('settings').select('value').eq('id', 'website_config').maybeSingle()).data;
@@ -1945,12 +1948,13 @@
                     globalJudgements = judgements || [];
 
                     // Fetch squad / participant_competitions data for team members
+                    let partComps = [];
                     try {
-                        const { data: partComps } = await supabaseClient
+                        const { data } = await supabaseClient
                             .from('participant_competitions')
                             .select('competition_id, participant_id, is_leader, participants(id, name, unique_id, team_id, photo_url)')
                             .in('competition_id', compIds);
-
+                        partComps = data || [];
                         if (partComps) {
                             partComps.forEach(pc => {
                                 if (!competitionParticipantsMap[pc.competition_id]) {
@@ -1962,6 +1966,24 @@
                     } catch (e) {
                         console.warn("Could not fetch participant_competitions:", e);
                     }
+
+                    // Merge participant class mappings
+                    try {
+                        let partClassMap = {};
+                        if (window.festosGetSetting) {
+                            partClassMap = (await window.festosGetSetting('participant_classes')) || {};
+                        }
+                        globalJudgements.forEach(j => {
+                            if (j.participants) {
+                                j.participants.class_name = j.participants.class_name || partClassMap[j.participants.id] || '';
+                            }
+                        });
+                        partComps.forEach(pc => {
+                            if (pc.participants) {
+                                pc.participants.class_name = pc.participants.class_name || partClassMap[pc.participants.id] || '';
+                            }
+                        });
+                    } catch(e) {}
 
                     populateTimelineDropdown(); 
                     applyTimelineFilter();
@@ -2396,11 +2418,14 @@
                         if (teamMembers.length > 0) {
                             squadChipsHtml = `<div class="squad-chips-wrap">` + teamMembers.map(m => `
                                 <span class="squad-chip ${m.is_leader ? 'leader' : ''}">
-                                    ${m.is_leader ? '★ ' : ''}${m.participants?.name || 'Contestant'}
+                                    ${m.is_leader ? '★ ' : ''}${m.participants?.name || 'Contestant'}${m.participants?.class_name ? ` (${m.participants.class_name})` : ''}
                                 </span>
                             `).join('') + `</div>`;
                         }
                     }
+                    
+                    // Display class badge if available
+                    const classBadge = entry.participant.class_name ? `<span style="font-size:0.75rem; background:#EEF2FF; color:#4F46E5; padding:2px 8px; border-radius:12px; margin-left:6px; font-weight:700; vertical-align:middle; border:1px solid #C7D2FE;"><i class="fa-solid fa-graduation-cap" style="margin-right:3px;"></i>${entry.participant.class_name}</span>` : '';
                     
                     // NOTE: NO POINTS OR GRADES SHOWN in event results as requested
                     winnersList.innerHTML += `
@@ -2408,7 +2433,7 @@
                             <div class="winner-main-row">
                                 <div class="w-rank">${rankDisplay}</div>
                                 <div class="w-details" style="flex: 1;">
-                                    <h4>${entry.participant.name}</h4>
+                                    <h4>${entry.participant.name}${classBadge}</h4>
                                     <p>${teamName} • <span style="color: var(--primary); font-weight: 700;">${posText}</span></p>
                                 </div>
                             </div>
@@ -2902,25 +2927,28 @@
         // --- Global Branding ---
         async function fetchAndApplyBranding() {
             try {
-                const { data, error } = await supabaseClient
-                    .from('settings')
-                    .select('value')
-                    .eq('id', 'system_branding')
-                    .maybeSingle();
-
-                if (error) throw error;
-                if (data && data.value) applyGlobalBranding(data.value);
+                const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+                let val = window.festosGetSetting ? await window.festosGetSetting('system_branding', festId) : null;
+                if (!val && festId && typeof supabaseClient !== 'undefined') {
+                    const { data: fData } = await supabaseClient.from('fests').select('name, logo').eq('id', festId).maybeSingle();
+                    if (fData && (fData.name || fData.logo)) {
+                        val = { fest_name: fData.name, fest_logo: fData.logo, display_mode: fData.logo ? 'both' : 'name' };
+                    }
+                }
+                if (val) applyGlobalBranding(val);
             } catch (e) {
                 console.warn("Could not fetch global branding:", e.message);
             }
         }
 
         function applyGlobalBranding(brandingData) {
+            if (!brandingData) return;
             const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
-            const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+            const rawLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '' ? brandingData.fest_logo.trim() : '';
+            const validLogo = rawLogo !== '' && rawLogo !== 'festos-logo.svg' && rawLogo !== '/festos-logo.svg';
             const displayMode = brandingData.display_mode || 'both'; 
             
-            const festName = validName ? brandingData.fest_name : 'FestOS';
+            const festName = validName ? brandingData.fest_name : 'Festival';
             document.title = `${festName} | Live Public Results`;
 
             if (validLogo) {

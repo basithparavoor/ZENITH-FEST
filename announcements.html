@@ -843,7 +843,8 @@
     <script>
         const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const supabaseClient = window.supabaseClient || (window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null);
+        if (typeof window !== 'undefined') window.supabaseClient = supabaseClient;
 
         let systemBranding = { fest_name: 'FestOS' };
        let systemSettings = {
@@ -860,14 +861,14 @@
 
      // --- AUTH CHECK ---
         const user = JSON.parse(localStorage.getItem('festUser'));
-        if (!user || (user.role !== 'announcer' && user.role !== 'master_admin' && user.role !== 'admin')) {
+        if (!user || (user.role !== 'announcer' && user.role !== 'master_admin' && user.role !== 'admin' && user.role !== 'super_admin')) {
             window.location.href = 'index.html'; 
         } else {
             initializePortal();
         }
 
         // --- INJECT ADMIN HUB RETURN BUTTON ---
-        if (user.role === 'master_admin' || user.role === 'admin') {
+        if (user.role === 'master_admin' || user.role === 'admin' || user.role === 'super_admin') {
             document.addEventListener("DOMContentLoaded", () => {
                 const headerRight = document.querySelector('.header > div:last-child');
                 
@@ -920,6 +921,7 @@
 
         // --- INITIALIZATION & FETCHING ---
         async function initializePortal() {
+            if (window.festosHostFestReady) { try { await window.festosHostFestReady; } catch (e) {} }
             let stagesQuery = supabaseClient.from('stages').select('id, name');
             let categoriesQuery = supabaseClient.from('categories').select('id, name');
             let teamsQuery = supabaseClient.from('teams').select('*');
@@ -1097,6 +1099,33 @@ if (allCompIds.length > 0) {
     globalJudgements = judgements || [];
 }
 
+                // Merge participant class mappings
+                try {
+                    let partClassesMap = {};
+                    if (window.festosGetSetting) {
+                        partClassesMap = (await window.festosGetSetting('participant_classes')) || {};
+                    }
+                    (activeComps || []).forEach(c => {
+                        (c.participant_competitions || []).forEach(pc => {
+                            if (pc.participants) {
+                                pc.participants.class_name = pc.participants.class_name || partClassesMap[pc.participants.id] || '';
+                            }
+                        });
+                    });
+                    (publishedComps || []).forEach(c => {
+                        (c.participant_competitions || []).forEach(pc => {
+                            if (pc.participants) {
+                                pc.participants.class_name = pc.participants.class_name || partClassesMap[pc.participants.id] || '';
+                            }
+                        });
+                    });
+                    globalJudgements.forEach(j => {
+                        if (j.participants) {
+                            j.participants.class_name = j.participants.class_name || partClassesMap[j.participants.id] || '';
+                        }
+                    });
+                } catch(e) {}
+
                 // Group judges per competition
                 const compJudges = {};
                 globalJudgements.forEach(j => {
@@ -1183,7 +1212,7 @@ if (allCompIds.length > 0) {
                             <div class="data-item" style="border-left: 4px solid var(--success);">
                                 <div style="display: flex; align-items: center; gap: 1rem;">
                                     <span style="font-weight: 600; color: var(--primary); background: var(--primary-light); width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 1.05rem; border: 1px solid rgba(59,130,246,0.2);">${e.code_letter}</span>
-                                    <div><strong style="color: var(--text-main); font-size: 0.95rem;">${displayName}</strong><br><small style="color:var(--text-muted); font-family: monospace; font-weight: 500;">${e.participants.unique_id} • ${e.participants.teams?.name || 'IND'}</small></div>
+                                    <div><strong style="color: var(--text-main); font-size: 0.95rem;">${displayName} ${e.participants.class_name ? `<span style="font-size:0.72rem; background:#EEF2FF; color:#4F46E5; padding:1px 6px; border-radius:4px; margin-left:4px; font-weight:700;"><i class="fa-solid fa-graduation-cap" style="margin-right:2px;"></i>${e.participants.class_name}</span>` : ''}</strong><br><small style="color:var(--text-muted); font-family: monospace; font-weight: 500;">${e.participants.unique_id} • ${e.participants.teams?.name || 'IND'}${e.participants.class_name ? ` • Class: ${e.participants.class_name}` : ''}</small></div>
                                 </div>
                                 <span style="font-size: 0.7rem; font-weight: 600; color: var(--success-hover); background: var(--success-light); padding: 0.35rem 0.75rem; border-radius: 6px;"><i class="fa-solid fa-check"></i> IN</span>
                             </div>`;
@@ -1203,7 +1232,7 @@ if (allCompIds.length > 0) {
 
                             return `
                             <div class="data-item" style="opacity: 0.75; background: var(--bg-main); border-left: 4px solid var(--warning);">
-                                <div><strong style="color: var(--text-main); font-size: 0.95rem;">${displayName}</strong><br><small style="color:var(--text-muted); font-family: monospace; font-weight: 500;">${e.participants.unique_id} • ${e.participants.teams?.name || 'IND'}</small></div>
+                                <div><strong style="color: var(--text-main); font-size: 0.95rem;">${displayName} ${e.participants.class_name ? `<span style="font-size:0.72rem; background:#EEF2FF; color:#4F46E5; padding:1px 6px; border-radius:4px; margin-left:4px; font-weight:700;"><i class="fa-solid fa-graduation-cap" style="margin-right:2px;"></i>${e.participants.class_name}</span>` : ''}</strong><br><small style="color:var(--text-muted); font-family: monospace; font-weight: 500;">${e.participants.unique_id} • ${e.participants.teams?.name || 'IND'}${e.participants.class_name ? ` • Class: ${e.participants.class_name}` : ''}</small></div>
                                 <span style="font-size: 0.7rem; font-weight: 600; color: #B45309; background: var(--warning-light); padding: 0.35rem 0.75rem; border-radius: 6px;">PENDING</span>
                             </div>`;
                         }).join('');
@@ -1287,8 +1316,8 @@ if (allCompIds.length > 0) {
                             <div style="display:flex; gap: 1rem; align-items:center; flex: 1; min-width: 0;">
                                 <span class="pos-${r.position <= 3 ? r.position : '0'}" style="flex-shrink: 0;">#${r.position}</span>
                                 <div style="min-width: 0; overflow: hidden;">
-                                    <strong style="color: var(--text-main); font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.participant.name}</strong>
-                                    <small style="color:var(--text-muted); font-family: monospace; font-weight: 500; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.participant.teams?.name || 'IND'}</small>
+                                    <strong style="color: var(--text-main); font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.participant.name} ${r.participant.class_name ? `<span style="font-size:0.7rem; background:#EEF2FF; color:#4F46E5; padding:1px 6px; border-radius:4px; margin-left:4px; font-weight:700;"><i class="fa-solid fa-graduation-cap" style="margin-right:2px;"></i>${r.participant.class_name}</span>` : ''}</strong>
+                                    <small style="color:var(--text-muted); font-family: monospace; font-weight: 500; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.participant.teams?.name || 'IND'}${r.participant.class_name ? ` • Class: ${r.participant.class_name}` : ''}</small>
                                 </div>
                             </div>
                             <div style="text-align: right; flex-shrink: 0;">
@@ -1432,8 +1461,8 @@ if (allCompIds.length > 0) {
                             <div style="display:flex; gap: 1rem; align-items:flex-start; flex: 1; min-width: 0;">
                                 <span class="pos-${r.position}" style="flex-shrink: 0;">#${r.position}</span>
                                 <div style="min-width: 0; overflow: hidden;">
-                                    <strong style="color: var(--text-main); font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.name}</strong>
-                                    <small style="color:var(--text-muted); font-weight: 500; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.unique_id || 'Group'} | ${p.teams?.name || 'IND'}</small>
+                                    <strong style="color: var(--text-main); font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.name} ${p.class_name ? `<span style="font-size:0.75rem; background:#EEF2FF; color:#4F46E5; padding:1px 6px; border-radius:4px; margin-left:4px; font-weight:700;"><i class="fa-solid fa-graduation-cap" style="margin-right:2px;"></i>${p.class_name}</span>` : ''}</strong>
+                                    <small style="color:var(--text-muted); font-weight: 500; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.unique_id || 'Group'} | ${p.teams?.name || 'IND'}${p.class_name ? ` | Class: ${p.class_name}` : ''}</small>
                                     ${membersHtml}
                                 </div>
                             </div>
@@ -1561,12 +1590,13 @@ if (allCompIds.length > 0) {
                 (idx + 1).toString(),
                 e.participants.unique_id,
                 e.participants.name.toUpperCase(),
+                (e.participants.class_name || '-').toUpperCase(),
                 (e.participants.teams?.name || 'IND').toUpperCase()
             ]);
 
             doc.autoTable({
                 startY: 45,
-                head: [['S.No', 'Chest/ID', 'Participant Name', 'Team']],
+                head: [['S.No', 'Chest/ID', 'Participant Name', 'Class', 'Team']],
                 body: tableData,
                 theme: 'grid',
                 headStyles: { fillColor: [59, 130, 246] },
@@ -1577,8 +1607,8 @@ if (allCompIds.length > 0) {
         }
 
         function downloadResultsPDF(compId) {
-            const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
-            const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
+            const compsList = publishedComps || [];
+            const resList = computedResults || {};
             
             const comp = compsList.find(c => c.id === compId);
             const results = resList[compId] || [];
@@ -1593,6 +1623,7 @@ if (allCompIds.length > 0) {
                 r.position.toString(),
                 r.participant.unique_id || 'GROUP',
                 r.participant.name.toUpperCase(),
+                (r.participant.class_name || '-').toUpperCase(),
                 (r.participant.teams?.name || 'IND').toUpperCase(),
                 r.grade || '-',
                 (r.points || 0).toString()
@@ -1600,7 +1631,7 @@ if (allCompIds.length > 0) {
 
             doc.autoTable({
                 startY: 45,
-                head: [['Pos', 'Code Letter', 'Participant/Group Name', 'Team', 'Grade', 'Points']],
+                head: [['Pos', 'Code Letter', 'Participant/Group Name', 'Class', 'Team', 'Grade', 'Points']],
                 body: tableData,
                 theme: 'grid',
                 headStyles: { fillColor: [16, 185, 129] }, 
@@ -1615,8 +1646,8 @@ if (allCompIds.length > 0) {
             const catId = document.getElementById('filter-category') ? document.getElementById('filter-category').value : 'all';
             const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
 
-            const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
-            const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
+            const compsList = publishedComps || [];
+            const resList = computedResults || {};
 
             const filteredComps = compsList.filter(comp => {
                 const matchStage = stageId === 'all' || String(comp.stage_id) === String(stageId);
@@ -1839,26 +1870,29 @@ if (allCompIds.length > 0) {
         // ==========================================
         async function fetchAndApplyBranding() {
             try {
-                const { data, error } = await supabaseClient
-                    .from('settings')
-                    .select('value')
-                    .eq('id', 'system_branding')
-                    .maybeSingle();
-
-                if (error) throw error;
-                if (data && data.value) applyGlobalBranding(data.value);
+                const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+                let val = window.festosGetSetting ? await window.festosGetSetting('system_branding', festId) : null;
+                if (!val && festId && typeof supabaseClient !== 'undefined') {
+                    const { data: fData } = await supabaseClient.from('fests').select('name, logo').eq('id', festId).maybeSingle();
+                    if (fData && (fData.name || fData.logo)) {
+                        val = { fest_name: fData.name, fest_logo: fData.logo, display_mode: fData.logo ? 'both' : 'name' };
+                    }
+                }
+                if (val) applyGlobalBranding(val);
             } catch (e) {
                 console.warn("Could not fetch global branding:", e.message);
             }
         }
 
         function applyGlobalBranding(brandingData) {
+            if (!brandingData) return;
             const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
-            const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+            const rawLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '' ? brandingData.fest_logo.trim() : '';
+            const validLogo = rawLogo !== '' && rawLogo !== 'festos-logo.svg' && rawLogo !== '/festos-logo.svg';
             const displayMode = brandingData.display_mode || 'both'; 
             
             // 1. Update Document Title
-            const festName = validName ? brandingData.fest_name : 'FestOS';
+            const festName = validName ? brandingData.fest_name : 'Festival';
             const titleParts = document.title.split('|');
             const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
             document.title = `${festName} | ${pageContext}`;
@@ -2000,8 +2034,8 @@ if (allCompIds.length > 0) {
             const catId = document.getElementById('filter-category') ? document.getElementById('filter-category').value : 'all';
             const announcedComps = JSON.parse(localStorage.getItem('announced_comps') || '[]');
 
-            const compsList = typeof publishedComps !== 'undefined' ? publishedComps : publishedCompetitions;
-            const resList = typeof computedResults !== 'undefined' ? computedResults : competitionResults;
+            const compsList = publishedComps || [];
+            const resList = computedResults || {};
 
             const filteredComps = compsList.filter(comp => {
                 const matchStage = stageId === 'all' || String(comp.stage_id) === String(stageId);
@@ -2318,9 +2352,9 @@ if (allCompIds.length > 0) {
                 const p2 = results.find(r => r.position === 2);
                 const p3 = results.find(r => r.position === 3);
 
-                if (p1) p1Str = `${p1.participant.name} (${p1.participant.teams?.name || 'IND'})`;
-                if (p2) p2Str = `${p2.participant.name} (${p2.participant.teams?.name || 'IND'})`;
-                if (p3) p3Str = `${p3.participant.name} (${p3.participant.teams?.name || 'IND'})`;
+                if (p1) p1Str = `${p1.participant.name}${p1.participant.class_name ? ` of ${p1.participant.class_name}` : ''} (${p1.participant.teams?.name || 'IND'})`;
+                if (p2) p2Str = `${p2.participant.name}${p2.participant.class_name ? ` of ${p2.participant.class_name}` : ''} (${p2.participant.teams?.name || 'IND'})`;
+                if (p3) p3Str = `${p3.participant.name}${p3.participant.class_name ? ` of ${p3.participant.class_name}` : ''} (${p3.participant.teams?.name || 'IND'})`;
             }
 
             return text
@@ -2455,9 +2489,9 @@ if (allCompIds.length > 0) {
                     const p2 = results.find(r => r.position === 2);
                     const p3 = results.find(r => r.position === 3);
 
-                    if (p1) scriptText += `First Place: ${p1.participant.name}, representing ${p1.participant.teams?.name || 'Independent'}. `;
-                    if (p2) scriptText += `Second Place: ${p2.participant.name}, representing ${p2.participant.teams?.name || 'Independent'}. `;
-                    if (p3) scriptText += `Third Place: ${p3.participant.name}, representing ${p3.participant.teams?.name || 'Independent'}. `;
+                    if (p1) scriptText += `First Place: ${p1.participant.name}${p1.participant.class_name ? ` of ${p1.participant.class_name}` : ''}, representing ${p1.participant.teams?.name || 'Independent'}. `;
+                    if (p2) scriptText += `Second Place: ${p2.participant.name}${p2.participant.class_name ? ` of ${p2.participant.class_name}` : ''}, representing ${p2.participant.teams?.name || 'Independent'}. `;
+                    if (p3) scriptText += `Third Place: ${p3.participant.name}${p3.participant.class_name ? ` of ${p3.participant.class_name}` : ''}, representing ${p3.participant.teams?.name || 'Independent'}. `;
                     scriptText += `Congratulations to all participants and winners!`;
                 } else {
                     scriptText += `Judging evaluation has completed and results are officially published.`;

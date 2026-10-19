@@ -2,7 +2,8 @@
 // Initialize Supabase Client
 const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = window.supabaseClient || (window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null);
+if (typeof window !== 'undefined') window.supabaseClient = supabaseClient;
 
 window.db = supabaseClient;
 
@@ -906,25 +907,28 @@ document.addEventListener("DOMContentLoaded", () => {
 // ==========================================
 async function fetchAndApplyBranding() {
     try {
-        const { data, error } = await supabaseClient
-            .from('settings')
-            .select('value')
-            .eq('id', 'system_branding')
-            .maybeSingle();
-
-        if (error) throw error;
-        if (data && data.value) applyGlobalBranding(data.value);
+        const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+        let val = window.festosGetSetting ? await window.festosGetSetting('system_branding', festId) : null;
+        if (!val && festId && typeof supabaseClient !== 'undefined') {
+            const { data: fData } = await supabaseClient.from('fests').select('name, logo').eq('id', festId).maybeSingle();
+            if (fData && (fData.name || fData.logo)) {
+                val = { fest_name: fData.name, fest_logo: fData.logo, display_mode: fData.logo ? 'both' : 'name' };
+            }
+        }
+        if (val) applyGlobalBranding(val);
     } catch (e) {
         console.warn("Could not fetch global branding:", e.message);
     }
 }
 
 function applyGlobalBranding(brandingData) {
+    if (!brandingData) return;
     const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
-    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+    const rawLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '' ? brandingData.fest_logo.trim() : '';
+    const validLogo = rawLogo !== '' && rawLogo !== 'festos-logo.svg' && rawLogo !== '/festos-logo.svg';
     const displayMode = brandingData.display_mode || 'both'; 
     
-    const festName = validName ? brandingData.fest_name : 'FestOS';
+    const festName = validName ? brandingData.fest_name : 'Festival';
     const titleParts = document.title.split('|');
     const pageContext = titleParts.length > 1 ? titleParts[1].trim() : 'Portal';
     document.title = `${festName} | ${pageContext}`;

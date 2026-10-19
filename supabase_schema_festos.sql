@@ -60,9 +60,11 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS team_id UUID;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS name TEXT;
 
 ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS fest_id TEXT;
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS eligible_classes JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.stages ADD COLUMN IF NOT EXISTS fest_id TEXT;
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS fest_id TEXT;
 ALTER TABLE public.participants ADD COLUMN IF NOT EXISTS fest_id TEXT;
+ALTER TABLE public.participants ADD COLUMN IF NOT EXISTS class_name TEXT;
 ALTER TABLE public.competitions ADD COLUMN IF NOT EXISTS fest_id TEXT;
 ALTER TABLE public.judgements ADD COLUMN IF NOT EXISTS fest_id TEXT;
 ALTER TABLE public.participant_competitions ADD COLUMN IF NOT EXISTS fest_id TEXT;
@@ -140,21 +142,7 @@ UPDATE public.templates SET fest_id = 'fest_zenith_2026' WHERE fest_id IS NULL;
 UPDATE public.appeals SET fest_id = 'fest_zenith_2026' WHERE fest_id IS NULL;
 
 -- 8. Insert Default Super Admin Root Account safely
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conrelid = 'public.users'::regclass 
-        AND contype = 'u' 
-        AND pg_get_constraintdef(oid) ILIKE '%username%'
-    ) THEN
-        BEGIN
-            ALTER TABLE public.users ADD CONSTRAINT users_username_key UNIQUE (username);
-        EXCEPTION
-            WHEN duplicate_table OR duplicate_object THEN NULL;
-        END;
-    END IF;
-END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS users_username_key ON public.users (username);
 
 INSERT INTO public.users (username, password_hash, role)
 VALUES ('superadmin', 'superadmin123', 'super_admin')
@@ -175,20 +163,44 @@ CREATE POLICY "Public Insert Enquiries" ON public.enquiries FOR ALL USING (true)
 DROP POLICY IF EXISTS "Public Full Access Audit Logs" ON public.audit_logs;
 CREATE POLICY "Public Full Access Audit Logs" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);
 
--- 10. Enable Realtime Publications (Safely checks before adding)
+-- 10. Enable Realtime Publications (Safely adds tables without throwing if already present)
 DO $$
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_publication_tables 
-        WHERE pubname = 'supabase_realtime' AND tablename = 'fests'
-    ) THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.fests;
-    END IF;
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.fests;
+EXCEPTION
+    WHEN duplicate_object OR duplicate_table THEN NULL;
+END $$;
 
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_publication_tables 
-        WHERE pubname = 'supabase_realtime' AND tablename = 'enquiries'
-    ) THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.enquiries;
-    END IF;
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.enquiries;
+EXCEPTION
+    WHEN duplicate_object OR duplicate_table THEN NULL;
+END $$;
+
+-- 11. Create BROADCASTS & NOTIFICATIONS Table (Emergency Alerts & Master Admin Notices)
+CREATE TABLE IF NOT EXISTS public.broadcasts (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    severity TEXT DEFAULT 'info', -- 'info', 'warning', 'danger', 'success'
+    target_fest_id TEXT DEFAULT 'all', -- 'all' or specific fest_id
+    target_role TEXT DEFAULT 'all', -- 'all', 'master_admin', 'judge', etc.
+    attachment JSONB DEFAULT NULL, -- { name: text, url: text, size: number }
+    is_banner BOOLEAN DEFAULT true,
+    is_active BOOLEAN DEFAULT true,
+    created_by TEXT DEFAULT 'superadmin',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ
+);
+
+ALTER TABLE public.broadcasts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public Full Access Broadcasts" ON public.broadcasts;
+CREATE POLICY "Public Full Access Broadcasts" ON public.broadcasts FOR ALL USING (true) WITH CHECK (true);
+
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.broadcasts;
+EXCEPTION
+    WHEN duplicate_object OR duplicate_table THEN NULL;
 END $$;

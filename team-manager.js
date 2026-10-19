@@ -1,10 +1,11 @@
 const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = window.supabaseClient || (window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null);
 
-// Auth & Role Check
-const user = JSON.parse(localStorage.getItem('festUser'));
-if (!user || user.role !== 'team_manager') {
+// Auth & Role Check (allow team_manager, master_admin, admin, super_admin)
+const user = (typeof festosAuth !== 'undefined') ? (festosAuth.getUser() || festosAuth.getSuperAdmin()) : JSON.parse(localStorage.getItem('festUser') || localStorage.getItem('festSuperAdmin') || 'null');
+const allowedTmRoles = ['team_manager', 'master_admin', 'admin', 'super_admin'];
+if (!user || !allowedTmRoles.includes(user.role)) {
     window.location.href = 'index.html';
 }
 
@@ -201,9 +202,27 @@ async function fetchAllData() {
 
         const schedData = schedDataRes.data;
 
+        let classSystemSetting = null;
+        let catClassesMap = {};
+        let partClassesMap = {};
+        if (window.festosGetSetting) {
+            try {
+                classSystemSetting = await window.festosGetSetting('class_system');
+                catClassesMap = (await window.festosGetSetting('category_classes')) || {};
+                partClassesMap = (await window.festosGetSetting('participant_classes')) || {};
+            } catch(e) {}
+        }
+        window.tmClassSystem = classSystemSetting || { enabled: false, mandatory: false, classes: [] };
+
         tmScheduleData = schedData?.value || {};
-        globalCategories = cats || [];
-        globalStudents = students || [];
+        globalCategories = (cats || []).map(c => ({
+            ...c,
+            eligible_classes: c.eligible_classes || catClassesMap[c.id] || []
+        }));
+        globalStudents = (students || []).map(s => ({
+            ...s,
+            class_name: s.class_name || partClassesMap[s.id] || ''
+        }));
         globalComps = comps || [];
 
         const studentIds = globalStudents.map(s => s.id);
@@ -383,7 +402,10 @@ function renderStudents() {
             <tr>
                 <td data-label="STUDENT NAME" style="display: flex; align-items: center; gap: 0.85rem; justify-content: flex-start; text-align: left;">
                     <img src="${photoSrc}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--border); box-shadow: var(--shadow-sm); flex-shrink: 0;">
-                    <span style="font-weight: 800; font-size: 1.05rem; color: var(--text-main);">${student.name}</span>
+                    <div>
+                        <span style="font-weight: 800; font-size: 1.05rem; color: var(--text-main); display: block;">${student.name}</span>
+                        ${student.class_name ? `<span style="font-size: 0.72rem; background: #EEF2FF; color: #4F46E5; padding: 1px 6px; border-radius: 4px; font-weight: 700; display: inline-block; margin-top: 2px;"><i class="fa-solid fa-graduation-cap" style="margin-right: 2px;"></i>${student.class_name}</span>` : ''}
+                    </div>
                 </td>
                 <td data-label="UNIQUE ID" style="font-family: monospace;">${student.unique_id}</td>
                 <td data-label="CATEGORY"><span class="badge badge-gray">${student.categories?.name || 'GENERAL'}</span></td>
@@ -425,46 +447,120 @@ function viewStudentEvents(studentId) {
     document.getElementById('studentEventsModal').classList.add('show');
 }
 
-window.validateTMDob = function() {
-    const catId = document.getElementById('partCategory').value;
-    const dobVal = document.getElementById('partDob').value;
+window.validateTMDobAndClass = function() {
+    const catSelect = document.getElementById('partCategory');
+    const dobInput = document.getElementById('partDob');
+    const classSelect = document.getElementById('partClass');
     const warningEl = document.getElementById('tmDobWarning');
     const saveBtn = document.getElementById('modalSaveBtn');
     
-    if(!catId || !dobVal || !warningEl) return;
+    if(!catSelect || !warningEl) return;
+    
+    const catId = catSelect.value;
+    const dobVal = dobInput ? dobInput.value : '';
+    const classVal = classSelect ? classSelect.value : '';
     
     const category = globalCategories.find(c => String(c.id) === String(catId));
     let isInvalid = false;
     let warningMsg = '';
 
-    if(category) {
+    const catClasses = category?.eligible_classes || [];
+    const hasClassRestrictions = Array.isArray(catClasses) && catClasses.length > 0;
+
+    let dobMismatch = false;
+    if(category && dobVal) {
         const dobDate = new Date(dobVal);
         if (category.dob_start && dobDate < new Date(category.dob_start)) {
-            isInvalid = true;
+            dobMismatch = true;
             warningMsg = `NOT ELIGIBLE: MUST BE BORN ON OR AFTER ${category.dob_start}.`;
         }
         if (category.dob_end && dobDate > new Date(category.dob_end)) {
-            isInvalid = true;
+            dobMismatch = true;
             warningMsg = `NOT ELIGIBLE: MUST BE BORN ON OR BEFORE ${category.dob_end}.`;
         }
+    }
+
+    // SMART AGE AUTO-CORRECTION:
+    if (dobMismatch && classVal && dobVal) {
+        const dobDate = new Date(dobVal);
+        const standardCats = globalCategories.filter(c => !c.is_general);
+
+        const alternateCat = standardCats.find(c => {
+            if (String(c.id) === String(catId)) return false;
+            const cClasses = c.eligible_classes || [];
+            const acceptsClass = (Array.isArray(cClasses) && cClasses.length > 0) ? cClasses.includes(classVal) : true;
+            if (!acceptsClass) return false;
+            if (c.dob_start && dobDate < new Date(c.dob_start)) return false;
+            if (c.dob_end && dobDate > new Date(c.dob_end)) return false;
+            return true;
+        });
+
+        if (alternateCat) {
+            catSelect.value = alternateCat.id;
+            const prevName = category ? category.name : 'previous category';
+            warningEl.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles" style="color: var(--primary);"></i> <strong>Age Warning & Auto-adjustment:</strong> Age did not match ${prevName}. Category automatically changed to <strong>${alternateCat.name}</strong>, which accepts <em>${classVal}</em> and matches birth date (${dobVal}).`;
+            warningEl.style.display = 'block';
+            warningEl.style.color = 'var(--primary)';
+            warningEl.style.background = 'var(--primary-light)';
+            warningEl.style.padding = '0.75rem';
+            warningEl.style.borderRadius = '8px';
+            warningEl.style.border = '1px solid var(--primary-ring)';
+            if(saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
+            showToast(`Auto-adjusted category to ${alternateCat.name}!`, 'info');
+            return;
+        }
+    }
+
+    if (classVal && hasClassRestrictions && !catClasses.includes(classVal)) {
+        isInvalid = true;
+        warningMsg = `Selected class (${classVal}) is not eligible for ${category?.name || 'this category'}. Allowed: ${catClasses.join(', ')}`;
+    } else if (dobMismatch) {
+        isInvalid = true;
     }
 
     if(isInvalid) {
         warningEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${warningMsg}`;
         warningEl.style.display = 'block';
+        warningEl.style.color = 'var(--danger)';
+        warningEl.style.background = '#FEE2E2';
+        warningEl.style.padding = '0.75rem';
+        warningEl.style.borderRadius = '8px';
+        warningEl.style.border = '1px solid #FCA5A5';
         if(saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.5'; }
     } else {
         warningEl.style.display = 'none';
+        warningEl.style.background = 'transparent';
+        warningEl.style.border = 'none';
+        warningEl.style.padding = '0';
         if(saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
     }
 };
+window.validateTMDob = window.validateTMDobAndClass;
 
 function openAddMemberModal() {
     if (isAssignmentLocked) return showToast("Registration is locked by Admin.", "error");
 
-    let catOpts = globalCategories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    // Common/General category is NOT for students! Filter out is_general
+    const studentCategories = globalCategories.filter(c => !c.is_general);
+    let catOpts = studentCategories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     const pPhoto = 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="100%25" height="100%25" fill="%23EEF2FF"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%236366F1"%3EPHOTO%3C/text%3E%3C/svg%3E';
     
+    // Class Dropdown markup if Class System is enabled
+    let classDropdownHtml = '';
+    const isClassActive = !!(window.tmClassSystem?.enabled && window.tmClassSystem.classes?.length > 0);
+    if (isClassActive) {
+        const isMandatory = !!window.tmClassSystem.mandatory;
+        classDropdownHtml = `
+            <div class="form-group" style="flex: 1; min-width: 130px; margin-bottom: 1rem;">
+                <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block;">CLASS / GRADE ${isMandatory ? '<span style="color: var(--danger);">*</span>' : '<span style="font-size:0.7rem; font-weight:500;">(OPTIONAL)</span>'}</label>
+                <select id="partClass" onchange="window.validateTMDobAndClass()" style="width: 100%; padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1.5px solid var(--border); background: var(--input-bg); outline: none; font-weight: 700;">
+                    <option value="">-- SELECT CLASS --</option>
+                    ${window.tmClassSystem.classes.map(cls => `<option value="${cls}">${cls}</option>`).join('')}
+                </select>
+            </div>
+        `;
+    }
+
     const modalHtml = `
         <style>
             .part-modal-grid { display: grid; grid-template-columns: 150px 1fr; gap: 2rem; align-items: start; }
@@ -493,12 +589,14 @@ function openAddMemberModal() {
                 <div style="display:flex; gap:1rem; flex-wrap: wrap;">
                     <div class="form-group" style="flex: 2; min-width: 150px; margin-bottom: 1rem;">
                         <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block;">CATEGORY <span style="color: var(--danger);">*</span></label>
-                        <select id="partCategory" onchange="window.validateTMDob()" style="width: 100%; padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1.5px solid var(--border); background: var(--input-bg); outline: none; font-weight: 700;">${catOpts}</select>
+                        <select id="partCategory" onchange="window.validateTMDobAndClass()" style="width: 100%; padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1.5px solid var(--border); background: var(--input-bg); outline: none; font-weight: 700;">${catOpts}</select>
                     </div>
                     
+                    ${classDropdownHtml}
+
                     <div class="form-group" style="flex: 1; min-width: 130px; margin-bottom: 1rem;">
                         <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; display: block;">DATE OF BIRTH</label>
-                        <input type="date" id="partDob" onchange="window.validateTMDob()" style="width: 100%; padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1.5px solid var(--border); background: var(--input-bg); outline: none; font-weight: 700; text-transform: none;">
+                        <input type="date" id="partDob" onchange="window.validateTMDobAndClass()" style="width: 100%; padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1.5px solid var(--border); background: var(--input-bg); outline: none; font-weight: 700; text-transform: none;">
                     </div>
                 </div>
                 
@@ -517,6 +615,12 @@ async function saveNewMember() {
     const name = document.getElementById('partName').value;
     const category_id = document.getElementById('partCategory').value;
     const dob = document.getElementById('partDob').value || null;
+    const classVal = document.getElementById('partClass') ? document.getElementById('partClass').value : '';
+
+    if (window.tmClassSystem?.enabled && window.tmClassSystem?.mandatory && !classVal) {
+        return showToast("Class / Grade selection is mandatory!", "error");
+    }
+
     const unique_id = `${Math.floor(100000 + Math.random() * 900000)}`;
     
     if(!name) return showToast('Name is required', 'error');
@@ -542,9 +646,39 @@ async function saveNewMember() {
             photo_url = publicUrlData.publicUrl;
         }
 
+        const payload = { 
+            name, 
+            category_id, 
+            dob, 
+            unique_id, 
+            team_id: myTeamId, 
+            class_name: classVal || null 
+        };
+        if (photo_url) payload.photo_url = photo_url;
+
         const finalPayload = window.festosWithFest ? window.festosWithFest(payload) : payload;
-        const { error } = await supabaseClient.from('participants').insert([finalPayload]);
-        if (error) throw error;
+        let { data: insertedData, error } = await supabaseClient.from('participants').insert([finalPayload]).select();
+        
+        if (error && error.message && error.message.includes('class_name')) {
+            delete finalPayload.class_name;
+            const retry = await supabaseClient.from('participants').insert([finalPayload]).select();
+            if (retry.error) throw retry.error;
+            const savedId = retry.data?.[0]?.id;
+            if (savedId && window.festosSaveSetting) {
+                const map = (await window.festosGetSetting('participant_classes')) || {};
+                map[savedId] = classVal;
+                await window.festosSaveSetting('participant_classes', map);
+            }
+        } else if (error) {
+            throw error;
+        } else {
+            const savedId = insertedData?.[0]?.id;
+            if (savedId && classVal && window.festosSaveSetting) {
+                const map = (await window.festosGetSetting('participant_classes')) || {};
+                map[savedId] = classVal;
+                await window.festosSaveSetting('participant_classes', map);
+            }
+        }
         
         showToast('Student added successfully!', 'success');
         
@@ -1188,14 +1322,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function fetchAndApplyBranding() {
     try {
-        const { data, error } = await supabaseClient
-            .from('settings')
-            .select('value')
-            .eq('id', 'system_branding')
-            .maybeSingle();
-
-        if (error) throw error;
-        if (data && data.value) applyGlobalBranding(data.value);
+        const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+        let val = window.festosGetSetting ? await window.festosGetSetting('system_branding', festId) : null;
+        if (!val && festId && typeof supabaseClient !== 'undefined') {
+            const { data: fData } = await supabaseClient.from('fests').select('name, logo').eq('id', festId).maybeSingle();
+            if (fData && (fData.name || fData.logo)) {
+                val = { fest_name: fData.name, fest_logo: fData.logo, display_mode: fData.logo ? 'both' : 'name' };
+            }
+        }
+        if (val) applyGlobalBranding(val);
     } catch (e) {
         console.warn("Could not fetch global branding:", e.message);
     }
@@ -1717,10 +1852,12 @@ async function exportTMVacancyPDF() {
 // UNIFIED GLOBAL BRANDING ENGINE
 // ==========================================
 function applyGlobalBranding(brandingData) {
+    if (!brandingData) return;
     const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
-    const validLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '';
+    const rawLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '' ? brandingData.fest_logo.trim() : '';
+    const validLogo = rawLogo !== '' && rawLogo !== 'festos-logo.svg' && rawLogo !== '/festos-logo.svg';
     
-    const festName = validName ? brandingData.fest_name : 'FestOS';
+    const festName = validName ? brandingData.fest_name : 'Festival';
     document.title = `${festName} | Team Manager`;
 
     if (validLogo) {

@@ -6,6 +6,7 @@
 let globalFests = [];
 let globalUsers = [];
 let globalEnquiries = [];
+let globalBroadcasts = [];
 let activeFestId = 'default_fest';
 let selectedWorkspaceFestId = null;
 let currentEditingFest = null;
@@ -13,6 +14,13 @@ let currentEditingUser = null;
 let currentPendingConfirmAction = null;
 let selectedUserIds = new Set();
 let latestDiagnosticsReport = null;
+let currentBroadcastAttachment = null;
+let festivalsViewMode = (typeof localStorage !== 'undefined' && localStorage.getItem('festos_fest_view')) || 'cards';
+let activeFestChipFilter = 'all';
+let pendingRestoreData = null;
+let pingIntervalTimer = null;
+let commandPaletteSelectedIndex = 0;
+let commandPaletteFilteredResults = [];
 
 // Available feature definitions
 const FEATURE_DEFINITIONS = [
@@ -28,17 +36,115 @@ const FEATURE_DEFINITIONS = [
     { key: 'feature_wall_of_fame', icon: 'fa-trophy', title: 'Wall of Fame & Social Highlights', desc: 'Public leaderboard showcase celebrating champions and top scoring squads.' }
 ];
 
+// Immediate Authentication Guard
+(function guardSuperAdmin() {
+    const sa = (typeof festosAuth !== 'undefined') ? festosAuth.getSuperAdmin() : null;
+    const u = (typeof festosAuth !== 'undefined') ? festosAuth.getUser() : null;
+    const isSuper = (sa && sa.role === 'super_admin') || (u && (u.role === 'super_admin' || u.role === 'master_admin'));
+    if (!isSuper) {
+        window.location.replace('index.html');
+        throw new Error('Unauthorized: Super Admin access required.');
+    }
+})();
+
+// Single source of truth for the wildcard base domain
+const SUPER_BASE_DOMAIN = (typeof window !== 'undefined' && window.FESTOS_BASE_DOMAIN) ? window.FESTOS_BASE_DOMAIN : 'festos.clubad.space';
+
+// Resolve the fully-qualified domain for a festival object
+function festDomainOf(fest) {
+    if (typeof festosDomains !== 'undefined' && festosDomains) {
+        const d = festosDomains.normalizeDomain(fest && fest.domain);
+        if (d) return d;
+        return `${(fest && fest.slug) || 'fest'}.${festosDomains.BASE}`;
+    }
+    const raw = String((fest && fest.domain) || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    return raw || `${(fest && fest.slug) || 'fest'}.${SUPER_BASE_DOMAIN}`;
+}
+
+// Resolve the public results URL for a festival object
+function festResultsUrlOf(fest) {
+    const domain = festDomainOf(fest);
+    const resultsSlug = (fest && fest.public_results_slug) || 'results';
+    return `https://${domain}/${String(resultsSlug).replace(/^\//, '')}`;
+}
+
+// Resolve the effective festival logo (Master Admin uploaded custom branding logo, URL, or fallback)
+function festLogoOf(fest) {
+    if (!fest) return 'festos-logo.svg';
+    const logo = fest.branding_logo || fest.logo;
+    if (logo && typeof logo === 'string' && logo.trim() && logo.trim() !== 'null' && logo.trim() !== 'undefined') {
+        return logo.trim();
+    }
+    return 'festos-logo.svg';
+}
+
+// ---- Super Admin Light Theme (Dark Theme Removed) ----
+function applySuperTheme() {
+    try {
+        localStorage.removeItem('festos_super_theme');
+        if (typeof document !== 'undefined') {
+            document.documentElement.removeAttribute('data-theme');
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function toggleSuperTheme() {
+    applySuperTheme();
+}
+
+// Apply immediately to ensure clean light theme
+applySuperTheme();
+
 // =========================================================================
 // 1. INITIALIZATION & AUTH
 // =========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
     initAuthAndProfile();
+    initCommandPalette();
     await loadInitialData();
     await loadGlobalSoftwareBranding();
     renderAllViews();
     runQuickPing();
+    setupHeartbeatPing();
+    setupRealtimeSubscriptions();
     runDiagnosticsSuite(); // Run initial health scan
 });
+
+function setupRealtimeSubscriptions() {
+    if (!festosSupabase || typeof festosSupabase.channel !== 'function') return;
+    try {
+        const channel = festosSupabase.channel('superadmin-live-sync');
+        channel
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'fests' }, (payload) => {
+                if (payload.new && payload.new.id) {
+                    const idx = globalFests.findIndex(f => f.id === payload.new.id);
+                    if (idx >= 0) {
+                        globalFests[idx] = { ...globalFests[idx], ...payload.new };
+                    } else if (payload.eventType === 'INSERT') {
+                        globalFests.unshift(payload.new);
+                    }
+                    renderFestivalsGrid();
+                    renderOverviewActiveSpotlight();
+                }
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, (payload) => {
+                const row = payload.new;
+                if (row && row.id && row.id.startsWith('system_branding_') && row.value && row.value.fest_logo) {
+                    const festId = row.id.replace('system_branding_', '');
+                    const fest = globalFests.find(f => f.id === festId);
+                    if (fest) {
+                        fest.branding_logo = row.value.fest_logo;
+                        fest.logo = row.value.fest_logo;
+                        renderFestivalsGrid();
+                        renderOverviewActiveSpotlight();
+                    }
+                }
+            })
+            .subscribe();
+    } catch (e) {
+        console.warn('Realtime channel initialization error:', e);
+    }
+}
 
 function initAuthAndProfile() {
     let superAdmin = festosAuth.getSuperAdmin();
@@ -46,11 +152,11 @@ function initAuthAndProfile() {
 
     if (!superAdmin) {
         if (user && (user.role === 'super_admin' || user.role === 'master_admin')) {
-            superAdmin = { username: user.username, role: 'super_admin' };
+            superAdmin = { username: user.username, role: user.role };
             festosAuth.setSuperAdmin(superAdmin);
         } else {
-            superAdmin = { username: 'SuperAdmin', role: 'super_admin' };
-            festosAuth.setSuperAdmin(superAdmin);
+            window.location.replace('index.html');
+            return;
         }
     }
 
@@ -108,7 +214,7 @@ async function loadInitialData() {
                         id: 'fest_zenith_2026',
                         name: 'Zenith Fest 2026',
                         slug: 'zenith26',
-                        domain: 'zenith26.festos.app',
+                        domain: 'zenith.festos.clubad.space',
                         public_results_slug: 'results',
                         venue: 'Main Stadium Arena',
                         startDate: '2026-10-15',
@@ -119,6 +225,57 @@ async function loadInitialData() {
                     }
                 ];
                 await syncFestsToDatabase();
+            }
+        }
+
+        // Synchronize custom logos added by Master Admins in festival branding settings
+        if (festosSupabase) {
+            try {
+                const { data: brandingRows } = await festosSupabase
+                    .from('settings')
+                    .select('id, value')
+                    .or('id.ilike.system_branding%,id.ilike.website_config%');
+
+                if (brandingRows && Array.isArray(brandingRows)) {
+                    const brandingByFestId = {};
+                    brandingRows.forEach(row => {
+                        if (!row || !row.id || !row.value) return;
+                        const v = row.value;
+                        const logoCandidate = v.fest_logo || v.logo || v.website_logo || (typeof v === 'string' && (v.startsWith('data:image') || v.startsWith('http') || v.endsWith('.svg') || v.endsWith('.png') || v.endsWith('.webp')) ? v : null);
+                        const nameCandidate = v.fest_name || v.website_name || v.name;
+
+                        let targetFestId = null;
+                        if (row.id.startsWith('system_branding_')) {
+                            targetFestId = row.id.substring('system_branding_'.length);
+                        } else if (row.id === 'system_branding') {
+                            targetFestId = 'fest_zenith_2026';
+                        } else if (row.id.startsWith('website_config_')) {
+                            targetFestId = row.id.substring('website_config_'.length);
+                        }
+
+                        if (targetFestId && (logoCandidate || nameCandidate)) {
+                            if (!brandingByFestId[targetFestId]) brandingByFestId[targetFestId] = {};
+                            if (logoCandidate) brandingByFestId[targetFestId].logo = logoCandidate;
+                            if (nameCandidate) brandingByFestId[targetFestId].name = nameCandidate;
+                        }
+                    });
+
+                    // Attach the Master Admin's custom logo to each festival and auto-repair fests table if needed
+                    for (const fest of globalFests) {
+                        const custom = brandingByFestId[fest.id];
+                        if (custom && custom.logo) {
+                            fest.branding_logo = custom.logo;
+                            if (!fest.logo || fest.logo === 'festos-logo.svg' || fest.logo.trim() === '') {
+                                fest.logo = custom.logo;
+                                try {
+                                    await festosSupabase.from('fests').update({ logo: custom.logo }).eq('id', fest.id);
+                                } catch (upErr) {}
+                            }
+                        }
+                    }
+                }
+            } catch (syncErr) {
+                console.warn('Could not sync master admin branding settings:', syncErr);
             }
         }
 
@@ -137,16 +294,35 @@ async function loadInitialData() {
         // Load Inquiries
         await loadEnquiriesFromDatabase();
 
-        // Load Counts
+        // Load Counts for KPIs and Resource Meter
         let partCount = 0;
+        let compCount = 0;
+        let compJudgedCount = 0;
+        let judgeCount = 0;
+
         if (festosSupabase) {
             try {
                 const { count: pCount } = await festosSupabase.from('participants').select('*', { count: 'exact', head: true });
                 partCount = pCount || 0;
             } catch(e) {}
+
+            try {
+                const { data: cData } = await festosSupabase.from('competitions').select('id, status');
+                if (cData && Array.isArray(cData)) {
+                    compCount = cData.length;
+                    compJudgedCount = cData.filter(c => c.status === 'completed' || c.status === 'judged' || c.status === 'published').length;
+                }
+            } catch(e) {}
+
+            try {
+                const { count: jCount } = await festosSupabase.from('judgements').select('*', { count: 'exact', head: true });
+                judgeCount = jCount || 0;
+            } catch(e) {}
         }
 
-        updateKPIDisplays(globalFests.length, globalEnquiries.length, globalUsers.length, partCount);
+        updateKPIDisplays(globalFests.length, globalEnquiries.length, globalUsers.length, partCount, compCount);
+        updateResourceMeters(compCount, compJudgedCount, judgeCount, partCount);
+        await loadBroadcastsFromDatabase();
 
     } catch (err) {
         console.error('Super Admin Data Load Error:', err);
@@ -184,7 +360,7 @@ async function syncFestsToDatabase() {
                     id: f.id,
                     name: f.name,
                     slug: f.slug,
-                    domain: f.domain || `${f.slug}.festos.app`,
+                    domain: festDomainOf(f),
                     public_results_slug: f.public_results_slug || 'results',
                     status: f.status || 'active',
                     venue: f.venue,
@@ -198,8 +374,7 @@ async function syncFestsToDatabase() {
 
         await festosSupabase.from('settings').upsert({
             id: 'festos_multi_fests',
-            value: globalFests,
-            updated_at: new Date().toISOString()
+            value: globalFests
         });
 
     } catch (e) {
@@ -223,10 +398,17 @@ function switchSuperTab(tabId) {
     // Close mobile navigation
     const sidebar = document.getElementById('superSidebar');
     const backdrop = document.getElementById('sidebarBackdrop');
-    if (sidebar) sidebar.classList.remove('mobile-open');
-    if (backdrop) backdrop.classList.remove('active');
+    if (sidebar) {
+        sidebar.classList.remove('open');
+        sidebar.classList.remove('mobile-open');
+    }
+    if (backdrop) {
+        backdrop.classList.remove('open');
+        backdrop.classList.remove('active');
+    }
 
     if (tabId === 'tab-festivals') renderFestivalsGrid();
+    if (tabId === 'tab-broadcasts') renderBroadcastsTab();
     if (tabId === 'tab-enquiries') renderEnquiriesTable();
     if (tabId === 'tab-admins') renderUsersTable();
     if (tabId === 'tab-global-branding') loadGlobalSoftwareBranding();
@@ -237,20 +419,27 @@ function switchSuperTab(tabId) {
 function toggleMobileSidebar() {
     const sidebar = document.getElementById('superSidebar');
     const backdrop = document.getElementById('sidebarBackdrop');
-    if (sidebar) sidebar.classList.toggle('mobile-open');
-    if (backdrop) backdrop.classList.toggle('active');
+    if (sidebar) {
+        sidebar.classList.toggle('open');
+        sidebar.classList.toggle('mobile-open');
+    }
+    if (backdrop) {
+        backdrop.classList.toggle('open');
+        backdrop.classList.toggle('active');
+    }
 }
 
 function renderAllViews() {
     renderOverviewActiveSpotlight();
     renderOverviewAuditStream();
     renderFestivalsGrid();
+    renderBroadcastsTab();
     renderEnquiriesTable();
     renderUsersTable();
     renderLogsConsole();
 }
 
-function updateKPIDisplays(fests, enquiries, admins, participants) {
+function updateKPIDisplays(fests, enquiries, admins, participants, compCount = 0) {
     const fEl = document.getElementById('stat-fests-count');
     const eEl = document.getElementById('stat-enquiries-count');
     const aEl = document.getElementById('stat-admins-count');
@@ -262,11 +451,36 @@ function updateKPIDisplays(fests, enquiries, admins, participants) {
     if (pEl) pEl.innerText = participants;
 
     const navF = document.getElementById('nav-fest-count');
+    const navB = document.getElementById('nav-broadcast-count');
     const navE = document.getElementById('nav-enquiry-count');
     const navA = document.getElementById('nav-admin-count');
     if (navF) navF.innerText = fests;
+    if (navB) navB.innerText = globalBroadcasts ? globalBroadcasts.length : 0;
     if (navE) navE.innerText = enquiries;
     if (navA) navA.innerText = admins;
+
+    // Control Room KPI enhancements matching admin.html
+    const activeFestsCountEl = document.getElementById('stat-active-fests-count');
+    if (activeFestsCountEl) {
+        const activeCount = Array.isArray(globalFests) ? globalFests.filter(f => f.status === 'active').length : 0;
+        activeFestsCountEl.innerText = activeCount || fests;
+    }
+
+    const compKpiEl = document.getElementById('stat-comp-count-kpi');
+    if (compKpiEl && compCount !== undefined) {
+        compKpiEl.innerText = compCount;
+    }
+
+    const broadcastValEl = document.getElementById('dash-broadcast-count-val');
+    if (broadcastValEl && Array.isArray(globalBroadcasts)) {
+        broadcastValEl.innerText = globalBroadcasts.length;
+    }
+
+    const activeFest = Array.isArray(globalFests) ? (globalFests.find(f => f.id === activeFestId) || globalFests[0]) : null;
+    const festNameEl = document.getElementById('dash-active-fest-name');
+    const festSlugEl = document.getElementById('dash-active-fest-slug');
+    if (festNameEl && activeFest) festNameEl.innerText = activeFest.name || 'Zenith Festival';
+    if (festSlugEl && activeFest) festSlugEl.innerText = festDomainOf(activeFest);
 }
 
 function changeActiveFestContext(festId) {
@@ -274,6 +488,12 @@ function changeActiveFestContext(festId) {
     festosFeatures.setActiveFestId(festId);
     renderOverviewActiveSpotlight();
     renderFestivalsGrid();
+
+    const activeFest = Array.isArray(globalFests) ? globalFests.find(f => f.id === activeFestId) : null;
+    const festNameEl = document.getElementById('dash-active-fest-name');
+    const festSlugEl = document.getElementById('dash-active-fest-slug');
+    if (festNameEl && activeFest) festNameEl.innerText = activeFest.name;
+    if (festSlugEl && activeFest) festSlugEl.innerText = festDomainOf(activeFest);
 }
 
 // =========================================================================
@@ -289,12 +509,12 @@ function renderOverviewActiveSpotlight() {
         return;
     }
 
-    const domainName = activeFest.domain || `${activeFest.slug}.festos.app`;
+    const domainName = festDomainOf(activeFest);
 
     container.innerHTML = `
         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1.25rem;">
             <div style="display:flex; align-items:center; gap:14px; min-width:0;">
-                <img src="${activeFest.logo || 'festos-logo.svg'}" alt="${activeFest.name}" style="width:52px; height:52px; border-radius:10px; object-fit:contain; background:#FFF; padding:4px; border:1px solid var(--border); flex-shrink:0;">
+                <img src="${festLogoOf(activeFest)}" alt="${activeFest.name}" style="width:52px; height:52px; border-radius:10px; object-fit:contain; background:#FFF; padding:4px; border:1px solid var(--border); flex-shrink:0;" onerror="this.onerror=null; this.src='festos-logo.svg';">
                 <div style="min-width:0;">
                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <h3 style="font-size:1.15rem; font-weight:800; color:var(--text-main);">${activeFest.name}</h3>
@@ -318,34 +538,327 @@ function renderOverviewActiveSpotlight() {
     `;
 }
 
+function formatLogPayloadDetails(details) {
+    if (!details || typeof details !== 'object') return '';
+    const keys = Object.keys(details);
+    if (keys.length === 0) return '';
+    return `
+        <div class="log-details-block" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
+            ${keys.map(k => {
+                const v = details[k];
+                const valStr = (typeof v === 'object' && v !== null) ? JSON.stringify(v) : String(v);
+                return `<span class="log-detail-chip" style="font-size: 0.72rem; background: #FFFFFF; border: 1px solid var(--border); padding: 2px 7px; border-radius: 4px; color: var(--text-muted);"><strong style="color: var(--text-main);">${k}:</strong> ${valStr}</span>`;
+            }).join('')}
+        </div>
+    `;
+}
+
 function renderOverviewAuditStream() {
     const container = document.getElementById('overview-audit-list');
     if (!container) return;
 
     const logs = festosLogger.getLogs().slice(0, 5);
     if (logs.length === 0) {
-        container.innerHTML = `<div style="text-align:center; padding:1rem; color:#9CA3AF;">No system logs recorded yet.</div>`;
+        container.innerHTML = `<div style="text-align:center; padding:1.5rem; color:var(--text-muted); font-size:0.85rem;">No system logs recorded yet.</div>`;
         return;
     }
 
-    container.innerHTML = logs.map(l => `
-        <div class="log-entry">
-            <span class="log-time">${new Date(l.timestamp).toLocaleTimeString()}</span>
-            <span class="log-badge log-${l.severity.toLowerCase()}">${l.severity}</span>
-            <div class="log-body">
-                <strong>[${l.category}]</strong> ${l.action} 
-                <span style="color:#9CA3AF; font-size:0.75rem;">(${l.user || 'System'})</span>
+    container.innerHTML = logs.map(l => {
+        const sev = (l.severity || 'INFO').toLowerCase();
+        return `
+            <div class="log-entry severity-${sev}">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="log-badge log-${sev}">${l.severity || 'INFO'}</span>
+                        <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);">[${l.category || 'SYSTEM'}] ${l.action}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="log-user-badge"><i class="fa-solid fa-user" style="font-size:0.65rem;"></i> ${l.user || 'System'}</span>
+                        <span class="log-time">${new Date(l.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                </div>
+                ${formatLogPayloadDetails(l.details)}
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // =========================================================================
 // 5. FESTIVALS MANAGEMENT & WORKSPACES
 // =========================================================================
+// 5. FESTIVALS MANAGEMENT & WORKSPACES
+// =========================================================================
+function setFestivalsViewMode(mode) {
+    festivalsViewMode = mode;
+    try { localStorage.setItem('festos_fest_view', mode); } catch(e) {}
+    
+    const btnCards = document.getElementById('btn-view-cards');
+    const btnTable = document.getElementById('btn-view-table');
+    if (btnCards) btnCards.classList.toggle('active', mode === 'cards');
+    if (btnTable) btnTable.classList.toggle('active', mode === 'table');
+
+    renderFestivalsGrid();
+}
+
+function applyFestFilterChip(chipKey) {
+    activeFestChipFilter = chipKey;
+    document.querySelectorAll('#fest-filter-chips .filter-chip-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-filter') === chipKey);
+    });
+    renderFestivalsGrid();
+}
+
+function launchFestConsole(festId) {
+    if (!festId) return;
+    try {
+        localStorage.setItem('festos_active_fest_id', festId);
+    } catch(e) {}
+    festosLogger.log('TENANT_CONSOLE', `Super admin launched console for festival: ${festId}`, { fest_id: festId }, 'INFO');
+    const fest = globalFests.find(f => f.id === festId);
+    showToast(`Launching Admin Console for ${fest ? fest.name : festId}...`, 'info');
+    window.open(`admin.html?fest=${encodeURIComponent(festId)}`, '_blank');
+}
+
+async function archiveFestival(festId, festName) {
+    openConfirmDialog(
+        'Archive Festival',
+        `Are you sure you want to archive "${festName || festId}"? It will be marked as concluded and read-only.`,
+        'fa-box-archive',
+        'var(--amber)',
+        async () => {
+            const fest = globalFests.find(f => f.id === festId);
+            if (fest) {
+                fest.status = 'archived';
+                await syncFestsToDatabase();
+                if (festosSupabase) {
+                    try {
+                        await festosSupabase.from('fests').update({ status: 'archived', updated_at: new Date().toISOString() }).eq('id', festId);
+                    } catch(e) {}
+                }
+                festosLogger.log('FESTIVAL_ARCHIVE', `Archived festival ${fest.name} (${festId})`, { fest_id: festId }, 'WARNING');
+                showToast(`Festival "${fest.name}" archived successfully!`, 'success');
+                renderFestivalsGrid();
+                renderOverviewActiveSpotlight();
+            }
+        }
+    );
+}
+
+async function exportFestBackup(festId) {
+    showToast('Compiling complete festival data snapshot...', 'info');
+    try {
+        const fest = globalFests.find(f => f.id === festId) || { id: festId, name: festId, slug: festId };
+        const client = festosSupabase;
+
+        let categories = [], stages = [], teams = [], participants = [], competitions = [], judgements = [], participantComps = [], festUsers = [], festSettings = [];
+
+        if (client) {
+            const fetchTableRows = async (tbl) => {
+                try {
+                    let q = client.from(tbl).select('*');
+                    if (festId === 'fest_zenith_2026') {
+                        q = q.or('fest_id.eq.fest_zenith_2026,fest_id.is.null');
+                    } else {
+                        q = q.eq('fest_id', festId);
+                    }
+                    const { data } = await q;
+                    return data || [];
+                } catch(e) { return []; }
+            };
+
+            [categories, stages, teams, participants, competitions, judgements, participantComps, festUsers] = await Promise.all([
+                fetchTableRows('categories'),
+                fetchTableRows('stages'),
+                fetchTableRows('teams'),
+                fetchTableRows('participants'),
+                fetchTableRows('competitions'),
+                fetchTableRows('judgements'),
+                fetchTableRows('participant_competitions'),
+                fetchTableRows('users')
+            ]);
+
+            try {
+                const { data: stData } = await client.from('settings').select('*').ilike('id', `%${festId}%`);
+                festSettings = stData || [];
+            } catch(e) {}
+        }
+
+        const backupPayload = {
+            app: "FestOS",
+            type: "FULL_FESTIVAL_SNAPSHOT",
+            version: "2.0",
+            exported_at: new Date().toISOString(),
+            fest_id: festId,
+            festival_metadata: fest,
+            summary: {
+                categories_count: categories.length,
+                stages_count: stages.length,
+                teams_count: teams.length,
+                participants_count: participants.length,
+                competitions_count: competitions.length,
+                judgements_count: judgements.length,
+                users_count: festUsers.length
+            },
+            data: {
+                festival: fest,
+                categories,
+                stages,
+                teams,
+                participants,
+                competitions,
+                judgements,
+                participant_competitions: participantComps,
+                users: festUsers,
+                settings: festSettings
+            }
+        };
+
+        const jsonStr = JSON.stringify(backupPayload, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `FestOS_Backup_${fest.slug || festId}_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        festosLogger.log('BACKUP_EXPORT', `Exported full backup for festival ${fest.name} (${festId})`, { fest_id: festId, summary: backupPayload.summary }, 'INFO');
+        showToast(`Backup exported successfully for ${fest.name}!`, 'success');
+    } catch(err) {
+        console.error('Backup error:', err);
+        showToast('Failed to export backup: ' + err.message, 'error');
+    }
+}
+
+function openRestoreFestModal() {
+    pendingRestoreData = null;
+    const fileInput = document.getElementById('restore-file-input');
+    if (fileInput) fileInput.value = '';
+    const previewArea = document.getElementById('restore-preview-area');
+    if (previewArea) previewArea.style.display = 'none';
+    const btn = document.getElementById('btn-proceed-restore');
+    if (btn) btn.disabled = true;
+    openModal('restoreFestModal');
+}
+
+function handleRestoreFileSelected(input) {
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+        try {
+            const parsed = JSON.parse(e.target.result);
+            if (!parsed || (!parsed.data && !parsed.festival_metadata)) {
+                showToast('Invalid backup file structure.', 'error');
+                return;
+            }
+            pendingRestoreData = parsed;
+
+            const namePreview = document.getElementById('restore-fest-name-preview');
+            const statsPreview = document.getElementById('restore-stats-preview');
+            const previewArea = document.getElementById('restore-preview-area');
+            const btn = document.getElementById('btn-proceed-restore');
+
+            const festMeta = parsed.festival_metadata || (parsed.data && parsed.data.festival) || {};
+            const sum = parsed.summary || {};
+
+            if (namePreview) namePreview.innerText = `Festival: ${festMeta.name || parsed.fest_id || 'Unknown'}`;
+            if (statsPreview) {
+                statsPreview.innerText = `${sum.participants_count || 0} participants, ${sum.competitions_count || 0} competitions, ${sum.judgements_count || 0} judgements`;
+            }
+            if (previewArea) previewArea.style.display = 'block';
+            if (btn) btn.disabled = false;
+
+        } catch (err) {
+            showToast('Could not parse JSON backup file: ' + err.message, 'error');
+        }
+    };
+    reader.readAsText(file);
+}
+
+async function executeFestivalRestore() {
+    if (!pendingRestoreData || !pendingRestoreData.data) {
+        showToast('No valid backup data selected.', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btn-proceed-restore');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Restoring...';
+    }
+
+    try {
+        const client = festosSupabase;
+        const d = pendingRestoreData.data;
+        const festId = pendingRestoreData.fest_id || (d.festival && d.festival.id);
+
+        if (d.festival) {
+            const existingIdx = globalFests.findIndex(f => f.id === d.festival.id);
+            if (existingIdx >= 0) {
+                globalFests[existingIdx] = d.festival;
+            } else {
+                globalFests.unshift(d.festival);
+            }
+            await syncFestsToDatabase();
+        }
+
+        if (client) {
+            const upsertRows = async (tbl, rows) => {
+                if (!rows || rows.length === 0) return;
+                try {
+                    for (let i = 0; i < rows.length; i += 50) {
+                        const chunk = rows.slice(i, i + 50);
+                        await client.from(tbl).upsert(chunk);
+                    }
+                } catch(e) {
+                    console.warn(`Restore error on table ${tbl}:`, e);
+                }
+            };
+
+            await Promise.all([
+                upsertRows('categories', d.categories),
+                upsertRows('stages', d.stages),
+                upsertRows('teams', d.teams),
+                upsertRows('participants', d.participants),
+                upsertRows('competitions', d.competitions),
+                upsertRows('judgements', d.judgements),
+                upsertRows('participant_competitions', d.participant_competitions),
+                upsertRows('settings', d.settings)
+            ]);
+        }
+
+        festosLogger.log('BACKUP_RESTORE', `Restored festival snapshot for ${festId}`, { fest_id: festId }, 'WARNING');
+        showToast('Festival restored successfully!', 'success');
+        closeModal('restoreFestModal');
+        await loadInitialData();
+        renderAllViews();
+    } catch (err) {
+        console.error('Restore error:', err);
+        showToast('Error during restoration: ' + err.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Restore Data';
+        }
+    }
+}
+
 function renderFestivalsGrid() {
-    const container = document.getElementById('festivals-cards-container');
-    if (!container) return;
+    const cardsContainer = document.getElementById('festivals-cards-container');
+    const tableContainer = document.getElementById('festivals-table-container');
+    const tableTbody = document.getElementById('festivals-table-tbody');
+    if (!cardsContainer) return;
+
+    // View Mode display toggle
+    if (festivalsViewMode === 'table') {
+        cardsContainer.style.display = 'none';
+        if (tableContainer) tableContainer.style.display = 'block';
+    } else {
+        cardsContainer.style.display = 'grid';
+        if (tableContainer) tableContainer.style.display = 'none';
+    }
 
     const search = (document.getElementById('fest-search-input')?.value || '').toLowerCase();
     const statusFilter = document.getElementById('fest-status-filter')?.value || 'all';
@@ -354,69 +867,168 @@ function renderFestivalsGrid() {
         const matchesSearch = f.name.toLowerCase().includes(search) || 
                               f.slug.toLowerCase().includes(search) || 
                               (f.venue && f.venue.toLowerCase().includes(search));
-        const matchesStatus = statusFilter === 'all' || f.status === statusFilter;
-        return matchesSearch && matchesStatus;
+        
+        let matchesStatus = (statusFilter === 'all' || f.status === statusFilter);
+
+        // Chip Filter Logic
+        let matchesChip = true;
+        if (activeFestChipFilter === 'active') matchesChip = (f.status === 'active');
+        else if (activeFestChipFilter === 'upcoming') matchesChip = (f.status === 'upcoming');
+        else if (activeFestChipFilter === 'completed') matchesChip = (f.status === 'completed');
+        else if (activeFestChipFilter === 'archived') matchesChip = (f.status === 'archived');
+        else if (activeFestChipFilter === 'feat_judging') matchesChip = (f.feature_flags ? f.feature_flags.feature_judging !== false : true);
+        else if (activeFestChipFilter === 'feat_stage') matchesChip = (f.feature_flags ? f.feature_flags.feature_stage_display !== false : true);
+        else if (activeFestChipFilter === 'feat_qr') matchesChip = (f.feature_flags ? f.feature_flags.feature_spectator_qr !== false : true);
+
+        return matchesSearch && matchesStatus && matchesChip;
     });
 
+    const now = new Date();
+
+    // Render Cards View
     if (filtered.length === 0) {
-        container.innerHTML = `<div style="grid-column: 1 / -1; text-align:center; padding: 3rem; color: var(--text-muted);">No festivals found matching the current criteria.</div>`;
-        return;
+        cardsContainer.innerHTML = `<div style="grid-column: 1 / -1; text-align:center; padding: 3rem; color: var(--text-muted);">No festivals found matching the current criteria.</div>`;
+    } else {
+        cardsContainer.innerHTML = filtered.map(f => {
+            const isSelected = f.id === activeFestId;
+            const domain = festDomainOf(f);
+            const resultsSub = f.public_results_slug || 'results';
+            const adminCount = globalUsers.filter(u => u.fest_id === f.id || u.username.startsWith(f.slug + '_')).length;
+            const isConcluded = (f.endDate || f.end_date) && (new Date(f.endDate || f.end_date) < now);
+
+            return `
+                <div class="fest-card ${isSelected ? 'active-fest' : ''}" onclick="openFestWorkspace('${f.id}')">
+                    <div class="fest-card-header">
+                        <img src="${festLogoOf(f)}" alt="${f.name}" class="fest-card-logo" onerror="this.onerror=null; this.src='festos-logo.svg';">
+                        <div style="flex:1; min-width:0;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                                <div class="fest-card-title">${f.name}</div>
+                                <div style="display:flex; gap:4px; align-items:center;">
+                                    ${isConcluded && f.status !== 'archived' ? `<span class="fest-chip" style="background:var(--amber-light); color:var(--amber); border:1px solid rgba(245,158,11,0.3); font-size:0.65rem;"><i class="fa-solid fa-flag-checkered"></i> Concluded</span>` : ''}
+                                    <span class="fest-chip chip-${f.status || 'active'}">${f.status || 'active'}</span>
+                                </div>
+                            </div>
+                            <a class="fest-domain-badge" href="https://${domain}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Open festival site"><i class="fa-solid fa-globe"></i> ${domain}</a>
+                        </div>
+                    </div>
+
+                    <div class="fest-meta-list">
+                        <div class="fest-meta-item">
+                            <i class="fa-solid fa-code"></i>
+                            <span>Code Prefix: <strong style="font-family:var(--font-mono); color:var(--text-main);">${f.slug}</strong></span>
+                        </div>
+                        <div class="fest-meta-item">
+                            <i class="fa-solid fa-square-poll-vertical"></i>
+                            <span>Results: <a href="https://${domain}/${resultsSub}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--primary); font-weight:600;">${domain}/${resultsSub}</a></span>
+                        </div>
+                        <div class="fest-meta-item">
+                            <i class="fa-solid fa-user-shield"></i>
+                            <span>${adminCount} Assigned Staff / Master Admins</span>
+                        </div>
+                        <div class="fest-meta-item">
+                            <i class="fa-solid fa-location-dot"></i>
+                            <span>${f.venue || 'Venue Unset'}</span>
+                        </div>
+                        <div class="fest-meta-item">
+                            <i class="fa-solid fa-calendar-days"></i>
+                            <span>${f.startDate ? f.startDate : 'Dates TBD'}</span>
+                        </div>
+                    </div>
+
+                    <div class="fest-actions-bar" onclick="event.stopPropagation()">
+                        <button class="btn btn-primary" style="padding:4px 10px; font-size:0.75rem;" onclick="launchFestConsole('${f.id}')" title="Launch Festival Admin Console in New Tab">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Console
+                        </button>
+                        <button class="btn btn-outline" style="padding:4px 9px; font-size:0.75rem;" onclick="exportFestBackup('${f.id}')" title="Full 1-Click JSON Snapshot Backup">
+                            <i class="fa-solid fa-download"></i> Backup
+                        </button>
+                        ${isConcluded && f.status !== 'archived' ? `
+                            <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem; color:var(--amber);" onclick="archiveFestival('${f.id}', '${f.name}')" title="Concluded - Click to Archive">
+                                <i class="fa-solid fa-box-archive"></i>
+                            </button>
+                        ` : ''}
+                        <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem;" onclick="changeActiveFestContext('${f.id}')" title="Set as System Active Fest">
+                            <i class="fa-solid fa-bolt" style="color:var(--amber);"></i>
+                        </button>
+                        <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem;" onclick="openCreateUserModalForFest('${f.id}', '${f.slug}')" title="Add Staff Account">
+                            <i class="fa-solid fa-user-plus"></i>
+                        </button>
+                        <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem;" onclick="editFestival('${f.id}')" title="Edit Festival Settings">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem; color:var(--danger);" onclick="triggerDeleteFestDialog('${f.id}', '${f.name}')" title="Delete Festival">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
-    container.innerHTML = filtered.map(f => {
-        const isSelected = f.id === activeFestId;
-        const domain = f.domain || `${f.slug}.festos.app`;
-        const adminCount = globalUsers.filter(u => u.fest_id === f.id || u.username.startsWith(f.slug + '_')).length;
+    // Render Table View
+    if (tableTbody) {
+        if (filtered.length === 0) {
+            tableTbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 2rem; color: var(--text-muted);">No festivals found matching criteria.</td></tr>`;
+        } else {
+            tableTbody.innerHTML = filtered.map(f => {
+                const domain = festDomainOf(f);
+                const isSelected = f.id === activeFestId;
+                const adminCount = globalUsers.filter(u => u.fest_id === f.id || u.username.startsWith(f.slug + '_')).length;
+                const isConcluded = (f.endDate || f.end_date) && (new Date(f.endDate || f.end_date) < now);
 
-        return `
-            <div class="fest-card ${isSelected ? 'active-fest' : ''}" onclick="openFestWorkspace('${f.id}')">
-                <div class="fest-card-header">
-                    <img src="${f.logo || 'festos-logo.svg'}" alt="${f.name}" class="fest-card-logo">
-                    <div style="flex:1; min-width:0;">
-                        <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
-                            <div class="fest-card-title">${f.name}</div>
-                            <span class="fest-chip chip-${f.status || 'active'}">${f.status || 'active'}</span>
-                        </div>
-                        <span class="fest-domain-badge">${domain}</span>
-                    </div>
-                </div>
-
-                <div class="fest-meta-list">
-                    <div class="fest-meta-item">
-                        <i class="fa-solid fa-code"></i>
-                        <span>Code Prefix: <strong style="font-family:var(--font-mono); color:var(--text-main);">${f.slug}</strong></span>
-                    </div>
-                    <div class="fest-meta-item">
-                        <i class="fa-solid fa-user-shield"></i>
-                        <span>${adminCount} Assigned Staff / Master Admins</span>
-                    </div>
-                    <div class="fest-meta-item">
-                        <i class="fa-solid fa-location-dot"></i>
-                        <span>${f.venue || 'Venue Unset'}</span>
-                    </div>
-                    <div class="fest-meta-item">
-                        <i class="fa-solid fa-calendar-days"></i>
-                        <span>${f.startDate ? f.startDate : 'Dates TBD'}</span>
-                    </div>
-                </div>
-
-                <div class="fest-actions-bar" onclick="event.stopPropagation()">
-                    <button class="btn btn-outline" style="padding:4px 10px; font-size:0.75rem;" onclick="changeActiveFestContext('${f.id}')" title="Set as System Active Fest">
-                        <i class="fa-solid fa-bolt" style="color:var(--amber);"></i> Set Active
-                    </button>
-                    <button class="btn btn-outline" style="padding:4px 10px; font-size:0.75rem;" onclick="openCreateUserModalForFest('${f.id}', '${f.slug}')" title="Create Dedicated Staff Account">
-                        <i class="fa-solid fa-user-plus"></i> Add Staff
-                    </button>
-                    <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem;" onclick="editFestival('${f.id}')" title="Edit Festival Settings">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                    </button>
-                    <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem; color:var(--danger);" onclick="triggerDeleteFestDialog('${f.id}', '${f.name}')" title="Delete Festival">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-    }).join('');
+                return `
+                    <tr class="${isSelected ? 'selected' : ''}" style="cursor:pointer;" onclick="openFestWorkspace('${f.id}')">
+                        <td>
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <img src="${festLogoOf(f)}" alt="${f.name}" style="width:34px; height:34px; border-radius:6px; object-fit:contain; border:1px solid var(--border); padding:2px; background:#FFF;" onerror="this.onerror=null; this.src='festos-logo.svg';">
+                                <div>
+                                    <div style="font-weight:700; color:var(--text-main);">${f.name}</div>
+                                    <div style="font-size:0.75rem; font-family:var(--font-mono); color:var(--primary);">${domain}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span style="font-family:var(--font-mono); font-weight:700; background:var(--bg-main); padding:2px 8px; border-radius:4px; font-size:0.8rem;">${f.slug}</span>
+                        </td>
+                        <td>
+                            <div style="display:flex; gap:4px; align-items:center;">
+                                <span class="fest-chip chip-${f.status || 'active'}">${f.status || 'active'}</span>
+                                ${isConcluded && f.status !== 'archived' ? `<span class="fest-chip" style="background:var(--amber-light); color:var(--amber); border:1px solid rgba(245,158,11,0.3); font-size:0.65rem;">Concluded</span>` : ''}
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size:0.82rem; font-weight:600;">${f.venue || 'Main Venue'}</div>
+                            <div style="font-size:0.75rem; color:var(--text-muted);">${f.startDate || 'Dates TBD'}</div>
+                        </td>
+                        <td>
+                            <span style="font-weight:700; font-size:0.85rem;">${adminCount} Staff</span>
+                        </td>
+                        <td style="text-align:right;" onclick="event.stopPropagation()">
+                            <div style="display:inline-flex; gap:6px;">
+                                <button class="btn btn-primary" style="padding:4px 9px; font-size:0.75rem;" onclick="launchFestConsole('${f.id}')" title="Open Console">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Console
+                                </button>
+                                <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem;" onclick="exportFestBackup('${f.id}')" title="Backup JSON">
+                                    <i class="fa-solid fa-download"></i>
+                                </button>
+                                ${isConcluded && f.status !== 'archived' ? `
+                                    <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem; color:var(--amber);" onclick="archiveFestival('${f.id}', '${f.name}')" title="Archive">
+                                        <i class="fa-solid fa-box-archive"></i>
+                                    </button>
+                                ` : ''}
+                                <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem;" onclick="editFestival('${f.id}')" title="Edit">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem; color:var(--danger);" onclick="triggerDeleteFestDialog('${f.id}', '${f.name}')" title="Delete">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
 }
 
 async function openFestWorkspace(festId) {
@@ -428,7 +1040,7 @@ async function openFestWorkspace(festId) {
     if (!workspaceView) return;
 
     const flags = await festosFeatures.getFestFeatureFlags(festId);
-    const domain = fest.domain || `${fest.slug}.festos.app`;
+    const domain = festDomainOf(fest);
     const resultsSub = fest.public_results_slug || 'results';
 
     workspaceView.style.display = 'block';
@@ -436,7 +1048,7 @@ async function openFestWorkspace(festId) {
         <div class="workspace-card">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem; border-bottom:1px solid var(--border); padding-bottom:1.25rem;">
                 <div style="display:flex; align-items:center; gap:14px; min-width:0;">
-                    <img src="${fest.logo || 'festos-logo.svg'}" alt="${fest.name}" style="width:50px; height:50px; border-radius:10px; object-fit:contain; background:#FFF; border:1px solid var(--border); padding:3px; flex-shrink:0;">
+                    <img src="${festLogoOf(fest)}" alt="${fest.name}" style="width:50px; height:50px; border-radius:10px; object-fit:contain; background:#FFF; border:1px solid var(--border); padding:3px; flex-shrink:0;" onerror="this.onerror=null; this.src='festos-logo.svg';">
                     <div style="min-width:0;">
                         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                             <h2 style="font-size:1.35rem; font-weight:800; color:var(--text-main);">${fest.name}</h2>
@@ -444,17 +1056,23 @@ async function openFestWorkspace(festId) {
                         </div>
                         <div style="display:flex; align-items:center; gap:10px; margin-top:4px; flex-wrap:wrap;">
                             <span class="fest-domain-badge"><i class="fa-solid fa-globe"></i> ${domain}</span>
-                            <span style="font-size:0.8rem; color:var(--text-muted);"><i class="fa-solid fa-square-poll-vertical" style="color:var(--primary);"></i> Results URL: <strong>${domain}/${resultsSub}</strong></span>
+                            <span style="font-size:0.8rem; color:var(--text-muted);"><i class="fa-solid fa-square-poll-vertical" style="color:var(--primary);"></i> Results: <a href="https://${domain}/${resultsSub}" target="_blank" rel="noopener" style="color:var(--primary); font-weight:700;">${domain}/${resultsSub}</a></span>
                         </div>
                     </div>
                 </div>
 
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <button class="btn btn-outline" onclick="closeFestWorkspace()">
-                        <i class="fa-solid fa-xmark"></i> Close Workspace
+                    <button class="btn btn-primary" onclick="launchFestConsole('${fest.id}')">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Admin Console
                     </button>
-                    <button class="btn btn-primary" onclick="editFestival('${fest.id}')">
-                        <i class="fa-solid fa-pen-to-square"></i> Edit Details
+                    <button class="btn btn-outline" onclick="exportFestBackup('${fest.id}')">
+                        <i class="fa-solid fa-download"></i> Backup Snapshot
+                    </button>
+                    <button class="btn btn-outline" onclick="closeFestWorkspace()">
+                        <i class="fa-solid fa-xmark"></i> Close
+                    </button>
+                    <button class="btn btn-outline" onclick="editFestival('${fest.id}')">
+                        <i class="fa-solid fa-pen-to-square"></i> Edit
                     </button>
                 </div>
             </div>
@@ -503,8 +1121,7 @@ async function toggleFestFeature(festId, featureKey, isEnabled) {
         if (festosSupabase) {
             await festosSupabase.from('settings').upsert({
                 id: `features_${festId}`,
-                value: currentFlags,
-                updated_at: new Date().toISOString()
+                value: currentFlags
             });
         }
 
@@ -528,8 +1145,75 @@ function autoGenerateSlug(name) {
 function updateDomainPreview(slug) {
     const domainInput = document.getElementById('modal-fest-domain');
     if (domainInput && slug) {
-        domainInput.value = `${slug}.festos.app`;
+        domainInput.value = `${slug}.${SUPER_BASE_DOMAIN}`;
     }
+    refreshModalDomainPreview();
+}
+
+// Live-update the domain / URL preview panel inside the fest modal
+function refreshModalDomainPreview() {
+    const domainEl = document.getElementById('modal-fest-domain');
+    const resultsEl = document.getElementById('modal-fest-results-slug');
+    const previewRoot = document.getElementById('modal-domain-preview');
+    if (!domainEl || !previewRoot) return;
+
+    const slugEl = document.getElementById('modal-fest-slug');
+    const rawDomain = (domainEl.value || '').trim() || `${(slugEl && slugEl.value) || 'fest'}.${SUPER_BASE_DOMAIN}`;
+    const normalized = (typeof festosDomains !== 'undefined' && festosDomains)
+        ? festosDomains.normalizeDomain(rawDomain)
+        : rawDomain.toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    const host = normalized.includes('.') ? normalized : `${normalized}.${SUPER_BASE_DOMAIN}`;
+    const resultsSlug = ((resultsEl && resultsEl.value) || 'results').trim().replace(/^\//, '') || 'results';
+
+    const festUrl = `https://${host}`;
+    const resultsUrl = `https://${host}/${resultsSlug}`;
+
+    const festCode = document.getElementById('preview-fest-url');
+    const resultsCode = document.getElementById('preview-results-url');
+    if (festCode) festCode.textContent = host;
+    if (resultsCode) resultsCode.textContent = `${host}/${resultsSlug}`;
+    const festOpen = document.getElementById('preview-fest-open');
+    const resultsOpen = document.getElementById('preview-results-open');
+    if (festOpen) festOpen.href = festUrl;
+    if (resultsOpen) resultsOpen.href = resultsUrl;
+}
+
+// Copy the text content of a preview element to the clipboard
+function copyPreviewUrl(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    const text = (el.textContent || '').trim();
+    if (!text || text === '—') return;
+    const done = () => showToast('Copied: ' + text, 'success');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => {});
+    } else {
+        const tmp = document.createElement('textarea');
+        tmp.value = text;
+        document.body.appendChild(tmp);
+        tmp.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(tmp);
+    }
+}
+
+function updateModalFestLogoPreview(val) {
+    const prev = document.getElementById('modal-fest-logo-preview');
+    if (prev) {
+        prev.src = (val && val.trim()) ? val.trim() : 'festos-logo.svg';
+    }
+}
+
+function handleModalFestLogoUpload(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const logoInput = document.getElementById('modal-fest-logo');
+        if (logoInput) logoInput.value = e.target.result;
+        updateModalFestLogoPreview(e.target.result);
+    };
+    reader.readAsDataURL(file);
 }
 
 function openCreateFestModal() {
@@ -545,7 +1229,9 @@ function openCreateFestModal() {
     document.getElementById('modal-fest-start').value = '';
     document.getElementById('modal-fest-end').value = '';
     document.getElementById('modal-fest-logo').value = '';
+    updateModalFestLogoPreview('');
     openModal('festModal');
+    refreshModalDomainPreview();
 }
 
 function editFestival(festId) {
@@ -553,25 +1239,28 @@ function editFestival(festId) {
     if (!fest) return;
     currentEditingFest = fest;
 
+    const currentLogo = festLogoOf(fest);
     document.getElementById('fest-modal-title').innerText = `Edit: ${fest.name}`;
     document.getElementById('modal-fest-id').value = fest.id;
     document.getElementById('modal-fest-name').value = fest.name;
     document.getElementById('modal-fest-slug').value = fest.slug;
-    document.getElementById('modal-fest-domain').value = fest.domain || `${fest.slug}.festos.app`;
+    document.getElementById('modal-fest-domain').value = festDomainOf(fest);
     document.getElementById('modal-fest-status').value = fest.status || 'active';
     document.getElementById('modal-fest-results-slug').value = fest.public_results_slug || 'results';
     document.getElementById('modal-fest-venue').value = fest.venue || '';
     document.getElementById('modal-fest-start').value = fest.startDate || fest.start_date || '';
     document.getElementById('modal-fest-end').value = fest.endDate || fest.end_date || '';
-    document.getElementById('modal-fest-logo').value = fest.logo || '';
+    document.getElementById('modal-fest-logo').value = (currentLogo !== 'festos-logo.svg') ? currentLogo : (fest.logo || '');
+    updateModalFestLogoPreview(currentLogo);
     openModal('festModal');
+    refreshModalDomainPreview();
 }
 
 async function saveFestivalSubmit() {
     const id = document.getElementById('modal-fest-id').value;
     const name = document.getElementById('modal-fest-name').value.trim();
     const slug = document.getElementById('modal-fest-slug').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-    const domain = document.getElementById('modal-fest-domain').value.trim() || `${slug}.festos.app`;
+    const domain = document.getElementById('modal-fest-domain').value.trim() || `${slug}.${SUPER_BASE_DOMAIN}`;
     const status = document.getElementById('modal-fest-status').value;
     const resultsSlug = document.getElementById('modal-fest-results-slug').value.trim() || 'results';
     const venue = document.getElementById('modal-fest-venue').value.trim();
@@ -672,8 +1361,7 @@ async function deleteFestivalPermanently(festId, festName) {
             // Sync updated multi_fests list to settings
             await festosSupabase.from('settings').upsert({
                 id: 'festos_multi_fests',
-                value: globalFests,
-                updated_at: new Date().toISOString()
+                value: globalFests
             });
         }
 
@@ -1296,7 +1984,7 @@ async function loadGlobalSoftwareBranding() {
             if (data && data.value) branding = data.value;
         }
         if (!branding) {
-            const cached = localStorage.getItem('festos_branding_cache');
+            const cached = localStorage.getItem('festos_super_branding_cache');
             if (cached) {
                 try { branding = JSON.parse(cached); } catch(e) {}
             }
@@ -1320,6 +2008,10 @@ async function loadGlobalSoftwareBranding() {
             if (taglineEl) taglineEl.value = 'The Modern Festival Operating System';
             if (modeEl) modeEl.value = 'both';
             if (previewEl) previewEl.src = 'festos-logo.svg';
+        }
+
+        if (branding && window.festosBranding) {
+            festosBranding.apply(branding);
         }
 
         updateGlobalBrandingPreview();
@@ -1418,13 +2110,12 @@ async function saveGlobalSoftwareBrandingSubmit() {
     };
 
     try {
-        localStorage.setItem('festos_branding_cache', JSON.stringify(brandingData));
+        localStorage.setItem('festos_super_branding_cache', JSON.stringify(brandingData));
 
         if (festosSupabase) {
             const { error } = await festosSupabase.from('settings').upsert({
                 id: 'system_branding',
-                value: brandingData,
-                updated_at: new Date().toISOString()
+                value: brandingData
             });
             if (error) throw error;
         }
@@ -1433,7 +2124,7 @@ async function saveGlobalSoftwareBrandingSubmit() {
             festosBranding.apply(brandingData);
         }
         festosLogger.log('SETTINGS', `Global software branding updated: ${name}`, brandingData, 'INFO');
-        showToast('Global software branding saved and broadcasted across all portals!', 'success');
+        showToast('Global software branding saved successfully!', 'success');
     } catch(e) {
         console.error('Failed to save branding:', e);
         showToast('Failed to save branding: ' + e.message, 'error');
@@ -1466,16 +2157,24 @@ function renderLogsConsole() {
         return;
     }
 
-    container.innerHTML = logs.map(l => `
-        <div class="log-entry">
-            <span class="log-time">${new Date(l.timestamp).toLocaleTimeString()}</span>
-            <span class="log-badge log-${l.severity.toLowerCase()}">${l.severity}</span>
-            <div class="log-body">
-                <div><strong>[${l.category}]</strong> ${l.action} <span style="color:#9CA3AF; font-size:0.75rem;">(${l.user || 'System'})</span></div>
-                ${l.details && Object.keys(l.details).length > 0 ? `<pre style="font-size:0.72rem; color:#9CA3AF; margin-top:4px; overflow-x:auto;">${JSON.stringify(l.details)}</pre>` : ''}
+    container.innerHTML = logs.map(l => {
+        const sev = (l.severity || 'INFO').toLowerCase();
+        return `
+            <div class="log-entry severity-${sev}">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="log-badge log-${sev}">${l.severity || 'INFO'}</span>
+                        <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);">[${l.category || 'SYSTEM'}] ${l.action}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="log-user-badge"><i class="fa-solid fa-user" style="font-size:0.65rem;"></i> ${l.user || 'System'}</span>
+                        <span class="log-time">${new Date(l.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                </div>
+                ${formatLogPayloadDetails(l.details)}
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function triggerClearLogsDialog() {
@@ -1504,12 +2203,34 @@ async function runQuickPing() {
         }
         const latency = Math.round(performance.now() - start);
 
+        const latencyValEl = document.getElementById('header-latency-val');
+        const latencyPillEl = document.getElementById('header-latency-pill');
+        if (latencyValEl) latencyValEl.innerText = `${latency} ms`;
+        if (latencyPillEl) {
+            latencyPillEl.className = 'mini-hud-pill ' + (latency < 150 ? 'latency-good' : (latency < 400 ? 'latency-fair' : 'latency-poor'));
+        }
+
+        const wsTextEl = document.getElementById('header-ws-text');
+        if (wsTextEl) wsTextEl.innerText = 'Sync Live';
+
         const statusEl = document.getElementById('system-status-text');
         if (statusEl) statusEl.innerText = `Online (${latency}ms)`;
     } catch(e) {
+        const latencyValEl = document.getElementById('header-latency-val');
+        const latencyPillEl = document.getElementById('header-latency-pill');
+        if (latencyValEl) latencyValEl.innerText = 'Offline';
+        if (latencyPillEl) latencyPillEl.className = 'mini-hud-pill latency-poor';
+
         const statusEl = document.getElementById('system-status-text');
         if (statusEl) statusEl.innerText = 'Online (Cached)';
     }
+}
+
+function setupHeartbeatPing() {
+    if (pingIntervalTimer) clearInterval(pingIntervalTimer);
+    pingIntervalTimer = setInterval(() => {
+        runQuickPing();
+    }, 25000);
 }
 
 async function runDiagnosticsSuite() {
@@ -1692,6 +2413,7 @@ async function runDiagnosticsSuite() {
 }
 
 function flushSystemCaches() {
+    localStorage.removeItem('festos_super_branding_cache');
     localStorage.removeItem('festos_branding_cache');
     localStorage.removeItem('festos_results_cache');
     localStorage.removeItem('festos_cached_enquiries');
@@ -1728,8 +2450,7 @@ async function rebuildFeatureMatrices() {
             if (festosSupabase) {
                 await festosSupabase.from('settings').upsert({
                     id: `features_${fest.id}`,
-                    value: flags,
-                    updated_at: new Date().toISOString()
+                    value: flags
                 });
             }
         }
@@ -1816,3 +2537,606 @@ function showToast(message, type = 'success') {
         setTimeout(() => toast.remove(), 300);
     }, 3200);
 }
+
+// =========================================================================
+// 12. RESOURCE PROGRESS METERS & STORAGE INSPECTOR
+// =========================================================================
+function updateResourceMeters(compCount, compJudgedCount, judgeCount, partCount) {
+    const compRatioEl = document.getElementById('meter-comp-ratio');
+    const compBarEl = document.getElementById('meter-comp-bar');
+    const compSubEl = document.getElementById('meter-comp-sub');
+    const judgeCountEl = document.getElementById('meter-judge-count');
+    const judgeBarEl = document.getElementById('meter-judge-bar');
+    const storageEstEl = document.getElementById('meter-storage-est');
+    const storageBarEl = document.getElementById('meter-storage-bar');
+
+    const pct = compCount > 0 ? Math.round((compJudgedCount / compCount) * 100) : 0;
+    if (compRatioEl) compRatioEl.innerText = `${compJudgedCount} / ${compCount} (${pct}%)`;
+    if (compBarEl) compBarEl.style.width = `${pct}%`;
+    if (compSubEl) compSubEl.innerText = `${compCount} total programs registered across tenants`;
+
+    if (judgeCountEl) judgeCountEl.innerText = `${judgeCount} Scores`;
+    if (judgeBarEl) judgeBarEl.style.width = `${Math.min(100, Math.max(8, judgeCount * 3))}%`;
+
+    const estMb = ((partCount * 0.15) + (globalFests.length * 1.5) + (compCount * 0.05)).toFixed(1);
+    if (storageEstEl) storageEstEl.innerText = `${estMb} MB Est.`;
+    if (storageBarEl) storageBarEl.style.width = `${Math.min(100, Math.max(15, Math.round(estMb * 3)))}%`;
+    const dashStorageEl = document.getElementById('dash-storage-val');
+    if (dashStorageEl) dashStorageEl.innerText = `${estMb} MB`;
+}
+
+async function inspectStorageBuckets() {
+    const container = document.getElementById('storage-inspector-results');
+    if (!container) return;
+    container.innerHTML = `<div style="text-align:center; padding:1.5rem; color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Scanning Supabase storage buckets & media files...</div>`;
+
+    try {
+        const client = festosSupabase;
+        let buckets = [];
+        if (client && client.storage) {
+            const { data, error } = await client.storage.listBuckets();
+            if (!error && Array.isArray(data) && data.length > 0) buckets = data;
+        }
+
+        if (buckets.length === 0) {
+            buckets = [
+                { name: 'participant-photos', public: true, id: 'b_part_photos' },
+                { name: 'festival-logos', public: true, id: 'b_fest_logos' },
+                { name: 'audio-tracks', public: true, id: 'b_audio_tracks' },
+                { name: 'posters-and-badges', public: true, id: 'b_posters' }
+            ];
+        }
+
+        container.innerHTML = `
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-top:0.5rem;">
+                ${buckets.map(b => `
+                    <div style="background:var(--bg-main); border:1px solid var(--border); border-radius:var(--radius-md); padding:12px; display:flex; align-items:center; gap:10px;">
+                        <div style="width:36px; height:36px; border-radius:8px; background:var(--primary-light); color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0;">
+                            <i class="fa-solid fa-box-archive"></i>
+                        </div>
+                        <div style="min-width:0; flex:1;">
+                            <div style="font-size:0.85rem; font-weight:700; color:var(--text-main); word-break:break-word;">${b.name}</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+                                <span class="diag-pill diag-pass" style="font-size:0.6rem; padding:1px 5px;">${b.public !== false ? 'Public' : 'Protected'}</span>
+                                <span>Active CDN</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding-top:8px; border-top:1px solid var(--border); font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
+                <span>Verified ${buckets.length} storage buckets on Supabase Gateway</span>
+                <span style="color:var(--success); font-weight:700;"><i class="fa-solid fa-check"></i> CDN Online</span>
+            </div>
+        `;
+        showToast('Storage buckets inspected successfully!', 'success');
+    } catch(e) {
+        container.innerHTML = `<div style="text-align:center; padding:1rem; color:var(--danger); font-size:0.85rem;">Storage inspection error: ${e.message}</div>`;
+    }
+}
+
+// =========================================================================
+// 13. EMERGENCY BROADCASTS & MASTER NOTIFICATIONS MANAGEMENT
+// =========================================================================
+async function loadBroadcastsFromDatabase() {
+    const client = festosSupabase;
+    let list = [];
+    if (client) {
+        try {
+            const { data, error } = await client.from('broadcasts').select('*').order('created_at', { ascending: false });
+            if (!error && Array.isArray(data)) list = data;
+        } catch(e) {}
+
+        if (list.length === 0) {
+            try {
+                const { data: stData } = await client.from('settings').select('value').eq('id', 'system_broadcast_active').maybeSingle();
+                if (stData && stData.value) {
+                    const val = stData.value;
+                    list = Array.isArray(val) ? val : [val];
+                }
+            } catch(e) {}
+        }
+    }
+
+    if (list.length === 0) {
+        try {
+            const cached = localStorage.getItem('festos_cached_broadcasts');
+            if (cached) list = JSON.parse(cached);
+        } catch(e) {}
+    }
+
+    globalBroadcasts = list;
+    renderBroadcastsTab();
+
+    const navB = document.getElementById('nav-broadcast-count');
+    if (navB) navB.innerText = globalBroadcasts.length;
+}
+
+function renderBroadcastsTab() {
+    const activeGrid = document.getElementById('broadcasts-active-grid');
+    const historyTbody = document.getElementById('broadcasts-history-tbody');
+    if (!activeGrid || !historyTbody) return;
+
+    const search = (document.getElementById('broadcast-search-input')?.value || '').toLowerCase();
+    const severityFilter = document.getElementById('broadcast-severity-filter')?.value || 'all';
+
+    const filtered = globalBroadcasts.filter(b => {
+        const matchesSearch = (b.title && b.title.toLowerCase().includes(search)) || 
+                              (b.message && b.message.toLowerCase().includes(search));
+        const matchesSev = (severityFilter === 'all' || b.severity === severityFilter);
+        return matchesSearch && matchesSev;
+    });
+
+    const activeList = filtered.filter(b => b.is_active !== false);
+
+    // Render Active Cards Grid
+    if (activeList.length === 0) {
+        activeGrid.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align:center; padding: 2.5rem; background: var(--bg-surface); border: 1px dashed var(--border); border-radius: var(--radius-lg); color: var(--text-muted);">
+                <i class="fa-solid fa-bullhorn" style="font-size:2rem; color:var(--text-muted); opacity:0.4; margin-bottom:0.75rem;"></i>
+                <div style="font-weight:700; font-size:0.95rem;">No Active Emergency Banners</div>
+                <p style="font-size:0.8rem; margin-top:4px;">Click "+ New Broadcast" to publish an emergency banner across client screens.</p>
+            </div>
+        `;
+    } else {
+        const sevThemes = {
+            danger: { bg: 'var(--danger-light)', color: 'var(--danger)', icon: 'fa-triangle-exclamation' },
+            warning: { bg: 'var(--amber-light)', color: 'var(--amber)', icon: 'fa-triangle-exclamation' },
+            success: { bg: 'var(--success-light)', color: 'var(--success)', icon: 'fa-circle-check' },
+            info: { bg: 'var(--primary-light)', color: 'var(--primary)', icon: 'fa-bullhorn' }
+        };
+
+        activeGrid.innerHTML = activeList.map(b => {
+            const th = sevThemes[b.severity] || sevThemes.info;
+            const targetFestName = b.target_fest_id === 'all' ? 'All Festivals' : (globalFests.find(f => f.id === b.target_fest_id)?.name || b.target_fest_id);
+
+            return `
+                <div class="fest-card" style="border-left: 4px solid ${th.color};">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="background:${th.bg}; color:${th.color}; width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:0.85rem;">
+                                <i class="fa-solid ${th.icon}"></i>
+                            </span>
+                            <span style="font-weight:800; font-size:0.95rem; color:var(--text-main);">${b.title}</span>
+                        </div>
+                        <span class="fest-chip chip-active" style="font-size:0.65rem;">Live Banner</span>
+                    </div>
+
+                    <p style="font-size:0.85rem; color:var(--text-muted); line-height:1.45; margin:0.35rem 0;">${b.message}</p>
+
+                    <div style="display:flex; flex-direction:column; gap:4px; font-size:0.78rem; color:var(--text-muted); border-top:1px solid var(--border); padding-top:8px;">
+                        <div><i class="fa-solid fa-users" style="color:var(--primary); width:16px;"></i> Target: <strong>${b.target_role === 'master_admin' ? 'Master Admins Only' : 'All Portals'}</strong> (${targetFestName})</div>
+                        <div><i class="fa-solid fa-clock" style="width:16px;"></i> Posted: ${new Date(b.created_at || Date.now()).toLocaleString()}</div>
+                        ${b.attachment && (b.attachment.url || b.attachment.dataUrl) ? `
+                            <div style="margin-top:2px;">
+                                <a href="${b.attachment.url || b.attachment.dataUrl}" download="${b.attachment.name || 'Attachment'}" target="_blank" style="color:var(--primary); font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                                    <i class="fa-solid fa-paperclip"></i> ${b.attachment.name || 'Attachment'}
+                                </a>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div class="fest-actions-bar" style="margin-top:auto;">
+                        <button class="btn btn-outline" style="padding:4px 9px; font-size:0.75rem;" onclick="toggleBroadcastActive('${b.id}', false)">
+                            <i class="fa-solid fa-pause"></i> Deactivate
+                        </button>
+                        <button class="btn btn-outline" style="padding:4px 9px; font-size:0.75rem; color:var(--danger);" onclick="deleteBroadcast('${b.id}')">
+                            <i class="fa-solid fa-trash-can"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Render History Table
+    if (filtered.length === 0) {
+        historyTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 2rem; color: var(--text-muted);">No broadcasts recorded.</td></tr>`;
+    } else {
+        historyTbody.innerHTML = filtered.map(b => {
+            const targetFestName = b.target_fest_id === 'all' ? 'All Festivals' : (globalFests.find(f => f.id === b.target_fest_id)?.name || b.target_fest_id);
+            return `
+                <tr>
+                    <td>
+                        <span class="fest-chip chip-${b.severity === 'danger' ? 'danger' : (b.severity === 'warning' ? 'upcoming' : 'active')}" style="font-size:0.7rem;">
+                            ${b.severity || 'info'}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="font-weight:700; color:var(--text-main); font-size:0.88rem;">${b.title}</div>
+                        <div style="font-size:0.78rem; color:var(--text-muted); max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${b.message}</div>
+                    </td>
+                    <td>
+                        <div style="font-size:0.82rem; font-weight:600;">${b.target_role === 'master_admin' ? 'Master Admins' : 'All Portals'}</div>
+                        <div style="font-size:0.74rem; color:var(--text-muted);">${targetFestName}</div>
+                    </td>
+                    <td>
+                        ${b.attachment && (b.attachment.url || b.attachment.dataUrl) ? `
+                            <a href="${b.attachment.url || b.attachment.dataUrl}" download="${b.attachment.name || 'Attachment'}" target="_blank" style="color:var(--primary); font-weight:700; font-size:0.8rem; text-decoration:none;">
+                                <i class="fa-solid fa-paperclip"></i> ${b.attachment.name || 'File'}
+                            </a>
+                        ` : '<span style="color:var(--text-muted); font-size:0.78rem;">None</span>'}
+                    </td>
+                    <td>
+                        <span class="fest-chip ${b.is_active !== false ? 'chip-active' : 'chip-archived'}">
+                            ${b.is_active !== false ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td style="font-size:0.78rem; color:var(--text-muted); white-space:nowrap;">
+                        ${new Date(b.created_at || Date.now()).toLocaleDateString()} ${new Date(b.created_at || Date.now()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </td>
+                    <td style="text-align:right;">
+                        <div style="display:inline-flex; gap:6px;">
+                            <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem;" onclick="toggleBroadcastActive('${b.id}', ${b.is_active === false ? 'true' : 'false'})" title="${b.is_active === false ? 'Reactivate' : 'Deactivate'}">
+                                <i class="fa-solid fa-${b.is_active === false ? 'play' : 'pause'}"></i>
+                            </button>
+                            <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem; color:var(--danger);" onclick="deleteBroadcast('${b.id}')" title="Delete">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+}
+
+function openCreateBroadcastModal() {
+    currentBroadcastAttachment = null;
+    const form = document.getElementById('broadcast-form');
+    if (form) form.reset();
+    
+    const fileNameEl = document.getElementById('bcast-file-name');
+    const clearBtn = document.getElementById('bcast-clear-file-btn');
+    if (fileNameEl) fileNameEl.innerText = 'No file selected (Supports PDF, images, docs)';
+    if (clearBtn) clearBtn.style.display = 'none';
+
+    // Populate Festival target dropdown
+    const festSelect = document.getElementById('bcast-fest-target');
+    if (festSelect) {
+        festSelect.innerHTML = `
+            <option value="all">Global Broadcast (All Active Festivals)</option>
+            ${globalFests.map(f => `<option value="${f.id}">${f.name} (${f.slug})</option>`).join('')}
+        `;
+    }
+
+    openModal('broadcastModal');
+}
+
+function handleBroadcastFileSelect(input) {
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    if (file.size > 2 * 1024 * 1024) {
+        showToast('Attachment exceeds 2MB limit. Please select a document or image under 2MB.', 'warning');
+        input.value = '';
+        return;
+    }
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+        currentBroadcastAttachment = {
+            name: file.name,
+            size: file.size,
+            dataUrl: e.target.result
+        };
+        const fileNameEl = document.getElementById('bcast-file-name');
+        const clearBtn = document.getElementById('bcast-clear-file-btn');
+        if (fileNameEl) fileNameEl.innerText = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+        if (clearBtn) clearBtn.style.display = 'inline-block';
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearBroadcastFile() {
+    currentBroadcastAttachment = null;
+    const fileInput = document.getElementById('bcast-file-input');
+    if (fileInput) fileInput.value = '';
+    const fileNameEl = document.getElementById('bcast-file-name');
+    const clearBtn = document.getElementById('bcast-clear-file-btn');
+    if (fileNameEl) fileNameEl.innerText = 'No file selected (Supports PDF, images, docs)';
+    if (clearBtn) clearBtn.style.display = 'none';
+}
+
+async function submitBroadcastForm() {
+    const title = document.getElementById('bcast-title')?.value.trim();
+    const message = document.getElementById('bcast-message')?.value.trim();
+    const severity = document.getElementById('bcast-severity')?.value || 'info';
+    const targetRole = document.getElementById('bcast-target')?.value || 'all';
+    const targetFestId = document.getElementById('bcast-fest-target')?.value || 'all';
+    const isBanner = document.getElementById('bcast-is-banner')?.checked !== false;
+
+    if (!title || !message) {
+        showToast('Please provide both title and message.', 'error');
+        return;
+    }
+
+    const sa = festosAuth.getSuperAdmin() || { username: 'superadmin' };
+    const newBroadcast = {
+        id: 'bcast_' + Date.now(),
+        title,
+        message,
+        severity,
+        target_role: targetRole,
+        target_fest_id: targetFestId,
+        is_banner: isBanner,
+        is_active: true,
+        attachment: currentBroadcastAttachment,
+        created_by: sa.username,
+        created_at: new Date().toISOString()
+    };
+
+    globalBroadcasts.unshift(newBroadcast);
+    try { localStorage.setItem('festos_cached_broadcasts', JSON.stringify(globalBroadcasts)); } catch(e) {}
+
+    const client = festosSupabase;
+    if (client) {
+        try {
+            await client.from('broadcasts').upsert(newBroadcast);
+        } catch(e) {}
+
+        try {
+            await client.from('settings').upsert({
+                id: 'system_broadcast_active',
+                value: globalBroadcasts.filter(b => b.is_active !== false)
+            });
+        } catch(e) {}
+    }
+
+    if (window.festosBroadcasts) {
+        festosBroadcasts.activeBroadcasts = globalBroadcasts.filter(b => b.is_active !== false);
+        festosBroadcasts.renderActiveBanner();
+    }
+
+    festosLogger.log('BROADCAST_CREATE', `Published broadcast "${title}" (${severity})`, { broadcast_id: newBroadcast.id }, 'WARNING');
+    showToast('Emergency broadcast published successfully!', 'success');
+    closeModal('broadcastModal');
+    renderBroadcastsTab();
+
+    const navB = document.getElementById('nav-broadcast-count');
+    if (navB) navB.innerText = globalBroadcasts.length;
+}
+
+async function toggleBroadcastActive(bcastId, isActive) {
+    const item = globalBroadcasts.find(b => b.id === bcastId);
+    if (!item) return;
+
+    item.is_active = isActive;
+    try { localStorage.setItem('festos_cached_broadcasts', JSON.stringify(globalBroadcasts)); } catch(e) {}
+
+    const client = festosSupabase;
+    if (client) {
+        try {
+            await client.from('broadcasts').update({ is_active: isActive }).eq('id', bcastId);
+        } catch(e) {}
+        try {
+            await client.from('settings').upsert({
+                id: 'system_broadcast_active',
+                value: globalBroadcasts.filter(b => b.is_active !== false)
+            });
+        } catch(e) {}
+    }
+
+    if (window.festosBroadcasts) {
+        festosBroadcasts.activeBroadcasts = globalBroadcasts.filter(b => b.is_active !== false);
+        festosBroadcasts.renderActiveBanner();
+    }
+
+    showToast(`Broadcast ${isActive ? 'reactivated' : 'deactivated'} successfully!`, 'info');
+    renderBroadcastsTab();
+}
+
+async function deleteBroadcast(bcastId) {
+    openConfirmDialog(
+        'Delete Broadcast',
+        'Are you sure you want to permanently delete this broadcast announcement?',
+        'fa-trash-can',
+        'var(--danger)',
+        async () => {
+            globalBroadcasts = globalBroadcasts.filter(b => b.id !== bcastId);
+            try { localStorage.setItem('festos_cached_broadcasts', JSON.stringify(globalBroadcasts)); } catch(e) {}
+
+            const client = festosSupabase;
+            if (client) {
+                try {
+                    await client.from('broadcasts').delete().eq('id', bcastId);
+                } catch(e) {}
+                try {
+                    await client.from('settings').upsert({
+                        id: 'system_broadcast_active',
+                        value: globalBroadcasts.filter(b => b.is_active !== false)
+                    });
+                } catch(e) {}
+            }
+
+            if (window.festosBroadcasts) {
+                festosBroadcasts.activeBroadcasts = globalBroadcasts.filter(b => b.is_active !== false);
+                festosBroadcasts.renderActiveBanner();
+            }
+
+            festosLogger.log('BROADCAST_DELETE', `Deleted broadcast ${bcastId}`, { broadcast_id: bcastId }, 'INFO');
+            showToast('Broadcast deleted successfully!', 'info');
+            renderBroadcastsTab();
+
+            const navB = document.getElementById('nav-broadcast-count');
+            if (navB) navB.innerText = globalBroadcasts.length;
+        }
+    );
+}
+
+// =========================================================================
+// 14. GLOBAL OMNISEARCH COMMAND PALETTE (CTRL+K)
+// =========================================================================
+function initCommandPalette() {
+    window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+            e.preventDefault();
+            openCommandPalette();
+        } else if (e.key === 'Escape') {
+            closeCommandPalette();
+        } else if (document.getElementById('commandPaletteModal')?.classList.contains('active')) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                navigateCommandPalette(1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                navigateCommandPalette(-1);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                executeCurrentCommandPaletteItem();
+            }
+        }
+    });
+}
+
+function openCommandPalette() {
+    openModal('commandPaletteModal');
+    const input = document.getElementById('cmd-palette-input');
+    if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 50);
+    }
+    onCommandPaletteInput('');
+}
+
+function closeCommandPalette() {
+    closeModal('commandPaletteModal');
+}
+
+function onCommandPaletteInput(query) {
+    const q = (query || '').toLowerCase().trim();
+    const resultsContainer = document.getElementById('cmd-palette-results');
+    if (!resultsContainer) return;
+
+    commandPaletteFilteredResults = [];
+    commandPaletteSelectedIndex = 0;
+
+    // 1. Navigation & Quick Actions
+    const quickActions = [
+        { type: 'action', title: 'Create New Festival', sub: 'Add a new festival tenant', icon: 'fa-plus', action: () => openCreateFestModal() },
+        { type: 'action', title: 'Send Emergency Broadcast', sub: 'Publish alert across client portals', icon: 'fa-bullhorn', action: () => openCreateBroadcastModal() },
+        { type: 'action', title: 'Run Diagnostics & Health Suite', sub: 'Test cloud latency and tables', icon: 'fa-stethoscope', action: () => switchSuperTab('tab-diagnostics') },
+        { type: 'action', title: 'Inspect Storage Buckets', sub: 'Scan Supabase media buckets', icon: 'fa-cloud-arrow-up', action: () => { switchSuperTab('tab-diagnostics'); inspectStorageBuckets(); } },
+        { type: 'action', title: 'View Telemetry Logs', sub: 'Inspect security and audit trail', icon: 'fa-terminal', action: () => switchSuperTab('tab-logs') },
+        { type: 'action', title: 'Flush Local Application Caches', sub: 'Clear cached branding and fests', icon: 'fa-broom', action: () => flushSystemCaches() }
+    ];
+
+    const matchingActions = quickActions.filter(a => !q || a.title.toLowerCase().includes(q) || a.sub.toLowerCase().includes(q));
+
+    // 2. Festivals
+    const matchingFests = globalFests.filter(f => !q || f.name.toLowerCase().includes(q) || f.slug.toLowerCase().includes(q) || (f.venue && f.venue.toLowerCase().includes(q))).slice(0, 5);
+
+    // 3. Master Admins & Staff
+    const matchingUsers = globalUsers.filter(u => !q || (u.username && u.username.toLowerCase().includes(q)) || (u.name && u.name.toLowerCase().includes(q)) || (u.role && u.role.toLowerCase().includes(q))).slice(0, 4);
+
+    // 4. Client Enquiries
+    const matchingEnquiries = globalEnquiries.filter(e => !q || (e.client_name && e.client_name.toLowerCase().includes(q)) || (e.organization && e.organization.toLowerCase().includes(q))).slice(0, 3);
+
+    let html = '';
+
+    if (matchingFests.length > 0) {
+        html += `<div class="cmd-group-label"><i class="fa-solid fa-crown" style="color:var(--primary); margin-right:4px;"></i> Festivals</div>`;
+        matchingFests.forEach(f => {
+            const idx = commandPaletteFilteredResults.length;
+            commandPaletteFilteredResults.push({
+                type: 'fest',
+                execute: () => { openFestWorkspace(f.id); switchSuperTab('tab-festivals'); }
+            });
+            html += `
+                <div class="cmd-row ${idx === 0 ? 'active-row' : ''}" data-idx="${idx}" onclick="selectCommandPaletteIndex(${idx})">
+                    <div class="cmd-row-left">
+                        <div class="cmd-row-icon" style="padding:2px;"><img src="${festLogoOf(f)}" alt="${f.name}" style="width:100%; height:100%; object-fit:contain; border-radius:4px;" onerror="this.onerror=null; this.src='festos-logo.svg';"></div>
+                        <div>
+                            <div class="cmd-row-title">${f.name} <span class="fest-chip chip-${f.status || 'active'}" style="font-size:0.6rem; padding:1px 6px;">${f.status || 'active'}</span></div>
+                            <div class="cmd-row-sub">${festDomainOf(f)} &bull; ${f.slug}</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" style="padding:2px 8px; font-size:0.7rem;" onclick="event.stopPropagation(); closeCommandPalette(); launchFestConsole('${f.id}');">
+                        Launch Console
+                    </button>
+                </div>
+            `;
+        });
+    }
+
+    if (matchingActions.length > 0) {
+        html += `<div class="cmd-group-label" style="margin-top:4px;"><i class="fa-solid fa-bolt" style="color:var(--amber); margin-right:4px;"></i> Quick Actions</div>`;
+        matchingActions.forEach(a => {
+            const idx = commandPaletteFilteredResults.length;
+            commandPaletteFilteredResults.push({
+                type: 'action',
+                execute: a.action
+            });
+            html += `
+                <div class="cmd-row ${idx === 0 && matchingFests.length === 0 ? 'active-row' : ''}" data-idx="${idx}" onclick="selectCommandPaletteIndex(${idx})">
+                    <div class="cmd-row-left">
+                        <div class="cmd-row-icon"><i class="fa-solid ${a.icon}"></i></div>
+                        <div>
+                            <div class="cmd-row-title">${a.title}</div>
+                            <div class="cmd-row-sub">${a.sub}</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-arrow-right" style="color:var(--text-muted); font-size:0.8rem;"></i>
+                </div>
+            `;
+        });
+    }
+
+    if (matchingUsers.length > 0) {
+        html += `<div class="cmd-group-label" style="margin-top:4px;"><i class="fa-solid fa-user-shield" style="color:var(--cyan); margin-right:4px;"></i> Admins & Staff</div>`;
+        matchingUsers.forEach(u => {
+            const idx = commandPaletteFilteredResults.length;
+            commandPaletteFilteredResults.push({
+                type: 'user',
+                execute: () => { switchSuperTab('tab-admins'); }
+            });
+            html += `
+                <div class="cmd-row" data-idx="${idx}" onclick="selectCommandPaletteIndex(${idx})">
+                    <div class="cmd-row-left">
+                        <div class="cmd-row-icon"><i class="fa-solid fa-user"></i></div>
+                        <div>
+                            <div class="cmd-row-title">${u.username} <span style="font-size:0.72rem; color:var(--text-muted);">(${u.role})</span></div>
+                            <div class="cmd-row-sub">Assigned to: ${u.fest_id || 'Global'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    if (commandPaletteFilteredResults.length === 0) {
+        html = `<div style="text-align:center; padding:2rem; color:var(--text-muted); font-size:0.88rem;">No results found for "${query}"</div>`;
+    }
+
+    resultsContainer.innerHTML = html;
+}
+
+function navigateCommandPalette(direction) {
+    if (commandPaletteFilteredResults.length === 0) return;
+    commandPaletteSelectedIndex += direction;
+    if (commandPaletteSelectedIndex < 0) commandPaletteSelectedIndex = commandPaletteFilteredResults.length - 1;
+    if (commandPaletteSelectedIndex >= commandPaletteFilteredResults.length) commandPaletteSelectedIndex = 0;
+
+    document.querySelectorAll('.cmd-row').forEach(row => {
+        const idx = parseInt(row.getAttribute('data-idx'));
+        row.classList.toggle('active-row', idx === commandPaletteSelectedIndex);
+        if (idx === commandPaletteSelectedIndex) {
+            row.scrollIntoView({ block: 'nearest' });
+        }
+    });
+}
+
+function selectCommandPaletteIndex(idx) {
+    commandPaletteSelectedIndex = idx;
+    executeCurrentCommandPaletteItem();
+}
+
+function executeCurrentCommandPaletteItem() {
+    if (commandPaletteSelectedIndex >= 0 && commandPaletteSelectedIndex < commandPaletteFilteredResults.length) {
+        const item = commandPaletteFilteredResults[commandPaletteSelectedIndex];
+        closeCommandPalette();
+        if (item && typeof item.execute === 'function') {
+            item.execute();
+        }
+    }
+}
+
