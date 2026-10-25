@@ -1,3 +1,87 @@
+
+// =========================================================================
+// STUDENT CATEGORY COMPETITION LIMIT SYSTEM
+// =========================================================================
+
+window.cachedCategoryLimitConfig = null;
+
+async function getCategoryLimitConfig(forceRefresh = false) {
+    if (window.cachedCategoryLimitConfig && !forceRefresh) return window.cachedCategoryLimitConfig;
+    if (typeof festosGetCategoryLimitConfig === 'function') {
+        window.cachedCategoryLimitConfig = await festosGetCategoryLimitConfig(forceRefresh);
+    } else {
+        const val = window.festosGetSetting ? await window.festosGetSetting('category_comp_limits') : null;
+        window.cachedCategoryLimitConfig = (val && typeof val === 'object') ? val : { enabled: false, default_limit: 3, categories: {} };
+    }
+    return window.cachedCategoryLimitConfig;
+}
+
+async function saveCategoryLimitConfig(config) {
+    window.cachedCategoryLimitConfig = config;
+    if (typeof festosSaveCategoryLimitConfig === 'function') {
+        return await festosSaveCategoryLimitConfig(config);
+    } else if (window.festosSaveSetting) {
+        return await window.festosSaveSetting('category_comp_limits', config);
+    }
+}
+
+function toggleMasterCategoryLimitUI(isChecked) {
+    const controls = document.getElementById('master-cat-limit-controls');
+    const label = document.getElementById('master-cat-limit-status-label');
+    if (controls) controls.style.display = isChecked ? 'flex' : 'none';
+    if (label) {
+        label.innerText = isChecked ? 'Limit: ON' : 'Limit: OFF';
+        label.style.color = isChecked ? 'var(--success)' : 'var(--text-muted)';
+    }
+}
+
+async function initCategoryLimitUI() {
+    const config = await getCategoryLimitConfig();
+    const toggle = document.getElementById('master-cat-limit-toggle');
+    const input = document.getElementById('master-cat-limit-input');
+
+    if (toggle) toggle.checked = !!config.enabled;
+    if (input) input.value = config.default_limit || 3;
+    toggleMasterCategoryLimitUI(!!config.enabled);
+}
+
+async function saveMasterCategoryLimitSettings() {
+    const toggle = document.getElementById('master-cat-limit-toggle');
+    const input = document.getElementById('master-cat-limit-input');
+
+    const enabled = toggle ? toggle.checked : false;
+    const default_limit = input ? (parseInt(input.value) || 3) : 3;
+
+    const currentConfig = await getCategoryLimitConfig();
+    const newConfig = {
+        ...currentConfig,
+        enabled,
+        default_limit,
+        updated_at: new Date().toISOString()
+    };
+
+    try {
+        await saveCategoryLimitConfig(newConfig);
+        showToast(enabled ? `Student Category Limit enabled (Max ${default_limit} / student)!` : 'Student Category Limit disabled.', 'success');
+        await loadCategories();
+    } catch (err) {
+        showToast('Failed to save category limit settings: ' + err.message, 'error');
+    }
+}
+
+async function saveCategoryCompLimit(catId, customEnabled, limitNum) {
+    const currentConfig = await getCategoryLimitConfig();
+    if (!currentConfig.categories) currentConfig.categories = {};
+
+    currentConfig.categories[catId] = {
+        enabled: customEnabled,
+        custom: customEnabled,
+        limit: limitNum
+    };
+
+    await saveCategoryLimitConfig(currentConfig);
+}
+
 const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
 const supabaseClient = window.supabaseClient || (window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null);
@@ -804,6 +888,26 @@ function openCategoryModal(editData = null) {
         </div>
         ${generalOptsHtml}
         ${classEligibilityHtml}
+        <div class="form-group" id="category-student-limit-section" style="margin-top: 1rem; padding: 1rem; border-radius: 8px; background: var(--bg-main); border: 1px solid var(--border); ${isGeneral === 'true' ? 'display:none;' : 'display:block;'}">
+            <label style="margin-bottom: 0.35rem; display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; font-weight: 700; color: var(--text-main);">
+                <span><i class="fa-solid fa-gauge-high" style="color: var(--primary); margin-right: 4px;"></i> Limit / Student in this Category</span>
+            </label>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                Set a competition participation limit for individual students belonging to this category. (Rules for group events &amp; general competitions can be customized in Point Settings).
+            </p>
+            <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                <label style="display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.85rem; font-weight: 600;">
+                    <input type="checkbox" id="catLimitCustomToggle" ${(window.cachedCategoryLimitConfig?.categories?.[catId]?.enabled !== false && window.cachedCategoryLimitConfig?.categories?.[catId]?.limit) ? 'checked' : ''} onchange="document.getElementById('catLimitInputWrap').style.display = this.checked ? 'block' : 'none';" style="width: 16px; height: 16px; accent-color: var(--primary);">
+                    <span>Limit student registrations in this category</span>
+                </label>
+                <div id="catLimitInputWrap" style="${(window.cachedCategoryLimitConfig?.categories?.[catId]?.enabled !== false && window.cachedCategoryLimitConfig?.categories?.[catId]?.limit) ? 'display:block;' : 'display:none;'}">
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <input type="number" id="catLimitVal" min="1" max="50" value="${window.cachedCategoryLimitConfig?.categories?.[catId]?.limit || 3}" style="width: 75px; padding: 0.4rem; font-size: 0.85rem; border-radius: 6px; border: 1px solid var(--border); text-align: center; font-weight:700;">
+                        <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Comps / Student</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     `, saveCategory);
 }
 
@@ -832,19 +936,43 @@ async function saveCategory() {
         if (id) payload.id = id;
 
         let { data, error } = await supabaseClient.from('categories').upsert([festPayload(payload)]).select();
+        let targetCatId = id;
         if (error && error.message && error.message.includes('eligible_classes')) {
             delete payload.eligible_classes;
             const retry = await supabaseClient.from('categories').upsert([festPayload(payload)]).select();
             if (retry.error) throw retry.error;
-            const savedId = id || retry.data?.[0]?.id;
-            if (savedId) await saveCategoryClassesMapping(savedId, eligible_classes);
+            targetCatId = id || retry.data?.[0]?.id;
+            if (targetCatId) await saveCategoryClassesMapping(targetCatId, eligible_classes);
         } else if (error) {
             throw error;
         } else {
-            const savedId = id || data?.[0]?.id;
-            if (savedId) await saveCategoryClassesMapping(savedId, eligible_classes);
+            targetCatId = id || data?.[0]?.id;
+            if (targetCatId) await saveCategoryClassesMapping(targetCatId, eligible_classes);
         }
         
+        // Save category limit rule
+        try {
+            const isLimited = document.getElementById('catLimitCustomToggle')?.checked;
+            const limitVal = parseInt(document.getElementById('catLimitVal')?.value) || 3;
+            const limConfig = await festosGetAdminCategoryLimitConfig();
+            if (!limConfig.categories) limConfig.categories = {};
+            if (targetCatId) {
+                if (isLimited && !is_general) {
+                    limConfig.categories[targetCatId] = {
+                        enabled: true,
+                        custom: true,
+                        limit: limitVal
+                    };
+                } else {
+                    delete limConfig.categories[targetCatId];
+                }
+                await festosSaveAdminCategoryLimitConfig(limConfig);
+                window.cachedCategoryLimitConfig = limConfig;
+            }
+        } catch(limErr) {
+            console.warn('Error saving category limit in saveCategory:', limErr);
+        }
+
         showToast(id ? 'Category updated!' : 'Category created!');
         closeModal(); 
         loadCategories();
@@ -1542,6 +1670,8 @@ function filterParticipants(resetPage = true) {
 async function loadCategories() {
     try {
         await loadClassSystemSettings();
+        await initCategoryLimitUI();
+        const limitConfig = await getCategoryLimitConfig();
         const { data, error } = await festQuery(supabaseClient
             .from('categories')
             .select('*, participants(count), competitions(count)'))
@@ -1586,6 +1716,17 @@ async function loadCategories() {
                     <td>${cat.is_general ? '<span class="badge badge-primary">General</span>' : 'Standard'}</td>
                     <td><span class="badge-count" onclick="viewRelationalData('participants', 'category_id', '${cat.id}')">${partCount} Students</span></td>
                     <td><span class="badge-count" onclick="viewRelationalData('competitions', 'category_id', '${cat.id}')">${compCount} Competitions</span></td>
+                    <td>${(() => {
+                        if (cat.is_general) {
+                            return '<span class="badge" style="background:#EFF6FF; color:#2563EB; font-weight:700;"><i class="fa-solid fa-infinity"></i> General (Exempt)</span>';
+                        }
+                        const cfg = window.cachedCategoryLimitConfig || {};
+                        const catCfg = (cfg.categories && cfg.categories[cat.id]) || {};
+                        if (catCfg.enabled !== false && catCfg.limit) {
+                            return `<span class="badge badge-primary" style="font-weight:700;"><i class="fa-solid fa-gauge-high"></i> Max ${catCfg.limit} / Student</span>`;
+                        }
+                        return '<span class="badge" style="background:#F1F5F9; color:#64748B;">Unlimited</span>';
+                    })()}</td>
                     <td>
                         <div style="display: flex; gap: 0.5rem; width: 100%;">
                              <button class="btn btn-outline" onclick='openCategoryModal(${JSON.stringify(cat).replace(/'/g, "&apos;").replace(/"/g, "&quot;")})'><i class="fa-solid fa-pen"></i></button>
@@ -2151,12 +2292,17 @@ function openParticipantModal(editData = null) {
                 <img id="partPhotoPreview" src="${pPhoto}" alt="Participant Photo">
                 <input type="file" id="partPhoto" accept="image/png, image/jpeg, image/webp" onchange="triggerCropper(this)" style="display: none;">
                 
-                <div class="photo-actions">
-                    <button type="button" class="btn btn-primary" onclick="document.getElementById('partPhoto').click()" title="Upload New Photo">
-                        <i class="fa-solid fa-upload"></i> New
-                    </button>
-                    <button type="button" class="btn btn-outline" onclick="editExistingCrop()" title="Adjust Current Crop">
-                        <i class="fa-solid fa-crop-simple"></i> Crop
+                <div class="photo-actions" style="display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.75rem;">
+                    <div style="display: flex; gap: 0.4rem;">
+                        <button type="button" class="btn btn-primary" onclick="document.getElementById('partPhoto').click()" title="Upload New Photo" style="flex: 1;">
+                            <i class="fa-solid fa-upload"></i> New
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="editExistingCrop()" title="Adjust Current Crop" style="flex: 1;">
+                            <i class="fa-solid fa-crop-simple"></i> Crop
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-outline" onclick="autoDetectAndCropFaceFromPreview()" title="Smart Auto Center Face" style="width: 100%; border-color: var(--primary); color: var(--primary); font-weight: 700; font-size: 0.75rem; padding: 0.4rem;">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Auto Face
                     </button>
                 </div>
             </div>
@@ -2631,6 +2777,244 @@ async function getParticipantPhotoBlobHelper() {
     return null;
 }
 
+// --- SMART PORTRAIT AUTO-CROPPING & FACE DETECTION ENGINE ---
+
+let cropperCurrentAspect = 2 / 3;
+
+async function smartDetectFace(imgElement) {
+    if (!imgElement) return null;
+
+    // 1. Try Browser Native FaceDetector API (Chromium, Edge, Opera, Samsung Internet, Android WebViews)
+    if ('FaceDetector' in window) {
+        try {
+            const detector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+            const faces = await detector.detect(imgElement);
+            if (faces && faces.length > 0) {
+                const box = faces[0].boundingBox;
+                return {
+                    x: box.x,
+                    y: box.y,
+                    width: box.width,
+                    height: box.height,
+                    confidence: 0.95,
+                    method: 'native'
+                };
+            }
+        } catch (e) {
+            console.debug('Native FaceDetector fallback to canvas analysis:', e);
+        }
+    }
+
+    // 2. High-Performance Canvas Skin-Chroma & Feature Saliency Fallback
+    try {
+        const sampleW = 160;
+        const naturalW = imgElement.naturalWidth || imgElement.width || 600;
+        const naturalH = imgElement.naturalHeight || imgElement.height || 800;
+        const sampleH = Math.round(naturalH * (sampleW / naturalW));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = sampleW;
+        canvas.height = sampleH;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(imgElement, 0, 0, sampleW, sampleH);
+
+        const imgData = ctx.getImageData(0, 0, sampleW, sampleH);
+        const data = imgData.data;
+
+        // Human skin tone bounds in normalized RGB and brightness
+        let skinWeightSum = 0;
+        let weightedX = 0;
+        let weightedY = 0;
+        let minX = sampleW, maxX = 0, minY = sampleH, maxY = 0;
+
+        // Scan primarily upper 75% of image (where heads/faces reside in portraits)
+        const scanH = Math.round(sampleH * 0.75);
+
+        for (let y = 0; y < scanH; y++) {
+            for (let x = 0; x < sampleW; x++) {
+                const idx = (y * sampleW + x) * 4;
+                const r = data[idx];
+                const g = data[idx + 1];
+                const b = data[idx + 2];
+                const sum = r + g + b;
+
+                if (sum > 60 && sum < 720) {
+                    const nr = r / sum;
+                    const ng = g / sum;
+
+                    // Standard human skin color locus
+                    const isSkin = (nr > 0.36 && nr < 0.55) && 
+                                   (ng > 0.27 && ng < 0.38) && 
+                                   (r > g && g > b) && 
+                                   (Math.abs(r - g) > 15);
+
+                    if (isSkin) {
+                        // Weight upper-central pixels slightly higher (face prior)
+                        const centerDistX = Math.abs(x - (sampleW / 2)) / (sampleW / 2);
+                        const weight = 1.0 - (centerDistX * 0.4);
+
+                        skinWeightSum += weight;
+                        weightedX += x * weight;
+                        weightedY += y * weight;
+
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+        }
+
+        const scaleX = naturalW / sampleW;
+        const scaleY = naturalH / sampleH;
+
+        if (skinWeightSum > 80 && maxX > minX) {
+            const centroidX = (weightedX / skinWeightSum) * scaleX;
+            const centroidY = (weightedY / skinWeightSum) * scaleY;
+            const rawFaceW = Math.max(80, (maxX - minX) * scaleX * 0.75);
+            const rawFaceH = rawFaceW * 1.25;
+
+            return {
+                x: Math.max(0, centroidX - rawFaceW / 2),
+                y: Math.max(0, centroidY - rawFaceH / 2),
+                width: rawFaceW,
+                height: rawFaceH,
+                confidence: 0.80,
+                method: 'chroma'
+            };
+        }
+    } catch(err) {
+        console.warn('Fallback face analysis error:', err);
+    }
+
+    // 3. Fallback: Upper Third Rule
+    const imgW = imgElement.naturalWidth || imgElement.width || 600;
+    const imgH = imgElement.naturalHeight || imgElement.height || 800;
+    const defW = imgW * 0.45;
+    const defH = defW * 1.25;
+    return {
+        x: (imgW - defW) / 2,
+        y: imgH * 0.15,
+        width: defW,
+        height: defH,
+        confidence: 0.50,
+        method: 'default'
+    };
+}
+
+function smartCalculatePortraitCropBox(imgW, imgH, faceBox, targetAspect = 2 / 3) {
+    const fx = faceBox ? faceBox.x : ((imgW - imgW * 0.45) / 2);
+    const fy = faceBox ? faceBox.y : (imgH * 0.15);
+    const fw = faceBox ? faceBox.width : (imgW * 0.45);
+    const fh = faceBox ? faceBox.height : (fw * 1.25);
+
+    const faceCenterX = fx + fw / 2;
+    const faceCenterY = fy + fh / 2;
+
+    // Headroom & shoulders framing: head takes approx 42% of badge height
+    let cropHeight = Math.min(imgH, fh * 2.35);
+    let cropWidth = cropHeight * targetAspect;
+
+    if (cropWidth > imgW) {
+        cropWidth = imgW;
+        cropHeight = cropWidth / targetAspect;
+    }
+
+    // Position face center at approx 38% - 42% from top of crop box
+    let cropY = faceCenterY - (cropHeight * 0.40);
+    let cropX = faceCenterX - (cropWidth / 2);
+
+    cropX = Math.max(0, Math.min(imgW - cropWidth, cropX));
+    cropY = Math.max(0, Math.min(imgH - cropHeight, cropY));
+
+    return {
+        x: Math.round(cropX),
+        y: Math.round(cropY),
+        width: Math.round(cropWidth),
+        height: Math.round(cropHeight)
+    };
+}
+
+function setCropperAspect(aspect, btnEl) {
+    cropperCurrentAspect = aspect;
+    document.querySelectorAll('#cropper-aspect-pills button').forEach(b => b.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+
+    if (currentCropper) {
+        currentCropper.setAspectRatio(aspect);
+        applySmartFaceCrop(aspect);
+    }
+}
+
+async function applySmartFaceCrop(customAspect = null) {
+    const aspect = customAspect || cropperCurrentAspect || (2 / 3);
+    const cropperImage = document.getElementById('cropperImage');
+    const statusEl = document.getElementById('cropper-face-status');
+    if (!cropperImage || !currentCropper) return;
+
+    try {
+        if (statusEl) {
+            statusEl.style.display = 'inline-flex';
+            statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Detecting face...';
+        }
+
+        const face = await smartDetectFace(cropperImage);
+        const naturalW = cropperImage.naturalWidth || cropperImage.width;
+        const naturalH = cropperImage.naturalHeight || cropperImage.height;
+
+        const cropBox = smartCalculatePortraitCropBox(naturalW, naturalH, face, aspect);
+
+        currentCropper.setAspectRatio(aspect);
+        currentCropper.setData(cropBox);
+
+        if (statusEl) {
+            statusEl.style.display = 'inline-flex';
+            statusEl.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Face Framed ✓';
+            setTimeout(() => {
+                if (statusEl) statusEl.style.display = 'none';
+            }, 3000);
+        }
+    } catch (e) {
+        console.warn('Smart face crop error:', e);
+        if (statusEl) statusEl.style.display = 'none';
+    }
+}
+
+async function autoDetectAndCropFaceFromPreview(targetAspect = 2 / 3) {
+    const preview = document.getElementById('partPhotoPreview');
+    if (!preview || !preview.src || preview.src.includes('svg')) {
+        showToast('Please upload a photo first.', 'warning');
+        return;
+    }
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = async function() {
+        try {
+            showToast('Detecting face & framing portrait...', 'info');
+            const face = await smartDetectFace(img);
+            const naturalW = img.naturalWidth || img.width;
+            const naturalH = img.naturalHeight || img.height;
+            const cropBox = smartCalculatePortraitCropBox(naturalW, naturalH, face, targetAspect);
+
+            const canvas = document.createElement('canvas');
+            const targetW = 400;
+            const targetH = Math.round(targetW / targetAspect);
+            canvas.width = targetW;
+            canvas.height = targetH;
+            const ctx = canvas.getContext('2d');
+
+            ctx.drawImage(img, cropBox.x, cropBox.y, cropBox.width, cropBox.height, 0, 0, targetW, targetH);
+            preview.src = canvas.toDataURL('image/jpeg', 0.88);
+            showToast('✨ Portrait auto-centered & cropped to badge proportions!', 'success');
+        } catch(e) {
+            showToast('Could not auto-crop: ' + e.message, 'error');
+        }
+    };
+    img.src = preview.src;
+}
+
 // --- CROPPER LIFECYCLE ---
 
 function triggerCropper(input) {
@@ -2675,10 +3059,16 @@ function triggerCropper(input) {
                     try { currentCropper.destroy(); } catch(err) {}
                 }
                 currentCropper = new Cropper(cropperImage, {
-                    aspectRatio: 2 / 3,
+                    aspectRatio: cropperCurrentAspect || (2 / 3),
                     viewMode: 2,
                     background: false,
-                    autoCropArea: 0.9
+                    autoCropArea: 0.85,
+                    ready: function () {
+                        // Automatically run Smart Face Auto-Crop on load!
+                        setTimeout(() => {
+                            applySmartFaceCrop(cropperCurrentAspect || (2 / 3));
+                        }, 50);
+                    }
                 });
             }
         };
@@ -2700,12 +3090,18 @@ function cancelCropper() {
 // Linked to the "Apply Crop" button on the Cropper Modal
 function confirmCrop() {
     if (currentCropper) {
+        const aspect = cropperCurrentAspect || (2 / 3);
+        const targetW = 400;
+        const targetH = Math.round(targetW / aspect);
         const canvas = currentCropper.getCroppedCanvas({
-            width: 400,
-            height: 600
+            width: targetW,
+            height: targetH,
+            imageSmoothingEnabled: true,
+            imageSmoothingQuality: 'high'
         });
         if (canvas) {
-            document.getElementById('partPhotoPreview').src = canvas.toDataURL('image/jpeg', 0.85);
+            document.getElementById('partPhotoPreview').src = canvas.toDataURL('image/jpeg', 0.88);
+            showToast('Photo cropped and saved!', 'success');
         }
     }
     const modal = document.getElementById('cropperModal');
@@ -2731,10 +3127,15 @@ function editExistingCrop() {
         try { currentCropper.destroy(); } catch(e) {}
     }
     currentCropper = new Cropper(image, {
-        aspectRatio: 2 / 3,
-        viewMode: 2, 
+        aspectRatio: cropperCurrentAspect || (2 / 3),
+        viewMode: 2,
         background: false,
-        autoCropArea: 0.9
+        autoCropArea: 0.85,
+        ready: function () {
+            setTimeout(() => {
+                applySmartFaceCrop(cropperCurrentAspect || (2 / 3));
+            }, 50);
+        }
     });
 }
 
@@ -2818,6 +3219,27 @@ async function openAssignModal() {
 
         setLoading('modalSaveBtn', true);
         try {
+            const limitCfg = await getCategoryLimitConfig();
+            if (limitCfg && limitCfg.enabled) {
+                const { data: existingAssigns } = await festQuery(
+                    supabaseClient.from('participant_competitions')
+                        .select('participant_id, competition_id')
+                        .eq('participant_id', participant_id)
+                );
+                const check = festosEvaluateStudentCategoryLimit(
+                    participant_id,
+                    competition_id,
+                    participantsList,
+                    competitionsList,
+                    categoriesList,
+                    existingAssigns || [],
+                    limitCfg
+                );
+                if (!check.allowed) {
+                    throw new Error(check.message);
+                }
+            }
+
             const { error } = await supabaseClient.from('participant_competitions').insert(festPayload([{ participant_id, competition_id }]));
             if (error) {
                 if (error.code === '23505') throw new Error('Student is already assigned to this competition!');
@@ -2927,6 +3349,29 @@ async function openBulkAssignModal() {
         
         setLoading('modalSaveBtn', true);
         try {
+            const limitCfg = await getCategoryLimitConfig();
+            if (limitCfg && limitCfg.enabled) {
+                const { data: existingAssigns } = await festQuery(
+                    supabaseClient.from('participant_competitions')
+                        .select('participant_id, competition_id')
+                        .in('participant_id', ids)
+                );
+                for (const pId of ids) {
+                    const check = festosEvaluateStudentCategoryLimit(
+                        pId,
+                        competition_id,
+                        participantsList,
+                        competitionsList,
+                        categoriesList,
+                        existingAssigns || [],
+                        limitCfg
+                    );
+                    if (!check.allowed) {
+                        throw new Error(check.message);
+                    }
+                }
+            }
+
             const { error } = await supabaseClient.from('participant_competitions').insert(festPayload(inserts));
             if (error) {
                 if (error.code === '23505') throw new Error('One or more selected participants are already assigned here.');
@@ -3047,12 +3492,35 @@ async function loadAssignWorkspaceStudents() {
                     ? '<span class="badge" style="background:var(--success); color:white;">ASSIGNED</span>'
                     : '<span class="badge" style="background:#E2E8F0; color:#475569;">UNASSIGNED</span>';
             }
+
+            // Display Student Category Limit Badge if active
+            let limitBadge = '';
+            if (!isGroupComp && window.cachedCategoryLimitConfig && window.cachedCategoryLimitConfig.enabled && !isGeneral) {
+                const catCfg = (window.cachedCategoryLimitConfig.categories && window.cachedCategoryLimitConfig.categories[categoryId]) || {};
+                const maxL = catCfg.custom ? catCfg.limit : (window.cachedCategoryLimitConfig.default_limit || 3);
+                
+                // Count individual category assignments for this student
+                let enrolledInCat = (window.globalAdminAssignments || [])
+                    .filter(a => String(a.participant_id) === String(s.id))
+                    .filter(a => {
+                        const c = competitionsList.find(comp => String(comp.id) === String(a.competition_id));
+                        return c && !c.is_group && !c.is_common && String(c.category_id) === String(categoryId);
+                    }).length;
+                
+                if (isAssigned && enrolledInCat === 0) enrolledInCat = 1;
+
+                if (enrolledInCat >= maxL && !isAssigned) {
+                    limitBadge = ` <span class="badge" style="background:#FEE2E2; color:#DC2626; font-weight:800; font-size:0.7rem;" title="Category limit reached (${enrolledInCat}/${maxL})"><i class="fa-solid fa-ban"></i> Max (${enrolledInCat}/${maxL})</span>`;
+                } else {
+                    limitBadge = ` <span class="badge" style="background:#F1F5F9; color:#475569; font-size:0.7rem;">${enrolledInCat}/${maxL} Comps</span>`;
+                }
+            }
                 
             tbody.innerHTML += `
                 <tr data-team="${s.team_id || ''}" data-dob="${s.dob || ''}">
                     <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${s.id}" ${globalSelections['assign-workspace-tbody']?.has(s.id) ? 'checked' : ''} onchange="handleRowSelection('assign-workspace-tbody', this.value, this.checked)"></td>
                     <td style="font-family: monospace; font-weight: 600;">${s.unique_id}</td>
-                    <td class="searchable-name">${s.name}</td>
+                    <td class="searchable-name">${s.name}${limitBadge}</td>
                     <td>${s.teams?.name || 'INDEPENDENT'}</td>
                     <td>${s.dob || 'N/A'}</td>
                     <td>${statusBadge}</td>
@@ -3151,7 +3619,39 @@ async function executeWorkspaceAssign() {
                 }
             }
         }
-        // --- END LIMIT CHECK ---
+        // --- END TEAM LIMIT CHECK ---
+
+        // --- STUDENT CATEGORY COMPETITION LIMIT CHECK ---
+        const limitCfg = await getCategoryLimitConfig();
+        if (limitCfg && limitCfg.enabled && !isGroupComp) {
+            const targetCompObj = competitionsList.find(c => String(c.id) === String(compId));
+            const targetCatObj = categoriesList.find(c => String(c.id) === String(categoryId));
+            const isExempt = (targetCompObj && targetCompObj.is_group) || (targetCompObj && targetCompObj.is_common) || (targetCatObj && targetCatObj.is_general);
+
+            if (!isExempt) {
+                const { data: allStudentAssigns } = await festQuery(
+                    supabaseClient.from('participant_competitions')
+                        .select('participant_id, competition_id')
+                        .in('participant_id', newIds)
+                );
+
+                for (const student of newStudents) {
+                    const check = festosEvaluateStudentCategoryLimit(
+                        student.id,
+                        compId,
+                        newStudents,
+                        competitionsList,
+                        categoriesList,
+                        allStudentAssigns || [],
+                        limitCfg
+                    );
+                    if (!check.allowed) {
+                        throw new Error(check.message);
+                    }
+                }
+            }
+        }
+        // --- END STUDENT CATEGORY LIMIT CHECK ---
 
         // Group the new students by team for group leader mapping
         const teamsGrouping = {};
@@ -5421,6 +5921,17 @@ async function loadPointSettings() {
         } catch(err) {
             console.warn("Could not load class settings in point settings:", err);
         }
+
+        // Load Student Category Limit Rules
+        try {
+            const limConfig = await festosGetAdminCategoryLimitConfig();
+            const grpEl = document.getElementById('setting-limit-group-events');
+            const genEl = document.getElementById('setting-limit-general-comps');
+            if (grpEl) grpEl.value = (limConfig.exclude_group_events === false) ? 'include' : 'exclude';
+            if (genEl) genEl.value = (limConfig.exclude_general_competitions === false) ? 'include' : 'exclude';
+        } catch(limErr) {
+            console.warn("Could not load limit rules in point settings:", limErr);
+        }
     } catch (e) { console.warn("Using default point settings:", e); }
 }
 
@@ -5434,6 +5945,19 @@ async function savePointSettings() {
     window.currentClassSystem.mandatory = classMandatory;
     if (window.festosSaveSetting) {
         await window.festosSaveSetting('class_system', window.currentClassSystem);
+    }
+
+    // Student Category Participation Limit Rules
+    try {
+        const limConfig = await festosGetAdminCategoryLimitConfig();
+        const grpVal = document.getElementById('setting-limit-group-events')?.value;
+        const genVal = document.getElementById('setting-limit-general-comps')?.value;
+        limConfig.exclude_group_events = (grpVal !== 'include');
+        limConfig.exclude_general_competitions = (genVal !== 'include');
+        await festosSaveAdminCategoryLimitConfig(limConfig);
+        window.cachedCategoryLimitConfig = limConfig;
+    } catch(limSaveErr) {
+        console.warn("Error saving limit rules in savePointSettings:", limSaveErr);
     }
 
     const payload = {
@@ -7793,9 +8317,9 @@ async function fetchScheduleEnrollments(forceRefresh = false) {
         return scheduleEnrollmentsCache;
     }
     try {
-        const { data, error } = await supabaseClient
+        const { data, error } = await festQuery(supabaseClient
             .from('participant_competitions')
-            .select('competition_id, participant_id, participants(id, name, unique_id, team_id, teams(name))');
+            .select('competition_id, participant_id, participants(id, name, unique_id, team_id, teams(name))'));
         if (error) throw error;
         scheduleEnrollmentsCache = data || [];
         scheduleEnrollmentsCacheTime = now;
@@ -8304,6 +8828,35 @@ async function exportConflictReportPDF() {
 // AUTO-SCHEDULE OPTIMIZER ENGINE
 // ==========================================
 
+function packSwimlaneEvents(items) {
+    if (!items || items.length === 0) return { packed: [], rowCount: 1 };
+    
+    // Sort items by start time asc, then duration desc
+    const sorted = [...items].sort((a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
+    
+    // Each row tracks its current end time
+    const rowEnds = [];
+    
+    const packed = sorted.map(item => {
+        let placedRow = -1;
+        for (let r = 0; r < rowEnds.length; r++) {
+            // Buffer of 2 mins between blocks on same sub-row to prevent touching borders
+            if (item.start >= rowEnds[r] + 2) {
+                placedRow = r;
+                rowEnds[r] = item.end;
+                break;
+            }
+        }
+        if (placedRow === -1) {
+            placedRow = rowEnds.length;
+            rowEnds.push(item.end);
+        }
+        return { ...item, rowIdx: placedRow };
+    });
+    
+    return { packed, rowCount: Math.max(1, rowEnds.length) };
+}
+
 function openAutoSchedulerModal() {
     const optDateInput = document.getElementById('opt-date');
     if (optDateInput && !optDateInput.value) {
@@ -8361,6 +8914,20 @@ async function generateOptimizedSchedule() {
     // Ensure baseline data is loaded
     if (competitionsList.length === 0) await loadCompetitions();
     if (stagesList.length === 0) await loadStagesAndTeams();
+
+    // Auto-synthesize virtual stages if festival has no physical stages created yet
+    let effectiveStages = [...stagesList];
+    let isSimulatedStages = false;
+    if (effectiveStages.length === 0) {
+        isSimulatedStages = true;
+        effectiveStages = [
+            { id: 'sim_stage_1', name: 'Stage 1 (Main Stage)', stage_no: 1, is_simulated: true },
+            { id: 'sim_stage_2', name: 'Stage 2 (Auditorium)', stage_no: 2, is_simulated: true },
+            { id: 'sim_stage_3', name: 'Stage 3 (Mini Hall)', stage_no: 3, is_simulated: true }
+        ];
+    }
+    window._optimizerEffectiveStages = effectiveStages;
+    window._optimizerIsSimulated = isSimulatedStages;
 
     const enrollments = await fetchScheduleEnrollments(true);
     const compStudentsMap = {};
@@ -8435,7 +9002,7 @@ async function generateOptimizedSchedule() {
 
     // 3. Initialize Stage and Offstage Timelines
     const stageTimelines = {};
-    stagesList.forEach(s => {
+    effectiveStages.forEach(s => {
         stageTimelines[s.id] = [];
     });
     // Dedicated track for offstage
@@ -8454,7 +9021,7 @@ async function generateOptimizedSchedule() {
             let sEnd = sched.to_time ? timeStringToMinutes(sched.to_time) : (sStart + (parseInt(sched.manual_time) || 30));
             if (sEnd <= sStart) sEnd = sStart + 30;
 
-            const stageKey = comp.is_offstage ? 'offstage' : (comp.stage_id || stagesList[0]?.id);
+            const stageKey = comp.is_offstage ? 'offstage' : (comp.stage_id || effectiveStages[0]?.id);
             if (stageTimelines[stageKey]) {
                 stageTimelines[stageKey].push({ compId, start: sStart, end: sEnd });
             }
@@ -8480,14 +9047,14 @@ async function generateOptimizedSchedule() {
         let eligibleStages = [];
         if (comp.is_offstage) {
             eligibleStages = ['offstage'];
-        } else if (stageStrategy === 'preserve' && comp.stage_id) {
+        } else if (stageStrategy === 'preserve' && comp.stage_id && effectiveStages.some(s => s.id == comp.stage_id)) {
             eligibleStages = [comp.stage_id];
         } else {
             // If auto_balance or unassigned: try pre-assigned first, then all available stages sorted by current load
-            if (comp.stage_id && stagesList.some(s => s.id == comp.stage_id)) {
-                eligibleStages = [comp.stage_id, ...stagesList.map(s => s.id).filter(id => id != comp.stage_id)];
+            if (comp.stage_id && effectiveStages.some(s => s.id == comp.stage_id)) {
+                eligibleStages = [comp.stage_id, ...effectiveStages.map(s => s.id).filter(id => id != comp.stage_id)];
             } else {
-                eligibleStages = stagesList.map(s => s.id);
+                eligibleStages = effectiveStages.map(s => s.id);
             }
         }
 
@@ -8580,7 +9147,7 @@ async function generateOptimizedSchedule() {
     pendingOptimizedSchedule = proposedSchedule;
 
     // 5. Render Visual Timeline Gantt Preview
-    renderOptimizationPreview(proposedSchedule, targetDate, startMins, endLimitMins, breakStartMins, breakEndMins, unplacedList);
+    renderOptimizationPreview(proposedSchedule, targetDate, startMins, endLimitMins, breakStartMins, breakEndMins, unplacedList, effectiveStages, isSimulatedStages, compStudentsMap);
 
     // Update Badges & Actions
     const metricsBadge = document.getElementById('opt-metrics-badge');
@@ -8596,7 +9163,7 @@ async function generateOptimizedSchedule() {
             badgeClash.style.background = '#D1FAE5';
             badgeClash.style.color = '#059669';
         } else {
-            badgeClash.innerText = `${unplacedList.length} Unplaced (Time Window Full)`;
+            badgeClash.innerText = `${unplacedList.length} Unplaced (Operating Hours Full)`;
             badgeClash.style.background = '#FEF3C7';
             badgeClash.style.color = '#D97706';
         }
@@ -8609,49 +9176,73 @@ async function generateOptimizedSchedule() {
     if (applyBtn) applyBtn.style.display = 'inline-flex';
 }
 
-function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540, endLimitMins = 1080, breakStartMins = -1, breakEndMins = -1, unplacedList = []) {
+function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540, endLimitMins = 1080, breakStartMins = -1, breakEndMins = -1, unplacedList = [], effectiveStages = [], isSimulatedStages = false, compStudentsMap = {}) {
     const container = document.getElementById('opt-preview-container');
     if (!container) return;
 
+    const startTimeStr = minutesToTimeString(startMins);
+    const endTimeStr = minutesToTimeString(endLimitMins);
+
     const compIds = Object.keys(proposedSchedule);
     if (compIds.length === 0 && unplacedList.length === 0) {
-        container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 2rem;">No slots could be assigned within the time window. Try extending the operating hours.</div>`;
+        container.innerHTML = `
+            <div style="text-align: center; color: var(--danger); padding: 3rem; font-weight: 600;">
+                <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
+                No events could be assigned within the time window. Try extending operating hours or adding more stages.
+            </div>
+        `;
         return;
     }
 
     const totalDuration = endLimitMins - startMins;
 
-    // Build timeline hourly markers
-    let timeMarkersHtml = '';
+    // Build timeline hourly markers for Header & Lane Grid
+    let headerTimeMarkersHtml = '';
+    let laneGridLinesHtml = '';
     const startHour = Math.floor(startMins / 60);
     const endHour = Math.ceil(endLimitMins / 60);
+
     for (let h = startHour; h <= endHour; h++) {
         const markerMins = h * 60;
         if (markerMins < startMins || markerMins > endLimitMins) continue;
         const leftPercent = ((markerMins - startMins) / totalDuration) * 100;
-        const displayTime = `${h % 12 === 0 ? 12 : h % 12} ${h >= 12 ? 'PM' : 'AM'}`;
-        timeMarkersHtml += `
-            <div style="position: absolute; left: ${leftPercent}%; top: 0; bottom: 0; border-left: 1px dashed var(--border); pointer-events: none;">
-                <span style="position: absolute; top: 4px; left: 4px; font-size: 0.7rem; font-weight: 700; color: var(--text-muted);">${displayTime}</span>
+        const displayTime = `${h % 12 === 0 ? 12 : h % 12}:00 ${h >= 12 ? 'PM' : 'AM'}`;
+        
+        headerTimeMarkersHtml += `
+            <div style="position: absolute; left: ${leftPercent}%; top: 0; bottom: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 4px; pointer-events: none;">
+                <span style="font-size: 0.7rem; font-weight: 700; color: #475569; font-family: monospace; white-space: nowrap;">${displayTime}</span>
+                <div style="width: 1px; height: 6px; background: #CBD5E1; margin-top: 2px;"></div>
             </div>
+        `;
+
+        laneGridLinesHtml += `
+            <div style="position: absolute; left: ${leftPercent}%; top: 0; bottom: 0; border-left: 1px dashed #E2E8F0; pointer-events: none; z-index: 1;"></div>
         `;
     }
 
-    // Break Window shading
-    let breakShadeHtml = '';
+    // Lunch Break Window
+    let headerLunchBadgeHtml = '';
+    let laneBreakShadeHtml = '';
     if (breakStartMins !== -1 && breakEndMins !== -1 && breakEndMins > startMins && breakStartMins < endLimitMins) {
         const bLeft = Math.max(0, ((breakStartMins - startMins) / totalDuration) * 100);
         const bWidth = Math.min(100 - bLeft, ((breakEndMins - breakStartMins) / totalDuration) * 100);
-        breakShadeHtml = `
-            <div style="position: absolute; left: ${bLeft}%; width: ${bWidth}%; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.08) 8px, rgba(245, 158, 11, 0.15) 8px, rgba(245, 158, 11, 0.15) 16px); border-left: 1px solid rgba(245, 158, 11, 0.3); border-right: 1px solid rgba(245, 158, 11, 0.3); z-index: 1; pointer-events: none; display: flex; align-items: center; justify-content: center;">
-                <span style="font-size: 0.75rem; font-weight: 800; color: #B45309; transform: rotate(-90deg); letter-spacing: 0.05em;">LUNCH BREAK</span>
+        
+        headerLunchBadgeHtml = `
+            <div style="position: absolute; left: ${bLeft}%; width: ${bWidth}%; top: 4px; bottom: 4px; background: #FEF3C7; border: 1.5px dashed #F59E0B; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; z-index: 5;">
+                <i class="fa-solid fa-utensils" style="font-size: 0.72rem; color: #D97706;"></i>
+                <span style="font-size: 0.72rem; font-weight: 800; color: #92400E; letter-spacing: 0.05em;">LUNCH BREAK</span>
             </div>
+        `;
+
+        laneBreakShadeHtml = `
+            <div style="position: absolute; left: ${bLeft}%; width: ${bWidth}%; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, rgba(245, 158, 11, 0.04), rgba(245, 158, 11, 0.04) 10px, rgba(245, 158, 11, 0.09) 10px, rgba(245, 158, 11, 0.09) 20px); border-left: 1.5px dashed rgba(245, 158, 11, 0.4); border-right: 1.5px dashed rgba(245, 158, 11, 0.4); z-index: 1; pointer-events: none;"></div>
         `;
     }
 
     // Build stage swimlanes
+    const activeStageList = (effectiveStages && effectiveStages.length > 0) ? effectiveStages : stagesList;
     const stageTracks = [
-        ...stagesList.map(s => ({ id: s.id, name: s.name, isOffstage: false })),
+        ...activeStageList.map(s => ({ id: s.id, name: s.name, isOffstage: false, is_simulated: s.is_simulated })),
         { id: 'offstage', name: 'Offstage Venues', isOffstage: true }
     ];
 
@@ -8663,42 +9254,78 @@ function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540
             .map(id => {
                 const sched = proposedSchedule[id];
                 const comp = competitionsList.find(c => c.id == id);
-                return { id, sched, comp };
+                return { 
+                    id, 
+                    sched, 
+                    comp,
+                    start: timeStringToMinutes(sched.time),
+                    end: timeStringToMinutes(sched.to_time)
+                };
             })
             .filter(item => {
-                if (track.isOffstage) return item.comp?.is_offstage;
-                return !item.comp?.is_offstage && String(item.sched.stage_id) === String(track.id);
+                if (!item.comp) return false;
+                if (track.isOffstage) return item.comp.is_offstage;
+                return !item.comp.is_offstage && String(item.sched.stage_id) === String(track.id);
             });
 
         if (track.isOffstage && trackItems.length === 0) return; // Hide offstage lane if empty
 
+        // Dynamic multi-row packing: assigns non-overlapping rowIdx to every event
+        const { packed, rowCount } = packSwimlaneEvents(trackItems);
+
+        const rowHeight = 36;
+        const rowGap = 6;
+        const lanePadding = 10;
+        const totalLaneHeight = Math.max(68, (rowCount * rowHeight) + ((rowCount - 1) * rowGap) + (lanePadding * 2));
+
         let blocksHtml = '';
-        trackItems.forEach(item => {
-            const itemStart = timeStringToMinutes(item.sched.time);
-            const itemEnd = timeStringToMinutes(item.sched.to_time);
-            const leftPct = Math.max(0, ((itemStart - startMins) / totalDuration) * 100);
-            const widthPct = Math.min(100 - leftPct, ((itemEnd - itemStart) / totalDuration) * 100);
+        packed.forEach(item => {
+            const leftPct = Math.max(0, ((item.start - startMins) / totalDuration) * 100);
+            const rawWidthPct = ((item.end - item.start) / totalDuration) * 100;
+            const widthPct = Math.min(100 - leftPct, Math.max(rawWidthPct, 2.5));
+            const topPos = lanePadding + (item.rowIdx * (rowHeight + rowGap));
+
+            const bgGradient = track.isOffstage 
+                ? 'linear-gradient(135deg, #0D9488 0%, #14B8A6 100%)' 
+                : 'linear-gradient(135deg, #4338CA 0%, #6366F1 100%)';
+            const shadowColor = track.isOffstage ? 'rgba(13, 148, 136, 0.3)' : 'rgba(79, 70, 229, 0.3)';
+            const categoryName = item.comp.categories?.name || 'General';
+            const studentCount = (compStudentsMap[item.id] || []).length;
 
             blocksHtml += `
-                <div style="position: absolute; left: ${leftPct}%; width: ${Math.max(widthPct, 2)}%; top: 6px; bottom: 6px; background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%); border-radius: 6px; color: white; padding: 4px 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.25); border: 1px solid rgba(255,255,255,0.2); cursor: pointer; z-index: 2; transition: var(--transition);" 
-                     title="${item.comp.name} (${item.comp.categories?.name || 'Gen'}) | ${item.sched.time} - ${item.sched.to_time} (${item.sched.manual_time}m)"
-                     onmouseover="this.style.transform='scale(1.03)'; this.style.zIndex='10';"
-                     onmouseout="this.style.transform='none'; this.style.zIndex='2';">
-                    <div style="font-weight: 700; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.comp.name}</div>
-                    <div style="font-size: 0.65rem; opacity: 0.85; white-space: nowrap;">${item.sched.time} - ${item.sched.to_time}</div>
+                <div style="position: absolute; left: ${leftPct}%; width: ${widthPct}%; top: ${topPos}px; height: ${rowHeight}px; background: ${bgGradient}; border-radius: 6px; color: white; padding: 3px 8px; overflow: hidden; box-shadow: 0 2px 5px ${shadowColor}; border: 1px solid rgba(255,255,255,0.25); cursor: pointer; z-index: 2; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; transition: transform 0.15s ease, box-shadow 0.15s ease;"
+                     title="${item.comp.name} (${categoryName})&#10;Time: ${item.sched.time} - ${item.sched.to_time} (${item.sched.manual_time}m)&#10;Students: ${studentCount} enrolled"
+                     onmouseover="this.style.transform='translateY(-2px) scale(1.02)'; this.style.zIndex='20'; this.style.boxShadow='0 6px 14px rgba(0,0,0,0.25)';"
+                     onmouseout="this.style.transform='none'; this.style.zIndex='2'; this.style.boxShadow='0 2px 5px ${shadowColor}';">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; overflow: hidden; line-height: 1.15;">
+                        <span style="font-weight: 700; font-size: 0.73rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.comp.name}</span>
+                        <span style="font-size: 0.62rem; opacity: 0.9; font-family: monospace; white-space: nowrap; flex-shrink: 0;">${item.sched.time}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px; font-size: 0.62rem; opacity: 0.9; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">
+                        <span style="background: rgba(255,255,255,0.22); padding: 1px 4px; border-radius: 3px; font-weight: 600;">${categoryName}</span>
+                        <span>${item.sched.manual_time}m</span>
+                        ${studentCount > 0 ? `<span>• ${studentCount} part.</span>` : ''}
+                    </div>
                 </div>
             `;
         });
 
         swimlanesHtml += `
-            <div style="display: flex; border-bottom: 1px solid var(--border); min-height: 52px;">
-                <div style="width: 140px; min-width: 140px; padding: 0.6rem 0.75rem; background: var(--bg-main); border-right: 1px solid var(--border); font-size: 0.8rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem;">
-                    <i class="${track.isOffstage ? 'fa-solid fa-layer-group' : 'fa-solid fa-microphone-stage'}" style="color: var(--primary);"></i>
-                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</span>
+            <div style="display: flex; border-bottom: 1px solid var(--border); min-height: ${totalLaneHeight}px;">
+                <div style="width: 175px; min-width: 175px; padding: 0.75rem 1rem; background: var(--bg-main); border-right: 1px solid var(--border); display: flex; flex-direction: column; justify-content: center; gap: 0.25rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="${track.isOffstage ? 'fa-solid fa-layer-group' : 'fa-solid fa-microphone-stage'}" style="color: ${track.isOffstage ? '#0D9488' : '#4F46E5'}; font-size: 0.95rem;"></i>
+                        <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-main); word-break: break-word;">${track.name}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+                        <span style="font-size: 0.68rem; font-weight: 700; color: ${track.isOffstage ? '#0F766E' : '#4338CA'}; background: ${track.isOffstage ? '#CCFBF1' : '#EEF2FF'}; padding: 1px 6px; border-radius: 999px;">${trackItems.length} comp${trackItems.length === 1 ? '' : 's'}</span>
+                        ${track.is_simulated ? `<span style="font-size: 0.65rem; color: #4338CA; background: #E0E7FF; padding: 1px 5px; border-radius: 4px; font-weight: 600;">Auto-Created</span>` : ''}
+                        ${rowCount > 1 ? `<span style="font-size: 0.65rem; color: var(--text-muted); background: #F1F5F9; padding: 1px 5px; border-radius: 4px;">${rowCount} parallel tracks</span>` : ''}
+                    </div>
                 </div>
-                <div style="flex: 1; position: relative; min-height: 52px; background: white;">
-                    ${timeMarkersHtml}
-                    ${breakShadeHtml}
+                <div style="flex: 1; position: relative; min-height: ${totalLaneHeight}px; background: white;">
+                    ${laneGridLinesHtml}
+                    ${laneBreakShadeHtml}
                     ${blocksHtml}
                 </div>
             </div>
@@ -8708,19 +9335,60 @@ function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540
     let unplacedHtml = '';
     if (unplacedList.length > 0) {
         unplacedHtml = `
-            <div style="margin-top: 1rem; padding: 0.85rem 1rem; background: #FFFBEB; border: 1.5px solid #FDE68A; border-radius: 8px;">
-                <strong style="color: #92400E; font-size: 0.85rem; display: block; margin-bottom: 0.25rem;">
-                    <i class="fa-solid fa-triangle-exclamation"></i> ${unplacedList.length} Events Could Not Fit Into Time Limit (${startTimeStr} - ${endTimeStr})
-                </strong>
-                <span style="font-size: 0.8rem; color: #B45309;">Consider extending operating hours or adding more stages. Unplaced events: ${unplacedList.map(c => c.name).join(', ')}.</span>
+            <div style="margin-top: 1.25rem; padding: 1rem 1.25rem; background: #FFFBEB; border: 1.5px solid #FDE68A; border-radius: var(--radius-lg);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 28px; height: 28px; border-radius: 6px; background: #FEF3C7; color: #D97706; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <div>
+                            <strong style="color: #92400E; font-size: 0.88rem;">${unplacedList.length} Events Could Not Fit Into Operating Hours (${startTimeStr} - ${endTimeStr})</strong>
+                            <p style="margin: 0; font-size: 0.78rem; color: #B45309;">Operating hours are saturated. Extend end time or add more stages to fit all remaining events.</p>
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; max-height: 140px; overflow-y: auto; padding: 0.25rem 0;">
+                    ${unplacedList.map(c => `
+                        <span style="display: inline-flex; align-items: center; gap: 0.35rem; background: white; border: 1px solid #FCD34D; color: #78350F; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                            <i class="${c.is_offstage ? 'fa-solid fa-layer-group' : 'fa-solid fa-microphone-stage'}" style="font-size: 0.7rem; color: #D97706;"></i>
+                            <span>${c.name}</span>
+                            <span style="font-size: 0.65rem; color: #92400E; background: #FEF3C7; padding: 1px 4px; border-radius: 3px;">${c.categories?.name || 'Gen'} • ${c.calculatedDuration || 30}m</span>
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    let simNoticeHtml = '';
+    if (isSimulatedStages) {
+        simNoticeHtml = `
+            <div style="margin-bottom: 0.85rem; padding: 0.65rem 0.95rem; background: #EFF6FF; border: 1.5px solid #BFDBFE; border-radius: 8px; font-size: 0.8rem; color: #1E40AF; display: flex; align-items: center; gap: 0.65rem;">
+                <i class="fa-solid fa-circle-info" style="font-size: 1.05rem; color: #3B82F6; flex-shrink: 0;"></i>
+                <span><strong>Zero Physical Stages Detected:</strong> The optimizer automatically allocated 3 virtual stages (Stage 1, Stage 2, Stage 3) to schedule all onstage competitions. Clicking <em>"Apply & Save to Master Schedule"</em> will auto-provision these stages into your festival.</span>
             </div>
         `;
     }
 
     container.innerHTML = `
-        <div style="overflow-x: auto; border: 1px solid var(--border); border-radius: 8px;">
-            <div style="min-width: 650px;">
-                ${swimlanesHtml}
+        ${simNoticeHtml}
+        <div style="overflow-x: auto; border: 1.5px solid var(--border); border-radius: 10px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="min-width: 820px;">
+                <!-- Dedicated Sticky Time Header -->
+                <div style="display: flex; background: #F8FAFC; border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 10;">
+                    <div style="width: 175px; min-width: 175px; padding: 0.65rem 1rem; border-right: 1px solid var(--border); font-size: 0.72rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: space-between;">
+                        <span>Stage / Venue</span>
+                        <i class="fa-solid fa-layer-group" style="opacity: 0.4;"></i>
+                    </div>
+                    <div style="flex: 1; position: relative; height: 36px;">
+                        ${headerTimeMarkersHtml}
+                        ${headerLunchBadgeHtml}
+                    </div>
+                </div>
+                <!-- Swimlanes Body -->
+                <div>
+                    ${swimlanesHtml}
+                </div>
             </div>
         </div>
         ${unplacedHtml}
@@ -8740,6 +9408,30 @@ async function applyOptimizedSchedule() {
     }
 
     try {
+        // 0. Auto-provision simulated stages into database if needed
+        const simStageIds = [...new Set(Object.values(pendingOptimizedSchedule).map(i => i.stage_id).filter(id => String(id).startsWith('sim_stage_')))];
+        if (simStageIds.length > 0) {
+            for (const simId of simStageIds) {
+                const simObj = (window._optimizerEffectiveStages || []).find(s => s.id === simId) || { 
+                    name: `Stage ${simId.split('_').pop()}`, 
+                    stage_no: parseInt(simId.split('_').pop()) || 1 
+                };
+                const payload = festPayload({
+                    name: simObj.name,
+                    stage_no: simObj.stage_no
+                });
+                const { data: createdStage, error: stageErr } = await supabaseClient.from('stages').insert([payload]).select().single();
+                if (!stageErr && createdStage) {
+                    Object.values(pendingOptimizedSchedule).forEach(item => {
+                        if (item.stage_id === simId) {
+                            item.stage_id = createdStage.id;
+                        }
+                    });
+                }
+            }
+            await loadStagesAndTeams();
+        }
+
         const stageUpdates = [];
 
         // 1. Merge pending into masterSchedule & check stage updates
@@ -10691,6 +11383,34 @@ window.openQuickAddModal = function(compId, teamId) {
                 is_leader: isGroup && !hasExistingLeader && index === 0
             }));
 
+            // Validate Student Category Limit
+            const limitCfg = await getCategoryLimitConfig();
+            if (limitCfg && limitCfg.enabled && !comp.is_group) {
+                const targetCatObj = categoriesList.find(c => String(c.id) === String(comp.category_id));
+                const isExempt = comp.is_group || comp.is_common || (targetCatObj && targetCatObj.is_general);
+                if (!isExempt) {
+                    const { data: existingAssigns } = await festQuery(
+                        supabaseClient.from('participant_competitions')
+                            .select('participant_id, competition_id')
+                            .in('participant_id', window.tempSelectedStudents.map(s => s.id))
+                    );
+                    for (const s of window.tempSelectedStudents) {
+                        const check = festosEvaluateStudentCategoryLimit(
+                            s.id,
+                            compId,
+                            window.tempSelectedStudents,
+                            competitionsList,
+                            categoriesList,
+                            existingAssigns || [],
+                            limitCfg
+                        );
+                        if (!check.allowed) {
+                            throw new Error(check.message);
+                        }
+                    }
+                }
+            }
+
             const { data, error } = await supabaseClient.from('participant_competitions').insert(festPayload(payload)).select();
             if (error) throw error;
             
@@ -11135,3 +11855,267 @@ window.changeMasterAdminCredentials = async function(newUsername, newPassword) {
         showToast('Failed to update credentials: ' + e.message, 'error');
     }
 };
+
+// =========================================================================
+// UNIVERSAL NOTIFICATION CENTER & APK DISPATCH ENGINE
+// =========================================================================
+
+let globalFestivalNotifications = [];
+let currentNotificationFilter = 'all';
+
+async function fetchFestivalNotifications(showToastFeedback = false) {
+    const client = window.supabaseClient || window.festosSupabase;
+    if (!client) return;
+
+    const activeFestId = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? 
+        festosAuth.getCurrentFestId() : (localStorage.getItem('festos_active_fest_id') || 'all');
+
+    try {
+        let broadcasts = [];
+
+        // 1. Fetch from broadcasts table
+        const { data, error } = await client.from('broadcasts').select('*').order('created_at', { ascending: false }).limit(40);
+        if (!error && Array.isArray(data)) {
+            broadcasts = data;
+        } else {
+            // Fallback to active broadcasts in settings
+            const { data: sRow } = await client.from('settings').select('value').eq('id', 'system_broadcast_active').maybeSingle();
+            if (sRow && Array.isArray(sRow.value)) {
+                broadcasts = sRow.value;
+            }
+        }
+
+        // Filter for this festival
+        const filtered = broadcasts.filter(b => {
+            if (b.is_active === false) return false;
+            if (!b.target_fest_id || b.target_fest_id === 'all' || b.target_fest_id === activeFestId) return true;
+            if (Array.isArray(b.allowed_fests) && (b.allowed_fests.includes('*') || b.allowed_fests.includes(activeFestId))) return true;
+            return false;
+        });
+
+        globalFestivalNotifications = filtered;
+        updateNotificationBadge();
+        renderNotificationsList();
+
+        if (showToastFeedback && typeof showToast === 'function') {
+            showToast('Notifications synchronized!', 'info');
+        }
+
+    } catch (e) {
+        console.warn('Failed to fetch festival notifications:', e);
+    }
+}
+
+function getReadNotifications() {
+    try {
+        const val = localStorage.getItem('festos_read_notifications');
+        return val ? JSON.parse(val) : [];
+    } catch(e) { return []; }
+}
+
+function updateNotificationBadge() {
+    const readIds = getReadNotifications();
+    const unreadCount = globalFestivalNotifications.filter(n => !readIds.includes(n.id)).length;
+
+    const badge = document.getElementById('header-notify-badge');
+    const drawerPill = document.getElementById('drawer-unread-count-pill');
+
+    if (badge) {
+        if (unreadCount > 0) {
+            badge.innerText = unreadCount > 9 ? '9+' : unreadCount;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    if (drawerPill) {
+        if (unreadCount > 0) {
+            drawerPill.innerText = `${unreadCount} Unread`;
+            drawerPill.style.display = 'inline-block';
+        } else {
+            drawerPill.style.display = 'none';
+        }
+    }
+}
+
+function toggleNotificationCenter(open = null) {
+    const drawer = document.getElementById('notificationCenterDrawer');
+    const backdrop = document.getElementById('notificationDrawerBackdrop');
+    if (!drawer || !backdrop) return;
+
+    const isOpen = drawer.style.right === '0px';
+    const shouldOpen = open !== null ? open : !isOpen;
+
+    if (shouldOpen) {
+        backdrop.style.display = 'block';
+        setTimeout(() => { backdrop.style.opacity = '1'; }, 10);
+        drawer.style.right = '0px';
+        renderNotificationsList();
+    } else {
+        backdrop.style.opacity = '0';
+        drawer.style.right = '-460px';
+        setTimeout(() => { backdrop.style.display = 'none'; }, 250);
+    }
+}
+
+function filterNotificationView(cat) {
+    currentNotificationFilter = cat;
+    document.querySelectorAll('.notify-filter-tab').forEach(tab => {
+        const isMatch = tab.dataset.filter === cat;
+        tab.classList.toggle('active', isMatch);
+        tab.style.background = isMatch ? 'var(--primary)' : 'white';
+        tab.style.color = isMatch ? 'white' : (tab.dataset.filter === 'apk' ? '#16A34A' : 'var(--text-main)');
+    });
+    renderNotificationsList();
+}
+
+function renderNotificationsList() {
+    const container = document.getElementById('notifications-list-container');
+    if (!container) return;
+
+    const readIds = getReadNotifications();
+    let list = globalFestivalNotifications;
+
+    if (currentNotificationFilter === 'unread') {
+        list = list.filter(n => !readIds.includes(n.id));
+    } else if (currentNotificationFilter === 'apk') {
+        list = list.filter(n => n.is_apk || n.type === 'apk');
+    }
+
+    if (list.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; color: var(--text-muted); padding: 3.5rem 1rem;">
+                <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--bg-main); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto; font-size: 1.5rem; color: #94A3B8;">
+                    <i class="fa-solid fa-bell-slash"></i>
+                </div>
+                <h4 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">All Caught Up!</h4>
+                <p style="font-size: 0.82rem; margin: 0;">No active notifications match the selected filter.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = '';
+    list.forEach(n => {
+        const isRead = readIds.includes(n.id);
+        const isApk = n.is_apk || n.type === 'apk';
+        const card = document.createElement('div');
+
+        // Card Border Accent & Styling
+        card.style.cssText = `
+            background: ${isApk ? '#F0FDF4' : (isRead ? '#FFFFFF' : '#F8FAFC')};
+            border: 1px solid ${isApk ? '#BBF7D0' : (isRead ? 'var(--border)' : '#CBD5E1')};
+            border-left: 4px solid ${isApk ? '#16A34A' : (n.severity === 'danger' ? '#EF4444' : (n.severity === 'warning' ? '#F59E0B' : 'var(--primary)'))};
+            border-radius: var(--radius-md);
+            padding: 1.1rem;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: transform 0.2s ease;
+        `;
+
+        // APK Download Button Section
+        let apkDownloadHtml = '';
+        if (isApk) {
+            const apkUrl = n.apk_url || (n.attachment?.data || '#');
+            const versionStr = n.apk_version || 'Latest Build';
+            apkDownloadHtml = `
+                <div style="background: white; border: 1px solid #86EFAC; border-radius: 8px; padding: 0.75rem; margin-top: 0.35rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                        <div style="font-weight: 800; font-size: 0.88rem; color: #166534; display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-brands fa-android" style="font-size: 1.1rem; color: #16A34A;"></i> Android App APK ${versionStr}
+                        </div>
+                        <div style="font-size: 0.74rem; color: #15803D;">Ready to install on Mobile &amp; Tablet devices</div>
+                    </div>
+                    <a href="${apkUrl}" download="festos_${versionStr.replace(/[^a-z0-9]/gi, '_')}.apk" class="btn btn-success" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; text-decoration: none; border-radius: 6px;" onclick="markNotificationAsRead('${n.id}')">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> Download APK
+                    </a>
+                </div>
+            `;
+        }
+
+        // Generic File Attachment Section
+        let fileAttachHtml = '';
+        if (!isApk && n.attachment && n.attachment.data) {
+            const fileName = n.attachment.name || 'Attached Document';
+            fileAttachHtml = `
+                <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem 0.85rem; margin-top: 0.35rem; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                    <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <i class="fa-solid fa-paperclip" style="color: var(--primary);"></i> ${fileName}
+                    </div>
+                    <a href="${n.attachment.data}" download="${fileName}" class="btn btn-outline" style="padding: 0.3rem 0.65rem; font-size: 0.75rem; text-decoration: none;" onclick="markNotificationAsRead('${n.id}')">
+                        <i class="fa-solid fa-download"></i> Download
+                    </a>
+                </div>
+            `;
+        }
+
+        const timeStr = n.created_at ? new Date(n.created_at).toLocaleString() : 'Just now';
+
+        card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <span class="badge" style="font-size: 0.68rem; font-weight: 800; background: ${isApk ? '#DCFCE7' : 'var(--bg-main)'}; color: ${isApk ? '#166534' : 'var(--text-main)'};">
+                        ${isApk ? '<i class="fa-brands fa-android"></i> APK RELEASE' : (n.severity ? n.severity.toUpperCase() : 'NOTICE')}
+                    </span>
+                    ${!isRead ? '<span style="width: 7px; height: 7px; border-radius: 50%; background: #EF4444; display: inline-block;" title="Unread"></span>' : ''}
+                </div>
+                <span style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">${timeStr}</span>
+            </div>
+
+            <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--text-main); margin: 0; line-height: 1.3;">
+                ${n.title}
+            </h4>
+
+            <p style="font-size: 0.82rem; color: var(--text-main); line-height: 1.45; margin: 0; white-space: pre-line;">
+                ${n.message}
+            </p>
+
+            ${apkDownloadHtml}
+            ${fileAttachHtml}
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
+                ${!isRead ? `
+                    <button onclick="markNotificationAsRead('${n.id}')" style="background: none; border: none; font-size: 0.72rem; font-weight: 700; color: var(--primary); cursor: pointer; padding: 0;">
+                        <i class="fa-solid fa-check"></i> Mark as read
+                    </button>
+                ` : `
+                    <span style="font-size: 0.72rem; color: #94A3B8;"><i class="fa-solid fa-check-double"></i> Read</span>
+                `}
+            </div>
+        `;
+
+        container.appendChild(card);
+    });
+}
+
+function markNotificationAsRead(id) {
+    const readIds = getReadNotifications();
+    if (!readIds.includes(id)) {
+        readIds.push(id);
+        try { localStorage.setItem('festos_read_notifications', JSON.stringify(readIds)); } catch(e) {}
+    }
+    updateNotificationBadge();
+    renderNotificationsList();
+}
+
+function markAllNotificationsAsRead() {
+    const allIds = globalFestivalNotifications.map(n => n.id);
+    try { localStorage.setItem('festos_read_notifications', JSON.stringify(allIds)); } catch(e) {}
+    updateNotificationBadge();
+    renderNotificationsList();
+    if (typeof showToast === 'function') showToast('All notifications marked as read', 'info');
+}
+
+// Auto-initialize on dashboard boot
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            fetchFestivalNotifications();
+            // Poll for newly dispatched Super Admin notifications every 60 seconds
+            setInterval(() => fetchFestivalNotifications(), 60000);
+        }, 800);
+    });
+}

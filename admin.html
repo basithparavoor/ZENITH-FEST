@@ -778,6 +778,8 @@ tr:hover td { background: var(--bg-main); }
     #categories-tbody td:nth-of-type(3)::before { content: "Type"; }
     #categories-tbody td:nth-of-type(4)::before { content: "Students"; }
     #categories-tbody td:nth-of-type(5)::before { content: "Comps"; }
+    #categories-tbody td:nth-of-type(6)::before { content: "Student Limit"; }
+    #categories-tbody td:nth-of-type(6)::before { content: "Student Limit"; }
     
     #competitions-tbody td:nth-of-type(3)::before { content: "Category"; }
     #competitions-tbody td:nth-of-type(4)::before { content: "Stage"; }
@@ -1533,7 +1535,14 @@ tr:hover td { background: var(--bg-main); }
                 <button class="menu-toggle" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
                 <h1 id="page-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0;">Workspace Overview</h1>
             </div>
-            <button class="btn btn-outline" onclick="logout()" style="flex-shrink: 0;"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+            <div style="display: flex; align-items: center; gap: 0.65rem; flex-shrink: 0;">
+                <!-- Universal Notification Center Bell (Suitable for Mobile, Tablet, Desktop) -->
+                <button class="header-notify-btn" id="header-notify-btn" onclick="toggleNotificationCenter()" title="Notifications & System Updates" style="position: relative; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--border); background: white; color: var(--text-main); display: flex; align-items: center; justify-content: center; font-size: 1.15rem; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; box-shadow: var(--shadow-sm);">
+                    <i class="fa-solid fa-bell"></i>
+                    <span class="notify-badge" id="header-notify-badge" style="display: none; position: absolute; top: -3px; right: -3px; background: #EF4444; color: white; border-radius: 999px; min-width: 19px; height: 19px; padding: 0 5px; font-size: 0.7rem; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4);">0</span>
+                </button>
+                <button class="btn btn-outline" onclick="logout()" style="flex-shrink: 0;"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+            </div>
         </div>
 
         <!-- NEW WEBSITE BUILDER TAB -->
@@ -2275,8 +2284,13 @@ tr:hover td { background: var(--bg-main); }
 
         <div id="categories" class="content-section">
             <div class="action-bar">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem; font-family: 'Plus Jakarta Sans', sans-serif;">Categories Management</h2>
+                    <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0;">Configure festival categories, eligible age/DOB ranges, classes, and student competition limits.</p>
+                </div>
                 <button class="btn btn-primary" onclick="openCategoryModal()"><i class="fa-solid fa-plus"></i> Create Category</button>
             </div>
+
             <div class="controls-bar">
                 <div class="search-box">
                     <i class="fa-solid fa-magnifying-glass"></i>
@@ -2300,6 +2314,7 @@ tr:hover td { background: var(--bg-main); }
                             <th>Type</th>
                             <th>Students</th>
                             <th>Competitions</th>
+                            <th>Student Limit</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -2984,6 +2999,54 @@ tr:hover td { background: var(--bg-main); }
                         <label>Auto-Lock Registration Deadline</label>
                         <input type="datetime-local" id="setting-lock-date" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border); text-transform: none !important;">
                         <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">After this exact time, Team Managers will be in read-only mode.</p>
+                    </div>
+                </div>
+
+                <!-- STUDENT CATEGORY PARTICIPATION LIMIT RULES CARD -->
+                <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); grid-column: 1 / -1;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+                        <div>
+                            <h3 style="margin: 0; color: var(--text-main); font-weight: 700; display: flex; align-items: center; gap: 0.5rem; font-size: 1.15rem;">
+                                <i class="fa-solid fa-gauge-high" style="color: var(--primary);"></i> Student Category Competition Limit Rules
+                            </h3>
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">
+                                When category limits are configured inside Categories, control whether Group Events and General/Common Competitions count towards the student's category limit or are excluded.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
+                        <!-- Group Events Rule -->
+                        <div style="background: var(--bg-main); padding: 1.15rem; border-radius: 8px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.92rem; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                    <i class="fa-solid fa-people-group" style="color: var(--primary);"></i> Group Events
+                                </div>
+                                <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 3px;">
+                                    Count group competitions towards the student's category limit or keep them exempt.
+                                </div>
+                            </div>
+                            <select id="setting-limit-group-events" style="padding: 0.5rem 0.85rem; border-radius: 6px; border: 1px solid var(--border); font-weight: 700; font-size: 0.84rem; background: white; color: var(--text-main); min-width: 150px;">
+                                <option value="exclude">Exclude from Limit</option>
+                                <option value="include">Include in Limit</option>
+                            </select>
+                        </div>
+
+                        <!-- General / Common Competitions Rule -->
+                        <div style="background: var(--bg-main); padding: 1.15rem; border-radius: 8px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.92rem; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                    <i class="fa-solid fa-globe" style="color: var(--primary);"></i> General Competitions
+                                </div>
+                                <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 3px;">
+                                    Count open/general competitions towards the student's category limit or keep them exempt.
+                                </div>
+                            </div>
+                            <select id="setting-limit-general-comps" style="padding: 0.5rem 0.85rem; border-radius: 6px; border: 1px solid var(--border); font-weight: 700; font-size: 0.84rem; background: white; color: var(--text-main); min-width: 150px;">
+                                <option value="exclude">Exclude from Limit</option>
+                                <option value="include">Include in Limit</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -3845,14 +3908,35 @@ tr:hover td { background: var(--bg-main); }
 
 
 <div id="cropperModal" class="modal-overlay" style="z-index: 9999;">
-    <div class="modal" style="max-width: 450px; text-align: center;">
-        <h3 style="margin-bottom: 1rem; font-weight: 600; color: var(--text-main);">Adjust Photo (2:3 Ratio)</h3>
-        <div style="width: 100%; height: 350px; background: var(--bg-main); border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border);">
+    <div class="modal" style="max-width: 480px; text-align: center;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <h3 style="margin: 0; font-weight: 700; font-size: 1.1rem; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-crop-simple" style="color: var(--primary);"></i> Smart Portrait Cropper
+            </h3>
+            <span id="cropper-face-status" style="font-size: 0.72rem; color: #059669; background: #ECFDF5; padding: 2px 8px; border-radius: 999px; border: 1px solid #A7F3D0; font-weight: 700; display: none;">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Face Detected
+            </span>
+        </div>
+
+        <!-- Aspect Ratio Selector & Auto-Center Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 0.85rem; flex-wrap: wrap;">
+            <div style="display: flex; gap: 4px;" id="cropper-aspect-pills">
+                <button type="button" class="btn btn-outline active" data-aspect="badge" onclick="setCropperAspect(2/3, this)" style="font-size: 0.72rem; padding: 0.3rem 0.6rem; border-radius: 6px; font-weight: 700;">2:3 Badge</button>
+                <button type="button" class="btn btn-outline" data-aspect="square" onclick="setCropperAspect(1, this)" style="font-size: 0.72rem; padding: 0.3rem 0.6rem; border-radius: 6px; font-weight: 700;">1:1 Poster</button>
+                <button type="button" class="btn btn-outline" data-aspect="passport" onclick="setCropperAspect(3/4, this)" style="font-size: 0.72rem; padding: 0.3rem 0.6rem; border-radius: 6px; font-weight: 700;">3:4 Photo</button>
+            </div>
+            <button type="button" class="btn btn-outline" onclick="applySmartFaceCrop()" style="border-color: var(--primary); color: var(--primary); font-size: 0.75rem; padding: 0.3rem 0.75rem; font-weight: 700; border-radius: 6px;">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Auto Face
+            </button>
+        </div>
+
+        <div style="width: 100%; height: 350px; background: var(--bg-main); border-radius: 12px; margin-bottom: 1.25rem; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border);">
             <img id="cropperImage" src="" style="max-width: 100%; max-height: 100%; display: block;">
         </div>
-        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+
+        <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
             <button class="btn btn-outline" style="flex: 1;" onclick="cancelCropper()">Cancel</button>
-            <button class="btn btn-success" style="flex: 1;" onclick="confirmCrop()"><i class="fa-solid fa-crop"></i> Apply Crop</button>
+            <button class="btn btn-success" style="flex: 1.2;" onclick="confirmCrop()"><i class="fa-solid fa-check"></i> Apply Portrait</button>
         </div>
     </div>
 </div>
@@ -4049,7 +4133,7 @@ tr:hover td { background: var(--bg-main); }
 
 <!-- ================= AUTO-SCHEDULE OPTIMIZER MODAL ================= -->
 <div id="autoSchedulerModal" class="modal-overlay" style="z-index: 1050;">
-    <div class="modal" style="max-width: 950px; width: 95%;">
+    <div class="modal" style="max-width: 1200px; width: 96%; max-height: 92vh; display: flex; flex-direction: column;">
         <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
@@ -4063,7 +4147,7 @@ tr:hover td { background: var(--bg-main); }
             <button class="close-btn" onclick="document.getElementById('autoSchedulerModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
         </div>
 
-        <div style="padding: 1.25rem 0 0 0;">
+        <div style="padding: 1.25rem 0 0 0; overflow-y: auto; flex: 1;">
             <!-- Configuration Form Deck -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; background: var(--bg-main); padding: 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border); margin-bottom: 1.5rem;">
                 <div>
@@ -4128,9 +4212,9 @@ tr:hover td { background: var(--bg-main); }
             <div style="border: 1px solid var(--border); border-radius: var(--radius-lg); background: white; overflow: hidden;">
                 <div style="padding: 0.75rem 1rem; background: var(--bg-main); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
                     <strong style="font-size: 0.9rem; color: var(--text-main);"><i class="fa-solid fa-chart-gantt"></i> Optimization Timeline Preview</strong>
-                    <small style="color: var(--text-muted); font-weight: 500;">Review proposed slots before applying</small>
+                    <small style="color: var(--text-muted); font-weight: 500;">Multi-row non-overlapping visual timetable</small>
                 </div>
-                <div id="opt-preview-container" style="max-height: 40vh; overflow-y: auto; padding: 1rem; min-height: 180px;">
+                <div id="opt-preview-container" style="max-height: 52vh; overflow-y: auto; padding: 1rem; min-height: 200px;">
                     <div style="text-align: center; color: var(--text-muted); padding: 3rem; font-size: 0.9rem; font-weight: 500;">
                         Click <strong>"Run Optimizer Algorithm"</strong> to generate a clash-free schedule.
                     </div>
@@ -4535,5 +4619,57 @@ function toggleCustomGridFields() {
 <script src="preset-templates-engine.js"></script>
 <script src="ai-template-generator.js"></script>
 <script src="admin.js"></script>
+
+<!-- ========================================================= -->
+<!-- SLIDE-OVER NOTIFICATION CENTER DRAWER (SUITABLE FOR ALL DEVICES) -->
+<!-- ========================================================= -->
+<div id="notificationDrawerBackdrop" onclick="toggleNotificationCenter(false)" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); z-index: 9998; display: none; opacity: 0; transition: opacity 0.25s ease;"></div>
+
+<div id="notificationCenterDrawer" style="position: fixed; top: 0; right: -460px; bottom: 0; width: 100%; max-width: 440px; background: white; z-index: 9999; box-shadow: -10px 0 30px rgba(0,0,0,0.15); display: flex; flex-direction: column; transition: right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); box-sizing: border-box;">
+    <!-- Drawer Header -->
+    <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--bg-surface);">
+        <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="badge" style="background: #EFF6FF; color: var(--primary); font-size: 0.72rem; font-weight: 800;"><i class="fa-solid fa-bell"></i> DISPATCH FEED</span>
+                <span class="badge" id="drawer-unread-count-pill" style="display: none; background: #EF4444; color: white; font-size: 0.68rem; font-weight: 800;">0 Unread</span>
+            </div>
+            <h3 style="font-size: 1.2rem; font-weight: 800; color: var(--text-main); margin: 4px 0 0 0; font-family: 'Plus Jakarta Sans', sans-serif;">Notifications &amp; Updates</h3>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+            <button class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem;" onclick="markAllNotificationsAsRead()" title="Mark All as Read">
+                <i class="fa-solid fa-check-double"></i> Read All
+            </button>
+            <button onclick="toggleNotificationCenter(false)" style="width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-main); color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center;" title="Close Notifications">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Category Filter Tabs -->
+    <div style="padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; gap: 6px; background: var(--bg-main); overflow-x: auto;">
+        <button class="btn btn-outline notify-filter-tab active" data-filter="all" onclick="filterNotificationView('all')" style="padding: 0.3rem 0.75rem; font-size: 0.78rem; border-radius: 999px; background: var(--primary); color: white;">All</button>
+        <button class="btn btn-outline notify-filter-tab" data-filter="unread" onclick="filterNotificationView('unread')" style="padding: 0.3rem 0.75rem; font-size: 0.78rem; border-radius: 999px;">Unread</button>
+        <button class="btn btn-outline notify-filter-tab" data-filter="apk" onclick="filterNotificationView('apk')" style="padding: 0.3rem 0.75rem; font-size: 0.78rem; border-radius: 999px; color: #16A34A;">
+            <i class="fa-brands fa-android"></i> Mobile APKs
+        </button>
+    </div>
+
+    <!-- Notifications List Container -->
+    <div id="notifications-list-container" style="flex: 1; overflow-y: auto; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.85rem;">
+        <div style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+            <div>Syncing notifications from Super Admin...</div>
+        </div>
+    </div>
+
+    <!-- Drawer Footer -->
+    <div style="padding: 0.85rem 1.25rem; border-top: 1px solid var(--border); background: var(--bg-main); display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-muted);">
+        <span><i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i> FestOS Global SaaS Feed</span>
+        <button onclick="fetchFestivalNotifications(true)" style="background: none; border: none; color: var(--primary); font-weight: 700; cursor: pointer;">
+            <i class="fa-solid fa-rotate"></i> Refresh
+        </button>
+    </div>
+</div>
+
 </body>
 </html>

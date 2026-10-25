@@ -1225,6 +1225,27 @@ async function executeBulkAction(action) {
                 throw new Error(`Limit Exceeded! You can only enroll ${comp.max_participants} students total for this event.`);
             }
 
+            // Student Category Limit Validation
+            if (!comp.is_group && typeof festosGetCategoryLimitConfig === 'function') {
+                const limitCfg = await festosGetCategoryLimitConfig();
+                if (limitCfg && limitCfg.enabled) {
+                    for (const pId of newIds) {
+                        const check = festosEvaluateStudentCategoryLimit(
+                            pId,
+                            compId,
+                            globalParticipants || [],
+                            globalCompetitions || [],
+                            globalCategories || [],
+                            globalAssignments || [],
+                            limitCfg
+                        );
+                        if (!check.allowed) {
+                            throw new Error(check.message);
+                        }
+                    }
+                }
+            }
+
             const inserts = [];
             const groupId = comp.is_group ? `GRP_${compId}_${myTeamId}_${Date.now()}` : null;
             
@@ -2295,6 +2316,27 @@ window.openQuickAddModal = function(compId) {
             
             // If a leader already exists in the enrolled data, DO NOT assign a new leader.
             const hasExistingLeader = existingGroup.some(a => a.is_leader);
+
+            // Student Category Limit Validation
+            if (!isGroup && typeof festosGetCategoryLimitConfig === 'function') {
+                const limitCfg = await festosGetCategoryLimitConfig();
+                if (limitCfg && limitCfg.enabled) {
+                    for (const s of window.tempSelectedStudents) {
+                        const check = festosEvaluateStudentCategoryLimit(
+                            s.id,
+                            window.tempCompId,
+                            globalParticipants || [],
+                            globalCompetitions || [],
+                            globalCategories || [],
+                            globalAssignments || [],
+                            limitCfg
+                        );
+                        if (!check.allowed) {
+                            throw new Error(check.message);
+                        }
+                    }
+                }
+            }
 
             const payload = window.tempSelectedStudents.map((s, index) => ({
                 participant_id: s.id,

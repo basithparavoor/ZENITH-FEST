@@ -270,6 +270,100 @@ input[type="password"], input[type="file"], .file-input, textarea[style*="text-t
 
 
 /* Enterprise Super Admin & Dev Diagnostics Suite Styles */
+:root {
+    --dev-bg-dark: #0B0F19;
+    --dev-surface-dark: #111827;
+    --dev-border-dark: #1F2937;
+    --dev-accent-cyan: #06B6D4;
+    --dev-accent-emerald: #10B981;
+    --dev-accent-violet: #8B5CF6;
+    --dev-accent-amber: #F59E0B;
+}
+
+.super-kpi-card {
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.35rem 1.45rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.super-kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary-gradient);
+    opacity: 0.9;
+}
+.super-kpi-card.kpi-emerald::before { background: linear-gradient(90deg, #10B981 0%, #059669 100%); }
+.super-kpi-card.kpi-violet::before { background: linear-gradient(90deg, #8B5CF6 0%, #6366F1 100%); }
+.super-kpi-card.kpi-amber::before { background: linear-gradient(90deg, #F59E0B 0%, #D97706 100%); }
+.super-kpi-card.kpi-cyan::before { background: linear-gradient(90deg, #06B6D4 0%, #3B82F6 100%); }
+
+.super-kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.08);
+    border-color: #CBD5E1;
+}
+
+/* Mac-style terminal header */
+.terminal-window-header {
+    background: #1E293B;
+    padding: 0.6rem 1rem;
+    border-top-left-radius: var(--radius-md);
+    border-top-right-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #334155;
+}
+.terminal-window-dots {
+    display: flex;
+    gap: 6px;
+}
+.terminal-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+.terminal-dot.red { background: #EF4444; }
+.terminal-dot.yellow { background: #F59E0B; }
+.terminal-dot.green { background: #10B981; }
+
+.radar-online-badge {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: #ECFDF5;
+    color: #065F46;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.query-stats-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    background: var(--bg-main);
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
+}
 .super-dev-nav-pill {
     transition: var(--transition);
 }
@@ -1854,42 +1948,54 @@ input:checked + .slider:before { transform: translateX(20px); }
                 <div class="super-submodule-pane" id="submodule-db-explorer">
                     <!-- Top Diagnostic KPI Cards -->
                     <div class="super-kpi-grid">
-                        <div class="super-kpi-card">
+                        <div class="super-kpi-card kpi-cyan">
                             <div class="super-kpi-label">
-                                <span>Database Connection</span>
-                                <span class="badge badge-success" id="db-status-pill" style="display: inline-flex; align-items: center; gap: 5px;">
+                                <span><i class="fa-solid fa-cloud" style="color: #06B6D4;"></i> Cloud Database</span>
+                                <span class="radar-online-badge" id="db-status-pill">
                                     <span class="pulse-dot"></span> Connected
                                 </span>
                             </div>
-                            <div class="super-kpi-val" id="db-status-val" style="color: #10B981;">Online</div>
-                            <div class="super-kpi-sub">Supabase PostgreSQL Managed Cloud</div>
+                            <div class="super-kpi-val" id="db-status-val" style="color: #0F172A;">PostgreSQL</div>
+                            <div class="super-kpi-sub" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>Supabase Hosted Instance</span>
+                                <span style="font-family: var(--font-mono); font-size: 0.72rem; color: #06B6D4; font-weight: 700;">v15.2 Active</span>
+                            </div>
                         </div>
 
-                        <div class="super-kpi-card">
+                        <div class="super-kpi-card kpi-emerald">
                             <div class="super-kpi-label">
-                                <span>Roundtrip Ping (Latency)</span>
+                                <span><i class="fa-solid fa-stopwatch" style="color: #10B981;"></i> Roundtrip Latency</span>
                                 <span class="badge" id="db-latency-pill" style="background: #ECFDF5; color: #059669; font-weight: 700;">< 300ms</span>
                             </div>
-                            <div class="super-kpi-val" id="db-latency-val">-- ms</div>
-                            <div class="super-kpi-sub">Real-time REST / DB heartbeat query</div>
+                            <div class="super-kpi-val" id="db-latency-val" style="color: #10B981;">-- ms</div>
+                            <div class="super-kpi-sub" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>Direct REST Query Ping</span>
+                                <button onclick="testCloudLatency()" style="background: none; border: none; color: #10B981; font-size: 0.75rem; font-weight: 700; cursor: pointer;"><i class="fa-solid fa-rotate-right"></i> Ping</button>
+                            </div>
                         </div>
 
-                        <div class="super-kpi-card">
+                        <div class="super-kpi-card kpi-violet">
                             <div class="super-kpi-label">
-                                <span>RAM Cache Entries</span>
-                                <span class="badge" style="background: #EFF6FF; color: #2563EB; font-weight: 700;">In-Memory</span>
+                                <span><i class="fa-solid fa-memory" style="color: #8B5CF6;"></i> RAM Cache Buffer</span>
+                                <span class="badge" style="background: #F3E8FF; color: #7C3AED; font-weight: 700;">In-Memory</span>
                             </div>
-                            <div class="super-kpi-val" id="ram-cache-count">0</div>
-                            <div class="super-kpi-sub">Cached fest, user & template objects</div>
+                            <div class="super-kpi-val" id="ram-cache-count" style="color: #6D28D9;">0</div>
+                            <div class="super-kpi-sub" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>Cached Records &amp; Assets</span>
+                                <button onclick="flushRamCache()" style="background: none; border: none; color: #7C3AED; font-size: 0.75rem; font-weight: 700; cursor: pointer;"><i class="fa-solid fa-broom"></i> Flush</button>
+                            </div>
                         </div>
 
-                        <div class="super-kpi-card">
+                        <div class="super-kpi-card kpi-amber">
                             <div class="super-kpi-label">
-                                <span>LocalStorage Quota</span>
-                                <span class="badge" style="background: #FFFBEB; color: #B45309; font-weight: 700;">Client Store</span>
+                                <span><i class="fa-solid fa-hard-drive" style="color: #F59E0B;"></i> LocalStorage Store</span>
+                                <span class="badge" style="background: #FFFBEB; color: #B45309; font-weight: 700;">Client Quota</span>
                             </div>
-                            <div class="super-kpi-val" id="localstorage-usage-val">-- KB</div>
-                            <div class="super-kpi-sub">Offline buffers & local telemetry</div>
+                            <div class="super-kpi-val" id="localstorage-usage-val" style="color: #B45309;">-- KB</div>
+                            <div class="super-kpi-sub" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>Offline Buffers &amp; Audit Trail</span>
+                                <span style="font-size: 0.72rem; color: #94A3B8;">&lt; 5 MB Quota</span>
+                            </div>
                         </div>
                     </div>
 
@@ -1916,9 +2022,14 @@ input:checked + .slider:before { transform: translateX(20px); }
                     <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-sm);">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
                             <div>
-                                <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">
-                                    Direct Database Table Explorer
-                                </h3>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; margin: 0;">
+                                        Direct Database Table Explorer
+                                    </h3>
+                                    <span class="query-stats-pill" id="db-explorer-query-stats">
+                                        <i class="fa-solid fa-circle-check" style="color: #10B981;"></i> Cloud Ready
+                                    </span>
+                                </div>
                                 <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0;">Query raw rows directly from PostgreSQL cloud database bypassing client cache.</p>
                             </div>
                             <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
@@ -1951,7 +2062,7 @@ input:checked + .slider:before { transform: translateX(20px); }
                                         <option value="enquiries">enquiries (Client Support Inquiries)</option>
                                         <option value="broadcasts">broadcasts (System Alerts & Banners)</option>
                                         <option value="audit_logs">audit_logs (Security Audit Trail)</option>
-                                        <option value="sessions">sessions (User Presence & Logins)</option>
+                                        
                                         <option value="settings">settings (Platform Branding & Flags)</option>
                                     </select>
                                 </div>
@@ -2110,7 +2221,17 @@ input:checked + .slider:before { transform: translateX(20px); }
                                 <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.35rem 0.75rem;" onclick="clearDoctorLogs()"><i class="fa-solid fa-trash-can"></i> Clear Stream</button>
                             </div>
                         </div>
-                        <div class="doctor-terminal" id="doctor-terminal-stream">
+                        <div style="border-radius: var(--radius-md); overflow: hidden; border: 1px solid #1E293B;">
+                            <div class="terminal-window-header">
+                                <div class="terminal-window-dots">
+                                    <div class="terminal-dot red"></div>
+                                    <div class="terminal-dot yellow"></div>
+                                    <div class="terminal-dot green"></div>
+                                </div>
+                                <div style="font-family: var(--font-mono); font-size: 0.72rem; color: #94A3B8;">bash &bull; festos-doctor-v3.5 &bull; diagnostics.log</div>
+                                <div style="font-size: 0.7rem; color: #10B981; font-family: var(--font-mono); font-weight: 700;">LIVE STREAM</div>
+                            </div>
+                            <div class="doctor-terminal" id="doctor-terminal-stream" style="border-top-left-radius: 0; border-top-right-radius: 0; border-top: none;">
                             <div class="doctor-terminal-line"><span class="terminal-tag info">[SYSTEM]</span> FestOS System Doctor engine ready. Click "Run Deep Scan" to start diagnostics.</div>
                         </div>
                     </div>
@@ -2214,6 +2335,7 @@ input:checked + .slider:before { transform: translateX(20px); }
                                 <option value="ALL">All Categories</option>
                                 <option value="AUTH">Authentication (AUTH)</option>
                                 <option value="GOVERNANCE">Governance & System Doctor</option>
+                                <option value="TENANT_CONSOLE">Festivals & Tenants</option>
                                 <option value="FINANCE">Financial & Scoring</option>
                                 <option value="SECURITY">Security Events</option>
                                 <option value="SYSTEM">System & Config</option>
@@ -2228,6 +2350,9 @@ input:checked + .slider:before { transform: translateX(20px); }
                                 <option value="CRITICAL">Critical</option>
                             </select>
                         </div>
+                        <button class="btn btn-primary" onclick="loadSecurityAuditLogs()" style="font-size: 0.82rem; padding: 0.45rem 0.85rem;">
+                            <i class="fa-solid fa-rotate"></i> Sync Cloud
+                        </button>
                         <button class="btn btn-outline" onclick="exportAuditLogsCSV()">
                             <i class="fa-solid fa-file-csv"></i> CSV
                         </button>
@@ -2618,23 +2743,60 @@ input:checked + .slider:before { transform: translateX(20px); }
     <!-- MODAL: COMPOSE EMERGENCY BROADCAST / NOTICE -->
     <!-- ========================================================= -->
     <div class="modal-overlay" id="broadcastModal">
-        <div class="modal-card">
+        <div class="modal-card" style="max-width: 680px;">
             <div class="modal-header">
-                <h3 id="broadcast-modal-title">Send System Broadcast &amp; Alert</h3>
-                <button onclick="closeModal('broadcastModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
+                <div>
+                    <span class="badge badge-primary" style="font-size: 0.72rem; margin-bottom: 2px; display: inline-flex; align-items: center; gap: 4px;">
+                        <i class="fa-solid fa-bullhorn"></i> NOTIFICATION &amp; APP DISPATCH
+                    </span>
+                    <h3 id="broadcast-modal-title" style="margin: 0;">Send Notification &amp; App Release</h3>
+                </div>
+                <button type="button" onclick="closeModal('broadcastModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
             <form id="broadcast-form" onsubmit="event.preventDefault(); submitBroadcastForm();">
                 <div class="modal-body">
+                    <!-- Notification Type Selection -->
                     <div class="form-group">
-                        <label>Broadcast Title *</label>
-                        <input type="text" class="form-control" id="bcast-title" placeholder="e.g. Scheduled System Maintenance / Important Update" required>
+                        <label>Dispatch Type *</label>
+                        <select class="form-control" id="bcast-type" onchange="toggleBroadcastTypeFields(this.value)">
+                            <option value="announcement">📢 General System Announcement</option>
+                            <option value="apk">📱 Latest Mobile App Release (Android APK)</option>
+                            <option value="alert">⚠️ Urgent Security / Maintenance Alert</option>
+                            <option value="document">📎 Document / Policy / File Share</option>
+                        </select>
                     </div>
 
                     <div class="form-group">
-                        <label>Message Content *</label>
-                        <textarea class="form-control" id="bcast-message" rows="3" placeholder="Provide full details, timing, or instructions for master admins & staff..." required style="resize:vertical;"></textarea>
+                        <label>Notification Title *</label>
+                        <input type="text" class="form-control" id="bcast-title" placeholder="e.g. FestOS Mobile App v3.5.0 Released / Important Schedule Notice" required>
+                    </div>
+
+                    <!-- Mobile App APK Details Section (Visible when type == 'apk') -->
+                    <div id="bcast-apk-fields-section" style="display: none; background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: var(--radius-md); padding: 1rem; margin-bottom: 0.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <i class="fa-brands fa-android" style="font-size: 1.25rem; color: #16A34A;"></i>
+                            <span style="font-weight: 800; font-size: 0.9rem; color: #166534;">Mobile App (APK) Release Configuration</span>
+                        </div>
+                        <div class="form-row" style="margin-bottom: 0.5rem;">
+                            <div class="form-group">
+                                <label style="color: #166534;">App Version / Build *</label>
+                                <input type="text" class="form-control" id="bcast-apk-version" placeholder="e.g. v3.5.0 (Build 42)">
+                            </div>
+                            <div class="form-group">
+                                <label style="color: #166534;">Direct APK Download URL (or attach file below)</label>
+                                <input type="text" class="form-control" id="bcast-apk-url" placeholder="https://.../festos-latest.apk">
+                            </div>
+                        </div>
+                        <div style="font-size: 0.75rem; color: #15803D;">
+                            When sent, festival admins will see a dedicated APK install card in their Notification Center with one-click direct download.
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Message Content / Release Notes *</label>
+                        <textarea class="form-control" id="bcast-message" rows="3" placeholder="Provide full details, changelog, or instructions for festival administrators..." required style="resize:vertical;"></textarea>
                     </div>
 
                     <div class="form-row">
@@ -2642,35 +2804,51 @@ input:checked + .slider:before { transform: translateX(20px); }
                             <label>Severity Level</label>
                             <select class="form-control" id="bcast-severity">
                                 <option value="info">Info (Blue Notice)</option>
+                                <option value="success">Success / Release (Green)</option>
                                 <option value="warning">Warning (Amber Attention)</option>
                                 <option value="danger">Urgent / Critical (Red Alert)</option>
-                                <option value="success">Success / Resolution (Green)</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label>Audience Target</label>
                             <select class="form-control" id="bcast-target">
-                                <option value="all">All Portals (Admin, Stage, Judge, Manager)</option>
-                                <option value="master_admin">Master Admins & Staff Only</option>
+                                <option value="master_admin">Festival Master Admins &amp; Staff</option>
+                                <option value="all">All Portals (Admins, Judges, Public)</option>
                             </select>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Target Specific Festival (Optional)</label>
-                        <select class="form-control" id="bcast-fest-target">
-                            <option value="all">Global Broadcast (All Active Festivals)</option>
-                            <!-- Dynamically populated with festivals -->
-                        </select>
+                    <!-- Target Festivals Selection -->
+                    <div style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1rem;">
+                        <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-main); text-transform: uppercase; margin-bottom: 0.4rem; display: block;">
+                            <i class="fa-solid fa-users" style="color: var(--primary);"></i> Recipient Festival Admins
+                        </label>
+                        <div style="display: flex; gap: 1rem; margin-bottom: 0.6rem; flex-wrap: wrap;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer;">
+                                <input type="radio" name="bcast-recipients-mode" value="all" checked onchange="toggleBcastFestRecipients(false)" style="accent-color: var(--primary);">
+                                <span>All Festivals (Global Dispatch)</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer;">
+                                <input type="radio" name="bcast-recipients-mode" value="specific" onchange="toggleBcastFestRecipients(true)" style="accent-color: var(--primary);">
+                                <span>Specific Festivals Only</span>
+                            </label>
+                        </div>
+
+                        <div id="bcast-specific-fests-container" style="display: none; border-top: 1px dashed var(--border); padding-top: 0.6rem;">
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 600;">Choose which festivals will receive this notification:</div>
+                            <div id="bcast-fest-checkboxes-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; max-height: 140px; overflow-y: auto;">
+                                <!-- Dynamically populated -->
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- File Attachment Section -->
-                    <div class="form-group">
-                        <label>Attach File or Document (Optional)</label>
+                    <!-- File / APK Attachment Section -->
+                    <div class="form-group" style="margin-top: 0.5rem;">
+                        <label>Attach File or APK Package (Optional)</label>
                         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                            <label class="btn btn-outline" style="cursor:pointer; margin:0; padding:0.65rem 1rem; display:flex; align-items:center; gap:6px; font-size:0.85rem;">
-                                <i class="fa-solid fa-paperclip"></i> Choose File
-                                <input type="file" id="bcast-file-input" style="display:none;" onchange="handleBroadcastFileSelect(this)">
+                            <label class="btn btn-outline" style="cursor:pointer; margin:0; padding:0.6rem 1rem; display:flex; align-items:center; gap:6px; font-size:0.85rem;">
+                                <i class="fa-solid fa-paperclip"></i> Browse File or APK
+                                <input type="file" id="bcast-file-input" accept=".apk,.pdf,.doc,.docx,.png,.jpg,.jpeg,.zip" style="display:none;" onchange="handleBroadcastFileSelect(this)">
                             </label>
                             <span id="bcast-file-name" style="font-size:0.8rem; color:var(--text-muted); font-style:italic;">No file selected</span>
                             <button type="button" id="bcast-clear-file-btn" onclick="clearBroadcastFile()" style="display:none; background:none; border:none; color:var(--danger); cursor:pointer; font-size:0.9rem;" title="Remove attachment">
@@ -2682,14 +2860,14 @@ input:checked + .slider:before { transform: translateX(20px); }
                     <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--bg-main); border:1px solid var(--border); border-radius:var(--radius-md);">
                         <input type="checkbox" id="bcast-is-banner" checked class="custom-chk" style="width:18px; height:18px; cursor:pointer;">
                         <label for="bcast-is-banner" style="font-size:0.85rem; font-weight:600; cursor:pointer; margin:0; text-transform:none;">
-                            Display as persistent top banner on active client screens
+                            Display persistent top alert banner on recipient screens
                         </label>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline" onclick="closeModal('broadcastModal')">Cancel</button>
                     <button type="submit" class="btn btn-primary" id="btn-submit-broadcast">
-                        <i class="fa-solid fa-paper-plane"></i> Publish Broadcast
+                        <i class="fa-solid fa-paper-plane"></i> Dispatch Notification
                     </button>
                 </div>
             </form>
