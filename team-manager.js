@@ -223,6 +223,9 @@ async function fetchAllData() {
             ...s,
             class_name: s.class_name || partClassesMap[s.id] || ''
         }));
+        window.globalStudents = globalStudents;
+        window.participantsList = globalStudents;
+        window.categoriesList = globalCategories;
         globalComps = comps || [];
 
         const studentIds = globalStudents.map(s => s.id);
@@ -2410,6 +2413,12 @@ window.qaDrop = function(e, targetId) {
         const item = window.tempSelectedStudents.splice(draggedIndex, 1)[0];
         window.tempSelectedStudents.splice(targetIndex, 0, item);
         renderQAUI(); // Automatically reassigns leader badge to index 0
+    }
+};
+
+window.openBulkBadgeModalTM = function() {
+    if (typeof openBulkBadgeModal === 'function') {
+        openBulkBadgeModal('all');
     }
 };
 }

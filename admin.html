@@ -14,6 +14,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -2362,46 +2363,57 @@ tr:hover td { background: var(--bg-main); }
                     <button class="btn btn-outline" onclick="exportParticipantsCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
                 </div>
             </div>
-            <div class="controls-bar">
-                <div class="search-box">
+            <!-- ROW 1: Dedicated Search & Filter Controls -->
+            <div class="controls-bar" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.6rem;">
+                <div class="search-box" style="flex: 1.5; min-width: 220px;">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="text" id="searchPartInput" placeholder="Search name or ID..." onkeyup="filterParticipants(true)">
                 </div>
-                <div class="filter-box">
+                <div class="filter-box" style="flex: 1; min-width: 140px;">
                     <select id="filterCategory" onchange="filterParticipants(true)">
                         <option value="">All Categories</option>
                     </select>
                 </div>
-                <div class="filter-box">
+                <div class="filter-box" style="flex: 1; min-width: 140px;">
                     <select id="filterPartTeam" onchange="filterParticipants(true)">
                         <option value="">All Teams</option>
                     </select>
                 </div>
-                <div class="filter-box" id="filterPartClassBox" style="display: none;">
+                <div class="filter-box" id="filterPartClassBox" style="display: none; flex: 1; min-width: 120px;">
                     <select id="filterPartClass" onchange="filterParticipants(true)">
                         <option value="">All Classes</option>
                     </select>
                 </div>
-                <div class="filter-box">
+                <div class="filter-box" style="flex: 1; min-width: 140px;">
                     <input type="date" id="filterPartDob" onchange="filterParticipants(true)" title="Filter by DOB" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; outline: none; background: var(--bg-main); color: var(--text-main);">
                 </div>
-                <div style="display: flex; gap: 0.5rem; flex: 1; justify-content: flex-end;">
-                    <button class="btn btn-success" onclick="bulkPrintSelected()"><i class="fa-solid fa-print"></i> Print Selected</button>
-                    <button class="btn btn-danger" onclick="bulkDelete('participants', 'participants-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
-                </div>
             </div>
-            <div class="controls-bar" style="background: var(--primary-light); border: 1px solid var(--primary-ring);">
-                <div style="flex: 1; font-weight: 600; color: var(--primary); display: flex; align-items: center;">
-                    <i class="fa-solid fa-users-gear" style="margin-right: 8px;"></i> TEAM MANAGEMENT
-                </div>
-                <div class="filter-box">
-                    <select id="bulkTeamSelect" style="background: white;">
-                        <option value="">-- SELECT TEAM TO ASSIGN --</option>
+
+            <!-- ROW 2: Batch Operations & ID Actions Toolbar (Clean, non-wrapping horizontal layout) -->
+            <div class="controls-bar" style="background: var(--bg-surface, #FFFFFF); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.05));">
+                <!-- Left: Bulk Team Assignment -->
+                <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                    <span style="font-weight: 700; font-size: 0.82rem; color: var(--primary); display: flex; align-items: center; gap: 6px; letter-spacing: 0.03em; text-transform: uppercase;">
+                        <i class="fa-solid fa-users-gear"></i> Bulk Team:
+                    </span>
+                    <select id="bulkTeamSelect" style="padding: 0.55rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.85rem; background: var(--bg-main); color: var(--text-main); min-width: 175px;">
+                        <option value="">-- SELECT TEAM --</option>
                     </select>
+                    <button class="btn btn-primary" onclick="bulkAssignTeam()" style="padding: 0.55rem 0.95rem; font-size: 0.85rem; font-weight: 600;">Assign</button>
+                    <button class="btn btn-outline" onclick="bulkRevokeTeam()" style="border-color: var(--danger); color: var(--danger); padding: 0.55rem 0.95rem; font-size: 0.85rem; font-weight: 600;">Revoke</button>
                 </div>
-                <div style="display: flex; gap: 0.5rem;">
-                    <button class="btn btn-primary" onclick="bulkAssignTeam()">Assign</button>
-                    <button class="btn btn-outline" onclick="bulkRevokeTeam()" style="border-color: var(--danger); color: var(--danger);">Revoke</button>
+
+                <!-- Right: ID Printing & Batch Actions (One sleek horizontal row) -->
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-left: auto;">
+                    <button class="btn btn-primary" onclick="openBulkBadgeModal()" title="Print Multi-Page ID Badge Sheets with presets & custom grid" style="white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; padding: 0.55rem 1rem; font-size: 0.85rem; font-weight: 600;">
+                        <i class="fa-solid fa-id-badge"></i> Print ID Badge Sheets
+                    </button>
+                    <button class="btn btn-success" onclick="bulkPrintSelected()" title="Download Single ID Card PDFs" style="white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; padding: 0.55rem 1rem; font-size: 0.85rem; font-weight: 600;">
+                        <i class="fa-solid fa-print"></i> Single Card PDF
+                    </button>
+                    <button class="btn btn-danger" onclick="bulkDelete('participants', 'participants-tbody')" title="Delete selected participants" style="white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; padding: 0.55rem 1rem; font-size: 0.85rem; font-weight: 600;">
+                        <i class="fa-solid fa-trash"></i> Delete Selected
+                    </button>
                 </div>
             </div>
             <div class="table-container">
@@ -2765,16 +2777,19 @@ tr:hover td { background: var(--bg-main); }
                         <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">Poster Templates</h2>
                         <p style="color: var(--text-muted); font-size: 0.9rem;">Manage, organize, and edit your dynamic graphics templates.</p>
                     </div>
-                    <div class="bulk-actions">
+                    <div class="bulk-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button class="btn btn-outline" style="border-color: #10B981; color: #059669; font-weight: 700;" onclick="openAiTemplateModal()"><i class="fa-solid fa-robot"></i> AI Auto-Template</button>
+                        <button class="btn btn-outline" style="border-color: #6366F1; color: #4F46E5; font-weight: 700;" onclick="openPresetTemplatesModal()"><i class="fa-solid fa-wand-magic-sparkles"></i> Premium Presets Gallery</button>
                         <button class="btn btn-primary" onclick="openTemplateStudio()"><i class="fa-solid fa-plus"></i> Create New Template</button>
                     </div>
                 </div>
-                <div class="controls-bar" style="display: flex; gap: 0.5rem; background: transparent; padding: 0; box-shadow: none; border: none; margin-bottom: 1.5rem;">
+                <div class="controls-bar" style="display: flex; gap: 0.5rem; background: transparent; padding: 0; box-shadow: none; border: none; margin-bottom: 1.5rem; flex-wrap: wrap;">
                     <button class="btn btn-outline active-filter-btn" id="filter-all" onclick="filterTemplateLibrary('all')" style="border-radius: 50px;">All Templates</button>
                     <button class="btn btn-outline" id="filter-individual" onclick="filterTemplateLibrary('individual')" style="border-radius: 50px;">Individual Events</button>
                     <button class="btn btn-outline" id="filter-team" onclick="filterTemplateLibrary('team')" style="border-radius: 50px;">Team Standings</button>
                     <button class="btn btn-outline" id="filter-final" onclick="filterTemplateLibrary('final')" style="border-radius: 50px;">Final Results</button>
                     <button class="btn btn-outline" id="filter-id_card" onclick="filterTemplateLibrary('id_card')" style="border-radius: 50px;">ID Cards</button>
+                    <button class="btn btn-outline" id="filter-certificate" onclick="filterTemplateLibrary('certificate')" style="border-radius: 50px;">Certificates</button>
                 </div>
                 <div class="card-grid" id="saved-templates-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
                     <p style="color: var(--text-muted);">Loading templates...</p>
@@ -2802,6 +2817,12 @@ tr:hover td { background: var(--bg-main); }
                     </div>
                     <div class="bulk-actions" style="margin-top: 0.5rem; flex-wrap: wrap;">
                         <input type="file" id="studio-bg-upload" accept="image/*" style="display: none;" onchange="handleStudioUpload(event)">
+                        <button class="btn btn-outline" style="border-color: #10B981; color: #059669; font-weight: 700;" onclick="openAiTemplateModal(true)">
+                            <i class="fa-solid fa-robot"></i> AI Auto-Template
+                        </button>
+                        <button class="btn btn-outline" style="border-color: #6366F1; color: #4F46E5; font-weight: 700;" onclick="openPresetTemplatesModal(true)">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Apply Preset Design
+                        </button>
                         <button class="btn btn-outline" onclick="document.getElementById('studio-bg-upload').click()">
                             <i class="fa-solid fa-image"></i> Upload Background
                         </button>
@@ -4272,11 +4293,247 @@ tr:hover td { background: var(--bg-main); }
     </div>
 </div>
 
+<!-- ================= BULK ID BADGE SHEETS MODAL (WITH LIVE PREVIEW) ================= -->
+<div id="bulkBadgeModal" class="modal-overlay" style="z-index: 1050;">
+    <div class="modal" style="max-width: 1040px; width: 96%; max-height: 92vh; overflow-y: auto;">
+        <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.25rem;">
+            <div>
+                <span class="badge badge-primary" style="font-size: 0.75rem; margin-bottom: 0.25rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+                    <i class="fa-solid fa-id-badge"></i> WYSIWYG PRINT ENGINE
+                </span>
+                <h2 style="margin-top: 0.25rem; font-size: 1.35rem; color: var(--text-main);">Print Bulk ID Badge Sheets</h2>
+            </div>
+            <button class="close-btn" onclick="document.getElementById('bulkBadgeModal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <!-- 2-Column Responsive Layout: Controls Left, Live Sheet Preview Right -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; align-items: start;">
+            <!-- LEFT COLUMN: CONTROLS & SETTINGS -->
+            <div style="display: flex; flex-direction: column; gap: 1.15rem;">
+                <!-- Selection Scope -->
+                <div style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.85rem 1rem;">
+                    <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); display: block; margin-bottom: 0.5rem; letter-spacing: 0.05em;">PARTICIPANT SELECTION</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; font-weight: 600; cursor: pointer;">
+                            <input type="radio" name="badge-scope" value="selected" onchange="updateBadgeSheetLivePreview()" style="accent-color: var(--primary);">
+                            <span>Selected <small id="badge-selected-count-label" style="color: var(--primary); font-weight: 700;">(0)</small></span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; font-weight: 600; cursor: pointer;">
+                            <input type="radio" name="badge-scope" value="filtered" onchange="updateBadgeSheetLivePreview()" style="accent-color: var(--primary);">
+                            <span>Filtered Table</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; font-weight: 600; cursor: pointer; grid-column: span 2;">
+                            <input type="radio" name="badge-scope" value="all" checked onchange="updateBadgeSheetLivePreview()" style="accent-color: var(--primary);">
+                            <span>Entire Festival Roster (All Participants)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Sheet Dimensions & Orientation Presets -->
+                <div style="border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.85rem 1rem; background: var(--bg-surface, #FFFFFF);">
+                    <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); display: block; margin-bottom: 0.5rem; letter-spacing: 0.05em;">SHEET SIZE & ORIENTATION</label>
+                    <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 0.75rem; align-items: flex-end;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.25rem; display: block;">PRESET</label>
+                            <select id="badge-sheet-preset" onchange="toggleCustomSizeFields(); updateBadgeSheetLivePreview();" style="width: 100%; padding: 0.55rem 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.82rem; background: var(--bg-main); outline: none;">
+                                <option value="a4" selected>A4 (210 × 297 mm)</option>
+                                <option value="a3">A3 (297 × 420 mm)</option>
+                                <option value="a5">A5 (148 × 210 mm)</option>
+                                <option value="letter">US Letter (8.5 × 11 in)</option>
+                                <option value="legal">US Legal (8.5 × 14 in)</option>
+                                <option value="tabloid">Tabloid (11 × 17 in)</option>
+                                <option value="custom">Custom Size...</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.25rem; display: block;">ORIENTATION</label>
+                            <div style="display: flex; gap: 0.75rem; height: 35px; align-items: center; background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0 0.65rem;">
+                                <label style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                                    <input type="radio" name="badge-orientation" value="portrait" checked onchange="updateBadgeSheetLivePreview()" style="accent-color: var(--primary);">
+                                    <span>Portrait</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                                    <input type="radio" name="badge-orientation" value="landscape" onchange="updateBadgeSheetLivePreview()" style="accent-color: var(--primary);">
+                                    <span>Landscape</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Size Inputs -->
+                    <div id="badge-custom-size-container" style="display: none; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-top: 0.65rem; padding-top: 0.65rem; border-top: 1px dashed var(--border);">
+                        <div>
+                            <label style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 0.2rem;">WIDTH</label>
+                            <input type="number" id="badge-custom-width" placeholder="210" step="0.1" value="210" oninput="updateBadgeSheetLivePreview()" style="width: 100%; padding: 0.45rem 0.6rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.82rem; background: var(--bg-main); outline: none;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 0.2rem;">HEIGHT</label>
+                            <input type="number" id="badge-custom-height" placeholder="297" step="0.1" value="297" oninput="updateBadgeSheetLivePreview()" style="width: 100%; padding: 0.45rem 0.6rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.82rem; background: var(--bg-main); outline: none;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 0.2rem;">UNIT</label>
+                            <select id="badge-custom-unit" onchange="updateBadgeSheetLivePreview()" style="width: 100%; padding: 0.45rem 0.6rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.82rem; background: var(--bg-main); outline: none;">
+                                <option value="mm">mm</option>
+                                <option value="cm">cm</option>
+                                <option value="in">inches</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grid Layout & Design Source -->
+                <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 0.75rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.25rem; display: block;">BADGES PER SHEET (GRID)</label>
+                        <select id="badge-layout-select" onchange="toggleCustomGridFields(); updateBadgeSheetLivePreview();" style="width: 100%; padding: 0.55rem 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.82rem; background: var(--bg-main); outline: none;">
+                            <option value="4_per_page" selected>4 Badges (2×2 Grid) — Large Lanyard</option>
+                            <option value="8_per_page">8 Badges (2×4 Grid) — Standard Pocket</option>
+                            <option value="6_per_page">6 Badges (2×3 Grid) — Medium Convention</option>
+                            <option value="9_per_page">9 Badges (3×3 Grid) — Compact Square</option>
+                            <option value="10_per_page">10 Badges (2×5 Grid) — Avery 5371</option>
+                            <option value="2_per_page">2 Badges (1×2 Grid) — Large Pass</option>
+                            <option value="1_per_page">1 Badge (Full Sheet) — Poster/Single</option>
+                            <option value="custom">Custom Grid...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.25rem; display: block;">STUDIO ID CARD TEMPLATE</label>
+                        <select id="badge-design-select" onchange="updateBadgeSheetLivePreview()" style="width: 100%; padding: 0.55rem 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.82rem; background: var(--bg-main); outline: none;">
+                            <option value="studio" selected>Studio Template (Exact Aspect Ratio)</option>
+                            <option value="modern">FestOS Modern Pro (Vector)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Custom Grid Inputs -->
+                <div id="badge-custom-grid-container" style="display: none; grid-template-columns: 1fr 1fr; gap: 0.5rem; padding: 0.65rem; background: var(--bg-main); border: 1px dashed var(--border); border-radius: var(--radius-md);">
+                    <div>
+                        <label style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 0.2rem;">COLUMNS (1-6)</label>
+                        <input type="number" id="badge-custom-cols" value="2" min="1" max="6" oninput="updateBadgeSheetLivePreview()" style="width: 100%; padding: 0.45rem 0.6rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.82rem; background: white; outline: none;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 0.2rem;">ROWS (1-8)</label>
+                        <input type="number" id="badge-custom-rows" value="4" min="1" max="8" oninput="updateBadgeSheetLivePreview()" style="width: 100%; padding: 0.45rem 0.6rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.82rem; background: white; outline: none;">
+                    </div>
+                </div>
+
+                <!-- Secondary Filters & Sorting -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                    <div>
+                        <label style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.2rem; display: block;">TEAM</label>
+                        <select id="badge-filter-team" onchange="updateBadgeSheetLivePreview()" style="width: 100%; padding: 0.5rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.8rem; background: var(--bg-main); outline: none;">
+                            <option value="all">ALL TEAMS</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.2rem; display: block;">CATEGORY</label>
+                        <select id="badge-filter-category" onchange="updateBadgeSheetLivePreview()" style="width: 100%; padding: 0.5rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.8rem; background: var(--bg-main); outline: none;">
+                            <option value="all">ALL CATS</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.2rem; display: block;">SORT</label>
+                        <select id="badge-sort-order" onchange="updateBadgeSheetLivePreview()" style="width: 100%; padding: 0.5rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.8rem; background: var(--bg-main); outline: none;">
+                            <option value="name" selected>Name (A-Z)</option>
+                            <option value="team">Team</option>
+                            <option value="category">Category</option>
+                            <option value="unique_id">ID</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Print Guides Checklist -->
+                <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; padding-top: 0.1rem;">
+                    <label style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                        <input type="checkbox" id="badge-cut-marks" checked onchange="updateBadgeSheetLivePreview()" style="accent-color: var(--primary);">
+                        <span>Dotted Cut Marks</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                        <input type="checkbox" id="badge-crop-marks" checked onchange="updateBadgeSheetLivePreview()" style="accent-color: var(--primary);">
+                        <span>Crop Marks</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                        <input type="checkbox" id="badge-sheet-header" checked onchange="updateBadgeSheetLivePreview()" style="accent-color: var(--primary);">
+                        <span>Sheet Header</span>
+                    </label>
+                </div>
+
+                <!-- Live Progress Box (Shown during rendering) -->
+                <div id="badge-progress-box" style="display: none; background: #F8FAFC; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.85rem;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 700; margin-bottom: 0.4rem; color: var(--text-main);">
+                        <span id="badge-progress-text">Rendering badges...</span>
+                    </div>
+                    <div style="width: 100%; height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
+                        <div id="badge-progress-bar" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.15s ease;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: INTERACTIVE WYSIWYG LIVE SHEET PREVIEW -->
+            <div style="background: var(--bg-main, #F8FAFC); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800; font-size: 0.8rem; color: var(--primary); display: flex; align-items: center; gap: 6px; letter-spacing: 0.04em;">
+                        <i class="fa-solid fa-eye"></i> LIVE SHEET PREVIEW
+                    </span>
+                    <span id="badge-preview-count" style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); background: white; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border);">
+                        Calculating...
+                    </span>
+                </div>
+
+                <!-- Canvas Preview Container with Realistic Paper Shadow -->
+                <div style="display: flex; justify-content: center; align-items: center; padding: 1rem; background: #CBD5E1; border-radius: var(--radius-md); min-height: 380px; max-height: 480px; overflow: hidden; position: relative;">
+                    <canvas id="badge-sheet-preview-canvas" style="max-width: 100%; max-height: 440px; object-fit: contain; box-shadow: 0 10px 25px rgba(0,0,0,0.22); border-radius: 4px; background: white; transition: all 0.2s ease;"></canvas>
+                </div>
+
+                <!-- Live Specs Info -->
+                <div style="text-align: center; border-top: 1px solid var(--border); padding-top: 0.65rem;">
+                    <div id="badge-preview-specs" style="font-size: 0.78rem; font-weight: 700; color: var(--text-main); font-family: monospace;">
+                        A4 Portrait • 210 × 297 mm
+                    </div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">
+                        WYSIWYG Print Preview • Real-time aspect ratio & grid alignment
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL FOOTER BUTTONS -->
+        <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); flex-wrap: wrap;">
+            <button class="btn btn-outline" style="width: auto;" onclick="document.getElementById('bulkBadgeModal').classList.remove('show')">Cancel</button>
+            <button class="btn btn-outline" style="width: auto; border-color: var(--success); color: var(--success);" onclick="executeBadgeGeneration(true)" title="Open Printable PDF in New Tab">
+                <i class="fa-solid fa-print"></i> Print Directly
+            </button>
+            <button class="btn btn-primary" id="btn-generate-badges" style="width: auto;" onclick="executeBadgeGeneration(false)">
+                <i class="fa-solid fa-file-pdf"></i> Generate & Download PDF
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleCustomSizeFields() {
+    const sel = document.getElementById('badge-sheet-preset');
+    const box = document.getElementById('badge-custom-size-container');
+    if (box) box.style.display = (sel && sel.value === 'custom') ? 'grid' : 'none';
+}
+function toggleCustomGridFields() {
+    const sel = document.getElementById('badge-layout-select');
+    const box = document.getElementById('badge-custom-grid-container');
+    if (box) box.style.display = (sel && sel.value === 'custom') ? 'grid' : 'none';
+}
+</script>
+
+
 <div id="toast-container"></div>
 
 
 <script src="festos-core.js"></script>
 <script src="mobile-native.js"></script>
+<script src="id-badge-engine.js"></script>
+<script src="preset-templates-engine.js"></script>
+<script src="ai-template-generator.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

@@ -1,8 +1,9 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3050;
 const ROOT_DIR = __dirname;
 
 const MIME_TYPES = {
@@ -95,10 +96,33 @@ const server = http.createServer((req, res) => {
     });
 });
 
+server.on('error', (err) => {
+    console.error('Server error:', err);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+});
+
 server.listen(PORT, '0.0.0.0', () => {
+    const interfaces = os.networkInterfaces();
+    let networkIp = '127.0.0.1';
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                networkIp = iface.address;
+                break;
+            }
+        }
+    }
+
     console.log(`\n======================================================`);
-    console.log(`🚀 FestOS Local Development Server is LIVE`);
-    console.log(`📡 URL: http://localhost:${PORT}`);
-    console.log(`📡 Network: http://127.0.0.1:${PORT}`);
+    console.log(`🚀 ZENITH FEST (FestOS) Server is LIVE on Port ${PORT}`);
+    console.log(`📡 Localhost:     http://localhost:${PORT}`);
+    console.log(`📡 Network (LAN): http://${networkIp}:${PORT}`);
+    console.log(`📱 Mobile/Tab:    http://${networkIp}:${PORT}/index.html`);
+    console.log(`🛡️ Admin Portal:  http://localhost:${PORT}/admin.html`);
+    console.log(`👥 Team Manager:  http://localhost:${PORT}/team-manager.html`);
+    console.log(`🖥️ Live Screen:   http://localhost:${PORT}/screen.html`);
     console.log(`======================================================\n`);
 });

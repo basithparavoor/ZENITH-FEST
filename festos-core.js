@@ -15,6 +15,11 @@ const FESTOS_SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
 // results page on <subdomain>.<FESTOS_BASE_DOMAIN>/<results-slug>.
 const FESTOS_BASE_DOMAIN = 'festos.clubad.space';
 
+// Last-resort festival id used only before the live fests list has been cached
+// (see festosDomains.refresh / getPrimaryFestId). Kept in sync with the `fests`
+// table; never treat this as the "main" festival if other fests exist.
+const FESTOS_DEFAULT_FEST_ID = 'fest_vib26_muml4haa';
+
 // Initialize or reuse Supabase client
 let festosSupabase = null;
 if (typeof window !== 'undefined') {
@@ -32,6 +37,7 @@ if (typeof window !== 'undefined') {
 const festosDomains = {
     BASE: FESTOS_BASE_DOMAIN,
     INDEX_KEY: 'festos_domain_index',
+    FESTS_CACHE_KEY: 'festos_fests_cache',
 
     getHostname() {
         if (typeof window === 'undefined' || !window.location) return '';
@@ -96,6 +102,52 @@ const festosDomains = {
         return null;
     },
 
+    // Ordered snapshot of the live fests table (id/name/slug/domain/created_at)
+    getFestList() {
+        try {
+            const raw = localStorage.getItem(this.FESTS_CACHE_KEY);
+            const list = raw ? JSON.parse(raw) : [];
+            return Array.isArray(list) ? list.filter(f => f && f.id) : [];
+        } catch (e) {
+            return [];
+        }
+    },
+
+    setFestList(fests) {
+        try {
+            const list = (fests || [])
+                .filter(f => f && f.id)
+                .map(f => ({
+                    id: f.id,
+                    name: f.name || '',
+                    slug: f.slug || '',
+                    domain: f.domain || '',
+                    created_at: f.created_at || ''
+                }));
+            localStorage.setItem(this.FESTS_CACHE_KEY, JSON.stringify(list));
+        } catch (e) { /* ignore */ }
+    },
+
+    // True when the given fest id belongs to the cached live list. When nothing
+    // is cached yet we cannot verify, so we optimistically accept the id.
+    hasFest(festId) {
+        if (!festId) return false;
+        const list = this.getFestList();
+        if (!list.length) return true;
+        return list.some(f => f.id === festId);
+    },
+
+    // The primary festival used when no URL / hostname / user context exists.
+    // Oldest fest wins so the choice stays stable as new fests are added.
+    getPrimaryFestId() {
+        const list = this.getFestList();
+        if (!list.length) return null;
+        const sorted = list.slice().sort((a, b) =>
+            String(a.created_at || '').localeCompare(String(b.created_at || ''))
+        );
+        return sorted[0].id || null;
+    },
+
     // Refresh the cached index from the fests table and (re)apply the active fest
     async refresh() {
         const client = (typeof festosSupabase !== 'undefined' && festosSupabase)
@@ -103,9 +155,11 @@ const festosDomains = {
             : (typeof window !== 'undefined' ? window.festosSupabase : null);
         if (!client) return null;
         try {
-            const { data, error } = await client.from('fests').select('id, slug, domain');
+            const { data, error } = await client.from('fests').select('id, name, slug, domain, created_at');
             if (error || !data) return null;
             this.setIndex(this.buildIndex(data));
+            this.setFestList(data);
+
             const hostFest = this.getHostFestId();
             if (hostFest) {
                 const prev = localStorage.getItem('festos_active_fest_id');
@@ -136,6 +190,21 @@ const festosDomains = {
         return this.festUrl(target, resultsSlug || 'results');
     }
 };
+
+// Resolve the festival to use when there is no URL / hostname / user context.
+// Prefers the cached live fests list, then the last-resort constant.
+function festosDefaultFestId() {
+    const primary = (typeof festosDomains !== 'undefined' && festosDomains.getPrimaryFestId)
+        ? festosDomains.getPrimaryFestId()
+        : null;
+    return primary || FESTOS_DEFAULT_FEST_ID;
+}
+
+// Legacy rows created before multi-tenancy have a NULL fest_id. They belong to
+// the primary/default festival, so queries for that festival include them.
+function festosIsLegacyFest(festId) {
+    return !festId || festId === festosDefaultFestId();
+}
 
 // =========================================================================
 // 1. DYNAMIC AUTO-REBRANDING ENGINE
@@ -497,23 +566,26 @@ const festosAuth = {
         if (user && user.role === 'super_admin') {
             // Super admins have global context; fall back to stored active fest or default
             const stored = localStorage.getItem('festos_active_fest_id');
-            return (stored && stored.trim() !== '') ? stored.trim() : 'fest_zenith_2026';
+            return (stored && stored.trim() !== '' && festosDomains.hasFest(stored.trim()))
+                ? stored.trim()
+                : festosDefaultFestId();
         }
         if (user && user.fest_id) return user.fest_id;
         
         if (user && user.username) {
             const prefix = user.username.split('_')[0].toLowerCase().trim();
-            if (prefix === 'zenith26' || prefix === 'zenith') return 'fest_zenith_2026';
+            if (prefix === 'zenith26' || prefix === 'zenith') return festosDefaultFestId();
             if (/^[a-z0-9]{3,20}$/.test(prefix) && prefix !== 'superadmin' && prefix !== 'admin') {
-                return `fest_${prefix}`;
+                const candidate = `fest_${prefix}`;
+                return festosDomains.hasFest(candidate) ? candidate : festosDefaultFestId();
             }
         }
 
         // 3. Check active fest context from storage
         const stored = localStorage.getItem('festos_active_fest_id');
-        if (stored && stored.trim() !== '') return stored.trim();
+        if (stored && stored.trim() !== '' && festosDomains.hasFest(stored.trim())) return stored.trim();
 
-        return 'fest_zenith_2026';
+        return festosDefaultFestId();
     },
 
     setUser(user, remember = true) {
@@ -525,11 +597,12 @@ const festosAuth = {
         } else if (!user.fest_id && user.username) {
             const prefix = user.username.split('_')[0].toLowerCase().trim();
             if (prefix === 'zenith26' || prefix === 'zenith') {
-                user.fest_id = 'fest_zenith_2026';
+                user.fest_id = festosDefaultFestId();
             } else if (/^[a-z0-9]{3,20}$/.test(prefix) && prefix !== 'superadmin' && prefix !== 'admin') {
-                user.fest_id = `fest_${prefix}`;
+                const candidate = `fest_${prefix}`;
+                user.fest_id = festosDomains.hasFest(candidate) ? candidate : festosDefaultFestId();
             } else {
-                user.fest_id = 'fest_zenith_2026';
+                user.fest_id = festosDefaultFestId();
             }
         }
 
@@ -731,22 +804,21 @@ const festosFeatures = {
 function festosFilterRows(rows, targetFestId = null) {
     if (!rows || !Array.isArray(rows)) return [];
     const festId = targetFestId || festosAuth.getCurrentFestId();
-    const isZenith = festId === 'fest_zenith_2026';
+    const includeLegacy = festosIsLegacyFest(festId);
 
     return rows.filter(r => {
-        if (isZenith) {
-            return r.fest_id === 'fest_zenith_2026' || !r.fest_id;
-        } else {
-            return r.fest_id === festId;
+        if (includeLegacy) {
+            return r.fest_id === festId || !r.fest_id;
         }
+        return r.fest_id === festId;
     });
 }
 
 function festosApplyFilter(query, targetFestId = null) {
     if (!query) return query;
     const festId = targetFestId || festosAuth.getCurrentFestId();
-    if (festId === 'fest_zenith_2026') {
-        return query.or('fest_id.eq.fest_zenith_2026,fest_id.is.null');
+    if (festosIsLegacyFest(festId)) {
+        return query.or(`fest_id.eq.${festId},fest_id.is.null`);
     }
     return query.eq('fest_id', festId);
 }
@@ -765,7 +837,7 @@ function festosWithFest(payload, targetFestId = null) {
 
 function festosGetSettingKey(key, targetFestId = null) {
     const festId = targetFestId || festosAuth.getCurrentFestId();
-    if (festId === 'fest_zenith_2026' || !festId) {
+    if (!festId) {
         return key;
     }
     return `${key}_${festId}`;
@@ -1069,15 +1141,19 @@ if (typeof document !== 'undefined') {
     }
 }
 
-// Promise that resolves once the subdomain -> fest index is ready.
+// Promise that resolves once the fests list / subdomain index is ready.
+// Refreshed on every load so the dynamic default festival is always current.
 if (typeof window !== 'undefined') {
-    window.festosHostFestReady = (festosDomains.getSubdomain() ? festosDomains.refresh() : Promise.resolve(null));
+    window.festosHostFestReady = festosDomains.refresh();
 }
 
 // Expose on window object
 if (typeof window !== 'undefined') {
     window.FESTOS_BASE_DOMAIN = FESTOS_BASE_DOMAIN;
+    window.FESTOS_DEFAULT_FEST_ID = FESTOS_DEFAULT_FEST_ID;
     window.festosDomains = festosDomains;
+    window.festosDefaultFestId = festosDefaultFestId;
+    window.festosIsLegacyFest = festosIsLegacyFest;
     window.festosSupabase = festosSupabase;
     window.festosBranding = festosBranding;
     window.festosAuth = festosAuth;

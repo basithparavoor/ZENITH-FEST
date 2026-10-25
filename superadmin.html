@@ -268,6 +268,146 @@ input[type="password"], input[type="file"], .file-input, textarea[style*="text-t
 .admin-table tr:hover td { background: #F8FAFC; }
 .admin-table tr.selected td { background: var(--primary-light); }
 
+
+/* Enterprise Super Admin & Dev Diagnostics Suite Styles */
+.super-dev-nav-pill {
+    transition: var(--transition);
+}
+.super-dev-nav-pill:hover, .super-dev-nav-pill.active {
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+    color: #FFFFFF !important;
+    border-color: #B45309 !important;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35) !important;
+}
+.super-dev-nav-pill:hover i, .super-dev-nav-pill.active i {
+    color: #FFFFFF !important;
+}
+.super-dev-nav-pill:hover .nav-pill-badge, .super-dev-nav-pill.active .nav-pill-badge {
+    background: #FFFFFF !important;
+    color: #B45309 !important;
+}
+
+.super-subtab-bar {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--bg-surface);
+    padding: 0.4rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+    flex-wrap: wrap;
+}
+.super-subtab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.15rem;
+    border-radius: var(--radius-md);
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+.super-subtab-btn:hover {
+    color: var(--text-main);
+    background: var(--bg-main);
+}
+.super-subtab-btn.active {
+    background: var(--primary-gradient);
+    color: #FFFFFF;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+    border-color: transparent;
+}
+
+.super-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.super-kpi-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem 1.4rem;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.super-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+.super-kpi-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.4rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.super-kpi-val {
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: var(--text-main);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    line-height: 1.2;
+    margin-bottom: 0.25rem;
+}
+.super-kpi-sub {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10B981;
+    display: inline-block;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    animation: pulseGlow 1.8s infinite;
+}
+@keyframes pulseGlow {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.doctor-terminal {
+    background: #090D16;
+    color: #38BDF8;
+    border-radius: var(--radius-md);
+    border: 1px solid #1E293B;
+    padding: 1.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    max-height: 320px;
+    overflow-y: auto;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+}
+.doctor-terminal-line { margin-bottom: 4px; word-break: break-all; }
+.terminal-tag { font-weight: 700; padding: 1px 6px; border-radius: 4px; font-size: 0.72rem; margin-right: 6px; }
+.terminal-tag.pass { background: rgba(16, 185, 129, 0.2); color: #34D399; }
+.terminal-tag.info { background: rgba(59, 130, 246, 0.2); color: #60A5FA; }
+.terminal-tag.warn { background: rgba(245, 158, 11, 0.2); color: #FBBF24; }
+.terminal-tag.fixed { background: rgba(139, 92, 246, 0.2); color: #C084FC; }
+.terminal-tag.error { background: rgba(239, 68, 68, 0.2); color: #F87171; }
+
+.modal-overlay.active, .modal-overlay.show { display: flex !important; opacity: 1 !important; }
+
 /* Modals matching Admin Page */
 .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 100; display: none; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; }
 .modal-overlay.active { display: flex; }
@@ -965,14 +1105,17 @@ input:checked + .slider:before { transform: translateX(20px); }
 
         <div class="nav-group" style="margin-top: 0.75rem;">
             <div class="nav-heading">System & White-Label</div>
+            <a class="nav-main" data-tab="tab-templates" onclick="switchSuperTab('tab-templates')">
+                <div style="display: flex; align-items: center;"><i class="fa-solid fa-shapes icon-left"></i> Global Template Presets</div>
+                <span class="nav-pill-badge" id="nav-preset-count">8</span>
+            </a>
             <a class="nav-main" data-tab="tab-global-branding" onclick="switchSuperTab('tab-global-branding')">
                 <div style="display: flex; align-items: center;"><i class="fa-solid fa-palette icon-left"></i> Global Software Branding</div>
             </a>
-            <a class="nav-main" data-tab="tab-logs" onclick="switchSuperTab('tab-logs')">
-                <div style="display: flex; align-items: center;"><i class="fa-solid fa-terminal icon-left"></i> System Logs</div>
-            </a>
-            <a class="nav-main" data-tab="tab-diagnostics" onclick="switchSuperTab('tab-diagnostics')">
-                <div style="display: flex; align-items: center;"><i class="fa-solid fa-stethoscope icon-left"></i> Diagnostics & Health</div>
+            <!-- Unified Enterprise Super Admin & Dev Diagnostics Suite -->
+            <a class="nav-main super-dev-nav-pill" data-tab="tab-super-dev" onclick="switchSuperTab('tab-super-dev')" id="nav-super-dev-tab" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.16) 100%); border: 1px solid rgba(245, 158, 11, 0.4); color: #B45309; font-weight: 700; margin-top: 0.5rem; border-radius: var(--radius-md);">
+                <div style="display: flex; align-items: center;"><i class="fa-solid fa-crown icon-left" style="color: #F59E0B;"></i> 👑 Super Admin &amp; Dev</div>
+                <span class="nav-pill-badge" style="background: #F59E0B; color: #FFF; font-weight: 800;">ROOT</span>
             </a>
         </div>
 
@@ -1596,151 +1739,523 @@ input:checked + .slider:before { transform: translateX(20px); }
             </section>
 
             <!-- ========================================================= -->
-            <!-- TAB 6: SYSTEM LOGS & TELEMETRY -->
+            <!-- TAB: GLOBAL PRESET TEMPLATES & ACCESS CONTROL -->
             <!-- ========================================================= -->
-            <section class="content-section" id="tab-logs">
-                <div class="controls-bar">
-                    <div class="search-box">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="log-search-input" placeholder="Search logs by keyword, action, or user..." oninput="renderLogsConsole()">
+            <section class="content-section" id="tab-templates">
+                <div class="action-bar" style="margin-bottom: 1.5rem;">
+                    <div>
+                        <span class="badge badge-primary" style="font-size: 0.75rem; margin-bottom: 0.25rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+                            <i class="fa-solid fa-shapes"></i> SAAS MULTI-TENANT ASSETS
+                        </span>
+                        <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem;">Global Template Presets & Access Control</h2>
+                        <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0;">Create master templates for the Presets Gallery and decide which festivals have permission to use them.</p>
                     </div>
-                    <select class="filter-select" id="log-severity-filter" onchange="renderLogsConsole()">
-                        <option value="ALL">All Severities</option>
-                        <option value="INFO">Info</option>
-                        <option value="WARNING">Warning</option>
-                        <option value="ERROR">Errors Only</option>
-                        <option value="CRITICAL">Critical</option>
-                    </select>
-                    <button class="btn btn-outline" onclick="festosLogger.exportLogsJSON()">
-                        <i class="fa-solid fa-download"></i> Export
-                    </button>
-                    <button class="btn btn-outline" onclick="triggerClearLogsDialog()">
-                        <i class="fa-solid fa-trash-can"></i> Clear
-                    </button>
+                    <div class="bulk-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button class="btn btn-outline" onclick="loadSuperPresets()" title="Refresh Presets"><i class="fa-solid fa-rotate"></i> Refresh</button>
+                        <button class="btn btn-primary" onclick="openSuperCreatePresetModal()"><i class="fa-solid fa-plus"></i> Create Global Preset</button>
+                    </div>
                 </div>
 
-                <div class="logs-console-box" id="full-logs-console" style="max-height: 550px;">
-                    <!-- Populated dynamically -->
+                <!-- Stats summary -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem;">
+                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Total Presets</div>
+                        <div style="font-size: 1.75rem; font-weight: 800; color: var(--primary);" id="super-presets-stat-total">8</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Active across platform</div>
+                    </div>
+                    <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem;">
+                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">ID Badge Presets</div>
+                        <div style="font-size: 1.75rem; font-weight: 800; color: #4F46E5;" id="super-presets-stat-id">2</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Lanyard & CR80 Pocket</div>
+                    </div>
+                    <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem;">
+                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Result Posters</div>
+                        <div style="font-size: 1.75rem; font-weight: 800; color: #D97706;" id="super-presets-stat-posters">4</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Podium, Leaderboard, Final</div>
+                    </div>
+                    <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem;">
+                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Certificates</div>
+                        <div style="font-size: 1.75rem; font-weight: 800; color: #059669;" id="super-presets-stat-certs">2</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Merit & Participation</div>
+                    </div>
+                </div>
+
+                <!-- Presets Table -->
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">Preview</th>
+                                <th>Template Name</th>
+                                <th>Sector</th>
+                                <th>Dimensions</th>
+                                <th>Festival Access Scope</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="super-presets-tbody">
+                            <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading global presets...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </section>
 
             <!-- ========================================================= -->
-            <!-- TAB 7: ENHANCED REAL-TIME DIAGNOSTICS & SYSTEM HEALTH -->
+            <!-- ENTERPRISE SUPER ADMIN & DEVELOPER DIAGNOSTICS SUITE -->
             <!-- ========================================================= -->
-            <section class="content-section" id="tab-diagnostics">
-                
-                <!-- Health Overview Card -->
-                <div class="health-hero-card">
-                    <div class="health-score-badge">
-                        <div class="health-score-circle" id="health-overall-score">100%</div>
+            <section class="content-section" id="tab-super-dev">
+                <!-- Action Bar -->
+                <div class="action-bar" style="margin-bottom: 1.25rem;">
+                    <div>
+                        <span class="badge" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.25) 100%); color: #B45309; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 0.75rem; margin-bottom: 0.35rem; display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 800;">
+                            <i class="fa-solid fa-crown" style="color: #F59E0B;"></i> ROOT PRIVILEGED DIAGNOSTICS SUITE
+                        </span>
+                        <h2 style="font-size: 1.55rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.25rem; font-family: 'Plus Jakarta Sans', sans-serif;">
+                            👑 Super Admin &amp; Developer Diagnostics
+                        </h2>
+                        <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0;">
+                            Direct database table explorer, self-healing system doctor, real-time user session tracking, and forensic audit logging.
+                        </p>
+                    </div>
+                    <div class="bulk-actions" style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+                        <button class="btn btn-outline" onclick="runDiagnosticsSuite()" title="Run Deep Health Scan">
+                            <i class="fa-solid fa-stethoscope" style="color: #10B981;"></i> Run System Scan
+                        </button>
+                        <button class="btn btn-outline" onclick="flushAllSystemCaches()" title="Flush RAM and LocalStorage Caches">
+                            <i class="fa-solid fa-broom" style="color: #6366F1;"></i> Flush All Caches
+                        </button>
+                        <button class="btn btn-primary" onclick="exportFullDiagnosticsSnapshot()" title="Export Diagnostics Report">
+                            <i class="fa-solid fa-file-arrow-down"></i> Export Telemetry
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Secondary Sub-Tab Navigation Bar -->
+                <div class="super-subtab-bar">
+                    <button class="super-subtab-btn active" data-subtab="db-explorer" onclick="switchSuperDevSubtab('db-explorer')">
+                        <i class="fa-solid fa-bolt" style="color: #F59E0B;"></i> ⚡ Developer DB Explorer
+                    </button>
+                    <button class="super-subtab-btn" data-subtab="system-doctor" onclick="switchSuperDevSubtab('system-doctor')">
+                        <i class="fa-solid fa-user-doctor" style="color: #10B981;"></i> 🩺 System Doctor (Find &amp; Fix)
+                        <span class="badge" id="doctor-issues-badge" style="display: none; background: #EF4444; color: white; padding: 2px 7px; font-size: 0.7rem; border-radius: 999px;">0</span>
+                    </button>
+                    <button class="super-subtab-btn" data-subtab="user-sessions" onclick="switchSuperDevSubtab('user-sessions')">
+                        <i class="fa-solid fa-user-clock" style="color: #3B82F6;"></i> 👤 User Login / Logout Sessions
+                        <span class="badge" id="online-users-count-pill" style="background: #10B981; color: white; padding: 2px 7px; font-size: 0.7rem; border-radius: 999px;">0 Online</span>
+                    </button>
+                    <button class="super-subtab-btn" data-subtab="audit-logs" onclick="switchSuperDevSubtab('audit-logs')">
+                        <i class="fa-solid fa-shield-halved" style="color: #8B5CF6;"></i> 🛡️ Security Audit Logs
+                    </button>
+                </div>
+
+                <!-- ========================================================= -->
+                <!-- SUB-MODULE A: ⚡ DEVELOPER DB EXPLORER -->
+                <!-- ========================================================= -->
+                <div class="super-submodule-pane" id="submodule-db-explorer">
+                    <!-- Top Diagnostic KPI Cards -->
+                    <div class="super-kpi-grid">
+                        <div class="super-kpi-card">
+                            <div class="super-kpi-label">
+                                <span>Database Connection</span>
+                                <span class="badge badge-success" id="db-status-pill" style="display: inline-flex; align-items: center; gap: 5px;">
+                                    <span class="pulse-dot"></span> Connected
+                                </span>
+                            </div>
+                            <div class="super-kpi-val" id="db-status-val" style="color: #10B981;">Online</div>
+                            <div class="super-kpi-sub">Supabase PostgreSQL Managed Cloud</div>
+                        </div>
+
+                        <div class="super-kpi-card">
+                            <div class="super-kpi-label">
+                                <span>Roundtrip Ping (Latency)</span>
+                                <span class="badge" id="db-latency-pill" style="background: #ECFDF5; color: #059669; font-weight: 700;">< 300ms</span>
+                            </div>
+                            <div class="super-kpi-val" id="db-latency-val">-- ms</div>
+                            <div class="super-kpi-sub">Real-time REST / DB heartbeat query</div>
+                        </div>
+
+                        <div class="super-kpi-card">
+                            <div class="super-kpi-label">
+                                <span>RAM Cache Entries</span>
+                                <span class="badge" style="background: #EFF6FF; color: #2563EB; font-weight: 700;">In-Memory</span>
+                            </div>
+                            <div class="super-kpi-val" id="ram-cache-count">0</div>
+                            <div class="super-kpi-sub">Cached fest, user & template objects</div>
+                        </div>
+
+                        <div class="super-kpi-card">
+                            <div class="super-kpi-label">
+                                <span>LocalStorage Quota</span>
+                                <span class="badge" style="background: #FFFBEB; color: #B45309; font-weight: 700;">Client Store</span>
+                            </div>
+                            <div class="super-kpi-val" id="localstorage-usage-val">-- KB</div>
+                            <div class="super-kpi-sub">Offline buffers & local telemetry</div>
+                        </div>
+                    </div>
+
+                    <!-- State Controls Bar -->
+                    <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
                         <div>
-                            <h2 style="font-size: 1.3rem; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif;">System Status: <span id="health-overall-label" style="color: var(--success);">Operational</span></h2>
-                            <p style="font-size: 0.85rem; color: #94A3B8; margin-top: 4px;" id="health-overall-desc">All database connections, websocket channels, and local storage caches are synchronized.</p>
+                            <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);">Database Layer Controls & Cache Management</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Force invalidation of client query cache, re-test cloud latency, or reset local offline buffers.</div>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn btn-outline" style="font-size: 0.82rem; padding: 0.45rem 0.85rem;" onclick="flushRamCache()">
+                                <i class="fa-solid fa-memory"></i> Flush RAM Cache
+                            </button>
+                            <button class="btn btn-outline" style="font-size: 0.82rem; padding: 0.45rem 0.85rem;" onclick="testCloudLatency()">
+                                <i class="fa-solid fa-stopwatch"></i> Test Cloud Latency
+                            </button>
+                            <button class="btn btn-danger" style="font-size: 0.82rem; padding: 0.45rem 0.85rem;" onclick="hardResetLocalStorage()">
+                                <i class="fa-solid fa-trash-can"></i> Hard Reset Local Storage
+                            </button>
                         </div>
                     </div>
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <button class="btn btn-primary" onclick="runDiagnosticsSuite()" id="btn-run-diag">
-                            <i class="fa-solid fa-rotate-right"></i> Run Live Diagnostics
-                        </button>
-                        <button class="btn btn-outline" style="color: #FFF; border-color: rgba(255,255,255,0.25);" onclick="exportDiagnosticsReport()">
-                            <i class="fa-solid fa-file-arrow-down"></i> Export Report
-                        </button>
+
+                    <!-- Direct Raw Table Explorer -->
+                    <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-sm);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+                            <div>
+                                <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">
+                                    Direct Database Table Explorer
+                                </h3>
+                                <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0;">Query raw rows directly from PostgreSQL cloud database bypassing client cache.</p>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                                <div class="btn-group" style="display: flex; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden;">
+                                    <button class="btn btn-primary" id="btn-view-table" style="border-radius: 0; padding: 0.4rem 0.85rem; font-size: 0.82rem;" onclick="setDbExplorerView('table')">
+                                        <i class="fa-solid fa-table"></i> Data Table
+                                    </button>
+                                    <button class="btn btn-outline" id="btn-view-json" style="border-radius: 0; padding: 0.4rem 0.85rem; font-size: 0.82rem;" onclick="setDbExplorerView('json')">
+                                        <i class="fa-solid fa-code"></i> Raw JSON
+                                    </button>
+                                </div>
+                                <button class="btn btn-outline" style="font-size: 0.82rem; padding: 0.45rem 0.85rem;" onclick="exportTableRecordsJSON()">
+                                    <i class="fa-solid fa-download"></i> Download JSON
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Table Controls Bar -->
+                        <div class="controls-bar" style="margin-bottom: 1rem; padding: 0.75rem 1rem;">
+                            <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; flex: 1;">
+                                <div style="min-width: 220px; flex: 1;">
+                                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 3px; display: block;">Select Cloud Table</label>
+                                    <select class="form-control" id="db-explorer-table-select" style="font-size: 0.85rem; padding: 0.5rem 0.75rem;" onchange="querySelectedTable()">
+                                        <option value="fests">fests (Festival Tenants)</option>
+                                        <option value="users">users (Super Admins, Admins, Staff)</option>
+                                        <option value="templates">templates (Posters, ID Badges & Presets)</option>
+                                        <option value="participants">participants (Contestants & Passes)</option>
+                                        <option value="competitions">competitions (Events & Judging)</option>
+                                        <option value="results">results (Scored Results & Rankings)</option>
+                                        <option value="enquiries">enquiries (Client Support Inquiries)</option>
+                                        <option value="broadcasts">broadcasts (System Alerts & Banners)</option>
+                                        <option value="audit_logs">audit_logs (Security Audit Trail)</option>
+                                        <option value="sessions">sessions (User Presence & Logins)</option>
+                                        <option value="settings">settings (Platform Branding & Flags)</option>
+                                    </select>
+                                </div>
+
+                                <div style="width: 130px;">
+                                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 3px; display: block;">Row Limit</label>
+                                    <select class="form-control" id="db-explorer-limit" style="font-size: 0.85rem; padding: 0.5rem 0.75rem;" onchange="querySelectedTable()">
+                                        <option value="25">25 rows</option>
+                                        <option value="50" selected>50 rows</option>
+                                        <option value="100">100 rows</option>
+                                        <option value="250">250 rows</option>
+                                        <option value="500">500 rows</option>
+                                    </select>
+                                </div>
+
+                                <div class="search-box" style="flex: 2; min-width: 200px; margin-top: 18px;">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                    <input type="text" id="db-explorer-search" placeholder="Filter fetched rows across all columns..." oninput="filterDbExplorerRows(this.value)" style="padding: 0.5rem 0.75rem 0.5rem 2.25rem; font-size: 0.85rem;">
+                                </div>
+                            </div>
+
+                            <button class="btn btn-primary" style="margin-top: 18px; font-size: 0.85rem; padding: 0.5rem 1rem;" onclick="querySelectedTable()" id="btn-query-table">
+                                <i class="fa-solid fa-rotate"></i> Query Live
+                            </button>
+                        </div>
+
+                        <!-- Data Table Container -->
+                        <div id="db-explorer-table-container" class="table-responsive" style="max-height: 520px;">
+                            <table class="admin-table" id="db-explorer-table">
+                                <thead id="db-explorer-thead">
+                                    <tr><th>Columns</th></tr>
+                                </thead>
+                                <tbody id="db-explorer-tbody">
+                                    <tr><td style="text-align: center; color: var(--text-muted); padding: 2rem;">Select a table and click Query Live to inspect rows.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- JSON View Container -->
+                        <div id="db-explorer-json-container" style="display: none;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; margin-bottom: 0.5rem;">
+                                <span style="font-size: 0.8rem; font-family: var(--font-mono); color: var(--text-muted);" id="db-explorer-json-count">0 records</span>
+                                <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;" onclick="copyExplorerJSON()"><i class="fa-solid fa-copy"></i> Copy JSON</button>
+                            </div>
+                            <pre id="db-explorer-json-pre" class="doctor-terminal" style="max-height: 500px; color: #E2E8F0;"></pre>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Diagnostics Metrics Grid -->
-                <div class="diag-grid">
-                    <!-- 1. Supabase Cloud DB -->
-                    <div class="diag-item-card">
-                        <div class="diag-header">
-                            <span style="font-weight: 700; font-size: 0.9rem;">Supabase Database</span>
-                            <span class="diag-pill diag-pass" id="diag-db-pill">Checking...</span>
+                <!-- ========================================================= -->
+                <!-- SUB-MODULE B: 🩺 SYSTEM DOCTOR (FIND & FIX) -->
+                <!-- ========================================================= -->
+                <div class="super-submodule-pane" id="submodule-system-doctor" style="display: none;">
+                    <!-- Health Hero Banner -->
+                    <div class="health-hero-card" style="margin-bottom: 1.5rem;">
+                        <div class="health-score-badge">
+                            <div class="health-score-circle" id="doctor-overall-score">100%</div>
+                            <div>
+                                <h2 style="font-size: 1.35rem; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif;">
+                                    System Doctor: <span id="doctor-overall-label" style="color: var(--success);">100% Healthy</span>
+                                </h2>
+                                <p style="font-size: 0.85rem; color: #94A3B8; margin-top: 4px;" id="doctor-overall-desc">
+                                    All database schemas, primary identity keys, root RBAC credentials, and tenant partitions verified.
+                                </p>
+                            </div>
                         </div>
-                        <div style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);" id="diag-db-val">-- ms</div>
-                        <p style="font-size: 0.78rem; color: var(--text-muted);" id="diag-db-desc">Latency test against PostgreSQL cloud instance</p>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-primary" onclick="runDeepSystemDoctorScan()" id="btn-doctor-run-scan">
+                                <i class="fa-solid fa-stethoscope"></i> Run Deep Scan
+                            </button>
+                            <button class="btn btn-success" onclick="autoRepairAllDoctorIssues()" id="btn-doctor-auto-repair" style="display: none;">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Repair All Issues
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- 2. Tables Verification -->
-                    <div class="diag-item-card">
-                        <div class="diag-header">
-                            <span style="font-weight: 700; font-size: 0.9rem;">Schema Integrity</span>
-                            <span class="diag-pill diag-pass" id="diag-tables-pill">Verified</span>
+                    <!-- 5 Automated Diagnostic Checks Grid -->
+                    <div class="diag-grid" style="margin-bottom: 1.5rem;">
+                        <!-- Check 1: Super Admin Profile Check -->
+                        <div class="diag-item-card" id="card-check-sa">
+                            <div class="diag-header">
+                                <span style="font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-crown" style="color: #F59E0B;"></i> Root Super Admin RBAC</span>
+                                <span class="diag-pill diag-pass" id="check-sa-pill">Verified</span>
+                            </div>
+                            <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);" id="check-sa-val">Root Active</div>
+                            <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem;" id="check-sa-desc">Validates root master admin account with system_wide scope.</p>
+                            <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.35rem 0.65rem; display: none;" id="btn-fix-sa" onclick="fixDoctorIssue('sa_profile')">
+                                <i class="fa-solid fa-wrench"></i> Fix This
+                            </button>
                         </div>
-                        <div style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);" id="diag-tables-val">7 Tables Active</div>
-                        <p style="font-size: 0.78rem; color: var(--text-muted);" id="diag-tables-desc">fests, users, enquiries, settings, participants</p>
+
+                        <!-- Check 2: Core Data Integrity Check -->
+                        <div class="diag-item-card" id="card-check-integrity">
+                            <div class="diag-header">
+                                <span style="font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-database" style="color: #3B82F6;"></i> Core Data Integrity</span>
+                                <span class="diag-pill diag-pass" id="check-integrity-pill">Verified</span>
+                            </div>
+                            <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);" id="check-integrity-val">0 Corruptions</div>
+                            <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem;" id="check-integrity-desc">Validates required columns, slugs, and status flags across tenants.</p>
+                            <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.35rem 0.65rem; display: none;" id="btn-fix-integrity" onclick="fixDoctorIssue('data_integrity')">
+                                <i class="fa-solid fa-wrench"></i> Fix This
+                            </button>
+                        </div>
+
+                        <!-- Check 3: Financial & Score Sanity Check -->
+                        <div class="diag-item-card" id="card-check-finance">
+                            <div class="diag-header">
+                                <span style="font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-coins" style="color: #10B981;"></i> Score & Points Sanity</span>
+                                <span class="diag-pill diag-pass" id="check-finance-pill">Verified</span>
+                            </div>
+                            <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);" id="check-finance-val">Valid Numbers</div>
+                            <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem;" id="check-finance-desc">Detects NaN, null, or corrupted numbers in competition point systems.</p>
+                            <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.35rem 0.65rem; display: none;" id="btn-fix-finance" onclick="fixDoctorIssue('points_sanity')">
+                                <i class="fa-solid fa-wrench"></i> Fix This
+                            </button>
+                        </div>
+
+                        <!-- Check 4: Orphaned Record Detachment -->
+                        <div class="diag-item-card" id="card-check-orphans">
+                            <div class="diag-header">
+                                <span style="font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-link-slash" style="color: #8B5CF6;"></i> Orphaned Records</span>
+                                <span class="diag-pill diag-pass" id="check-orphans-pill">Clean</span>
+                            </div>
+                            <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);" id="check-orphans-val">0 Orphans</div>
+                            <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem;" id="check-orphans-desc">Checks for foreign key mismatches or broken relation links.</p>
+                            <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.35rem 0.65rem; display: none;" id="btn-fix-orphans" onclick="fixDoctorIssue('orphaned_records')">
+                                <i class="fa-solid fa-wrench"></i> Fix This
+                            </button>
+                        </div>
+
+                        <!-- Check 5: Offline Queue Sync -->
+                        <div class="diag-item-card" id="card-check-queue">
+                            <div class="diag-header">
+                                <span style="font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-cloud-arrow-up" style="color: #EC4899;"></i> Offline Write Queues</span>
+                                <span class="diag-pill diag-pass" id="check-queue-pill">Synced</span>
+                            </div>
+                            <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);" id="check-queue-val">0 Pending</div>
+                            <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem;" id="check-queue-desc">Flushes unwritten mutation buffers to PostgreSQL cloud.</p>
+                            <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.35rem 0.65rem; display: none;" id="btn-fix-queue" onclick="fixDoctorIssue('offline_queue')">
+                                <i class="fa-solid fa-wrench"></i> Flush Queue
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- 3. WebSocket Realtime Channels -->
-                    <div class="diag-item-card">
-                        <div class="diag-header">
-                            <span style="font-weight: 700; font-size: 0.9rem;">Real-Time Engine</span>
-                            <span class="diag-pill diag-pass" id="diag-ws-pill">Active</span>
+                    <!-- Live Scrolling Terminal Console -->
+                    <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-sm);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <div>
+                                <h3 style="font-size: 1.05rem; font-weight: 800; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">
+                                    Live Diagnostics &amp; Repair Console Stream
+                                </h3>
+                                <div style="font-size: 0.78rem; color: var(--text-muted);">Timestamped execution steps for all deep scans and self-healing patches.</div>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.35rem 0.75rem;" onclick="copyDoctorLogs()"><i class="fa-solid fa-copy"></i> Copy Output</button>
+                                <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.35rem 0.75rem;" onclick="clearDoctorLogs()"><i class="fa-solid fa-trash-can"></i> Clear Stream</button>
+                            </div>
                         </div>
-                        <div style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);" id="diag-ws-val">Synchronized</div>
-                        <p style="font-size: 0.78rem; color: var(--text-muted);" id="diag-ws-desc">Dynamic rebranding & score broadcasts ready</p>
-                    </div>
-
-                    <!-- 4. LocalStorage & Offline Cache -->
-                    <div class="diag-item-card">
-                        <div class="diag-header">
-                            <span style="font-weight: 700; font-size: 0.9rem;">Local Cache & Quota</span>
-                            <span class="diag-pill diag-pass" id="diag-storage-pill">Healthy</span>
+                        <div class="doctor-terminal" id="doctor-terminal-stream">
+                            <div class="doctor-terminal-line"><span class="terminal-tag info">[SYSTEM]</span> FestOS System Doctor engine ready. Click "Run Deep Scan" to start diagnostics.</div>
                         </div>
-                        <div style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);" id="diag-storage-val">< 1 MB Used</div>
-                        <p style="font-size: 0.78rem; color: var(--text-muted);" id="diag-storage-desc">Offline fallback and fast-load buffer</p>
                     </div>
                 </div>
 
-                <!-- Self-Healing & Diagnostic Action Center -->
-                <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; box-shadow: var(--shadow-sm); margin-bottom: 1.75rem;">
-                    <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">
-                        One-Click Self-Healing &amp; Maintenance Tools
-                    </h3>
-                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">Resolve syncing errors, flush stale browser caches, repair multi-tenant tables, or re-verify database indexes.</p>
-                    
-                    <div style="display: flex; gap: 0.85rem; flex-wrap: wrap;">
-                        <button class="btn btn-outline" onclick="flushSystemCaches()">
-                            <i class="fa-solid fa-broom"></i> Flush Local Caches
+                <!-- ========================================================= -->
+                <!-- SUB-MODULE C: 👤 USER LOGIN & LOGOUT SESSIONS -->
+                <!-- ========================================================= -->
+                <div class="super-submodule-pane" id="submodule-user-sessions" style="display: none;">
+                    <!-- Session Summary KPI Cards -->
+                    <div class="super-kpi-grid">
+                        <div class="super-kpi-card">
+                            <div class="super-kpi-label">
+                                <span>Active Online Now</span>
+                                <span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 5px;">
+                                    <span class="pulse-dot"></span> Heartbeat
+                                </span>
+                            </div>
+                            <div class="super-kpi-val" id="session-kpi-online" style="color: #10B981;">0</div>
+                            <div class="super-kpi-sub">Active heartbeat in last 15 minutes</div>
+                        </div>
+
+                        <div class="super-kpi-card">
+                            <div class="super-kpi-label">
+                                <span>Total Sessions Logged</span>
+                                <span class="badge" style="background: #EFF6FF; color: #2563EB;">Presence DB</span>
+                            </div>
+                            <div class="super-kpi-val" id="session-kpi-total">0</div>
+                            <div class="super-kpi-sub">System-wide authenticated logins</div>
+                        </div>
+
+                        <div class="super-kpi-card">
+                            <div class="super-kpi-label">
+                                <span>Staff &amp; Admin Sessions</span>
+                                <span class="badge" style="background: #FFFBEB; color: #B45309;">Privileged</span>
+                            </div>
+                            <div class="super-kpi-val" id="session-kpi-staff">0</div>
+                            <div class="super-kpi-sub">Super Admins, Managers & Judges</div>
+                        </div>
+
+                        <div class="super-kpi-card">
+                            <div class="super-kpi-label">
+                                <span>Contestant &amp; Public Sessions</span>
+                                <span class="badge" style="background: #ECFDF5; color: #059669;">End-Users</span>
+                            </div>
+                            <div class="super-kpi-val" id="session-kpi-contestants">0</div>
+                            <div class="super-kpi-sub">Participant passes & public spectators</div>
+                        </div>
+                    </div>
+
+                    <!-- Session Filter Bar -->
+                    <div class="controls-bar" style="margin-bottom: 1.25rem;">
+                        <div class="search-box" style="flex: 2; min-width: 240px;">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="session-search-input" placeholder="Search sessions by user, role, device, or festival..." oninput="filterUserSessions(this.value)">
+                        </div>
+                        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                            <button class="btn btn-outline session-filter-btn active" data-filter="all" onclick="filterUserSessionsRole('all')" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; border-radius: 999px;">All Sessions</button>
+                            <button class="btn btn-outline session-filter-btn" data-filter="online" onclick="filterUserSessionsRole('online')" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; border-radius: 999px;">Active Online</button>
+                            <button class="btn btn-outline session-filter-btn" data-filter="staff" onclick="filterUserSessionsRole('staff')" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; border-radius: 999px;">Staff & Admins</button>
+                            <button class="btn btn-outline session-filter-btn" data-filter="users" onclick="filterUserSessionsRole('users')" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; border-radius: 999px;">Contestants</button>
+                        </div>
+                        <button class="btn btn-primary" onclick="loadUserSessions()" style="font-size: 0.82rem; padding: 0.45rem 0.85rem;">
+                            <i class="fa-solid fa-rotate"></i> Refresh Presence
                         </button>
-                        <button class="btn btn-outline" onclick="repairMultiTenantData()">
-                            <i class="fa-solid fa-shield-virus"></i> Repair Tenant Isolation & Users
-                        </button>
-                        <button class="btn btn-outline" onclick="rebuildFeatureMatrices()">
-                            <i class="fa-solid fa-sliders"></i> Rebuild Feature Flags
-                        </button>
+                    </div>
+
+                    <!-- Sessions Data Table -->
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>User / Account</th>
+                                    <th>Role &amp; Scope</th>
+                                    <th>Festival Context</th>
+                                    <th>Login Time</th>
+                                    <th>Status</th>
+                                    <th>Last Active</th>
+                                    <th>Device / Platform</th>
+                                    <th style="text-align: right;">Privileged Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="user-sessions-tbody">
+                                <tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading active user sessions...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
-                <!-- Supabase Cloud Storage Buckets & Media Assets Inspector -->
-                <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; box-shadow: var(--shadow-sm); margin-bottom: 1.75rem;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
-                        <div>
-                            <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">
-                                Supabase Storage Buckets &amp; Media Inspector
-                            </h3>
-                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">Inspect cloud storage buckets, file counts, and media assets (photos, audio submissions, admit cards).</p>
+                <!-- ========================================================= -->
+                <!-- SUB-MODULE D: 🛡️ SECURITY AUDIT LOGS -->
+                <!-- ========================================================= -->
+                <div class="super-submodule-pane" id="submodule-audit-logs" style="display: none;">
+                    <div class="controls-bar" style="margin-bottom: 1.25rem;">
+                        <div class="search-box" style="flex: 2; min-width: 240px;">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="audit-log-search-input" placeholder="Search security audit logs by keyword, action, or user..." oninput="renderSecurityAuditLogs()">
                         </div>
-                        <button class="btn btn-outline" onclick="inspectStorageBuckets()">
-                            <i class="fa-solid fa-magnifying-glass-chart"></i> Inspect Storage
+                        <div class="filter-box" style="min-width: 170px;">
+                            <select class="filter-select" id="audit-category-filter" onchange="renderSecurityAuditLogs()">
+                                <option value="ALL">All Categories</option>
+                                <option value="AUTH">Authentication (AUTH)</option>
+                                <option value="GOVERNANCE">Governance & System Doctor</option>
+                                <option value="FINANCE">Financial & Scoring</option>
+                                <option value="SECURITY">Security Events</option>
+                                <option value="SYSTEM">System & Config</option>
+                            </select>
+                        </div>
+                        <div class="filter-box" style="min-width: 150px;">
+                            <select class="filter-select" id="audit-severity-filter" onchange="renderSecurityAuditLogs()">
+                                <option value="ALL">All Severities</option>
+                                <option value="INFO">Info</option>
+                                <option value="WARNING">Warning</option>
+                                <option value="ERROR">Errors Only</option>
+                                <option value="CRITICAL">Critical</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-outline" onclick="exportAuditLogsCSV()">
+                            <i class="fa-solid fa-file-csv"></i> CSV
+                        </button>
+                        <button class="btn btn-outline" onclick="festosLogger.exportLogsJSON()">
+                            <i class="fa-solid fa-file-code"></i> JSON
+                        </button>
+                        <button class="btn btn-outline" onclick="triggerClearLogsDialog()">
+                            <i class="fa-solid fa-trash-can"></i> Clear
                         </button>
                     </div>
-                    <div id="storage-inspector-results" style="display: flex; flex-direction: column; gap: 10px;">
-                        <div style="text-align: center; padding: 1.25rem; color: var(--text-muted); font-size: 0.85rem;">
-                            Click "Inspect Storage" to scan Supabase storage buckets and count media assets across all festivals.
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Diagnostic Test Results Console -->
-                <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-sm);">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
-                        <h4 style="font-size: 1rem; font-weight: 700; color: var(--text-main);">
-                            Detailed Component Diagnostics Log
-                        </h4>
-                        <span style="font-size: 0.75rem; color: var(--text-muted);" id="diag-last-checked">Last checked: Just now</span>
-                    </div>
-                    <div id="diag-detailed-checklist" style="display: flex; flex-direction: column; gap: 8px;">
-                        <!-- Populated dynamically -->
+                    <!-- Security Audit Logs Table -->
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 160px;">Timestamp</th>
+                                    <th>Action &amp; Category</th>
+                                    <th>User Account</th>
+                                    <th>Severity</th>
+                                    <th>Client Context / URL</th>
+                                    <th style="text-align: right;">Forensic Payload</th>
+                                </tr>
+                            </thead>
+                            <tbody id="audit-logs-tbody">
+                                <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading security audit log trail...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -2220,11 +2735,166 @@ input:checked + .slider:before { transform: translateX(20px); }
         </div>
     </div>
 
+    <!-- ========================================================= -->
+    <!-- MODAL: CREATE / EDIT GLOBAL PRESET TEMPLATE & ACCESS CONTROL -->
+    <!-- ========================================================= -->
+    <div class="modal-overlay" id="superPresetModal">
+        <div class="modal-card" style="max-width: 680px;">
+            <div class="modal-header">
+                <h3 id="super-preset-modal-title">Create Global Preset Template</h3>
+                <button type="button" onclick="closeModal('superPresetModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="super-preset-id">
+
+                <div class="form-group">
+                    <label>Preset Template Name *</label>
+                    <input type="text" class="form-control" id="super-preset-name" placeholder="e.g. LUXURY GOLD CHAMPIONSHIP POSTER" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Sector / Category *</label>
+                        <select class="form-control" id="super-preset-type">
+                            <option value="individual">Individual Event Winner Poster</option>
+                            <option value="team">Team Standings Leaderboard</option>
+                            <option value="final">Final Championship Overall</option>
+                            <option value="id_card">Participant ID Badge</option>
+                            <option value="certificate">Merit & Participation Certificate</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Template Background Canvas</label>
+                        <label class="btn btn-outline" style="cursor: pointer; margin: 0; padding: 0.65rem 1rem; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.85rem;">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Upload Background
+                            <input type="file" id="super-preset-bg-file" accept="image/*" style="display: none;" onchange="handleSuperPresetBgUpload(event)">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Background Preview Box -->
+                <div id="super-preset-bg-preview-box" style="display: none; background: #0F172A; border-radius: var(--radius-md); padding: 8px; text-align: center; border: 1px solid var(--border);">
+                    <div style="font-size: 0.72rem; color: #94A3B8; margin-bottom: 6px; font-weight: 700; text-transform: uppercase;">Background Image Preview</div>
+                    <img id="super-preset-bg-preview-img" style="max-height: 180px; max-width: 100%; border-radius: 6px; object-fit: contain;">
+                </div>
+
+                <!-- Festival Access Scope Controls -->
+                <div style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1.15rem;">
+                    <label style="font-size: 0.82rem; font-weight: 800; color: var(--text-main); text-transform: uppercase; margin-bottom: 0.5rem; display: block;">
+                        <i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i> Festival Access Permission
+                    </label>
+                    <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.85rem;">
+                        Decide whether this preset template appears in the Presets Gallery for all festivals or only specific festivals.
+                    </p>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 0.75rem;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 0.88rem; font-weight: 600; cursor: pointer;">
+                            <input type="radio" name="super-preset-access-mode" value="all" checked onchange="toggleSuperPresetFestList(false)" style="accent-color: var(--primary);">
+                            <span>All Festivals (Global Preset) — Available to every festival</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 0.88rem; font-weight: 600; cursor: pointer;">
+                            <input type="radio" name="super-preset-access-mode" value="restricted" onchange="toggleSuperPresetFestList(true)" style="accent-color: var(--primary);">
+                            <span>Specific Festivals Only — Restrict visibility to selected festivals</span>
+                        </label>
+                    </div>
+
+                    <!-- Festival Selection Checkboxes Container -->
+                    <div id="super-preset-fest-checkboxes-container" style="display: none; padding-top: 0.75rem; border-top: 1px dashed var(--border); margin-top: 0.75rem;">
+                        <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem;">Select Authorized Festivals:</div>
+                        <div id="super-preset-fest-checkboxes-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; max-height: 160px; overflow-y: auto; padding: 4px;">
+                            <!-- Populated dynamically from fests cache -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('superPresetModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btn-save-super-preset" onclick="saveSuperPreset()">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Save &amp; Publish Preset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL: FORENSIC AUDIT LOG INSPECTOR -->
+    <!-- ========================================================= -->
+    <div class="modal-overlay" id="auditEventModal">
+        <div class="modal-card" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3 id="audit-modal-title"><i class="fa-solid fa-shield-halved" style="color: #8B5CF6;"></i> Forensic Security Audit Inspector</h3>
+                <button type="button" onclick="closeModal('auditEventModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <span id="audit-modal-meta" style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);">Timestamp: --</span>
+                    <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;" onclick="copyAuditModalJSON()"><i class="fa-solid fa-copy"></i> Copy JSON</button>
+                </div>
+                <pre id="audit-modal-json" class="doctor-terminal" style="max-height: 380px; color: #E2E8F0;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('auditEventModal')">Close Inspector</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL: TABLE RECORD JSON INSPECTOR -->
+    <!-- ========================================================= -->
+    <div class="modal-overlay" id="tableRecordDetailModal">
+        <div class="modal-card" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3 id="record-modal-title"><i class="fa-solid fa-database" style="color: var(--primary);"></i> Raw Table Record Inspector</h3>
+                <button type="button" onclick="closeModal('tableRecordDetailModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <span id="record-modal-meta" style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);">Record</span>
+                    <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;" onclick="copyRecordModalJSON()"><i class="fa-solid fa-copy"></i> Copy JSON</button>
+                </div>
+                <pre id="record-modal-json" class="doctor-terminal" style="max-height: 380px; color: #E2E8F0;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('tableRecordDetailModal')">Close Inspector</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL: PRESET TEMPLATE PREVIEW -->
+    <!-- ========================================================= -->
+    <div class="modal-overlay" id="superPresetPreviewModal">
+        <div class="modal-card" style="max-width: 720px;">
+            <div class="modal-header">
+                <h3 id="preview-preset-title">Template Preview</h3>
+                <button type="button" onclick="closeModal('superPresetPreviewModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <div id="preview-preset-meta" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; font-family: var(--font-mono);"></div>
+                <div style="background: #090D16; border-radius: var(--radius-lg); padding: 1rem; display: flex; align-items: center; justify-content: center; max-height: 500px; overflow: hidden;">
+                    <img id="preview-preset-img" style="max-height: 480px; max-width: 100%; object-fit: contain; border-radius: 8px;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('superPresetPreviewModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div id="toast-container"></div>
 
     <!-- Core Scripts -->
     <script src="festos-core.js"></script>
+    <script src="preset-templates-engine.js"></script>
     <script src="superadmin.js"></script>
 </body>
 </html>

@@ -171,12 +171,19 @@ if (loginForm) {
                 data.fest_id = null;
             } else if (!data.fest_id) {
                 const prefix = (data.username || '').split('_')[0].toLowerCase().trim();
+                const defaultFestId = (typeof window.festosDefaultFestId === 'function')
+                    ? window.festosDefaultFestId()
+                    : 'fest_vib26_muml4haa';
                 if (prefix === 'zenith26' || prefix === 'zenith') {
-                    data.fest_id = 'fest_zenith_2026';
+                    data.fest_id = defaultFestId;
                 } else if (/^[a-z0-9]{3,20}$/.test(prefix) && prefix !== 'superadmin' && prefix !== 'admin') {
-                    data.fest_id = `fest_${prefix}`;
+                    const candidate = `fest_${prefix}`;
+                    const known = (window.festosDomains && typeof window.festosDomains.hasFest === 'function')
+                        ? window.festosDomains.hasFest(candidate)
+                        : true;
+                    data.fest_id = known ? candidate : defaultFestId;
                 } else {
-                    data.fest_id = 'fest_zenith_2026';
+                    data.fest_id = defaultFestId;
                 }
             }
 

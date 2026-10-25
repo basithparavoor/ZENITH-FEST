@@ -58,7 +58,8 @@ function getActiveFestId() {
         return window.festosAuth.getCurrentFestId();
     }
     const u = JSON.parse(localStorage.getItem('festUser') || '{}');
-    return u.fest_id || localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026';
+    return u.fest_id || localStorage.getItem('festos_active_fest_id') ||
+        (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_vib26_muml4haa');
 }
 
 function festQuery(query, targetFestId = null) {
@@ -66,7 +67,7 @@ function festQuery(query, targetFestId = null) {
         return window.festosApplyFilter(query, targetFestId);
     }
     const fid = targetFestId || getActiveFestId();
-    if (fid === 'fest_zenith_2026') return query.or('fest_id.eq.fest_zenith_2026,fest_id.is.null');
+    if (window.festosIsLegacyFest ? window.festosIsLegacyFest(fid) : false) return query.or(`fest_id.eq.${fid},fest_id.is.null`);
     return query.eq('fest_id', fid);
 }
 
@@ -85,11 +86,31 @@ let categoriesList = [];
 let stagesList = [];
 let teamsList = [];
 let participantsList = [];
+let filteredParticipantsList = [];
 let competitionsList = [];
 let availableControllers = [];
 let currentCropper = null; // Added for image cropping
 let dashRegChart = null; 
 let dashTeamChart = null;
+
+// Expose live dynamic accessors for external modules (e.g. ID Badge Engine)
+try {
+    Object.defineProperty(window, 'participantsList', { get: () => participantsList, set: v => { participantsList = v; }, configurable: true });
+    Object.defineProperty(window, 'filteredParticipantsList', { get: () => filteredParticipantsList, set: v => { filteredParticipantsList = v; }, configurable: true });
+    Object.defineProperty(window, 'teamsList', { get: () => teamsList, set: v => { teamsList = v; }, configurable: true });
+    Object.defineProperty(window, 'categoriesList', { get: () => categoriesList, set: v => { categoriesList = v; }, configurable: true });
+    Object.defineProperty(window, 'competitionsList', { get: () => competitionsList, set: v => { competitionsList = v; }, configurable: true });
+} catch (e) {
+    window.participantsList = participantsList;
+    window.filteredParticipantsList = filteredParticipantsList;
+    window.teamsList = teamsList;
+    window.categoriesList = categoriesList;
+    window.competitionsList = competitionsList;
+}
+window.getAdminParticipantsList = () => participantsList;
+window.getAdminFilteredList = () => filteredParticipantsList;
+window.getAdminTeamsList = () => teamsList;
+window.getAdminCategoriesList = () => categoriesList;
 
 // --- FESTOS CLASS SYSTEM MANAGEMENT ---
 window.currentClassSystem = {
@@ -1423,7 +1444,7 @@ function openTeamModal(editData = null) {
 // Global states for pagination
 let partCurrentPage = 1;
 let partRowsPerPage = 10;
-let filteredParticipantsList = [];
+filteredParticipantsList = [];
 
 async function loadParticipants() {
     try {
@@ -1453,6 +1474,8 @@ async function loadParticipants() {
         });
 
         filteredParticipantsList = [...participantsList];
+        window.participantsList = participantsList;
+        window.filteredParticipantsList = filteredParticipantsList;
         
         // Populate Category Filter with standard categories only (exclude general categories)
         const catFilter = document.getElementById('filterCategory');
@@ -1511,6 +1534,7 @@ function filterParticipants(resetPage = true) {
         return matchName && matchCat && matchTeam && matchDob && matchClass;
     });
     
+    window.filteredParticipantsList = filteredParticipantsList;
     if (resetPage) partCurrentPage = 1; 
     renderParticipantsTable();
 }
@@ -3466,6 +3490,8 @@ function getDynamicPdfConfig(canvas, baseWidthMm = 63.5) {
         orientation: baseWidthMm > calculatedHeightMm ? 'landscape' : 'portrait'
     };
 }
+window.generateParticipantIDCanvas = generateParticipantIDCanvas;
+window.getDynamicPdfConfig = getDynamicPdfConfig;
 // --- 1. SINGLE CARD GENERATOR ---
 async function generateSingleCard(participantId) {
     showToast('Fetching template and generating PDF...', 'success');
@@ -3879,7 +3905,7 @@ function renderTemplateLibrary() {
 
     filtered.forEach((tpl) => {
         const trueIndex = savedTemplates.findIndex(t => t.id === tpl.id);
-        let tag = tpl.type === 'id_card' ? 'ID Card' : tpl.type === 'team' ? 'Team' : tpl.type === 'final' ? 'Final' : 'Individual';
+        let tag = tpl.type === 'id_card' ? 'ID Card' : tpl.type === 'team' ? 'Team' : tpl.type === 'final' ? 'Final' : tpl.type === 'certificate' ? 'Certificate' : 'Individual';
 
         grid.innerHTML += `
             <div style="background: white; border-radius: var(--radius-lg); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
@@ -9951,18 +9977,19 @@ function initProfessionalAnalytics() {
 // --- Loading and Saving Configuration ---
 async function loadWebsiteConfig() {
     try {
-        const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || 'fest_zenith_2026';
+        const defaultFestId = (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_vib26_muml4haa');
+        const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || defaultFestId;
         let festMeta = null;
         if (window.availableFests && window.availableFests.length) {
             festMeta = window.availableFests.find(f => f.id === fid);
         }
-        const festName = festMeta ? festMeta.name : (fid === 'fest_zenith_2026' ? 'Zenith Fest' : 'Festival');
-        const festSlug = festMeta ? (festMeta.slug || festMeta.id.replace('fest_', '')) : (fid === 'fest_zenith_2026' ? 'zenith' : '');
+        const festName = festMeta ? festMeta.name : 'Festival';
+        const festSlug = festMeta ? (festMeta.slug || festMeta.id.replace('fest_', '')) : '';
         
         websiteConfig = getDefaultWebsiteConfig(festName, festSlug);
 
         const val = window.festosGetSetting ? await window.festosGetSetting('website_config') : null;
-        let data = val ? { value: val } : (fid === 'fest_zenith_2026' ? await supabaseClient.from('settings').select('value').eq('id', 'website_config').maybeSingle().then(r => r.data) : null);
+        let data = val ? { value: val } : null;
         if (data && data.value) {
             websiteConfig = { ...websiteConfig, ...data.value };
             // Ensure deep merges for sub-objects
