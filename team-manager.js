@@ -630,20 +630,25 @@ async function saveNewMember() {
     try {
         let photo_url = undefined; 
 
-        if (currentCropper) {
-            showToast('Processing image...', 'success');
-            const canvas = currentCropper.getCroppedCanvas({ width: 400, height: 600 });
-            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
-            const fileName = `profile_${Date.now()}.jpg`; 
-            
-            const { error: uploadError } = await supabaseClient.storage
-                .from('photos')
-                .upload(fileName, blob, { contentType: 'image/jpeg' });
-                
-            if (uploadError) throw uploadError;
+        try {
+            const blob = await getParticipantPhotoBlobHelper();
+            if (blob) {
+                showToast('Uploading participant photo...', 'info');
+                const fileName = `profile_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`;
+                const { error: uploadError } = await supabaseClient.storage
+                    .from('photos')
+                    .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
 
-            const { data: publicUrlData } = supabaseClient.storage.from('photos').getPublicUrl(fileName);
-            photo_url = publicUrlData.publicUrl;
+                if (uploadError) throw uploadError;
+
+                const { data: publicUrlData } = supabaseClient.storage.from('photos').getPublicUrl(fileName);
+                if (publicUrlData && publicUrlData.publicUrl) {
+                    photo_url = publicUrlData.publicUrl;
+                }
+            }
+        } catch (photoErr) {
+            console.error("Photo upload error:", photoErr);
+            showToast("Notice: Photo upload issue: " + (photoErr.message || photoErr), "warning");
         }
 
         const payload = { 
@@ -693,56 +698,155 @@ async function saveNewMember() {
     }
 }
 
+// --- ROBUST PARTICIPANT PHOTO HELPER (MOBILE & DESKTOP) ---
+async function getParticipantPhotoBlobHelper() {
+    // 1. If active cropper instance exists, crop from it
+    if (typeof currentCropper !== 'undefined' && currentCropper && typeof currentCropper.getCroppedCanvas === 'function') {
+        try {
+            const canvas = currentCropper.getCroppedCanvas({ width: 400, height: 600 });
+            if (canvas) {
+                const b = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.82));
+                if (b && b.size > 0) return b;
+            }
+        } catch(e) {
+            console.warn('Cropper getCroppedCanvas failed:', e);
+        }
+    }
+
+    // 2. If partPhotoPreview src contains a data:image base64 string
+    const previewEl = document.getElementById('partPhotoPreview');
+    if (previewEl && previewEl.src && previewEl.src.startsWith('data:image/') && !previewEl.src.includes('svg')) {
+        try {
+            const res = await fetch(previewEl.src);
+            const b = await res.blob();
+            if (b && b.size > 0) return b;
+        } catch(e) {
+            console.warn('Preview blob conversion failed:', e);
+        }
+    }
+
+    // 3. Directly from file input if selected
+    const fileInput = document.getElementById('partPhoto');
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+        const file = fileInput.files[0];
+        return await new Promise((resolve, reject) => {
+            const img = new Image();
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 400;
+                    canvas.height = 600;
+                    const ctx = canvas.getContext('2d');
+                    const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+                    const x = (canvas.width / 2) - (img.width / 2) * scale;
+                    const y = (canvas.height / 2) - (img.height / 2) * scale;
+                    ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                    canvas.toBlob(b => resolve(b), 'image/jpeg', 0.82);
+                };
+                img.onerror = () => reject(new Error('Failed to load image'));
+                img.src = e.target.result;
+            };
+            reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    return null;
+}
+
 // --- CROPPER LIFECYCLE ---
 function triggerCropper(input) {
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function (e) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const rawData = e.target.result;
+        const img = new Image();
+        img.onload = function() {
+            // Downscale to prevent mobile memory exhaustion
+            const maxDim = 1200;
+            let w = img.width;
+            let h = img.height;
+            if (w > maxDim || h > maxDim) {
+                if (w > h) {
+                    h = Math.round((h * maxDim) / w);
+                    w = maxDim;
+                } else {
+                    w = Math.round((w * maxDim) / h);
+                    h = maxDim;
+                }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            const optimized = canvas.toDataURL('image/jpeg', 0.85);
+
+            // Instantly update thumbnail in form so user sees photo immediately on mobile
+            const preview = document.getElementById('partPhotoPreview');
+            if (preview) preview.src = optimized;
+
+            // Open cropper modal (z-index: 9999) if Cropper is available
             const cropperModal = document.getElementById('cropperModal');
             const image = document.getElementById('cropperImage');
-            
-            image.src = e.target.result;
-            cropperModal.classList.add('show');
-            
-            if (currentCropper) currentCropper.destroy();
-            currentCropper = new Cropper(image, {
-                aspectRatio: 2 / 3,
-                viewMode: 2, 
-                background: false,
-                autoCropArea: 0.9
-            });
+            if (cropperModal && image && typeof Cropper !== 'undefined') {
+                image.src = optimized;
+                cropperModal.classList.add('show');
+                if (currentCropper) {
+                    try { currentCropper.destroy(); } catch(err) {}
+                }
+                currentCropper = new Cropper(image, {
+                    aspectRatio: 2 / 3,
+                    viewMode: 2, 
+                    background: false,
+                    autoCropArea: 0.9
+                });
+            }
         };
-        reader.readAsDataURL(input.files[0]);
-    }
+        img.src = rawData;
+    };
+    reader.readAsDataURL(file);
 }
 
 function cancelCropper() {
-    document.getElementById('cropperModal').classList.remove('show');
-    if (currentCropper) { currentCropper.destroy(); currentCropper = null; }
-    if(document.getElementById('partPhoto')) document.getElementById('partPhoto').value = ''; 
+    const modal = document.getElementById('cropperModal');
+    if (modal) modal.classList.remove('show');
+    if (currentCropper) { 
+        try { currentCropper.destroy(); } catch(e) {}
+        currentCropper = null; 
+    }
 }
 
 function confirmCrop() {
-    if (!currentCropper) return;
-    const canvas = currentCropper.getCroppedCanvas({ width: 400, height: 600 });
-    document.getElementById('partPhotoPreview').src = canvas.toDataURL('image/jpeg', 0.8);
-    document.getElementById('cropperModal').classList.remove('show');
+    if (currentCropper) {
+        const canvas = currentCropper.getCroppedCanvas({ width: 400, height: 600 });
+        if (canvas) {
+            document.getElementById('partPhotoPreview').src = canvas.toDataURL('image/jpeg', 0.85);
+        }
+    }
+    const modal = document.getElementById('cropperModal');
+    if (modal) modal.classList.remove('show');
 }
 
 function editExistingCrop() {
-    const currentSrc = document.getElementById('partPhotoPreview').src;
-    if (currentSrc.includes('w3.org')) {
+    const currentSrc = document.getElementById('partPhotoPreview')?.src || '';
+    if (!currentSrc || currentSrc.includes('w3.org') || currentSrc.includes('svg')) {
         showToast('Please upload a photo first before attempting to crop.', 'error');
         return;
     }
     
     const cropperModal = document.getElementById('cropperModal');
     const image = document.getElementById('cropperImage');
+    if (!cropperModal || !image || typeof Cropper === 'undefined') return;
     
     image.src = currentSrc;
     cropperModal.classList.add('show');
     
-    if (currentCropper) currentCropper.destroy();
+    if (currentCropper) {
+        try { currentCropper.destroy(); } catch(e) {}
+    }
     currentCropper = new Cropper(image, {
         aspectRatio: 2 / 3,
         viewMode: 2, 
@@ -1136,13 +1240,13 @@ async function executeBulkAction(action) {
                 });
             });
 
-            const { error } = await supabaseClient.from('participant_competitions').insert(inserts);
+            const withFestInserts = window.festosWithFest ? window.festosWithFest(inserts) : inserts;
+            const { error } = await supabaseClient.from('participant_competitions').insert(withFestInserts);
             if (error) throw error;
             showToast(`Successfully enrolled ${newIds.length} students!`, 'success');
             
         } else if (action === 'remove') {
-            // FIX: Loose equality
-            const removeIds = selectedIds.filter(id => globalAssignments.find(a => a.competition_id == compId && a.participant_id == id));
+            const removeIds = selectedIds.filter(id => globalAssignments.find(a => String(a.competition_id) === String(compId) && String(a.participant_id) === String(id)));
             if (removeIds.length === 0) throw new Error("Selected students are not enrolled.");
 
             if(!confirm(`Remove ${removeIds.length} students from this event?`)) return;
@@ -1958,7 +2062,7 @@ function renderAssignOverview() {
         if (search && !comp.name.toLowerCase().includes(search)) return;
 
         // Fetch enrolled and sort so Leader is always first
-        let enrolled = globalAssignments.filter(a => a.competition_id === comp.id);
+        let enrolled = globalAssignments.filter(a => String(a.competition_id) === String(comp.id));
         enrolled.sort((a, b) => (b.is_leader ? 1 : 0) - (a.is_leader ? 1 : 0));
         
         let studentsHtml = '';
@@ -1967,7 +2071,7 @@ function renderAssignOverview() {
         } else {
             studentsHtml = '<div style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">';
             enrolled.forEach((a, index) => {
-                const student = globalStudents.find(s => s.id === a.participant_id);
+                const student = globalStudents.find(s => String(s.id) === String(a.participant_id));
                 if (!student) return;
                 
                 let leaderBadge = '';
@@ -2070,8 +2174,8 @@ window.handleDrop = async function(e, targetCompId, targetStudentId) {
     const newLeaderId = newFirstElement.getAttribute('data-student-id');
     
     // Instantly Update Local State (No fetchAllData required)
-    let myEnrolled = globalAssignments.filter(a => a.competition_id === compId);
-    myEnrolled.forEach(a => { a.is_leader = (a.participant_id === newLeaderId); });
+    let myEnrolled = globalAssignments.filter(a => String(a.competition_id) === String(compId));
+    myEnrolled.forEach(a => { a.is_leader = (String(a.participant_id) === String(newLeaderId)); });
     
     renderAssignOverview(); // Instantly apply UI badges
     
@@ -2095,14 +2199,14 @@ window.quickRemoveStudent = async function(compId, studentId) {
     openConfirmModal("Remove Student?", "Are you sure you want to remove this student from the competition?", async () => {
         try {
             // Optimistic UI Update: Remove from local memory instantly
-            const recordIndex = globalAssignments.findIndex(a => a.competition_id === compId && a.participant_id === studentId);
+            const recordIndex = globalAssignments.findIndex(a => String(a.competition_id) === String(compId) && String(a.participant_id) === String(studentId));
             if (recordIndex > -1) {
                 // If we remove the leader, transfer leadership to the next person automatically
                 const wasLeader = globalAssignments[recordIndex].is_leader;
                 globalAssignments.splice(recordIndex, 1);
                 
                 if (wasLeader) {
-                    const remaining = globalAssignments.filter(a => a.competition_id === compId);
+                    const remaining = globalAssignments.filter(a => String(a.competition_id) === String(compId));
                     if (remaining.length > 0) remaining[0].is_leader = true;
                 }
             }
@@ -2153,8 +2257,8 @@ window.openQuickAddModal = function(compId) {
         return false;
     });
 
-    const enrolledIds = globalAssignments.filter(a => a.competition_id === compId).map(a => a.participant_id);
-    window.tempAvailableStudents = eligibleStudents.filter(s => !enrolledIds.includes(s.id));
+    const enrolledIds = globalAssignments.filter(a => String(a.competition_id) === String(compId)).map(a => String(a.participant_id));
+    window.tempAvailableStudents = eligibleStudents.filter(s => !enrolledIds.includes(String(s.id)));
     window.tempSelectedStudents = [];
     window.tempCompLimit = comp.max_participants > 0 ? comp.max_participants : 999;
     window.tempSlotsLeft = window.tempCompLimit - enrolledIds.length;
@@ -2182,7 +2286,7 @@ window.openQuickAddModal = function(compId) {
         
         setLoading('modalSaveBtn', true);
         try {
-            const existingGroup = globalAssignments.filter(a => a.competition_id === window.tempCompId);
+            const existingGroup = globalAssignments.filter(a => String(a.competition_id) === String(window.tempCompId));
             const isGroup = window.tempIsGroup;
             const groupId = isGroup ? (existingGroup.length > 0 ? existingGroup[0].group_id : `GRP_${window.tempCompId}_${myTeamId}_${Date.now()}`) : null;
             
@@ -2196,7 +2300,8 @@ window.openQuickAddModal = function(compId) {
                 is_leader: isGroup && !hasExistingLeader && index === 0
             }));
 
-            const { data, error } = await supabaseClient.from('participant_competitions').insert(payload).select();
+            const withFestPayload = window.festosWithFest ? window.festosWithFest(payload) : payload;
+            const { data, error } = await supabaseClient.from('participant_competitions').insert(withFestPayload).select();
             if (error) throw error;
             
             // Instantly update Local UI State (No 2-second reload)

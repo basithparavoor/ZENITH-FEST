@@ -518,17 +518,17 @@ async function loadCheckedInList(compId) {
         pending = pending.filter(d => d.is_leader); 
     }
     
-    pending = pending.sort((a, b) => a.participants.name.localeCompare(b.participants.name));
+    pending = pending.sort((a, b) => (a.participants?.name || '').localeCompare(b.participants?.name || ''));
 
     let html = '';
 
     if (checkedIn.length > 0) {
         html += checkedIn.map(reg => {
-            let displayName = reg.participants.name;
+            let displayName = reg.participants?.name || 'Participant';
             if (comp && comp.is_group && reg.is_leader) displayName += " & PARTY";
             
             // Extract team name with a fallback
-            let teamName = reg.participants.teams?.name || 'IND'; 
+            let teamName = reg.participants?.teams?.name || 'IND'; 
             
             return `
             <div class="participant-item" style="border-left: 4px solid var(--success);">
@@ -556,17 +556,17 @@ async function loadCheckedInList(compId) {
         `;
         
         html += pending.map(reg => {
-            let displayName = reg.participants.name;
+            let displayName = reg.participants?.name || 'Participant';
             if (comp && comp.is_group && reg.is_leader) displayName += " & PARTY";
 
             // Extract team name with a fallback
-            let teamName = reg.participants.teams?.name || 'IND';
+            let teamName = reg.participants?.teams?.name || 'IND';
 
             return `
             <div class="participant-item" style="opacity: 0.75; background: var(--bg-main); border-left: 4px solid var(--warning);">
                 <div>
                     <span style="font-weight: 600; font-size: 0.95rem; color: var(--text-main); display: block;">${displayName}</span>
-                    <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace; font-weight: 600; margin-top: 0.25rem; display: block;">${reg.participants.unique_id} • ${teamName}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace; font-weight: 600; margin-top: 0.25rem; display: block;">${reg.participants?.unique_id || 'N/A'} • ${teamName}</span>
                 </div>
                 <span style="font-size: 0.75rem; font-weight: 800; color: var(--warning); background: var(--warning-light); padding: 0.35rem 0.75rem; border-radius: 6px;">ABSENT</span>
             </div>
