@@ -2990,8 +2990,28 @@ function openCreateBroadcastModal() {
 function handleBroadcastFileSelect(input) {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
-    if (file.size > 2 * 1024 * 1024) {
-        showToast('Attachment exceeds 2MB limit. Please select a document or image under 2MB.', 'warning');
+
+    // If an APK file is selected (which is ~13-14MB), link it directly to the server APK route
+    if (file.name.toLowerCase().endsWith('.apk')) {
+        const apkUrlInput = document.getElementById('bcast-apk-url');
+        if (apkUrlInput) apkUrlInput.value = 'VIBRANIUM.apk';
+
+        const apkTypeSelect = document.getElementById('bcast-type');
+        if (apkTypeSelect && apkTypeSelect.value !== 'apk') {
+            apkTypeSelect.value = 'apk';
+            toggleBroadcastTypeFields('apk');
+        }
+
+        const fileNameEl = document.getElementById('bcast-file-name');
+        const clearBtn = document.getElementById('bcast-clear-file-btn');
+        if (fileNameEl) fileNameEl.innerText = `${file.name} (Direct Server Link: VIBRANIUM.apk)`;
+        if (clearBtn) clearBtn.style.display = 'inline-block';
+        showToast('APK selected! Linked directly to high-speed server package (VIBRANIUM.apk).', 'success');
+        return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+        showToast('Attachment exceeds 10MB limit. Please select a document or image under 10MB.', 'warning');
         input.value = '';
         return;
     }
