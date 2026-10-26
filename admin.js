@@ -1,4 +1,27 @@
 
+// Universal 2-Line Split Canvas Text Renderer
+function renderCanvasText(ctx, text, field) {
+    if (!text) return;
+    const str = String(text).trim();
+    if (!field || !field.splitTwoLines || !str.includes(' ')) {
+        ctx.fillText(str, field.x, field.y);
+        return;
+    }
+    const words = str.split(/\s+/);
+    if (words.length <= 1) {
+        ctx.fillText(str, field.x, field.y);
+        return;
+    }
+    const splitCount = Math.max(1, Math.min(words.length - 1, parseInt(field.splitWordsFirstLine) || 1));
+    const line1 = words.slice(0, splitCount).join(' ');
+    const line2 = words.slice(splitCount).join(' ');
+    const gap = (field.lineGap !== undefined && field.lineGap !== null) ? Number(field.lineGap) : Math.round((field.size || 40) * 1.15);
+    ctx.fillText(line1, field.x, field.y);
+    ctx.fillText(line2, field.x, field.y + gap);
+}
+window.renderCanvasText = renderCanvasText;
+
+
 // =========================================================================
 // STUDENT CATEGORY COMPETITION LIMIT SYSTEM
 // =========================================================================
@@ -1900,13 +1923,17 @@ async function exportParticipantsCSV() {
             "DOB": p.dob || 'N/A'
         }));
 
-        const blob = new Blob([Papa.unparse(flatData)], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a"); 
-        link.href = URL.createObjectURL(blob); 
-        link.setAttribute("download", `Fest_Participants_Data.csv`);
-        document.body.appendChild(link); 
-        link.click(); 
-        document.body.removeChild(link);
+        if (typeof festosExportCSV === 'function') {
+            festosExportCSV('Fest_Participants_Data.csv', flatData, 'Participants Master Register');
+        } else {
+            const blob = new Blob([Papa.unparse(flatData)], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a"); 
+            link.href = URL.createObjectURL(blob); 
+            link.setAttribute("download", `Fest_Participants_Data.csv`);
+            document.body.appendChild(link); 
+            link.click(); 
+            document.body.removeChild(link);
+        }
         showToast('CSV Exported Successfully!');
     } catch (e) { showToast(e.message, 'error'); }
 }
@@ -2612,13 +2639,17 @@ async function downloadCSV(tableName) {
         const { data, error } = await supabaseClient.from(tableName).select('*');
         if (error) throw error;
         
-        const blob = new Blob([Papa.unparse(data)], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a"); 
-        link.href = URL.createObjectURL(blob); 
-        link.setAttribute("download", `${tableName}_export.csv`);
-        document.body.appendChild(link); 
-        link.click(); 
-        document.body.removeChild(link);
+        if (typeof festosExportCSV === 'function') {
+            festosExportCSV(`${tableName}_export.csv`, data, `Database Export - ${tableName.toUpperCase()}`);
+        } else {
+            const blob = new Blob([Papa.unparse(data)], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a"); 
+            link.href = URL.createObjectURL(blob); 
+            link.setAttribute("download", `${tableName}_export.csv`);
+            document.body.appendChild(link); 
+            link.click(); 
+            document.body.removeChild(link);
+        }
         showToast('Export successful!');
     } catch(e) { showToast("Export error: " + e.message, 'error'); }
 }
@@ -3774,13 +3805,17 @@ async function exportAssignmentsCSV() {
             "COMPETITION": row.competitions?.name || 'N/A'
         }));
 
-        const blob = new Blob([Papa.unparse(flatData)], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a"); 
-        link.href = URL.createObjectURL(blob); 
-        link.setAttribute("download", `Fest_Assignments_Data.csv`);
-        document.body.appendChild(link); 
-        link.click(); 
-        document.body.removeChild(link);
+        if (typeof festosExportCSV === 'function') {
+            festosExportCSV('Fest_Assignments_Data.csv', flatData, 'Participant Stage Assignments Register');
+        } else {
+            const blob = new Blob([Papa.unparse(flatData)], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a"); 
+            link.href = URL.createObjectURL(blob); 
+            link.setAttribute("download", `Fest_Assignments_Data.csv`);
+            document.body.appendChild(link); 
+            link.click(); 
+            document.body.removeChild(link);
+        }
         showToast('CSV Exported Successfully!');
     } catch (e) { showToast(e.message, 'error'); }
 }
@@ -3973,7 +4008,7 @@ async function generateParticipantIDCanvas(participant, template) {
             ctx.textAlign = field.align;
             ctx.fillStyle = field.color;
             ctx.font = `${field.weight || 'bold'} ${field.size}px ${field.font}`;
-            ctx.fillText(textToDraw, field.x, field.y);
+            renderCanvasText(ctx, textToDraw, field);
         }
     }
 
@@ -4830,6 +4865,27 @@ function renderPropertiesPanel() {
                 <div style="grid-column: span 2;"><label style="font-size: 0.75rem; font-weight:700;">FONT FAMILY</label><select onchange="updateActiveProperty('font', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}>${fonts}</select></div>
                 <div><label style="font-size: 0.75rem; font-weight:700;">WEIGHT</label><select onchange="updateActiveProperty('weight', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}><option value="normal" ${data.weight==='normal'?'selected':''}>Normal</option><option value="bold" ${data.weight==='bold'?'selected':''}>Bold</option><option value="900" ${data.weight==='900'?'selected':''}>Black</option></select></div>
                 <div><label style="font-size: 0.75rem; font-weight:700;">ALIGN</label><select onchange="updateActiveProperty('align', this.value)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;" ${data.locked ? 'disabled' : ''}><option value="left" ${data.align==='left'?'selected':''}>Left</option><option value="center" ${data.align==='center'?'selected':''}>Center</option><option value="right" ${data.align==='right'?'selected':''}>Right</option></select></div>
+                <!-- 2-Line Text Split Control -->
+                <div style="grid-column: span 2; background: rgba(255,255,255,0.05); padding: 0.65rem; border-radius: 8px; border: 1px solid var(--border); margin-top: 0.25rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <label style="font-size: 0.75rem; font-weight:700; margin: 0; cursor: pointer; color: white; display: flex; align-items: center; gap: 0.4rem;">
+                            <i class="fa-solid fa-arrows-split-up-and-left" style="color: var(--primary);"></i> SPLIT ACROSS 2 LINES
+                        </label>
+                        <input type="checkbox" id="prop-split-2lines" ${data.splitTwoLines ? 'checked' : ''} onchange="updateActiveProperty('splitTwoLines', this.checked); renderPropertiesPanel(); drawStudioCanvas();" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary);">
+                    </div>
+                    ${data.splitTwoLines ? `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.1);">
+                            <div>
+                                <label style="font-size: 0.7rem; font-weight: 700; color: #94A3B8;">WORDS ON 1ST LINE</label>
+                                <input type="number" min="1" max="10" value="${data.splitWordsFirstLine || 1}" oninput="updateActiveProperty('splitWordsFirstLine', parseInt(this.value) || 1); drawStudioCanvas();" style="width: 100%; padding: 0.4rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.85rem;" placeholder="1">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.7rem; font-weight: 700; color: #94A3B8;">LINE GAP (PX)</label>
+                                <input type="number" min="10" max="300" value="${data.lineGap !== undefined ? data.lineGap : Math.round((data.size || 40) * 1.15)}" oninput="updateActiveProperty('lineGap', parseInt(this.value) || Math.round((data.size || 40) * 1.15)); drawStudioCanvas();" style="width: 100%; padding: 0.4rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.85rem;" placeholder="${Math.round((data.size || 40) * 1.15)}">
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
                 ${deleteBtn}
             </div>
         `;
@@ -5100,10 +5156,10 @@ function drawStudioCanvas() {
             
             if (studioActiveField === key) {
                 ctx.shadowColor = 'rgba(79, 70, 229, 0.8)'; ctx.shadowBlur = 15;
-                ctx.fillText(mockText, data.x, data.y);
+                renderCanvasText(ctx, mockText, data);
                 ctx.shadowBlur = 0; 
             } else {
-                ctx.fillText(mockText, data.x, data.y);
+                renderCanvasText(ctx, mockText, data);
             }
         }
     }
@@ -7335,7 +7391,7 @@ async function bulkDownloadCertificates(compId) {
                     ctx.textAlign = fieldConfig.align || 'left'; 
                     ctx.fillStyle = fieldConfig.color || '#000000';
                     ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
-                    ctx.fillText(text, fieldConfig.x, fieldConfig.y);
+                    renderCanvasText(ctx, text, fieldConfig);
                 }
             }
 
@@ -10611,6 +10667,20 @@ window.switchBuilderTab = function(tabId, element) {
         const fid = getActiveFestId();
         if (deskFrame) deskFrame.src = 'results.html?preview=true&fest=' + fid + '&r=' + Date.now();
         if (mobFrame) mobFrame.src = 'results.html?preview=true&fest=' + fid + '&r=' + Date.now();
+        
+        // Dynamically update URL displays
+        let festDomain = '';
+        if (window.availableFests) {
+            const f = window.availableFests.find(x => x.id === fid);
+            if (f) festDomain = f.domain || (f.slug + '.festos.clubad.space');
+        }
+        if (!festDomain && websiteConfig.domain) festDomain = websiteConfig.domain + '.festos.clubad.space';
+        if (!festDomain) festDomain = fid.replace('fest_', '') + '.festos.clubad.space';
+        
+        const deskUrlEl = document.getElementById('overview-url-display-desk');
+        const footUrlEl = document.getElementById('overview-url-display-footer');
+        if (deskUrlEl) deskUrlEl.innerText = festDomain;
+        if (footUrlEl) footUrlEl.innerText = festDomain;
     }
 };
 
@@ -12134,3 +12204,30 @@ if (typeof document !== 'undefined') {
         }, 800);
     });
 }
+
+
+window.syncWebsiteWithFestivalIdentity = async function() {
+    const fid = getActiveFestId();
+    let festName = 'Festival';
+    let festLogo = '';
+    if (window.availableFests) {
+        const f = window.availableFests.find(x => x.id === fid);
+        if (f) { festName = f.name || 'Festival'; festLogo = f.logo || ''; }
+    }
+    if (festName === 'Festival' && typeof festosBranding !== 'undefined' && festosBranding.getDetails) {
+        const d = festosBranding.getDetails(fid);
+        if (d && d.name) festName = d.name;
+    }
+
+    if (document.getElementById('pg-hero-title')) {
+        document.getElementById('pg-hero-title').value = 'Welcome to ' + festName;
+    }
+    if (document.getElementById('pg-about-title')) {
+        document.getElementById('pg-about-title').value = 'The ' + festName + ' Championship';
+    }
+    if (document.getElementById('pg-content-desc')) {
+        document.getElementById('pg-content-desc').value = festName + ' powers competitive events across multiple stages. Built for speed, transparency, and accuracy in live festival scorekeeping.';
+    }
+
+    showToast('Auto-synced homepage content with ' + festName + ' branding!', 'success');
+};

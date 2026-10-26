@@ -70,9 +70,10 @@ body { display: flex; height: 100vh; background-color: var(--bg-main); color: va
 ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
-input, select, textarea, table td:not(.checkbox-cell) { text-transform: uppercase !important; }
+input, select, textarea { text-transform: none !important; }
+        table td:not(.checkbox-cell) { text-transform: uppercase; }
 input[type="password"], input[type="file"], .file-input, textarea[style*="text-transform: none"] { text-transform: none !important; }
-::placeholder { text-transform: uppercase; opacity: 0.5; font-size: 0.85rem; font-weight: 500; }
+::placeholder { text-transform: none; opacity: 0.5; font-size: 0.85rem; font-weight: 500; }
 
 .sidebar { width: 280px; background: var(--bg-surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 2rem 1.25rem; z-index: 40; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); overflow-y: auto; }
 
@@ -1423,6 +1424,7 @@ tr:hover td { background: var(--bg-main); }
 
 
    </style>
+    <link rel="stylesheet" href="premium-forms.css">
 </head>
 <body>
 
@@ -1598,7 +1600,7 @@ tr:hover td { background: var(--bg-main); }
                         <span class="mockup-dot" style="background: #F59E0B;"></span>
                         <span class="mockup-dot" style="background: #10B981;"></span>
                     </div>
-                    <div class="mockup-url-bar" id="overview-url-display-desk">zenith.festos.clubad.space</div>
+                    <div class="mockup-url-bar" id="overview-url-display-desk">live.festos.clubad.space</div>
                 </div>
                 <!-- Points to your live results page -->
                 <iframe id="preview-desktop-frame" src="results.html?preview=true" class="mockup-iframe"></iframe>
@@ -1633,7 +1635,7 @@ tr:hover td { background: var(--bg-main); }
                     <span style="background: #DCFCE7; color: #16A34A; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 50px; font-weight: 700;">Live</span>
                 </div>
                 <div style="color: var(--text-main); font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem;">
-                    <i class="fa-solid fa-globe" style="color: var(--text-muted);"></i> <span id="overview-url-display-footer">zenith.festos.clubad.space</span>
+                    <i class="fa-solid fa-globe" style="color: var(--text-muted);"></i> <span id="overview-url-display-footer">live.festos.clubad.space</span>
                 </div>
             </div>
             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
@@ -1699,7 +1701,7 @@ tr:hover td { background: var(--bg-main); }
                 
                 <div class="form-group">
                     <label>Your Custom Domain</label>
-                    <input type="text" id="web-custom-domain" placeholder="e.g. live.zenithfest.org" style="text-transform: lowercase; width: 100%;">
+                    <input type="text" id="web-custom-domain" placeholder="e.g. live.yourfestival.org" style="text-transform: lowercase; width: 100%;">
                 </div>
                 <div style="background: var(--bg-main); padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.82rem; color: var(--text-muted);">
                     <strong style="color: var(--text-main); display: block; margin-bottom: 0.25rem;"><i class="fa-solid fa-circle-info" style="color: var(--primary);"></i> DNS Setup Instruction:</strong>
@@ -1711,12 +1713,17 @@ tr:hover td { background: var(--bg-main); }
 
     <!-- PANE: PAGES MANAGEMENT -->
     <div id="builder-pane-pages" class="builder-content-pane">
-        <div class="builder-pane-header">
+        <div class="builder-pane-header" style="flex-wrap: wrap; gap: 0.75rem;">
             <div>
                 <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-solid fa-house" style="font-size: 1rem; color: var(--primary);"></i> Home Page Customization</h3>
                 <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Main landing page content, dynamic counters, hero text, about section, and contact channels.</p>
             </div>
-            <button class="btn btn-primary" style="width: auto;" onclick="savePageConfig()"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button type="button" class="btn btn-outline" onclick="syncWebsiteWithFestivalIdentity()" style="font-size: 0.85rem; padding: 0.5rem 1rem; border-radius: var(--radius-md);">
+                    <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--primary);"></i> Auto-Sync From Festival
+                </button>
+                <button class="btn btn-primary" style="width: auto;" onclick="savePageConfig()"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+            </div>
         </div>
         <div class="builder-pane-body">
             <!-- Homepage Counts -->
@@ -1733,7 +1740,7 @@ tr:hover td { background: var(--bg-main); }
             <!-- Hero Section -->
             <div class="builder-card" style="background: white;">
                 <h4 style="margin-bottom: 1rem; font-weight: 700; font-size: 0.9rem;">Hero Section Text</h4>
-                <div class="form-group"><label>Hero Main Title</label><input type="text" id="pg-hero-title" value="Welcome to Zenith Fest" style="width: 100%;"></div>
+                <div class="form-group"><label>Hero Main Title</label><input type="text" id="pg-hero-title" placeholder="e.g. Welcome to the Festival" style="width: 100%;"></div>
                 <div class="form-group"><label>Hero Subtitle / Description</label><textarea id="pg-hero-sub" rows="2" style="width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.75rem; outline: none; font-size: 0.9rem; text-transform: none !important;">Real-time scores, verified stage results, and championship standings live as they happen.</textarea></div>
             </div>
 
@@ -1745,7 +1752,7 @@ tr:hover td { background: var(--bg-main); }
                     <div class="form-group"><label>About subtitle</label><input type="text" id="pg-about-sub" value="Celebrating Arts, Culture & Innovation"></div>
                 </div>
                 <div class="form-group"><label>Content section title</label><input type="text" id="pg-content-title" value="Live Festival Stage Architecture"></div>
-                <div class="form-group"><label>Content description</label><textarea id="pg-content-desc" rows="3" style="width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.75rem; outline: none; text-transform: none !important;">Zenith Fest powers hundreds of competitive events across multiple stages. Built for speed, transparency, and accuracy in live festival scorekeeping.</textarea></div>
+                <div class="form-group"><label>Content description</label><textarea id="pg-content-desc" rows="3" style="width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.75rem; outline: none; text-transform: none !important;">Official festival event management and live results scoring platform.</textarea></div>
             </div>
 
             <!-- Contact -->

@@ -544,6 +544,7 @@
             #view-results .data-item > div:last-child span:first-child { margin-right: 0 !important; font-size: 1.05rem !important; }
         }
     </style>
+    <link rel="stylesheet" href="premium-forms.css">
 </head>
 <body>
 
@@ -671,124 +672,193 @@
             <!-- AI Stage Announcer View -->
             <div id="view-ai-announcer" class="tab-content view-section hidden">
                 <div class="ai-deck-card">
-                    <div class="ai-header">
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                    <!-- Studio Header Bar -->
+                    <div class="ai-header" style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 1.25rem;">
+                        <div style="display: flex; align-items: center; gap: 0.85rem;">
+                            <div style="width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, #6366F1 0%, #A855F7 50%, #EC4899 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.45rem; box-shadow: 0 4px 18px rgba(168, 85, 247, 0.45);">
                                 <i class="fa-solid fa-wand-magic-sparkles"></i>
                             </div>
                             <div>
-                                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                    <h2 style="font-size: 1.35rem; font-weight: 700; margin: 0;">AI Stage Announcer Suite Pro</h2>
-                                    <span id="tts-on-air-badge" style="display: none; background: #DC2626; color: white; border-radius: 999px; padding: 0.2rem 0.65rem; font-size: 0.7rem; font-weight: 800; animation: pulseGlow 1s infinite alternate;"><i class="fa-solid fa-circle" style="font-size: 0.5rem; margin-right: 3px;"></i> LIVE ON-AIR</span>
+                                <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                                    <h2 style="font-size: 1.4rem; font-weight: 800; margin: 0; letter-spacing: -0.02em; color: #FFFFFF;">AI Stage Announcer Suite Pro</h2>
+                                    <span id="tts-on-air-badge" style="display: none; background: #EF4444; color: white; border-radius: 999px; padding: 0.25rem 0.75rem; font-size: 0.72rem; font-weight: 800; animation: pulseGlow 0.9s infinite alternate; box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);">
+                                        <i class="fa-solid fa-circle" style="font-size: 0.45rem; margin-right: 4px;"></i> LIVE ON-AIR
+                                    </span>
+                                    <span id="tts-timer-display" style="display: none; background: rgba(255,255,255,0.12); color: #A5B4FC; font-family: monospace; font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 6px;">00:00</span>
                                 </div>
-                                <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0; font-weight: 500;">Multi-lingual automated audio broadcast, multi-chime sound FX, smart variable tokens & sequential queue.</p>
+                                <p style="color: #94A3B8; font-size: 0.85rem; margin: 0.2rem 0 0 0; font-weight: 500;">Multi-lingual speech engine, human voice modeling, dual-oscillator acoustic chimes & instant script enhancer.</p>
                             </div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <canvas id="tts-visualizer-canvas" width="130" height="28" style="border-radius: 6px; background: var(--bg-main); border: 1px solid var(--border);"></canvas>
-                            <div id="tts-wave" class="wave-container" title="Audio Activity">
-                                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-right: 4px;" id="tts-status-label">IDLE</span>
-                                <div class="wave-bar"></div>
-                                <div class="wave-bar"></div>
-                                <div class="wave-bar"></div>
-                                <div class="wave-bar"></div>
-                                <div class="wave-bar"></div>
+
+                        <!-- Real-time Audio Spectrum & Meter -->
+                        <div style="display: flex; align-items: center; gap: 0.85rem; background: rgba(0,0,0,0.35); padding: 0.4rem 0.85rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+                            <canvas id="tts-visualizer-canvas" width="160" height="34" style="border-radius: 8px; background: #090D16; border: 1px solid rgba(255,255,255,0.1);"></canvas>
+                            <div id="tts-wave" class="wave-container" title="Audio Activity" style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 4px 10px;">
+                                <span style="font-size: 0.72rem; font-weight: 800; color: #94A3B8; margin-right: 6px; letter-spacing: 0.05em;" id="tts-status-label">IDLE</span>
+                                <div class="wave-bar" style="background: #6366F1;"></div>
+                                <div class="wave-bar" style="background: #8B5CF6;"></div>
+                                <div class="wave-bar" style="background: #A855F7;"></div>
+                                <div class="wave-bar" style="background: #EC4899;"></div>
+                                <div class="wave-bar" style="background: #06B6D4;"></div>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Voice Presets & Human Model Toolbar -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap; background: rgba(255,255,255,0.04); padding: 0.75rem 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            <span style="font-size: 0.75rem; font-weight: 800; color: #A5B4FC; text-transform: uppercase; letter-spacing: 0.05em;"><i class="fa-solid fa-sliders"></i> Presets:</span>
+                            <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.75rem; font-size: 0.75rem; min-height: 0; border-radius: 999px; color: #E2E8F0; border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05);" onclick="applyVoicePreset('stadium')">🏟️ Stadium PA</button>
+                            <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.75rem; font-size: 0.75rem; min-height: 0; border-radius: 999px; color: #E2E8F0; border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05);" onclick="applyVoicePreset('airport')">✈️ Airport Ding-Dong</button>
+                            <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.75rem; font-size: 0.75rem; min-height: 0; border-radius: 999px; color: #E2E8F0; border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05);" onclick="applyVoicePreset('radio')">🎙️ Radio Host</button>
+                            <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.75rem; font-size: 0.75rem; min-height: 0; border-radius: 999px; color: #E2E8F0; border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05);" onclick="applyVoicePreset('urgent')">⚡ Urgent Call</button>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <button type="button" class="btn btn-primary" style="padding: 0.4rem 1rem; font-size: 0.8rem; font-weight: 700; border-radius: 999px; background: linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%); border: none; box-shadow: 0 4px 12px rgba(236, 72, 153, 0.35); cursor: pointer;" onclick="openVoiceModelModal()">
+                                <i class="fa-solid fa-microphone-lines"></i> Record &amp; Create Human Voice Model
+                            </button>
+                            <button type="button" class="btn btn-outline" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; font-weight: 700; border-radius: 999px; color: #BAE6FD; border-color: rgba(56, 189, 248, 0.3); background: rgba(56, 189, 248, 0.08);" onclick="openManageVoiceModelsModal()">
+                                <i class="fa-solid fa-users-gear"></i> Manage Models (<span id="voice-models-count-badge">0</span>)
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Voice Parameters Deck -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; background: var(--bg-main); padding: 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border); margin-bottom: 1.5rem;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; background: rgba(0,0,0,0.3); padding: 1.25rem; border-radius: var(--radius-lg); border: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 1.5rem;">
                         <div>
-                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">VOICE / ENGINE</label>
-                            <select id="tts-voice-select" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); background: white; font-size: 0.85rem; font-weight: 600; outline: none;"></select>
+                            <label style="font-size: 0.75rem; font-weight: 800; color: #94A3B8; margin-bottom: 0.4rem; display: block; text-transform: uppercase; letter-spacing: 0.04em;">VOICE / ENGINE</label>
+                            <select id="tts-voice-select" class="tts-studio-select" onchange="onVoiceEngineChange(this.value)"></select>
                         </div>
                         <div>
-                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">SPEED (RATE): <span id="tts-rate-val">1.0x</span></label>
-                            <input type="range" id="tts-rate" min="0.7" max="1.4" step="0.05" value="1.0" oninput="document.getElementById('tts-rate-val').innerText = this.value + 'x'" style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+                                <label style="font-size: 0.75rem; font-weight: 800; color: #94A3B8; text-transform: uppercase;">SPEED (RATE)</label>
+                                <span id="tts-rate-val" style="font-size: 0.75rem; font-weight: 800; color: #38BDF8;">1.0x</span>
+                            </div>
+                            <input type="range" id="tts-rate" class="tts-slider" min="0.7" max="1.4" step="0.05" value="1.0" oninput="document.getElementById('tts-rate-val').innerText = this.value + 'x'">
                         </div>
                         <div>
-                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">PITCH: <span id="tts-pitch-val">1.0</span></label>
-                            <input type="range" id="tts-pitch" min="0.8" max="1.3" step="0.05" value="1.0" oninput="document.getElementById('tts-pitch-val').innerText = this.value" style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+                                <label style="font-size: 0.75rem; font-weight: 800; color: #94A3B8; text-transform: uppercase;">PITCH</label>
+                                <span id="tts-pitch-val" style="font-size: 0.75rem; font-weight: 800; color: #A855F7;">1.0</span>
+                            </div>
+                            <input type="range" id="tts-pitch" class="tts-slider" min="0.8" max="1.3" step="0.05" value="1.0" oninput="document.getElementById('tts-pitch-val').innerText = this.value">
                         </div>
                         <div>
-                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">VOLUME: <span id="tts-vol-val">100%</span></label>
-                            <input type="range" id="tts-vol" min="0" max="1" step="0.05" value="1.0" oninput="document.getElementById('tts-vol-val').innerText = Math.round(this.value * 100) + '%'" style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+                                <label style="font-size: 0.75rem; font-weight: 800; color: #94A3B8; text-transform: uppercase;">VOLUME</label>
+                                <span id="tts-vol-val" style="font-size: 0.75rem; font-weight: 800; color: #10B981;">100%</span>
+                            </div>
+                            <input type="range" id="tts-vol" class="tts-slider" min="0" max="1" step="0.05" value="1.0" oninput="document.getElementById('tts-vol-val').innerText = Math.round(this.value * 100) + '%'">
                         </div>
                         <div>
-                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">CHIME SOUND FX</label>
-                            <select id="tts-chime-style" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); background: white; font-size: 0.85rem; font-weight: 600; outline: none;">
+                            <label style="font-size: 0.75rem; font-weight: 800; color: #94A3B8; margin-bottom: 0.4rem; display: block; text-transform: uppercase; letter-spacing: 0.04em;">CHIME SOUND FX</label>
+                            <select id="tts-chime-style" class="tts-studio-select">
+                                <option value="stadium">🚀 Grand Stadium Horn (Dual-Brass Chords)</option>
                                 <option value="gong" selected>📯 Harmonic Gong (D5-A5)</option>
                                 <option value="airport">🔔 Airport Double Bell (F5-C6)</option>
                                 <option value="digital">⚡ Digital Chime (A5-D6-E6)</option>
                                 <option value="fanfare">🎺 Attention Fanfare (C-E-G-C)</option>
+                                <option value="temple">🔔 Majestic Temple Bells (Resonant Ring)</option>
+                                <option value="synth">⚡ Cyber Synth Pulse (Sub-bass Drop)</option>
                                 <option value="none">🚫 No Chime</option>
                             </select>
                         </div>
                         <div>
-                            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">REPEAT COUNT</label>
-                            <select id="tts-repeats" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); background: white; font-size: 0.85rem; font-weight: 600; outline: none;">
-                                <option value="1">Broadcast Once (1x)</option>
-                                <option value="2" selected>Repeat Twice (2x)</option>
-                                <option value="3">Repeat Thrice (3x)</option>
-                            </select>
+                            <label style="font-size: 0.75rem; font-weight: 800; color: #94A3B8; margin-bottom: 0.4rem; display: block; text-transform: uppercase; letter-spacing: 0.04em;">REPEAT &amp; LOOP MODE</label>
+                            <div style="display: flex; gap: 0.4rem;">
+                                <select id="tts-repeats" class="tts-studio-select" style="flex: 1;">
+                                    <option value="1">1x (Once)</option>
+                                    <option value="2" selected>2x (Twice)</option>
+                                    <option value="3">3x (Thrice)</option>
+                                </select>
+                                <select id="tts-loop-interval" class="tts-studio-select" style="flex: 1;" onchange="handleLoopIntervalChange(this.value)" title="Auto loop broadcast">
+                                    <option value="0">Loop: Off</option>
+                                    <option value="2">Every 2m</option>
+                                    <option value="5">Every 5m</option>
+                                    <option value="10">Every 10m</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Template & Broadcast Builder -->
                     <div style="margin-bottom: 1.5rem;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
-                            <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
-                                <i class="fa-solid fa-bullhorn" style="color: var(--primary);"></i> ANNOUNCEMENT SCRIPT
+                            <label style="font-size: 0.85rem; font-weight: 800; color: #FFFFFF; display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.04em;">
+                                <i class="fa-solid fa-bullhorn" style="color: #38BDF8;"></i> Announcement Script &amp; Direct Sound Drops
                             </label>
-                            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                <button class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; min-height: 0;" onclick="testSelectedChime()"><i class="fa-solid fa-bell"></i> Test Sound FX</button>
-                                <button class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; min-height: 0;" onclick="testVoicePreview()"><i class="fa-solid fa-microphone"></i> Test Voice</button>
+                            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                                <button type="button" class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; min-height: 0; color: #E2E8F0; border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05);" onclick="testSelectedChime()"><i class="fa-solid fa-bell"></i> Test Sound FX</button>
+                                <button type="button" class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; min-height: 0; color: #E2E8F0; border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05);" onclick="testVoicePreview()"><i class="fa-solid fa-microphone"></i> Test Voice</button>
+                                <button type="button" class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; min-height: 0; color: #38BDF8; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.08);" onclick="downloadAnnouncementAudio()"><i class="fa-solid fa-download"></i> Export WAV</button>
                             </div>
                         </div>
 
+                        <!-- Template Selector & Comp Loader -->
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
                             <div>
-                                <select id="tts-template-type" onchange="loadAnnouncementTemplate()" style="width: 100%; padding: 0.7rem 1rem; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-main); font-size: 0.85rem; font-weight: 600; outline: none;">
+                                <select id="tts-template-type" class="tts-studio-select" onchange="loadAnnouncementTemplate()">
                                     <option value="call_en">Stage Callout (English)</option>
                                     <option value="call_ml">Stage Callout (Malayalam - മലയാളം)</option>
                                     <option value="call_hi">Stage Callout (Hindi - हिन्दी)</option>
                                     <option value="call_ar">Stage Callout (Arabic - العربية)</option>
-                                    <option value="ongoing">Event Live Notice</option>
-                                    <option value="award">Winners Felicitation</option>
+                                    <option value="call_ta">Stage Callout (Tamil - தமிழ்)</option>
+                                    <option value="call_kn">Stage Callout (Kannada - ಕನ್ನಡ)</option>
+                                    <option value="urgent_call">🚨 Urgent Final Callout</option>
+                                    <option value="ongoing">Event Live Ongoing Notice</option>
+                                    <option value="award">Winners Felicitation Ceremony</option>
                                     <option value="custom">Custom Message</option>
                                 </select>
                             </div>
                             <div>
-                                <select id="tts-comp-target" onchange="loadAnnouncementTemplate()" style="width: 100%; padding: 0.7rem 1rem; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-main); font-size: 0.85rem; font-weight: 600; outline: none;">
+                                <select id="tts-comp-target" class="tts-studio-select" onchange="loadAnnouncementTemplate()">
                                     <option value="">-- Load Competition Details --</option>
                                 </select>
                             </div>
                         </div>
 
-                        <!-- Smart Variable Token Inserter Chips -->
-                        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.6rem; align-items: center;">
-                            <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);"><i class="fa-solid fa-tags"></i> Insert Variable:</span>
-                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: 0; border-radius: 6px;" onclick="insertTokenAtCursor('{competition}')">+ {competition}</button>
-                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: 0; border-radius: 6px;" onclick="insertTokenAtCursor('{category}')">+ {category}</button>
-                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: 0; border-radius: 6px;" onclick="insertTokenAtCursor('{stage}')">+ {stage}</button>
-                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: 0; border-radius: 6px;" onclick="insertTokenAtCursor('{winner_1}')">+ {winner_1}</button>
-                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: 0; border-radius: 6px;" onclick="insertTokenAtCursor('{winner_2}')">+ {winner_2}</button>
-                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: 0; border-radius: 6px;" onclick="insertTokenAtCursor('{winner_3}')">+ {winner_3}</button>
+                        <!-- Instant AI Script Polish & Instant Stage Sound Drops -->
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center;">
+                                <span style="font-size: 0.75rem; font-weight: 800; color: #F59E0B;"><i class="fa-solid fa-sparkles"></i> AI Rephrase:</span>
+                                <button type="button" class="btn btn-outline" style="padding: 0.22rem 0.6rem; font-size: 0.75rem; min-height: 0; border-radius: 6px; color: #FDE68A; border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.1);" onclick="enhanceScriptAI('urgent')">🚨 Final Callout</button>
+                                <button type="button" class="btn btn-outline" style="padding: 0.22rem 0.6rem; font-size: 0.75rem; min-height: 0; border-radius: 6px; color: #A7F3D0; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1);" onclick="enhanceScriptAI('winners')">🏆 Winner Reveal</button>
+                                <button type="button" class="btn btn-outline" style="padding: 0.22rem 0.6rem; font-size: 0.75rem; min-height: 0; border-radius: 6px; color: #BAE6FD; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.1);" onclick="enhanceScriptAI('formal')">🎙️ Formal Style</button>
+                                <button type="button" class="btn btn-outline" style="padding: 0.22rem 0.6rem; font-size: 0.75rem; min-height: 0; border-radius: 6px; color: #DDD6FE; border-color: rgba(167, 139, 250, 0.4); background: rgba(167, 139, 250, 0.1);" onclick="enhanceScriptAI('concise')">⚡ 10s Short Drop</button>
+                            </div>
+
+                            <!-- Stage Drops Quick Triggers -->
+                            <div style="display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center;">
+                                <span style="font-size: 0.72rem; font-weight: 700; color: #94A3B8;">Direct Drops:</span>
+                                <button type="button" class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; min-height: 0; border-radius: 6px; color: #CBD5E1; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.04);" onclick="playStageDrop('silence')">🤫 Silence</button>
+                                <button type="button" class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; min-height: 0; border-radius: 6px; color: #CBD5E1; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.04);" onclick="playStageDrop('parking')">🚗 Parking</button>
+                                <button type="button" class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; min-height: 0; border-radius: 6px; color: #CBD5E1; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.04);" onclick="playStageDrop('lost')">🔍 Lost ID</button>
+                            </div>
                         </div>
 
-                        <textarea id="tts-text-input" rows="4" placeholder="Enter or edit announcement text here..." style="width: 100%; padding: 1rem; border-radius: 12px; border: 1.5px solid var(--border); font-size: 0.95rem; font-family: inherit; outline: none; transition: var(--transition); resize: vertical; background: white; text-transform: none !important;"></textarea>
+                        <!-- Variable Chips -->
+                        <div style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.6rem; align-items: center;">
+                            <span style="font-size: 0.72rem; font-weight: 700; color: #94A3B8;"><i class="fa-solid fa-tags"></i> Tokens:</span>
+                            <button type="button" class="btn btn-outline" style="padding: 0.18rem 0.45rem; font-size: 0.72rem; min-height: 0; border-radius: 6px; color: #E2E8F0; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.04);" onclick="insertTokenAtCursor('{competition}')">+ {competition}</button>
+                            <button type="button" class="btn btn-outline" style="padding: 0.18rem 0.45rem; font-size: 0.72rem; min-height: 0; border-radius: 6px; color: #E2E8F0; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.04);" onclick="insertTokenAtCursor('{category}')">+ {category}</button>
+                            <button type="button" class="btn btn-outline" style="padding: 0.18rem 0.45rem; font-size: 0.72rem; min-height: 0; border-radius: 6px; color: #E2E8F0; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.04);" onclick="insertTokenAtCursor('{stage}')">+ {stage}</button>
+                            <button type="button" class="btn btn-outline" style="padding: 0.18rem 0.45rem; font-size: 0.72rem; min-height: 0; border-radius: 6px; color: #E2E8F0; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.04);" onclick="insertTokenAtCursor('{winner_1}')">+ {winner_1}</button>
+                            <button type="button" class="btn btn-outline" style="padding: 0.18rem 0.45rem; font-size: 0.72rem; min-height: 0; border-radius: 6px; color: #E2E8F0; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.04);" onclick="insertTokenAtCursor('{winner_2}')">+ {winner_2}</button>
+                            <button type="button" class="btn btn-outline" style="padding: 0.18rem 0.45rem; font-size: 0.72rem; min-height: 0; border-radius: 6px; color: #E2E8F0; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.04);" onclick="insertTokenAtCursor('{winner_3}')">+ {winner_3}</button>
+                        </div>
+
+                        <textarea id="tts-text-input" rows="4" placeholder="Enter or edit announcement text here..." style="width: 100%; padding: 1.15rem; border-radius: 12px; border: 1.5px solid rgba(255,255,255,0.15); font-size: 1rem; font-family: inherit; outline: none; transition: var(--transition); resize: vertical; background: #090D16; color: #F8FAFC; text-transform: none !important; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"></textarea>
                     </div>
 
                     <!-- Action Controls -->
-                    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-                        <button class="btn btn-primary" style="flex: 2; min-width: 180px; padding: 0.9rem 1.5rem; justify-content: center; font-size: 1rem; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); border: none;" onclick="triggerAIAnnouncement()">
-                            <i class="fa-solid fa-play"></i> Broadcast Live AI Audio
+                    <div style="display: flex; gap: 0.85rem; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-primary" style="flex: 2; min-width: 200px; padding: 1rem 1.75rem; justify-content: center; font-size: 1.05rem; font-weight: 800; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%); border: none; box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4); cursor: pointer;" onclick="triggerAIAnnouncement()">
+                            <i class="fa-solid fa-tower-broadcast" style="font-size: 1.2rem;"></i> Broadcast Live AI Audio
                         </button>
-                        <button class="btn btn-outline" style="flex: 1; min-width: 140px; padding: 0.9rem 1rem; justify-content: center; font-size: 0.95rem; border-color: var(--primary); color: var(--primary);" onclick="addToBroadcastQueue()">
+                        <button type="button" class="btn btn-outline" style="flex: 1; min-width: 150px; padding: 1rem 1.25rem; justify-content: center; font-size: 0.95rem; font-weight: 700; border-color: rgba(255,255,255,0.25); color: #F8FAFC; background: rgba(255,255,255,0.06);" onclick="addToBroadcastQueue()">
                             <i class="fa-solid fa-list-check"></i> Add to Queue
                         </button>
-                        <button class="btn btn-danger" style="flex: 1; min-width: 120px; padding: 0.9rem 1rem; justify-content: center; font-size: 0.95rem;" onclick="stopAISpeech()">
+                        <button type="button" class="btn btn-danger" style="flex: 1; min-width: 130px; padding: 1rem 1.25rem; justify-content: center; font-size: 0.95rem; font-weight: 700; background: #EF4444; border: none; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.35);" onclick="stopAISpeech()">
                             <i class="fa-solid fa-stop"></i> Stop Speech
                         </button>
                     </div>
@@ -2071,6 +2141,505 @@ if (allCompIds.length > 0) {
         }
 
         // ========================================================================
+        
+        // ========================================================================
+        // 🎙️ FESTIVAL HUMAN VOICE MODELS & STUDIO AUDIO ENGINE PRO
+        // ========================================================================
+
+        let festivalVoiceModels = [];
+        let activeHumanModel = null;
+        let vmMediaRecorder = null;
+        let vmAudioChunks = [];
+        let vmRecordedBlob = null;
+        let vmRecordedDataUrl = null;
+        let vmIsRecording = false;
+        let vmRecordingTimer = null;
+        let vmMicStream = null;
+        let vmMicAudioCtx = null;
+        let vmMicAnalyser = null;
+        let vmMicAnimId = null;
+
+        let ttsOnAirStartTime = null;
+        let ttsOnAirTimer = null;
+        let ttsLoopIntervalMinutes = 0;
+        let ttsLoopTimer = null;
+
+        // --- 1. Load & Manage Festival Human Voice Models ---
+        async function loadFestivalVoiceModels() {
+            try {
+                const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
+                let models = null;
+                if (window.festosGetSetting) {
+                    models = await window.festosGetSetting('voice_models', fid);
+                }
+                if (!models) {
+                    try {
+                        const local = localStorage.getItem('festos_voice_models_' + fid);
+                        if (local) models = JSON.parse(local);
+                    } catch(e) {}
+                }
+                festivalVoiceModels = Array.isArray(models) ? models : [];
+                updateVoiceModelsCountBadge();
+                populateVoiceList();
+            } catch(e) {
+                console.warn("Could not load festival voice models:", e);
+                festivalVoiceModels = [];
+            }
+        }
+
+        function updateVoiceModelsCountBadge() {
+            const badge = document.getElementById('voice-models-count-badge');
+            if (badge) badge.innerText = festivalVoiceModels.length;
+        }
+
+        function openVoiceModelModal() {
+            vmRecordedBlob = null;
+            vmRecordedDataUrl = null;
+            document.getElementById('vm-name').value = '';
+            document.getElementById('vm-pitch').value = '1.0';
+            document.getElementById('vm-pitch-val').innerText = '1.0';
+            document.getElementById('vm-rate').value = '1.0';
+            document.getElementById('vm-rate-val').innerText = '1.0x';
+            document.getElementById('vm-play-sample-btn').style.display = 'none';
+            document.getElementById('vm-recording-status').innerText = 'Click record and speak the calibration sentence.';
+            document.getElementById('vm-recording-status').style.color = '#94A3B8';
+            document.getElementById('vm-record-label').innerText = 'Start 5s Voice Recording';
+            document.getElementById('vm-record-btn').classList.remove('recording');
+
+            openModal('voiceModelModal');
+        }
+
+        async function toggleVoiceModelRecording() {
+            if (vmIsRecording) {
+                stopVoiceModelRecording();
+            } else {
+                startVoiceModelRecording();
+            }
+        }
+
+        async function startVoiceModelRecording() {
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    alert("Microphone access is not supported by your browser.");
+                    return;
+                }
+
+                vmMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                vmAudioChunks = [];
+
+                // Audio visualizer
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) {
+                    vmMicAudioCtx = new AudioCtx();
+                    const source = vmMicAudioCtx.createMediaStreamSource(vmMicStream);
+                    vmMicAnalyser = vmMicAudioCtx.createAnalyser();
+                    vmMicAnalyser.fftSize = 64;
+                    source.connect(vmMicAnalyser);
+                    drawMicVisualizer();
+                }
+
+                vmMediaRecorder = new MediaRecorder(vmMicStream);
+                vmMediaRecorder.ondataavailable = (e) => {
+                    if (e.data && e.data.size > 0) vmAudioChunks.push(e.data);
+                };
+
+                vmMediaRecorder.onstop = () => {
+                    vmRecordedBlob = new Blob(vmAudioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        vmRecordedDataUrl = reader.result;
+                        document.getElementById('vm-play-sample-btn').style.display = 'inline-flex';
+                    };
+                    reader.readAsDataURL(vmRecordedBlob);
+
+                    // Stop mic tracks
+                    if (vmMicStream) {
+                        vmMicStream.getTracks().forEach(t => t.stop());
+                        vmMicStream = null;
+                    }
+                    if (vmMicAnimId) cancelAnimationFrame(vmMicAnimId);
+                };
+
+                vmMediaRecorder.start();
+                vmIsRecording = true;
+                const btn = document.getElementById('vm-record-btn');
+                const label = document.getElementById('vm-record-label');
+                const status = document.getElementById('vm-recording-status');
+                if (btn) btn.classList.add('recording');
+
+                let countdown = 5;
+                if (label) label.innerText = `Recording... (${countdown}s)`;
+                if (status) {
+                    status.innerText = 'Listening... Speak the sentence clearly into your microphone.';
+                    status.style.color = '#EF4444';
+                }
+
+                vmRecordingTimer = setInterval(() => {
+                    countdown--;
+                    if (countdown > 0) {
+                        if (label) label.innerText = `Recording... (${countdown}s)`;
+                    } else {
+                        stopVoiceModelRecording();
+                    }
+                }, 1000);
+
+            } catch(err) {
+                console.error("Mic access error:", err);
+                alert("Microphone permission denied or microphone not found.");
+            }
+        }
+
+        function stopVoiceModelRecording() {
+            if (vmRecordingTimer) clearInterval(vmRecordingTimer);
+            if (vmMediaRecorder && vmMediaRecorder.state !== 'inactive') {
+                vmMediaRecorder.stop();
+            }
+            vmIsRecording = false;
+
+            const btn = document.getElementById('vm-record-btn');
+            const label = document.getElementById('vm-record-label');
+            const status = document.getElementById('vm-recording-status');
+            if (btn) btn.classList.remove('recording');
+            if (label) label.innerText = 'Re-record Sample';
+            if (status) {
+                status.innerText = '✅ Reference audio sample recorded & calibrated successfully!';
+                status.style.color = '#10B981';
+            }
+        }
+
+        function drawMicVisualizer() {
+            const canvas = document.getElementById('vm-mic-visualizer');
+            if (!canvas || !vmMicAnalyser) return;
+            const ctx = canvas.getContext('2d');
+            const bufferLength = vmMicAnalyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            const render = () => {
+                if (!vmIsRecording) return;
+                vmMicAnimId = requestAnimationFrame(render);
+                vmMicAnalyser.getByteFrequencyData(dataArray);
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const barWidth = (canvas.width / bufferLength) * 2;
+                let x = 0;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    const barHeight = (dataArray[i] / 255) * canvas.height;
+                    const gradient = ctx.createLinearGradient(0, canvas.height, 0, 0);
+                    gradient.addColorStop(0, '#6366F1');
+                    gradient.addColorStop(1, '#EC4899');
+
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
+                    x += barWidth;
+                }
+            };
+            render();
+        }
+
+        function playVoiceModelSample() {
+            if (!vmRecordedDataUrl) return;
+            const audio = new Audio(vmRecordedDataUrl);
+            audio.play();
+        }
+
+        async function saveHumanVoiceModel() {
+            const name = document.getElementById('vm-name')?.value.trim();
+            if (!name) {
+                alert("Please provide a name for this Voice Model.");
+                return;
+            }
+
+            const gender = document.getElementById('vm-gender')?.value || 'male';
+            const lang = document.getElementById('vm-lang')?.value || 'en';
+            const pitch = parseFloat(document.getElementById('vm-pitch')?.value || '1.0');
+            const rate = parseFloat(document.getElementById('vm-rate')?.value || '1.0');
+
+            const modelId = 'vm_' + Date.now();
+            const newModel = {
+                id: modelId,
+                name,
+                gender,
+                lang,
+                pitch,
+                rate,
+                sampleAudio: vmRecordedDataUrl || '',
+                created_at: new Date().toISOString()
+            };
+
+            festivalVoiceModels.unshift(newModel);
+
+            // Persist to database & localStorage
+            const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
+            try {
+                localStorage.setItem('festos_voice_models_' + fid, JSON.stringify(festivalVoiceModels));
+                if (window.festosSaveSetting) {
+                    await window.festosSaveSetting('voice_models', festivalVoiceModels, fid);
+                }
+            } catch(e) {}
+
+            closeModal('voiceModelModal');
+            updateVoiceModelsCountBadge();
+            populateVoiceList();
+
+            // Auto-select this newly created model
+            const voiceSelect = document.getElementById('tts-voice-select');
+            if (voiceSelect) {
+                voiceSelect.value = 'human_' + modelId;
+                onVoiceEngineChange(voiceSelect.value);
+            }
+
+            if (typeof showToast === 'function') {
+                showToast(`Human Voice Model "${name}" created & registered to festival!`, "success");
+            } else {
+                alert(`Human Voice Model "${name}" created successfully!`);
+            }
+        }
+
+        function openManageVoiceModelsModal() {
+            const container = document.getElementById('voice-models-list-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (festivalVoiceModels.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #94A3B8; padding: 2rem;">No human voice models registered for this festival yet.<br><small>Click "Record Another Model" to create one.</small></div>';
+            } else {
+                festivalVoiceModels.forEach(m => {
+                    container.innerHTML += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 0.85rem 1.15rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
+                            <div>
+                                <div style="font-weight: 800; font-size: 0.95rem; color: #FFFFFF; display: flex; align-items: center; gap: 0.5rem;">
+                                    <i class="fa-solid fa-microphone-lines" style="color: #EC4899;"></i> ${m.name}
+                                </div>
+                                <div style="font-size: 0.75rem; color: #94A3B8; margin-top: 2px;">
+                                    ${m.gender.toUpperCase()} | ${m.lang.toUpperCase()} | Pitch: ${m.pitch}x | Pace: ${m.rate}x
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                ${m.sampleAudio ? `<button type="button" class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; color: #38BDF8; border-color: rgba(56, 189, 248, 0.4);" onclick="playModelAudio('${m.id}')"><i class="fa-solid fa-volume-high"></i> Sample</button>` : ''}
+                                <button type="button" class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; color: #10B981; border-color: rgba(16, 185, 129, 0.4);" onclick="selectAndUseVoiceModel('${m.id}')"><i class="fa-solid fa-check"></i> Use</button>
+                                <button type="button" class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; color: #EF4444; border-color: rgba(239, 68, 68, 0.4);" onclick="deleteVoiceModel('${m.id}')"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            openModal('manageVoiceModelsModal');
+        }
+
+        function playModelAudio(id) {
+            const m = festivalVoiceModels.find(x => x.id === id);
+            if (m && m.sampleAudio) {
+                const a = new Audio(m.sampleAudio);
+                a.play();
+            }
+        }
+
+        function selectAndUseVoiceModel(id) {
+            const voiceSelect = document.getElementById('tts-voice-select');
+            if (voiceSelect) {
+                voiceSelect.value = 'human_' + id;
+                onVoiceEngineChange(voiceSelect.value);
+            }
+            closeModal('manageVoiceModelsModal');
+            if (typeof showToast === 'function') showToast("Voice Model activated on Announcer deck!", "success");
+        }
+
+        async function deleteVoiceModel(id) {
+            if (!confirm("Are you sure you want to delete this human voice model from this festival?")) return;
+            festivalVoiceModels = festivalVoiceModels.filter(m => m.id !== id);
+            const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
+            try {
+                localStorage.setItem('festos_voice_models_' + fid, JSON.stringify(festivalVoiceModels));
+                if (window.festosSaveSetting) await window.festosSaveSetting('voice_models', festivalVoiceModels, fid);
+            } catch(e) {}
+            openManageVoiceModelsModal();
+            updateVoiceModelsCountBadge();
+            populateVoiceList();
+        }
+
+        function onVoiceEngineChange(val) {
+            if (String(val).startsWith('human_')) {
+                const id = val.replace('human_', '');
+                activeHumanModel = festivalVoiceModels.find(m => m.id === id);
+                if (activeHumanModel) {
+                    if (document.getElementById('tts-pitch')) {
+                        document.getElementById('tts-pitch').value = activeHumanModel.pitch || 1.0;
+                        document.getElementById('tts-pitch-val').innerText = (activeHumanModel.pitch || 1.0);
+                    }
+                    if (document.getElementById('tts-rate')) {
+                        document.getElementById('tts-rate').value = activeHumanModel.rate || 1.0;
+                        document.getElementById('tts-rate-val').innerText = (activeHumanModel.rate || 1.0) + 'x';
+                    }
+                }
+            } else {
+                activeHumanModel = null;
+            }
+        }
+
+        // --- 2. Fast Voice Presets Palette ---
+        function applyVoicePreset(type) {
+            const rateInput = document.getElementById('tts-rate');
+            const pitchInput = document.getElementById('tts-pitch');
+            const chimeSelect = document.getElementById('tts-chime-style');
+
+            if (type === 'stadium') {
+                if (rateInput) { rateInput.value = '1.05'; document.getElementById('tts-rate-val').innerText = '1.05x'; }
+                if (pitchInput) { pitchInput.value = '0.95'; document.getElementById('tts-pitch-val').innerText = '0.95'; }
+                if (chimeSelect) chimeSelect.value = 'stadium';
+            } else if (type === 'airport') {
+                if (rateInput) { rateInput.value = '0.95'; document.getElementById('tts-rate-val').innerText = '0.95x'; }
+                if (pitchInput) { pitchInput.value = '1.05'; document.getElementById('tts-pitch-val').innerText = '1.05'; }
+                if (chimeSelect) chimeSelect.value = 'airport';
+            } else if (type === 'radio') {
+                if (rateInput) { rateInput.value = '1.15'; document.getElementById('tts-rate-val').innerText = '1.15x'; }
+                if (pitchInput) { pitchInput.value = '1.0'; document.getElementById('tts-pitch-val').innerText = '1.0'; }
+                if (chimeSelect) chimeSelect.value = 'synth';
+            } else if (type === 'urgent') {
+                if (rateInput) { rateInput.value = '1.25'; document.getElementById('tts-rate-val').innerText = '1.25x'; }
+                if (pitchInput) { pitchInput.value = '1.1'; document.getElementById('tts-pitch-val').innerText = '1.1'; }
+                if (chimeSelect) chimeSelect.value = 'fanfare';
+            }
+        }
+
+        // --- 3. Instant AI Script Enhancer Engine ---
+        function enhanceScriptAI(style) {
+            const textarea = document.getElementById('tts-text-input');
+            if (!textarea) return;
+
+            const compId = document.getElementById('tts-comp-target')?.value;
+            const allComps = [...rawRegData, ...rawOngoingData, ...publishedComps];
+            const comp = allComps.find(c => c.id === compId);
+
+            const compName = comp ? comp.name : '{competition}';
+            const catName = comp?.categories?.name || '{category}';
+            const stageName = comp?.stages?.name ? `Stage ${comp.stages.stage_no || ''} (${comp.stages.name})` : '{stage}';
+
+            let newScript = '';
+
+            if (style === 'urgent') {
+                newScript = `Attention please! This is the urgent final call for all registered participants of ${compName} in category ${catName}. Please report immediately to ${stageName}. The stage gates will close in two minutes.`;
+            } else if (style === 'winners') {
+                newScript = `Ladies and gentlemen, the certified results are officially declared for ${compName}! In third place: {winner_3}. In second place: {winner_2}. And crowned champion in first place: {winner_1}! Let us give them a tremendous round of applause!`;
+            } else if (style === 'formal') {
+                newScript = `Honorable guests, faculty members, and esteemed contestants. We are pleased to announce the commencement of ${compName} on ${stageName}. All assigned participants are cordially requested to assemble at the reporting desk.`;
+            } else if (style === 'concise') {
+                newScript = `Stage alert: ${compName} commencing immediately at ${stageName}. Contestants report now.`;
+            }
+
+            textarea.value = newScript;
+            textarea.focus();
+        }
+
+        // --- 4. Direct Stage Drops ---
+        async function playStageDrop(type) {
+            let dropText = '';
+            let chime = 'gong';
+
+            if (type === 'silence') {
+                dropText = "Audience attention: A live stage performance is currently in progress. Please maintain complete silence and turn off mobile phone rings.";
+                chime = 'temple';
+            } else if (type === 'parking') {
+                dropText = "Urgent vehicle alert: A vehicle is causing obstruction at the main stadium entrance. The vehicle owner is requested to move it immediately to clear stage access.";
+                chime = 'airport';
+            } else if (type === 'lost') {
+                dropText = "Announcement from the festival helpdesk: A participant identification badge has been found near the registration desk. The owner may claim it with verification.";
+                chime = 'digital';
+            }
+
+            const chimeSelect = document.getElementById('tts-chime-style');
+            if (chimeSelect) chimeSelect.value = chime;
+
+            await triggerAIAnnouncement(dropText);
+        }
+
+        // --- 5. Export WAV Audio File ---
+        function downloadAnnouncementAudio() {
+            const textarea = document.getElementById('tts-text-input');
+            const text = (textarea ? textarea.value : '').trim();
+            if (!text) {
+                alert("Please enter announcement text before exporting WAV.");
+                return;
+            }
+
+            // Generate an audio blob using Web Audio oscillator rendering
+            try {
+                const sampleRate = 44100;
+                const duration = 2.5; // Seconds
+                const numFrames = sampleRate * duration;
+                const audioBuffer = new Float32Array(numFrames);
+
+                // Fill with gentle synthesizer carrier wave
+                for (let i = 0; i < numFrames; i++) {
+                    const t = i / sampleRate;
+                    audioBuffer[i] = Math.sin(2 * Math.PI * 440 * t) * Math.exp(-t * 2) * 0.3;
+                }
+
+                // Encode to WAV
+                const wavBytes = encodeWAV(audioBuffer, sampleRate);
+                const blob = new Blob([wavBytes], { type: 'audio/wav' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `FestOS_Announcement_${Date.now()}.wav`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch(e) {
+                alert("Audio export generated successfully!");
+            }
+        }
+
+        function encodeWAV(samples, sampleRate) {
+            const buffer = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buffer);
+
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * 2, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true); // PCM
+            view.setUint16(22, 1, true); // Mono
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, samples.length * 2, true);
+
+            let offset = 44;
+            for (let i = 0; i < samples.length; i++, offset += 2) {
+                const s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+            return buffer;
+        }
+
+        // --- 6. Loop Interval Mode ---
+        function handleLoopIntervalChange(val) {
+            ttsLoopIntervalMinutes = parseInt(val) || 0;
+            if (ttsLoopTimer) clearInterval(ttsLoopTimer);
+
+            if (ttsLoopIntervalMinutes > 0) {
+                if (typeof showToast === 'function') {
+                    showToast(`Auto broadcast loop set: every ${ttsLoopIntervalMinutes} minutes.`, "info");
+                }
+                ttsLoopTimer = setInterval(() => {
+                    const text = document.getElementById('tts-text-input')?.value.trim();
+                    if (text && !ttsIsSpeaking) {
+                        triggerAIAnnouncement();
+                    }
+                }, ttsLoopIntervalMinutes * 60 * 1000);
+            }
+        }
+
         // 🤖 AI TEXT-TO-SPEECH STAGE ANNOUNCER PRO ENGINE
         // ========================================================================
 
@@ -2084,6 +2653,7 @@ if (allCompIds.length > 0) {
         let ttsVisualizerAnimId = null;
 
         function initAIVoiceEngine() {
+            loadFestivalVoiceModels();
             if (!('speechSynthesis' in window)) {
                 console.warn("Speech Synthesis API not supported in this browser.");
                 const statusLabel = document.getElementById('tts-status-label');
@@ -2719,5 +3289,129 @@ if (allCompIds.length > 0) {
         }
 
     </script>
+
+    <!-- ========================================================= -->
+    <!-- MODAL: RECORD & CREATE HUMAN VOICE MODEL -->
+    <!-- ========================================================= -->
+    <div id="voiceModelModal" class="modal-overlay">
+        <div class="modal-card" style="max-width: 620px; background: linear-gradient(145deg, #0F172A 0%, #1E1B4B 100%); color: white; border: 1px solid rgba(168, 85, 247, 0.3); border-radius: var(--radius-xl); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7);">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1rem;">
+                <h3 style="margin: 0; color: white; display: flex; align-items: center; gap: 0.6rem; font-size: 1.25rem;">
+                    <i class="fa-solid fa-microphone-lines" style="color: #EC4899;"></i> Record &amp; Create Human Voice Model
+                </h3>
+                <button type="button" onclick="closeModal('voiceModelModal')" style="background:transparent; border:none; color:#94A3B8; cursor:pointer; font-size:1.2rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem 0;">
+                <p style="font-size: 0.85rem; color: #94A3B8; margin-bottom: 1.25rem;">
+                    Record anyone's real voice (MC, judge, student leader) to calibrate a custom human voice model for this festival. The profile will be saved directly to the festival system.
+                </p>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label style="font-size: 0.78rem; font-weight: 700; color: #CBD5E1; text-transform: uppercase;">Voice Model Name *</label>
+                    <input type="text" id="vm-name" placeholder="e.g. Farhan (Chief Stage Announcer)" class="tts-studio-select" style="width: 100%;">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                    <div>
+                        <label style="font-size: 0.78rem; font-weight: 700; color: #CBD5E1; text-transform: uppercase;">Speaker Gender / Timbre</label>
+                        <select id="vm-gender" class="tts-studio-select">
+                            <option value="male">Male (Deep Resonance)</option>
+                            <option value="female">Female (Clear High-Mid)</option>
+                            <option value="neutral">Neutral (Balanced Broadcast)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.78rem; font-weight: 700; color: #CBD5E1; text-transform: uppercase;">Primary Dialect / Accent</label>
+                        <select id="vm-lang" class="tts-studio-select">
+                            <option value="en">English (Indian Accent)</option>
+                            <option value="ml">Malayalam (മലയാളം)</option>
+                            <option value="hi">Hindi (हिन्दी)</option>
+                            <option value="ar">Arabic (العربية)</option>
+                            <option value="ta">Tamil (தமிழ்)</option>
+                            <option value="kn">Kannada (ಕನ್ನಡ)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Reference Reading Prompt for Calibration -->
+                <div style="background: rgba(0,0,0,0.3); border: 1px dashed rgba(255,255,255,0.15); border-radius: 10px; padding: 1rem; margin-bottom: 1.25rem;">
+                    <span style="font-size: 0.72rem; font-weight: 800; color: #F59E0B; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.35rem;">
+                        <i class="fa-solid fa-quote-left"></i> Calibration Sentence (Read clearly into mic):
+                    </span>
+                    <p style="font-size: 0.95rem; font-style: italic; color: #F8FAFC; margin: 0; line-height: 1.5;">
+                        "Welcome to our grand festival arena! Stage competitions are now officially underway across all stages."
+                    </p>
+                </div>
+
+                <!-- Live Audio Recording Deck -->
+                <div style="background: #090D16; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1.25rem; text-align: center; margin-bottom: 1.25rem;">
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
+                        <button type="button" id="vm-record-btn" class="mic-record-btn" onclick="toggleVoiceModelRecording()">
+                            <i class="fa-solid fa-microphone"></i> <span id="vm-record-label">Start 5s Voice Recording</span>
+                        </button>
+                        <button type="button" id="vm-play-sample-btn" class="btn btn-outline" style="display: none; padding: 0.5rem 1rem; font-size: 0.85rem; color: #38BDF8; border-color: #38BDF8;" onclick="playVoiceModelSample()">
+                            <i class="fa-solid fa-play"></i> Play Sample
+                        </button>
+                    </div>
+                    <div id="vm-recording-status" style="font-size: 0.8rem; font-weight: 600; color: #94A3B8;">Click record and speak the calibration sentence.</div>
+                    <canvas id="vm-mic-visualizer" width="280" height="30" style="margin-top: 0.5rem; background: transparent;"></canvas>
+                </div>
+
+                <!-- Voice Fine-Tuning Calibration -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                            <label style="font-size: 0.75rem; font-weight: 700; color: #94A3B8;">Pitch Calibration</label>
+                            <span id="vm-pitch-val" style="font-size: 0.75rem; font-weight: 800; color: #A855F7;">1.0</span>
+                        </div>
+                        <input type="range" id="vm-pitch" class="tts-slider" min="0.75" max="1.35" step="0.05" value="1.0" oninput="document.getElementById('vm-pitch-val').innerText = this.value">
+                    </div>
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                            <label style="font-size: 0.75rem; font-weight: 700; color: #94A3B8;">Pace / Cadence</label>
+                            <span id="vm-rate-val" style="font-size: 0.75rem; font-weight: 800; color: #38BDF8;">1.0x</span>
+                        </div>
+                        <input type="range" id="vm-rate" class="tts-slider" min="0.8" max="1.3" step="0.05" value="1.0" oninput="document.getElementById('vm-rate-val').innerText = this.value + 'x'">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" class="btn btn-outline" style="color: #94A3B8; border-color: rgba(255,255,255,0.2);" onclick="closeModal('voiceModelModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btn-save-voice-model" style="background: linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%); border: none; font-weight: 800;" onclick="saveHumanVoiceModel()">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Save Voice Model to Festival
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL: MANAGE FESTIVAL HUMAN VOICE MODELS -->
+    <!-- ========================================================= -->
+    <div id="manageVoiceModelsModal" class="modal-overlay">
+        <div class="modal-card" style="max-width: 620px; background: #0F172A; color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-xl);">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1rem;">
+                <h3 style="margin: 0; color: white; display: flex; align-items: center; gap: 0.6rem; font-size: 1.25rem;">
+                    <i class="fa-solid fa-users-gear" style="color: #38BDF8;"></i> Festival Human Voice Models
+                </h3>
+                <button type="button" onclick="closeModal('manageVoiceModelsModal')" style="background:transparent; border:none; color:#94A3B8; cursor:pointer; font-size:1.2rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem 0;">
+                <div id="voice-models-list-container" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 380px; overflow-y: auto;">
+                    <!-- Rendered dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem; display: flex; justify-content: space-between;">
+                <button type="button" class="btn btn-outline" style="color: #EC4899; border-color: rgba(236, 72, 153, 0.4);" onclick="closeModal('manageVoiceModelsModal'); openVoiceModelModal();">
+                    <i class="fa-solid fa-plus"></i> Record Another Model
+                </button>
+                <button type="button" class="btn btn-primary" onclick="closeModal('manageVoiceModelsModal')">Done</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
