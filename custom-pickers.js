@@ -173,8 +173,11 @@
                     ${daysHtml}
                 </div>
 
-                <!-- Today Button -->
+                <!-- Today & Clear Footer -->
                 <div class="festos-dp-footer">
+                    <button type="button" class="festos-dp-clear-btn" onclick="window.festosClearDate()" title="Clear date selection">
+                        <i class="fa-solid fa-trash-can"></i> Clear
+                    </button>
                     <button type="button" class="festos-dp-today-btn" onclick="window.festosPickToday()">Today</button>
                 </div>
             </div>
@@ -223,6 +226,15 @@
         DP_STATE.currentMonth = today.getMonth();
         DP_STATE.selectedDate = today;
         applySelectedDate(today);
+    };
+
+    window.festosClearDate = function() {
+        if (DP_STATE.activeInput) {
+            DP_STATE.activeInput.value = '';
+            DP_STATE.activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+            DP_STATE.activeInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        closeAllPickers();
     };
 
     function applySelectedDate(dateObj) {
@@ -368,10 +380,15 @@
                     ${numbersHtml}
                 </div>
 
-                <!-- Actions -->
+                <!-- Actions: Clear on left, Cancel & OK on right -->
                 <div class="festos-tp-footer">
-                    <button type="button" class="festos-tp-action-btn" onclick="window.festosCancelTime()">CANCEL</button>
-                    <button type="button" class="festos-tp-action-btn" onclick="window.festosConfirmTime()">OK</button>
+                    <button type="button" class="festos-tp-action-btn festos-tp-clear-btn" onclick="window.festosClearTime()" title="Clear time selection">
+                        <i class="fa-solid fa-trash-can"></i> CLEAR
+                    </button>
+                    <div class="festos-tp-right-actions">
+                        <button type="button" class="festos-tp-action-btn" onclick="window.festosCancelTime()">CANCEL</button>
+                        <button type="button" class="festos-tp-action-btn" onclick="window.festosConfirmTime()">OK</button>
+                    </div>
                 </div>
             </div>
         `;
@@ -466,6 +483,15 @@
 
         renderTimePicker();
     }
+
+    window.festosClearTime = function() {
+        if (TP_STATE.activeInput) {
+            TP_STATE.activeInput.value = '';
+            TP_STATE.activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+            TP_STATE.activeInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        closeAllPickers();
+    };
 
     window.festosCancelTime = function() {
         closeAllPickers();
