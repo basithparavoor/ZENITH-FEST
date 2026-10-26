@@ -2865,14 +2865,13 @@ function openCreateBroadcastModal() {
     if (fileNameEl) fileNameEl.innerText = 'No file selected (Supports PDF, images, docs)';
     if (clearBtn) clearBtn.style.display = 'none';
 
-    // Populate Festival target dropdown
-    const festSelect = document.getElementById('bcast-fest-target');
-    if (festSelect) {
-        festSelect.innerHTML = `
-            <option value="all">Global Broadcast (All Active Festivals)</option>
-            ${globalFests.map(f => `<option value="${f.id}">${f.name} (${f.slug})</option>`).join('')}
-        `;
-    }
+    // Reset recipient radios to 'all' and hide specific container
+    const allRadio = document.querySelector('input[name="bcast-recipients-mode"][value="all"]');
+    if (allRadio) allRadio.checked = true;
+    toggleBcastFestRecipients(false);
+
+    // Populate Festival target dropdown & checkboxes
+    populateBroadcastRecipientsList();
 
     openModal('broadcastModal');
 }
@@ -2927,9 +2926,15 @@ async function submitBroadcastForm() {
     const recipientsMode = document.querySelector('input[name="bcast-recipients-mode"]:checked')?.value || 'all';
     const selectedFestIds = [];
     if (recipientsMode === 'specific') {
-        document.querySelectorAll('.bcast-fest-target-cb:checked').forEach(cb => selectedFestIds.push(cb.value));
+        document.querySelectorAll('.bcast-fest-target-cb:checked').forEach(cb => {
+            if (cb.value && !selectedFestIds.includes(cb.value)) selectedFestIds.push(cb.value);
+        });
+        const dropdownVal = document.getElementById('bcast-fest-select')?.value;
+        if (dropdownVal && !selectedFestIds.includes(dropdownVal)) {
+            selectedFestIds.push(dropdownVal);
+        }
         if (selectedFestIds.length === 0) {
-            return showToast('Please select at least one recipient festival.', 'error');
+            return showToast('Please select at least one recipient festival from the list.', 'error');
         }
     }
 
@@ -4868,25 +4873,81 @@ function toggleBroadcastTypeFields(type) {
 function toggleBcastFestRecipients(isSpecific) {
     const container = document.getElementById('bcast-specific-fests-container');
     if (container) container.style.display = isSpecific ? 'block' : 'none';
+    if (isSpecific) {
+        populateBroadcastRecipientsList();
+    }
+}
+
+function getAvailableBroadcastFests() {
+    let fests = (Array.isArray(globalFests) && globalFests.length > 0) ? globalFests : [];
+    if (fests.length === 0 && Array.isArray(superFestsCache) && superFestsCache.length > 0) {
+        fests = superFestsCache;
+    }
+    if (fests.length === 0 && typeof festosDomains !== 'undefined' && typeof festosDomains.getFestList === 'function') {
+        fests = festosDomains.getFestList();
+    }
+    return fests;
 }
 
 function populateBroadcastRecipientsList() {
-    const listEl = document.getElementById('bcast-fest-checkboxes-list');
-    if (!listEl) return;
-    listEl.innerHTML = '';
+    const fests = getAvailableBroadcastFests();
 
-    const fests = globalFests || [];
-    if (fests.length === 0) {
-        listEl.innerHTML = '<span style="font-size:0.75rem; color:var(--text-muted);">No festivals loaded.</span>';
-        return;
+    // 1. Populate Dropdown
+    const selectEl = document.getElementById('bcast-fest-select');
+    if (selectEl) {
+        selectEl.innerHTML = '<option value="">-- Choose a Specific Festival from list --</option>' +
+            fests.map(f => `<option value="${f.id}">${f.name} (${f.slug || f.id})</option>`).join('');
     }
 
-    fests.forEach(f => {
-        listEl.innerHTML += `
-            <label style="display:flex; align-items:center; gap:6px; font-size:0.82rem; font-weight:600; cursor:pointer; background:white; padding:4px 8px; border-radius:6px; border:1px solid var(--border);">
-                <input type="checkbox" class="bcast-fest-target-cb" value="${f.id}" style="accent-color:var(--primary);">
-                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${f.name}</span>
-            </label>
-        `;
-    });
+    // 2. Populate Checkboxes List
+    const listEl = document.getElementById('bcast-fest-checkboxes-list');
+    if (listEl) {
+        listEl.innerHTML = '';
+        if (fests.length === 0) {
+            listEl.innerHTML = '<span style="font-size:0.75rem; color:var(--text-muted); padding: 4px;">No festivals found in database.</span>';
+            return;
+        }
+
+        fests.forEach(f => {
+            listEl.innerHTML += `
+                <label style="display:flex; align-items:center; gap:6px; font-size:0.82rem; font-weight:600; cursor:pointer; background:white; padding:6px 10px; border-radius:6px; border:1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                    <input type="checkbox" class="bcast-fest-target-cb" value="${f.id}" onchange="syncBcastFestCheckboxWithDropdown()" style="accent-color:var(--primary); cursor:pointer;">
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${f.name}">${f.name}</span>
+                </label>
+            `;
+        });
+    }
 }
+
+function onBcastFestDropdownChange(val) {
+    if (!val) return;
+    const targetCb = document.querySelector(`.bcast-fest-target-cb[value="${val}"]`);
+    if (targetCb) {
+        targetCb.checked = true;
+    }
+}
+
+function syncBcastFestCheckboxWithDropdown() {
+    const checked = Array.from(document.querySelectorAll('.bcast-fest-target-cb:checked')).map(cb => cb.value);
+    const selectEl = document.getElementById('bcast-fest-select');
+    if (selectEl) {
+        if (checked.length === 1) {
+            selectEl.value = checked[0];
+        } else if (checked.length === 0) {
+            selectEl.value = '';
+        }
+    }
+}
+
+function toggleAllBcastFestCheckboxes(selectAll) {
+    document.querySelectorAll('.bcast-fest-target-cb').forEach(cb => {
+        cb.checked = selectAll;
+    });
+    syncBcastFestCheckboxWithDropdown();
+}
+
+window.toggleBcastFestRecipients = toggleBcastFestRecipients;
+window.populateBroadcastRecipientsList = populateBroadcastRecipientsList;
+window.onBcastFestDropdownChange = onBcastFestDropdownChange;
+window.syncBcastFestCheckboxWithDropdown = syncBcastFestCheckboxWithDropdown;
+window.toggleAllBcastFestCheckboxes = toggleAllBcastFestCheckboxes;

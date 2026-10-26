@@ -1,0 +1,154 @@
+/* =========================================================================
+   FESTOS ULTRA-PREMIUM INPUTS & SELECTS DESIGN SYSTEM
+   Universal styling for dates, times, and dropdowns matching platform UI.
+   Ensures text inputs preserve natural letter casing (no forced uppercase).
+   ========================================================================= */
+
+/* 0. Universal Natural Casing on Inputs */
+input,
+textarea,
+select,
+.form-control {
+    text-transform: none !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+    text-transform: none !important;
+}
+
+/* 1. Universal Select / Dropdown */
+select,
+.form-control select,
+select.form-control,
+.custom-select,
+.filter-select {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    background-color: #FFFFFF;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366F1'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.85rem center !important;
+    background-size: 16px 16px !important;
+    padding-right: 2.5rem !important;
+    border: 1.5px solid #E2E8F0 !important;
+    border-radius: 10px !important;
+    color: #0F172A !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    font-family: inherit !important;
+    outline: none !important;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    cursor: pointer !important;
+}
+
+select:hover,
+.form-control select:hover,
+select.form-control:hover,
+.filter-select:hover {
+    border-color: #6366F1 !important;
+    box-shadow: 0 2px 6px rgba(99, 102, 241, 0.12) !important;
+}
+
+select:focus,
+.form-control select:focus,
+select.form-control:focus,
+.filter-select:focus {
+    border-color: #6366F1 !important;
+    box-shadow: 0 0 0 3.5px rgba(99, 102, 241, 0.18) !important;
+    background-color: #FFFFFF !important;
+}
+
+select option {
+    background-color: #FFFFFF;
+    color: #0F172A;
+    font-weight: 500;
+    padding: 8px 12px;
+}
+
+/* 2. Universal Date, Time & Datetime Selection */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+    background-color: #FFFFFF !important;
+    border: 1.5px solid #E2E8F0 !important;
+    border-radius: 10px !important;
+    color: #0F172A !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    font-family: inherit !important;
+    padding: 0.65rem 1rem !important;
+    outline: none !important;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    cursor: pointer !important;
+    letter-spacing: -0.01em !important;
+    position: relative !important;
+}
+
+input[type="date"]:hover,
+input[type="time"]:hover,
+input[type="datetime-local"]:hover {
+    border-color: #6366F1 !important;
+    box-shadow: 0 2px 6px rgba(99, 102, 241, 0.12) !important;
+}
+
+input[type="date"]:focus,
+input[type="time"]:focus,
+input[type="datetime-local"]:focus {
+    border-color: #6366F1 !important;
+    box-shadow: 0 0 0 3.5px rgba(99, 102, 241, 0.18) !important;
+    background-color: #FFFFFF !important;
+}
+
+/* Elegant calendar icon */
+input[type="date"],
+input[type="datetime-local"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366F1'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'%3E%3C/path%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.85rem center !important;
+    background-size: 18px 18px !important;
+    padding-right: 2.5rem !important;
+}
+
+/* Elegant clock icon */
+input[type="time"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366F1'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'%3E%3C/path%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.85rem center !important;
+    background-size: 18px 18px !important;
+    padding-right: 2.5rem !important;
+}
+
+/* Custom Calendar and Clock Native Picker Indicators */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+    opacity: 0 !important;
+    cursor: pointer !important;
+    position: absolute !important;
+    right: 0 !important;
+    top: 0 !important;
+    width: 2.5rem !important;
+    height: 100% !important;
+}
+
+/* 3. Dark Elements / Dark Theme Adaptations */
+.ai-deck-card select,
+.modal-card select.tts-studio-select,
+.dark-theme select,
+.dark-card select {
+    background-color: #090D16 !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    color: #F8FAFC !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23A5B4FC'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+}
+
+.ai-deck-card select:focus,
+.dark-theme select:focus {
+    border-color: #8B5CF6 !important;
+    box-shadow: 0 0 0 3.5px rgba(139, 92, 246, 0.25) !important;
+    background-color: #0F172A !important;
+}

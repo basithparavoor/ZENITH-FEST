@@ -4,8 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FestOS | Secure Login</title>
-    <link rel="icon" href="festos-logo.svg">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="icon" href="favicon.png">
+    <script>
+  (function autoRedirectIfLoggedIn() {
+    try {
+      var p = new URLSearchParams(window.location.search);
+      if (p.get("switch") === "true" || p.get("logout") === "true") return;
+      var routes = { super_admin: "superadmin.html", master_admin: "admin.html", admin: "admin.html", fest_manager: "manager.html", team_manager: "team-manager.html", stage_controller: "stage-controller.html", judge: "judge.html", announcer: "announcements.html" };
+      var sa = localStorage.getItem("festSuperAdmin");
+      if (sa) {
+        var pSa = JSON.parse(sa);
+        if (pSa && (pSa.role === "super_admin" || pSa.is_super_admin)) {
+          window.location.replace("superadmin.html");
+          return;
+        }
+      }
+      var u = localStorage.getItem("festUser");
+      if (u) {
+        var user = JSON.parse(u);
+        if (user && user.role && routes[user.role]) {
+          window.location.replace(routes[user.role]);
+          return;
+        }
+      }
+    } catch(e) {}
+  })();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
 
@@ -166,10 +191,10 @@
             outline: none;
         }
 
-        .input-wrapper input[type="text"] { text-transform: uppercase; }
+        .input-wrapper input[type="text"] { text-transform: none; }
         .input-wrapper input[type="password"],
         .input-wrapper input[type="text"].password-visible { text-transform: none; }
-        .input-wrapper input::placeholder { color: #94A3B8; font-weight: 500; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em; }
+        .input-wrapper input::placeholder { color: #94A3B8; font-weight: 500; text-transform: none; font-size: 0.88rem; letter-spacing: 0.05em; }
         
         /* Focus Effects */
         .input-wrapper:focus-within {
@@ -350,9 +375,25 @@
     <div class="login-container">
         <div class="header stagger-1">
             <h1 class="brand" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem;">
-                <img src="festos-logo.svg" alt="FestOS Logo" class="festos-dynamic-logo" style="height: 42px; width: auto; max-width: 180px; object-fit: contain; vertical-align: middle;">
-                <span class="festos-dynamic-name">FestOS</span>
+                <img id="login-brand-img" src="festos-logo.svg" onerror="this.src='assets/vibranium-logo.png'" alt="FestOS Logo" class="festos-dynamic-logo" style="height: 44px; width: auto; max-width: 180px; object-fit: contain; vertical-align: middle;">
+                <span id="login-brand-name" class="festos-dynamic-name">FestOS</span>
             </h1>
+            <script>
+                (function() {
+                    try {
+                        var cached = localStorage.getItem('festos_super_branding_cache');
+                        if (cached) {
+                            var b = JSON.parse(cached);
+                            if (b && b.fest_logo && b.fest_logo.length > 5) {
+                                document.getElementById('login-brand-img').src = b.fest_logo;
+                            }
+                            if (b && b.fest_name) {
+                                document.getElementById('login-brand-name').innerText = b.fest_name;
+                            }
+                        }
+                    } catch(e) {}
+                })();
+            </script>
             <p>Enter your credentials to continue</p>
         </div>
 

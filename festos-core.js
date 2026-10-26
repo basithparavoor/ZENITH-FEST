@@ -1054,14 +1054,62 @@ function festosGetSettingKey(key, targetFestId = null) {
     return `${key}_${festId}`;
 }
 
-async function festosGetSetting(key, targetFestId = null) {
-    const client = festosSupabase || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
-    if (!client) return null;
+// High-Speed Multi-Tier Memory + LocalStorage Cache with SWR
+const _festosSettingsMemCache = new Map();
+
+async function festosGetSetting(key, targetFestId = null, options = {}) {
     const festId = targetFestId || festosAuth.getCurrentFestId();
     const festKey = festosGetSettingKey(key, festId);
+    const storageKey = 'festos_cfg_' + festKey;
+    const forceFresh = options && options.fresh === true;
+
+    // 1. Check in-memory cache (0.001ms)
+    if (!forceFresh && _festosSettingsMemCache.has(festKey)) {
+        return _festosSettingsMemCache.get(festKey);
+    }
+
+    // 2. Check localStorage cache (0.05ms)
+    if (!forceFresh && typeof localStorage !== 'undefined') {
+        try {
+            const cachedStr = localStorage.getItem(storageKey);
+            if (cachedStr) {
+                const parsed = JSON.parse(cachedStr);
+                _festosSettingsMemCache.set(festKey, parsed);
+
+                // Background revalidation (SWR)
+                setTimeout(async () => {
+                    try {
+                        const client = festosSupabase || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+                        if (!client) return;
+                        const { data } = await client.from('settings').select('value').eq('id', festKey).maybeSingle();
+                        if (data && data.value) {
+                            const newStr = JSON.stringify(data.value);
+                            if (newStr !== cachedStr) {
+                                _festosSettingsMemCache.set(festKey, data.value);
+                                localStorage.setItem(storageKey, newStr);
+                                if (typeof window !== 'undefined' && window.dispatchEvent) {
+                                    window.dispatchEvent(new CustomEvent('festos:settingupdated', { detail: { key, festKey, value: data.value } }));
+                                }
+                            }
+                        }
+                    } catch(e) {}
+                }, 100);
+
+                return parsed;
+            }
+        } catch(e) {}
+    }
+
+    // 3. Fallback to Supabase fetch
+    const client = festosSupabase || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+    if (!client) return null;
     try {
         let { data, error } = await client.from('settings').select('value').eq('id', festKey).maybeSingle();
-        if (data && data.value) return data.value;
+        if (data && data.value) {
+            _festosSettingsMemCache.set(festKey, data.value);
+            try { localStorage.setItem(storageKey, JSON.stringify(data.value)); } catch(e) {}
+            return data.value;
+        }
 
         // Do NOT fallback to Zenith Fest for festival-specific scheduling, website customizer, branding, or point system
         const isolatedKeys = ['master_schedule', 'website_config', 'display_settings', 'system_branding', 'point_system'];
@@ -1071,7 +1119,10 @@ async function festosGetSetting(key, targetFestId = null) {
 
         if (festKey !== key) {
             let baseRes = await client.from('settings').select('value').eq('id', key).maybeSingle();
-            if (baseRes.data && baseRes.data.value) return baseRes.data.value;
+            if (baseRes.data && baseRes.data.value) {
+                _festosSettingsMemCache.set(festKey, baseRes.data.value);
+                return baseRes.data.value;
+            }
         }
         return null;
     } catch (e) {
@@ -1081,12 +1132,86 @@ async function festosGetSetting(key, targetFestId = null) {
 }
 
 async function festosSaveSetting(key, value, targetFestId = null) {
-    const client = festosSupabase || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
-    if (!client) return { error: new Error('Supabase client not initialized') };
     const festId = targetFestId || festosAuth.getCurrentFestId();
     const festKey = festosGetSettingKey(key, festId);
+    const storageKey = 'festos_cfg_' + festKey;
+
+    // Update memory & local storage immediately for 0ms lag
+    _festosSettingsMemCache.set(festKey, value);
+    try { localStorage.setItem(storageKey, JSON.stringify(value)); } catch(e) {}
+
+    const client = festosSupabase || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+    if (!client) return { error: new Error('Supabase client not initialized') };
+
     return await client.from('settings').upsert({ id: festKey, value });
 }
+
+// Universal Festival Branding Details Helper
+festosBranding.getDetails = function(targetFestId = null) {
+    const fid = targetFestId || festosAuth.getCurrentFestId();
+    let name = 'Festival';
+    let logo = '';
+    let subtitle = '';
+    let date = '';
+    let venue = '';
+
+    try {
+        const cached = localStorage.getItem('festos_branding_cache_' + fid);
+        if (cached) {
+            const b = JSON.parse(cached);
+            if (b.fest_name) name = b.fest_name;
+            if (b.fest_logo) logo = b.fest_logo;
+        }
+        const fests = festosDomains.getFestList();
+        const f = fests.find(x => x.id === fid);
+        if (f) {
+            if (f.name && (name === 'Festival' || !name)) name = f.name;
+            if (f.logo && !logo) logo = f.logo;
+            if (f.venue) venue = f.venue;
+            if (f.start_date) date = f.start_date + (f.end_date ? ' - ' + f.end_date : '');
+        }
+    } catch(e) {}
+
+    return { id: fid, name, logo, subtitle, date, venue };
+};
+
+// Universal CSV Export with Festival Header Metadata
+function festosExportCSV(filename, rows, reportTitle = 'Festival Data Export') {
+    const details = festosBranding.getDetails();
+    const now = new Date().toLocaleString();
+
+    let metaHeader = [
+        `# FESTIVAL: ${details.name.toUpperCase()}`,
+        `# REPORT: ${reportTitle}`,
+        `# EXPORTED AT: ${now}`,
+        details.date ? `# DATES: ${details.date}` : null,
+        details.venue ? `# VENUE: ${details.venue}` : null,
+        '#'
+    ].filter(Boolean).join('\r\n') + '\r\n';
+
+    let csvContent = metaHeader;
+
+    if (Array.isArray(rows)) {
+        if (typeof rows[0] === 'string') {
+            csvContent += rows.join('\r\n');
+        } else if (Array.isArray(rows[0])) {
+            csvContent += rows.map(r => r.map(c => `"${String(c || '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+        } else if (typeof rows[0] === 'object') {
+            const headers = Object.keys(rows[0]);
+            csvContent += headers.join(',') + '\r\n';
+            csvContent += rows.map(obj => headers.map(h => `"${String(obj[h] || '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+        }
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', filename.endsWith('.csv') ? filename : filename + '.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+window.festosExportCSV = festosExportCSV;
 
 
 // =========================================================================
@@ -1509,4 +1634,14 @@ if (typeof window !== 'undefined') {
     window.festosCrypto = festosCrypto;
     window.festosGetAuthHeaders = festosGetAuthHeaders;
     window.festosRefreshSupabaseHeaders = festosRefreshSupabaseHeaders;
+}
+
+
+// Auto-inject premium-forms.css stylesheet for universal modern inputs
+if (typeof document !== 'undefined' && !document.getElementById('festos-premium-forms-css')) {
+    const link = document.createElement('link');
+    link.id = 'festos-premium-forms-css';
+    link.rel = 'stylesheet';
+    link.href = 'premium-forms.css';
+    document.head.appendChild(link);
 }

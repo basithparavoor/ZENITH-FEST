@@ -776,6 +776,7 @@
         }
         @media (min-width: 769px) { .mobile-bottom-nav { display: none; } }
     </style>
+    <link rel="stylesheet" href="premium-forms.css">
 </head>
 <body>
 
@@ -903,7 +904,7 @@
                 <span class="badge" style="background: var(--primary-light); color: var(--primary); padding: 0.35rem 0.8rem; border-radius: 999px; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-bottom: 0.75rem;" id="home-about-subtitle">The Grand Championship</span>
                 <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.75rem; text-transform: uppercase;" id="home-about-title">Celebrating Arts, Culture & Innovation</h2>
                 <h4 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem; text-transform: uppercase;" id="home-content-title">Live Festival Stage Architecture</h4>
-                <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;" id="home-content-desc">Zenith Fest powers hundreds of competitive events across multiple stages. Built for speed, transparency, and accuracy in live festival scorekeeping.</p>
+                <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;" id="home-content-desc">Live official festival results, stage timings, and certified championship standings.</p>
                 
                 <div style="border-top: 1px solid var(--surface-border); padding-top: 1.5rem;">
                     <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Connect With Us:</span>
@@ -1110,7 +1111,7 @@
                                 <span style="background: rgba(59, 130, 246, 0.25); color: #93C5FD; border: 1px solid rgba(59, 130, 246, 0.4); font-size: 0.72rem; font-weight: 800; padding: 0.35rem 0.85rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.06em; display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 0.75rem;">
                                     <i class="fa-solid fa-shield-halved"></i> VERIFIED CONTESTANT PASS
                                 </span>
-                                <h3 id="admit-card-fest-name" style="font-size: 1.45rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.01em; color: #FFFFFF;">ZENITH FEST 2026</h3>
+                                <h3 id="admit-card-fest-name" style="font-size: 1.45rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.01em; color: #FFFFFF;">OFFICIAL FESTIVAL 2026</h3>
                                 <p style="font-size: 0.78rem; color: #94A3B8; font-weight: 600; text-transform: uppercase; margin-top: 0.2rem;">Official Arena & Stage Access Pass</p>
                             </div>
                             <div style="background: white; padding: 8px; border-radius: 12px; line-height: 0; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: 2px solid rgba(255,255,255,0.8);">
@@ -1331,9 +1332,18 @@
             tm_access: true
         };
 
+        // Active Festival Runtime State
+        let currentFestDetails = {
+            id: '',
+            name: '',
+            slug: '',
+            domain: '',
+            logo: ''
+        };
+
         // Default Website Customizer Config
         let websiteConfig = {
-            domain: 'zenith',
+            domain: '',
             custom_domain: '',
             password_protected: false,
             site_password: '',
@@ -1344,7 +1354,7 @@
                 bg: '#F9FAFB',
                 font: 'Plus Jakarta Sans',
                 podium_style: 'cards',
-                show_points_breakdown: false,
+                show_points_breakdown: true,
                 show_milestone_filter: true,
                 show_search_filter: true,
                 results_title: 'Championship Results',
@@ -1358,28 +1368,28 @@
                     partCount: '',
                     teamCount: '',
                     venueCount: '',
-                    heroTitle: 'Welcome to Zenith Fest',
+                    heroTitle: '',
                     heroSub: 'Real-time scores, verified stage results, and championship standings live as they happen.',
                     aboutTitle: 'The Grand Championship',
                     aboutSub: 'Celebrating Arts, Culture & Innovation',
                     contentTitle: 'Live Festival Stage Architecture',
-                    contentDesc: 'Zenith Fest powers hundreds of competitive events across multiple stages. Built for speed, transparency, and accuracy in live festival scorekeeping.',
+                    contentDesc: '',
                     contact: {
-                        email: 'contact@zenithfest.org',
-                        phone: '+91 98765 43210',
-                        wa: 'https://wa.me/919876543210',
-                        ig: 'https://instagram.com/zenithfest',
-                        fb: 'https://facebook.com/zenithfest',
-                        yt: 'https://youtube.com/zenithfest',
-                        web: 'https://zenithfest.org',
-                        address: 'Main Stadium Complex, Grand Arena'
+                        email: '',
+                        phone: '',
+                        wa: '',
+                        ig: '',
+                        fb: '',
+                        yt: '',
+                        web: '',
+                        address: ''
                     }
                 }
             },
             visibility: {
-                page: { schedules: true, results: true, portal: true, downloads: true, gallery: true, news: true, wall: false },
-                nav: { schedules: true, results: true, portal: true, downloads: true, gallery: true, news: true, wall: false },
-                foot: { schedules: true, results: true, portal: true, downloads: true, gallery: true, news: true, wall: false }
+                page: { schedules: true, results: true, portal: true, downloads: true, gallery: true, news: true, wall: false, myresult: true },
+                nav: { schedules: true, results: true, portal: true, downloads: true, gallery: true, news: true, wall: false, myresult: true },
+                foot: { schedules: true, results: true, portal: true, downloads: true, gallery: true, news: true, wall: false, myresult: true }
             },
             gallery: [],
             downloads: [],
@@ -1528,13 +1538,28 @@
 
             // Home Page Content
             const home = websiteConfig.pages?.home || {};
-            if (document.getElementById('home-hero-title')) document.getElementById('home-hero-title').innerText = home.heroTitle || 'Welcome to Zenith Fest';
+            const activeFestName = (currentFestDetails && currentFestDetails.name) ? currentFestDetails.name : 'Festival';
+            const defaultHero = `Welcome to ${activeFestName}`;
+            const defaultDesc = `${activeFestName} powers competitive events across multiple stages. Built for speed, transparency, and accuracy in live festival scorekeeping.`;
+
+            // If hero title or description contains legacy Zenith placeholder, sanitize it to active fest name
+            let heroTitleText = home.heroTitle && home.heroTitle.trim() !== '' ? home.heroTitle : defaultHero;
+            if (heroTitleText.toLowerCase().includes('zenith') && !activeFestName.toLowerCase().includes('zenith')) {
+                heroTitleText = defaultHero;
+            }
+
+            let heroDescText = home.contentDesc && home.contentDesc.trim() !== '' ? home.contentDesc : defaultDesc;
+            if (heroDescText.toLowerCase().includes('zenith') && !activeFestName.toLowerCase().includes('zenith')) {
+                heroDescText = defaultDesc;
+            }
+
+            if (document.getElementById('home-hero-title')) document.getElementById('home-hero-title').innerText = heroTitleText;
             if (document.getElementById('home-hero-subtitle')) document.getElementById('home-hero-subtitle').innerText = home.heroSub || 'Real-time scores, verified stage results, and championship standings live as they happen.';
 
             if (document.getElementById('home-about-title')) document.getElementById('home-about-title').innerText = home.aboutTitle || 'The Grand Championship';
             if (document.getElementById('home-about-subtitle')) document.getElementById('home-about-subtitle').innerText = home.aboutSub || 'Celebrating Arts & Innovation';
             if (document.getElementById('home-content-title')) document.getElementById('home-content-title').innerText = home.contentTitle || 'Live Festival Stage Architecture';
-            if (document.getElementById('home-content-desc')) document.getElementById('home-content-desc').innerText = home.contentDesc || 'Zenith Fest powers hundreds of competitive events across multiple stages.';
+            if (document.getElementById('home-content-desc')) document.getElementById('home-content-desc').innerText = heroDescText;
 
             // Logos
             if (theme.header_logo) {
@@ -1857,14 +1882,18 @@
             try {
                 // Wait for subdomain -> festival resolution (e.g. sahi26.festos.clubad.space)
                 if (window.festosHostFestReady) { try { await window.festosHostFestReady; } catch (e) {} }
-                // Fetch Website Config
-                const webCfgVal = window.festosGetSetting ? await window.festosGetSetting('website_config') : null;
-                const webCfgData = webCfgVal ? { value: webCfgVal } : (await supabaseClient.from('settings').select('value').eq('id', 'website_config').maybeSingle()).data;
-                if (webCfgData && webCfgData.value) {
-                    applyWebsiteCustomizerConfig(webCfgData.value);
-                }
-
+                
+                // 1. Fetch & Apply Festival Branding and identity FIRST
                 await fetchAndApplyBranding();
+
+                // 2. Fetch Festival-Scoped Website Config
+                const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+                const webCfgVal = window.festosGetSetting ? await window.festosGetSetting('website_config', festId) : null;
+                if (webCfgVal) {
+                    applyWebsiteCustomizerConfig(webCfgVal);
+                } else {
+                    applyWebsiteCustomizerConfig(websiteConfig);
+                }
 
                 let compsCntQuery = supabaseClient.from('competitions').select('*', { count: 'exact', head: true });
                 let partsCntQuery = supabaseClient.from('participants').select('*', { count: 'exact', head: true });
@@ -2722,7 +2751,9 @@
             document.getElementById('admit-chest').innerText = `#${p.unique_id || 'N/A'}`;
             document.getElementById('admit-team').innerText = teamName;
             
-            const brandTitle = document.getElementById('footer-title')?.innerText || 'ZENITH FEST';
+            const brandTitle = (typeof currentFestDetails !== 'undefined' && currentFestDetails && currentFestDetails.name) 
+                ? currentFestDetails.name 
+                : (document.getElementById('footer-title')?.innerText || 'Festival');
             document.getElementById('admit-card-fest-name').innerText = `${brandTitle} 2026`;
 
             // Generate QR Code for Admit Pass
@@ -2924,18 +2955,81 @@
             document.getElementById('news-modal').classList.remove('active');
         }
 
-        // --- Global Branding ---
+        // --- Global Branding & Identity ---
         async function fetchAndApplyBranding() {
             try {
-                const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
-                let val = window.festosGetSetting ? await window.festosGetSetting('system_branding', festId) : null;
-                if (!val && festId && typeof supabaseClient !== 'undefined') {
-                    const { data: fData } = await supabaseClient.from('fests').select('name, logo').eq('id', festId).maybeSingle();
-                    if (fData && (fData.name || fData.logo)) {
-                        val = { fest_name: fData.name, fest_logo: fData.logo, display_mode: fData.logo ? 'both' : 'name' };
-                    }
+                if (window.festosHostFestReady) {
+                    try { await window.festosHostFestReady; } catch (e) {}
                 }
-                if (val) applyGlobalBranding(val);
+
+                const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+
+                // 1. Immediate cache hydration for 0ms visual flash
+                if (festId) {
+                    try {
+                        const cached = localStorage.getItem('festos_branding_cache_' + festId);
+                        if (cached) {
+                            const cData = JSON.parse(cached);
+                            if (cData && cData.fest_name) {
+                                currentFestDetails.id = festId;
+                                currentFestDetails.name = cData.fest_name;
+                                currentFestDetails.logo = cData.fest_logo || '';
+                                applyGlobalBranding(cData);
+                            }
+                        }
+                    } catch(e) {}
+                }
+
+                // 2. Fetch live festival entity from fests table
+                let fData = null;
+                if (festId && typeof supabaseClient !== 'undefined') {
+                    const { data } = await supabaseClient
+                        .from('fests')
+                        .select('id, name, slug, domain, logo, start_date, end_date, venue')
+                        .eq('id', festId)
+                        .maybeSingle();
+                    fData = data;
+                }
+
+                if (fData) {
+                    currentFestDetails = {
+                        id: fData.id,
+                        name: fData.name || 'Festival',
+                        slug: fData.slug || '',
+                        domain: fData.domain || '',
+                        logo: fData.logo || '',
+                        dates: (fData.start_date ? fData.start_date + (fData.end_date ? ' - ' + fData.end_date : '') : ''),
+                        venue: fData.venue || ''
+                    };
+                }
+
+                // 3. Fetch custom festival branding setting
+                let val = window.festosGetSetting ? await window.festosGetSetting('system_branding', festId) : null;
+                if (!val && fData) {
+                    val = {
+                        fest_name: fData.name || 'Festival',
+                        fest_logo: fData.logo || '',
+                        display_mode: fData.logo ? 'both' : 'name'
+                    };
+                } else if (val && fData) {
+                    if (!val.fest_name) val.fest_name = fData.name;
+                    if (!val.fest_logo && fData.logo) val.fest_logo = fData.logo;
+                    currentFestDetails.name = val.fest_name || fData.name || 'Festival';
+                    if (val.fest_logo) currentFestDetails.logo = val.fest_logo;
+                }
+
+                if (val) {
+                    try {
+                        if (festId) localStorage.setItem('festos_branding_cache_' + festId, JSON.stringify(val));
+                    } catch(e) {}
+                    applyGlobalBranding(val);
+                } else if (currentFestDetails.name) {
+                    applyGlobalBranding({
+                        fest_name: currentFestDetails.name,
+                        fest_logo: currentFestDetails.logo,
+                        display_mode: currentFestDetails.logo ? 'both' : 'name'
+                    });
+                }
             } catch (e) {
                 console.warn("Could not fetch global branding:", e.message);
             }
@@ -2948,8 +3042,8 @@
             const validLogo = rawLogo !== '' && rawLogo !== 'festos-logo.svg' && rawLogo !== '/festos-logo.svg';
             const displayMode = brandingData.display_mode || 'both'; 
             
-            const festName = validName ? brandingData.fest_name : 'Festival';
-            document.title = `${festName} | Live Public Results`;
+            const festName = validName ? brandingData.fest_name.trim() : (currentFestDetails.name || 'Festival');
+            document.title = `${festName} | Live Public Results & Championship Portal`;
 
             if (validLogo) {
                 let iconLinks = document.querySelectorAll("link[rel~='icon']");
@@ -2988,6 +3082,15 @@
 
             const footerTitle = document.getElementById('footer-title');
             if (footerTitle) footerTitle.innerText = festName;
+
+            const admitPassFest = document.getElementById('admit-card-fest-name');
+            if (admitPassFest) admitPassFest.innerText = `${festName} 2026`;
+
+            // If hero title is still unpopulated or default, update it immediately with fest identity
+            const heroTitleEl = document.getElementById('home-hero-title');
+            if (heroTitleEl && (!heroTitleEl.innerText || heroTitleEl.innerText === 'Welcome to FestOS' || heroTitleEl.innerText.toLowerCase().includes('zenith'))) {
+                heroTitleEl.innerText = `Welcome to ${festName}`;
+            }
         }
 
         const loadedFontFamilies = new Set();

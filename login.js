@@ -30,6 +30,42 @@ const ROLE_ROUTES = {
 };
 
 // Initialize & Check Persistent Session
+// Check immediately to prevent screen flash
+(function autoRedirectIfLoggedIn() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('switch') === 'true' || urlParams.get('logout') === 'true') {
+            return; // Explicit switch / logout requested
+        }
+
+        // Check Super Admin first
+        const superAdminStr = localStorage.getItem('festSuperAdmin');
+        if (superAdminStr) {
+            const superAdmin = JSON.parse(superAdminStr);
+            if (superAdmin && (superAdmin.role === 'super_admin' || superAdmin.is_super_admin)) {
+                window.location.replace('superadmin.html');
+                return;
+            }
+        }
+
+        // Check Regular / Master Admin / Manager session
+        const userStr = localStorage.getItem('festUser');
+        const isRemembered = localStorage.getItem('festos_remember_session') === 'true';
+
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            if (user && user.role) {
+                // If remembered OR simply closed app without logging out, auto-redirect!
+                const targetRoute = ROLE_ROUTES[user.role] || 'admin.html';
+                window.location.replace(targetRoute);
+                return;
+            }
+        }
+    } catch (e) {
+        console.warn('Auto-redirect check notice:', e);
+    }
+})();
+
 document.addEventListener('DOMContentLoaded', () => {
     checkExistingSession();
     loadSavedUsername();
@@ -44,61 +80,16 @@ function loadSavedUsername() {
 }
 
 function checkExistingSession() {
-    const activeUser = festosAuth ? festosAuth.getUser() : JSON.parse(localStorage.getItem('festUser') || 'null');
-    const isRemembered = localStorage.getItem('festos_remember_session') === 'true';
-
-    if (activeUser && isRemembered && activeUser.role) {
-        const targetRoute = ROLE_ROUTES[activeUser.role];
-        if (targetRoute) {
-            renderQuickReconnectBanner(activeUser, targetRoute);
-        }
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('switch') === 'true' || urlParams.get('logout') === 'true') {
+        return;
     }
-}
 
-function renderQuickReconnectBanner(user, targetRoute) {
-    const container = document.querySelector('.login-container');
-    if (!container) return;
-
-    const existingBanner = document.getElementById('reconnect-banner');
-    if (existingBanner) existingBanner.remove();
-
-    const banner = document.createElement('div');
-    banner.id = 'reconnect-banner';
-    banner.style.cssText = `
-        background: rgba(99, 102, 241, 0.1);
-        border: 1px solid rgba(99, 102, 241, 0.3);
-        border-radius: 16px;
-        padding: 1.25rem;
-        margin-bottom: 1.5rem;
-        text-align: center;
-        animation: fadeUp 0.4s ease;
-    `;
-
-    banner.innerHTML = `
-        <div style="font-size: 0.85rem; color: #64748B; margin-bottom: 4px;">Welcome back!</div>
-        <div style="font-size: 1.1rem; font-weight: 800; color: #0F172A; margin-bottom: 2px;">${user.username}</div>
-        <div style="font-size: 0.75rem; font-weight: 700; color: #4F46E5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem;">${user.role.replace('_', ' ')}</div>
-        <div style="display: flex; gap: 8px;">
-            <button type="button" id="btn-reconnect-continue" style="flex: 1; padding: 0.75rem; border-radius: 12px; background: #4F46E5; color: #FFF; font-weight: 700; border: none; cursor: pointer; font-size: 0.9rem;">
-                Continue to Dashboard &rarr;
-            </button>
-            <button type="button" id="btn-reconnect-switch" style="padding: 0.75rem 1rem; border-radius: 12px; background: rgba(0,0,0,0.05); color: #64748B; font-weight: 600; border: none; cursor: pointer; font-size: 0.85rem;">
-                Switch
-            </button>
-        </div>
-    `;
-
-    container.insertBefore(banner, loginForm);
-
-    document.getElementById('btn-reconnect-continue').addEventListener('click', () => {
-        window.location.href = targetRoute;
-    });
-
-    document.getElementById('btn-reconnect-switch').addEventListener('click', () => {
-        localStorage.removeItem('festUser');
-        localStorage.removeItem('festos_remember_session');
-        banner.remove();
-    });
+    const activeUser = festosAuth ? festosAuth.getUser() : JSON.parse(localStorage.getItem('festUser') || 'null');
+    if (activeUser && activeUser.role) {
+        const targetRoute = ROLE_ROUTES[activeUser.role] || 'admin.html';
+        window.location.replace(targetRoute);
+    }
 }
 
 // Show/Hide Password Logic
