@@ -2872,8 +2872,11 @@ input:checked + .slider:before { transform: translateX(20px); }
                             <label>Audience Target</label>
                             <select class="form-control" id="bcast-target">
                                 <option value="master_admin">Festival Master Admins &amp; Staff</option>
-                                <option value="all">All Portals (Admins, Judges, Public)</option>
+                                <option value="all">All Portals (Admins, Judges, Managers)</option>
                             </select>
+                            <div style="font-size:0.72rem; color:var(--text-muted); margin-top:3px;">
+                                <i class="fa-solid fa-shield-halved" style="color:var(--primary);"></i> Notifications never appear on Login, Display, or Results pages.
+                            </div>
                         </div>
                     </div>
 

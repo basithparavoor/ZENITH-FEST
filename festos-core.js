@@ -1370,12 +1370,37 @@ function festosUpdateTopBannerPadding() {
     document.body.style.boxSizing = 'border-box';
 }
 
+function isNotificationExcludedPage() {
+    if (typeof window === 'undefined' || !window.location) return false;
+    const path = (window.location.pathname || '').toLowerCase();
+    const page = path.split('/').pop().split('?')[0] || 'index.html';
+
+    // Strict Exclusion Rule: NEVER display notifications or announcement banners on:
+    // 1. Login Page (index.html / / / login)
+    // 2. Landing Page (landing.html)
+    // 3. Stage Display Screen (display.html)
+    // 4. Results Page (results.html)
+    if (page === '' || page === 'index.html' || page === 'landing.html' || page.includes('login')) return true;
+    if (page.includes('display')) return true;
+    if (page.includes('results')) return true;
+
+    return false;
+}
+
 const festosBroadcasts = {
     activeBroadcasts: [],
     STORAGE_KEY: 'festos_cached_broadcasts',
 
     async init() {
         if (typeof document === 'undefined') return;
+        // Never display notifications or banners on Login, Display, or Results pages
+        if (isNotificationExcludedPage()) {
+            const existing = document.getElementById('festos-broadcast-banner-root');
+            if (existing) existing.remove();
+            festosUpdateTopBannerPadding();
+            return;
+        }
+
         await this.fetchActive();
         this.renderActiveBanner();
         this.listenRealtime();
@@ -1449,6 +1474,12 @@ const festosBroadcasts = {
         // Check if banner already rendered
         const existing = document.getElementById('festos-broadcast-banner-root');
         if (existing) existing.remove();
+
+        // Never render banner on Login, Display, or Results pages
+        if (isNotificationExcludedPage()) {
+            festosUpdateTopBannerPadding();
+            return;
+        }
 
         if (!this.activeBroadcasts || this.activeBroadcasts.length === 0) {
             festosUpdateTopBannerPadding();

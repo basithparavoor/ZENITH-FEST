@@ -99,6 +99,15 @@
     // WHATSAPP-STYLE UNIVERSAL APP NOTIFICATION DISPATCHER
     // =========================================================================
     window.showAppNotification = async function(title, body, extra = {}) {
+        // Strict Exclusion Rule: NEVER display notifications on Login, Display Screen, or Results pages
+        if (typeof window !== 'undefined' && window.location) {
+            const path = (window.location.pathname || '').toLowerCase();
+            const page = path.split('/').pop().split('?')[0] || 'index.html';
+            if (page === '' || page === 'index.html' || page === 'landing.html' || page.includes('login') || page.includes('display') || page.includes('results')) {
+                return;
+            }
+        }
+
         const notifTitle = title || 'VIBRANIUM';
         const notifBody = body || 'New festival announcement received';
 
