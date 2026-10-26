@@ -22,8 +22,10 @@ function createWindow() {
         show: false
     });
 
-    // Load initial entry point (landing.html or index.html)
-    mainWindow.loadFile(path.join(__dirname, '../landing.html'));
+    // Load initial entry point (Live local server on port 3050 with automatic offline file fallback)
+    mainWindow.loadURL('http://localhost:3050/landing.html').catch(() => {
+        mainWindow.loadFile(path.join(__dirname, '../landing.html'));
+    });
 
     // Graceful show on ready
     mainWindow.once('ready-to-show', () => {

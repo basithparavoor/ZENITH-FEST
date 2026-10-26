@@ -75,6 +75,21 @@ const server = http.createServer((req, res) => {
         }
     }
 
+    // Direct Desktop Application zip download route
+    if (lowerPath === '/download-desktop' || lowerPath === '/festos-desktop.zip' || lowerPath === '/festos-desktop-windows.zip') {
+        const desktopZip = path.join(ROOT_DIR, 'dist-desktop', 'FestOS-Desktop-Windows.zip');
+        if (fs.existsSync(desktopZip)) {
+            const stat = fs.statSync(desktopZip);
+            res.writeHead(200, {
+                'Content-Type': 'application/zip',
+                'Content-Disposition': 'attachment; filename="FestOS-Desktop-Windows.zip"',
+                'Content-Length': stat.size
+            });
+            fs.createReadStream(desktopZip).pipe(res);
+            return;
+        }
+    }
+
     const safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
     let filePath = path.join(ROOT_DIR, safePath);
 

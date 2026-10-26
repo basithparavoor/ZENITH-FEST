@@ -12,7 +12,8 @@
     "build:apk": "scripts\\build-apk.bat",
     "build:release-apk": "npm run prepare-www && npx cap sync android && cd android && gradlew.bat assembleRelease",
     "desktop:dev": "npx electron .",
-    "desktop:start": "npx electron ."
+    "desktop:start": "npx electron .",
+    "desktop:build": "node scripts/package-desktop.js"
   },
   "keywords": [
     "festos",
