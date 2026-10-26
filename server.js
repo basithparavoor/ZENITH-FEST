@@ -22,7 +22,8 @@ const MIME_TYPES = {
     '.ogg': 'audio/ogg',
     '.woff': 'font/woff',
     '.woff2': 'font/woff2',
-    '.ttf': 'font/ttf'
+    '.ttf': 'font/ttf',
+    '.apk': 'application/vnd.android.package-archive'
 };
 
 const server = http.createServer((req, res) => {
@@ -49,6 +50,29 @@ const server = http.createServer((req, res) => {
     let pathname = decodeURIComponent(parsedUrl.pathname);
     if (pathname === '/') {
         pathname = '/index.html';
+    }
+
+    // Direct APK download route
+    const lowerPath = pathname.toLowerCase();
+    if (lowerPath === '/download-apk' || lowerPath === '/vibranium.apk' || lowerPath === '/festos-app.apk') {
+        const candidateApks = [
+            path.join(ROOT_DIR, 'VIBRANIUM.apk'),
+            path.join(ROOT_DIR, 'dist', 'VIBRANIUM.apk'),
+            path.join(ROOT_DIR, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'VIBRANIUM.apk'),
+            path.join(ROOT_DIR, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
+            path.join(ROOT_DIR, 'festos-app.apk')
+        ];
+        const apkFile = candidateApks.find(p => fs.existsSync(p));
+        if (apkFile) {
+            const stat = fs.statSync(apkFile);
+            res.writeHead(200, {
+                'Content-Type': 'application/vnd.android.package-archive',
+                'Content-Disposition': 'attachment; filename="VIBRANIUM.apk"',
+                'Content-Length': stat.size
+            });
+            fs.createReadStream(apkFile).pipe(res);
+            return;
+        }
     }
 
     const safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');

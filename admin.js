@@ -11897,6 +11897,21 @@ async function fetchFestivalNotifications(showToastFeedback = false) {
         updateNotificationBadge();
         renderNotificationsList();
 
+        // Trigger WhatsApp-style native heads-up notification for newly arrived alerts
+        const prevSeenIds = JSON.parse(localStorage.getItem('festos_seen_notif_ids') || '[]');
+        const readIds = getReadNotifications();
+        const newArrivals = filtered.filter(b => !prevSeenIds.includes(b.id) && !readIds.includes(b.id));
+
+        if (newArrivals.length > 0 && prevSeenIds.length > 0) {
+            newArrivals.forEach(n => {
+                if (typeof window.showAppNotification === 'function') {
+                    window.showAppNotification(n.title || 'VIBRANIUM Alert', n.message || 'New festival announcement received', { id: n.id });
+                }
+            });
+        }
+        const updatedSeen = [...new Set([...prevSeenIds, ...filtered.map(b => b.id)])];
+        try { localStorage.setItem('festos_seen_notif_ids', JSON.stringify(updatedSeen)); } catch(e) {}
+
         if (showToastFeedback && typeof showToast === 'function') {
             showToast('Notifications synchronized!', 'info');
         }
@@ -12029,8 +12044,8 @@ function renderNotificationsList() {
                         </div>
                         <div style="font-size: 0.74rem; color: #15803D;">Ready to install on Mobile &amp; Tablet devices</div>
                     </div>
-                    <a href="${apkUrl}" download="festos_${versionStr.replace(/[^a-z0-9]/gi, '_')}.apk" class="btn btn-success" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; text-decoration: none; border-radius: 6px;" onclick="markNotificationAsRead('${n.id}')">
-                        <i class="fa-solid fa-cloud-arrow-down"></i> Download APK
+                    <a href="${apkUrl || '/VIBRANIUM.apk'}" download="VIBRANIUM.apk" class="btn btn-success" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; text-decoration: none; border-radius: 6px;" onclick="markNotificationAsRead('${n.id}')">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> Download VIBRANIUM APK
                     </a>
                 </div>
             `;

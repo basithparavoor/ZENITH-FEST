@@ -1,6 +1,6 @@
 {
   "appId": "com.festos.zenithfest",
-  "appName": "FestOS",
+  "appName": "VIBRANIUM",
   "webDir": "www",
   "bundledWebRuntime": false,
   "server": {
@@ -11,14 +11,18 @@
     "SplashScreen": {
       "launchShowDuration": 2000,
       "launchAutoHide": true,
-      "backgroundColor": "#0F172A",
+      "backgroundColor": "#FFFFFF",
       "androidSplashResourceName": "splash",
       "androidScaleType": "CENTER_CROP",
       "showSpinner": false
     },
     "StatusBar": {
       "style": "DARK",
-      "backgroundColor": "#0F172A"
+      "backgroundColor": "#FFFFFF"
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_launcher_round",
+      "iconColor": "#0D2B45"
     }
   }
 }
