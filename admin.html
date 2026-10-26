@@ -70,8 +70,12 @@ body { display: flex; height: 100vh; background-color: var(--bg-main); color: va
 ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
-input, select, textarea { text-transform: none !important; }
-        table td:not(.checkbox-cell) { text-transform: uppercase; }
+input, select, textarea, .form-control, .input, [contenteditable] { text-transform: none !important; }
+#newUsername, #newFullName, #searchJudgeInput, #modal-user-username, .user-name-field { text-transform: none !important; }
+#users-tbody td, #judges-tbody td { text-transform: none !important; }
+        table td:not(.checkbox-cell) { text-transform: none; }
+        table th { text-transform: uppercase; }
+        #users-tbody td, #judges-tbody td, .username-cell { text-transform: none !important; }
 input[type="password"], input[type="file"], .file-input, textarea[style*="text-transform: none"] { text-transform: none !important; }
 ::placeholder { text-transform: none; opacity: 0.5; font-size: 0.85rem; font-weight: 500; }
 
@@ -1425,6 +1429,7 @@ tr:hover td { background: var(--bg-main); }
 
    </style>
     <link rel="stylesheet" href="premium-forms.css">
+    <link rel="stylesheet" href="newspaper-studio.css">
 </head>
 <body>
 
@@ -1486,6 +1491,7 @@ tr:hover td { background: var(--bg-main); }
                 <div class="nav-item" onclick="switchTab('branding-settings')">Branding & UI</div>
                 <div class="nav-item" onclick="switchTab('poster-templates')">Poster Templates</div>
                 <div class="nav-item" onclick="switchTab('website-builder')">Website Customizer</div>
+                <div class="nav-item" onclick="switchTab('ai-newspaper')"><i class="fa-solid fa-newspaper" style="margin-right: 6px;"></i> Daily AI Newspaper</div>
             </div>
         </div>
 
@@ -1881,7 +1887,7 @@ tr:hover td { background: var(--bg-main); }
     <div id="builder-pane-theme" class="builder-content-pane">
         <div class="builder-pane-header">
             <h3 style="font-size: 1.25rem; font-weight: 700;"><i class="fa-solid fa-palette" style="color: var(--primary);"></i> Theme & Results Customizer</h3>
-            <button class="btn btn-danger" style="background: #FCA5A5; color: #991B1B; border: none; width: auto;" onclick="saveThemeConfig(event)">Save Theme Changes</button>
+            <button class="btn btn-primary" style="width: auto;" onclick="saveThemeConfig(event)"><i class="fa-solid fa-floppy-disk"></i> Save Theme Changes</button>
         </div>
         <div class="builder-pane-body">
             <!-- Results Page Customization Card -->
@@ -3298,7 +3304,483 @@ tr:hover td { background: var(--bg-main); }
         </div>
 
 <!-- ================= DISPLAY CONTROL SECTION ================= -->
-<div id="display-control" class="content-section">
+
+        <!-- ========================================================= -->
+        <!-- DAILY AI NEWSPAPER & BROADSHEET STUDIO PRO               -->
+        <!-- ========================================================= -->
+        <div id="ai-newspaper" class="content-section">
+            <div class="action-bar" style="margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.6rem;">
+                        <i class="fa-solid fa-newspaper" style="color: var(--primary);"></i> FestOS Daily Gazette & AI Newspaper Studio
+                    </h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">
+                        Enterprise 4-Page A4 Broadsheet • Multi-lingual AI Synthesis (6 Languages) • High-Res PDF Print Engine
+                    </p>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="generateNewspaperWithAI()"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate AI Gazette</button>
+                    <button class="btn btn-outline" onclick="openNewspaperStoryEditor()"><i class="fa-solid fa-pen-to-square"></i> Edit Stories &amp; Photos</button>
+                    <button class="btn btn-outline" onclick="exportNewspaperPDF()"><i class="fa-solid fa-file-pdf"></i> Download 4-Page PDF</button>
+                    <button class="btn btn-success" style="background: #059669; color: white; border: none;" onclick="publishNewspaperToResults()"><i class="fa-solid fa-cloud-arrow-up"></i> Publish to Public Results</button>
+                </div>
+            </div>
+
+            <!-- Super Admin Gating & Policy Status Banner -->
+            <div id="np-policy-banner" style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px; padding: 0.85rem 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(99, 102, 241, 0.15); display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 1.1rem;">
+                        <i class="fa-regular fa-clock"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);" id="np-policy-status-title">Release Schedule: 03:00 AM Daily Broadsheet</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);" id="np-policy-status-desc">Official newspapers become unlocked for download after 03:00 AM. Admin override active for draft testing.</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span id="np-policy-badge" class="badge" style="background: #10b981; color: white; padding: 0.35rem 0.75rem; font-size: 0.75rem; font-weight: 700; border-radius: 6px;">
+                        <i class="fa-solid fa-circle-check"></i> UNLOCKED
+                    </span>
+                    <button class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" onclick="checkNewspaperPolicyStatus()"><i class="fa-solid fa-rotate"></i> Re-check Policy</button>
+                </div>
+            </div>
+
+            <!-- Toolbar Grid -->
+            <div class="newspaper-control-bar" style="margin-bottom: 1.25rem;">
+                <div class="np-toolbar-grid">
+                    <div class="form-group" style="margin: 0;">
+                        <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);"><i class="fa-regular fa-calendar"></i> Edition Date</label>
+                        <input type="date" class="form-control" id="np-edition-date" onchange="changeNewspaperDate(this.value)" style="font-weight: 600;">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);"><i class="fa-solid fa-palette"></i> Broadsheet Theme</label>
+                        <select class="form-control" id="np-theme-select" onchange="setNewspaperTheme(this.value)">
+                            <option value="classic">Classic Oxford Broadsheet (Vintage Ivory &amp; Black Ink)</option>
+                            <option value="royal">Royal Crimson &amp; Gold (Imperial Gazette)</option>
+                            <option value="modern">Cyber Slate (Modern Minimalist Gazette)</option>
+                            <option value="emerald">Emerald Prestige (Forest Green &amp; Gold)</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn btn-primary" onclick="autoTranslateAllNewspaperLanguages()" style="white-space: nowrap; flex: 1;">
+                            <i class="fa-solid fa-language"></i> Auto-Translate All (6 Langs)
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="window.print()" style="white-space: nowrap;">
+                            <i class="fa-solid fa-print"></i> Print
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Multilingual Language Bar -->
+                <div class="np-lang-bar">
+                    <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); align-self: center; margin-right: 6px;">LANGUAGE:</span>
+                    <button class="np-lang-pill active" data-lang="en" onclick="switchNewspaperLang('en')">🇬🇧 English <span class="status-dot"></span></button>
+                    <button class="np-lang-pill" data-lang="ml" onclick="switchNewspaperLang('ml')">🇮🇳 മലയാളം <span class="status-dot" id="dot-ml"></span></button>
+                    <button class="np-lang-pill" data-lang="ur" onclick="switchNewspaperLang('ur')">🇵🇰 اردو (RTL) <span class="status-dot" id="dot-ur"></span></button>
+                    <button class="np-lang-pill" data-lang="ar" onclick="switchNewspaperLang('ar')">🇦🇪 العربية (RTL) <span class="status-dot" id="dot-ar"></span></button>
+                    <button class="np-lang-pill" data-lang="hi" onclick="switchNewspaperLang('hi')">🇮🇳 हिन्दी <span class="status-dot" id="dot-hi"></span></button>
+                    <button class="np-lang-pill" data-lang="bn" onclick="switchNewspaperLang('bn')">🇧🇩 বাংলা <span class="status-dot" id="dot-bn"></span></button>
+                </div>
+
+                <!-- Page Navigator Tabs -->
+                <div class="np-page-tabs">
+                    <button class="np-page-btn active" onclick="switchNewspaperPageView(1, this)"><i class="fa-solid fa-file"></i> Page 1: The Master Broadsheet</button>
+                    <button class="np-page-btn" onclick="switchNewspaperPageView(2, this)"><i class="fa-solid fa-file"></i> Page 2: Arena Dispatch &amp; Schedule</button>
+                    <button class="np-page-btn" onclick="switchNewspaperPageView(3, this)"><i class="fa-solid fa-file"></i> Page 3: Championship Standings</button>
+                    <button class="np-page-btn" onclick="switchNewspaperPageView(4, this)"><i class="fa-solid fa-file"></i> Page 4: Cultural Chronicles &amp; Patrons</button>
+                    <button class="np-page-btn" onclick="switchNewspaperPageView('all', this)"><i class="fa-solid fa-layer-group"></i> View All 4 Pages (Print View)</button>
+                </div>
+            </div>
+
+            <!-- Past Editions Archive Carousel -->
+            <div style="margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-box-archive" style="color: var(--primary);"></i> Past Broadsheet Editions &amp; Archives
+                    </h3>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);" id="np-archive-count">0 editions archived</span>
+                </div>
+                <div id="np-archive-container" class="np-archive-grid">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- 4-Page Broadsheet Sheet Canvas Viewport -->
+            <div class="newspaper-sheets-viewport" id="np-sheets-container">
+                <!-- ========================================== -->
+                <!-- PAGE 1: FRONT PAGE / THE MASTER BROADSHEET -->
+                <!-- ========================================== -->
+                <div class="broadsheet-page theme-classic" id="bs-page-1">
+                    <div>
+                        <div class="bs-top-bar">
+                            <span>OFFICIAL FESTIVAL GAZETTE • DAILY CERTIFIED PRINT EDITION</span>
+                            <span id="bs-meta-vol-1">VOLUME I • ISSUE 02</span>
+                            <span id="bs-meta-venue-1">VENUE: MAIN FESTIVAL ARENA</span>
+                            <span>COMPLIMENTARY EDITION</span>
+                        </div>
+
+                        <div class="bs-masthead">
+                            <div class="bs-masthead-inner">
+                                <img src="festos-logo.svg" alt="Festival Logo" class="bs-logo" id="bs-logo-1" onerror="this.src='festos-logo.svg'">
+                                <div style="flex: 1;">
+                                    <h1 class="bs-title" id="bs-masthead-title">FESTIVAL CHRONICLE</h1>
+                                    <div class="bs-tagline" id="bs-masthead-tagline">THE VOICE OF ART, CULTURE, AND GRAND CHAMPIONSHIP</div>
+                                </div>
+                                <img src="festos-logo.svg" alt="Festival Logo" class="bs-logo" id="bs-logo-1b" onerror="this.src='festos-logo.svg'">
+                            </div>
+                        </div>
+
+                        <div class="bs-meta-strip">
+                            <span id="bs-strip-date-1">MONDAY, 26 OCTOBER 2026</span>
+                            <span id="bs-strip-edition-1">SPECIAL MORNING EDITION</span>
+                            <span id="bs-strip-fest-1">ZENITH FEST 2026</span>
+                        </div>
+
+                        <!-- Lead Story & Sidebar -->
+                        <div class="bs-story-grid">
+                            <div class="bs-lead-story" onclick="openNewspaperStoryEditor('lead_story')">
+                                <h2 class="bs-headline" id="bs-lead-headline">Grand Stage Heats Up as Titans Clash in Cultural Showdown</h2>
+                                <div class="bs-subhead" id="bs-lead-subhead">Record-breaking crowds witness electrifying performances across 6 dynamic arenas.</div>
+                                <div class="bs-byline">
+                                    <i class="fa-solid fa-pen-nib"></i> BY SPECIAL CORRESPONDENT &bull; 
+                                    <span id="bs-lead-time">UPDATED 03:00 AM</span>
+                                </div>
+                                <div class="bs-lead-img-box">
+                                    <img src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1000&auto=format&fit=crop&q=80" alt="Lead News" class="bs-lead-img" id="bs-lead-img">
+                                    <div class="bs-caption" id="bs-lead-caption">Electric energy at Main Stage as competitors showcase classical choreography before thousands of spectators.</div>
+                                </div>
+                                <div class="bs-article-text" id="bs-lead-body">
+                                    The annual festival escalated to breathtaking heights today as elite contenders delivered masterclass performances across all venues. Adjudicators commended the unprecedented caliber of artistic finesse, noting that scores throughout the morning sessions remained separated by mere tenths of a point. Spectators filled the pavilions to standing capacity, rallying behind their home squads with thunderous ovations. With high-stakes stage events scheduled for the afternoon, team captains have urged all squads to bring their highest precision to the arena floor.
+                                </div>
+                            </div>
+
+                            <div class="bs-sidebar">
+                                <div class="bs-card-box" onclick="openNewspaperStoryEditor('side_story')">
+                                    <span class="bs-card-tag">BULLETIN</span>
+                                    <h3 class="bs-card-title" id="bs-side-title">Audience Overwhelmed by Classical Solo Symphony</h3>
+                                    <p class="bs-card-body" id="bs-side-body">In a performance that garnered a standing ovation from both judges and audience members, Candidate #104 set a new stage record with a faultless recital.</p>
+                                </div>
+                                <div class="bs-card-box" onclick="openNewspaperStoryEditor('side_story_2')">
+                                    <span class="bs-card-tag">FLASH NOTICE</span>
+                                    <h3 class="bs-card-title" id="bs-side-title-2">Stage 3 Timing Update</h3>
+                                    <p class="bs-card-body" id="bs-side-body-2">Competitions at Stage 3 will commence strictly at 09:30 AM. Reporting officers request all leaders to verify chest cards beforehand.</p>
+                                </div>
+                                <div class="bs-card-box" style="background: rgba(0,0,0,0.04); border-style: dashed;">
+                                    <span class="bs-card-tag" style="background: var(--primary);">INSIDE TODAY</span>
+                                    <div style="font-size: 7.5pt; line-height: 1.6; font-weight: 600; text-transform: uppercase;">
+                                        &bull; P.2: Live Arena &amp; Master Stage Schedule<br>
+                                        &bull; P.3: Championship Points Podium &amp; Stars<br>
+                                        &bull; P.4: Cultural Chronicles &amp; Patron Notices
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bs-footer-ticker">
+                        <span>PAGE 1 OF 4 &bull; OFFICIAL CERTIFIED BROADSHEET</span>
+                        <span id="bs-page1-ticker">DAY HIGHLIGHTS &bull; LIVE SCORING ON RESULTS PORTAL &bull; FESTOS REAL-TIME VERIFIED</span>
+                        <span>FESTOS GAZETTE &bull; VOL I</span>
+                    </div>
+                </div>
+
+                <!-- ========================================== -->
+                <!-- PAGE 2: ARENA DISPATCH & MASTER SCHEDULE   -->
+                <!-- ========================================== -->
+                <div class="broadsheet-page theme-classic" id="bs-page-2">
+                    <div>
+                        <div class="bs-page-banner">
+                            <span>PAGE 2 &bull; THE DAILY ARENA DISPATCH</span>
+                            <span id="bs-p2-date">MONDAY, 26 OCTOBER 2026</span>
+                            <span>OFFICIAL SCHEDULE MATRIX</span>
+                        </div>
+
+                        <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h2 style="font-size: 16pt; font-weight: 900; margin: 0; text-transform: uppercase;" id="bs-p2-title">Today's Stage Timetable &amp; Roster</h2>
+                                <p style="font-size: 8.5pt; margin: 2px 0 0 0; opacity: 0.85;" id="bs-p2-sub">Verified event schedule across all official competition arenas.</p>
+                            </div>
+                        </div>
+
+                        <!-- Schedule Table -->
+                        <table class="bs-schedule-table" id="bs-p2-schedule-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 15%;">STAGE</th>
+                                    <th style="width: 35%;">COMPETITION</th>
+                                    <th style="width: 25%;">CATEGORY</th>
+                                    <th style="width: 25%;">SCHEDULED TIME</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bs-p2-schedule-tbody">
+                                <!-- Populated dynamically from schedule DB -->
+                            </tbody>
+                        </table>
+
+                        <!-- Stage Coordinator Briefing -->
+                        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; margin-top: 14px;">
+                            <div class="bs-card-box" onclick="openNewspaperStoryEditor('stage_brief')">
+                                <span class="bs-card-tag" style="background:#065f46;">DISPATCH FROM STAGE CONTROLLER</span>
+                                <h3 class="bs-card-title" id="bs-stage-brief-title">Coordinators Note High Compliance on Reporting Windows</h3>
+                                <p class="bs-card-body" id="bs-stage-brief-body">
+                                    Stage controllers across all venues have commended participants for punctual check-ins. Green room buffers have been maintained at optimal pace, ensuring no backlogs in stage transitions. Contestants are reminded to carry their official verified chest tags at all times.
+                                </p>
+                            </div>
+
+                            <div class="bs-card-box" onclick="openNewspaperStoryEditor('venue_spotlight')">
+                                <span class="bs-card-tag" style="background:#881337;">VENUE SPOTLIGHT</span>
+                                <h3 class="bs-card-title" id="bs-venue-title">Arena Acoustical Engineering</h3>
+                                <p class="bs-card-body" id="bs-venue-body">
+                                    The sound systems deployed on Stages 1 and 2 feature state-of-the-art directional arrays, ensuring crystal clarity for classical recitals, choral harmonics, and dramatic orations.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bs-footer-ticker">
+                        <span>PAGE 2 OF 4 &bull; LIVE ARENA DISPATCH</span>
+                        <span>CHECK REAL-TIME STAGE QUEUES ONLINE &bull; STAGE CONTROLLER BUREAU</span>
+                        <span>FESTOS GAZETTE</span>
+                    </div>
+                </div>
+
+                <!-- ========================================== -->
+                <!-- PAGE 3: CHAMPIONSHIP STANDINGS & STARS     -->
+                <!-- ========================================== -->
+                <div class="broadsheet-page theme-classic" id="bs-page-3">
+                    <div>
+                        <div class="bs-page-banner">
+                            <span>PAGE 3 &bull; THE LEADERBOARD &amp; CHAMPIONSHIP STANDINGS</span>
+                            <span id="bs-p3-date">MONDAY, 26 OCTOBER 2026</span>
+                            <span>OFFICIAL POINTS TABLE</span>
+                        </div>
+
+                        <div style="text-align: center; margin-bottom: 10px;">
+                            <h2 style="font-size: 17pt; font-weight: 900; margin: 0; text-transform: uppercase;">Championship Podium &amp; Top Squads</h2>
+                            <p style="font-size: 8.5pt; opacity: 0.85; margin: 2px 0 0 0;">Official tally derived from certified judge evaluations and published results.</p>
+                        </div>
+
+                        <!-- Top 3 Podium Grid -->
+                        <div class="bs-podium-grid" id="bs-p3-podium">
+                            <div class="bs-podium-card" id="podium-card-2">
+                                <div class="bs-podium-rank" style="color: #64748b;">#2</div>
+                                <div class="bs-podium-team" id="podium-team-2">TEAM TITANS</div>
+                                <div class="bs-podium-pts" id="podium-pts-2">184 PTS</div>
+                                <small style="font-size: 7pt; color: #64748b;">RUNNER UP</small>
+                            </div>
+                            <div class="bs-podium-card first" id="podium-card-1">
+                                <div class="bs-podium-rank" style="color: #b45309;"><i class="fa-solid fa-crown"></i> #1</div>
+                                <div class="bs-podium-team" id="podium-team-1" style="font-size: 11.5pt;">TEAM PHOENIX</div>
+                                <div class="bs-podium-pts" id="podium-pts-1" style="font-size: 17pt; color: #b45309;">218 PTS</div>
+                                <small style="font-size: 7.5pt; font-weight: 700; color: #b45309;">LEADERBOARD CHAMPION</small>
+                            </div>
+                            <div class="bs-podium-card" id="podium-card-3">
+                                <div class="bs-podium-rank" style="color: #b45309;">#3</div>
+                                <div class="bs-podium-team" id="podium-team-3">TEAM GLADIATORS</div>
+                                <div class="bs-podium-pts" id="podium-pts-3">152 PTS</div>
+                                <small style="font-size: 7pt; color: #b45309;">SECOND RUNNER UP</small>
+                            </div>
+                        </div>
+
+                        <!-- Performer of the Day Spotlight -->
+                        <div class="bs-spotlight-card" onclick="openNewspaperStoryEditor('star_performer')">
+                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80" alt="Star Performer" class="bs-spotlight-img" id="bs-star-img">
+                            <div>
+                                <span class="bs-card-tag" style="background:#ca8a04;">STAR OF THE STAGE</span>
+                                <h3 style="font-size: 12pt; font-weight: 800; margin: 4px 0 2px 0;" id="bs-star-name">Aysha R. &bull; Chest #104</h3>
+                                <div style="font-size: 8pt; font-weight: 700; color: var(--primary); text-transform: uppercase;" id="bs-star-event">Classical Solo &bull; A-Grade (1st Place)</div>
+                                <blockquote style="font-size: 8pt; font-style: italic; margin: 4px 0; border-left: 2px solid currentColor; padding-left: 6px; opacity: 0.9;" id="bs-star-quote">
+                                    "When you step under the stage lights, it is not just technique—it is the devotion of countless hours of discipline finding its true voice."
+                                </blockquote>
+                            </div>
+                        </div>
+
+                        <!-- Full Points Table Summary -->
+                        <div style="margin-top: 10px;">
+                            <div style="font-size: 8pt; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;">FULL TEAM STANDINGS LEDGER:</div>
+                            <table class="bs-schedule-table" style="font-size: 7.5pt;" id="bs-p3-teams-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 15%;">RANK</th>
+                                        <th style="width: 55%;">TEAM NAME</th>
+                                        <th style="width: 30%; text-align: right;">TOTAL POINTS</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bs-p3-teams-tbody">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bs-footer-ticker">
+                        <span>PAGE 3 OF 4 &bull; OFFICIAL CERTIFIED STANDINGS</span>
+                        <span>VERIFIED BY THE MASTER SCORING COMMITTEE &bull; FESTOS TALLY</span>
+                        <span>FESTOS GAZETTE</span>
+                    </div>
+                </div>
+
+                <!-- ========================================== -->
+                <!-- PAGE 4: CULTURAL CHRONICLES & PATRONS      -->
+                <!-- ========================================== -->
+                <div class="broadsheet-page theme-classic" id="bs-page-4">
+                    <div>
+                        <div class="bs-page-banner">
+                            <span>PAGE 4 &bull; CULTURAL CHRONICLES &amp; BACK PAGE DISPATCH</span>
+                            <span id="bs-p4-date">MONDAY, 26 OCTOBER 2026</span>
+                            <span>OFFICIAL NOTICES &amp; CREDITS</span>
+                        </div>
+
+                        <!-- Patron / Director's Column -->
+                        <div class="bs-card-box" style="margin-bottom: 12px;" onclick="openNewspaperStoryEditor('patron_column')">
+                            <span class="bs-card-tag" style="background:#1e293b;">DIRECTOR'S NOTE</span>
+                            <h3 class="bs-card-title" style="font-size: 11pt;" id="bs-patron-title">A Triumph of Camaraderie, Talent, and Shared Vision</h3>
+                            <p class="bs-card-body" id="bs-patron-body" style="font-size: 8pt; line-height: 1.45;">
+                                "Every festival edition writes its own indelible chapter in our institutional memory. To witness hundreds of students pouring their spirit into poetry, song, oration, and visual crafts is a testament to the transformative power of arts education. We extend our deepest gratitude to our volunteer marshals, adjudicators, and tech crews who work tirelessly behind the scenes."
+                            </p>
+                            <div style="font-size: 7.5pt; font-weight: 700; text-transform: uppercase; margin-top: 4px; opacity: 0.8;" id="bs-patron-author">
+                                — Prof. M. Rahman &bull; General Convener &amp; Festival Patron
+                            </div>
+                        </div>
+
+                        <!-- Moments in Motion 3-Photo Gallery Strip -->
+                        <div style="margin-bottom: 10px;">
+                            <div style="font-size: 8pt; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;">FESTIVAL CHRONICLE IN FRAMES:</div>
+                            <div class="bs-gallery-strip">
+                                <div class="bs-gallery-photo-box" onclick="openNewspaperStoryEditor('gallery_photo_1')">
+                                    <img src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=80" alt="Moment 1" class="bs-gallery-photo" id="bs-gallery-img-1">
+                                </div>
+                                <div class="bs-gallery-photo-box" onclick="openNewspaperStoryEditor('gallery_photo_2')">
+                                    <img src="https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=500&auto=format&fit=crop&q=80" alt="Moment 2" class="bs-gallery-photo" id="bs-gallery-img-2">
+                                </div>
+                                <div class="bs-gallery-photo-box" onclick="openNewspaperStoryEditor('gallery_photo_3')">
+                                    <img src="https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=500&auto=format&fit=crop&q=80" alt="Moment 3" class="bs-gallery-photo" id="bs-gallery-img-3">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tomorrow's Preview & Notice Board Grid -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                            <div class="bs-card-box" onclick="openNewspaperStoryEditor('tomorrow_preview')">
+                                <span class="bs-card-tag" style="background:var(--primary);">TOMORROW'S CURTAIN RAISER</span>
+                                <h4 style="font-size: 9.5pt; font-weight: 800; margin: 4px 0;" id="bs-tomorrow-title">High-Stakes Group Dance &amp; Drama</h4>
+                                <p style="font-size: 7.8pt; line-height: 1.35; margin: 0;" id="bs-tomorrow-body">
+                                    The morning session will witness the pinnacle of theatrical group competitions on Main Stage. Squads have rehearsed choreography for weeks—expect intense competition!
+                                </p>
+                            </div>
+
+                            <div class="bs-card-box">
+                                <span class="bs-card-tag" style="background:#0f172a;">NOTICE BOARD</span>
+                                <div style="font-size: 7.5pt; line-height: 1.45;">
+                                    &bull; <strong>Appeals Window:</strong> Submit within 60 mins of result.<br>
+                                    &bull; <strong>Lost &amp; Found:</strong> Control Room Desk 2.<br>
+                                    &bull; <strong>Broadcast:</strong> Audio stream live on FestOS.<br>
+                                    &bull; <strong>Medical Post:</strong> Behind Pavilion 4.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <!-- Official Sponsors & Certification Footer -->
+                        <div class="bs-back-footer">
+                            <div>
+                                <span style="font-weight: 800; text-transform: uppercase;">OFFICIAL PATRONS &amp; TECH PARTNERS</span>
+                                <div style="font-size: 7pt; opacity: 0.75;">POWERED BY FESTOS ENTERPRISE BROADSHEET SYSTEM &bull; CLUBAD SPACE</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-weight: 800; text-transform: uppercase;">CERTIFIED DIGITAL EDITION</div>
+                                <div style="font-size: 7pt; opacity: 0.75;" id="bs-footer-timestamp">GENERATED 03:00 AM &bull; VERIFIED HASH #FESTOS-2026</div>
+                            </div>
+                        </div>
+
+                        <div class="bs-footer-ticker" style="margin-top: 6px;">
+                            <span>PAGE 4 OF 4 &bull; END OF BROADSHEET EDITION</span>
+                            <span>READ DIGITAL BROADSHEET AT FESTOS RESULTS HUB &bull; ALL RIGHTS RESERVED</span>
+                            <span>FESTOS GAZETTE</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- MODAL: NEWSPAPER STORY & PHOTO EDITOR                    -->
+        <!-- ========================================================= -->
+        <div class="modal-overlay" id="newspaperStoryModal" style="z-index: 10000;">
+            <div class="modal-card" style="max-width: 650px;">
+                <div class="modal-header">
+                    <h3 id="np-modal-title"><i class="fa-solid fa-pen-nib" style="color: var(--primary);"></i> Edit Gazette Story &amp; Media</h3>
+                    <button type="button" onclick="closeNewspaperStoryEditor()" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="np-edit-story-key" value="lead_story">
+                    
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label style="font-size: 0.8rem; font-weight: 700;">Story Section / Card</label>
+                        <select class="form-control" id="np-edit-selector" onchange="loadStoryIntoEditor(this.value)">
+                            <option value="lead_story">Page 1: Lead Breaking Story</option>
+                            <option value="side_story">Page 1: Sidebar Story 1 (Bulletin)</option>
+                            <option value="side_story_2">Page 1: Sidebar Story 2 (Notice)</option>
+                            <option value="stage_brief">Page 2: Stage Controller Dispatch</option>
+                            <option value="venue_spotlight">Page 2: Venue Spotlight</option>
+                            <option value="star_performer">Page 3: Star Performer Spotlight</option>
+                            <option value="patron_column">Page 4: Director's / Patron's Note</option>
+                            <option value="tomorrow_preview">Page 4: Tomorrow's Curtain Raiser</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label style="font-size: 0.8rem; font-weight: 700;">Headline / Title *</label>
+                        <input type="text" class="form-control" id="np-edit-title" placeholder="Enter bold newspaper headline" style="font-weight: 600; text-transform: none !important;">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0.75rem;" id="np-edit-subhead-group">
+                        <label style="font-size: 0.8rem; font-weight: 700;">Subtitle / Subheading</label>
+                        <input type="text" class="form-control" id="np-edit-subhead" placeholder="Enter secondary subheading or byline" style="text-transform: none !important;">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label style="font-size: 0.8rem; font-weight: 700;">Story Body Content</label>
+                        <textarea class="form-control" id="np-edit-body" rows="5" placeholder="Enter article body content..." style="text-transform: none !important; line-height: 1.4;"></textarea>
+                    </div>
+
+                    <!-- Photo Upload / URL Field -->
+                    <div class="form-group" style="margin-bottom: 0.75rem;" id="np-edit-photo-group">
+                        <label style="font-size: 0.8rem; font-weight: 700; display: flex; justify-content: space-between;">
+                            <span>Featured Photograph</span>
+                            <span style="font-size: 0.72rem; color: var(--text-muted);">Upload or Paste Image URL</span>
+                        </label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" class="form-control" id="np-edit-img-url" placeholder="https://... or upload local image" style="flex: 1; text-transform: none !important;" oninput="previewModalPhoto(this.value)">
+                            <label class="btn btn-outline" style="cursor: pointer; margin: 0; padding: 0.55rem 0.85rem; font-size: 0.8rem; white-space: nowrap;">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> Upload
+                                <input type="file" id="np-edit-img-file" accept="image/*" style="display: none;" onchange="handleNewspaperPhotoUpload(this)">
+                            </label>
+                        </div>
+                        <div style="margin-top: 6px; display: flex; gap: 8px; align-items: center;">
+                            <img id="np-edit-img-preview" src="" style="width: 80px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); display: none;">
+                            <input type="text" class="form-control" id="np-edit-caption" placeholder="Optional photo caption / photo credit" style="flex: 1; font-size: 0.75rem; text-transform: none !important;">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                    <button type="button" class="btn btn-outline" onclick="closeNewspaperStoryEditor()">Cancel</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn btn-primary" onclick="saveNewspaperStory(false)">
+                            <i class="fa-solid fa-check"></i> Save to Current Language
+                        </button>
+                        <button type="button" class="btn btn-success" style="background:#059669; color:white; border:none;" onclick="saveNewspaperStory(true)">
+                            <i class="fa-solid fa-language"></i> Save &amp; Auto-Translate All
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="display-control" class="content-section">
     <div class="action-bar" style="margin-bottom: 1.5rem;">
         <div>
             <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Live Display & Stage Director Hub</h2>
@@ -4626,6 +5108,7 @@ function toggleCustomGridFields() {
 <script src="preset-templates-engine.js"></script>
 <script src="ai-template-generator.js"></script>
 <script src="admin.js"></script>
+    <script src="newspaper-engine.js"></script>
 
 <!-- ========================================================= -->
 <!-- SLIDE-OVER NOTIFICATION CENTER DRAWER (SUITABLE FOR ALL DEVICES) -->

@@ -72,7 +72,9 @@ body { display: flex; height: 100vh; background-color: var(--bg-main); color: va
 ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
 input, select, textarea { text-transform: none !important; }
-        table td:not(.checkbox-cell) { text-transform: uppercase; }
+        table td:not(.checkbox-cell) { text-transform: none; }
+        table th { text-transform: uppercase; }
+        #users-table td, #users-tbody td, .username-cell { text-transform: none !important; }
 input[type="password"], input[type="file"], .file-input, textarea[style*="text-transform: none"], .cmd-input, #bcast-message, #modal-fest-notes { text-transform: none !important; }
 ::placeholder { text-transform: uppercase; opacity: 0.5; font-size: 0.85rem; font-weight: 500; }
 
@@ -2486,6 +2488,60 @@ input:checked + .slider:before { transform: translateX(20px); }
                         </div>
                         <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px;">Custom logo uploaded by the Master Admin in festival branding settings is automatically reflected here.</small>
                     </div>
+                
+                    <!-- ========================================== -->
+                    <!-- AI DAILY NEWSPAPER / GAZETTE FEATURE CONFIG -->
+                    <!-- ========================================== -->
+                    <div class="newspaper-config-box" style="margin-top: 1.25rem; border: 1px solid var(--border); border-radius: 12px; background: rgba(59, 130, 246, 0.03); padding: 1rem; border-left: 4px solid var(--primary);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(99, 102, 241, 0.15); display: flex; align-items: center; justify-content: center; color: var(--primary);">
+                                    <i class="fa-solid fa-newspaper"></i>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);">AI Daily Newspaper ("The Daily Broadsheet")</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Multilingual 4-Page A4 Festival Newspaper & Gazette</div>
+                                </div>
+                            </div>
+                            <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                                <input type="checkbox" id="modal-fest-newspaper-enabled" checked onchange="toggleNewspaperConfigVisibility(this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div id="modal-fest-newspaper-settings-body" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--border);">
+                            <div class="form-row">
+                                <div class="form-group" style="margin-bottom: 0.75rem;">
+                                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                                        <i class="fa-regular fa-clock" style="color: var(--primary);"></i> Generation & Download Time
+                                    </label>
+                                    <input type="time" class="form-control" id="modal-fest-newspaper-time" value="03:00" style="font-weight: 600;">
+                                    <small style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 3px;">Default 03:00 AM. Newspaper becomes available after this time.</small>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0.75rem;">
+                                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                                        <i class="fa-solid fa-calendar-check" style="color: var(--primary);"></i> Authorized Active Dates
+                                    </label>
+                                    <div style="display: flex; gap: 6px;">
+                                        <input type="date" class="form-control" id="modal-fest-newspaper-new-date" style="font-size: 0.85rem;">
+                                        <button type="button" class="btn btn-primary" onclick="addFestNewspaperDateChip()" style="padding: 0.5rem 0.75rem; font-size: 0.8rem; white-space: nowrap;">
+                                            <i class="fa-solid fa-plus"></i> Add
+                                        </button>
+                                    </div>
+                                    <div style="margin-top: 4px;">
+                                        <button type="button" class="btn btn-outline" onclick="autoPopulateFestNewspaperDates()" style="padding: 2px 8px; font-size: 0.72rem;">
+                                            <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Fill from Fest Range
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">Allowed Generation Dates:</div>
+                            <div id="modal-fest-newspaper-chips-container" style="display: flex; flex-wrap: wrap; gap: 6px; min-height: 32px; padding: 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-main);">
+                                <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic; align-self: center;">No date restrictions (Allowed on all festival dates)</span>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline" onclick="closeModal('festModal')">Cancel</button>
@@ -2520,7 +2576,7 @@ input:checked + .slider:before { transform: translateX(20px); }
 
                     <div class="form-group">
                         <label>Unique Username / Login ID *</label>
-                        <input type="text" class="form-control" id="modal-user-username" placeholder="e.g. zenith26_admin" required>
+                        <input type="text" class="form-control" id="modal-user-username" placeholder="e.g. zenith26_admin" required style="text-transform: none !important;">
                     </div>
 
                     <div class="form-group">

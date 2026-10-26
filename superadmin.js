@@ -267,6 +267,17 @@ async function loadInitialData() {
                     globalFests = [];
                 }
                 if (globalFests.length) await syncFestsToDatabase();
+        try {
+            if (typeof festosSupabase !== 'undefined' && festosSupabase) {
+                const targetFestId = id || (globalFests[globalFests.length - 1] ? globalFests[globalFests.length - 1].id : null);
+                if (targetFestId) {
+                    await festosSupabase.from('settings').upsert({
+                        id: 'newspaper_config_' + targetFestId,
+                        value: newspaper_config
+                    });
+                }
+            }
+        } catch(cfgErr) { console.warn('Could not sync newspaper_config setting:', cfgErr); }
             } else {
                 globalFests = [];
             }
@@ -1280,6 +1291,83 @@ function handleModalFestLogoUpload(input) {
     reader.readAsDataURL(file);
 }
 
+
+// =========================================================================
+// NEWSPAPER CONFIGURATION HELPERS (SUPER ADMIN)
+// =========================================================================
+let currentFestNewspaperDates = [];
+
+function toggleNewspaperConfigVisibility(visible) {
+    const body = document.getElementById('modal-fest-newspaper-settings-body');
+    if (body) body.style.display = visible ? 'block' : 'none';
+}
+
+function addFestNewspaperDateChip() {
+    const input = document.getElementById('modal-fest-newspaper-new-date');
+    if (!input || !input.value) return;
+    const dateStr = input.value.trim();
+    if (!currentFestNewspaperDates.includes(dateStr)) {
+        currentFestNewspaperDates.push(dateStr);
+        currentFestNewspaperDates.sort();
+        renderFestNewspaperChips();
+    }
+    input.value = '';
+}
+
+function removeFestNewspaperDateChip(idx) {
+    currentFestNewspaperDates.splice(idx, 1);
+    renderFestNewspaperChips();
+}
+
+function autoPopulateFestNewspaperDates() {
+    const startInput = document.getElementById('modal-fest-start');
+    const endInput = document.getElementById('modal-fest-end');
+    const startStr = startInput ? startInput.value : '';
+    const endStr = endInput ? endInput.value : '';
+
+    if (!startStr) {
+        showToast('Please set festival Start Date first.', 'warning');
+        return;
+    }
+
+    const s = new Date(startStr);
+    const e = endStr ? new Date(endStr) : new Date(startStr);
+    
+    if (isNaN(s.getTime()) || isNaN(e.getTime())) {
+        showToast('Invalid festival date range.', 'warning');
+        return;
+    }
+
+    const cur = new Date(s);
+    while (cur <= e) {
+        const iso = cur.toISOString().split('T')[0];
+        if (!currentFestNewspaperDates.includes(iso)) {
+            currentFestNewspaperDates.push(iso);
+        }
+        cur.setDate(cur.getDate() + 1);
+    }
+    currentFestNewspaperDates.sort();
+    renderFestNewspaperChips();
+    showToast('Dates populated from festival schedule!', 'success');
+}
+
+function renderFestNewspaperChips() {
+    const container = document.getElementById('modal-fest-newspaper-chips-container');
+    if (!container) return;
+
+    if (currentFestNewspaperDates.length === 0) {
+        container.innerHTML = '<span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic; align-self: center;">No date restrictions (Allowed on all festival dates)</span>';
+        return;
+    }
+
+    container.innerHTML = currentFestNewspaperDates.map((d, i) => `
+        <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(99, 102, 241, 0.12); color: var(--primary); padding: 3px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; border: 1px solid rgba(99, 102, 241, 0.25);">
+            <i class="fa-regular fa-calendar" style="font-size: 0.7rem;"></i> ${d}
+            <i class="fa-solid fa-xmark" onclick="removeFestNewspaperDateChip(${i})" style="cursor: pointer; opacity: 0.7; hover:opacity: 1;" title="Remove date"></i>
+        </span>
+    `).join('');
+}
+
 function openCreateFestModal() {
     currentEditingFest = null;
     document.getElementById('fest-modal-title').innerText = 'Create New Festival';
@@ -1293,6 +1381,13 @@ function openCreateFestModal() {
     document.getElementById('modal-fest-start').value = '';
     document.getElementById('modal-fest-end').value = '';
     document.getElementById('modal-fest-logo').value = '';
+    const npEn = document.getElementById('modal-fest-newspaper-enabled');
+    if (npEn) npEn.checked = true;
+    const npTime = document.getElementById('modal-fest-newspaper-time');
+    if (npTime) npTime.value = '03:00';
+    currentFestNewspaperDates = [];
+    renderFestNewspaperChips();
+    toggleNewspaperConfigVisibility(true);
     updateModalFestLogoPreview('');
     openModal('festModal');
     refreshModalDomainPreview();
@@ -1316,6 +1411,14 @@ function editFestival(festId) {
     document.getElementById('modal-fest-end').value = fest.endDate || fest.end_date || '';
     document.getElementById('modal-fest-logo').value = (currentLogo !== 'festos-logo.svg') ? currentLogo : (fest.logo || '');
     updateModalFestLogoPreview(currentLogo);
+    const npCfg = fest.newspaper_config || {};
+    const npEn = document.getElementById('modal-fest-newspaper-enabled');
+    if (npEn) npEn.checked = (npCfg.enabled !== false);
+    const npTime = document.getElementById('modal-fest-newspaper-time');
+    if (npTime) npTime.value = npCfg.generation_time || '03:00';
+    currentFestNewspaperDates = Array.isArray(npCfg.allowed_dates) ? [...npCfg.allowed_dates] : [];
+    renderFestNewspaperChips();
+    toggleNewspaperConfigVisibility(npCfg.enabled !== false);
     openModal('festModal');
     refreshModalDomainPreview();
 }
@@ -1331,6 +1434,13 @@ async function saveFestivalSubmit() {
     const startDate = document.getElementById('modal-fest-start').value;
     const endDate = document.getElementById('modal-fest-end').value;
     const logo = document.getElementById('modal-fest-logo').value.trim();
+    const newspaperEnabled = document.getElementById('modal-fest-newspaper-enabled') ? document.getElementById('modal-fest-newspaper-enabled').checked : true;
+    const newspaperTime = document.getElementById('modal-fest-newspaper-time') ? (document.getElementById('modal-fest-newspaper-time').value || '03:00') : '03:00';
+    const newspaper_config = {
+        enabled: newspaperEnabled,
+        generation_time: newspaperTime,
+        allowed_dates: [...currentFestNewspaperDates]
+    };
 
     if (!name || !slug) return alert('Festival name and unique slug are required.');
 
@@ -1342,7 +1452,7 @@ async function saveFestivalSubmit() {
         if (id) {
             const index = globalFests.findIndex(f => f.id === id);
             if (index !== -1) {
-                globalFests[index] = { ...globalFests[index], name, slug, domain, status, public_results_slug: resultsSlug, venue, startDate, endDate, logo };
+                globalFests[index] = { ...globalFests[index], name, slug, domain, status, public_results_slug: resultsSlug, venue, startDate, endDate, logo, newspaper_config };
             }
             festosLogger.log('SYSTEM', `Updated festival: ${name}`, { festId: id }, 'INFO');
         } else {
@@ -1357,6 +1467,7 @@ async function saveFestivalSubmit() {
                 startDate,
                 endDate,
                 logo: logo || 'festos-logo.svg',
+                newspaper_config,
                 created_at: new Date().toISOString()
             };
             globalFests.push(newFest);

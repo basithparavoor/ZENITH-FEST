@@ -777,6 +777,7 @@
         @media (min-width: 769px) { .mobile-bottom-nav { display: none; } }
     </style>
     <link rel="stylesheet" href="premium-forms.css">
+    <link rel="stylesheet" href="newspaper-studio.css">
 </head>
 <body>
 
@@ -1507,16 +1508,41 @@
         function applyWebsiteCustomizerConfig(cfg) {
             if (!cfg) return;
             websiteConfig = { ...websiteConfig, ...cfg };
+            if (cfg.theme) websiteConfig.theme = { ...websiteConfig.theme, ...cfg.theme };
+            if (cfg.pages) websiteConfig.pages = { ...websiteConfig.pages, ...cfg.pages };
+            if (cfg.visibility) websiteConfig.visibility = { ...websiteConfig.visibility, ...cfg.visibility };
+            if (cfg.downloads) websiteConfig.downloads = cfg.downloads;
+            if (cfg.gallery) websiteConfig.gallery = cfg.gallery;
+            if (cfg.news) websiteConfig.news = cfg.news;
+
+            // Cache locally for 0ms boot next visit
+            try {
+                const fid = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+                if (fid) localStorage.setItem('festos_cfg_website_config_' + fid, JSON.stringify(websiteConfig));
+                localStorage.setItem('festos_cfg_website_config', JSON.stringify(websiteConfig));
+                localStorage.setItem('websiteConfig', JSON.stringify(websiteConfig));
+            } catch(e) {}
 
             const theme = websiteConfig.theme || {};
             const rootStyle = document.documentElement.style;
 
-            if (theme.primary) rootStyle.setProperty('--primary', theme.primary);
+            if (theme.primary) {
+                rootStyle.setProperty('--primary', theme.primary);
+                rootStyle.setProperty('--primary-hover', theme.primary);
+                rootStyle.setProperty('--primary-light', theme.primary + '18');
+                rootStyle.setProperty('--primary-ring', theme.primary + '33');
+                rootStyle.setProperty('--primary-glow', theme.primary + '25');
+                rootStyle.setProperty('--primary-gradient', `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary || '#6366F1'} 100%)`);
+            }
             if (theme.secondary) rootStyle.setProperty('--secondary', theme.secondary);
             if (theme.accent) rootStyle.setProperty('--accent', theme.accent);
-            if (theme.bg) rootStyle.setProperty('--bg-light', theme.bg);
+            if (theme.bg) {
+                rootStyle.setProperty('--bg-light', theme.bg);
+                document.body.style.backgroundColor = theme.bg;
+            }
             if (theme.font) {
                 rootStyle.setProperty('--font-family', `'${theme.font}', sans-serif`);
+                document.body.style.fontFamily = `'${theme.font}', sans-serif`;
             }
 
             // Results text
@@ -1542,16 +1568,8 @@
             const defaultHero = `Welcome to ${activeFestName}`;
             const defaultDesc = `${activeFestName} powers competitive events across multiple stages. Built for speed, transparency, and accuracy in live festival scorekeeping.`;
 
-            // If hero title or description contains legacy Zenith placeholder, sanitize it to active fest name
             let heroTitleText = home.heroTitle && home.heroTitle.trim() !== '' ? home.heroTitle : defaultHero;
-            if (heroTitleText.toLowerCase().includes('zenith') && !activeFestName.toLowerCase().includes('zenith')) {
-                heroTitleText = defaultHero;
-            }
-
             let heroDescText = home.contentDesc && home.contentDesc.trim() !== '' ? home.contentDesc : defaultDesc;
-            if (heroDescText.toLowerCase().includes('zenith') && !activeFestName.toLowerCase().includes('zenith')) {
-                heroDescText = defaultDesc;
-            }
 
             if (document.getElementById('home-hero-title')) document.getElementById('home-hero-title').innerText = heroTitleText;
             if (document.getElementById('home-hero-subtitle')) document.getElementById('home-hero-subtitle').innerText = home.heroSub || 'Real-time scores, verified stage results, and championship standings live as they happen.';
@@ -1561,10 +1579,22 @@
             if (document.getElementById('home-content-title')) document.getElementById('home-content-title').innerText = home.contentTitle || 'Live Festival Stage Architecture';
             if (document.getElementById('home-content-desc')) document.getElementById('home-content-desc').innerText = heroDescText;
 
+            // Custom Dynamic Stats Counts if configured
+            if (home.progCount && document.getElementById('stat-prog-count')) document.getElementById('stat-prog-count').innerText = home.progCount;
+            if (home.partCount && document.getElementById('stat-part-count')) document.getElementById('stat-part-count').innerText = home.partCount;
+            if (home.teamCount && document.getElementById('stat-team-count')) document.getElementById('stat-team-count').innerText = home.teamCount;
+            if (home.venueCount && document.getElementById('stat-venue-count')) document.getElementById('stat-venue-count').innerText = home.venueCount;
+
             // Logos
             if (theme.header_logo) {
                 const headLogo = document.getElementById('head-logo');
                 if (headLogo) { headLogo.src = theme.header_logo; headLogo.style.display = 'block'; }
+            }
+            if (theme.footer_logo) {
+                const footTitle = document.getElementById('footer-title');
+                if (footTitle) {
+                    footTitle.innerHTML = `<img src="${theme.footer_logo}" style="height: 38px; object-fit: contain;">`;
+                }
             }
 
             // Social & Contact links
@@ -1573,9 +1603,21 @@
             // Visibility for Nav, Quick Hub & Footer
             applyVisibilityRules();
 
+            // Refresh sub-views if active
+            if (document.getElementById('downloads-container')) renderDownloadsView();
+            if (document.getElementById('news-container')) renderNewsView();
+            if (document.getElementById('gallery-container')) renderGalleryView();
+
             // Password check
             checkPasswordProtection();
         }
+
+        // Live preview message listener
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'FESTOS_CONFIG_SYNC') {
+                applyWebsiteCustomizerConfig(event.data.config);
+            }
+        });
 
         function renderSocialLinks(contact = {}) {
             const container = document.getElementById('home-social-links');
@@ -1880,150 +1922,247 @@
         // --- Main Init ---
         async function init() {
             try {
-                // Wait for subdomain -> festival resolution (e.g. sahi26.festos.clubad.space)
-                if (window.festosHostFestReady) { try { await window.festosHostFestReady; } catch (e) {} }
-                
-                // 1. Fetch & Apply Festival Branding and identity FIRST
-                await fetchAndApplyBranding();
-
-                // 2. Fetch Festival-Scoped Website Config
+                // 1. Instant 0ms Synchronous Hydration from Local Storage Cache
                 const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
-                const webCfgVal = window.festosGetSetting ? await window.festosGetSetting('website_config', festId) : null;
-                if (webCfgVal) {
-                    applyWebsiteCustomizerConfig(webCfgVal);
-                } else {
-                    applyWebsiteCustomizerConfig(websiteConfig);
+
+                try {
+                    // 1.1 Local Website Config Cache
+                    const rawWebCfg = (festId ? localStorage.getItem('festos_cfg_website_config_' + festId) : null) || 
+                                      localStorage.getItem('festos_cfg_website_config') || 
+                                      localStorage.getItem('websiteConfig');
+                    if (rawWebCfg) {
+                        applyWebsiteCustomizerConfig(JSON.parse(rawWebCfg));
+                    }
+
+                    // 1.2 Local Festival Branding Cache
+                    if (festId) {
+                        const rawBrand = localStorage.getItem('festos_branding_cache_' + festId);
+                        if (rawBrand) {
+                            const b = JSON.parse(rawBrand);
+                            if (b && b.fest_name) {
+                                currentFestDetails.id = festId;
+                                currentFestDetails.name = b.fest_name;
+                                currentFestDetails.logo = b.fest_logo || '';
+                                applyGlobalBranding(b);
+                            }
+                        }
+                    }
+
+                    // 1.3 Local Results & Standings Cache (Instant 0ms UI Rendering)
+                    const rawResults = festId ? localStorage.getItem('festos_results_cache_' + festId) : null;
+                    if (rawResults) {
+                        const r = JSON.parse(rawResults);
+                        if (r && r.allTeams && r.allTeams.length) {
+                            allTeams = r.allTeams;
+                            publishedCompetitions = r.publishedCompetitions || [];
+                            globalJudgements = r.globalJudgements || [];
+                            calculatedTeamScores = r.calculatedTeamScores || {};
+                            competitionParticipantsMap = r.competitionParticipantsMap || {};
+
+                            const countEl = document.getElementById('published-count-display');
+                            if (countEl) countEl.innerText = publishedCompetitions.length;
+
+                            populateTimelineDropdown();
+                            renderLeaderboard();
+                            renderCompetitionsGrid();
+                        }
+                    }
+                } catch (cacheErr) {
+                    console.warn("Local cache hydration notice:", cacheErr);
                 }
 
+                // 2. Wait for host subdomain resolution if in-flight
+                if (window.festosHostFestReady) { try { await window.festosHostFestReady; } catch (e) {} }
+
+                // 3. Build Parallel Query Group
                 let compsCntQuery = supabaseClient.from('competitions').select('*', { count: 'exact', head: true });
                 let partsCntQuery = supabaseClient.from('participants').select('*', { count: 'exact', head: true });
                 let teamsCntQuery = supabaseClient.from('teams').select('*', { count: 'exact', head: true });
                 let stagesCntQuery = supabaseClient.from('stages').select('*', { count: 'exact', head: true });
+                let teamsQuery = supabaseClient.from('teams').select('*');
+                let compsQuery = supabaseClient.from('competitions')
+                    .select('*, categories(name, is_general), participant_competitions(count)') 
+                    .eq('status', 'published');
 
                 if (window.festosApplyFilter) {
                     compsCntQuery = window.festosApplyFilter(compsCntQuery);
                     partsCntQuery = window.festosApplyFilter(partsCntQuery);
                     teamsCntQuery = window.festosApplyFilter(teamsCntQuery);
                     stagesCntQuery = window.festosApplyFilter(stagesCntQuery);
+                    teamsQuery = window.festosApplyFilter(teamsQuery);
+                    compsQuery = window.festosApplyFilter(compsQuery);
                 }
 
-                // Live dynamic counts from database
+                // Execute ALL independent round-trips in ONE parallel burst
                 const [
-                    { count: totalComps },
-                    { count: totalParticipants },
-                    { count: totalTeamsCount },
-                    { count: totalStagesCount }
+                    fDataRes,
+                    brandVal,
+                    webCfgVal,
+                    pointVal,
+                    partClassMap,
+                    cntCompsRes,
+                    cntPartsRes,
+                    cntTeamsRes,
+                    cntStagesRes,
+                    teamsRes,
+                    compsRes,
+                    templatesRes
                 ] = await Promise.all([
+                    (festId && typeof supabaseClient !== 'undefined') ? 
+                        supabaseClient.from('fests').select('id, name, slug, domain, logo, start_date, end_date, venue').eq('id', festId).maybeSingle() : 
+                        Promise.resolve({ data: null }),
+                    window.festosGetSetting ? window.festosGetSetting('system_branding', festId) : null,
+                    window.festosGetSetting ? window.festosGetSetting('website_config', festId) : null,
+                    window.festosGetSetting ? window.festosGetSetting('point_system', festId) : null,
+                    window.festosGetSetting ? window.festosGetSetting('participant_classes', festId) : null,
                     compsCntQuery,
                     partsCntQuery,
                     teamsCntQuery,
-                    stagesCntQuery
+                    stagesCntQuery,
+                    teamsQuery,
+                    compsQuery,
+                    supabaseClient.from('templates').select('*').eq('type', 'individual')
                 ]);
 
-                // Apply dynamic counts to Home dashboard
+                // 4. Apply Festival Entity & Branding
+                const fData = fDataRes?.data;
+                if (fData) {
+                    currentFestDetails = {
+                        id: fData.id,
+                        name: fData.name || 'Festival',
+                        slug: fData.slug || '',
+                        domain: fData.domain || '',
+                        logo: fData.logo || '',
+                        dates: (fData.start_date ? fData.start_date + (fData.end_date ? ' - ' + fData.end_date : '') : ''),
+                        venue: fData.venue || ''
+                    };
+                }
+
+                let finalBranding = brandVal;
+                if (!finalBranding && fData) {
+                    finalBranding = {
+                        fest_name: fData.name || 'Festival',
+                        fest_logo: fData.logo || '',
+                        display_mode: fData.logo ? 'both' : 'name'
+                    };
+                } else if (finalBranding && fData) {
+                    if (!finalBranding.fest_name) finalBranding.fest_name = fData.name;
+                    if (!finalBranding.fest_logo && fData.logo) finalBranding.fest_logo = fData.logo;
+                    currentFestDetails.name = finalBranding.fest_name || fData.name || 'Festival';
+                    if (finalBranding.fest_logo) currentFestDetails.logo = finalBranding.fest_logo;
+                }
+
+                if (finalBranding) {
+                    try { if (festId) localStorage.setItem('festos_branding_cache_' + festId, JSON.stringify(finalBranding)); } catch(e) {}
+                    applyGlobalBranding(finalBranding);
+                }
+
+                // 5. Apply Fresh Website Customizer Config
+                if (webCfgVal) {
+                    applyWebsiteCustomizerConfig(webCfgVal);
+                } else {
+                    applyWebsiteCustomizerConfig(websiteConfig);
+                }
+
+                // 6. Dynamic Counts on Dashboard
+                const totalComps = cntCompsRes?.count || 0;
+                const totalParticipants = cntPartsRes?.count || 0;
+                const totalTeamsCount = cntTeamsRes?.count || 0;
+                const totalStagesCount = cntStagesRes?.count || 0;
+
                 const homeCfg = websiteConfig.pages?.home || {};
-                const progDisplay = homeCfg.progCount && homeCfg.progCount.trim() !== '' ? homeCfg.progCount : `${totalComps || 0}+`;
-                const partDisplay = homeCfg.partCount && homeCfg.partCount.trim() !== '' ? homeCfg.partCount : `${totalParticipants || 0}`;
-                const teamDisplay = homeCfg.teamCount && homeCfg.teamCount.trim() !== '' ? homeCfg.teamCount : `${totalTeamsCount || 0}`;
-                const venueDisplay = homeCfg.venueCount && homeCfg.venueCount.trim() !== '' ? homeCfg.venueCount : `${totalStagesCount || 0}`;
+                const progDisplay = homeCfg.progCount && homeCfg.progCount.trim() !== '' ? homeCfg.progCount : `${totalComps}+`;
+                const partDisplay = homeCfg.partCount && homeCfg.partCount.trim() !== '' ? homeCfg.partCount : `${totalParticipants}`;
+                const teamDisplay = homeCfg.teamCount && homeCfg.teamCount.trim() !== '' ? homeCfg.teamCount : `${totalTeamsCount}`;
+                const venueDisplay = homeCfg.venueCount && homeCfg.venueCount.trim() !== '' ? homeCfg.venueCount : `${totalStagesCount}`;
 
                 if (document.getElementById('stat-prog-count')) document.getElementById('stat-prog-count').innerText = progDisplay;
                 if (document.getElementById('stat-part-count')) document.getElementById('stat-part-count').innerText = partDisplay;
                 if (document.getElementById('stat-team-count')) document.getElementById('stat-team-count').innerText = teamDisplay;
                 if (document.getElementById('stat-venue-count')) document.getElementById('stat-venue-count').innerText = venueDisplay;
 
-                const pointVal = window.festosGetSetting ? await window.festosGetSetting('point_system') : null;
-                const set_data = pointVal ? { value: pointVal } : (await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle()).data;        
-                if (set_data && set_data.value) {
-                    SYSTEM_SETTINGS = set_data.value;
-                    if(!SYSTEM_SETTINGS.poster_interval) SYSTEM_SETTINGS.poster_interval = 10;
+                // 7. Point System Settings
+                if (pointVal) {
+                    SYSTEM_SETTINGS = pointVal;
+                    if (!SYSTEM_SETTINGS.poster_interval) SYSTEM_SETTINGS.poster_interval = 10;
                 }
 
-                let teamsQuery = supabaseClient.from('teams').select('*');
-                if (window.festosApplyFilter) teamsQuery = window.festosApplyFilter(teamsQuery);
-                const { data: teams } = await teamsQuery;
-                allTeams = teams || [];
-                
-                let compsQuery = supabaseClient.from('competitions')
-                    .select('*, categories(name, is_general), participant_competitions(count)') 
-                    .eq('status', 'published');
-                if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery);
-                const { data: comps, error: compError } = await compsQuery;
-                
-                if (compError) throw compError;
-                publishedCompetitions = comps || [];
+                // 8. Teams & Published Competitions
+                allTeams = teamsRes?.data || [];
+                publishedCompetitions = compsRes?.data || [];
 
                 const countDisplayElement = document.getElementById('published-count-display');
-                if (countDisplayElement) {
-                    countDisplayElement.innerText = publishedCompetitions.length;
-                }
+                if (countDisplayElement) countDisplayElement.innerText = publishedCompetitions.length;
 
-                const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', 'individual');
-                cachedTemplates = templates || [];
+                cachedTemplates = templatesRes?.data || [];
                 cachedTemplates.forEach(tpl => ensureFontsLoaded(tpl));
 
+                // 9. Parallel Second Burst: Judgements & Participant Competitions
                 if (publishedCompetitions.length > 0) {
                     const compIds = publishedCompetitions.map(c => c.id);
 
-                    // Fetch judgements with valid columns only
-                    const { data: judgements, error: jErr } = await supabaseClient
-                        .from('judgements')
-                        .select('competition_id, awarded_mark, participant_id, participants(id, name, unique_id, team_id, photo_url)')
-                        .in('competition_id', compIds)
-                        .not('participant_id', 'is', null)
-                        .not('awarded_mark', 'is', null);
-
-                    if (jErr) console.warn("Judgements query notice:", jErr.message);
-                    globalJudgements = judgements || [];
-
-                    // Fetch squad / participant_competitions data for team members
-                    let partComps = [];
-                    try {
-                        const { data } = await supabaseClient
+                    const [judgementsDataRes, partCompsDataRes] = await Promise.all([
+                        supabaseClient
+                            .from('judgements')
+                            .select('competition_id, awarded_mark, participant_id, participants(id, name, unique_id, team_id, photo_url)')
+                            .in('competition_id', compIds)
+                            .not('participant_id', 'is', null)
+                            .not('awarded_mark', 'is', null),
+                        supabaseClient
                             .from('participant_competitions')
                             .select('competition_id, participant_id, is_leader, participants(id, name, unique_id, team_id, photo_url)')
-                            .in('competition_id', compIds);
-                        partComps = data || [];
-                        if (partComps) {
-                            partComps.forEach(pc => {
-                                if (!competitionParticipantsMap[pc.competition_id]) {
-                                    competitionParticipantsMap[pc.competition_id] = [];
-                                }
-                                competitionParticipantsMap[pc.competition_id].push(pc);
-                            });
-                        }
-                    } catch (e) {
-                        console.warn("Could not fetch participant_competitions:", e);
-                    }
+                            .in('competition_id', compIds)
+                    ]);
 
-                    // Merge participant class mappings
-                    try {
-                        let partClassMap = {};
-                        if (window.festosGetSetting) {
-                            partClassMap = (await window.festosGetSetting('participant_classes')) || {};
+                    globalJudgements = judgementsDataRes?.data || [];
+                    const partComps = partCompsDataRes?.data || [];
+
+                    competitionParticipantsMap = {};
+                    partComps.forEach(pc => {
+                        if (!competitionParticipantsMap[pc.competition_id]) {
+                            competitionParticipantsMap[pc.competition_id] = [];
                         }
-                        globalJudgements.forEach(j => {
-                            if (j.participants) {
-                                j.participants.class_name = j.participants.class_name || partClassMap[j.participants.id] || '';
-                            }
-                        });
-                        partComps.forEach(pc => {
-                            if (pc.participants) {
-                                pc.participants.class_name = pc.participants.class_name || partClassMap[pc.participants.id] || '';
-                            }
-                        });
+                        competitionParticipantsMap[pc.competition_id].push(pc);
+                    });
+
+                    // Merge Participant Class Mappings
+                    const classMap = partClassMap || {};
+                    globalJudgements.forEach(j => {
+                        if (j.participants) {
+                            j.participants.class_name = j.participants.class_name || classMap[j.participants.id] || '';
+                        }
+                    });
+                    partComps.forEach(pc => {
+                        if (pc.participants) {
+                            pc.participants.class_name = pc.participants.class_name || classMap[pc.participants.id] || '';
+                        }
+                    });
+
+                    populateTimelineDropdown();
+                    applyTimelineFilter();
+
+                    // 10. Persist Fresh Snapshot in Local Cache
+                    try {
+                        if (festId) {
+                            localStorage.setItem('festos_results_cache_' + festId, JSON.stringify({
+                                allTeams,
+                                publishedCompetitions,
+                                globalJudgements,
+                                calculatedTeamScores,
+                                competitionParticipantsMap,
+                                timestamp: Date.now()
+                            }));
+                        }
                     } catch(e) {}
 
-                    populateTimelineDropdown(); 
-                    applyTimelineFilter();
                 } else {
                     renderLeaderboard();
                 }
 
                 populateCategoryFilter();
                 renderCompetitionsGrid();
-                
-                // URL Routing
+
+                // 11. URL Routing
                 const urlParams = new URLSearchParams(window.location.search);
                 const viewContext = urlParams.get('view') || 'home';
                 const targetCompId = urlParams.get('comp') || null;
@@ -2031,16 +2170,20 @@
                 if (viewContext === 'results' && targetCompId) {
                     switchMainTab('results');
                     switchResultsTab('individual', document.querySelectorAll('.tabs .tab')[1]);
-                    setTimeout(() => { openResultModal(targetCompId); }, 500);
+                    setTimeout(() => { openResultModal(targetCompId); }, 300);
                 } else if (viewContext === 'standings') {
                     switchMainTab('results');
                     switchResultsTab('standings', document.querySelectorAll('.tabs .tab')[0]);
-                } else if (viewContext) {
+                } else if (viewContext && viewContext !== 'home') {
                     switchMainTab(viewContext);
                 }
+
             } catch (err) {
                 console.error("Init Error:", err);
-                document.getElementById('competitions-container').innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #ef4444; font-weight: 600;">Failed to load events. Check console for details.</p>`;
+                const compContainer = document.getElementById('competitions-container');
+                if (compContainer) {
+                    compContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #ef4444; font-weight: 600;">Failed to load events. Check console for details.</p>';
+                }
             }
         }
 
@@ -2848,7 +2991,10 @@
                 <div class="download-card">
                     <div>
                         <div class="dl-icon"><i class="${d.icon || 'fa-solid fa-file-pdf'}"></i></div>
-                        <span class="badge" style="background: var(--bg-light); color: var(--text-muted); font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase; margin-bottom: 0.4rem; display: inline-block;">${d.category || 'General'}</span>
+                        ${d.category === 'Daily Newspaper' ? 
+    '<span class="badge" style="background: rgba(99,102,241,0.12); color: var(--primary); font-size: 0.75rem; font-weight: 800; border: 1px solid rgba(99,102,241,0.25); text-transform: uppercase; margin-bottom: 0.4rem; display: inline-flex; align-items: center; gap: 5px;"><i class="fa-solid fa-newspaper"></i> DAILY GAZETTE</span>' : 
+    '<span class="badge" style="background: var(--bg-light); color: var(--text-muted); font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase; margin-bottom: 0.4rem; display: inline-block;">' + (d.category || 'General') + '</span>'
+}
                         <h3 class="dl-title">${d.title}</h3>
                         <p class="dl-desc">${d.desc || 'Official document released by Fest Committee.'}</p>
                     </div>

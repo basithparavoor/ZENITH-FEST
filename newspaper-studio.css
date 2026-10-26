@@ -1,0 +1,660 @@
+/* ==========================================================================
+   FESTOS DAILY GAZETTE & AI NEWSPAPER STUDIO - ENTERPRISE BROADSHEET SYSTEM
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,800;0,900;1,400;1,600;1,700&family=Amiri:ital,wght@0,400;0,700;1,400&family=Noto+Nastaliq+Urdu:wght@400;700&family=Manjari:wght@400;700&family=Noto+Sans+Devanagari:wght@400;600;700;800&family=Noto+Sans+Bengali:wght@400;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&display=swap');
+
+/* Base Broadsheet Container */
+.newspaper-workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+/* Control Hub */
+.newspaper-control-bar {
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+.np-toolbar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    align-items: flex-end;
+}
+
+/* Language Switcher Tabs */
+.np-lang-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0;
+    padding: 0.5rem;
+    background: rgba(15, 23, 42, 0.04);
+    border-radius: 10px;
+    border: 1px solid var(--border, #e2e8f0);
+}
+
+.np-lang-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.45rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    background: transparent;
+    color: var(--text-muted, #64748b);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.np-lang-pill:hover {
+    background: rgba(99, 102, 241, 0.08);
+    color: var(--text-main, #0f172a);
+}
+
+.np-lang-pill.active {
+    background: var(--primary, #6366f1);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+}
+
+.np-lang-pill .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10b981;
+}
+
+/* Page Navigation Tabs */
+.np-page-tabs {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+
+.np-page-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid var(--border, #cbd5e1);
+    background: var(--bg-card, #ffffff);
+    color: var(--text-main, #1e293b);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.np-page-btn:hover {
+    border-color: var(--primary, #6366f1);
+    color: var(--primary, #6366f1);
+}
+
+.np-page-btn.active {
+    background: #0f172a;
+    color: #ffffff;
+    border-color: #0f172a;
+}
+
+/* 4-Page Broadsheet Sheet Layout (A4 Ratio) */
+.newspaper-sheets-viewport {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    padding: 1.5rem 0;
+    background: #1e293b;
+    border-radius: 16px;
+    overflow-x: auto;
+}
+
+.broadsheet-page {
+    width: 210mm;
+    min-height: 297mm;
+    box-sizing: border-box;
+    padding: 14mm 16mm 14mm 16mm;
+    position: relative;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* Themes */
+/* 1. Classic Broadsheet */
+.theme-classic {
+    background-color: #fbf9f4;
+    color: #1a1a1a;
+    font-family: 'Newsreader', 'Times New Roman', serif;
+    border: 1px solid #d4cebe;
+}
+.theme-classic .bs-masthead { border-top: 3px double #1a1a1a; border-bottom: 3px double #1a1a1a; }
+.theme-classic .bs-title { font-family: 'Playfair Display', serif; color: #111111; }
+.theme-classic .bs-accent { color: #881337; }
+.theme-classic .bs-border { border-color: #1a1a1a; }
+
+/* 2. Royal Crimson & Gold */
+.theme-royal {
+    background-color: #fdfaf6;
+    color: #2b1e16;
+    font-family: 'Newsreader', Georgia, serif;
+    border: 2px solid #b45309;
+}
+.theme-royal .bs-masthead { border-top: 4px solid #881337; border-bottom: 2px solid #d97706; background: rgba(136, 19, 55, 0.03); }
+.theme-royal .bs-title { font-family: 'Cinzel', serif; color: #881337; }
+.theme-royal .bs-accent { color: #b45309; }
+.theme-royal .bs-border { border-color: #b45309; }
+
+/* 3. Cyber Slate (Modern Minimalist) */
+.theme-modern {
+    background-color: #ffffff;
+    color: #0f172a;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    border: 1px solid #cbd5e1;
+}
+.theme-modern .bs-masthead { border-top: 4px solid #0f172a; border-bottom: 2px solid #0f172a; }
+.theme-modern .bs-title { font-family: 'Inter', sans-serif; font-weight: 900; letter-spacing: -0.04em; color: #0f172a; }
+.theme-modern .bs-accent { color: #2563eb; }
+.theme-modern .bs-border { border-color: #e2e8f0; }
+
+/* 4. Emerald Prestige */
+.theme-emerald {
+    background-color: #f9fbf9;
+    color: #0d2818;
+    font-family: 'Newsreader', serif;
+    border: 2px solid #047857;
+}
+.theme-emerald .bs-masthead { border-top: 4px solid #064e3b; border-bottom: 2px solid #ca8a04; }
+.theme-emerald .bs-title { font-family: 'Cinzel', serif; color: #064e3b; }
+.theme-emerald .bs-accent { color: #ca8a04; }
+.theme-emerald .bs-border { border-color: #047857; }
+
+/* Multilingual Typography Overrides */
+.broadsheet-page.lang-ar,
+.broadsheet-page.lang-ur {
+    direction: rtl;
+    text-align: right;
+    font-family: 'Amiri', 'Noto Nastaliq Urdu', serif;
+}
+.broadsheet-page.lang-ar .bs-title,
+.broadsheet-page.lang-ur .bs-title {
+    font-family: 'Amiri', 'Noto Nastaliq Urdu', serif;
+    letter-spacing: 0;
+}
+
+.broadsheet-page.lang-ml {
+    font-family: 'Manjari', 'Gayathri', sans-serif;
+}
+.broadsheet-page.lang-ml .bs-title {
+    font-family: 'Manjari', sans-serif;
+    font-weight: 700;
+}
+
+.broadsheet-page.lang-hi {
+    font-family: 'Noto Sans Devanagari', serif;
+}
+.broadsheet-page.lang-hi .bs-title {
+    font-family: 'Noto Sans Devanagari', serif;
+    font-weight: 800;
+}
+
+.broadsheet-page.lang-bn {
+    font-family: 'Noto Sans Bengali', serif;
+}
+.broadsheet-page.lang-bn .bs-title {
+    font-family: 'Noto Sans Bengali', serif;
+    font-weight: 800;
+}
+
+/* Broadsheet Elements */
+.bs-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding-bottom: 4px;
+    border-bottom: 1px solid currentColor;
+    opacity: 0.85;
+}
+
+.bs-masthead {
+    padding: 10px 0;
+    margin: 6px 0 10px 0;
+    text-align: center;
+    position: relative;
+}
+
+.bs-masthead-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.bs-logo {
+    width: 58px;
+    height: 58px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.bs-title {
+    font-size: 26pt;
+    line-height: 1;
+    margin: 0;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.bs-tagline {
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-top: 4px;
+    opacity: 0.8;
+}
+
+.bs-meta-strip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 8pt;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 3px 0;
+    border-top: 1px solid currentColor;
+    border-bottom: 1px solid currentColor;
+    margin-bottom: 10px;
+}
+
+/* Page Section Headlines */
+.bs-page-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 2px solid currentColor;
+    border-bottom: 1px solid currentColor;
+    padding: 4px 0;
+    margin-bottom: 12px;
+    font-size: 8.5pt;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* Story Grid */
+.bs-story-grid {
+    display: grid;
+    grid-template-columns: 2.2fr 1fr;
+    gap: 16px;
+    flex: 1;
+}
+
+.bs-lead-story {
+    border-right: 1px solid rgba(0, 0, 0, 0.2);
+    padding-right: 16px;
+    display: flex;
+    flex-direction: column;
+}
+.lang-ar .bs-lead-story,
+.lang-ur .bs-lead-story {
+    border-right: none;
+    border-left: 1px solid rgba(0, 0, 0, 0.2);
+    padding-right: 0;
+    padding-left: 16px;
+}
+
+.bs-headline {
+    font-size: 19pt;
+    font-weight: 800;
+    line-height: 1.15;
+    margin: 0 0 6px 0;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.bs-headline:hover {
+    color: var(--primary, #6366f1);
+}
+
+.bs-subhead {
+    font-size: 10.5pt;
+    font-style: italic;
+    opacity: 0.85;
+    line-height: 1.35;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+
+.bs-byline {
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.75;
+}
+
+.bs-lead-img-box {
+    margin-bottom: 10px;
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    border-radius: 2px;
+    border: 1px solid rgba(0,0,0,0.15);
+}
+
+.bs-lead-img {
+    width: 100%;
+    height: 175px;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s;
+}
+.bs-lead-img-box:hover .bs-lead-img {
+    transform: scale(1.02);
+}
+
+.bs-caption {
+    font-size: 7.5pt;
+    font-style: italic;
+    padding: 3px 4px;
+    background: rgba(0, 0, 0, 0.03);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.bs-article-text {
+    font-size: 8.5pt;
+    line-height: 1.45;
+    text-align: justify;
+    column-count: 2;
+    column-gap: 12px;
+    column-rule: 1px solid rgba(0, 0, 0, 0.12);
+    flex: 1;
+    cursor: pointer;
+}
+
+.bs-article-text::first-letter {
+    float: left;
+    font-size: 32pt;
+    line-height: 0.8;
+    padding-top: 4px;
+    padding-right: 6px;
+    padding-bottom: 2px;
+    font-weight: 800;
+    font-family: 'Playfair Display', serif;
+}
+.lang-ar .bs-article-text::first-letter,
+.lang-ur .bs-article-text::first-letter {
+    float: none;
+    font-size: inherit;
+    padding: 0;
+}
+
+/* Side Bulletin */
+.bs-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.bs-card-box {
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.015);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.bs-card-box:hover {
+    border-color: var(--primary, #6366f1);
+    background: rgba(99, 102, 241, 0.04);
+}
+
+.bs-card-tag {
+    font-size: 7pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 5px;
+    background: #0f172a;
+    color: #ffffff;
+    display: inline-block;
+    margin-bottom: 4px;
+}
+
+.bs-card-title {
+    font-size: 10pt;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 0 0 4px 0;
+}
+
+.bs-card-body {
+    font-size: 8pt;
+    line-height: 1.35;
+    opacity: 0.88;
+    margin: 0;
+}
+
+/* Bottom Ticker / Index */
+.bs-footer-ticker {
+    margin-top: 10px;
+    padding-top: 6px;
+    border-top: 2px solid currentColor;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 7.5pt;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* Stage Schedule Matrix on Page 2 */
+.bs-schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8pt;
+    margin: 8px 0;
+}
+
+.bs-schedule-table th {
+    background: #0f172a;
+    color: #ffffff;
+    padding: 6px 8px;
+    text-align: left;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 7.5pt;
+}
+.lang-ar .bs-schedule-table th,
+.lang-ur .bs-schedule-table th {
+    text-align: right;
+}
+
+.bs-schedule-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    vertical-align: top;
+}
+
+.bs-stage-badge {
+    display: inline-block;
+    font-weight: 800;
+    font-size: 7pt;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--primary, #6366f1);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+/* Podium & Standings on Page 3 */
+.bs-podium-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr 1fr;
+    gap: 10px;
+    align-items: flex-end;
+    margin: 12px 0;
+    text-align: center;
+}
+
+.bs-podium-card {
+    border: 1px solid rgba(0,0,0,0.2);
+    padding: 10px 8px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.02);
+}
+.bs-podium-card.first {
+    border: 2px solid #b45309;
+    background: rgba(245, 158, 11, 0.08);
+    transform: translateY(-8px);
+}
+
+.bs-podium-rank {
+    font-size: 16pt;
+    font-weight: 900;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.bs-podium-team {
+    font-size: 10pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+.bs-podium-pts {
+    font-size: 14pt;
+    font-weight: 900;
+    color: var(--primary, #6366f1);
+}
+
+/* Star Spotlight */
+.bs-spotlight-card {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 12px;
+    border: 2px solid currentColor;
+    padding: 10px;
+    margin: 10px 0;
+    background: rgba(0, 0, 0, 0.02);
+    cursor: pointer;
+}
+.lang-ar .bs-spotlight-card,
+.lang-ur .bs-spotlight-card {
+    grid-template-columns: 1fr 100px;
+}
+
+.bs-spotlight-img {
+    width: 100px;
+    height: 110px;
+    object-fit: cover;
+    border: 1px solid rgba(0,0,0,0.2);
+}
+
+/* Page 4 Cultural & Gallery Strip */
+.bs-gallery-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.bs-gallery-photo-box {
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+}
+
+.bs-gallery-photo {
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+    display: block;
+}
+
+.bs-back-footer {
+    border-top: 2px solid currentColor;
+    padding-top: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 7.5pt;
+    font-weight: 600;
+}
+
+/* Past Editions Archive Carousel */
+.np-archive-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.np-archive-card {
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.np-archive-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+}
+
+/* Print Rules - Exact 4 Pages */
+@media print {
+    body * {
+        visibility: hidden !important;
+    }
+    .broadsheet-page,
+    .broadsheet-page * {
+        visibility: visible !important;
+    }
+    .newspaper-sheets-viewport {
+        background: transparent !important;
+        padding: 0 !important;
+    }
+    .broadsheet-page {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 210mm !important;
+        height: 297mm !important;
+        min-height: 297mm !important;
+        margin: 0 !important;
+        padding: 12mm 14mm !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+    .broadsheet-page:nth-child(1) { top: 0; }
+    .broadsheet-page:nth-child(2) { top: 297mm; }
+    .broadsheet-page:nth-child(3) { top: 594mm; }
+    .broadsheet-page:nth-child(4) { top: 891mm; }
+}
