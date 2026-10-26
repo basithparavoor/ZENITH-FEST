@@ -108,6 +108,8 @@ async function saveCategoryCompLimit(catId, customEnabled, limitNum) {
 const SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
 const supabaseClient = window.supabaseClient || (window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null);
+window.supabaseClient = supabaseClient;
+window.festosSupabase = supabaseClient;
 
 // Auth check (allow admin, master_admin, or super_admin)
 const user = (typeof festosAuth !== 'undefined') ? (festosAuth.getUser() || festosAuth.getSuperAdmin()) : JSON.parse(localStorage.getItem('festUser') || localStorage.getItem('festSuperAdmin') || 'null');
@@ -12049,61 +12051,93 @@ window.changeMasterAdminCredentials = async function(newUsername, newPassword) {
 let globalFestivalNotifications = [];
 let currentNotificationFilter = 'all';
 
-async function fetchFestivalNotifications(showToastFeedback = false) {
-    const client = window.supabaseClient || window.festosSupabase;
-    if (!client) return;
+window.festosDownloadApkDirect = function(targetUrl) {
+    let url = targetUrl && targetUrl !== '#' && targetUrl.trim() ? targetUrl : '/VIBRANIUM.apk';
+    if (!url.startsWith('http') && !url.startsWith('/')) {
+        url = '/' + url;
+    }
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'VIBRANIUM.apk';
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        try { a.remove(); } catch(e) {}
+    }, 250);
+    if (typeof showToast === 'function') {
+        showToast('Downloading VIBRANIUM.apk...', 'success');
+    }
+};
 
+async function fetchFestivalNotifications(showToastFeedback = false) {
+    const client = window.supabaseClient || window.festosSupabase || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
     const activeFestId = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? 
         festosAuth.getCurrentFestId() : (localStorage.getItem('festos_active_fest_id') || 'all');
 
-    try {
-        let broadcasts = [];
+    let broadcasts = [];
 
-        // 1. Fetch from broadcasts table
-        const { data, error } = await client.from('broadcasts').select('*').order('created_at', { ascending: false }).limit(40);
-        if (!error && Array.isArray(data)) {
-            broadcasts = data;
-        } else {
-            // Fallback to active broadcasts in settings
-            const { data: sRow } = await client.from('settings').select('value').eq('id', 'system_broadcast_active').maybeSingle();
-            if (sRow && Array.isArray(sRow.value)) {
-                broadcasts = sRow.value;
-            }
-        }
-
-        // Filter for this festival
-        const filtered = broadcasts.filter(b => {
-            if (b.is_active === false) return false;
-            if (!b.target_fest_id || b.target_fest_id === 'all' || b.target_fest_id === activeFestId) return true;
-            if (Array.isArray(b.allowed_fests) && (b.allowed_fests.includes('*') || b.allowed_fests.includes(activeFestId))) return true;
-            return false;
-        });
-
-        globalFestivalNotifications = filtered;
-        updateNotificationBadge();
-        renderNotificationsList();
-
-        // Trigger WhatsApp-style native heads-up notification for newly arrived alerts
-        const prevSeenIds = JSON.parse(localStorage.getItem('festos_seen_notif_ids') || '[]');
-        const readIds = getReadNotifications();
-        const newArrivals = filtered.filter(b => !prevSeenIds.includes(b.id) && !readIds.includes(b.id));
-
-        if (newArrivals.length > 0 && prevSeenIds.length > 0) {
-            newArrivals.forEach(n => {
-                if (typeof window.showAppNotification === 'function') {
-                    window.showAppNotification(n.title || 'VIBRANIUM Alert', n.message || 'New festival announcement received', { id: n.id });
+    if (client) {
+        try {
+            // 1. Fetch from broadcasts table
+            const { data, error } = await client.from('broadcasts').select('*').order('created_at', { ascending: false }).limit(40);
+            if (!error && Array.isArray(data) && data.length > 0) {
+                broadcasts = data;
+            } else {
+                // Fallback to active broadcasts in settings
+                const { data: sRow } = await client.from('settings').select('value').eq('id', 'system_broadcast_active').maybeSingle();
+                if (sRow && Array.isArray(sRow.value)) {
+                    broadcasts = sRow.value;
                 }
-            });
+            }
+        } catch (e) {
+            console.warn('Supabase broadcast fetch error:', e);
         }
-        const updatedSeen = [...new Set([...prevSeenIds, ...filtered.map(b => b.id)])];
-        try { localStorage.setItem('festos_seen_notif_ids', JSON.stringify(updatedSeen)); } catch(e) {}
+    }
 
-        if (showToastFeedback && typeof showToast === 'function') {
-            showToast('Notifications synchronized!', 'info');
-        }
+    // 2. Fallback to cached broadcasts from localStorage or festosBroadcasts
+    if (!broadcasts || broadcasts.length === 0) {
+        try {
+            const cached = localStorage.getItem('festos_cached_broadcasts');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0) broadcasts = parsed;
+            }
+        } catch (err) {}
+    }
 
-    } catch (e) {
-        console.warn('Failed to fetch festival notifications:', e);
+    if ((!broadcasts || broadcasts.length === 0) && window.festosBroadcasts && Array.isArray(window.festosBroadcasts.activeBroadcasts)) {
+        broadcasts = window.festosBroadcasts.activeBroadcasts;
+    }
+
+    // Filter for this festival (exclude deleted/inactive)
+    const filtered = broadcasts.filter(b => {
+        if (!b || b.is_active === false) return false;
+        if (!b.target_fest_id || b.target_fest_id === 'all' || b.target_fest_id === activeFestId) return true;
+        if (Array.isArray(b.allowed_fests) && (b.allowed_fests.includes('*') || b.allowed_fests.includes(activeFestId))) return true;
+        return false;
+    });
+
+    globalFestivalNotifications = filtered;
+    updateNotificationBadge();
+    renderNotificationsList();
+
+    // Trigger WhatsApp-style native heads-up notification for newly arrived alerts or edited alerts
+    const prevSeenIds = JSON.parse(localStorage.getItem('festos_seen_notif_ids') || '[]');
+    const newArrivals = filtered.filter(b => !prevSeenIds.includes(b.id) && !isNotificationRead(b));
+
+    if (newArrivals.length > 0 && prevSeenIds.length > 0) {
+        newArrivals.forEach(n => {
+            if (typeof window.showAppNotification === 'function') {
+                window.showAppNotification(n.title || 'VIBRANIUM Alert', n.message || 'New festival announcement received', { id: n.id });
+            }
+        });
+    }
+    const updatedSeen = [...new Set([...prevSeenIds, ...filtered.map(b => b.id)])];
+    try { localStorage.setItem('festos_seen_notif_ids', JSON.stringify(updatedSeen)); } catch(e) {}
+
+    if (showToastFeedback && typeof showToast === 'function') {
+        showToast('Notifications synchronized!', 'info');
     }
 }
 
@@ -12114,9 +12148,25 @@ function getReadNotifications() {
     } catch(e) { return []; }
 }
 
+function isNotificationRead(n) {
+    if (!n || !n.id) return false;
+    const readList = getReadNotifications();
+    const found = readList.find(item => (typeof item === 'string' ? item === n.id : (item && item.id === n.id)));
+    if (!found) return false;
+
+    // If notification has been edited by Super Admin (version incremented or updated_at newer than read_at), it becomes unread!
+    if (typeof found === 'object') {
+        const notifVersion = n.version || 1;
+        if (found.version && notifVersion > found.version) return false;
+        if (found.read_at && n.updated_at) {
+            return new Date(found.read_at).getTime() >= new Date(n.updated_at).getTime();
+        }
+    }
+    return true;
+}
+
 function updateNotificationBadge() {
-    const readIds = getReadNotifications();
-    const unreadCount = globalFestivalNotifications.filter(n => !readIds.includes(n.id)).length;
+    const unreadCount = globalFestivalNotifications.filter(n => !isNotificationRead(n)).length;
 
     const badge = document.getElementById('header-notify-badge');
     const drawerPill = document.getElementById('drawer-unread-count-pill');
@@ -12152,7 +12202,7 @@ function toggleNotificationCenter(open = null) {
         backdrop.style.display = 'block';
         setTimeout(() => { backdrop.style.opacity = '1'; }, 10);
         drawer.style.right = '0px';
-        renderNotificationsList();
+        fetchFestivalNotifications();
     } else {
         backdrop.style.opacity = '0';
         drawer.style.right = '-460px';
@@ -12175,14 +12225,14 @@ function renderNotificationsList() {
     const container = document.getElementById('notifications-list-container');
     if (!container) return;
 
-    const readIds = getReadNotifications();
     let list = globalFestivalNotifications;
 
     if (currentNotificationFilter === 'unread') {
-        list = list.filter(n => !readIds.includes(n.id));
+        list = list.filter(n => !isNotificationRead(n));
     } else if (currentNotificationFilter === 'apk') {
         list = list.filter(n => n.is_apk || n.type === 'apk');
     }
+    // When currentNotificationFilter === 'all', show ALL notifications (both unread and read)!
 
     if (list.length === 0) {
         container.innerHTML = `
@@ -12191,7 +12241,7 @@ function renderNotificationsList() {
                     <i class="fa-solid fa-bell-slash"></i>
                 </div>
                 <h4 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">All Caught Up!</h4>
-                <p style="font-size: 0.82rem; margin: 0;">No active notifications match the selected filter.</p>
+                <p style="font-size: 0.82rem; margin: 0;">No notifications match the selected filter.</p>
             </div>
         `;
         return;
@@ -12199,7 +12249,7 @@ function renderNotificationsList() {
 
     container.innerHTML = '';
     list.forEach(n => {
-        const isRead = readIds.includes(n.id);
+        const isRead = isNotificationRead(n);
         const isApk = n.is_apk || n.type === 'apk';
         const card = document.createElement('div');
 
@@ -12220,33 +12270,36 @@ function renderNotificationsList() {
         // APK Download Button Section
         let apkDownloadHtml = '';
         if (isApk) {
-            const apkUrl = n.apk_url || (n.attachment?.data || '#');
+            const cleanApkUrl = (n.apk_url && n.apk_url !== '#' && n.apk_url.trim()) ? 
+                (n.apk_url.startsWith('http') || n.apk_url.startsWith('/') ? n.apk_url : ('/' + n.apk_url)) : 
+                '/VIBRANIUM.apk';
             const versionStr = n.apk_version || 'Latest Build';
             apkDownloadHtml = `
-                <div style="background: white; border: 1px solid #86EFAC; border-radius: 8px; padding: 0.75rem; margin-top: 0.35rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <div style="background: white; border: 1.5px solid #86EFAC; border-radius: 10px; padding: 0.85rem; margin-top: 0.45rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.08);">
                     <div>
-                        <div style="font-weight: 800; font-size: 0.88rem; color: #166534; display: flex; align-items: center; gap: 6px;">
-                            <i class="fa-brands fa-android" style="font-size: 1.1rem; color: #16A34A;"></i> Android App APK ${versionStr}
+                        <div style="font-weight: 800; font-size: 0.92rem; color: #166534; display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-brands fa-android" style="font-size: 1.25rem; color: #16A34A;"></i> Android App APK ${versionStr}
                         </div>
-                        <div style="font-size: 0.74rem; color: #15803D;">Ready to install on Mobile &amp; Tablet devices</div>
+                        <div style="font-size: 0.76rem; color: #15803D; margin-top: 2px;">Official Mobile App Build &bull; High-speed direct install</div>
                     </div>
-                    <a href="${apkUrl || '/VIBRANIUM.apk'}" download="VIBRANIUM.apk" class="btn btn-success" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; text-decoration: none; border-radius: 6px;" onclick="markNotificationAsRead('${n.id}')">
-                        <i class="fa-solid fa-cloud-arrow-down"></i> Download VIBRANIUM APK
-                    </a>
+                    <button type="button" class="btn btn-success" style="padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 700; border-radius: 8px; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; background: #16A34A; color: white; border: none; box-shadow: 0 3px 8px rgba(22,163,74,0.3);" onclick="festosDownloadApkDirect('${cleanApkUrl}'); markNotificationAsRead('${n.id}'); event.stopPropagation();">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> Download APK (${versionStr})
+                    </button>
                 </div>
             `;
         }
 
         // Generic File Attachment Section
         let fileAttachHtml = '';
-        if (!isApk && n.attachment && n.attachment.data) {
+        if (!isApk && n.attachment && (n.attachment.dataUrl || n.attachment.data || n.attachment.url)) {
+            const fileUrl = n.attachment.dataUrl || n.attachment.data || n.attachment.url;
             const fileName = n.attachment.name || 'Attached Document';
             fileAttachHtml = `
                 <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem 0.85rem; margin-top: 0.35rem; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                     <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                         <i class="fa-solid fa-paperclip" style="color: var(--primary);"></i> ${fileName}
                     </div>
-                    <a href="${n.attachment.data}" download="${fileName}" class="btn btn-outline" style="padding: 0.3rem 0.65rem; font-size: 0.75rem; text-decoration: none;" onclick="markNotificationAsRead('${n.id}')">
+                    <a href="${fileUrl}" download="${fileName}" class="btn btn-outline" style="padding: 0.3rem 0.65rem; font-size: 0.75rem; text-decoration: none;" onclick="markNotificationAsRead('${n.id}')">
                         <i class="fa-solid fa-download"></i> Download
                     </a>
                 </div>
@@ -12261,7 +12314,8 @@ function renderNotificationsList() {
                     <span class="badge" style="font-size: 0.68rem; font-weight: 800; background: ${isApk ? '#DCFCE7' : 'var(--bg-main)'}; color: ${isApk ? '#166534' : 'var(--text-main)'};">
                         ${isApk ? '<i class="fa-brands fa-android"></i> APK RELEASE' : (n.severity ? n.severity.toUpperCase() : 'NOTICE')}
                     </span>
-                    ${!isRead ? '<span style="width: 7px; height: 7px; border-radius: 50%; background: #EF4444; display: inline-block;" title="Unread"></span>' : ''}
+                    ${!isRead ? '<span style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444; display: inline-block;" title="Unread Notice"></span>' : ''}
+                    ${n.version && n.version > 1 ? '<span class="badge badge-warning" style="font-size: 0.65rem; padding: 2px 6px;">EDITED</span>' : ''}
                 </div>
                 <span style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">${timeStr}</span>
             </div>
@@ -12283,7 +12337,7 @@ function renderNotificationsList() {
                         <i class="fa-solid fa-check"></i> Mark as read
                     </button>
                 ` : `
-                    <span style="font-size: 0.72rem; color: #94A3B8;"><i class="fa-solid fa-check-double"></i> Read</span>
+                    <span style="font-size: 0.72rem; color: #94A3B8;"><i class="fa-solid fa-check-double"></i> Read (Available until deleted by admin)</span>
                 `}
             </div>
         `;
@@ -12293,18 +12347,27 @@ function renderNotificationsList() {
 }
 
 function markNotificationAsRead(id) {
-    const readIds = getReadNotifications();
-    if (!readIds.includes(id)) {
-        readIds.push(id);
-        try { localStorage.setItem('festos_read_notifications', JSON.stringify(readIds)); } catch(e) {}
-    }
+    let readList = getReadNotifications();
+    const notif = globalFestivalNotifications.find(n => n.id === id);
+    const version = notif ? (notif.version || 1) : 1;
+    const nowIso = new Date().toISOString();
+
+    readList = readList.filter(item => (typeof item === 'string' ? item !== id : (item && item.id !== id)));
+    readList.push({ id, read_at: nowIso, version });
+
+    try { localStorage.setItem('festos_read_notifications', JSON.stringify(readList)); } catch(e) {}
     updateNotificationBadge();
     renderNotificationsList();
 }
 
 function markAllNotificationsAsRead() {
-    const allIds = globalFestivalNotifications.map(n => n.id);
-    try { localStorage.setItem('festos_read_notifications', JSON.stringify(allIds)); } catch(e) {}
+    const nowIso = new Date().toISOString();
+    const newReadList = globalFestivalNotifications.map(n => ({
+        id: n.id,
+        read_at: nowIso,
+        version: n.version || 1
+    }));
+    try { localStorage.setItem('festos_read_notifications', JSON.stringify(newReadList)); } catch(e) {}
     updateNotificationBadge();
     renderNotificationsList();
     if (typeof showToast === 'function') showToast('All notifications marked as read', 'info');

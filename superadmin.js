@@ -2902,6 +2902,9 @@ function renderBroadcastsTab() {
                     </div>
 
                     <div class="fest-actions-bar" style="margin-top:auto;">
+                        <button class="btn btn-outline" style="padding:4px 9px; font-size:0.75rem; color:var(--primary);" onclick="editBroadcast('${b.id}')" title="Edit Notification">
+                            <i class="fa-solid fa-pen-to-square"></i> Edit
+                        </button>
                         <button class="btn btn-outline" style="padding:4px 9px; font-size:0.75rem;" onclick="toggleBroadcastActive('${b.id}', false)">
                             <i class="fa-solid fa-pause"></i> Deactivate
                         </button>
@@ -2952,6 +2955,9 @@ function renderBroadcastsTab() {
                     </td>
                     <td style="text-align:right;">
                         <div style="display:inline-flex; gap:6px;">
+                            <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem; color:var(--primary);" onclick="editBroadcast('${b.id}')" title="Edit Notification">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
                             <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem;" onclick="toggleBroadcastActive('${b.id}', ${b.is_active === false ? 'true' : 'false'})" title="${b.is_active === false ? 'Reactivate' : 'Deactivate'}">
                                 <i class="fa-solid fa-${b.is_active === false ? 'play' : 'pause'}"></i>
                             </button>
@@ -2966,11 +2972,19 @@ function renderBroadcastsTab() {
     }
 }
 
+let editingBroadcastId = null;
+
 function openCreateBroadcastModal() {
+    editingBroadcastId = null;
     currentBroadcastAttachment = null;
     const form = document.getElementById('broadcast-form');
     if (form) form.reset();
     
+    const modalTitleEl = document.getElementById('broadcast-modal-title');
+    if (modalTitleEl) modalTitleEl.innerText = 'Send Notification & App Release';
+    const submitBtn = document.getElementById('btn-submit-broadcast');
+    if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Dispatch Notification';
+
     const fileNameEl = document.getElementById('bcast-file-name');
     const clearBtn = document.getElementById('bcast-clear-file-btn');
     if (fileNameEl) fileNameEl.innerText = 'No file selected (Supports PDF, images, docs)';
@@ -2984,8 +2998,82 @@ function openCreateBroadcastModal() {
     // Populate Festival target dropdown & checkboxes
     populateBroadcastRecipientsList();
 
+    toggleBroadcastTypeFields('announcement');
     openModal('broadcastModal');
 }
+
+window.editBroadcast = function(bcastId) {
+    const b = globalBroadcasts.find(item => item.id === bcastId);
+    if (!b) return showToast('Broadcast notification not found', 'error');
+
+    editingBroadcastId = bcastId;
+    currentBroadcastAttachment = b.attachment || null;
+
+    const modalTitleEl = document.getElementById('broadcast-modal-title');
+    if (modalTitleEl) modalTitleEl.innerText = 'Edit Notification & App Release';
+    const submitBtn = document.getElementById('btn-submit-broadcast');
+    if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Update & Re-dispatch Notification';
+
+    // Set Type
+    const bcastType = b.type || (b.is_apk ? 'apk' : 'announcement');
+    const typeSelect = document.getElementById('bcast-type');
+    if (typeSelect) typeSelect.value = bcastType;
+    toggleBroadcastTypeFields(bcastType);
+
+    // Set text fields
+    const titleInput = document.getElementById('bcast-title');
+    if (titleInput) titleInput.value = b.title || '';
+    const msgInput = document.getElementById('bcast-message');
+    if (msgInput) msgInput.value = b.message || '';
+    const sevSelect = document.getElementById('bcast-severity');
+    if (sevSelect) sevSelect.value = b.severity || 'info';
+    const targetSelect = document.getElementById('bcast-target');
+    if (targetSelect) targetSelect.value = b.target_role || 'master_admin';
+    const bannerChk = document.getElementById('bcast-is-banner');
+    if (bannerChk) bannerChk.checked = b.is_banner !== false;
+
+    // Set APK fields
+    const apkVerInput = document.getElementById('bcast-apk-version');
+    if (apkVerInput) apkVerInput.value = b.apk_version || '';
+    const apkUrlInput = document.getElementById('bcast-apk-url');
+    if (apkUrlInput) apkUrlInput.value = b.apk_url || '';
+
+    // Populate recipients list
+    populateBroadcastRecipientsList();
+
+    const isAll = (!b.target_fest_id || b.target_fest_id === 'all') && 
+                  (!Array.isArray(b.allowed_fests) || b.allowed_fests.includes('*') || b.allowed_fests.length === 0);
+
+    const allRadio = document.querySelector('input[name="bcast-recipients-mode"][value="all"]');
+    const specRadio = document.querySelector('input[name="bcast-recipients-mode"][value="specific"]');
+
+    if (isAll) {
+        if (allRadio) allRadio.checked = true;
+        toggleBcastFestRecipients(false);
+    } else {
+        if (specRadio) specRadio.checked = true;
+        toggleBcastFestRecipients(true);
+        const festIds = Array.isArray(b.allowed_fests) ? b.allowed_fests : [b.target_fest_id];
+        document.querySelectorAll('.bcast-fest-target-cb').forEach(cb => {
+            cb.checked = festIds.includes(cb.value);
+        });
+        const festDropdown = document.getElementById('bcast-fest-select');
+        if (festDropdown && festIds[0]) festDropdown.value = festIds[0];
+    }
+
+    // Attachment
+    const fileNameEl = document.getElementById('bcast-file-name');
+    const clearBtn = document.getElementById('bcast-clear-file-btn');
+    if (b.attachment && (b.attachment.name || b.attachment.url || b.attachment.dataUrl)) {
+        if (fileNameEl) fileNameEl.innerText = `${b.attachment.name || 'Current Attachment'}`;
+        if (clearBtn) clearBtn.style.display = 'inline-block';
+    } else {
+        if (fileNameEl) fileNameEl.innerText = 'No file selected (Supports PDF, images, docs)';
+        if (clearBtn) clearBtn.style.display = 'none';
+    }
+
+    openModal('broadcastModal');
+};
 
 function handleBroadcastFileSelect(input) {
     if (!input.files || input.files.length === 0) return;
@@ -3075,6 +3163,62 @@ async function submitBroadcastForm() {
     }
 
     const sa = festosAuth.getSuperAdmin() || { username: 'superadmin' };
+
+    // Handle Edit Mode: Update existing broadcast, increment version and updated_at
+    if (editingBroadcastId) {
+        const existing = globalBroadcasts.find(b => b.id === editingBroadcastId);
+        if (existing) {
+            existing.type = bcastType;
+            existing.title = title;
+            existing.message = message;
+            existing.severity = severity;
+            existing.target_role = targetRole;
+            existing.target_fest_id = recipientsMode === 'all' ? 'all' : (selectedFestIds[0] || 'all');
+            existing.allowed_fests = recipientsMode === 'all' ? ['*'] : selectedFestIds;
+            existing.is_banner = isBanner;
+            existing.is_active = true;
+            existing.is_apk = bcastType === 'apk';
+            existing.apk_version = apkVersion;
+            existing.apk_url = apkUrl || (currentBroadcastAttachment?.data || 'VIBRANIUM.apk');
+            if (currentBroadcastAttachment) {
+                existing.attachment = currentBroadcastAttachment;
+            }
+            existing.updated_at = new Date().toISOString();
+            existing.version = (existing.version || 1) + 1; // Increment version so portals flag as unread again!
+            existing.last_edited_by = sa.username;
+
+            try { localStorage.setItem('festos_cached_broadcasts', JSON.stringify(globalBroadcasts)); } catch(e) {}
+
+            const client = festosSupabase;
+            if (client) {
+                try { await client.from('broadcasts').upsert(existing); } catch(e) {}
+                try {
+                    await client.from('settings').upsert({
+                        id: 'system_broadcast_active',
+                        value: globalBroadcasts.filter(b => b.is_active !== false)
+                    });
+                } catch(e) {}
+            }
+
+            try { sessionStorage.removeItem('festos_dismissed_b_' + existing.id); } catch(e) {}
+
+            if (window.festosBroadcasts) {
+                festosBroadcasts.activeBroadcasts = globalBroadcasts.filter(b => b.is_active !== false);
+                festosBroadcasts.renderActiveBanner();
+            }
+
+            festosLogger.log('BROADCAST_EDIT', `Updated broadcast "${title}" (${severity})`, { broadcast_id: existing.id }, 'WARNING');
+            showToast('Notification updated! It will reappear as unread across all festival portals.', 'success');
+            closeModal('broadcastModal');
+            editingBroadcastId = null;
+            renderBroadcastsTab();
+
+            const navB = document.getElementById('nav-broadcast-count');
+            if (navB) navB.innerText = globalBroadcasts.length;
+            return;
+        }
+    }
+
     const newBroadcast = {
         id: 'bcast_' + Date.now(),
         type: bcastType,
@@ -3088,8 +3232,9 @@ async function submitBroadcastForm() {
         is_active: true,
         is_apk: bcastType === 'apk',
         apk_version: apkVersion,
-        apk_url: apkUrl || (currentBroadcastAttachment?.data || ''),
+        apk_url: apkUrl || (currentBroadcastAttachment?.data || 'VIBRANIUM.apk'),
         attachment: currentBroadcastAttachment,
+        version: 1,
         created_by: sa.username,
         created_at: new Date().toISOString()
     };

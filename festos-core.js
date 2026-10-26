@@ -1462,8 +1462,9 @@ const festosBroadcasts = {
         // Find the top banner candidate that matches target and hasn't been dismissed
         const candidate = this.activeBroadcasts.find(b => {
             if (!b || b.is_banner === false || b.is_active === false) return false;
-            // Check session dismissal
-            if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('festos_dismissed_b_' + b.id)) {
+            // Check session dismissal (version-aware so edited broadcasts reappear!)
+            const dismissKey = 'festos_dismissed_b_' + b.id + '_v' + (b.version || 1);
+            if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(dismissKey)) {
                 return false;
             }
             // Check target festival
@@ -1516,10 +1517,20 @@ const festosBroadcasts = {
         `;
 
         let attachmentHtml = '';
+        if (candidate.is_apk || candidate.type === 'apk') {
+            const rawApk = candidate.apk_url || '/VIBRANIUM.apk';
+            const apkUrl = (!rawApk.startsWith('http') && !rawApk.startsWith('/')) ? ('/' + rawApk) : rawApk;
+            attachmentHtml = `
+                <a href="${apkUrl}" download="VIBRANIUM.apk" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; background:#16A34A; color:#FFF; padding:4px 11px; border-radius:6px; font-weight:800; font-size:0.78rem; text-decoration:none; margin-left:8px; border:1px solid #4ADE80; box-shadow:0 2px 6px rgba(0,0,0,0.2); transition:transform 0.15s;">
+                    <i class="fa-brands fa-android"></i> <span>Download APK (${candidate.apk_version || 'v3.5.0'})</span>
+                </a>
+            ` + attachmentHtml;
+        }
+
         if (candidate.attachment && (candidate.attachment.url || candidate.attachment.dataUrl)) {
             const attUrl = candidate.attachment.url || candidate.attachment.dataUrl;
             const attName = candidate.attachment.name || 'Download Attachment';
-            attachmentHtml = `
+            attachmentHtml = attachmentHtml + `
                 <a href="${attUrl}" download="${attName}" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:5px; background:rgba(255,255,255,0.2); hover:background:rgba(255,255,255,0.3); color:#FFF; padding:3px 9px; border-radius:6px; font-weight:700; font-size:0.75rem; text-decoration:none; margin-left:8px; border:1px solid rgba(255,255,255,0.3); transition:background 0.2s;">
                     <i class="fa-solid fa-paperclip"></i> <span>${attName}</span>
                 </a>
@@ -1537,7 +1548,7 @@ const festosBroadcasts = {
                     ${attachmentHtml}
                 </div>
             </div>
-            <button onclick="festosBroadcasts.dismissBanner('${candidate.id}')" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #FFF; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; flex-shrink: 0; transition: background 0.2s;" title="Dismiss announcement">
+            <button onclick="festosBroadcasts.dismissBanner('${candidate.id}', ${candidate.version || 1})" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #FFF; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; flex-shrink: 0; transition: background 0.2s;" title="Dismiss announcement">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         `;
@@ -1551,8 +1562,9 @@ const festosBroadcasts = {
         }
     },
 
-    dismissBanner(id) {
+    dismissBanner(id, version = 1) {
         if (typeof sessionStorage !== 'undefined' && id) {
+            sessionStorage.setItem('festos_dismissed_b_' + id + '_v' + version, 'true');
             sessionStorage.setItem('festos_dismissed_b_' + id, 'true');
         }
         const b = document.getElementById('festos-broadcast-banner-root');
