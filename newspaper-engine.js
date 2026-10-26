@@ -878,7 +878,12 @@
     function switchNewspaperPageView(pageNumber, btnEl) {
         NP_STATE.currentPageView = pageNumber;
         document.querySelectorAll('.np-page-btn').forEach(b => b.classList.remove('active'));
-        if (btnEl) btnEl.classList.add('active');
+        if (btnEl) {
+            btnEl.classList.add('active');
+        } else {
+            const defaultBtn = document.querySelector(`.np-page-btn[onclick*="${pageNumber}"]`);
+            if (defaultBtn) defaultBtn.classList.add('active');
+        }
 
         for (let i = 1; i <= 4; i++) {
             const pageEl = document.getElementById(`bs-page-${i}`);
@@ -890,6 +895,8 @@
                 }
             }
         }
+        // Re-adjust whitespace collapse for newly visible page
+        setNewspaperZoom(NP_STATE.zoomLevel);
     }
 
     // Set Theme
@@ -923,12 +930,24 @@
 
     // Zoom & Screen Fitting Controller
     function setNewspaperZoom(scale) {
-        NP_STATE.zoomLevel = Math.max(0.3, Math.min(2.0, scale));
+        NP_STATE.zoomLevel = Math.max(0.25, Math.min(2.0, scale));
         const viewport = document.getElementById('np-sheets-container');
         const label = document.getElementById('np-zoom-label');
         if (viewport) {
             viewport.style.transform = `scale(${NP_STATE.zoomLevel})`;
             viewport.style.transformOrigin = 'top center';
+
+            // Collapse whitespace created by CSS scale transforms
+            if (NP_STATE.zoomLevel < 1.0) {
+                const activePage = document.getElementById(`bs-page-${NP_STATE.currentPageView}`) || document.querySelector('.broadsheet-page');
+                const baseHeight = activePage ? (activePage.offsetHeight || 1123) : 1123;
+                const deadSpace = Math.round(baseHeight * (1 - NP_STATE.zoomLevel));
+                viewport.style.marginBottom = `-${deadSpace}px`;
+                viewport.style.width = '794px';
+            } else {
+                viewport.style.marginBottom = '0px';
+                viewport.style.width = '210mm';
+            }
         }
         if (label) {
             label.innerText = `${Math.round(NP_STATE.zoomLevel * 100)}%`;
@@ -942,14 +961,14 @@
     function fitNewspaperToScreen() {
         const stage = document.querySelector('.newspaper-stage-container');
         if (!stage) return;
-        const stageWidth = stage.clientWidth - 32;
+        const stageWidth = stage.clientWidth;
+        if (!stageWidth || stageWidth <= 0) return;
+        
+        const padding = window.innerWidth <= 768 ? 16 : 40;
+        const availWidth = Math.max(260, stageWidth - padding);
         const sheetWidth = 794;
-        if (stageWidth < sheetWidth) {
-            const ratio = stageWidth / sheetWidth;
-            setNewspaperZoom(Math.floor(ratio * 100) / 100);
-        } else {
-            setNewspaperZoom(1.0);
-        }
+        const ratio = Math.min(1.0, availWidth / sheetWidth);
+        setNewspaperZoom(Math.floor(ratio * 100) / 100);
     }
 
     // =========================================================================
