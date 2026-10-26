@@ -198,6 +198,107 @@
         }
     }
 
+    let adminBypassActive = false;
+
+    // Helper: Resolve festival schedule & allowed broadsheet dates
+    function getFestivalSchedule() {
+        const festInfo = getActiveFestivalInfo();
+        const fid = festInfo.id;
+        let festObj = null;
+
+        if (window.availableFests && Array.isArray(window.availableFests)) {
+            festObj = window.availableFests.find(f => f.id === fid);
+        }
+
+        const config = NP_STATE.festConfig || {};
+        const allowedDates = Array.isArray(config.allowed_dates) && config.allowed_dates.length > 0 
+            ? config.allowed_dates 
+            : null;
+
+        const startDate = festObj?.startDate || festObj?.start_date || (allowedDates ? allowedDates[0] : null);
+        const endDate = festObj?.endDate || festObj?.end_date || (allowedDates ? allowedDates[allowedDates.length - 1] : null);
+
+        let dateRangeLabel = 'Festival Days';
+        if (allowedDates && allowedDates.length > 0) {
+            dateRangeLabel = allowedDates.join(', ');
+        } else if (startDate && endDate) {
+            dateRangeLabel = `${startDate} to ${endDate}`;
+        } else if (startDate) {
+            dateRangeLabel = startDate;
+        }
+
+        return { allowedDates, startDate, endDate, dateRangeLabel, festName: festInfo.name };
+    }
+
+    // Gate Enforcer: Only show contents during festival dates set in Admin
+    function validateFestivalDateAccess() {
+        const schedule = getFestivalSchedule();
+        const selectedDate = NP_STATE.currentDate;
+        let isDateActive = true;
+
+        if (schedule.allowedDates && schedule.allowedDates.length > 0) {
+            isDateActive = schedule.allowedDates.includes(selectedDate);
+        } else if (schedule.startDate && schedule.endDate) {
+            isDateActive = (selectedDate >= schedule.startDate && selectedDate <= schedule.endDate);
+        } else if (schedule.startDate) {
+            isDateActive = (selectedDate === schedule.startDate);
+        }
+
+        const lockScreen = document.getElementById('np-date-gated-lock');
+        const workspace = document.getElementById('np-main-studio-workspace');
+        const lockRangeSpan = document.getElementById('np-lock-date-range');
+        const lockNote = document.getElementById('np-lock-fest-note');
+        const jumpBtn = document.getElementById('btn-jump-to-fest-date');
+
+        if (lockRangeSpan) lockRangeSpan.innerText = schedule.dateRangeLabel;
+        if (lockNote) {
+            lockNote.innerText = `Official ${schedule.festName} newspaper broadsheet releases are scheduled for ${schedule.dateRangeLabel}. Selected date: ${selectedDate}.`;
+        }
+
+        if (jumpBtn) {
+            const firstDate = schedule.startDate || (schedule.allowedDates ? schedule.allowedDates[0] : null);
+            if (firstDate) {
+                jumpBtn.style.display = 'inline-flex';
+                jumpBtn.innerHTML = `<i class="fa-solid fa-calendar-check"></i> Open Fest Day Broadsheet (${firstDate})`;
+            } else {
+                jumpBtn.style.display = 'none';
+            }
+        }
+
+        if (!isDateActive && !adminBypassActive) {
+            if (lockScreen) lockScreen.style.display = 'block';
+            if (workspace) workspace.style.display = 'none';
+            return false;
+        } else {
+            if (lockScreen) lockScreen.style.display = 'none';
+            if (workspace) workspace.style.display = 'block';
+            return true;
+        }
+    }
+
+    function jumpToOpeningFestDate() {
+        const schedule = getFestivalSchedule();
+        const targetDate = schedule.startDate || (schedule.allowedDates ? schedule.allowedDates[0] : null);
+        if (targetDate) {
+            const dateInput = document.getElementById('np-edition-date');
+            if (dateInput) dateInput.value = targetDate;
+            changeNewspaperDate(targetDate);
+            showToast(`Switched to active festival date: ${targetDate}`, 'success');
+        } else {
+            toggleAdminNewspaperBypass();
+        }
+    }
+
+    function toggleAdminNewspaperBypass() {
+        adminBypassActive = !adminBypassActive;
+        validateFestivalDateAccess();
+        if (adminBypassActive) {
+            showToast("Admin Draft Mode unlocked for broadsheet testing.", "info");
+        } else {
+            showToast("Fest Date Enforcement enabled.", "info");
+        }
+    }
+
     // 1. Policy & Authorization Check (Super Admin Gating)
     async function checkNewspaperPolicyStatus() {
         const festInfo = getActiveFestivalInfo();
@@ -232,6 +333,8 @@
             dateAllowed = false;
         }
 
+        validateFestivalDateAccess();
+
         // Check time constraint
         const now = new Date();
         const [targetHour, targetMin] = relTime.split(':').map(Number);
@@ -261,6 +364,8 @@
         NP_STATE.currentDate = dateStr;
         const dateInput = document.getElementById('np-edition-date');
         if (dateInput) dateInput.value = dateStr;
+
+        validateFestivalDateAccess();
 
         const festInfo = getActiveFestivalInfo();
         const fid = festInfo.id;
@@ -1844,6 +1949,9 @@
     window.exportNewspaperPDF = exportNewspaperPDF;
     window.publishNewspaperToResults = publishNewspaperToResults;
     window.checkNewspaperPolicyStatus = checkNewspaperPolicyStatus;
+    window.validateFestivalDateAccess = validateFestivalDateAccess;
+    window.jumpToOpeningFestDate = jumpToOpeningFestDate;
+    window.toggleAdminNewspaperBypass = toggleAdminNewspaperBypass;
 
     // Boot hook & Responsive Auto-Fit
     document.addEventListener('DOMContentLoaded', () => {
