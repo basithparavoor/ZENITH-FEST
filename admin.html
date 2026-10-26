@@ -3313,7 +3313,7 @@ tr:hover td { background: var(--bg-main); }
             <div class="action-bar" style="margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
                 <div>
                     <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.6rem;">
-                        <i class="fa-solid fa-newspaper" style="color: var(--primary);"></i> <span id="np-studio-fest-name">Festival Daily Gazette</span> &amp; AI Newspaper Studio
+                        <span id="np-studio-fest-name">Festival Daily Gazette</span> &amp; AI Newspaper Studio
                     </h2>
                     <p style="color: var(--text-muted); font-size: 0.9rem;" id="np-studio-fest-sub">
                         Enterprise 4-Page A4 Broadsheet • Multi-lingual AI Synthesis (6 Languages) • High-Res PDF Print Engine
@@ -3346,6 +3346,36 @@ tr:hover td { background: var(--bg-main); }
                 </div>
             </div>
 
+            <!-- Festival Date Gating Screen (Active when current date is outside fest dates set in Admin) -->
+            <div id="np-date-gated-lock" class="card" style="display: none; text-align: center; padding: 3rem 1.5rem; background: white; border-radius: 20px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); max-width: 680px; margin: 1.5rem auto;">
+                <div style="width: 72px; height: 72px; margin: 0 auto 1.25rem auto; border-radius: 50%; background: #FEF3C7; color: #D97706; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 4px 15px rgba(217, 119, 6, 0.15);">
+                    <i class="fa-solid fa-calendar-xmark"></i>
+                </div>
+                <h2 style="font-size: 1.45rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.6rem;">
+                    Daily AI Newspaper Only Available on Festival Days
+                </h2>
+                <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; max-width: 500px; margin: 0 auto 1.5rem auto;">
+                    Broadsheet releases, daily reports, and AI editorial synthesis are scheduled exclusively during official festival dates set in Admin (<span id="np-lock-date-range" style="font-weight: 700; color: var(--text-main);">Active Fest Dates</span>).
+                </p>
+                <div style="background: #F8FAFC; border: 1.5px dashed #CBD5E1; border-radius: 14px; padding: 1.25rem; margin-bottom: 1.75rem;">
+                    <div style="font-size: 0.95rem; font-weight: 800; color: #B45309; margin-bottom: 0.35rem; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i class="fa-solid fa-bell"></i> Please come again at the fest days!
+                    </div>
+                    <div style="font-size: 0.82rem; color: var(--text-muted);" id="np-lock-fest-note">
+                        The full gazette generation, 4-page broadsheet editions, and public download pipelines will become fully available during the festival schedule.
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-primary" onclick="jumpToOpeningFestDate()" id="btn-jump-to-fest-date" style="background: var(--primary); color: white;">
+                        <i class="fa-solid fa-calendar-check"></i> Open Fest Day Broadsheet
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="toggleAdminNewspaperBypass()" id="btn-admin-bypass" style="color: var(--text-main); border-color: var(--border);">
+                        <i class="fa-solid fa-shield-halved"></i> Admin Draft Mode (Bypass Lock)
+                    </button>
+                </div>
+            </div>
+
+            <div id="np-main-studio-workspace">
             <!-- Toolbar Grid -->
             <div class="newspaper-control-bar" style="margin-bottom: 1.25rem;">
                 <div class="np-toolbar-grid">
@@ -3719,6 +3749,7 @@ tr:hover td { background: var(--bg-main); }
                     </div>
                 </div>
             </div>
+            </div> <!-- End np-main-studio-workspace -->
         </div>
         </div>
 
