@@ -1,7 +1,8 @@
 /**
  * ============================================================================
- * FESTOS DAILY GAZETTE & AI NEWSPAPER STUDIO PRO
+ * DAILY GAZETTE & AI NEWSPAPER STUDIO PRO
  * High-Performance Broadsheet System • Multilingual AI Pipeline • 4-Page A4 PDF
+ * Dynamic Festival Branding • Responsive Mobile & Desktop Studio
  * ============================================================================
  */
 
@@ -16,7 +17,8 @@
         currentPageView: 1,
         festConfig: null,
         editionsArchive: [],
-        currentEdition: null
+        currentEdition: null,
+        zoomLevel: 1.0
     };
 
     const LANG_LABELS = {
@@ -28,13 +30,56 @@
         bn: 'বাংলা'
     };
 
+    // 0. Active Festival Resolution Helper
+    function getActiveFestivalInfo() {
+        const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || 
+                    localStorage.getItem('activeFestId') || 
+                    'fest_vib26_muml4haa';
+        
+        let festMeta = null;
+        if (window.availableFests && Array.isArray(window.availableFests)) {
+            festMeta = window.availableFests.find(f => f.id === fid);
+        }
+
+        let branding = null;
+        try {
+            const raw = localStorage.getItem('festBranding');
+            if (raw) branding = JSON.parse(raw);
+        } catch (e) {}
+
+        if (!branding) {
+            try {
+                const rawCache = localStorage.getItem('festos_branding_cache_' + fid);
+                if (rawCache) branding = JSON.parse(rawCache);
+            } catch (e) {}
+        }
+
+        const name = (branding && branding.fest_name && branding.fest_name.trim()) 
+            ? branding.fest_name.trim() 
+            : (festMeta?.name || 'Zenith Cultural Fest');
+            
+        const logo = (branding && branding.fest_logo && branding.fest_logo.trim()) 
+            ? branding.fest_logo.trim() 
+            : (festMeta?.logo || 'festos-logo.svg');
+            
+        const venue = festMeta?.venue || 'Main Festival Arena & Grand Complex';
+        const tagline = festMeta?.tagline || 'The Grand Annual Celebration of Art, Culture, and Championship';
+        const cleanCode = name.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+        return { id: fid, name, logo, venue, tagline, cleanCode };
+    }
+
     // Initialize Default Stories Template
-    function createDefaultStories(festName = 'Zenith Fest 2026', venue = 'Main Arena Complex') {
+    function createDefaultStories(festInfo) {
+        const info = festInfo || getActiveFestivalInfo();
+        const festName = info.name;
+        const venue = info.venue;
+
         return {
             lead_story: {
                 title: `${festName}: Cultural Showdown Escalates as Contenders Deliver Masterclass`,
-                subhead: `Massive crowds witness electrifying classical arts and literary tournaments across 6 competition stages.`,
-                body: `The annual festival escalated to breathtaking heights today as elite contenders delivered masterclass performances across all venues. Adjudicators commended the unprecedented caliber of artistic finesse, noting that scores throughout the morning sessions remained separated by mere tenths of a point. Spectators filled the pavilions to standing capacity, rallying behind their home squads with thunderous ovations. With high-stakes stage events scheduled for the afternoon, team captains have urged all squads to bring their highest precision to the arena floor.`,
+                subhead: `Massive crowds witness electrifying classical arts and literary tournaments across dynamic stages.`,
+                body: `The annual festival escalated to breathtaking heights today as elite contenders delivered masterclass performances across all competition venues. Adjudicators commended the unprecedented caliber of artistic finesse, noting that scores throughout the morning sessions remained separated by mere tenths of a point. Spectators filled the pavilions to standing capacity, rallying behind their home squads with thunderous ovations. With high-stakes stage events scheduled for the afternoon, team captains have urged all squads to bring their highest precision to the arena floor.`,
                 img: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1000&auto=format&fit=crop&q=80',
                 caption: `Electrifying energy at ${venue} as participants display classical choreography before packed pavilions.`,
                 time: 'UPDATED 03:00 AM'
@@ -53,7 +98,7 @@
             },
             venue_spotlight: {
                 title: `Acoustical Precision & Sound Engineering`,
-                body: `The sound systems deployed on Stages 1 and 2 feature directional line arrays, ensuring crystal clarity for classical recitals, choral harmonics, and dramatic orations.`
+                body: `The sound systems deployed across main arenas feature directional line arrays, ensuring crystal clarity for classical recitals, choral harmonics, and dramatic orations.`
             },
             star_performer: {
                 name: `Aysha R. • Chest #104`,
@@ -64,7 +109,7 @@
             patron_column: {
                 title: `A Triumph of Camaraderie, Talent, and Shared Vision`,
                 body: `"Every festival edition writes its own indelible chapter in our institutional memory. To witness hundreds of students pouring their spirit into poetry, song, oration, and visual crafts is a testament to the transformative power of arts education. We extend our deepest gratitude to our volunteer marshals, adjudicators, and tech crews who work tirelessly behind the scenes."`,
-                author: `— Prof. M. Rahman • General Convener & Festival Patron`
+                author: `— Organizing Committee • ${festName}`
             },
             tomorrow_preview: {
                 title: `High-Stakes Group Dance & Dramatic Theatrics`,
@@ -73,7 +118,7 @@
         };
     }
 
-    // Translation Utility via Google Translate public single endpoint
+    // Translation Utility via Google Translate public endpoint
     async function translateText(text, targetLang) {
         if (!text || targetLang === 'en') return text;
         try {
@@ -86,14 +131,15 @@
             }
             return text;
         } catch (e) {
-            console.warn(`Translation to ${targetLang} failed, using original:`, e);
+            console.warn(`Translation to ${targetLang} failed, fallback to original:`, e);
             return text;
         }
     }
 
     // 1. Policy & Authorization Check (Super Admin Gating)
     async function checkNewspaperPolicyStatus() {
-        const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || 'fest_vib26_muml4haa';
+        const festInfo = getActiveFestivalInfo();
+        const fid = festInfo.id;
         let config = null;
 
         if (window.festosGetSetting) {
@@ -154,11 +200,14 @@
         const dateInput = document.getElementById('np-edition-date');
         if (dateInput) dateInput.value = dateStr;
 
-        const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || 'fest_vib26_muml4haa';
-        let festMeta = null;
-        if (window.availableFests) festMeta = window.availableFests.find(f => f.id === fid);
-        const festName = festMeta ? festMeta.name : (localStorage.getItem('festBranding') ? JSON.parse(localStorage.getItem('festBranding')).fest_name : 'Zenith Fest 2026');
-        const venue = festMeta ? (festMeta.venue || 'Main Festival Arena') : 'Main Arena Complex';
+        const festInfo = getActiveFestivalInfo();
+        const fid = festInfo.id;
+
+        // Sync header studio titles to active festival
+        const studioTitle = document.getElementById('np-studio-fest-name');
+        if (studioTitle) studioTitle.innerText = festInfo.name;
+        const studioSub = document.getElementById('np-studio-fest-sub');
+        if (studioSub) studioSub.innerText = `${festInfo.name} Official 4-Page A4 Broadsheet • Multi-lingual AI Synthesis • High-Res PDF Engine`;
 
         // Check local storage archive first
         let archives = [];
@@ -172,7 +221,7 @@
 
         let edition = archives.find(e => e.date === dateStr);
         if (!edition) {
-            const defaultStories = createDefaultStories(festName, venue);
+            const defaultStories = createDefaultStories(festInfo);
             edition = {
                 id: 'np_' + fid + '_' + dateStr,
                 fest_id: fid,
@@ -197,18 +246,17 @@
         checkNewspaperPolicyStatus();
     }
 
-    // 3. AI News Generation Engine (Pulls DB Schedule, Standings & Results)
+    // 3. AI News Generation Engine
     async function generateNewspaperWithAI() {
         const btn = document.querySelector('[onclick="generateNewspaperWithAI()"]');
         const originalText = btn ? btn.innerHTML : null;
         if (btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Synthesizing News...'; btn.disabled = true; }
 
         try {
-            const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || 'fest_vib26_muml4haa';
-            let festMeta = null;
-            if (window.availableFests) festMeta = window.availableFests.find(f => f.id === fid);
-            const festName = festMeta ? festMeta.name : 'Zenith Fest 2026';
-            const venue = festMeta ? (festMeta.venue || 'Main Festival Arena') : 'Main Arena Complex';
+            const festInfo = getActiveFestivalInfo();
+            const fid = festInfo.id;
+            const festName = festInfo.name;
+            const venue = festInfo.venue;
 
             // 1. Fetch Schedule Data for this Date
             let scheduleItems = [];
@@ -217,7 +265,7 @@
                     const schedVal = await window.festosGetSetting('master_schedule', fid);
                     if (Array.isArray(schedVal)) scheduleItems = schedVal;
                 }
-                if (scheduleItems.length === 0 && typeof supabaseClient !== 'undefined') {
+                if (scheduleItems.length === 0 && typeof supabaseClient !== 'undefined' && supabaseClient) {
                     const { data } = await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle();
                     if (data && Array.isArray(data.value)) scheduleItems = data.value;
                 }
@@ -226,7 +274,7 @@
             // 2. Fetch Teams & Points Standings
             let teams = [];
             try {
-                if (typeof supabaseClient !== 'undefined') {
+                if (typeof supabaseClient !== 'undefined' && supabaseClient) {
                     let tQ = supabaseClient.from('teams').select('id, name, score');
                     if (window.festosApplyFilter) tQ = window.festosApplyFilter(tQ);
                     const { data } = await tQ.order('score', { ascending: false });
@@ -247,7 +295,7 @@
             // 3. Fetch Top Performer from Judgements
             let starCandidate = null;
             try {
-                if (typeof supabaseClient !== 'undefined') {
+                if (typeof supabaseClient !== 'undefined' && supabaseClient) {
                     const { data } = await supabaseClient
                         .from('judgements')
                         .select('awarded_mark, participants(name, unique_id, photo_url), competitions(name)')
@@ -282,22 +330,22 @@
                 lead_story: {
                     title: `${topTeam1} Takes Early Championship Lead as Cultural Showdown Intensifies`,
                     subhead: `Packed arenas witness historic performances; ${topTeam2} mounts fierce pursuit with razor-thin margins.`,
-                    body: `The atmosphere at ${venue} reached a fever pitch today as ${festName} advanced into crucial tournament phases. Team ${topTeam1} surged to the front of the general leaderboard following exceptional masterclasses in vocal symphony and stage dramatics. Adjudicators commended the disciplined artistry across all 6 venues, highlighting that scoring differentials remain historically tight. With high-stakes group choreography scheduled for the afternoon, spectators packed pavilions to standing room only.`,
+                    body: `The atmosphere at ${venue} reached a fever pitch today as ${festName} advanced into crucial tournament phases. Team ${topTeam1} surged to the front of the general leaderboard following exceptional masterclasses in vocal symphony and stage dramatics. Adjudicators commended the disciplined artistry across all competition venues, highlighting that scoring differentials remain historically tight. With high-stakes group choreography scheduled for the afternoon, spectators packed pavilions to standing room only.`,
                     img: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1000&auto=format&fit=crop&q=80',
                     caption: `Thunderous audience response as contestants deliver precision choreography at ${venue}.`,
-                    time: `LIVE TALLY &bull; ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                    time: `LIVE TALLY • ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                 },
                 side_story: {
                     title: `Adjudicator Panel Applauds High Standards`,
-                    body: `Senior judge coordinators expressed admiration for the technical discipline displayed by all squads, remarking that standard deviations among top contenders remain under 2%.`
+                    body: `Senior judge coordinators expressed admiration for the technical discipline displayed by all squads, remarking that standard deviations among top contenders remain exceptionally close.`
                 },
                 side_story_2: {
-                    title: `Live Broadcast Online`,
-                    body: `Spectators and alumni worldwide can access verified real-time score updates, podium rankings, and digital posters directly on the FestOS Public Results Hub.`
+                    title: `Live Broadcast & Standings Online`,
+                    body: `Spectators and alumni worldwide can access verified real-time score updates, podium rankings, and digital broadsheets directly on the ${festName} Public Portal.`
                 },
                 stage_brief: {
                     title: `Stage Controllers Report Seamless Venue Synchronization`,
-                    body: `Venues 1 through 6 maintained strict zero-delay scheduling throughout the morning blocks. Marshals and green-room teams coordinated swift transitions, allowing thousands of spectators to enjoy uninterrupted stage action.`
+                    body: `Venues across ${venue} maintained strict zero-delay scheduling throughout the morning blocks. Marshals and green-room teams coordinated swift transitions, allowing thousands of spectators to enjoy uninterrupted stage action.`
                 },
                 venue_spotlight: {
                     title: `Arena Acoustical Precision & Directional Arrays`,
@@ -307,7 +355,7 @@
                 patron_column: {
                     title: `A Golden Chronicle of Youth, Culture, and Shared Excellence`,
                     body: `"Watching the immense spirit and dedication displayed by every candidate reaffirms the timeless necessity of celebration and cultural expression. We thank our adjudicators, student coordinators, and mentors whose tireless contributions make this grand spectacle possible."`,
-                    author: `— Organizing Committee &bull; ${festName}`
+                    author: `— Organizing Committee • ${festName}`
                 },
                 tomorrow_preview: {
                     title: `Tomorrow's Grand Finals: Group Folk & Classical Theatrics`,
@@ -410,14 +458,14 @@
         if (!NP_STATE.currentEdition) return;
 
         const lang = NP_STATE.currentLang;
-        const stories = NP_STATE.currentEdition.translations[lang] || NP_STATE.currentEdition.translations.en || createDefaultStories();
+        const festInfo = getActiveFestivalInfo();
+        const festName = festInfo.name;
+        const festLogo = festInfo.logo;
+        const venue = festInfo.venue;
+        const tagline = festInfo.tagline;
+        const cleanCode = festInfo.cleanCode;
 
-        const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || 'fest_vib26_muml4haa';
-        let festMeta = null;
-        if (window.availableFests) festMeta = window.availableFests.find(f => f.id === fid);
-        const festName = festMeta ? festMeta.name : 'Zenith Fest 2026';
-        const festLogo = festMeta?.logo || 'festos-logo.svg';
-        const venue = festMeta?.venue || 'Main Festival Arena';
+        const stories = NP_STATE.currentEdition.translations[lang] || NP_STATE.currentEdition.translations.en || createDefaultStories(festInfo);
 
         // Apply RTL / Language classes
         document.querySelectorAll('.broadsheet-page').forEach(page => {
@@ -425,23 +473,20 @@
             page.dir = (lang === 'ar' || lang === 'ur') ? 'rtl' : 'ltr';
         });
 
-        // PAGE 1
-        const mastTitle = document.getElementById('bs-masthead-title');
-        if (mastTitle) mastTitle.innerText = `${festName.toUpperCase()} GAZETTE`;
-        
+        // PAGE 1: Header, Masthead, Ticker, Stories
+        setText('bs-meta-fest-header', `OFFICIAL ${festName.toUpperCase()} GAZETTE • CERTIFIED DAILY PRINT EDITION`);
+        setText('bs-masthead-title', `${festName.toUpperCase()} CHRONICLE`);
+        setText('bs-masthead-tagline', tagline.toUpperCase());
+        setText('bs-meta-venue-1', `VENUE: ${venue.toUpperCase()}`);
+        setText('bs-strip-fest-1', festName.toUpperCase());
+        setText('bs-strip-date-1', formatDateHeader(NP_STATE.currentDate, lang));
+        setText('bs-page1-ticker', `DAY HIGHLIGHTS • LIVE SCORING ON ${festName.toUpperCase()} PORTAL • VERIFIED SCORE REGISTER`);
+        setText('bs-page1-brand', `${festName.toUpperCase()} GAZETTE • VOL I`);
+
         const logo1 = document.getElementById('bs-logo-1');
         const logo1b = document.getElementById('bs-logo-1b');
-        if (logo1) logo1.src = festLogo;
-        if (logo1b) logo1b.src = festLogo;
-
-        const venue1 = document.getElementById('bs-meta-venue-1');
-        if (venue1) venue1.innerText = `VENUE: ${venue.toUpperCase()}`;
-
-        const stripFest = document.getElementById('bs-strip-fest-1');
-        if (stripFest) stripFest.innerText = festName.toUpperCase();
-
-        const stripDate = document.getElementById('bs-strip-date-1');
-        if (stripDate) stripDate.innerText = formatDateHeader(NP_STATE.currentDate, lang);
+        if (logo1) { logo1.src = festLogo; logo1.onerror = () => { logo1.src = 'festos-logo.svg'; }; }
+        if (logo1b) { logo1b.src = festLogo; logo1b.onerror = () => { logo1b.src = 'festos-logo.svg'; }; }
 
         // Page 1 Stories
         const lead = stories.lead_story;
@@ -450,6 +495,7 @@
             setText('bs-lead-subhead', lead.subhead);
             setText('bs-lead-body', lead.body);
             setText('bs-lead-caption', lead.caption);
+            setText('bs-lead-time', lead.time || 'UPDATED 03:00 AM');
             const imgEl = document.getElementById('bs-lead-img');
             if (imgEl && lead.img) imgEl.src = lead.img;
         }
@@ -468,6 +514,9 @@
 
         // PAGE 2 (Schedule Table & Dispatches)
         setText('bs-p2-date', formatDateHeader(NP_STATE.currentDate, lang));
+        setText('bs-p2-meta-fest', `${festName.toUpperCase()} ARENA MATRIX`);
+        setText('bs-p2-ticker-center', `CHECK LIVE ARENA QUEUES ONLINE • ${festName.toUpperCase()} STAGE CONTROLLER BUREAU`);
+        setText('bs-p2-brand', `${festName.toUpperCase()} GAZETTE`);
         renderScheduleTable();
 
         const sBrief = stories.stage_brief;
@@ -484,6 +533,9 @@
 
         // PAGE 3 (Podium, Star & Standings)
         setText('bs-p3-date', formatDateHeader(NP_STATE.currentDate, lang));
+        setText('bs-p3-meta-fest', `${festName.toUpperCase()} OFFICIAL POINTS TABLE`);
+        setText('bs-p3-ticker-center', `VERIFIED BY ${festName.toUpperCase()} SCORING COMMITTEE • CERTIFIED TALLY`);
+        setText('bs-p3-brand', `${festName.toUpperCase()} GAZETTE`);
         renderPodiumAndStandings();
 
         const star = stories.star_performer;
@@ -501,7 +553,7 @@
         if (patron) {
             setText('bs-patron-title', patron.title);
             setText('bs-patron-body', patron.body);
-            setText('bs-patron-author', patron.author);
+            setText('bs-patron-author', patron.author || `— Organizing Committee • ${festName}`);
         }
 
         const tomorrow = stories.tomorrow_preview;
@@ -510,8 +562,10 @@
             setText('bs-tomorrow-body', tomorrow.body);
         }
 
-        const tsEl = document.getElementById('bs-footer-timestamp');
-        if (tsEl) tsEl.innerText = `GENERATED ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • VERIFIED PRINT CERTIFICATE`;
+        setText('bs-p4-powered', `POWERED BY ${festName.toUpperCase()} DIGITAL MEDIA DESK • CERTIFIED ARCHIVE`);
+        setText('bs-footer-timestamp', `GENERATED 03:00 AM • VERIFIED HASH #${cleanCode}-2026`);
+        setText('bs-p4-ticker-center', `READ DIGITAL BROADSHEET AT ${festName.toUpperCase()} RESULTS HUB • ALL RIGHTS RESERVED`);
+        setText('bs-p4-brand', `${festName.toUpperCase()} GAZETTE`);
     }
 
     function setText(id, text) {
@@ -609,7 +663,7 @@
             btn.classList.toggle('active', btn.getAttribute('data-lang') === langCode);
         });
 
-        // If target lang translation doesn't exist yet, offer 1-click generation
+        // If target lang translation doesn't exist yet, offer auto generation
         if (!NP_STATE.currentEdition?.translations[langCode]) {
             showToast(`Generating ${LANG_LABELS[langCode]} edition...`, 'info');
             autoTranslateSingleLanguage(langCode);
@@ -619,7 +673,8 @@
     }
 
     async function autoTranslateSingleLanguage(targetLang) {
-        const enStories = NP_STATE.currentEdition?.translations?.en || createDefaultStories();
+        const festInfo = getActiveFestivalInfo();
+        const enStories = NP_STATE.currentEdition?.translations?.en || createDefaultStories(festInfo);
         try {
             const translated = {
                 lead_story: {
@@ -720,6 +775,37 @@
         });
     }
 
+    // Zoom & Screen Fitting Controller
+    function setNewspaperZoom(scale) {
+        NP_STATE.zoomLevel = Math.max(0.3, Math.min(2.0, scale));
+        const viewport = document.getElementById('np-sheets-container');
+        const label = document.getElementById('np-zoom-label');
+        if (viewport) {
+            viewport.style.transform = `scale(${NP_STATE.zoomLevel})`;
+            viewport.style.transformOrigin = 'top center';
+        }
+        if (label) {
+            label.innerText = `${Math.round(NP_STATE.zoomLevel * 100)}%`;
+        }
+    }
+
+    function adjustNewspaperZoom(delta) {
+        setNewspaperZoom(NP_STATE.zoomLevel + delta);
+    }
+
+    function fitNewspaperToScreen() {
+        const stage = document.querySelector('.newspaper-stage-container');
+        if (!stage) return;
+        const stageWidth = stage.clientWidth - 32;
+        const sheetWidth = 794; // approx 210mm in px at 96dpi
+        if (stageWidth < sheetWidth) {
+            const ratio = stageWidth / sheetWidth;
+            setNewspaperZoom(Math.floor(ratio * 100) / 100);
+        } else {
+            setNewspaperZoom(1.0);
+        }
+    }
+
     // 6. Interactive Story & Photo Editor Modal
     function openNewspaperStoryEditor(storyKey = 'lead_story') {
         const modal = document.getElementById('newspaperStoryModal');
@@ -780,7 +866,7 @@
             const base64 = e.target.result;
             document.getElementById('np-edit-img-url').value = base64;
             previewModalPhoto(base64);
-            showToast("Photo uploaded successfully!", "success");
+            showToast("Photo loaded successfully!", "success");
         };
         reader.readAsDataURL(inputEl.files[0]);
     }
@@ -842,7 +928,8 @@
 
     // 7. Save Edition to Local Storage & Supabase Settings
     async function saveEditionToArchive(edition) {
-        const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || 'fest_vib26_muml4haa';
+        const festInfo = getActiveFestivalInfo();
+        const fid = festInfo.id;
         const idx = NP_STATE.editionsArchive.findIndex(e => e.date === edition.date);
         if (idx !== -1) {
             NP_STATE.editionsArchive[idx] = edition;
@@ -854,7 +941,7 @@
             localStorage.setItem('festos_newspapers_' + fid, JSON.stringify(NP_STATE.editionsArchive));
         } catch(e) {}
 
-        // Background sync to Supabase settings
+        // Sync to Supabase settings
         if (typeof supabaseClient !== 'undefined' && supabaseClient) {
             try {
                 await supabaseClient.from('settings').upsert({
@@ -866,14 +953,76 @@
         renderPastEditionsArchive();
     }
 
-    // 8. Render Past Editions Archive Grid
+    // 8. Delete Single Edition & Clear All Archives
+    async function deleteNewspaperEdition(dateStr) {
+        if (!confirm(`Are you sure you want to permanently delete the broadsheet edition for ${dateStr}?`)) {
+            return;
+        }
+
+        const festInfo = getActiveFestivalInfo();
+        const fid = festInfo.id;
+        NP_STATE.editionsArchive = (NP_STATE.editionsArchive || []).filter(e => e.date !== dateStr);
+
+        try {
+            localStorage.setItem('festos_newspapers_' + fid, JSON.stringify(NP_STATE.editionsArchive));
+        } catch(e) {}
+
+        if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+            try {
+                await supabaseClient.from('settings').upsert({
+                    id: 'newspapers_' + fid,
+                    value: NP_STATE.editionsArchive
+                });
+            } catch(e) {}
+        }
+
+        showToast(`Broadsheet edition for ${dateStr} deleted.`, 'success');
+        renderPastEditionsArchive();
+
+        // If active edition was deleted, load today or first available
+        if (NP_STATE.currentDate === dateStr) {
+            const nextDate = NP_STATE.editionsArchive[0]?.date || new Date().toISOString().split('T')[0];
+            loadOrCreateEdition(nextDate);
+        }
+    }
+
+    async function clearAllNewspaperArchives() {
+        if (!confirm("Are you sure you want to delete ALL archived broadsheet editions for this festival? This action cannot be undone.")) {
+            return;
+        }
+
+        const festInfo = getActiveFestivalInfo();
+        const fid = festInfo.id;
+        NP_STATE.editionsArchive = [];
+
+        try {
+            localStorage.removeItem('festos_newspapers_' + fid);
+        } catch(e) {}
+
+        if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+            try {
+                await supabaseClient.from('settings').upsert({
+                    id: 'newspapers_' + fid,
+                    value: []
+                });
+            } catch(e) {}
+        }
+
+        showToast("All broadsheet archives cleared successfully.", "success");
+        renderPastEditionsArchive();
+        loadOrCreateEdition(new Date().toISOString().split('T')[0]);
+    }
+
+    // 9. Render Past Editions Archive Grid
     function renderPastEditionsArchive() {
         const container = document.getElementById('np-archive-container');
         const countEl = document.getElementById('np-archive-count');
+        const clearBtn = document.getElementById('np-archive-clear-btn');
         if (!container) return;
 
         const archives = NP_STATE.editionsArchive || [];
         if (countEl) countEl.innerText = `${archives.length} edition${archives.length === 1 ? '' : 's'} archived`;
+        if (clearBtn) clearBtn.style.display = archives.length > 0 ? 'inline-flex' : 'none';
 
         if (archives.length === 0) {
             container.innerHTML = `
@@ -903,11 +1052,14 @@
                         <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Theme: ${ed.theme || 'classic'}</div>
                     </div>
                     <div style="display: flex; gap: 6px; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border);">
-                        <button class="btn btn-outline" style="flex: 1; padding: 0.35rem 0.5rem; font-size: 0.75rem;" onclick="loadOrCreateEdition('${ed.date}')">
+                        <button type="button" class="btn btn-outline" style="flex: 1; padding: 0.35rem 0.5rem; font-size: 0.75rem;" onclick="loadOrCreateEdition('${ed.date}')">
                             <i class="fa-solid fa-eye"></i> View / Edit
                         </button>
-                        <button class="btn btn-primary" style="padding: 0.35rem 0.6rem; font-size: 0.75rem;" onclick="loadOrCreateEdition('${ed.date}'); setTimeout(exportNewspaperPDF, 300);" title="Export PDF">
+                        <button type="button" class="btn btn-primary" style="padding: 0.35rem 0.6rem; font-size: 0.75rem;" onclick="loadOrCreateEdition('${ed.date}'); setTimeout(exportNewspaperPDF, 300);" title="Export PDF">
                             <i class="fa-solid fa-file-pdf"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline" style="padding: 0.35rem 0.6rem; font-size: 0.75rem; color: #ef4444; border-color: rgba(239,68,68,0.3);" onclick="deleteNewspaperEdition('${ed.date}')" title="Delete Edition">
+                            <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>
                 </div>
@@ -915,36 +1067,84 @@
         }).join('');
     }
 
-    // 9. Export 4-Page A4 PDF
+    // 10. Pixel-Perfect 4-Page A4 PDF Export (Matches Preview 1:1)
     async function exportNewspaperPDF() {
         const btn = document.querySelector('[onclick="exportNewspaperPDF()"]');
         const originalText = btn ? btn.innerHTML : null;
-        if (btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating 4-Page PDF...'; btn.disabled = true; }
+        if (btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Rendering 4-Page PDF...'; btn.disabled = true; }
 
+        let printWrapper = null;
         try {
-            // Ensure all 4 pages are visible during print rendering
-            for (let i = 1; i <= 4; i++) {
-                const p = document.getElementById(`bs-page-${i}`);
-                if (p) p.style.display = 'flex';
-            }
-
-            const element = document.getElementById('np-sheets-container');
+            const festInfo = getActiveFestivalInfo();
             const dateStr = NP_STATE.currentDate;
             const lang = NP_STATE.currentLang;
-            const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || 'fest_vib26_muml4haa';
+            const theme = NP_STATE.currentTheme;
+
+            // Create off-screen print DOM isolated from studio navy background & drop shadows
+            printWrapper = document.createElement('div');
+            printWrapper.id = 'np-pdf-print-container';
+
+            // Clone all 4 pages
+            for (let i = 1; i <= 4; i++) {
+                const srcPage = document.getElementById(`bs-page-${i}`);
+                if (srcPage) {
+                    const pageClone = srcPage.cloneNode(true);
+                    pageClone.id = `bs-print-page-${i}`;
+                    pageClone.style.display = 'flex';
+                    pageClone.style.width = '210mm';
+                    pageClone.style.minHeight = '296.8mm';
+                    pageClone.style.maxHeight = '296.8mm';
+                    pageClone.style.margin = '0';
+                    pageClone.style.boxShadow = 'none';
+                    pageClone.style.boxSizing = 'border-box';
+                    pageClone.style.overflow = 'hidden';
+                    pageClone.style.transform = 'none';
+                    pageClone.className = `broadsheet-page theme-${theme} lang-${lang}`;
+                    pageClone.dir = (lang === 'ar' || lang === 'ur') ? 'rtl' : 'ltr';
+
+                    printWrapper.appendChild(pageClone);
+
+                    if (i < 4) {
+                        const pageBreak = document.createElement('div');
+                        pageBreak.className = 'html2pdf__page-break';
+                        pageBreak.style.pageBreakBefore = 'always';
+                        pageBreak.style.breakBefore = 'page';
+                        pageBreak.style.height = '0';
+                        pageBreak.style.margin = '0';
+                        pageBreak.style.padding = '0';
+                        printWrapper.appendChild(pageBreak);
+                    }
+                }
+            }
+
+            document.body.appendChild(printWrapper);
+
+            const safeFestName = festInfo.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            const filename = `${safeFestName}_gazette_${dateStr}_${lang}.pdf`;
 
             const opt = {
                 margin: 0,
-                filename: `${fid}_daily_gazette_${dateStr}_${lang}.pdf`,
+                filename: filename,
                 image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    letterRendering: true,
+                    scrollY: 0,
+                    scrollX: 0,
+                    windowWidth: 794 // 210mm in px at 96 DPI
+                },
+                jsPDF: {
+                    unit: 'mm',
+                    format: 'a4',
+                    orientation: 'portrait'
+                },
                 pagebreak: { mode: ['css', 'legacy'] }
             };
 
             if (typeof window.html2pdf !== 'undefined') {
-                await window.html2pdf().set(opt).from(element).save();
-                showToast("4-Page A4 Broadsheet PDF downloaded!", "success");
+                await window.html2pdf().set(opt).from(printWrapper).save();
+                showToast("4-Page A4 Broadsheet PDF downloaded successfully!", "success");
             } else {
                 window.print();
             }
@@ -953,28 +1153,28 @@
             console.error("PDF Export error:", e);
             showToast("PDF Export failed: " + e.message, "error");
         } finally {
+            if (printWrapper && printWrapper.parentNode) {
+                printWrapper.parentNode.removeChild(printWrapper);
+            }
             if (btn && originalText) { btn.innerHTML = originalText; btn.disabled = false; }
-            // Restore active page view
+            // Restore active page view on screen
             switchNewspaperPageView(NP_STATE.currentPageView);
         }
     }
 
-    // 10. Publish Newspaper to Results Page (Downloads & News Hub)
+    // 11. Publish Newspaper to Results Page (Downloads & News Hub)
     async function publishNewspaperToResults() {
         const btn = document.querySelector('[onclick="publishNewspaperToResults()"]');
         const originalText = btn ? btn.innerHTML : null;
         if (btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Publishing...'; btn.disabled = true; }
 
         try {
-            const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || 'fest_vib26_muml4haa';
-            let festMeta = null;
-            if (window.availableFests) festMeta = window.availableFests.find(f => f.id === fid);
-            const festName = festMeta ? festMeta.name : 'Zenith Fest 2026';
+            const festInfo = getActiveFestivalInfo();
+            const festName = festInfo.name;
             const dateStr = NP_STATE.currentDate;
             const lang = NP_STATE.currentLang;
             const langLabel = LANG_LABELS[lang];
 
-            // 1. Fetch current websiteConfig
             if (typeof window.loadWebsiteConfig === 'function') {
                 await window.loadWebsiteConfig();
             }
@@ -985,7 +1185,7 @@
             if (!Array.isArray(window.websiteConfig.downloads)) window.websiteConfig.downloads = [];
             if (!Array.isArray(window.websiteConfig.news)) window.websiteConfig.news = [];
 
-            // 2. Add / Update in Downloads
+            // Add / Update in Downloads
             const dlId = `gazette_${dateStr}_${lang}`;
             const existingDlIdx = window.websiteConfig.downloads.findIndex(d => d.id === dlId);
             const newDlItem = {
@@ -1006,7 +1206,7 @@
                 window.websiteConfig.downloads.unshift(newDlItem);
             }
 
-            // 3. Add / Update in News Bulletins
+            // Add / Update in News Bulletins
             const newsId = `news_gazette_${dateStr}`;
             const existingNewsIdx = window.websiteConfig.news.findIndex(n => n.id === newsId);
             const leadTitle = NP_STATE.currentEdition?.translations[lang]?.lead_story?.title || 'Daily Broadsheet Edition Released';
@@ -1028,7 +1228,7 @@
                 window.websiteConfig.news.unshift(newNewsItem);
             }
 
-            // 4. Save via executeWebsiteSave
+            // Save via executeWebsiteSave
             if (typeof window.executeWebsiteSave === 'function') {
                 await window.executeWebsiteSave(null);
             }
@@ -1047,6 +1247,7 @@
     }
 
     // Expose Functions to Global Window
+    window.getActiveFestivalInfo = getActiveFestivalInfo;
     window.loadOrCreateEdition = loadOrCreateEdition;
     window.generateNewspaperWithAI = generateNewspaperWithAI;
     window.autoTranslateAllNewspaperLanguages = autoTranslateAllNewspaperLanguages;
@@ -1060,16 +1261,28 @@
     window.previewModalPhoto = previewModalPhoto;
     window.handleNewspaperPhotoUpload = handleNewspaperPhotoUpload;
     window.saveNewspaperStory = saveNewspaperStory;
+    window.deleteNewspaperEdition = deleteNewspaperEdition;
+    window.clearAllNewspaperArchives = clearAllNewspaperArchives;
+    window.setNewspaperZoom = setNewspaperZoom;
+    window.adjustNewspaperZoom = adjustNewspaperZoom;
+    window.fitNewspaperToScreen = fitNewspaperToScreen;
     window.exportNewspaperPDF = exportNewspaperPDF;
     window.publishNewspaperToResults = publishNewspaperToResults;
     window.checkNewspaperPolicyStatus = checkNewspaperPolicyStatus;
 
-    // Boot hook
+    // Boot hook & Responsive Auto-Fit
     document.addEventListener('DOMContentLoaded', () => {
         const todayStr = new Date().toISOString().split('T')[0];
         const dateInput = document.getElementById('np-edition-date');
         if (dateInput) dateInput.value = todayStr;
         loadOrCreateEdition(todayStr);
+
+        setTimeout(fitNewspaperToScreen, 300);
+        window.addEventListener('resize', () => {
+            if (window.innerWidth <= 950) {
+                fitNewspaperToScreen();
+            }
+        });
     });
 
 })(window);

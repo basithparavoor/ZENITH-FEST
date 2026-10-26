@@ -1,42 +1,137 @@
 /* ==========================================================================
-   FESTOS DAILY GAZETTE & AI NEWSPAPER STUDIO - ENTERPRISE BROADSHEET SYSTEM
+   FESTOS DAILY GAZETTE & AI NEWSPAPER STUDIO - LUXURY BROADSHEET SYSTEM
+   Ultra-Premium Editorial Typography • Responsive Studio Canvas • High-Res Print
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,800;0,900;1,400;1,600;1,700&family=Amiri:ital,wght@0,400;0,700;1,400&family=Noto+Nastaliq+Urdu:wght@400;700&family=Manjari:wght@400;700&family=Noto+Sans+Devanagari:wght@400;600;700;800&family=Noto+Sans+Bengali:wght@400;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&display=swap');
 
-/* Base Broadsheet Container */
+/* Studio Workspace Container */
 .newspaper-workspace {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-    margin-top: 1rem;
+    gap: 1.25rem;
+    margin-top: 0.5rem;
 }
 
-/* Control Hub */
+/* Studio Hero Bar */
+.np-hero-bar {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.98) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 1.25rem 1.75rem;
+    color: #ffffff;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.np-hero-title {
+    font-size: 1.45rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: #ffffff;
+}
+
+.np-hero-sub {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+/* Status Chips Row */
+.np-chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+.np-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 50px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #cbd5e1;
+}
+
+/* Control Hub Card */
 .newspaper-control-bar {
     background: var(--bg-card, #ffffff);
     border: 1px solid var(--border, #e2e8f0);
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 1.25rem 1.5rem;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
 }
 
 .np-toolbar-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
     gap: 1rem;
     align-items: flex-end;
 }
 
-/* Language Switcher Tabs */
+/* Responsive Action Buttons */
+.np-action-btn-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 10px;
+    padding: 0.65rem 1.15rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.np-action-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
+}
+
+.np-action-btn-success {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 10px;
+    padding: 0.65rem 1.15rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3);
+    transition: all 0.2s;
+}
+.np-action-btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4);
+}
+
+/* Multilingual Switcher Bar */
 .np-lang-bar {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 6px;
     margin: 1rem 0;
-    padding: 0.5rem;
-    background: rgba(15, 23, 42, 0.04);
-    border-radius: 10px;
+    padding: 6px;
+    background: rgba(15, 23, 42, 0.03);
+    border-radius: 12px;
     border: 1px solid var(--border, #e2e8f0);
 }
 
@@ -44,10 +139,10 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 0.45rem 0.9rem;
-    border-radius: 8px;
+    padding: 0.5rem 0.95rem;
+    border-radius: 9px;
     font-size: 0.82rem;
-    font-weight: 600;
+    font-weight: 700;
     background: transparent;
     color: var(--text-muted, #64748b);
     border: 1px solid transparent;
@@ -63,28 +158,40 @@
 .np-lang-pill.active {
     background: var(--primary, #6366f1);
     color: #ffffff;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+    box-shadow: 0 3px 10px rgba(99, 102, 241, 0.35);
 }
 
 .np-lang-pill .status-dot {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background: #10b981;
+    box-shadow: 0 0 6px #10b981;
 }
 
-/* Page Navigation Tabs */
+/* Page Navigation Tabs & Zoom Bar */
+.np-nav-zoom-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border, #e2e8f0);
+}
+
 .np-page-tabs {
     display: flex;
-    gap: 0.5rem;
+    gap: 6px;
     overflow-x: auto;
-    padding-bottom: 4px;
+    padding-bottom: 2px;
 }
 
 .np-page-btn {
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
-    font-weight: 600;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 700;
     border-radius: 8px;
     border: 1px solid var(--border, #cbd5e1);
     background: var(--bg-card, #ffffff);
@@ -106,31 +213,69 @@
     background: #0f172a;
     color: #ffffff;
     border-color: #0f172a;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
 }
 
-/* 4-Page Broadsheet Sheet Layout (A4 Ratio) */
+/* Zoom Controls */
+.np-zoom-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(15, 23, 42, 0.04);
+    padding: 3px 6px;
+    border-radius: 8px;
+    border: 1px solid var(--border, #e2e8f0);
+}
+
+.np-zoom-btn {
+    background: transparent;
+    border: none;
+    padding: 4px 8px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-main, #0f172a);
+    cursor: pointer;
+    border-radius: 5px;
+    transition: all 0.15s;
+}
+.np-zoom-btn:hover {
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--primary, #6366f1);
+}
+
+/* Viewport Stage */
+.newspaper-stage-container {
+    width: 100%;
+    overflow-x: auto;
+    display: flex;
+    justify-content: center;
+    background: #0f172a;
+    border-radius: 18px;
+    padding: 2rem 1rem;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
 .newspaper-sheets-viewport {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2rem;
-    padding: 1.5rem 0;
-    background: #1e293b;
-    border-radius: 16px;
-    overflow-x: auto;
+    gap: 2.5rem;
+    transition: transform 0.2s ease-out;
+    transform-origin: top center;
 }
 
+/* 4-Page Broadsheet Sheet Layout (A4 Ratio) */
 .broadsheet-page {
     width: 210mm;
     min-height: 297mm;
     box-sizing: border-box;
-    padding: 14mm 16mm 14mm 16mm;
+    padding: 13mm 15mm 13mm 15mm;
     position: relative;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
-    transition: all 0.3s ease;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    background-color: #fbf9f4;
 }
 
 /* Themes */
@@ -224,17 +369,17 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 8pt;
+    font-size: 7.8pt;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     padding-bottom: 4px;
     border-bottom: 1px solid currentColor;
-    opacity: 0.85;
+    opacity: 0.9;
 }
 
 .bs-masthead {
-    padding: 10px 0;
-    margin: 6px 0 10px 0;
+    padding: 8px 0;
+    margin: 4px 0 8px 0;
     text-align: center;
     position: relative;
 }
@@ -247,14 +392,15 @@
 }
 
 .bs-logo {
-    width: 58px;
-    height: 58px;
+    width: 60px;
+    height: 60px;
     object-fit: contain;
     flex-shrink: 0;
+    border-radius: 4px;
 }
 
 .bs-title {
-    font-size: 26pt;
+    font-size: 27pt;
     line-height: 1;
     margin: 0;
     font-weight: 900;
@@ -263,27 +409,27 @@
 }
 
 .bs-tagline {
-    font-size: 8pt;
+    font-size: 7.8pt;
     text-transform: uppercase;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.14em;
     margin-top: 4px;
-    opacity: 0.8;
+    opacity: 0.85;
+    font-weight: 600;
 }
 
 .bs-meta-strip {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 8pt;
+    font-size: 7.8pt;
     text-transform: uppercase;
-    font-weight: 600;
+    font-weight: 700;
     padding: 3px 0;
     border-top: 1px solid currentColor;
     border-bottom: 1px solid currentColor;
     margin-bottom: 10px;
 }
 
-/* Page Section Headlines */
 .bs-page-banner {
     display: flex;
     justify-content: space-between;
@@ -291,9 +437,9 @@
     border-top: 2px solid currentColor;
     border-bottom: 1px solid currentColor;
     padding: 4px 0;
-    margin-bottom: 12px;
-    font-size: 8.5pt;
-    font-weight: 700;
+    margin-bottom: 10px;
+    font-size: 8.2pt;
+    font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
 }
@@ -302,13 +448,13 @@
 .bs-story-grid {
     display: grid;
     grid-template-columns: 2.2fr 1fr;
-    gap: 16px;
+    gap: 14px;
     flex: 1;
 }
 
 .bs-lead-story {
     border-right: 1px solid rgba(0, 0, 0, 0.2);
-    padding-right: 16px;
+    padding-right: 14px;
     display: flex;
     flex-direction: column;
 }
@@ -317,7 +463,7 @@
     border-right: none;
     border-left: 1px solid rgba(0, 0, 0, 0.2);
     padding-right: 0;
-    padding-left: 16px;
+    padding-left: 14px;
 }
 
 .bs-headline {
@@ -333,20 +479,20 @@
 }
 
 .bs-subhead {
-    font-size: 10.5pt;
+    font-size: 10pt;
     font-style: italic;
     opacity: 0.85;
     line-height: 1.35;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     cursor: pointer;
 }
 
 .bs-byline {
-    font-size: 7.5pt;
+    font-size: 7.2pt;
     text-transform: uppercase;
     font-weight: 700;
     letter-spacing: 0.06em;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -354,7 +500,7 @@
 }
 
 .bs-lead-img-box {
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     position: relative;
     cursor: pointer;
     overflow: hidden;
@@ -374,7 +520,7 @@
 }
 
 .bs-caption {
-    font-size: 7.5pt;
+    font-size: 7.2pt;
     font-style: italic;
     padding: 3px 4px;
     background: rgba(0, 0, 0, 0.03);
@@ -382,7 +528,7 @@
 }
 
 .bs-article-text {
-    font-size: 8.5pt;
+    font-size: 8.2pt;
     line-height: 1.45;
     text-align: justify;
     column-count: 2;
@@ -413,12 +559,12 @@
 .bs-sidebar {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
 }
 
 .bs-card-box {
     border: 1px solid rgba(0, 0, 0, 0.2);
-    padding: 10px;
+    padding: 9px;
     background: rgba(0, 0, 0, 0.015);
     cursor: pointer;
     transition: all 0.2s;
@@ -429,7 +575,7 @@
 }
 
 .bs-card-tag {
-    font-size: 7pt;
+    font-size: 6.8pt;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -441,14 +587,14 @@
 }
 
 .bs-card-title {
-    font-size: 10pt;
+    font-size: 9.8pt;
     font-weight: 700;
     line-height: 1.25;
     margin: 0 0 4px 0;
 }
 
 .bs-card-body {
-    font-size: 8pt;
+    font-size: 7.8pt;
     line-height: 1.35;
     opacity: 0.88;
     margin: 0;
@@ -456,34 +602,34 @@
 
 /* Bottom Ticker / Index */
 .bs-footer-ticker {
-    margin-top: 10px;
-    padding-top: 6px;
+    margin-top: 8px;
+    padding-top: 5px;
     border-top: 2px solid currentColor;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 7.5pt;
-    font-weight: 600;
+    font-size: 7.2pt;
+    font-weight: 700;
     text-transform: uppercase;
 }
 
-/* Stage Schedule Matrix on Page 2 */
+/* Schedule Table */
 .bs-schedule-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 8pt;
-    margin: 8px 0;
+    font-size: 7.8pt;
+    margin: 6px 0;
 }
 
 .bs-schedule-table th {
     background: #0f172a;
     color: #ffffff;
-    padding: 6px 8px;
+    padding: 5px 8px;
     text-align: left;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    font-size: 7.5pt;
+    font-size: 7.2pt;
 }
 .lang-ar .bs-schedule-table th,
 .lang-ur .bs-schedule-table th {
@@ -491,7 +637,7 @@
 }
 
 .bs-schedule-table td {
-    padding: 6px 8px;
+    padding: 5px 8px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.12);
     vertical-align: top;
 }
@@ -499,52 +645,52 @@
 .bs-stage-badge {
     display: inline-block;
     font-weight: 800;
-    font-size: 7pt;
-    padding: 2px 6px;
+    font-size: 6.8pt;
+    padding: 2px 5px;
     border-radius: 3px;
     background: rgba(99, 102, 241, 0.12);
     color: var(--primary, #6366f1);
     border: 1px solid rgba(99, 102, 241, 0.25);
 }
 
-/* Podium & Standings on Page 3 */
+/* Podium & Standings */
 .bs-podium-grid {
     display: grid;
     grid-template-columns: 1fr 1.15fr 1fr;
     gap: 10px;
     align-items: flex-end;
-    margin: 12px 0;
+    margin: 10px 0;
     text-align: center;
 }
 
 .bs-podium-card {
     border: 1px solid rgba(0,0,0,0.2);
-    padding: 10px 8px;
+    padding: 9px 6px;
     border-radius: 4px;
     background: rgba(0, 0, 0, 0.02);
 }
 .bs-podium-card.first {
     border: 2px solid #b45309;
     background: rgba(245, 158, 11, 0.08);
-    transform: translateY(-8px);
+    transform: translateY(-6px);
 }
 
 .bs-podium-rank {
-    font-size: 16pt;
+    font-size: 15pt;
     font-weight: 900;
     line-height: 1;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
 }
 
 .bs-podium-team {
-    font-size: 10pt;
+    font-size: 9.5pt;
     font-weight: 800;
     text-transform: uppercase;
     margin-bottom: 2px;
 }
 
 .bs-podium-pts {
-    font-size: 14pt;
+    font-size: 13pt;
     font-weight: 900;
     color: var(--primary, #6366f1);
 }
@@ -552,32 +698,32 @@
 /* Star Spotlight */
 .bs-spotlight-card {
     display: grid;
-    grid-template-columns: 100px 1fr;
-    gap: 12px;
+    grid-template-columns: 95px 1fr;
+    gap: 10px;
     border: 2px solid currentColor;
-    padding: 10px;
-    margin: 10px 0;
+    padding: 9px;
+    margin: 8px 0;
     background: rgba(0, 0, 0, 0.02);
     cursor: pointer;
 }
 .lang-ar .bs-spotlight-card,
 .lang-ur .bs-spotlight-card {
-    grid-template-columns: 1fr 100px;
+    grid-template-columns: 1fr 95px;
 }
 
 .bs-spotlight-img {
-    width: 100px;
-    height: 110px;
+    width: 95px;
+    height: 105px;
     object-fit: cover;
     border: 1px solid rgba(0,0,0,0.2);
 }
 
-/* Page 4 Cultural & Gallery Strip */
+/* Gallery Strip */
 .bs-gallery-strip {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
-    margin: 10px 0;
+    margin: 8px 0;
 }
 
 .bs-gallery-photo-box {
@@ -587,25 +733,25 @@
 
 .bs-gallery-photo {
     width: 100%;
-    height: 100px;
+    height: 95px;
     object-fit: cover;
     display: block;
 }
 
 .bs-back-footer {
     border-top: 2px solid currentColor;
-    padding-top: 8px;
+    padding-top: 7px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 7.5pt;
+    font-size: 7.2pt;
     font-weight: 600;
 }
 
-/* Past Editions Archive Carousel */
+/* Past Editions Archive Grid */
 .np-archive-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1rem;
     margin-top: 1rem;
 }
@@ -613,8 +759,8 @@
 .np-archive-card {
     background: var(--bg-card, #ffffff);
     border: 1px solid var(--border, #e2e8f0);
-    border-radius: 12px;
-    padding: 1rem;
+    border-radius: 14px;
+    padding: 1.15rem;
     box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     transition: transform 0.2s, box-shadow 0.2s;
     display: flex;
@@ -623,38 +769,89 @@
 }
 .np-archive-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    box-shadow: 0 8px 22px rgba(0,0,0,0.08);
 }
 
-/* Print Rules - Exact 4 Pages */
+/* Offscreen Print Clone Container */
+#np-pdf-print-container {
+    position: fixed;
+    left: -99999px;
+    top: 0;
+    width: 210mm;
+    background: #ffffff;
+    z-index: -99999;
+    margin: 0;
+    padding: 0;
+}
+
+#np-pdf-print-container .broadsheet-page {
+    width: 210mm !important;
+    min-height: 296.8mm !important;
+    max-height: 296.8mm !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    transform: none !important;
+    page-break-after: always !important;
+    break-after: page !important;
+}
+
+/* Print Optimization */
 @media print {
     body * {
         visibility: hidden !important;
     }
-    .broadsheet-page,
-    .broadsheet-page * {
+    #np-sheets-container,
+    #np-sheets-container * {
         visibility: visible !important;
     }
-    .newspaper-sheets-viewport {
-        background: transparent !important;
+    #np-sheets-container {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
         padding: 0 !important;
+        background: transparent !important;
+        gap: 0 !important;
+        transform: none !important;
     }
     .broadsheet-page {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 210mm !important;
-        height: 297mm !important;
-        min-height: 297mm !important;
         margin: 0 !important;
-        padding: 12mm 14mm !important;
-        page-break-after: always !important;
-        break-after: page !important;
         box-shadow: none !important;
         border: none !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        min-height: 296.8mm !important;
+        max-height: 296.8mm !important;
+        width: 210mm !important;
     }
-    .broadsheet-page:nth-child(1) { top: 0; }
-    .broadsheet-page:nth-child(2) { top: 297mm; }
-    .broadsheet-page:nth-child(3) { top: 594mm; }
-    .broadsheet-page:nth-child(4) { top: 891mm; }
+}
+
+/* Mobile & Tablet Responsiveness */
+@media (max-width: 950px) {
+    .newspaper-stage-container {
+        padding: 1rem 0.5rem;
+        border-radius: 12px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .np-hero-bar {
+        padding: 1rem;
+        border-radius: 12px;
+    }
+    .np-hero-title {
+        font-size: 1.2rem;
+    }
+    .np-toolbar-grid {
+        grid-template-columns: 1fr;
+    }
+    .np-nav-zoom-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .np-zoom-group {
+        justify-content: center;
+    }
 }
