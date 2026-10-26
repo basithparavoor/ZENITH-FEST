@@ -1078,3 +1078,162 @@
     border-radius: 4px;
 }
 
+/* ==========================================================================
+   DAILY AI NEWSPAPER STUDIO & BROADSHEET - RESPONSIVE & MOBILE POLISH
+   ========================================================================== */
+
+/* Enhanced Stage Container */
+.newspaper-stage-container {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    justify-content: center;
+    background: #0B1120;
+    border-radius: 18px;
+    padding: 2rem 1rem;
+    box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.5), 0 10px 30px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Broadsheet Desktop Page Glow & Texture */
+.broadsheet-page {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.broadsheet-page:hover {
+    box-shadow: 0 24px 50px rgba(0, 0, 0, 0.7);
+}
+
+/* Action Buttons Container Grid */
+@media (max-width: 900px) {
+    .np-action-buttons-wrap {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+        width: 100% !important;
+        margin-top: 0.5rem;
+    }
+    .np-action-buttons-wrap .btn {
+        width: 100% !important;
+        justify-content: center !important;
+        font-size: 0.82rem !important;
+        padding: 0.75rem 0.6rem !important;
+        white-space: nowrap !important;
+    }
+}
+
+@media (max-width: 540px) {
+    .np-action-buttons-wrap {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* Mobile Adjustments for Broadsheet Studio */
+@media (max-width: 768px) {
+    .newspaper-stage-container {
+        padding: 1rem 0.4rem !important;
+        border-radius: 14px !important;
+    }
+    
+    .np-hero-bar {
+        padding: 1rem 1.25rem !important;
+        border-radius: 14px !important;
+    }
+    .np-hero-title {
+        font-size: 1.2rem !important;
+    }
+    
+    .newspaper-control-bar {
+        padding: 1rem !important;
+        border-radius: 14px !important;
+    }
+    
+    .np-lang-bar {
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+        padding: 4px !important;
+        gap: 4px !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .np-lang-bar::-webkit-scrollbar {
+        display: none;
+    }
+    .np-lang-pill {
+        padding: 0.4rem 0.75rem !important;
+        font-size: 0.78rem !important;
+        white-space: nowrap !important;
+    }
+    
+    .np-nav-zoom-row {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.6rem !important;
+    }
+    .np-page-tabs {
+        justify-content: space-between !important;
+        width: 100% !important;
+    }
+    .np-page-btn {
+        flex: 1 !important;
+        justify-content: center !important;
+        padding: 0.45rem 0.5rem !important;
+        font-size: 0.76rem !important;
+    }
+    .np-zoom-group {
+        justify-content: center !important;
+        width: 100% !important;
+    }
+    
+    /* Full-Screen Drawer Customizer Modal on Mobile */
+    .np-customizer-modal {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+    }
+    .np-customizer-header {
+        padding: 1rem 1.25rem !important;
+    }
+    .np-customizer-tabs {
+        padding: 0 0.5rem !important;
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .np-customizer-tabs::-webkit-scrollbar {
+        display: none;
+    }
+    .np-modal-tab-btn {
+        padding: 0.75rem 0.85rem !important;
+        font-size: 0.78rem !important;
+    }
+    .np-modal-tab-content {
+        padding: 1rem !important;
+    }
+    .np-form-grid-2, .np-form-grid-3 {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+    }
+    .np-customizer-footer {
+        flex-direction: column !important;
+        gap: 0.6rem !important;
+        padding: 0.85rem 1rem !important;
+    }
+    .np-customizer-footer > div {
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 6px !important;
+    }
+    .np-customizer-footer .btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+}
+
