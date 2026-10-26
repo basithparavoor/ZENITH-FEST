@@ -484,6 +484,11 @@ function switchTab(tabId) {
                 const todayStr = document.getElementById('np-edition-date')?.value || new Date().toISOString().split('T')[0];
                 window.loadOrCreateEdition(todayStr);
             }
+            setTimeout(() => {
+                if (typeof window.fitNewspaperToScreen === 'function') {
+                    window.fitNewspaperToScreen();
+                }
+            }, 120);
         }
         else if (tabId === 'website-builder') {
             if (typeof switchBuilderTab === 'function') {
