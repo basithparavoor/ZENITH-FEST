@@ -2,7 +2,7 @@
  * ============================================================================
  * DAILY GAZETTE & AI NEWSPAPER STUDIO PRO
  * High-Performance Broadsheet System • Multilingual AI Pipeline • 4-Page A4 PDF
- * Dynamic Festival Branding • Responsive Mobile & Desktop Studio
+ * Fully Customizable Headers, Footers, Fonts, Sizes, Colors & Editorial Layout
  * ============================================================================
  */
 
@@ -18,7 +18,8 @@
         festConfig: null,
         editionsArchive: [],
         currentEdition: null,
-        zoomLevel: 1.0
+        zoomLevel: 1.0,
+        currentModalTab: 'header'
     };
 
     const LANG_LABELS = {
@@ -69,6 +70,61 @@
         return { id: fid, name, logo, venue, tagline, cleanCode };
     }
 
+    // Default Theme Styles Factory
+    function getDefaultCustomStyle(theme = 'classic') {
+        const themes = {
+            classic: {
+                fontMasthead: "'Playfair Display', serif",
+                fontHeadline: "'Playfair Display', serif",
+                fontBody: "'Newsreader', serif",
+                sizeMasthead: '27pt',
+                sizeHeadline: '19pt',
+                sizeBody: '8pt',
+                inkColor: '#1a1a1a',
+                accentColor: '#881337',
+                bgColor: '#fbf9f4',
+                borderColor: '#1a1a1a'
+            },
+            royal: {
+                fontMasthead: "'Cinzel', serif",
+                fontHeadline: "'Cinzel', serif",
+                fontBody: "'Newsreader', serif",
+                sizeMasthead: '28pt',
+                sizeHeadline: '20pt',
+                sizeBody: '8pt',
+                inkColor: '#2b1e16',
+                accentColor: '#b45309',
+                bgColor: '#fdfaf6',
+                borderColor: '#b45309'
+            },
+            modern: {
+                fontMasthead: "'Inter', sans-serif",
+                fontHeadline: "'Inter', sans-serif",
+                fontBody: "'Inter', system-ui, sans-serif",
+                sizeMasthead: '26pt',
+                sizeHeadline: '18pt',
+                sizeBody: '8pt',
+                inkColor: '#0f172a',
+                accentColor: '#2563eb',
+                bgColor: '#ffffff',
+                borderColor: '#cbd5e1'
+            },
+            emerald: {
+                fontMasthead: "'Cinzel', serif",
+                fontHeadline: "'Cinzel', serif",
+                fontBody: "'Newsreader', serif",
+                sizeMasthead: '28pt',
+                sizeHeadline: '19pt',
+                sizeBody: '8pt',
+                inkColor: '#0d2818',
+                accentColor: '#047857',
+                bgColor: '#f9fbf9',
+                borderColor: '#047857'
+            }
+        };
+        return Object.assign({}, themes[theme] || themes.classic);
+    }
+
     // Initialize Default Stories Template
     function createDefaultStories(festInfo) {
         const info = festInfo || getActiveFestivalInfo();
@@ -85,19 +141,23 @@
                 time: 'UPDATED 03:00 AM'
             },
             side_story: {
+                tag: 'BULLETIN',
                 title: `Solo Symphony Thrills Crowds`,
                 body: `In a performance that garnered a standing ovation from both judges and audience members, Candidate #104 set a new stage record with a faultless classical recital.`
             },
             side_story_2: {
+                tag: 'FLASH NOTICE',
                 title: `Stage Protocols & Green Room Windows`,
                 body: `Stage managers report strict adherence to reporting timelines. Contestants are requested to verify their chest tags at least 20 minutes prior to call time.`
             },
             stage_brief: {
+                tag: 'DISPATCH FROM STAGE CONTROLLER',
                 title: `Stage Controllers Commend Exceptional Discipline`,
                 body: `Stage controllers across all venues have commended participants for punctual check-ins. Green room buffers have been maintained at optimal pace, ensuring no backlogs in stage transitions. Contestants are reminded to carry their official verified chest tags at all times.`
             },
             venue_spotlight: {
-                title: `Acoustical Precision & Sound Engineering`,
+                tag: 'VENUE SPOTLIGHT',
+                title: `Arena Acoustical Precision & Sound Engineering`,
                 body: `The sound systems deployed across main arenas feature directional line arrays, ensuring crystal clarity for classical recitals, choral harmonics, and dramatic orations.`
             },
             star_performer: {
@@ -107,18 +167,20 @@
                 img: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80`
             },
             patron_column: {
+                tag: "DIRECTOR'S NOTE",
                 title: `A Triumph of Camaraderie, Talent, and Shared Vision`,
                 body: `"Every festival edition writes its own indelible chapter in our institutional memory. To witness hundreds of students pouring their spirit into poetry, song, oration, and visual crafts is a testament to the transformative power of arts education. We extend our deepest gratitude to our volunteer marshals, adjudicators, and tech crews who work tirelessly behind the scenes."`,
                 author: `— Organizing Committee • ${festName}`
             },
             tomorrow_preview: {
+                tag: "TOMORROW'S CURTAIN RAISER",
                 title: `High-Stakes Group Dance & Dramatic Theatrics`,
                 body: `The upcoming morning session will witness the pinnacle of theatrical group competitions on Main Stage. Squads have rehearsed choreography for weeks—expect intense competition!`
             }
         };
     }
 
-    // Translation Utility via Google Translate public endpoint
+    // Translation Utility via Google Translate
     async function translateText(text, targetLang) {
         if (!text || targetLang === 'en') return text;
         try {
@@ -222,6 +284,7 @@
         let edition = archives.find(e => e.date === dateStr);
         if (!edition) {
             const defaultStories = createDefaultStories(festInfo);
+            const defaultStyles = getDefaultCustomStyle(NP_STATE.currentTheme);
             edition = {
                 id: 'np_' + fid + '_' + dateStr,
                 fest_id: fid,
@@ -229,21 +292,74 @@
                 theme: NP_STATE.currentTheme,
                 created_at: new Date().toISOString(),
                 published: false,
+                customStyle: defaultStyles,
+                branding: {
+                    mastheadTitle: `${festInfo.name.toUpperCase()} CHRONICLE`,
+                    mastheadTagline: festInfo.tagline.toUpperCase(),
+                    topHeader: `OFFICIAL ${festInfo.name.toUpperCase()} GAZETTE • DAILY CERTIFIED PRINT EDITION`,
+                    volIssue: 'VOLUME I • ISSUE 02',
+                    venue: festInfo.venue.toUpperCase(),
+                    stripEdition: 'SPECIAL MORNING EDITION',
+                    stripFest: festInfo.name.toUpperCase(),
+                    logo1: festInfo.logo,
+                    logo2: festInfo.logo
+                },
+                footers: {
+                    p1Ticker: `DAY HIGHLIGHTS • LIVE SCORING ON ${festInfo.name.toUpperCase()} PORTAL • CERTIFIED TALLY`,
+                    p1Brand: `${festInfo.name.toUpperCase()} GAZETTE • VOL I`,
+                    p2Title: `Today's Stage Timetable & Roster`,
+                    p2Sub: `Verified event schedule across all official competition arenas.`,
+                    p2Meta: `${festInfo.name.toUpperCase()} ARENA MATRIX`,
+                    p2Ticker: `CHECK LIVE ARENA QUEUES ONLINE • ${festInfo.name.toUpperCase()} STAGE CONTROLLER BUREAU`,
+                    p2Brand: `${festInfo.name.toUpperCase()} GAZETTE`,
+                    p3Meta: `${festInfo.name.toUpperCase()} OFFICIAL POINTS TABLE`,
+                    p3Ticker: `VERIFIED BY ${festInfo.name.toUpperCase()} SCORING COMMITTEE • CERTIFIED TALLY`,
+                    p3Brand: `${festInfo.name.toUpperCase()} GAZETTE`,
+                    p4Powered: `POWERED BY ${festInfo.name.toUpperCase()} DIGITAL MEDIA DESK • CERTIFIED ARCHIVE`,
+                    p4Timestamp: `GENERATED 03:00 AM • VERIFIED HASH #${festInfo.cleanCode}-2026`,
+                    p4Ticker: `READ DIGITAL BROADSHEET AT ${festInfo.name.toUpperCase()} RESULTS HUB • ALL RIGHTS RESERVED`,
+                    p4Brand: `${festInfo.name.toUpperCase()} GAZETTE`
+                },
                 translations: {
                     en: defaultStories
                 }
             };
         }
 
+        if (!edition.customStyle) edition.customStyle = getDefaultCustomStyle(edition.theme || 'classic');
+        if (!edition.branding) edition.branding = {};
+        if (!edition.footers) edition.footers = {};
+
         NP_STATE.currentEdition = edition;
         if (edition.theme) {
             setNewspaperTheme(edition.theme, false);
         }
 
+        // Apply Custom Styles to Broadsheet Preview
+        applyCustomStylesToDOM(edition.customStyle);
+
         // Hydrate UI
         updateTranslationStatusDots();
         renderActiveNewspaperContent();
         checkNewspaperPolicyStatus();
+    }
+
+    // Apply Dynamic Styling Variables to Broadsheet Pages
+    function applyCustomStylesToDOM(styles, rootContainer = null) {
+        if (!styles) return;
+        const selector = rootContainer ? rootContainer.querySelectorAll('.broadsheet-page') : document.querySelectorAll('.broadsheet-page');
+        selector.forEach(page => {
+            if (styles.bgColor) page.style.setProperty('--bs-custom-bg', styles.bgColor);
+            if (styles.inkColor) page.style.setProperty('--bs-custom-ink', styles.inkColor);
+            if (styles.accentColor) page.style.setProperty('--bs-custom-accent', styles.accentColor);
+            if (styles.borderColor) page.style.setProperty('--bs-custom-border', styles.borderColor);
+            if (styles.fontMasthead) page.style.setProperty('--bs-font-masthead', styles.fontMasthead);
+            if (styles.fontHeadline) page.style.setProperty('--bs-font-headline', styles.fontHeadline);
+            if (styles.fontBody) page.style.setProperty('--bs-font-body', styles.fontBody);
+            if (styles.sizeMasthead) page.style.setProperty('--bs-size-masthead', styles.sizeMasthead);
+            if (styles.sizeHeadline) page.style.setProperty('--bs-size-headline', styles.sizeHeadline);
+            if (styles.sizeBody) page.style.setProperty('--bs-size-body', styles.sizeBody);
+        });
     }
 
     // 3. AI News Generation Engine
@@ -258,7 +374,7 @@
             const festName = festInfo.name;
             const venue = festInfo.venue;
 
-            // 1. Fetch Schedule Data for this Date
+            // 1. Fetch Schedule Data
             let scheduleItems = [];
             try {
                 if (window.festosGetSetting) {
@@ -322,7 +438,6 @@
                 };
             }
 
-            // Build fresh synthesis
             const topTeam1 = teams[0]?.name || 'TEAM PHOENIX';
             const topTeam2 = teams[1]?.name || 'TEAM TITANS';
 
@@ -336,28 +451,34 @@
                     time: `LIVE TALLY • ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                 },
                 side_story: {
+                    tag: 'BULLETIN',
                     title: `Adjudicator Panel Applauds High Standards`,
                     body: `Senior judge coordinators expressed admiration for the technical discipline displayed by all squads, remarking that standard deviations among top contenders remain exceptionally close.`
                 },
                 side_story_2: {
+                    tag: 'FLASH NOTICE',
                     title: `Live Broadcast & Standings Online`,
                     body: `Spectators and alumni worldwide can access verified real-time score updates, podium rankings, and digital broadsheets directly on the ${festName} Public Portal.`
                 },
                 stage_brief: {
+                    tag: 'DISPATCH FROM STAGE CONTROLLER',
                     title: `Stage Controllers Report Seamless Venue Synchronization`,
                     body: `Venues across ${venue} maintained strict zero-delay scheduling throughout the morning blocks. Marshals and green-room teams coordinated swift transitions, allowing thousands of spectators to enjoy uninterrupted stage action.`
                 },
                 venue_spotlight: {
+                    tag: 'VENUE SPOTLIGHT',
                     title: `Arena Acoustical Precision & Directional Arrays`,
                     body: `State-of-the-art acoustic calibration across all stage venues ensures uncompromised vocal clarity and tonal richness for both classical soloists and orchestral troupes.`
                 },
                 star_performer: starCandidate,
                 patron_column: {
+                    tag: "DIRECTOR'S NOTE",
                     title: `A Golden Chronicle of Youth, Culture, and Shared Excellence`,
                     body: `"Watching the immense spirit and dedication displayed by every candidate reaffirms the timeless necessity of celebration and cultural expression. We thank our adjudicators, student coordinators, and mentors whose tireless contributions make this grand spectacle possible."`,
                     author: `— Organizing Committee • ${festName}`
                 },
                 tomorrow_preview: {
+                    tag: "TOMORROW'S CURTAIN RAISER",
                     title: `Tomorrow's Grand Finals: Group Folk & Classical Theatrics`,
                     body: `Blockbuster group competitions are slated for tomorrow morning. Squads have rehearsed multi-tier choreographies for months—a truly unforgettable showdown awaits!`
                 }
@@ -367,7 +488,6 @@
             NP_STATE.currentEdition.teams = teams;
             NP_STATE.currentEdition.schedule = scheduleItems;
 
-            // Save to archives
             saveEditionToArchive(NP_STATE.currentEdition);
 
             renderActiveNewspaperContent();
@@ -405,18 +525,22 @@
                         time: await translateText(enStories.lead_story.time, lang)
                     },
                     side_story: {
+                        tag: await translateText(enStories.side_story?.tag || 'BULLETIN', lang),
                         title: await translateText(enStories.side_story.title, lang),
                         body: await translateText(enStories.side_story.body, lang)
                     },
                     side_story_2: {
+                        tag: await translateText(enStories.side_story_2?.tag || 'FLASH NOTICE', lang),
                         title: await translateText(enStories.side_story_2.title, lang),
                         body: await translateText(enStories.side_story_2.body, lang)
                     },
                     stage_brief: {
+                        tag: await translateText(enStories.stage_brief?.tag || 'DISPATCH FROM STAGE CONTROLLER', lang),
                         title: await translateText(enStories.stage_brief.title, lang),
                         body: await translateText(enStories.stage_brief.body, lang)
                     },
                     venue_spotlight: {
+                        tag: await translateText(enStories.venue_spotlight?.tag || 'VENUE SPOTLIGHT', lang),
                         title: await translateText(enStories.venue_spotlight.title, lang),
                         body: await translateText(enStories.venue_spotlight.body, lang)
                     },
@@ -427,11 +551,13 @@
                         img: enStories.star_performer.img
                     },
                     patron_column: {
+                        tag: await translateText(enStories.patron_column?.tag || "DIRECTOR'S NOTE", lang),
                         title: await translateText(enStories.patron_column.title, lang),
                         body: await translateText(enStories.patron_column.body, lang),
                         author: await translateText(enStories.patron_column.author, lang)
                     },
                     tomorrow_preview: {
+                        tag: await translateText(enStories.tomorrow_preview?.tag || "TOMORROW'S CURTAIN RAISER", lang),
                         title: await translateText(enStories.tomorrow_preview.title, lang),
                         body: await translateText(enStories.tomorrow_preview.body, lang)
                     }
@@ -459,13 +585,11 @@
 
         const lang = NP_STATE.currentLang;
         const festInfo = getActiveFestivalInfo();
-        const festName = festInfo.name;
-        const festLogo = festInfo.logo;
-        const venue = festInfo.venue;
-        const tagline = festInfo.tagline;
-        const cleanCode = festInfo.cleanCode;
+        const ed = NP_STATE.currentEdition;
+        const b = ed.branding || {};
+        const f = ed.footers || {};
 
-        const stories = NP_STATE.currentEdition.translations[lang] || NP_STATE.currentEdition.translations.en || createDefaultStories(festInfo);
+        const stories = ed.translations[lang] || ed.translations.en || createDefaultStories(festInfo);
 
         // Apply RTL / Language classes
         document.querySelectorAll('.broadsheet-page').forEach(page => {
@@ -473,20 +597,28 @@
             page.dir = (lang === 'ar' || lang === 'ur') ? 'rtl' : 'ltr';
         });
 
+        // Apply dynamic custom typography, colors and sizes
+        applyCustomStylesToDOM(ed.customStyle);
+
         // PAGE 1: Header, Masthead, Ticker, Stories
-        setText('bs-meta-fest-header', `OFFICIAL ${festName.toUpperCase()} GAZETTE • CERTIFIED DAILY PRINT EDITION`);
-        setText('bs-masthead-title', `${festName.toUpperCase()} CHRONICLE`);
-        setText('bs-masthead-tagline', tagline.toUpperCase());
-        setText('bs-meta-venue-1', `VENUE: ${venue.toUpperCase()}`);
-        setText('bs-strip-fest-1', festName.toUpperCase());
+        setText('bs-meta-fest-header', b.topHeader || `OFFICIAL ${festInfo.name.toUpperCase()} GAZETTE • CERTIFIED DAILY PRINT EDITION`);
+        setText('bs-masthead-title', b.mastheadTitle || `${festInfo.name.toUpperCase()} CHRONICLE`);
+        setText('bs-masthead-tagline', b.mastheadTagline || festInfo.tagline.toUpperCase());
+        setText('bs-meta-vol-1', b.volIssue || 'VOLUME I • ISSUE 02');
+        setText('bs-meta-venue-1', b.venue ? `VENUE: ${b.venue.toUpperCase()}` : `VENUE: ${festInfo.venue.toUpperCase()}`);
+        setText('bs-strip-edition-1', b.stripEdition || 'SPECIAL MORNING EDITION');
+        setText('bs-strip-fest-1', b.stripFest || festInfo.name.toUpperCase());
         setText('bs-strip-date-1', formatDateHeader(NP_STATE.currentDate, lang));
-        setText('bs-page1-ticker', `DAY HIGHLIGHTS • LIVE SCORING ON ${festName.toUpperCase()} PORTAL • VERIFIED SCORE REGISTER`);
-        setText('bs-page1-brand', `${festName.toUpperCase()} GAZETTE • VOL I`);
+        
+        setText('bs-page1-ticker', f.p1Ticker || `DAY HIGHLIGHTS • LIVE SCORING ON ${festInfo.name.toUpperCase()} PORTAL • VERIFIED SCORE REGISTER`);
+        setText('bs-page1-brand', f.p1Brand || `${festInfo.name.toUpperCase()} GAZETTE • VOL I`);
 
         const logo1 = document.getElementById('bs-logo-1');
         const logo1b = document.getElementById('bs-logo-1b');
-        if (logo1) { logo1.src = festLogo; logo1.onerror = () => { logo1.src = 'festos-logo.svg'; }; }
-        if (logo1b) { logo1b.src = festLogo; logo1b.onerror = () => { logo1b.src = 'festos-logo.svg'; }; }
+        const logo1Src = b.logo1 || festInfo.logo;
+        const logo2Src = b.logo2 || festInfo.logo;
+        if (logo1) { logo1.src = logo1Src; logo1.onerror = () => { logo1.src = 'festos-logo.svg'; }; }
+        if (logo1b) { logo1b.src = logo2Src; logo1b.onerror = () => { logo1b.src = 'festos-logo.svg'; }; }
 
         // Page 1 Stories
         const lead = stories.lead_story;
@@ -514,9 +646,11 @@
 
         // PAGE 2 (Schedule Table & Dispatches)
         setText('bs-p2-date', formatDateHeader(NP_STATE.currentDate, lang));
-        setText('bs-p2-meta-fest', `${festName.toUpperCase()} ARENA MATRIX`);
-        setText('bs-p2-ticker-center', `CHECK LIVE ARENA QUEUES ONLINE • ${festName.toUpperCase()} STAGE CONTROLLER BUREAU`);
-        setText('bs-p2-brand', `${festName.toUpperCase()} GAZETTE`);
+        setText('bs-p2-title', f.p2Title || `Today's Stage Timetable & Roster`);
+        setText('bs-p2-sub', f.p2Sub || `Verified event schedule across all official competition arenas.`);
+        setText('bs-p2-meta-fest', f.p2Meta || `${festInfo.name.toUpperCase()} ARENA MATRIX`);
+        setText('bs-p2-ticker-center', f.p2Ticker || `CHECK LIVE ARENA QUEUES ONLINE • ${festInfo.name.toUpperCase()} STAGE CONTROLLER BUREAU`);
+        setText('bs-p2-brand', f.p2Brand || `${festInfo.name.toUpperCase()} GAZETTE`);
         renderScheduleTable();
 
         const sBrief = stories.stage_brief;
@@ -533,9 +667,9 @@
 
         // PAGE 3 (Podium, Star & Standings)
         setText('bs-p3-date', formatDateHeader(NP_STATE.currentDate, lang));
-        setText('bs-p3-meta-fest', `${festName.toUpperCase()} OFFICIAL POINTS TABLE`);
-        setText('bs-p3-ticker-center', `VERIFIED BY ${festName.toUpperCase()} SCORING COMMITTEE • CERTIFIED TALLY`);
-        setText('bs-p3-brand', `${festName.toUpperCase()} GAZETTE`);
+        setText('bs-p3-meta-fest', f.p3Meta || `${festInfo.name.toUpperCase()} OFFICIAL POINTS TABLE`);
+        setText('bs-p3-ticker-center', f.p3Ticker || `VERIFIED BY ${festInfo.name.toUpperCase()} SCORING COMMITTEE • CERTIFIED TALLY`);
+        setText('bs-p3-brand', f.p3Brand || `${festInfo.name.toUpperCase()} GAZETTE`);
         renderPodiumAndStandings();
 
         const star = stories.star_performer;
@@ -553,8 +687,13 @@
         if (patron) {
             setText('bs-patron-title', patron.title);
             setText('bs-patron-body', patron.body);
-            setText('bs-patron-author', patron.author || `— Organizing Committee • ${festName}`);
+            setText('bs-patron-author', patron.author || `— Organizing Committee • ${festInfo.name}`);
         }
+
+        // Gallery Photos
+        if (b.gallery1) { const g1 = document.getElementById('bs-gallery-img-1'); if (g1) g1.src = b.gallery1; }
+        if (b.gallery2) { const g2 = document.getElementById('bs-gallery-img-2'); if (g2) g2.src = b.gallery2; }
+        if (b.gallery3) { const g3 = document.getElementById('bs-gallery-img-3'); if (g3) g3.src = b.gallery3; }
 
         const tomorrow = stories.tomorrow_preview;
         if (tomorrow) {
@@ -562,10 +701,10 @@
             setText('bs-tomorrow-body', tomorrow.body);
         }
 
-        setText('bs-p4-powered', `POWERED BY ${festName.toUpperCase()} DIGITAL MEDIA DESK • CERTIFIED ARCHIVE`);
-        setText('bs-footer-timestamp', `GENERATED 03:00 AM • VERIFIED HASH #${cleanCode}-2026`);
-        setText('bs-p4-ticker-center', `READ DIGITAL BROADSHEET AT ${festName.toUpperCase()} RESULTS HUB • ALL RIGHTS RESERVED`);
-        setText('bs-p4-brand', `${festName.toUpperCase()} GAZETTE`);
+        setText('bs-p4-powered', f.p4Powered || `POWERED BY ${festInfo.name.toUpperCase()} DIGITAL MEDIA DESK • CERTIFIED ARCHIVE`);
+        setText('bs-footer-timestamp', f.p4Timestamp || `GENERATED 03:00 AM • VERIFIED HASH #${festInfo.cleanCode}-2026`);
+        setText('bs-p4-ticker-center', f.p4Ticker || `READ DIGITAL BROADSHEET AT ${festInfo.name.toUpperCase()} RESULTS HUB • ALL RIGHTS RESERVED`);
+        setText('bs-p4-brand', f.p4Brand || `${festInfo.name.toUpperCase()} GAZETTE`);
     }
 
     function setText(id, text) {
@@ -587,7 +726,7 @@
         }
     }
 
-    // Render Page 2 Schedule Table from Real Schedule Data
+    // Render Page 2 Schedule Table
     function renderScheduleTable() {
         const tbody = document.getElementById('bs-p2-schedule-tbody');
         if (!tbody) return;
@@ -629,19 +768,21 @@
             ];
         }
 
-        // Top 3 Podium
-        const t1 = teams[0] || { name: 'TEAM PHOENIX', score: 218 };
-        const t2 = teams[1] || { name: 'TEAM TITANS', score: 184 };
-        const t3 = teams[2] || { name: 'TEAM GLADIATORS', score: 152 };
+        const b = NP_STATE.currentEdition?.branding || {};
+
+        // Top 3 Podium (Respects custom overrides if provided)
+        const t1 = { name: b.podiumTeam1 || teams[0]?.name || 'TEAM PHOENIX', score: b.podiumPts1 || `${teams[0]?.score || 218} PTS` };
+        const t2 = { name: b.podiumTeam2 || teams[1]?.name || 'TEAM TITANS', score: b.podiumPts2 || `${teams[1]?.score || 184} PTS` };
+        const t3 = { name: b.podiumTeam3 || teams[2]?.name || 'TEAM GLADIATORS', score: b.podiumPts3 || `${teams[2]?.score || 152} PTS` };
 
         setText('podium-team-1', t1.name.toUpperCase());
-        setText('podium-pts-1', `${t1.score || 0} PTS`);
+        setText('podium-pts-1', String(t1.score).includes('PTS') ? t1.score : `${t1.score} PTS`);
 
         setText('podium-team-2', t2.name.toUpperCase());
-        setText('podium-pts-2', `${t2.score || 0} PTS`);
+        setText('podium-pts-2', String(t2.score).includes('PTS') ? t2.score : `${t2.score} PTS`);
 
         setText('podium-team-3', t3.name.toUpperCase());
-        setText('podium-pts-3', `${t3.score || 0} PTS`);
+        setText('podium-pts-3', String(t3.score).includes('PTS') ? t3.score : `${t3.score} PTS`);
 
         // Table
         const tbody = document.getElementById('bs-p3-teams-tbody');
@@ -663,7 +804,6 @@
             btn.classList.toggle('active', btn.getAttribute('data-lang') === langCode);
         });
 
-        // If target lang translation doesn't exist yet, offer auto generation
         if (!NP_STATE.currentEdition?.translations[langCode]) {
             showToast(`Generating ${LANG_LABELS[langCode]} edition...`, 'info');
             autoTranslateSingleLanguage(langCode);
@@ -686,18 +826,22 @@
                     time: await translateText(enStories.lead_story.time, targetLang)
                 },
                 side_story: {
+                    tag: await translateText(enStories.side_story?.tag || 'BULLETIN', targetLang),
                     title: await translateText(enStories.side_story.title, targetLang),
                     body: await translateText(enStories.side_story.body, targetLang)
                 },
                 side_story_2: {
+                    tag: await translateText(enStories.side_story_2?.tag || 'FLASH NOTICE', targetLang),
                     title: await translateText(enStories.side_story_2.title, targetLang),
                     body: await translateText(enStories.side_story_2.body, targetLang)
                 },
                 stage_brief: {
+                    tag: await translateText(enStories.stage_brief?.tag || 'DISPATCH FROM STAGE CONTROLLER', targetLang),
                     title: await translateText(enStories.stage_brief.title, targetLang),
                     body: await translateText(enStories.stage_brief.body, targetLang)
                 },
                 venue_spotlight: {
+                    tag: await translateText(enStories.venue_spotlight?.tag || 'VENUE SPOTLIGHT', targetLang),
                     title: await translateText(enStories.venue_spotlight.title, targetLang),
                     body: await translateText(enStories.venue_spotlight.body, targetLang)
                 },
@@ -708,11 +852,13 @@
                     img: enStories.star_performer.img
                 },
                 patron_column: {
+                    tag: await translateText(enStories.patron_column?.tag || "DIRECTOR'S NOTE", targetLang),
                     title: await translateText(enStories.patron_column.title, targetLang),
                     body: await translateText(enStories.patron_column.body, targetLang),
                     author: await translateText(enStories.patron_column.author, targetLang)
                 },
                 tomorrow_preview: {
+                    tag: await translateText(enStories.tomorrow_preview?.tag || "TOMORROW'S CURTAIN RAISER", targetLang),
                     title: await translateText(enStories.tomorrow_preview.title, targetLang),
                     body: await translateText(enStories.tomorrow_preview.body, targetLang)
                 }
@@ -752,20 +898,20 @@
         const select = document.getElementById('np-theme-select');
         if (select && select.value !== themeName) select.value = themeName;
 
-        if (NP_STATE.currentEdition && persist) {
+        if (NP_STATE.currentEdition) {
             NP_STATE.currentEdition.theme = themeName;
-            saveEditionToArchive(NP_STATE.currentEdition);
+            // Also apply theme's preset custom styles if not overridden
+            NP_STATE.currentEdition.customStyle = getDefaultCustomStyle(themeName);
+            if (persist) saveEditionToArchive(NP_STATE.currentEdition);
         }
         renderActiveNewspaperContent();
     }
 
-    // Change Edition Date
     function changeNewspaperDate(dateVal) {
         if (!dateVal) return;
         loadOrCreateEdition(dateVal);
     }
 
-    // Translation Dots
     function updateTranslationStatusDots() {
         if (!NP_STATE.currentEdition) return;
         const tr = NP_STATE.currentEdition.translations || {};
@@ -797,7 +943,7 @@
         const stage = document.querySelector('.newspaper-stage-container');
         if (!stage) return;
         const stageWidth = stage.clientWidth - 32;
-        const sheetWidth = 794; // approx 210mm in px at 96dpi
+        const sheetWidth = 794;
         if (stageWidth < sheetWidth) {
             const ratio = stageWidth / sheetWidth;
             setNewspaperZoom(Math.floor(ratio * 100) / 100);
@@ -806,13 +952,121 @@
         }
     }
 
-    // 6. Interactive Story & Photo Editor Modal
-    function openNewspaperStoryEditor(storyKey = 'lead_story') {
+    // =========================================================================
+    // 6. ULTRA-PREMIUM GAZETTE CUSTOMIZER MODAL CONTROLLER
+    // =========================================================================
+    function switchNpModalTab(tabId, btnEl) {
+        NP_STATE.currentModalTab = tabId;
+        document.querySelectorAll('.np-modal-tab-btn').forEach(b => b.classList.remove('active'));
+        if (btnEl) btnEl.classList.add('active');
+
+        document.querySelectorAll('.np-tab-pane').forEach(p => p.classList.remove('active'));
+        const activePane = document.getElementById(`np-pane-${tabId}`);
+        if (activePane) activePane.classList.add('active');
+    }
+
+    function openNewspaperStoryEditor(initialTab = 'header', storyKey = 'lead_story') {
         const modal = document.getElementById('newspaperStoryModal');
         if (!modal) return;
+
+        const ed = NP_STATE.currentEdition;
+        if (!ed) return;
+
+        const festInfo = getActiveFestivalInfo();
+        const lang = NP_STATE.currentLang;
+        const stories = ed.translations[lang] || ed.translations.en || createDefaultStories(festInfo);
+        const b = ed.branding || {};
+        const f = ed.footers || {};
+        const s = ed.customStyle || getDefaultCustomStyle(ed.theme);
+
+        // Badge
+        const badge = document.getElementById('np-modal-edition-badge');
+        if (badge) badge.innerHTML = `<i class="fa-regular fa-calendar"></i> ${ed.date} (${LANG_LABELS[lang]})`;
+
+        // Tab 1: Header & Masthead
+        setVal('np-cust-masthead-title', b.mastheadTitle || `${festInfo.name.toUpperCase()} CHRONICLE`);
+        setVal('np-cust-masthead-tagline', b.mastheadTagline || festInfo.tagline.toUpperCase());
+        setVal('np-cust-top-header', b.topHeader || `OFFICIAL ${festInfo.name.toUpperCase()} GAZETTE • DAILY CERTIFIED PRINT EDITION`);
+        setVal('np-cust-vol-issue', b.volIssue || 'VOLUME I • ISSUE 02');
+        setVal('np-cust-venue', b.venue || festInfo.venue.toUpperCase());
+        setVal('np-cust-strip-edition', b.stripEdition || 'SPECIAL MORNING EDITION');
+        setVal('np-cust-strip-fest', b.stripFest || festInfo.name.toUpperCase());
+        setVal('np-cust-logo-1', b.logo1 || festInfo.logo);
+        setVal('np-cust-logo-2', b.logo2 || festInfo.logo);
+
+        // Tab 2: Page 1 Stories
         const selector = document.getElementById('np-edit-selector');
         if (selector) selector.value = storyKey;
         loadStoryIntoEditor(storyKey);
+
+        // Tab 3: Page 2 Arena Dispatch
+        setVal('np-cust-p2-title', f.p2Title || `Today's Stage Timetable & Roster`);
+        setVal('np-cust-p2-sub', f.p2Sub || `Verified event schedule across all official competition arenas.`);
+        setVal('np-cust-stage-brief-title', stories.stage_brief?.title || '');
+        setVal('np-cust-stage-brief-body', stories.stage_brief?.body || '');
+        setVal('np-cust-venue-title', stories.venue_spotlight?.title || '');
+        setVal('np-cust-venue-body', stories.venue_spotlight?.body || '');
+
+        // Tab 4: Page 3 Standings & Stars
+        setVal('np-cust-star-name', stories.star_performer?.name || '');
+        setVal('np-cust-star-event', stories.star_performer?.event || '');
+        setVal('np-cust-star-quote', stories.star_performer?.quote || '');
+        setVal('np-cust-star-img', stories.star_performer?.img || '');
+        setVal('np-cust-podium-team-1', b.podiumTeam1 || 'TEAM PHOENIX');
+        setVal('np-cust-podium-pts-1', b.podiumPts1 || '218 PTS');
+        setVal('np-cust-podium-team-2', b.podiumTeam2 || 'TEAM TITANS');
+        setVal('np-cust-podium-pts-2', b.podiumPts2 || '184 PTS');
+        setVal('np-cust-podium-team-3', b.podiumTeam3 || 'TEAM GLADIATORS');
+        setVal('np-cust-podium-pts-3', b.podiumPts3 || '152 PTS');
+
+        // Tab 5: Page 4 Cultural Chronicles
+        setVal('np-cust-patron-title', stories.patron_column?.title || '');
+        setVal('np-cust-patron-author', stories.patron_column?.author || '');
+        setVal('np-cust-patron-body', stories.patron_column?.body || '');
+        setVal('np-cust-gallery-1', b.gallery1 || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=80');
+        setVal('np-cust-gallery-2', b.gallery2 || 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=500&auto=format&fit=crop&q=80');
+        setVal('np-cust-gallery-3', b.gallery3 || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=500&auto=format&fit=crop&q=80');
+        setVal('np-cust-tomorrow-title', stories.tomorrow_preview?.title || '');
+        setVal('np-cust-tomorrow-body', stories.tomorrow_preview?.body || '');
+
+        // Tab 6: Footers & Tickers
+        setVal('np-cust-p1-ticker', f.p1Ticker || `DAY HIGHLIGHTS • LIVE SCORING ON ${festInfo.name.toUpperCase()} PORTAL`);
+        setVal('np-cust-p1-brand', f.p1Brand || `${festInfo.name.toUpperCase()} GAZETTE • VOL I`);
+        setVal('np-cust-p2-ticker', f.p2Ticker || `CHECK REAL-TIME STAGE QUEUES ONLINE • STAGE CONTROLLER BUREAU`);
+        setVal('np-cust-p2-brand', f.p2Brand || `${festInfo.name.toUpperCase()} GAZETTE`);
+        setVal('np-cust-p3-ticker', f.p3Ticker || `VERIFIED BY THE MASTER SCORING COMMITTEE • CERTIFIED TALLY`);
+        setVal('np-cust-p3-brand', f.p3Brand || `${festInfo.name.toUpperCase()} GAZETTE`);
+        setVal('np-cust-p4-powered', f.p4Powered || `POWERED BY ${festInfo.name.toUpperCase()} DIGITAL MEDIA DESK • CERTIFIED ARCHIVE`);
+        setVal('np-cust-p4-timestamp', f.p4Timestamp || `GENERATED 03:00 AM • VERIFIED CERTIFIED HASH`);
+
+        // Tab 7: Typography & Styles
+        setVal('np-cust-font-masthead', s.fontMasthead || "'Playfair Display', serif");
+        setVal('np-cust-font-headline', s.fontHeadline || "'Playfair Display', serif");
+        setVal('np-cust-font-body', s.fontBody || "'Newsreader', serif");
+
+        const mSize = parseInt(s.sizeMasthead || '27', 10);
+        const hSize = parseInt(s.sizeHeadline || '19', 10);
+        const bSize = parseFloat(s.sizeBody || '8');
+        setVal('np-slider-masthead', mSize);
+        setVal('np-slider-headline', hSize);
+        setVal('np-slider-body', bSize);
+        setText('np-label-size-masthead', mSize + 'pt');
+        setText('np-label-size-headline', hSize + 'pt');
+        setText('np-label-size-body', bSize + 'pt');
+
+        setVal('np-cust-ink-picker', s.inkColor || '#111111');
+        setVal('np-cust-ink-hex', s.inkColor || '#111111');
+        setVal('np-cust-accent-picker', s.accentColor || '#881337');
+        setVal('np-cust-accent-hex', s.accentColor || '#881337');
+        setVal('np-cust-bg-picker', s.bgColor || '#fbf9f4');
+        setVal('np-cust-bg-hex', s.bgColor || '#fbf9f4');
+        setVal('np-cust-border-picker', s.borderColor || '#1a1a1a');
+        setVal('np-cust-border-hex', s.borderColor || '#1a1a1a');
+
+        // Switch to chosen tab
+        const tabBtn = document.querySelector(`.np-modal-tab-btn[onclick*="'${initialTab}'"]`) || document.querySelector('.np-modal-tab-btn');
+        switchNpModalTab(initialTab, tabBtn);
+
         modal.classList.add('show');
     }
 
@@ -821,31 +1075,41 @@
         if (modal) modal.classList.remove('show');
     }
 
+    function setVal(id, val) {
+        const el = document.getElementById(id);
+        if (el && val !== undefined) el.value = val;
+    }
+
+    function getVal(id) {
+        const el = document.getElementById(id);
+        return el ? el.value.trim() : '';
+    }
+
     function loadStoryIntoEditor(storyKey) {
         document.getElementById('np-edit-story-key').value = storyKey;
         const lang = NP_STATE.currentLang;
         const stories = NP_STATE.currentEdition?.translations[lang] || NP_STATE.currentEdition?.translations.en || createDefaultStories();
         const data = stories[storyKey] || {};
 
-        document.getElementById('np-edit-title').value = data.title || data.name || '';
-        document.getElementById('np-edit-subhead').value = data.subhead || data.event || '';
-        document.getElementById('np-edit-body').value = data.body || data.quote || '';
+        setVal('np-edit-title', data.title || data.name || '');
+        setVal('np-edit-subhead', data.subhead || data.event || '');
+        setVal('np-edit-body', data.body || data.quote || '');
 
         const photoGroup = document.getElementById('np-edit-photo-group');
         const imgUrlInput = document.getElementById('np-edit-img-url');
         const imgPrev = document.getElementById('np-edit-img-preview');
         const captionInput = document.getElementById('np-edit-caption');
 
-        const hasPhoto = (storyKey === 'lead_story' || storyKey === 'star_performer' || storyKey.includes('gallery'));
+        const hasPhoto = (storyKey === 'lead_story');
         if (photoGroup) photoGroup.style.display = hasPhoto ? 'block' : 'none';
 
         if (hasPhoto) {
-            imgUrlInput.value = data.img || '';
-            captionInput.value = data.caption || '';
-            if (data.img) {
+            setVal('np-edit-img-url', data.img || '');
+            setVal('np-edit-caption', data.caption || '');
+            if (data.img && imgPrev) {
                 imgPrev.src = data.img;
                 imgPrev.style.display = 'block';
-            } else {
+            } else if (imgPrev) {
                 imgPrev.style.display = 'none';
             }
         }
@@ -864,66 +1128,343 @@
         const reader = new FileReader();
         reader.onload = function(e) {
             const base64 = e.target.result;
-            document.getElementById('np-edit-img-url').value = base64;
+            setVal('np-edit-img-url', base64);
             previewModalPhoto(base64);
             showToast("Photo loaded successfully!", "success");
         };
         reader.readAsDataURL(inputEl.files[0]);
     }
 
-    async function saveNewspaperStory(translateAll = false) {
-        const key = document.getElementById('np-edit-story-key').value;
-        const title = document.getElementById('np-edit-title').value.trim();
-        const subhead = document.getElementById('np-edit-subhead').value.trim();
-        const body = document.getElementById('np-edit-body').value.trim();
-        const img = document.getElementById('np-edit-img-url').value.trim();
-        const caption = document.getElementById('np-edit-caption').value.trim();
+    function handleNewspaperLogoUpload(inputEl, targetInputId) {
+        if (!inputEl.files || !inputEl.files[0]) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const base64 = e.target.result;
+            setVal(targetInputId, base64);
+            if (targetInputId === 'np-cust-logo-1') {
+                const l1 = document.getElementById('bs-logo-1');
+                if (l1) l1.src = base64;
+            } else {
+                const l2 = document.getElementById('bs-logo-1b');
+                if (l2) l2.src = base64;
+            }
+            showToast("Logo updated successfully!", "success");
+        };
+        reader.readAsDataURL(inputEl.files[0]);
+    }
 
-        if (!title) return alert("Title or headline is required.");
+    function handleNewspaperPhotoUploadDirect(inputEl, targetInputId, targetImgId) {
+        if (!inputEl.files || !inputEl.files[0]) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const base64 = e.target.result;
+            setVal(targetInputId, base64);
+            const imgEl = document.getElementById(targetImgId);
+            if (imgEl) imgEl.src = base64;
+            showToast("Photo updated!", "success");
+        };
+        reader.readAsDataURL(inputEl.files[0]);
+    }
 
+    // Live Synchronizer from Modal to Broadsheet Preview
+    function liveUpdateBroadsheet(key, value) {
+        switch (key) {
+            case 'masthead-title': setText('bs-masthead-title', value); break;
+            case 'masthead-tagline': setText('bs-masthead-tagline', value); break;
+            case 'top-header': setText('bs-meta-fest-header', value); break;
+            case 'vol-issue': setText('bs-meta-vol-1', value); break;
+            case 'venue': setText('bs-meta-venue-1', `VENUE: ${value.toUpperCase()}`); break;
+            case 'strip-edition': setText('bs-strip-edition-1', value); break;
+            case 'strip-fest': setText('bs-strip-fest-1', value); break;
+            case 'logo-1': { const l1 = document.getElementById('bs-logo-1'); if (l1) l1.src = value; } break;
+            case 'logo-2': { const l2 = document.getElementById('bs-logo-1b'); if (l2) l2.src = value; } break;
+
+            case 'p2-title': setText('bs-p2-title', value); break;
+            case 'p2-sub': setText('bs-p2-sub', value); break;
+            case 'stage-brief-title': setText('bs-stage-brief-title', value); break;
+            case 'stage-brief-body': setText('bs-stage-brief-body', value); break;
+            case 'venue-title': setText('bs-venue-title', value); break;
+            case 'venue-body': setText('bs-venue-body', value); break;
+
+            case 'star-name': setText('bs-star-name', value); break;
+            case 'star-event': setText('bs-star-event', value); break;
+            case 'star-quote': setText('bs-star-quote', value); break;
+            case 'star-img': { const img = document.getElementById('bs-star-img'); if (img) img.src = value; } break;
+            case 'podium-team-1': setText('podium-team-1', value.toUpperCase()); break;
+            case 'podium-pts-1': setText('podium-pts-1', value.toUpperCase()); break;
+            case 'podium-team-2': setText('podium-team-2', value.toUpperCase()); break;
+            case 'podium-pts-2': setText('podium-pts-2', value.toUpperCase()); break;
+            case 'podium-team-3': setText('podium-team-3', value.toUpperCase()); break;
+            case 'podium-pts-3': setText('podium-pts-3', value.toUpperCase()); break;
+
+            case 'patron-title': setText('bs-patron-title', value); break;
+            case 'patron-author': setText('bs-patron-author', value); break;
+            case 'patron-body': setText('bs-patron-body', value); break;
+            case 'gallery-1': { const g1 = document.getElementById('bs-gallery-img-1'); if (g1) g1.src = value; } break;
+            case 'gallery-2': { const g2 = document.getElementById('bs-gallery-img-2'); if (g2) g2.src = value; } break;
+            case 'gallery-3': { const g3 = document.getElementById('bs-gallery-img-3'); if (g3) g3.src = value; } break;
+            case 'tomorrow-title': setText('bs-tomorrow-title', value); break;
+            case 'tomorrow-body': setText('bs-tomorrow-body', value); break;
+
+            case 'p1-ticker': setText('bs-page1-ticker', value); break;
+            case 'p1-brand': setText('bs-page1-brand', value); break;
+            case 'p2-ticker': setText('bs-p2-ticker-center', value); break;
+            case 'p2-brand': setText('bs-p2-brand', value); break;
+            case 'p3-ticker': setText('bs-p3-ticker-center', value); break;
+            case 'p3-brand': setText('bs-p3-brand', value); break;
+            case 'p4-powered': setText('bs-p4-powered', value); break;
+            case 'p4-timestamp': setText('bs-footer-timestamp', value); break;
+        }
+    }
+
+    // Live Style Customizer Controller
+    function liveUpdateStyle(styleKey, value) {
+        if (!NP_STATE.currentEdition.customStyle) {
+            NP_STATE.currentEdition.customStyle = getDefaultCustomStyle(NP_STATE.currentEdition.theme);
+        }
+        const s = NP_STATE.currentEdition.customStyle;
+
+        switch (styleKey) {
+            case 'font-masthead': s.fontMasthead = value; break;
+            case 'font-headline': s.fontHeadline = value; break;
+            case 'font-body': s.fontBody = value; break;
+            case 'size-masthead':
+                s.sizeMasthead = value;
+                setText('np-label-size-masthead', value);
+                break;
+            case 'size-headline':
+                s.sizeHeadline = value;
+                setText('np-label-size-headline', value);
+                break;
+            case 'size-body':
+                s.sizeBody = value;
+                setText('np-label-size-body', value);
+                break;
+            case 'ink':
+                s.inkColor = value;
+                setVal('np-cust-ink-picker', value);
+                setVal('np-cust-ink-hex', value);
+                break;
+            case 'accent':
+                s.accentColor = value;
+                setVal('np-cust-accent-picker', value);
+                setVal('np-cust-accent-hex', value);
+                break;
+            case 'bg':
+                s.bgColor = value;
+                setVal('np-cust-bg-picker', value);
+                setVal('np-cust-bg-hex', value);
+                break;
+            case 'border':
+                s.borderColor = value;
+                setVal('np-cust-border-picker', value);
+                setVal('np-cust-border-hex', value);
+                break;
+        }
+
+        applyCustomStylesToDOM(s);
+    }
+
+    function applyPresetTheme(themeName, btnEl) {
+        document.querySelectorAll('.np-preset-card').forEach(c => c.classList.remove('active'));
+        if (btnEl) btnEl.classList.add('active');
+
+        const preset = getDefaultCustomStyle(themeName);
+        NP_STATE.currentEdition.customStyle = preset;
+        NP_STATE.currentTheme = themeName;
+        NP_STATE.currentEdition.theme = themeName;
+
+        setVal('np-cust-font-masthead', preset.fontMasthead);
+        setVal('np-cust-font-headline', preset.fontHeadline);
+        setVal('np-cust-font-body', preset.fontBody);
+
+        const mSize = parseInt(preset.sizeMasthead, 10);
+        const hSize = parseInt(preset.sizeHeadline, 10);
+        const bSize = parseFloat(preset.sizeBody);
+        setVal('np-slider-masthead', mSize);
+        setVal('np-slider-headline', hSize);
+        setVal('np-slider-body', bSize);
+        setText('np-label-size-masthead', mSize + 'pt');
+        setText('np-label-size-headline', hSize + 'pt');
+        setText('np-label-size-body', bSize + 'pt');
+
+        setVal('np-cust-ink-picker', preset.inkColor);
+        setVal('np-cust-ink-hex', preset.inkColor);
+        setVal('np-cust-accent-picker', preset.accentColor);
+        setVal('np-cust-accent-hex', preset.accentColor);
+        setVal('np-cust-bg-picker', preset.bgColor);
+        setVal('np-cust-bg-hex', preset.bgColor);
+        setVal('np-cust-border-picker', preset.borderColor);
+        setVal('np-cust-border-hex', preset.borderColor);
+
+        applyCustomStylesToDOM(preset);
+        showToast(`Theme preset applied: ${themeName.toUpperCase()}`, 'info');
+    }
+
+    function resetBroadsheetToDefaults() {
+        if (!confirm("Reset all broadsheet titles, footers, typography and styling back to festival defaults?")) return;
+        const festInfo = getActiveFestivalInfo();
+        const defaultStories = createDefaultStories(festInfo);
+        const defaultStyles = getDefaultCustomStyle('classic');
+
+        NP_STATE.currentEdition.translations[NP_STATE.currentLang] = defaultStories;
+        NP_STATE.currentEdition.customStyle = defaultStyles;
+        NP_STATE.currentEdition.branding = {};
+        NP_STATE.currentEdition.footers = {};
+
+        saveEditionToArchive(NP_STATE.currentEdition);
+        loadOrCreateEdition(NP_STATE.currentDate);
+        closeNewspaperStoryEditor();
+        showToast("Broadsheet restored to defaults!", "success");
+    }
+
+    // Save All Customizations (From All Tabs)
+    async function saveAllNewspaperCustomizations(translateAll = false) {
+        const ed = NP_STATE.currentEdition;
+        if (!ed) return;
         const lang = NP_STATE.currentLang;
-        if (!NP_STATE.currentEdition.translations[lang]) {
-            NP_STATE.currentEdition.translations[lang] = createDefaultStories();
+
+        if (!ed.translations[lang]) {
+            ed.translations[lang] = createDefaultStories();
+        }
+        const stories = ed.translations[lang];
+
+        // 1. Save Branding
+        ed.branding = {
+            mastheadTitle: getVal('np-cust-masthead-title'),
+            mastheadTagline: getVal('np-cust-masthead-tagline'),
+            topHeader: getVal('np-cust-top-header'),
+            volIssue: getVal('np-cust-vol-issue'),
+            venue: getVal('np-cust-venue'),
+            stripEdition: getVal('np-cust-strip-edition'),
+            stripFest: getVal('np-cust-strip-fest'),
+            logo1: getVal('np-cust-logo-1'),
+            logo2: getVal('np-cust-logo-2'),
+            gallery1: getVal('np-cust-gallery-1'),
+            gallery2: getVal('np-cust-gallery-2'),
+            gallery3: getVal('np-cust-gallery-3'),
+            podiumTeam1: getVal('np-cust-podium-team-1'),
+            podiumPts1: getVal('np-cust-podium-pts-1'),
+            podiumTeam2: getVal('np-cust-podium-team-2'),
+            podiumPts2: getVal('np-cust-podium-pts-2'),
+            podiumTeam3: getVal('np-cust-podium-team-3'),
+            podiumPts3: getVal('np-cust-podium-pts-3')
+        };
+
+        // 2. Save Footers
+        ed.footers = {
+            p1Ticker: getVal('np-cust-p1-ticker'),
+            p1Brand: getVal('np-cust-p1-brand'),
+            p2Title: getVal('np-cust-p2-title'),
+            p2Sub: getVal('np-cust-p2-sub'),
+            p2Ticker: getVal('np-cust-p2-ticker'),
+            p2Brand: getVal('np-cust-p2-brand'),
+            p3Ticker: getVal('np-cust-p3-ticker'),
+            p3Brand: getVal('np-cust-p3-brand'),
+            p4Powered: getVal('np-cust-p4-powered'),
+            p4Timestamp: getVal('np-cust-p4-timestamp')
+        };
+
+        // 3. Save Active Page 1 Story
+        const activeKey = document.getElementById('np-edit-story-key').value;
+        const sTitle = getVal('np-edit-title');
+        const sSubhead = getVal('np-edit-subhead');
+        const sBody = getVal('np-edit-body');
+        const sImg = getVal('np-edit-img-url');
+        const sCaption = getVal('np-edit-caption');
+
+        if (stories[activeKey]) {
+            stories[activeKey].title = sTitle;
+            stories[activeKey].subhead = sSubhead;
+            stories[activeKey].body = sBody;
+            if (sImg) stories[activeKey].img = sImg;
+            if (sCaption) stories[activeKey].caption = sCaption;
         }
 
-        const targetObj = NP_STATE.currentEdition.translations[lang][key] || {};
-        if (key === 'star_performer') {
-            targetObj.name = title;
-            targetObj.event = subhead;
-            targetObj.quote = body;
-            if (img) targetObj.img = img;
-        } else {
-            targetObj.title = title;
-            targetObj.subhead = subhead;
-            targetObj.body = body;
-            if (img) targetObj.img = img;
-            if (caption) targetObj.caption = caption;
+        // 4. Save Page 2, 3, 4 stories
+        if (stories.stage_brief) {
+            stories.stage_brief.title = getVal('np-cust-stage-brief-title') || stories.stage_brief.title;
+            stories.stage_brief.body = getVal('np-cust-stage-brief-body') || stories.stage_brief.body;
         }
-        NP_STATE.currentEdition.translations[lang][key] = targetObj;
+        if (stories.venue_spotlight) {
+            stories.venue_spotlight.title = getVal('np-cust-venue-title') || stories.venue_spotlight.title;
+            stories.venue_spotlight.body = getVal('np-cust-venue-body') || stories.venue_spotlight.body;
+        }
+        if (stories.star_performer) {
+            stories.star_performer.name = getVal('np-cust-star-name') || stories.star_performer.name;
+            stories.star_performer.event = getVal('np-cust-star-event') || stories.star_performer.event;
+            stories.star_performer.quote = getVal('np-cust-star-quote') || stories.star_performer.quote;
+            if (getVal('np-cust-star-img')) stories.star_performer.img = getVal('np-cust-star-img');
+        }
+        if (stories.patron_column) {
+            stories.patron_column.title = getVal('np-cust-patron-title') || stories.patron_column.title;
+            stories.patron_column.author = getVal('np-cust-patron-author') || stories.patron_column.author;
+            stories.patron_column.body = getVal('np-cust-patron-body') || stories.patron_column.body;
+        }
+        if (stories.tomorrow_preview) {
+            stories.tomorrow_preview.title = getVal('np-cust-tomorrow-title') || stories.tomorrow_preview.title;
+            stories.tomorrow_preview.body = getVal('np-cust-tomorrow-body') || stories.tomorrow_preview.body;
+        }
 
-        // Auto-translate to other languages if requested
+        // 5. Save Custom Styles
+        ed.customStyle = {
+            fontMasthead: getVal('np-cust-font-masthead'),
+            fontHeadline: getVal('np-cust-font-headline'),
+            fontBody: getVal('np-cust-font-body'),
+            sizeMasthead: getVal('np-slider-masthead') + 'pt',
+            sizeHeadline: getVal('np-slider-headline') + 'pt',
+            sizeBody: getVal('np-slider-body') + 'pt',
+            inkColor: getVal('np-cust-ink-hex'),
+            accentColor: getVal('np-cust-accent-hex'),
+            bgColor: getVal('np-cust-bg-hex'),
+            borderColor: getVal('np-cust-border-hex')
+        };
+
+        // 6. Multilingual Auto-Translation if requested
         if (translateAll) {
-            showToast("Auto-translating edited story across all languages...", "info");
+            showToast("Translating customized broadsheet across all 6 languages...", "info");
             const otherLangs = ['en', 'ml', 'ur', 'ar', 'hi', 'bn'].filter(l => l !== lang);
             for (const oLang of otherLangs) {
-                if (!NP_STATE.currentEdition.translations[oLang]) {
-                    NP_STATE.currentEdition.translations[oLang] = createDefaultStories();
-                }
-                const translatedStory = {
-                    title: await translateText(title, oLang),
-                    subhead: subhead ? await translateText(subhead, oLang) : '',
-                    body: body ? await translateText(body, oLang) : '',
-                    img: img || targetObj.img,
-                    caption: caption ? await translateText(caption, oLang) : ''
+                if (!ed.translations[oLang]) ed.translations[oLang] = createDefaultStories();
+                const target = ed.translations[oLang];
+
+                target.lead_story = {
+                    title: await translateText(stories.lead_story.title, oLang),
+                    subhead: stories.lead_story.subhead ? await translateText(stories.lead_story.subhead, oLang) : '',
+                    body: stories.lead_story.body ? await translateText(stories.lead_story.body, oLang) : '',
+                    img: stories.lead_story.img,
+                    caption: stories.lead_story.caption ? await translateText(stories.lead_story.caption, oLang) : ''
                 };
-                NP_STATE.currentEdition.translations[oLang][key] = translatedStory;
+                target.stage_brief = {
+                    title: await translateText(stories.stage_brief.title, oLang),
+                    body: await translateText(stories.stage_brief.body, oLang)
+                };
+                target.venue_spotlight = {
+                    title: await translateText(stories.venue_spotlight.title, oLang),
+                    body: await translateText(stories.venue_spotlight.body, oLang)
+                };
+                target.star_performer = {
+                    name: stories.star_performer.name,
+                    event: await translateText(stories.star_performer.event, oLang),
+                    quote: await translateText(stories.star_performer.quote, oLang),
+                    img: stories.star_performer.img
+                };
+                target.patron_column = {
+                    title: await translateText(stories.patron_column.title, oLang),
+                    author: await translateText(stories.patron_column.author, oLang),
+                    body: await translateText(stories.patron_column.body, oLang)
+                };
+                target.tomorrow_preview = {
+                    title: await translateText(stories.tomorrow_preview.title, oLang),
+                    body: await translateText(stories.tomorrow_preview.body, oLang)
+                };
             }
         }
 
-        saveEditionToArchive(NP_STATE.currentEdition);
+        saveEditionToArchive(ed);
         closeNewspaperStoryEditor();
         renderActiveNewspaperContent();
-        showToast(translateAll ? "Saved & translated to all 6 languages!" : `Saved to ${LANG_LABELS[lang]} edition!`, "success");
+        showToast(translateAll ? "All customizations saved & auto-translated to 6 languages!" : `Saved for ${LANG_LABELS[lang]} edition!`, "success");
     }
 
     // 7. Save Edition to Local Storage & Supabase Settings
@@ -941,7 +1482,6 @@
             localStorage.setItem('festos_newspapers_' + fid, JSON.stringify(NP_STATE.editionsArchive));
         } catch(e) {}
 
-        // Sync to Supabase settings
         if (typeof supabaseClient !== 'undefined' && supabaseClient) {
             try {
                 await supabaseClient.from('settings').upsert({
@@ -979,7 +1519,6 @@
         showToast(`Broadsheet edition for ${dateStr} deleted.`, 'success');
         renderPastEditionsArchive();
 
-        // If active edition was deleted, load today or first available
         if (NP_STATE.currentDate === dateStr) {
             const nextDate = NP_STATE.editionsArchive[0]?.date || new Date().toISOString().split('T')[0];
             loadOrCreateEdition(nextDate);
@@ -1067,7 +1606,7 @@
         }).join('');
     }
 
-    // 10. Pixel-Perfect 4-Page A4 PDF Export (Matches Preview 1:1)
+    // 10. Pixel-Perfect 4-Page A4 PDF Export (Matches Preview 1:1 with Custom Styles)
     async function exportNewspaperPDF() {
         const btn = document.querySelector('[onclick="exportNewspaperPDF()"]');
         const originalText = btn ? btn.innerHTML : null;
@@ -1079,8 +1618,8 @@
             const dateStr = NP_STATE.currentDate;
             const lang = NP_STATE.currentLang;
             const theme = NP_STATE.currentTheme;
+            const customStyle = NP_STATE.currentEdition?.customStyle || getDefaultCustomStyle(theme);
 
-            // Create off-screen print DOM isolated from studio navy background & drop shadows
             printWrapper = document.createElement('div');
             printWrapper.id = 'np-pdf-print-container';
 
@@ -1101,6 +1640,18 @@
                     pageClone.style.transform = 'none';
                     pageClone.className = `broadsheet-page theme-${theme} lang-${lang}`;
                     pageClone.dir = (lang === 'ar' || lang === 'ur') ? 'rtl' : 'ltr';
+
+                    // Apply custom styles directly
+                    if (customStyle.bgColor) pageClone.style.setProperty('--bs-custom-bg', customStyle.bgColor);
+                    if (customStyle.inkColor) pageClone.style.setProperty('--bs-custom-ink', customStyle.inkColor);
+                    if (customStyle.accentColor) pageClone.style.setProperty('--bs-custom-accent', customStyle.accentColor);
+                    if (customStyle.borderColor) pageClone.style.setProperty('--bs-custom-border', customStyle.borderColor);
+                    if (customStyle.fontMasthead) pageClone.style.setProperty('--bs-font-masthead', customStyle.fontMasthead);
+                    if (customStyle.fontHeadline) pageClone.style.setProperty('--bs-font-headline', customStyle.fontHeadline);
+                    if (customStyle.fontBody) pageClone.style.setProperty('--bs-font-body', customStyle.fontBody);
+                    if (customStyle.sizeMasthead) pageClone.style.setProperty('--bs-size-masthead', customStyle.sizeMasthead);
+                    if (customStyle.sizeHeadline) pageClone.style.setProperty('--bs-size-headline', customStyle.sizeHeadline);
+                    if (customStyle.sizeBody) pageClone.style.setProperty('--bs-size-body', customStyle.sizeBody);
 
                     printWrapper.appendChild(pageClone);
 
@@ -1132,7 +1683,7 @@
                     letterRendering: true,
                     scrollY: 0,
                     scrollX: 0,
-                    windowWidth: 794 // 210mm in px at 96 DPI
+                    windowWidth: 794
                 },
                 jsPDF: {
                     unit: 'mm',
@@ -1157,7 +1708,6 @@
                 printWrapper.parentNode.removeChild(printWrapper);
             }
             if (btn && originalText) { btn.innerHTML = originalText; btn.disabled = false; }
-            // Restore active page view on screen
             switchNewspaperPageView(NP_STATE.currentPageView);
         }
     }
@@ -1228,7 +1778,6 @@
                 window.websiteConfig.news.unshift(newNewsItem);
             }
 
-            // Save via executeWebsiteSave
             if (typeof window.executeWebsiteSave === 'function') {
                 await window.executeWebsiteSave(null);
             }
@@ -1255,12 +1804,19 @@
     window.switchNewspaperPageView = switchNewspaperPageView;
     window.setNewspaperTheme = setNewspaperTheme;
     window.changeNewspaperDate = changeNewspaperDate;
+    window.switchNpModalTab = switchNpModalTab;
     window.openNewspaperStoryEditor = openNewspaperStoryEditor;
     window.closeNewspaperStoryEditor = closeNewspaperStoryEditor;
     window.loadStoryIntoEditor = loadStoryIntoEditor;
     window.previewModalPhoto = previewModalPhoto;
     window.handleNewspaperPhotoUpload = handleNewspaperPhotoUpload;
-    window.saveNewspaperStory = saveNewspaperStory;
+    window.handleNewspaperLogoUpload = handleNewspaperLogoUpload;
+    window.handleNewspaperPhotoUploadDirect = handleNewspaperPhotoUploadDirect;
+    window.liveUpdateBroadsheet = liveUpdateBroadsheet;
+    window.liveUpdateStyle = liveUpdateStyle;
+    window.applyPresetTheme = applyPresetTheme;
+    window.resetBroadsheetToDefaults = resetBroadsheetToDefaults;
+    window.saveAllNewspaperCustomizations = saveAllNewspaperCustomizations;
     window.deleteNewspaperEdition = deleteNewspaperEdition;
     window.clearAllNewspaperArchives = clearAllNewspaperArchives;
     window.setNewspaperZoom = setNewspaperZoom;

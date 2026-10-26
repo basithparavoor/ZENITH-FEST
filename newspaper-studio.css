@@ -3,7 +3,7 @@
    Ultra-Premium Editorial Typography • Responsive Studio Canvas • High-Res Print
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,800;0,900;1,400;1,600;1,700&family=Amiri:ital,wght@0,400;0,700;1,400&family=Noto+Nastaliq+Urdu:wght@400;700&family=Manjari:wght@400;700&family=Noto+Sans+Devanagari:wght@400;600;700;800&family=Noto+Sans+Bengali:wght@400;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,800;0,900;1,400;1,600;1,700&family=Amiri:ital,wght@0,400;0,700;1,400&family=Noto+Nastaliq+Urdu:wght@400;700&family=Manjari:wght@400;700&family=Noto+Sans+Devanagari:wght@400;600;700;800&family=Noto+Sans+Bengali:wght@400;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=Montserrat:wght@400;600;700;800;900&family=Roboto+Slab:wght@400;600;700;800&family=Oswald:wght@500;600;700&display=swap');
 
 /* Studio Workspace Container */
 .newspaper-workspace {
@@ -264,8 +264,20 @@
     transform-origin: top center;
 }
 
-/* 4-Page Broadsheet Sheet Layout (A4 Ratio) */
+/* 4-Page Broadsheet Sheet Layout (A4 Ratio) with Dynamic Customization Variables */
 .broadsheet-page {
+    /* Custom Styling Variables with graceful fallbacks */
+    --bs-custom-bg: #fbf9f4;
+    --bs-custom-ink: #111111;
+    --bs-custom-accent: #881337;
+    --bs-custom-border: #1a1a1a;
+    --bs-font-masthead: 'Playfair Display', serif;
+    --bs-font-headline: 'Playfair Display', serif;
+    --bs-font-body: 'Newsreader', 'Times New Roman', serif;
+    --bs-size-masthead: 27pt;
+    --bs-size-headline: 19pt;
+    --bs-size-body: 8pt;
+
     width: 210mm;
     min-height: 297mm;
     box-sizing: border-box;
@@ -275,57 +287,84 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    background-color: #fbf9f4;
+    background-color: var(--bs-custom-bg, #fbf9f4) !important;
+    color: var(--bs-custom-ink, #1a1a1a) !important;
+    border: 1px solid var(--bs-custom-border, #d4cebe) !important;
+    font-family: var(--bs-font-body, 'Newsreader', 'Times New Roman', serif) !important;
+}
+
+/* Dynamic Typography & Ink Bindings */
+.bs-title {
+    font-family: var(--bs-font-masthead, 'Playfair Display', serif) !important;
+    font-size: var(--bs-size-masthead, 27pt) !important;
+    color: var(--bs-custom-ink, #111111) !important;
+}
+
+.bs-headline {
+    font-family: var(--bs-font-headline, 'Playfair Display', serif) !important;
+    font-size: var(--bs-size-headline, 19pt) !important;
+    color: var(--bs-custom-ink, #111111) !important;
+}
+
+.bs-article-text, .bs-card-body {
+    font-family: var(--bs-font-body, 'Newsreader', serif) !important;
+    font-size: var(--bs-size-body, 8pt) !important;
+    color: var(--bs-custom-ink, #1a1a1a) !important;
+}
+
+.bs-card-tag {
+    background-color: var(--bs-custom-accent, #881337) !important;
+    color: #ffffff !important;
 }
 
 /* Themes */
 /* 1. Classic Broadsheet */
 .theme-classic {
-    background-color: #fbf9f4;
-    color: #1a1a1a;
-    font-family: 'Newsreader', 'Times New Roman', serif;
-    border: 1px solid #d4cebe;
+    --bs-custom-bg: #fbf9f4;
+    --bs-custom-ink: #1a1a1a;
+    --bs-custom-accent: #881337;
+    --bs-custom-border: #1a1a1a;
+    --bs-font-masthead: 'Playfair Display', serif;
+    --bs-font-headline: 'Playfair Display', serif;
+    --bs-font-body: 'Newsreader', serif;
 }
-.theme-classic .bs-masthead { border-top: 3px double #1a1a1a; border-bottom: 3px double #1a1a1a; }
-.theme-classic .bs-title { font-family: 'Playfair Display', serif; color: #111111; }
-.theme-classic .bs-accent { color: #881337; }
-.theme-classic .bs-border { border-color: #1a1a1a; }
+.theme-classic .bs-masthead { border-top: 3px double var(--bs-custom-border, #1a1a1a) !important; border-bottom: 3px double var(--bs-custom-border, #1a1a1a) !important; }
 
 /* 2. Royal Crimson & Gold */
 .theme-royal {
-    background-color: #fdfaf6;
-    color: #2b1e16;
-    font-family: 'Newsreader', Georgia, serif;
-    border: 2px solid #b45309;
+    --bs-custom-bg: #fdfaf6;
+    --bs-custom-ink: #2b1e16;
+    --bs-custom-accent: #b45309;
+    --bs-custom-border: #b45309;
+    --bs-font-masthead: 'Cinzel', serif;
+    --bs-font-headline: 'Cinzel', serif;
+    --bs-font-body: 'Newsreader', serif;
 }
-.theme-royal .bs-masthead { border-top: 4px solid #881337; border-bottom: 2px solid #d97706; background: rgba(136, 19, 55, 0.03); }
-.theme-royal .bs-title { font-family: 'Cinzel', serif; color: #881337; }
-.theme-royal .bs-accent { color: #b45309; }
-.theme-royal .bs-border { border-color: #b45309; }
+.theme-royal .bs-masthead { border-top: 4px solid #881337 !important; border-bottom: 2px solid #d97706 !important; background: rgba(136, 19, 55, 0.03); }
 
 /* 3. Cyber Slate (Modern Minimalist) */
 .theme-modern {
-    background-color: #ffffff;
-    color: #0f172a;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    border: 1px solid #cbd5e1;
+    --bs-custom-bg: #ffffff;
+    --bs-custom-ink: #0f172a;
+    --bs-custom-accent: #2563eb;
+    --bs-custom-border: #cbd5e1;
+    --bs-font-masthead: 'Inter', sans-serif;
+    --bs-font-headline: 'Inter', sans-serif;
+    --bs-font-body: 'Inter', system-ui, sans-serif;
 }
-.theme-modern .bs-masthead { border-top: 4px solid #0f172a; border-bottom: 2px solid #0f172a; }
-.theme-modern .bs-title { font-family: 'Inter', sans-serif; font-weight: 900; letter-spacing: -0.04em; color: #0f172a; }
-.theme-modern .bs-accent { color: #2563eb; }
-.theme-modern .bs-border { border-color: #e2e8f0; }
+.theme-modern .bs-masthead { border-top: 4px solid #0f172a !important; border-bottom: 2px solid #0f172a !important; }
 
 /* 4. Emerald Prestige */
 .theme-emerald {
-    background-color: #f9fbf9;
-    color: #0d2818;
-    font-family: 'Newsreader', serif;
-    border: 2px solid #047857;
+    --bs-custom-bg: #f9fbf9;
+    --bs-custom-ink: #0d2818;
+    --bs-custom-accent: #047857;
+    --bs-custom-border: #047857;
+    --bs-font-masthead: 'Cinzel', serif;
+    --bs-font-headline: 'Cinzel', serif;
+    --bs-font-body: 'Newsreader', serif;
 }
-.theme-emerald .bs-masthead { border-top: 4px solid #064e3b; border-bottom: 2px solid #ca8a04; }
-.theme-emerald .bs-title { font-family: 'Cinzel', serif; color: #064e3b; }
-.theme-emerald .bs-accent { color: #ca8a04; }
-.theme-emerald .bs-border { border-color: #047857; }
+.theme-emerald .bs-masthead { border-top: 4px solid #064e3b !important; border-bottom: 2px solid #ca8a04 !important; }
 
 /* Multilingual Typography Overrides */
 .broadsheet-page.lang-ar,
@@ -829,29 +868,213 @@
     }
 }
 
-/* Mobile & Tablet Responsiveness */
-@media (max-width: 950px) {
-    .newspaper-stage-container {
-        padding: 1rem 0.5rem;
-        border-radius: 12px;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    .np-hero-bar {
-        padding: 1rem;
-        border-radius: 12px;
-    }
-    .np-hero-title {
-        font-size: 1.2rem;
-    }
-    .np-toolbar-grid {
-        grid-template-columns: 1fr;
-    }
-    .np-nav-zoom-row {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .np-zoom-group {
-        justify-content: center;
-    }
+/* ==========================================================================
+   ULTRA-PREMIUM GAZETTE STUDIO & MODAL CUSTOMIZER STYLES
+   ========================================================================== */
+.np-customizer-modal {
+    max-width: 960px !important;
+    width: 95vw !important;
+    background: #ffffff !important;
+    border-radius: 20px !important;
+    box-shadow: 0 25px 70px -15px rgba(15, 23, 42, 0.4), 0 0 0 1px rgba(0,0,0,0.06) !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
 }
+
+.np-customizer-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    padding: 1.25rem 1.75rem;
+    color: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.np-customizer-tabs {
+    display: flex;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    overflow-x: auto;
+    padding: 0 1rem;
+    gap: 4px;
+}
+
+.np-modal-tab-btn {
+    padding: 0.85rem 1.15rem;
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #64748b;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.np-modal-tab-btn:hover {
+    color: #0f172a;
+    background: rgba(99, 102, 241, 0.05);
+}
+
+.np-modal-tab-btn.active {
+    color: #6366f1;
+    border-bottom-color: #6366f1;
+    background: #ffffff;
+}
+
+.np-modal-tab-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem 1.75rem;
+    background: #ffffff;
+}
+
+.np-tab-pane {
+    display: none;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.np-tab-pane.active {
+    display: flex;
+}
+
+/* 2-Column & 3-Column Studio Form Grids */
+.np-form-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.np-form-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+/* Visual Theme Preset Cards */
+.np-preset-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.np-preset-card {
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.np-preset-card:hover {
+    border-color: #6366f1;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+}
+
+.np-preset-card.active {
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.04);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.np-preset-swatch {
+    height: 34px;
+    border-radius: 6px;
+    border: 1px solid rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+/* Style Sliders */
+.np-style-slider-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.np-slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #334155;
+}
+
+.np-slider-input {
+    width: 100%;
+    accent-color: #6366f1;
+    cursor: pointer;
+}
+
+/* Color Picker Row */
+.np-color-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 4px 8px;
+}
+
+.np-color-swatch-picker {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: transparent;
+    padding: 0;
+}
+
+/* Image Dropzone in Modal */
+.np-modal-dropzone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    background: #f8fafc;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.np-modal-dropzone:hover {
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.03);
+}
+
+/* Quick Edit Overlay Hover on Broadsheet in Preview */
+.bs-editable-hover {
+    position: relative;
+    cursor: pointer;
+    transition: outline 0.15s, transform 0.15s;
+}
+
+.bs-editable-hover:hover {
+    outline: 2px dashed #6366f1;
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+

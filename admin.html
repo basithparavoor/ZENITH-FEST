@@ -1430,6 +1430,7 @@ tr:hover td { background: var(--bg-main); }
    </style>
     <link rel="stylesheet" href="premium-forms.css">
     <link rel="stylesheet" href="newspaper-studio.css">
+    <link rel="stylesheet" href="custom-pickers.css">
 </head>
 <body>
 
@@ -3722,74 +3723,508 @@ tr:hover td { background: var(--bg-main); }
         </div>
 
         <!-- ========================================================= -->
-        <!-- MODAL: NEWSPAPER STORY & PHOTO EDITOR                    -->
+        <!-- ULTRA-PREMIUM GAZETTE CUSTOMIZER & EDITORIAL STUDIO MODAL   -->
         <!-- ========================================================= -->
         <div class="modal-overlay" id="newspaperStoryModal" style="z-index: 10000;">
-            <div class="modal-card" style="max-width: 650px;">
-                <div class="modal-header">
-                    <h3 id="np-modal-title"><i class="fa-solid fa-pen-nib" style="color: var(--primary);"></i> Edit Gazette Story &amp; Media</h3>
-                    <button type="button" onclick="closeNewspaperStoryEditor()" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
-                        <i class="fa-solid fa-xmark"></i>
+            <div class="modal-card np-customizer-modal">
+                <div class="np-customizer-header">
+                    <div>
+                        <h3 id="np-modal-title" style="margin: 0; font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-wand-magic-sparkles" style="color: #6366f1;"></i> Daily Broadsheet Customizer &amp; Editorial Studio
+                        </h3>
+                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #94a3b8;">
+                            Full custom control over all texts, headers, footers, logos, typography, font sizes, ink colors, and themes.
+                        </p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span id="np-modal-edition-badge" class="badge" style="background: rgba(99, 102, 241, 0.2); color: #818cf8; font-size: 0.75rem; padding: 4px 10px; border-radius: 6px;">
+                            <i class="fa-regular fa-calendar"></i> Current Edition
+                        </span>
+                        <button type="button" onclick="closeNewspaperStoryEditor()" style="background:transparent; border:none; color:#cbd5e1; cursor:pointer; font-size:1.3rem;">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Customizer Segmented Navigation Tabs -->
+                <div class="np-customizer-tabs">
+                    <button type="button" class="np-modal-tab-btn active" onclick="switchNpModalTab('header', this)">
+                        <i class="fa-solid fa-heading"></i> Header &amp; Masthead
+                    </button>
+                    <button type="button" class="np-modal-tab-btn" onclick="switchNpModalTab('page1', this)">
+                        <i class="fa-solid fa-newspaper"></i> Page 1: Stories
+                    </button>
+                    <button type="button" class="np-modal-tab-btn" onclick="switchNpModalTab('page2', this)">
+                        <i class="fa-solid fa-calendar-day"></i> Page 2: Arena Dispatch
+                    </button>
+                    <button type="button" class="np-modal-tab-btn" onclick="switchNpModalTab('page3', this)">
+                        <i class="fa-solid fa-trophy"></i> Page 3: Standings &amp; Stars
+                    </button>
+                    <button type="button" class="np-modal-tab-btn" onclick="switchNpModalTab('page4', this)">
+                        <i class="fa-solid fa-scroll"></i> Page 4: Cultural Chronicles
+                    </button>
+                    <button type="button" class="np-modal-tab-btn" onclick="switchNpModalTab('footers', this)">
+                        <i class="fa-solid fa-shoe-prints"></i> Footers &amp; Tickers
+                    </button>
+                    <button type="button" class="np-modal-tab-btn" onclick="switchNpModalTab('styles', this)">
+                        <i class="fa-solid fa-palette"></i> Typography &amp; Styles
                     </button>
                 </div>
-                <div class="modal-body">
+
+                <div class="np-modal-tab-content">
                     <input type="hidden" id="np-edit-story-key" value="lead_story">
-                    
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label style="font-size: 0.8rem; font-weight: 700;">Story Section / Card</label>
-                        <select class="form-control" id="np-edit-selector" onchange="loadStoryIntoEditor(this.value)">
-                            <option value="lead_story">Page 1: Lead Breaking Story</option>
-                            <option value="side_story">Page 1: Sidebar Story 1 (Bulletin)</option>
-                            <option value="side_story_2">Page 1: Sidebar Story 2 (Notice)</option>
-                            <option value="stage_brief">Page 2: Stage Controller Dispatch</option>
-                            <option value="venue_spotlight">Page 2: Venue Spotlight</option>
-                            <option value="star_performer">Page 3: Star Performer Spotlight</option>
-                            <option value="patron_column">Page 4: Director's / Patron's Note</option>
-                            <option value="tomorrow_preview">Page 4: Tomorrow's Curtain Raiser</option>
-                        </select>
-                    </div>
 
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label style="font-size: 0.8rem; font-weight: 700;">Headline / Title *</label>
-                        <input type="text" class="form-control" id="np-edit-title" placeholder="Enter bold newspaper headline" style="font-weight: 600; text-transform: none !important;">
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 0.75rem;" id="np-edit-subhead-group">
-                        <label style="font-size: 0.8rem; font-weight: 700;">Subtitle / Subheading</label>
-                        <input type="text" class="form-control" id="np-edit-subhead" placeholder="Enter secondary subheading or byline" style="text-transform: none !important;">
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label style="font-size: 0.8rem; font-weight: 700;">Story Body Content</label>
-                        <textarea class="form-control" id="np-edit-body" rows="5" placeholder="Enter article body content..." style="text-transform: none !important; line-height: 1.4;"></textarea>
-                    </div>
-
-                    <!-- Photo Upload / URL Field -->
-                    <div class="form-group" style="margin-bottom: 0.75rem;" id="np-edit-photo-group">
-                        <label style="font-size: 0.8rem; font-weight: 700; display: flex; justify-content: space-between;">
-                            <span>Featured Photograph</span>
-                            <span style="font-size: 0.72rem; color: var(--text-muted);">Upload or Paste Image URL</span>
-                        </label>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <input type="text" class="form-control" id="np-edit-img-url" placeholder="https://... or upload local image" style="flex: 1; text-transform: none !important;" oninput="previewModalPhoto(this.value)">
-                            <label class="btn btn-outline" style="cursor: pointer; margin: 0; padding: 0.55rem 0.85rem; font-size: 0.8rem; white-space: nowrap;">
-                                <i class="fa-solid fa-cloud-arrow-up"></i> Upload
-                                <input type="file" id="np-edit-img-file" accept="image/*" style="display: none;" onchange="handleNewspaperPhotoUpload(this)">
-                            </label>
+                    <!-- TAB 1: HEADER & MASTHEAD -->
+                    <div class="np-tab-pane active" id="np-pane-header">
+                        <div class="np-form-grid-2">
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 700;">Masthead Broadsheet Title *</label>
+                                <input type="text" class="form-control" id="np-cust-masthead-title" placeholder="e.g. ZENITH FEST CHRONICLE" oninput="liveUpdateBroadsheet('masthead-title', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 700;">Masthead Tagline / Slogan</label>
+                                <input type="text" class="form-control" id="np-cust-masthead-tagline" placeholder="e.g. THE VOICE OF ART, CULTURE, AND GRAND CHAMPIONSHIP" oninput="liveUpdateBroadsheet('masthead-tagline', this.value)">
+                            </div>
                         </div>
-                        <div style="margin-top: 6px; display: flex; gap: 8px; align-items: center;">
-                            <img id="np-edit-img-preview" src="" style="width: 80px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); display: none;">
-                            <input type="text" class="form-control" id="np-edit-caption" placeholder="Optional photo caption / photo credit" style="flex: 1; font-size: 0.75rem; text-transform: none !important;">
+
+                        <div class="np-form-grid-3">
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 700;">Top Bar Header Text</label>
+                                <input type="text" class="form-control" id="np-cust-top-header" placeholder="OFFICIAL FESTIVAL GAZETTE • DAILY CERTIFIED PRINT EDITION" oninput="liveUpdateBroadsheet('top-header', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 700;">Volume &amp; Issue Label</label>
+                                <input type="text" class="form-control" id="np-cust-vol-issue" placeholder="VOLUME I • ISSUE 02" oninput="liveUpdateBroadsheet('vol-issue', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 700;">Venue Name</label>
+                                <input type="text" class="form-control" id="np-cust-venue" placeholder="MAIN FESTIVAL ARENA" oninput="liveUpdateBroadsheet('venue', this.value)">
+                            </div>
+                        </div>
+
+                        <div class="np-form-grid-2">
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 700;">Edition Strip Tag (Left)</label>
+                                <input type="text" class="form-control" id="np-cust-strip-edition" placeholder="SPECIAL MORNING EDITION" oninput="liveUpdateBroadsheet('strip-edition', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 700;">Festival Tag (Right)</label>
+                                <input type="text" class="form-control" id="np-cust-strip-fest" placeholder="ZENITH FEST 2026" oninput="liveUpdateBroadsheet('strip-fest', this.value)">
+                            </div>
+                        </div>
+
+                        <!-- Masthead Logos -->
+                        <div class="np-form-grid-2">
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 700;">Left Crest / Festival Logo</label>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <input type="text" class="form-control" id="np-cust-logo-1" placeholder="Logo image URL" oninput="liveUpdateBroadsheet('logo-1', this.value)">
+                                    <label class="btn btn-outline" style="cursor: pointer; margin: 0; padding: 0.5rem 0.8rem; font-size: 0.8rem; white-space: nowrap;">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload
+                                        <input type="file" accept="image/*" style="display: none;" onchange="handleNewspaperLogoUpload(this, 'np-cust-logo-1')">
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 700;">Right Crest / Partner Logo</label>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <input type="text" class="form-control" id="np-cust-logo-2" placeholder="Secondary logo URL" oninput="liveUpdateBroadsheet('logo-2', this.value)">
+                                    <label class="btn btn-outline" style="cursor: pointer; margin: 0; padding: 0.5rem 0.8rem; font-size: 0.8rem; white-space: nowrap;">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload
+                                        <input type="file" accept="image/*" style="display: none;" onchange="handleNewspaperLogoUpload(this, 'np-cust-logo-2')">
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: PAGE 1 STORIES -->
+                    <div class="np-tab-pane" id="np-pane-page1">
+                        <div class="form-group" style="margin-bottom: 0.75rem;">
+                            <label style="font-size: 0.8rem; font-weight: 700;">Select Page 1 Story to Edit</label>
+                            <select class="form-control" id="np-edit-selector" onchange="loadStoryIntoEditor(this.value)">
+                                <option value="lead_story">Page 1: Lead Breaking Story (Main Headline &amp; Photo)</option>
+                                <option value="side_story">Page 1: Sidebar Story 1 (Bulletin)</option>
+                                <option value="side_story_2">Page 1: Sidebar Story 2 (Flash Notice)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label style="font-size: 0.8rem; font-weight: 700;">Story Headline / Title *</label>
+                            <input type="text" class="form-control" id="np-edit-title" placeholder="Enter bold newspaper headline">
+                        </div>
+
+                        <div class="form-group" id="np-edit-subhead-group">
+                            <label style="font-size: 0.8rem; font-weight: 700;">Subtitle / Subheading</label>
+                            <input type="text" class="form-control" id="np-edit-subhead" placeholder="Enter secondary subheading or byline">
+                        </div>
+
+                        <div class="form-group">
+                            <label style="font-size: 0.8rem; font-weight: 700;">Story Article Body</label>
+                            <textarea class="form-control" id="np-edit-body" rows="5" placeholder="Enter full story content..."></textarea>
+                        </div>
+
+                        <!-- Photo Upload Group -->
+                        <div class="form-group" id="np-edit-photo-group">
+                            <label style="font-size: 0.8rem; font-weight: 700; display: flex; justify-content: space-between;">
+                                <span>Featured Photograph</span>
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">Direct Upload or Image URL</span>
+                            </label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <input type="text" class="form-control" id="np-edit-img-url" placeholder="https://... or upload local image" oninput="previewModalPhoto(this.value)">
+                                <label class="btn btn-outline" style="cursor: pointer; margin: 0; padding: 0.55rem 0.85rem; font-size: 0.8rem; white-space: nowrap;">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload Photo
+                                    <input type="file" id="np-edit-img-file" accept="image/*" style="display: none;" onchange="handleNewspaperPhotoUpload(this)">
+                                </label>
+                            </div>
+                            <div style="margin-top: 6px; display: flex; gap: 8px; align-items: center;">
+                                <img id="np-edit-img-preview" src="" style="width: 80px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); display: none;">
+                                <input type="text" class="form-control" id="np-edit-caption" placeholder="Photo caption &amp; credits" style="flex: 1; font-size: 0.78rem;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: PAGE 2 ARENA DISPATCH -->
+                    <div class="np-tab-pane" id="np-pane-page2">
+                        <div class="np-form-grid-2">
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 700;">Page 2 Header Title</label>
+                                <input type="text" class="form-control" id="np-cust-p2-title" placeholder="Today's Stage Timetable &amp; Roster" oninput="liveUpdateBroadsheet('p2-title', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 700;">Schedule Description</label>
+                                <input type="text" class="form-control" id="np-cust-p2-sub" placeholder="Verified event schedule across all official competition arenas." oninput="liveUpdateBroadsheet('p2-sub', this.value)">
+                            </div>
+                        </div>
+
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; margin-top: 0.5rem;">
+                            <h4 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 0.75rem; color: #1e293b;">Stage Controller Dispatch</h4>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Headline</label>
+                                <input type="text" class="form-control" id="np-cust-stage-brief-title" placeholder="Dispatch Headline" oninput="liveUpdateBroadsheet('stage-brief-title', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Dispatch Content</label>
+                                <textarea class="form-control" id="np-cust-stage-brief-body" rows="3" placeholder="Dispatch details..." oninput="liveUpdateBroadsheet('stage-brief-body', this.value)"></textarea>
+                            </div>
+                        </div>
+
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; margin-top: 0.5rem;">
+                            <h4 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 0.75rem; color: #1e293b;">Venue Spotlight</h4>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Spotlight Title</label>
+                                <input type="text" class="form-control" id="np-cust-venue-title" placeholder="Venue Feature Title" oninput="liveUpdateBroadsheet('venue-title', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Spotlight Content</label>
+                                <textarea class="form-control" id="np-cust-venue-body" rows="3" placeholder="Acoustic and arena notes..." oninput="liveUpdateBroadsheet('venue-body', this.value)"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: PAGE 3 STANDINGS & STARS -->
+                    <div class="np-tab-pane" id="np-pane-page3">
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem;">
+                            <h4 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 0.75rem; color: #1e293b;">Star Performer of the Day</h4>
+                            <div class="np-form-grid-2">
+                                <div class="form-group">
+                                    <label style="font-size: 0.78rem; font-weight: 700;">Performer Name &amp; Chest #</label>
+                                    <input type="text" class="form-control" id="np-cust-star-name" placeholder="Aysha R. • Chest #104" oninput="liveUpdateBroadsheet('star-name', this.value)">
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size: 0.78rem; font-weight: 700;">Event &amp; Award</label>
+                                    <input type="text" class="form-control" id="np-cust-star-event" placeholder="Classical Solo • A-Grade (1st Place)" oninput="liveUpdateBroadsheet('star-event', this.value)">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Performer Quote</label>
+                                <textarea class="form-control" id="np-cust-star-quote" rows="2" placeholder="Devotion and technique quote..." oninput="liveUpdateBroadsheet('star-quote', this.value)"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Performer Photograph URL</label>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <input type="text" class="form-control" id="np-cust-star-img" placeholder="https://..." oninput="liveUpdateBroadsheet('star-img', this.value)">
+                                    <label class="btn btn-outline" style="cursor: pointer; margin: 0; padding: 0.5rem 0.8rem; font-size: 0.8rem; white-space: nowrap;">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload
+                                        <input type="file" accept="image/*" style="display: none;" onchange="handleNewspaperPhotoUploadDirect(this, 'np-cust-star-img', 'bs-star-img')">
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Top 3 Podium Overrides -->
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; margin-top: 0.5rem;">
+                            <h4 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 0.75rem; color: #1e293b;">Top 3 Podium Squad Overrides</h4>
+                            <div class="np-form-grid-3">
+                                <div class="form-group">
+                                    <label style="font-size: 0.78rem; font-weight: 700;">#1 Champion Team</label>
+                                    <input type="text" class="form-control" id="np-cust-podium-team-1" placeholder="TEAM PHOENIX" oninput="liveUpdateBroadsheet('podium-team-1', this.value)">
+                                    <input type="text" class="form-control" id="np-cust-podium-pts-1" placeholder="218 PTS" style="margin-top: 4px;" oninput="liveUpdateBroadsheet('podium-pts-1', this.value)">
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size: 0.78rem; font-weight: 700;">#2 Runner Up Team</label>
+                                    <input type="text" class="form-control" id="np-cust-podium-team-2" placeholder="TEAM TITANS" oninput="liveUpdateBroadsheet('podium-team-2', this.value)">
+                                    <input type="text" class="form-control" id="np-cust-podium-pts-2" placeholder="184 PTS" style="margin-top: 4px;" oninput="liveUpdateBroadsheet('podium-pts-2', this.value)">
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size: 0.78rem; font-weight: 700;">#3 Second Runner Up</label>
+                                    <input type="text" class="form-control" id="np-cust-podium-team-3" placeholder="TEAM GLADIATORS" oninput="liveUpdateBroadsheet('podium-team-3', this.value)">
+                                    <input type="text" class="form-control" id="np-cust-podium-pts-3" placeholder="152 PTS" style="margin-top: 4px;" oninput="liveUpdateBroadsheet('podium-pts-3', this.value)">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 5: PAGE 4 CULTURAL CHRONICLES -->
+                    <div class="np-tab-pane" id="np-pane-page4">
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem;">
+                            <h4 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 0.75rem; color: #1e293b;">Director's / Patron's Note</h4>
+                            <div class="np-form-grid-2">
+                                <div class="form-group">
+                                    <label style="font-size: 0.78rem; font-weight: 700;">Note Title</label>
+                                    <input type="text" class="form-control" id="np-cust-patron-title" placeholder="A Triumph of Camaraderie, Talent, and Shared Vision" oninput="liveUpdateBroadsheet('patron-title', this.value)">
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size: 0.78rem; font-weight: 700;">Author Byline</label>
+                                    <input type="text" class="form-control" id="np-cust-patron-author" placeholder="— Organizing Committee • Festival Patron" oninput="liveUpdateBroadsheet('patron-author', this.value)">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Note Body Content</label>
+                                <textarea class="form-control" id="np-cust-patron-body" rows="3" placeholder="Every festival edition writes its own chapter..." oninput="liveUpdateBroadsheet('patron-body', this.value)"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- 3 Gallery Moments Photos -->
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; margin-top: 0.5rem;">
+                            <h4 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 0.75rem; color: #1e293b;">Moments in Motion 3-Photo Gallery Strip</h4>
+                            <div class="np-form-grid-3">
+                                <div class="form-group">
+                                    <label style="font-size: 0.78rem; font-weight: 700;">Gallery Frame 1</label>
+                                    <input type="text" class="form-control" id="np-cust-gallery-1" placeholder="Image URL 1" oninput="liveUpdateBroadsheet('gallery-1', this.value)">
+                                    <label class="btn btn-outline" style="cursor: pointer; margin-top: 4px; padding: 0.35rem 0.6rem; font-size: 0.75rem; width: 100%; text-align: center;">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload Frame 1
+                                        <input type="file" accept="image/*" style="display: none;" onchange="handleNewspaperPhotoUploadDirect(this, 'np-cust-gallery-1', 'bs-gallery-img-1')">
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size: 0.78rem; font-weight: 700;">Gallery Frame 2</label>
+                                    <input type="text" class="form-control" id="np-cust-gallery-2" placeholder="Image URL 2" oninput="liveUpdateBroadsheet('gallery-2', this.value)">
+                                    <label class="btn btn-outline" style="cursor: pointer; margin-top: 4px; padding: 0.35rem 0.6rem; font-size: 0.75rem; width: 100%; text-align: center;">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload Frame 2
+                                        <input type="file" accept="image/*" style="display: none;" onchange="handleNewspaperPhotoUploadDirect(this, 'np-cust-gallery-2', 'bs-gallery-img-2')">
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size: 0.78rem; font-weight: 700;">Gallery Frame 3</label>
+                                    <input type="text" class="form-control" id="np-cust-gallery-3" placeholder="Image URL 3" oninput="liveUpdateBroadsheet('gallery-3', this.value)">
+                                    <label class="btn btn-outline" style="cursor: pointer; margin-top: 4px; padding: 0.35rem 0.6rem; font-size: 0.75rem; width: 100%; text-align: center;">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload Frame 3
+                                        <input type="file" accept="image/*" style="display: none;" onchange="handleNewspaperPhotoUploadDirect(this, 'np-cust-gallery-3', 'bs-gallery-img-3')">
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tomorrow's Curtain Raiser -->
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; margin-top: 0.5rem;">
+                            <h4 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 0.75rem; color: #1e293b;">Tomorrow's Curtain Raiser</h4>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Preview Title</label>
+                                <input type="text" class="form-control" id="np-cust-tomorrow-title" placeholder="High-Stakes Group Dance &amp; Drama" oninput="liveUpdateBroadsheet('tomorrow-title', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Preview Description</label>
+                                <textarea class="form-control" id="np-cust-tomorrow-body" rows="2" placeholder="The morning session will witness..." oninput="liveUpdateBroadsheet('tomorrow-body', this.value)"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 6: FOOTERS & TICKERS -->
+                    <div class="np-tab-pane" id="np-pane-footers">
+                        <div class="np-form-grid-2">
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Page 1 Footer Ticker Center</label>
+                                <input type="text" class="form-control" id="np-cust-p1-ticker" placeholder="DAY HIGHLIGHTS • LIVE SCORING ON RESULTS PORTAL" oninput="liveUpdateBroadsheet('p1-ticker', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Page 1 Footer Brand Label</label>
+                                <input type="text" class="form-control" id="np-cust-p1-brand" placeholder="DAILY GAZETTE • VOL I" oninput="liveUpdateBroadsheet('p1-brand', this.value)">
+                            </div>
+                        </div>
+
+                        <div class="np-form-grid-2">
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Page 2 Footer Ticker Center</label>
+                                <input type="text" class="form-control" id="np-cust-p2-ticker" placeholder="CHECK REAL-TIME STAGE QUEUES ONLINE • STAGE CONTROLLER BUREAU" oninput="liveUpdateBroadsheet('p2-ticker', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Page 2 Footer Brand Label</label>
+                                <input type="text" class="form-control" id="np-cust-p2-brand" placeholder="DAILY GAZETTE" oninput="liveUpdateBroadsheet('p2-brand', this.value)">
+                            </div>
+                        </div>
+
+                        <div class="np-form-grid-2">
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Page 3 Footer Ticker Center</label>
+                                <input type="text" class="form-control" id="np-cust-p3-ticker" placeholder="VERIFIED BY THE MASTER SCORING COMMITTEE • CERTIFIED TALLY" oninput="liveUpdateBroadsheet('p3-ticker', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Page 3 Footer Brand Label</label>
+                                <input type="text" class="form-control" id="np-cust-p3-brand" placeholder="DAILY GAZETTE" oninput="liveUpdateBroadsheet('p3-brand', this.value)">
+                            </div>
+                        </div>
+
+                        <div class="np-form-grid-2">
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Page 4 Back Footer Attribution</label>
+                                <input type="text" class="form-control" id="np-cust-p4-powered" placeholder="POWERED BY FESTIVAL DIGITAL MEDIA DESK • CERTIFIED ARCHIVE" oninput="liveUpdateBroadsheet('p4-powered', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Page 4 Verification Hash</label>
+                                <input type="text" class="form-control" id="np-cust-p4-timestamp" placeholder="GENERATED 03:00 AM • VERIFIED CERTIFIED HASH" oninput="liveUpdateBroadsheet('p4-timestamp', this.value)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 7: TYPOGRAPHY, SIZES & COLORS -->
+                    <div class="np-tab-pane" id="np-pane-styles">
+                        <!-- Theme Presets -->
+                        <div>
+                            <label style="font-size: 0.8rem; font-weight: 800; color: #1e293b; margin-bottom: 0.5rem; display: block;">Broadsheet Theme Presets</label>
+                            <div class="np-preset-cards-grid">
+                                <div class="np-preset-card active" onclick="applyPresetTheme('classic', this)">
+                                    <div class="np-preset-swatch" style="background: #fbf9f4; color: #1a1a1a;">Oxford Ivory</div>
+                                    <span style="font-size: 0.75rem; font-weight: 700;">Classic Broadsheet</span>
+                                </div>
+                                <div class="np-preset-card" onclick="applyPresetTheme('royal', this)">
+                                    <div class="np-preset-swatch" style="background: #fdfaf6; color: #881337;">Imperial Crimson</div>
+                                    <span style="font-size: 0.75rem; font-weight: 700;">Royal Gold</span>
+                                </div>
+                                <div class="np-preset-card" onclick="applyPresetTheme('modern', this)">
+                                    <div class="np-preset-swatch" style="background: #ffffff; color: #0f172a;">Cyber Slate</div>
+                                    <span style="font-size: 0.75rem; font-weight: 700;">Minimalist White</span>
+                                </div>
+                                <div class="np-preset-card" onclick="applyPresetTheme('emerald', this)">
+                                    <div class="np-preset-swatch" style="background: #f9fbf9; color: #047857;">Emerald Forest</div>
+                                    <span style="font-size: 0.75rem; font-weight: 700;">Emerald Prestige</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Font Family Selection -->
+                        <div class="np-form-grid-3">
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Masthead Font Family</label>
+                                <select class="form-control" id="np-cust-font-masthead" onchange="liveUpdateStyle('font-masthead', this.value)">
+                                    <option value="'Playfair Display', serif">Playfair Display (Serif)</option>
+                                    <option value="'Cinzel', serif">Cinzel (Classical Roman)</option>
+                                    <option value="'Newsreader', serif">Newsreader (Editorial)</option>
+                                    <option value="'Merriweather', serif">Merriweather (Bold Serif)</option>
+                                    <option value="'Lora', serif">Lora (Contemporary)</option>
+                                    <option value="'Montserrat', sans-serif">Montserrat (Geometric Sans)</option>
+                                    <option value="'Inter', sans-serif">Inter (Clean Modern)</option>
+                                    <option value="'Oswald', sans-serif">Oswald (Tall Headline)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Headlines Font Family</label>
+                                <select class="form-control" id="np-cust-font-headline" onchange="liveUpdateStyle('font-headline', this.value)">
+                                    <option value="'Playfair Display', serif">Playfair Display (Serif)</option>
+                                    <option value="'Cinzel', serif">Cinzel (Roman)</option>
+                                    <option value="'Newsreader', serif">Newsreader</option>
+                                    <option value="'Roboto Slab', serif">Roboto Slab</option>
+                                    <option value="'Inter', sans-serif">Inter (Sans)</option>
+                                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Body Font Family</label>
+                                <select class="form-control" id="np-cust-font-body" onchange="liveUpdateStyle('font-body', this.value)">
+                                    <option value="'Newsreader', serif">Newsreader (Traditional Newspaper)</option>
+                                    <option value="'Georgia', serif">Georgia (Classic Book)</option>
+                                    <option value="'Lora', serif">Lora (Elegant Editorial)</option>
+                                    <option value="'Merriweather', serif">Merriweather (Warm Serif)</option>
+                                    <option value="'Inter', sans-serif">Inter (Modern Clean)</option>
+                                    <option value="'Times New Roman', serif">Times New Roman</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Font Sizes Sliders -->
+                        <div class="np-form-grid-3">
+                            <div class="np-style-slider-box">
+                                <div class="np-slider-header">
+                                    <span>Masthead Title Size</span>
+                                    <span id="np-label-size-masthead" style="color: #6366f1;">27pt</span>
+                                </div>
+                                <input type="range" class="np-slider-input" id="np-slider-masthead" min="20" max="44" step="1" value="27" oninput="liveUpdateStyle('size-masthead', this.value + 'pt')">
+                            </div>
+
+                            <div class="np-style-slider-box">
+                                <div class="np-slider-header">
+                                    <span>Main Headline Size</span>
+                                    <span id="np-label-size-headline" style="color: #6366f1;">19pt</span>
+                                </div>
+                                <input type="range" class="np-slider-input" id="np-slider-headline" min="13" max="28" step="1" value="19" oninput="liveUpdateStyle('size-headline', this.value + 'pt')">
+                            </div>
+
+                            <div class="np-style-slider-box">
+                                <div class="np-slider-header">
+                                    <span>Article Body Size</span>
+                                    <span id="np-label-size-body" style="color: #6366f1;">8pt</span>
+                                </div>
+                                <input type="range" class="np-slider-input" id="np-slider-body" min="6.5" max="11" step="0.5" value="8" oninput="liveUpdateStyle('size-body', this.value + 'pt')">
+                            </div>
+                        </div>
+
+                        <!-- Color Customizers -->
+                        <div class="np-form-grid-2">
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Primary Ink / Text Color</label>
+                                <div class="np-color-input-group">
+                                    <input type="color" class="np-color-swatch-picker" id="np-cust-ink-picker" value="#111111" onchange="liveUpdateStyle('ink', this.value)">
+                                    <input type="text" class="form-control" id="np-cust-ink-hex" value="#111111" style="flex: 1;" oninput="liveUpdateStyle('ink', this.value)">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Accent / Tag Highlight Color</label>
+                                <div class="np-color-input-group">
+                                    <input type="color" class="np-color-swatch-picker" id="np-cust-accent-picker" value="#881337" onchange="liveUpdateStyle('accent', this.value)">
+                                    <input type="text" class="form-control" id="np-cust-accent-hex" value="#881337" style="flex: 1;" oninput="liveUpdateStyle('accent', this.value)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="np-form-grid-2">
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Paper Tint / Background Color</label>
+                                <div class="np-color-input-group">
+                                    <input type="color" class="np-color-swatch-picker" id="np-cust-bg-picker" value="#fbf9f4" onchange="liveUpdateStyle('bg', this.value)">
+                                    <input type="text" class="form-control" id="np-cust-bg-hex" value="#fbf9f4" style="flex: 1;" oninput="liveUpdateStyle('bg', this.value)">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.78rem; font-weight: 700;">Border / Rule Ink Color</label>
+                                <div class="np-color-input-group">
+                                    <input type="color" class="np-color-swatch-picker" id="np-cust-border-picker" value="#1a1a1a" onchange="liveUpdateStyle('border', this.value)">
+                                    <input type="text" class="form-control" id="np-cust-border-hex" value="#1a1a1a" style="flex: 1;" oninput="liveUpdateStyle('border', this.value)">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-                    <button type="button" class="btn btn-outline" onclick="closeNewspaperStoryEditor()">Cancel</button>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="btn btn-primary" onclick="saveNewspaperStory(false)">
-                            <i class="fa-solid fa-check"></i> Save to Current Language
+
+                <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 1rem 1.75rem;">
+                    <button type="button" class="btn btn-outline" style="color: #64748b; font-size: 0.8rem;" onclick="resetBroadsheetToDefaults()">
+                        <i class="fa-solid fa-rotate-left"></i> Reset to Defaults
+                    </button>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-outline" onclick="closeNewspaperStoryEditor()">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="saveAllNewspaperCustomizations(false)">
+                            <i class="fa-solid fa-check"></i> Save (This Language)
                         </button>
-                        <button type="button" class="btn btn-success" style="background:#059669; color:white; border:none;" onclick="saveNewspaperStory(true)">
+                        <button type="button" class="btn btn-success" style="background:#059669; color:white; border:none;" onclick="saveAllNewspaperCustomizations(true)">
                             <i class="fa-solid fa-language"></i> Save &amp; Auto-Translate All
                         </button>
                     </div>
@@ -5126,6 +5561,7 @@ function toggleCustomGridFields() {
 <script src="ai-template-generator.js"></script>
 <script src="admin.js"></script>
     <script src="newspaper-engine.js"></script>
+    <script src="custom-pickers.js"></script>
 
 <!-- ========================================================= -->
 <!-- SLIDE-OVER NOTIFICATION CENTER DRAWER (SUITABLE FOR ALL DEVICES) -->
