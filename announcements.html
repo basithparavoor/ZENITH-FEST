@@ -249,14 +249,106 @@
 
         .hidden { display: none !important; }
 
-        /* --- AI ANNOUNCER SUITE --- */
+        /* --- AI ANNOUNCER SUITE (EXECUTIVE BROADCAST STUDIO CONSOLE) --- */
         .ai-deck-card {
-            background: var(--bg-surface);
+            background: #0B1120 !important;
             border-radius: var(--radius-xl);
             padding: 2rem;
-            border: 1px solid var(--border);
-            box-shadow: var(--shadow-sm);
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
             margin-bottom: 2rem;
+            color: #F8FAFC !important;
+        }
+        .ai-deck-card h2, .ai-deck-card h3, .ai-deck-card h4 {
+            color: #FFFFFF !important;
+        }
+        .tts-studio-select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            border: 1.5px solid rgba(255, 255, 255, 0.15);
+            background: #1E293B;
+            color: #F8FAFC;
+            font-size: 0.9rem;
+            font-weight: 600;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.85rem center;
+            background-size: 1rem;
+            cursor: pointer;
+        }
+        .tts-studio-select:focus {
+            border-color: #6366F1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+            background-color: #0F172A;
+        }
+        .tts-studio-select option, .tts-studio-select optgroup {
+            background: #0F172A;
+            color: #F8FAFC;
+        }
+        .tts-slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.15);
+            outline: none;
+            accent-color: #6366F1;
+            cursor: pointer;
+            margin: 6px 0;
+        }
+        .tts-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #6366F1;
+            box-shadow: 0 0 8px rgba(99, 102, 241, 0.8);
+            cursor: pointer;
+        }
+        .mic-record-btn {
+            padding: 0.65rem 1.25rem;
+            border-radius: 999px;
+            border: none;
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+            color: white;
+            font-weight: 700;
+            font-size: 0.88rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .mic-record-btn.recording {
+            animation: pulseGlow 1s infinite alternate;
+            background: #991B1B;
+        }
+        @media (max-width: 768px) {
+            .ai-deck-card {
+                padding: 1.25rem 1rem !important;
+                border-radius: 16px !important;
+            }
+            .ai-header {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 0.85rem;
+            }
+            .ai-header > div:last-child {
+                justify-content: space-between;
+                width: 100%;
+            }
+            #tts-visualizer-canvas {
+                flex: 1;
+                max-width: 160px;
+            }
+            .tts-studio-select {
+                font-size: 0.82rem;
+                padding: 0.65rem 0.75rem;
+            }
         }
         .ai-header {
             display: flex;
@@ -1436,10 +1528,48 @@ if (allCompIds.length > 0) {
                 c.style.display = 'none'; 
             });
             
-            event.currentTarget.classList.add('active');
+            let btn = null;
+            if (window.event && window.event.currentTarget && window.event.currentTarget.classList && window.event.currentTarget.classList.contains('tab-btn')) {
+                btn = window.event.currentTarget;
+            } else {
+                btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => {
+                    const oc = b.getAttribute('onclick') || '';
+                    return oc.includes(tabId);
+                });
+            }
+            if (btn) btn.classList.add('active');
+
             const activeTab = document.getElementById(`view-${tabId}`);
-            activeTab.classList.remove('hidden');
-            activeTab.style.display = 'block'; 
+            if (activeTab) {
+                activeTab.classList.remove('hidden');
+                activeTab.style.display = 'block'; 
+            }
+
+            // Hide/Show global filters for competitions
+            const filtersEl = document.getElementById('global-filters');
+            if (filtersEl) {
+                filtersEl.style.display = (tabId === 'ai-announcer') ? 'none' : 'flex';
+            }
+
+            if (tabId === 'ai-announcer') {
+                if (typeof populateTTSCompDropdown === 'function') populateTTSCompDropdown();
+                if (typeof initAIVoiceEngine === 'function') initAIVoiceEngine();
+            }
+        }
+
+        // Generic Modal Helpers
+        function openModal(id) {
+            const m = document.getElementById(id);
+            if (m) {
+                m.style.display = 'flex';
+                m.style.opacity = '1';
+            }
+        }
+        function closeModal(id) {
+            const m = document.getElementById(id);
+            if (m) {
+                m.style.display = 'none';
+            }
         }
 
         // Helper to get checked positions
@@ -2967,7 +3097,10 @@ if (allCompIds.length > 0) {
             ttsCurrentRepeat = 1;
 
             const executeSpeech = () => {
-                if (!('speechSynthesis' in window)) return;
+                if (!('speechSynthesis' in window)) {
+                    if (typeof showToast === 'function') showToast("Speech synthesis is not supported on this browser.", "error");
+                    return;
+                }
 
                 ttsIsSpeaking = true;
                 const wave = document.getElementById('tts-wave');
@@ -2978,11 +3111,19 @@ if (allCompIds.length > 0) {
                 if (onAirBadge) onAirBadge.style.display = 'inline-flex';
                 if (statusLabel) {
                     statusLabel.innerText = ttsTotalRepeats > 1 ? `BROADCASTING (${ttsCurrentRepeat}/${ttsTotalRepeats})...` : 'BROADCASTING...';
-                    statusLabel.style.color = 'var(--primary)';
+                    statusLabel.style.color = '#38BDF8';
                 }
 
+                try {
+                    window.speechSynthesis.cancel();
+                    if (window.speechSynthesis.resume) window.speechSynthesis.resume();
+                } catch(e) {}
+
                 ttsActiveUtterance = new SpeechSynthesisUtterance(textToSpeak);
-                if (ttsVoices[voiceIndex]) {
+                // CRITICAL FIX: Retain global window reference to prevent garbage collection mid-speech
+                window.currentTTSUtterance = ttsActiveUtterance;
+
+                if (ttsVoices && ttsVoices[voiceIndex]) {
                     ttsActiveUtterance.voice = ttsVoices[voiceIndex];
                 }
                 ttsActiveUtterance.rate = rate;
