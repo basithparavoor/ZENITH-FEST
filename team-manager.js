@@ -1392,14 +1392,17 @@ function renderBulkAssignmentTable() {
     tbody.innerHTML = '';
     
     // Corrected Eligibility Logic: allowed_general_categories belongs to the Student's category, not the Competition's category
+    const compCat = (globalCategories || []).find(c => String(c.id) === String(comp.category_id)) || comp.categories;
+    const isGeneral = compCat ? (compCat.is_general === true || String(compCat.is_general) === 'true') : false;
+
     const eligibleStudents = globalStudents.filter(student => {
         // 1. Direct match (Works for standard comps, or if student is natively in the general category)
-        if (student.category_id == comp.category_id) return true;
+        if (String(student.category_id) === String(comp.category_id)) return true;
 
         // 2. Cross-category match for General Competitions
-        if (comp.categories?.is_general) {
+        if (isGeneral) {
             // Find the student's category data from the global catalog
-            const studentCategory = globalCategories.find(c => c.id == student.category_id);
+            const studentCategory = globalCategories.find(c => String(c.id) === String(student.category_id));
             if (studentCategory) {
                 let rawAllowed = studentCategory.allowed_general_categories;
                 let allowedCats = [];
@@ -1409,7 +1412,7 @@ function renderBulkAssignmentTable() {
                 } catch(e) {}
                 
                 // Check if the student's category explicitly allows this general competition's category
-                if (allowedCats.some(id => id == comp.category_id)) {
+                if (allowedCats.some(id => String(id) === String(comp.category_id))) {
                     return true;
                 }
             }
@@ -2558,18 +2561,20 @@ window.openQuickAddModal = function(compId) {
     if (!comp) return;
 
     // Filter Eligible Students
+    const compCat = (globalCategories || []).find(c => String(c.id) === String(comp.category_id)) || comp.categories;
+    const isGeneral = compCat ? (compCat.is_general === true || String(compCat.is_general) === 'true') : false;
+
     const eligibleStudents = globalStudents.filter(student => {
-        if (student.category_id == comp.category_id) return true;
-        if (comp.categories?.is_general) {
-            const studentCategory = globalCategories.find(c => c.id == student.category_id);
+        if (String(student.category_id) === String(comp.category_id)) return true;
+        if (isGeneral) {
+            const studentCategory = globalCategories.find(c => String(c.id) === String(student.category_id));
             if (studentCategory) {
                 let allowedCats = [];
                 try {
-                    let rawAllowed = studentCategory.allowed_general_categories;
                     if (typeof rawAllowed === 'string') allowedCats = JSON.parse(rawAllowed);
                     else if (Array.isArray(rawAllowed)) allowedCats = rawAllowed;
                 } catch(e) {}
-                if (allowedCats.some(id => id == comp.category_id)) return true;
+                if (allowedCats.some(id => String(id) === String(comp.category_id))) return true;
             }
         }
         return false;

@@ -2631,20 +2631,27 @@ canvas {
                     <button class="btn btn-outline" onclick="downloadCSV('competitions')"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
                 </div>
             </div>
-            <div class="controls-bar">
-                <div class="search-box">
+            <div class="controls-bar" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                <div class="search-box" style="flex: 1.5; min-width: 200px;">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="text" id="searchCompInput" placeholder="Search competitions..." onkeyup="filterCompetitions(true)">
                 </div>
-                <div class="filter-box">
+                <div class="filter-box" style="flex: 1; min-width: 160px;">
                     <select id="filterCompCategory" onchange="filterCompetitions(true)">
                         <option value="">All Categories</option>
                     </select>
                 </div>
-                <div class="filter-box">
+                <div class="filter-box" style="flex: 1; min-width: 160px;">
                     <select id="filterCompStage" onchange="filterCompetitions(true)">
                         <option value="">All Stages</option>
                     </select>
+                </div>
+                <!-- Bulk Stage Assign Controls -->
+                <div style="display: flex; gap: 0.5rem; align-items: center; background: var(--bg-surface); padding: 0.35rem 0.6rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
+                    <select id="bulkStageSelect" style="padding: 0.55rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.85rem; background: var(--bg-main); color: var(--text-main); min-width: 160px;">
+                        <option value="">-- SELECT STAGE --</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="bulkAssignStage()" style="padding: 0.55rem 0.95rem; font-size: 0.85rem; font-weight: 600; white-space: nowrap;"><i class="fa-solid fa-layer-group"></i> Bulk Edit Stage</button>
                 </div>
                 <button class="btn btn-danger" onclick="bulkDelete('competitions', 'competitions-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
             </div>
@@ -5355,6 +5362,8 @@ canvas {
                     <button class="btn btn-primary" style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); border: none;" onclick="openAutoSchedulerModal()"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Schedule Optimizer</button>
                     <button class="btn btn-outline" id="btn-conflict-audit" onclick="openConflictAuditModal()"><i class="fa-solid fa-triangle-exclamation" style="color: #F59E0B;"></i> Conflict Audit <span id="conflict-badge-count" style="display:none; background:#EF4444; color:white; border-radius:999px; padding:2px 7px; font-size:0.75rem; font-weight:700; margin-left:4px;">0</span></button>
                     <button class="btn btn-primary" onclick="openScheduleModal()"><i class="fa-solid fa-plus"></i> Schedule Event</button>
+                    <button class="btn btn-success" onclick="openBulkScheduleModal()"><i class="fa-solid fa-file-csv"></i> Upload Schedule CSV</button>
+                    <button class="btn btn-outline" onclick="downloadScheduleTemplate()"><i class="fa-solid fa-download"></i> CSV Template</button>
                     <button class="btn btn-outline" onclick="exportSchedulePDF()"><i class="fa-solid fa-file-pdf"></i> Export PDF</button>
                     <button class="btn btn-outline" onclick="exportScheduleCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
                 </div>
