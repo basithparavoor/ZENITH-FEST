@@ -350,7 +350,7 @@ function exportToCSV() {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `Fest_Assignments_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = typeof getFestFileName === 'function' ? getFestFileName('Assignments', 'csv') : `Fest_Assignments_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     showToast("CSV Downloaded!");
 }
@@ -362,8 +362,7 @@ function exportToPDF() {
     
     // Build a clean, professional HTML table for the PDF
     let htmlStr = `
-        <h2 style="color: #4F46E5; margin-bottom: 5px;">FestOS Manager Report</h2>
-        <p style="color: #6B7280; margin-bottom: 20px;">Generated on: ${new Date().toLocaleDateString()}</p>
+        ${typeof getPDFHeaderHTML === 'function' ? getPDFHeaderHTML('Manager Report') : '<h2 style="color: #4F46E5; margin-bottom: 5px;">ZENITH FEST Manager Report</h2>'}
         <table style="width: 100%; border-collapse: collapse; text-align: left;">
             <tr style="background-color: #F3F4F6; border-bottom: 2px solid #E5E7EB;">
                 <th style="padding: 12px; font-weight: bold;">Competition</th>
@@ -396,7 +395,7 @@ function exportToPDF() {
     // Options for html2pdf
     const opt = {
         margin: 0.5,
-        filename: `Fest_Report_${new Date().toISOString().split('T')[0]}.pdf`,
+        filename: typeof getFestFileName === 'function' ? getFestFileName('Assignments_Report', 'pdf') : `Fest_Assignments_Report_${new Date().toISOString().split('T')[0]}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2 },
         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
@@ -1364,9 +1363,12 @@ async function viewJudgeDetails(judgeId) {
 
 // --- LIGHTWEIGHT PDF HEADER FOR MANAGER ---
 function getManagerPDFHeaderHTML(title) {
+    if (typeof getPDFHeaderHTML === 'function') {
+        return getPDFHeaderHTML(title);
+    }
     return `
-        <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 26px; font-family: 'Plus Jakarta Sans', sans-serif; text-transform: uppercase; font-weight: 800;">FestOS Manager</h1>
+        <div style="text-align: center; margin-bottom: 30px; font-family: 'Plus Jakarta Sans', sans-serif;">
+            <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 26px; text-transform: uppercase; font-weight: 800;">ZENITH FEST</h1>
             <h2 style="color: #1F2937; font-size: 18px; margin-top: 0; text-transform: uppercase;">${title}</h2>
             <p style="color: #64748B; font-size: 12px; margin-top: 4px;">Generated on: ${new Date().toLocaleString()}</p>
         </div>
@@ -1437,7 +1439,7 @@ async function exportSpecificJudgePDF(judgeId) {
     `;
 
     const opt = { 
-        margin: 10, filename: `Judge_Schedule_${judge.username}.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
+        margin: 10, filename: typeof getFestFileName === 'function' ? getFestFileName(`Judge_Schedule_${judge.username}`, 'pdf') : `Judge_Schedule_${judge.username}.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
         html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
     };
     
@@ -1513,7 +1515,7 @@ async function exportJudgesPDF() {
     });
 
     const opt = { 
-        margin: 10, filename: `FestOS_Master_Judge_Roster.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
+        margin: 10, filename: typeof getFestFileName === 'function' ? getFestFileName('Master_Judge_Roster', 'pdf') : `Fest_Master_Judge_Roster.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
         html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
     };
     

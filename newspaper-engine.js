@@ -35,7 +35,7 @@
     function getActiveFestivalInfo() {
         const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || 
                     localStorage.getItem('activeFestId') || 
-                    'fest_vib26_muml4haa';
+                    (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_zenith_2026');
         
         let festMeta = null;
         if (window.availableFests && Array.isArray(window.availableFests)) {

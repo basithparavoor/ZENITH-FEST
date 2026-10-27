@@ -718,10 +718,11 @@
                     }).join('');
 
                     // Add branding logo directly into the PDF header
-                    const brandingData = window.systemBranding || {};
+                    const brandingData = typeof festosGetActiveBranding === 'function' ? festosGetActiveBranding() : (window.systemBranding || {});
                     let brandHtml = '';
-                    if (brandingData.fest_logo && brandingData.fest_logo.trim() !== '') {
-                        brandHtml = `<img src="${brandingData.fest_logo}" style="height: 36px; width: auto; object-fit: contain; margin-right: 12px; border-radius: 4px;">`;
+                    const rLogo = brandingData.fest_logo ? brandingData.fest_logo.trim() : '';
+                    if (rLogo && rLogo !== 'festos-logo.svg' && !rLogo.toLowerCase().includes('vib')) {
+                        brandHtml = `<img src="${rLogo}" style="height: 36px; width: auto; object-fit: contain; margin-right: 12px; border-radius: 4px;">`;
                     }
 
                     html += `
@@ -818,7 +819,7 @@
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement("a");
                 link.href = URL.createObjectURL(blob);
-                link.download = `FestOS_Matrix_Report_${new Date().toISOString().split('T')[0]}.csv`;
+                link.download = typeof getFestFileName === 'function' ? getFestFileName('Matrix_Report', 'csv') : `Fest_Matrix_Report_${new Date().toISOString().split('T')[0]}.csv`;
                 link.click();
             } else {
                 const exportData = filteredData.map((d, i) => ({
@@ -835,7 +836,7 @@
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement("a");
                 link.href = URL.createObjectURL(blob);
-                link.download = `FestOS_List_Report_${new Date().toISOString().split('T')[0]}.csv`;
+                link.download = typeof getFestFileName === 'function' ? getFestFileName('List_Report', 'csv') : `Fest_List_Report_${new Date().toISOString().split('T')[0]}.csv`;
                 link.click();
             }
         }
@@ -862,7 +863,7 @@
 
             const opt = {
                 margin:       [10, 10, 10, 10], // Margin around the printed PDF page
-                filename:     `FestOS_Report_${new Date().toISOString().split('T')[0]}.pdf`,
+                filename:     typeof getFestFileName === 'function' ? getFestFileName('Program_Report', 'pdf') : `Fest_Report_${new Date().toISOString().split('T')[0]}.pdf`,
                 image:        { type: 'jpeg', quality: 1 },
                 html2canvas:  { scale: 2, useCORS: true }, 
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: orientation },

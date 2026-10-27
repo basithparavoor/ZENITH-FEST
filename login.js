@@ -164,7 +164,7 @@ if (loginForm) {
                 const prefix = (data.username || '').split('_')[0].toLowerCase().trim();
                 const defaultFestId = (typeof window.festosDefaultFestId === 'function')
                     ? window.festosDefaultFestId()
-                    : 'fest_vib26_muml4haa';
+                    : 'fest_zenith_2026';
                 if (prefix === 'zenith26' || prefix === 'zenith') {
                     data.fest_id = defaultFestId;
                 } else if (/^[a-z0-9]{3,20}$/.test(prefix) && prefix !== 'superadmin' && prefix !== 'admin') {

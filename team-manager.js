@@ -1197,7 +1197,7 @@ async function exportCatalogPDF() {
         </table>
     `;
 
-    const opt = { margin: 10, filename: `Event_Catalog.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    const opt = { margin: 10, filename: typeof getFestFileName === 'function' ? getFestFileName('Event_Catalog', 'pdf') : 'Event_Catalog.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
     html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
 }
 
@@ -1628,7 +1628,7 @@ async function exportTeamParticipantListPDF() {
 
         const opt = {
             margin: 10,
-            filename: `${teamName.replace(/[^a-z0-9]/gi, '_')}_Participants.pdf`,
+            filename: typeof getFestFileName === 'function' ? getFestFileName(`${teamName}_Participants`, 'pdf') : `${teamName}_Participants.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -1703,7 +1703,7 @@ async function exportTeamProgramListPDF() {
 
         const opt = {
             margin: 10,
-            filename: `${teamName.replace(/[^a-z0-9]/gi, '_')}_Program_List.pdf`,
+            filename: typeof getFestFileName === 'function' ? getFestFileName(`${teamName}_Program_List`, 'pdf') : `${teamName}_Program_List.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
@@ -1762,10 +1762,23 @@ async function fetchAndApplyBranding() {
 
 
 function getPDFHeaderHTML(reportTitle) {
-    const cachedBranding = JSON.parse(localStorage.getItem('festBranding') || JSON.stringify(window.systemBranding || {}));
-    const validName = cachedBranding.fest_name && cachedBranding.fest_name.trim() !== '';
-    const validLogo = cachedBranding.fest_logo && cachedBranding.fest_logo.trim() !== '';
-    const displayMode = cachedBranding.display_mode || 'both';
+    const branding = typeof festosGetActiveBranding === 'function' 
+        ? festosGetActiveBranding() 
+        : (window.systemBranding || {});
+    
+    let festName = branding.fest_name && branding.fest_name.trim() !== '' ? branding.fest_name.trim() : 'ZENITH FEST';
+    if (festName === 'FestOS' || festName === 'Festival' || festName.toLowerCase().includes('vib')) {
+        festName = 'ZENITH FEST';
+    }
+
+    const rawLogo = branding.fest_logo ? branding.fest_logo.trim() : '';
+    const validLogo = Boolean(
+        rawLogo && 
+        rawLogo !== 'festos-logo.svg' && 
+        rawLogo !== '/festos-logo.svg' && 
+        !rawLogo.toLowerCase().includes('vib')
+    );
+    const displayMode = branding.display_mode || 'both';
     
     let brandHtml = '';
     
@@ -1773,19 +1786,19 @@ function getPDFHeaderHTML(reportTitle) {
     const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
     
     if (showLogo) {
-        brandHtml += `<img src="${cachedBranding.fest_logo}" style="height: 60px; max-width: 250px; object-fit: contain; margin-bottom: 12px; border-radius: 8px;">`;
+        brandHtml += `<img src="${rawLogo}" alt="Logo" style="height: 60px; max-width: 250px; object-fit: contain; margin-bottom: 12px; border-radius: 8px;">`;
     }
     
     if (showName) {
-        brandHtml += `<h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 26px; text-transform: uppercase; font-weight: 800;">${validName ? cachedBranding.fest_name : 'FESTOS'}</h1>`;
+        brandHtml += `<h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 26px; text-transform: uppercase; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif;">${festName}</h1>`;
     } else if (validLogo && !showName) {
         brandHtml += `<div style="height: 10px;"></div>`;
     }
 
     return `
-        <div style="text-align: center; margin-bottom: 30px;">
+        <div style="text-align: center; margin-bottom: 30px; font-family: 'Plus Jakarta Sans', sans-serif;">
             ${brandHtml}
-            <h2 style="color: #1E293B; font-size: 18px; margin-top:0; text-transform: uppercase;">${reportTitle}</h2>
+            <h2 style="color: #1E293B; font-size: 18px; margin-top:0; text-transform: uppercase; font-weight: 700;">${reportTitle}</h2>
             <p style="color: #64748B; font-size: 12px; margin-top: 4px; font-weight: 600;">Generated on: ${new Date().toLocaleString()}</p>
         </div>
     `;
@@ -2104,7 +2117,7 @@ async function exportTMSchedulePDF() {
         </table>
     `;
 
-    const opt = { margin: 10, filename: `Schedule.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    const opt = { margin: 10, filename: typeof getFestFileName === 'function' ? getFestFileName('Schedule', 'pdf') : 'Schedule.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
     html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
 }
 
@@ -2268,7 +2281,7 @@ async function exportTMVacancyPDF() {
         </table>
     `;
 
-    const opt = { margin: 10, filename: `Team_Vacancy_Audit.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    const opt = { margin: 10, filename: typeof getFestFileName === 'function' ? getFestFileName('Team_Vacancy_Audit', 'pdf') : 'Team_Vacancy_Audit.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
     html2pdf().set(opt).from(container).save().then(() => showToast('Vacancy PDF Exported!'));
 }
 

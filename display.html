@@ -498,7 +498,7 @@
         
         const isPreviewMode = new URLSearchParams(window.location.search).get('preview') === 'true';
 
-        const currentFestId = window.festosAuth ? window.festosAuth.getCurrentFestId() : (new URLSearchParams(window.location.search).get('fest') || (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_vib26_muml4haa'));
+        const currentFestId = window.festosAuth ? window.festosAuth.getCurrentFestId() : (new URLSearchParams(window.location.search).get('fest') || (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_zenith_2026'));
 
         const qrInstance = new QRCode(document.getElementById('display-qr'), { 
             text: window.location.origin + '/spectator.html?fest=' + encodeURIComponent(currentFestId), 
@@ -1034,7 +1034,7 @@
             let path = loc.pathname;
             const lastSlash = path.lastIndexOf('/');
             const dir = lastSlash >= 0 ? path.substring(0, lastSlash) : '';
-            const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : (new URLSearchParams(window.location.search).get('fest') || (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_vib26_muml4haa'));
+            const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : (new URLSearchParams(window.location.search).get('fest') || (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_zenith_2026'));
             return `${loc.origin}${dir}/spectator.html?fest=${encodeURIComponent(festId)}`;
         }
 

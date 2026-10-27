@@ -2537,7 +2537,8 @@ if (allCompIds.length > 0) {
             const validLogo = window.systemBranding?.fest_logo && window.systemBranding.fest_logo.trim() !== '';
             const displayMode = window.systemBranding?.display_mode || 'both';
             
-            let festText = 'FESTOS';
+            const activeB = typeof festosGetActiveBranding === 'function' ? festosGetActiveBranding() : (window.systemBranding || {});
+            let festText = activeB.fest_name || 'ZENITH FEST';
             if (displayMode === 'name' || displayMode === 'both') {
                 if (validName) festText = window.systemBranding.fest_name.toUpperCase();
             } else if (displayMode === 'logo' && validLogo) {
@@ -2588,7 +2589,7 @@ if (allCompIds.length > 0) {
                 styles: { fontSize: 10, cellPadding: 3 }
             });
 
-            doc.save(`${comp.name.replace(/\s+/g, '_')}_CallingList.pdf`);
+            doc.save(typeof getFestFileName === 'function' ? getFestFileName(`${comp.name}_CallingList`, 'pdf') : `${comp.name.replace(/\s+/g, '_')}_CallingList.pdf`);
         }
 
         function downloadResultsPDF(compId) {
@@ -2623,7 +2624,7 @@ if (allCompIds.length > 0) {
                 styles: { fontSize: 10, cellPadding: 3 }
             });
 
-            doc.save(`${comp.name.replace(/\s+/g, '_')}_Results_Table.pdf`);
+            doc.save(typeof getFestFileName === 'function' ? getFestFileName(`${comp.name}_Results_Table`, 'pdf') : `${comp.name.replace(/\s+/g, '_')}_Results_Table.pdf`);
         }
 
         function downloadAllResultsPDF() {
@@ -2689,7 +2690,7 @@ if (allCompIds.length > 0) {
                 }
             });
 
-            doc.save(`FestOS_Bulk_Results_Table.pdf`);
+            doc.save(typeof getFestFileName === 'function' ? getFestFileName('Bulk_Results_Table', 'pdf') : `Fest_Bulk_Results_Table.pdf`);
         }
 
         function downloadAllAwardsCSV() {
@@ -2760,7 +2761,7 @@ if (allCompIds.length > 0) {
                 return;
             }
 
-            exportToCSV(`FestOS_Awards_Report_${new Date().getTime()}.csv`, csvData);
+            exportToCSV(typeof getFestFileName === 'function' ? getFestFileName('Awards_Report', 'csv') : `Fest_Awards_Report_${Date.now()}.csv`, csvData);
         }
 
         function downloadAllAwardsPDF() {
@@ -2847,7 +2848,7 @@ if (allCompIds.length > 0) {
                 styles: { fontSize: 8, cellPadding: 3 }
             });
 
-            doc.save(`FestOS_Awards_Report.pdf`);
+            doc.save(typeof getFestFileName === 'function' ? getFestFileName('Awards_Report', 'pdf') : `Fest_Awards_Report.pdf`);
         }
 
         // ==========================================
@@ -2973,7 +2974,7 @@ if (allCompIds.length > 0) {
                 }
             });
 
-            doc.save(`FestOS_Bulk_Calling_Lists.pdf`);
+            doc.save(typeof getFestFileName === 'function' ? getFestFileName('Bulk_Calling_Lists', 'pdf') : `Fest_Bulk_Calling_Lists.pdf`);
         }
 
         // ==========================================
@@ -3052,7 +3053,7 @@ if (allCompIds.length > 0) {
                 });
             });
 
-            exportToCSV(`FestOS_Bulk_Results_${new Date().getTime()}.csv`, csvData);
+            exportToCSV(typeof getFestFileName === 'function' ? getFestFileName('Bulk_Results', 'csv') : `Fest_Bulk_Results_${Date.now()}.csv`, csvData);
         }
 
         // ========================================================================

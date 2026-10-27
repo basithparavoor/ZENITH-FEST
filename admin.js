@@ -178,7 +178,7 @@ function getActiveFestId() {
     }
     const u = JSON.parse(localStorage.getItem('festUser') || '{}');
     return u.fest_id || localStorage.getItem('festos_active_fest_id') ||
-        (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_vib26_muml4haa');
+        (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_zenith_2026');
 }
 
 function festQuery(query, targetFestId = null) {
@@ -2269,7 +2269,7 @@ async function exportCompetitionsPDF() {
 
         const opt = { 
             margin: 10, 
-            filename: `Fest_Competitions.pdf`, 
+            filename: typeof getFestFileName === 'function' ? getFestFileName('Competitions', 'pdf') : `Fest_Competitions.pdf`, 
             image: { type: 'jpeg', quality: 0.98 }, 
             html2canvas: { scale: 2, useCORS: true }, 
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
@@ -3054,7 +3054,7 @@ async function exportParticipantsPDF() {
 
         const opt = { 
             margin: 10, 
-            filename: `Fest_Participants.pdf`, 
+            filename: typeof getFestFileName === 'function' ? getFestFileName('Participants', 'pdf') : `Fest_Participants.pdf`, 
             image: { type: 'jpeg', quality: 0.98 }, 
             html2canvas: { scale: 2, useCORS: true }, 
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
@@ -3077,13 +3077,15 @@ async function exportParticipantsCSV() {
             "DOB": p.dob || 'N/A'
         }));
 
+        const csvFileName = typeof getFestFileName === 'function' ? getFestFileName('Participants_Data', 'csv') : 'Fest_Participants_Data.csv';
+
         if (typeof festosExportCSV === 'function') {
-            festosExportCSV('Fest_Participants_Data.csv', flatData, 'Participants Master Register');
+            festosExportCSV(csvFileName, flatData, 'Participants Master Register');
         } else {
             const blob = new Blob([Papa.unparse(flatData)], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a"); 
             link.href = URL.createObjectURL(blob); 
-            link.setAttribute("download", `Fest_Participants_Data.csv`);
+            link.setAttribute("download", csvFileName);
             document.body.appendChild(link); 
             link.click(); 
             document.body.removeChild(link);
@@ -3811,13 +3813,15 @@ async function downloadCSV(tableName) {
         const { data, error } = await supabaseClient.from(tableName).select('*');
         if (error) throw error;
         
+        const csvFileName = typeof getFestFileName === 'function' ? getFestFileName(`${tableName}_export`, 'csv') : `${tableName}_export.csv`;
+
         if (typeof festosExportCSV === 'function') {
-            festosExportCSV(`${tableName}_export.csv`, data, `Database Export - ${tableName.toUpperCase()}`);
+            festosExportCSV(csvFileName, data, `Database Export - ${tableName.toUpperCase()}`);
         } else {
             const blob = new Blob([Papa.unparse(data)], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a"); 
             link.href = URL.createObjectURL(blob); 
-            link.setAttribute("download", `${tableName}_export.csv`);
+            link.setAttribute("download", csvFileName);
             document.body.appendChild(link); 
             link.click(); 
             document.body.removeChild(link);
@@ -3893,7 +3897,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     const cachedBranding = localStorage.getItem('festBranding');
-    if (cachedBranding) { applyGlobalBranding(JSON.parse(cachedBranding)); }
+    if (cachedBranding) {
+        try {
+            const bData = JSON.parse(cachedBranding);
+            if (!String(bData.fest_name || '').toLowerCase().includes('vib') && !String(bData.fest_logo || '').toLowerCase().includes('vib')) {
+                applyGlobalBranding(bData);
+            }
+        } catch(e) {}
+    }
     
     fetchAndApplyBranding(); 
     
@@ -4999,13 +5010,15 @@ async function exportAssignmentsCSV() {
             "COMPETITION": row.competitions?.name || 'N/A'
         }));
 
+        const csvFileName = typeof getFestFileName === 'function' ? getFestFileName('Assignments_Data', 'csv') : 'Fest_Assignments_Data.csv';
+
         if (typeof festosExportCSV === 'function') {
-            festosExportCSV('Fest_Assignments_Data.csv', flatData, 'Participant Stage Assignments Register');
+            festosExportCSV(csvFileName, flatData, 'Participant Stage Assignments Register');
         } else {
             const blob = new Blob([Papa.unparse(flatData)], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a"); 
             link.href = URL.createObjectURL(blob); 
-            link.setAttribute("download", `Fest_Assignments_Data.csv`);
+            link.setAttribute("download", csvFileName);
             document.body.appendChild(link); 
             link.click(); 
             document.body.removeChild(link);
@@ -5089,7 +5102,7 @@ async function exportAssignmentsPDF() {
 
         const opt = { 
             margin: 10, 
-            filename: `Fest_Assignments_Ledger.pdf`, 
+            filename: typeof getFestFileName === 'function' ? getFestFileName('Assignments_Ledger', 'pdf') : `Fest_Assignments_Ledger.pdf`, 
             image: { type: 'jpeg', quality: 0.98 }, 
             html2canvas: { scale: 2, useCORS: true }, 
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
@@ -7665,7 +7678,7 @@ function bulkExportTeamPointsPDF() {
 
     const opt = { 
         margin: 0, 
-        filename: `FestOS_Team_Ledger.pdf`, 
+        filename: typeof getFestFileName === 'function' ? getFestFileName('Team_Championship_Ledger', 'pdf') : `FestOS_Team_Ledger.pdf`, 
         image: { type: 'jpeg', quality: 0.98 }, 
         html2canvas: { scale: 2, useCORS: true }, 
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
@@ -7878,7 +7891,7 @@ async function bulkExportPointsPDF() {
 
     const opt = { 
         margin: 0, 
-        filename: `Fest_Participant_Points_Report.pdf`, 
+        filename: typeof getFestFileName === 'function' ? getFestFileName('Participant_Point_Ledger', 'pdf') : `Fest_Participant_Points_Report.pdf`, 
         image: { type: 'jpeg', quality: 0.98 }, 
         html2canvas: { scale: 2, useCORS: true }, 
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
@@ -8875,7 +8888,7 @@ async function downloadCompLogPDF() {
     // Download PDF Config (Using Landscape for wider table)
     const opt = { 
         margin: 10, 
-        filename: `FestOS_Log_${comp.name.replace(/[^a-z0-9]/gi, '_')}.pdf`, 
+        filename: typeof getFestFileName === 'function' ? getFestFileName('Log_' + comp.name, 'pdf') : `Fest_Log_${comp.name.replace(/[^a-z0-9]/gi, '_')}.pdf`, 
         image: { type: 'jpeg', quality: 0.98 }, 
         html2canvas: { scale: 2, useCORS: true }, 
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } 
@@ -8891,10 +8904,23 @@ async function downloadCompLogPDF() {
 
 // Dynamic Branded PDF Header Generator
 function getPDFHeaderHTML(reportTitle) {
-    const cachedBranding = JSON.parse(localStorage.getItem('festBranding') || JSON.stringify(window.systemBranding || {}));
-    const validName = cachedBranding.fest_name && cachedBranding.fest_name.trim() !== '';
-    const validLogo = cachedBranding.fest_logo && cachedBranding.fest_logo.trim() !== '';
-    const displayMode = cachedBranding.display_mode || 'both';
+    const branding = typeof festosGetActiveBranding === 'function' 
+        ? festosGetActiveBranding() 
+        : (window.systemBranding || {});
+    
+    let festName = branding.fest_name && branding.fest_name.trim() !== '' ? branding.fest_name.trim() : 'ZENITH FEST';
+    if (festName === 'FestOS' || festName === 'Festival' || festName.toLowerCase().includes('vib')) {
+        festName = 'ZENITH FEST';
+    }
+
+    const rawLogo = branding.fest_logo ? branding.fest_logo.trim() : '';
+    const validLogo = Boolean(
+        rawLogo && 
+        rawLogo !== 'festos-logo.svg' && 
+        rawLogo !== '/festos-logo.svg' && 
+        !rawLogo.toLowerCase().includes('vib')
+    );
+    const displayMode = branding.display_mode || 'both';
     
     let brandHtml = '';
     
@@ -8902,21 +8928,20 @@ function getPDFHeaderHTML(reportTitle) {
     const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
     
     if (showLogo) {
-        brandHtml += `<img src="${cachedBranding.fest_logo}" style="height: 60px; max-width: 250px; object-fit: contain; margin-bottom: 12px; border-radius: 8px;">`;
+        brandHtml += `<img src="${rawLogo}" style="height: 60px; max-width: 250px; object-fit: contain; margin-bottom: 12px; border-radius: 8px;">`;
     }
     
     if (showName) {
-        brandHtml += `<h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 26px; text-transform: uppercase; font-weight: 800;">${validName ? cachedBranding.fest_name : 'FESTOS'}</h1>`;
+        brandHtml += `<h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 26px; text-transform: uppercase; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif;">${festName}</h1>`;
     } else if (validLogo && !showName) {
-        // Keeps spacing correct if only the logo is printed
         brandHtml += `<div style="height: 10px;"></div>`;
     }
 
     return `
-        <div style="text-align: center; margin-bottom: 30px;">
+        <div style="text-align: center; margin-bottom: 30px; font-family: 'Plus Jakarta Sans', sans-serif;">
             ${brandHtml}
-            <h2 style="color: #1E293B; font-size: 18px; margin-top:0; text-transform: uppercase;">${reportTitle}</h2>
-            <p style="color: #64748B; font-size: 12px; margin-top: 4px;">Generated on: ${new Date().toLocaleString()}</p>
+            <h2 style="color: #1E293B; font-size: 18px; margin-top:0; text-transform: uppercase; font-weight: 700;">${reportTitle}</h2>
+            <p style="color: #64748B; font-size: 12px; margin-top: 4px; font-weight: 600;">Generated on: ${new Date().toLocaleString()}</p>
         </div>
     `;
 }
@@ -10094,7 +10119,7 @@ async function exportConflictReportPDF() {
 
         const opt = {
             margin: 10,
-            filename: `Schedule_Conflict_Audit_${new Date().toISOString().split('T')[0]}.pdf`,
+            filename: typeof getFestFileName === 'function' ? getFestFileName('Schedule_Conflict_Audit', 'pdf') : `Schedule_Conflict_Audit_${new Date().toISOString().split('T')[0]}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
@@ -11663,8 +11688,11 @@ async function exportSchedulePDF() {
         `;
 
         const opt = { 
-            margin: 10, filename: `FestOS_Master_Schedule.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
-            html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            margin: 10, 
+            filename: typeof getFestFileName === 'function' ? getFestFileName('Master_Schedule', 'pdf') : `Fest_Master_Schedule.pdf`, 
+            image: { type: 'jpeg', quality: 0.98 }, 
+            html2canvas: { scale: 2, useCORS: true }, 
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
         };
         html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
     } catch (e) { showToast(e.message, 'error'); }
@@ -11727,10 +11755,11 @@ async function exportScheduleCSV() {
         return (a["TIME (FROM)"] || '').localeCompare(b["TIME (FROM)"] || '');
     });
 
+    const csvFileName = typeof getFestFileName === 'function' ? getFestFileName('Master_Schedule', 'csv') : 'Fest_Schedule.csv';
     const blob = new Blob([Papa.unparse(dataToExport)], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a"); 
     link.href = URL.createObjectURL(blob); 
-    link.setAttribute("download", `FestOS_Schedule.csv`);
+    link.setAttribute("download", csvFileName);
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
@@ -11766,10 +11795,11 @@ function downloadScheduleTemplate() {
         sampleRows.map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
     ).join('\r\n');
     
+    const templateFileName = typeof getFestFileName === 'function' ? getFestFileName('Schedule_Template', 'csv') : 'fest_schedule_template.csv';
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", "festos_schedule_template.csv");
+    link.setAttribute("download", templateFileName);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -12597,7 +12627,7 @@ async function exportVacancyPDF() {
 
         const opt = {
             margin: [10, 10, 10, 10],
-            filename: `FestOS_Vacancy_Audit_${new Date().toISOString().split('T')[0]}.pdf`,
+            filename: typeof getFestFileName === 'function' ? getFestFileName('Vacancy_Audit', 'pdf') : `Fest_Vacancy_Audit_${new Date().toISOString().split('T')[0]}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
@@ -12959,7 +12989,7 @@ async function exportSpecificJudgePDF(judgeId) {
 
     const opt = { 
         margin: 10, 
-        filename: `Judge_Schedule_${judge.username}.pdf`, 
+        filename: typeof getFestFileName === 'function' ? getFestFileName(`Judge_Schedule_${judge.username}`, 'pdf') : `Judge_Schedule_${judge.username}.pdf`, 
         image: { type: 'jpeg', quality: 0.98 }, 
         html2canvas: { scale: 2, useCORS: true }, 
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
@@ -13044,7 +13074,7 @@ async function exportJudgesPDF() {
 
     const opt = { 
         margin: 10, 
-        filename: `FestOS_Judge_Roster.pdf`, 
+        filename: typeof getFestFileName === 'function' ? getFestFileName('Judge_Allocation_Roster', 'pdf') : `Fest_Judge_Roster.pdf`, 
         image: { type: 'jpeg', quality: 0.98 }, 
         html2canvas: { scale: 2, useCORS: true }, 
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
@@ -13274,7 +13304,7 @@ function initProfessionalAnalytics() {
 // --- Loading and Saving Configuration ---
 async function loadWebsiteConfig() {
     try {
-        const defaultFestId = (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_vib26_muml4haa');
+        const defaultFestId = (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_zenith_2026');
         const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || 
                     (window.festosAuth ? window.festosAuth.getCurrentFestId() : '') || 
                     defaultFestId;
@@ -13466,7 +13496,7 @@ async function executeWebsiteSave(btnElement) {
     }
 
     try {
-        const defaultFestId = (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_vib26_muml4haa');
+        const defaultFestId = (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_zenith_2026');
         const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || 
                     (window.festosAuth ? window.festosAuth.getCurrentFestId() : '') || 
                     defaultFestId;
