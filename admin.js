@@ -10756,11 +10756,9 @@ function openScheduleModal(editCompId = null) {
         <option value="${c.id}" ${currentComp && String(currentComp.category_id) === String(c.id) ? 'selected' : ''}>${escapeSheetHtml(c.name)}</option>
     `).join('');
     
-    const isCurrentOffstage = currentComp && !!currentComp.is_offstage;
-    let stageOpts = `<option value="">-- NO STAGE / TBD --</option>`
-        + `<option value="offstage" ${isCurrentOffstage ? 'selected' : ''}>📝 Offstage</option>`
+    let stageOpts = `<option value="">-- NO STAGE ASSIGNED (TBD) --</option>`
         + (stagesList || []).map(s => `
-            <option value="${s.id}" ${currentComp && !isCurrentOffstage && String(currentComp.stage_id) === String(s.id) ? 'selected' : ''}>🎭 ${escapeSheetHtml(s.name)}</option>
+            <option value="${s.id}" ${currentComp && !currentComp.is_offstage && String(currentComp.stage_id) === String(s.id) ? 'selected' : ''}>🎭 ${escapeSheetHtml(s.name)}</option>
         `).join('');
     
     openModal(isEdit ? 'Edit Schedule Event' : 'Schedule Event', `
@@ -10772,18 +10770,30 @@ function openScheduleModal(editCompId = null) {
                 </select>
             </div>
             <div class="form-group">
-                <label>2. Stage / Venue</label>
-                <select id="modSchedStage" onchange="loadModSchedComps('${editCompId || ''}')">
-                    ${stageOpts}
+                <label>2. Competition</label>
+                <select id="modSchedComp" onchange="window.onScheduleCompChange()">
+                    <option value="">-- SELECT COMPETITION --</option>
                 </select>
             </div>
         </div>
-        <div class="form-group">
-            <label>3. Competition</label>
-            <select id="modSchedComp" onchange="window.updateScheduleTimeCalc()">
-                <option value="">-- SELECT COMPETITION --</option>
-            </select>
+
+        <div class="form-group" style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.85rem 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
+                <label style="margin: 0; font-weight: 700; font-size: 0.85rem; color: var(--text-main);">Venue / Stage</label>
+                <span id="modSchedVenueBadge" style="font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: #E0E7FF; color: #4338CA;">
+                    Auto-fetched from Competition
+                </span>
+            </div>
+            <div id="modSchedStageContainer">
+                <select id="modSchedStage" style="width: 100%; background: white;">
+                    ${stageOpts}
+                </select>
+            </div>
+            <div id="modSchedOffstageNotice" style="display: none; padding: 0.5rem 0.75rem; background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 6px; color: #92400E; font-size: 0.82rem; font-weight: 600;">
+                <i class="fa-solid fa-layer-group" style="margin-right: 4px;"></i> Offstage Competition &mdash; Conducted off-stage (No physical stage required).
+            </div>
         </div>
+
         <div class="grid-2" style="gap: 1rem;">
             <div class="form-group">
                 <label>System Est. Time (Mins)</label>
@@ -10810,13 +10820,12 @@ function openScheduleModal(editCompId = null) {
         </div>
     `, () => saveSchedule(editCompId));
     
-    // Populate competition options
+    // Populate competition options and auto-fetch venue
     loadModSchedComps(editCompId);
 }
 
 function loadModSchedComps(keepCompId = null) {
     const catId = document.getElementById('modSchedCat')?.value;
-    const stageId = document.getElementById('modSchedStage')?.value;
     const compSelect = document.getElementById('modSchedComp');
     if (!compSelect) return;
     
@@ -10824,8 +10833,6 @@ function loadModSchedComps(keepCompId = null) {
     
     let eligibleComps = (competitionsList || []).filter(c => {
         if (catId && String(c.category_id) !== String(catId)) return false;
-        if (stageId === 'offstage' && !c.is_offstage) return false;
-        if (stageId && stageId !== 'offstage' && String(c.stage_id) !== String(stageId)) return false;
         return !masterSchedule[c.id] || (keepCompId && String(c.id) === String(keepCompId));
     });
     
@@ -10837,12 +10844,87 @@ function loadModSchedComps(keepCompId = null) {
     
     eligibleComps.forEach(c => {
         const isSel = keepCompId && String(c.id) === String(keepCompId);
-        compSelect.innerHTML += `<option value="${c.id}" ${isSel ? 'selected' : ''}>${escapeSheetHtml(c.name)}</option>`;
+        let venueTag = '';
+        if (c.is_offstage) {
+            venueTag = ' [Offstage]';
+        } else if (c.stages?.name) {
+            venueTag = ` [${c.stages.name}]`;
+        } else if (c.stage_id) {
+            const stg = (stagesList || []).find(s => String(s.id) === String(c.stage_id));
+            if (stg) venueTag = ` [${stg.name}]`;
+        }
+        compSelect.innerHTML += `<option value="${c.id}" ${isSel ? 'selected' : ''}>${escapeSheetHtml(c.name)}${venueTag}</option>`;
     });
     
     if (keepCompId) compSelect.value = keepCompId;
-    window.updateScheduleTimeCalc();
+    window.onScheduleCompChange();
 }
+
+window.onScheduleCompChange = function() {
+    const compId = document.getElementById('modSchedComp')?.value;
+    const stageSelect = document.getElementById('modSchedStage');
+    const stageContainer = document.getElementById('modSchedStageContainer');
+    const offstageNotice = document.getElementById('modSchedOffstageNotice');
+    const venueBadge = document.getElementById('modSchedVenueBadge');
+    const catSelect = document.getElementById('modSchedCat');
+
+    if (!compId) {
+        if (stageSelect) stageSelect.value = '';
+        if (stageContainer) stageContainer.style.display = 'block';
+        if (offstageNotice) offstageNotice.style.display = 'none';
+        if (venueBadge) {
+            venueBadge.innerHTML = 'Select a competition';
+            venueBadge.style.background = '#F1F5F9';
+            venueBadge.style.color = '#64748B';
+        }
+        window.updateScheduleTimeCalc();
+        return;
+    }
+
+    const comp = (competitionsList || []).find(c => String(c.id) === String(compId));
+    if (!comp) {
+        window.updateScheduleTimeCalc();
+        return;
+    }
+
+    // Auto-sync Category if "-- ALL CATEGORIES --" was selected
+    if (catSelect && !catSelect.value && comp.category_id) {
+        catSelect.value = comp.category_id;
+    }
+
+    // Auto-fetch Venue (Stage or Offstage)
+    if (comp.is_offstage) {
+        if (stageContainer) stageContainer.style.display = 'none';
+        if (offstageNotice) offstageNotice.style.display = 'block';
+        if (stageSelect) stageSelect.value = '';
+        if (venueBadge) {
+            venueBadge.innerHTML = '<i class="fa-solid fa-layer-group"></i> Offstage Mode';
+            venueBadge.style.background = '#FEF3C7';
+            venueBadge.style.color = '#D97706';
+        }
+    } else {
+        if (offstageNotice) offstageNotice.style.display = 'none';
+        if (stageContainer) stageContainer.style.display = 'block';
+        if (stageSelect) {
+            stageSelect.value = comp.stage_id || '';
+        }
+        if (venueBadge) {
+            if (comp.stage_id) {
+                const stageObj = (stagesList || []).find(s => String(s.id) === String(comp.stage_id));
+                const stageName = stageObj ? stageObj.name : (comp.stages?.name || 'Stage');
+                venueBadge.innerHTML = `<i class="fa-solid fa-check"></i> Auto-fetched: ${escapeSheetHtml(stageName)}`;
+                venueBadge.style.background = '#ECFDF5';
+                venueBadge.style.color = '#059669';
+            } else {
+                venueBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> No Stage in Competitions (Set below)`;
+                venueBadge.style.background = '#FEF3C7';
+                venueBadge.style.color = '#D97706';
+            }
+        }
+    }
+
+    window.updateScheduleTimeCalc();
+};
 
 async function saveSchedule(editCompId) {
     const selectedCompId = document.getElementById('modSchedComp')?.value;
@@ -10868,34 +10950,29 @@ async function saveSchedule(editCompId) {
         const targetComp = (competitionsList || []).find(c => String(c.id) === String(targetCompId));
         if (targetComp) {
             const compUpdates = {};
-            if (selectedStageVal === 'offstage') {
-                compUpdates.stage_id = null;
-                compUpdates.is_offstage = true;
-            } else if (selectedStageVal) {
-                compUpdates.stage_id = selectedStageVal;
-                compUpdates.is_offstage = false;
-            } else {
-                compUpdates.stage_id = null;
+            if (!targetComp.is_offstage) {
+                compUpdates.stage_id = selectedStageVal || null;
             }
-
             if (selectedCatId) {
                 compUpdates.category_id = selectedCatId;
             }
 
-            const { error: compErr } = await supabaseClient.from('competitions').update(compUpdates).eq('id', targetCompId);
-            if (compErr) console.warn('Could not update competition details:', compErr);
+            if (Object.keys(compUpdates).length > 0) {
+                const { error: compErr } = await supabaseClient.from('competitions').update(compUpdates).eq('id', targetCompId);
+                if (compErr) console.warn('Could not update competition details:', compErr);
 
-            // Update in-memory
-            Object.assign(targetComp, compUpdates);
-            if (compUpdates.stage_id) {
-                const s = (stagesList || []).find(stg => String(stg.id) === String(compUpdates.stage_id));
-                targetComp.stages = s ? { name: s.name } : null;
-            } else {
-                targetComp.stages = null;
-            }
-            if (compUpdates.category_id) {
-                const c = (categoriesList || []).find(cat => String(cat.id) === String(compUpdates.category_id));
-                targetComp.categories = c ? { name: c.name } : null;
+                // Update in-memory
+                Object.assign(targetComp, compUpdates);
+                if (compUpdates.stage_id) {
+                    const s = (stagesList || []).find(stg => String(stg.id) === String(compUpdates.stage_id));
+                    targetComp.stages = s ? { name: s.name } : null;
+                } else if (compUpdates.stage_id === null && !targetComp.is_offstage) {
+                    targetComp.stages = null;
+                }
+                if (compUpdates.category_id) {
+                    const c = (categoriesList || []).find(cat => String(cat.id) === String(compUpdates.category_id));
+                    targetComp.categories = c ? { name: c.name } : null;
+                }
             }
         }
 
@@ -11052,7 +11129,7 @@ function initScheduleSheet() {
             compName: comp.name || '',
             category_id: comp.category_id || '',
             categoryName: comp.categories?.name || '',
-            stage_id: comp.is_offstage ? 'offstage' : (comp.stage_id || ''),
+            stage_id: comp.stage_id || '',
             is_offstage: !!comp.is_offstage,
             date: sched.date || '',
             time: sched.time || '',
@@ -11113,7 +11190,7 @@ function renderScheduleSheet() {
     }
     if (stageFilter) {
         if (stageFilter === 'offstage') {
-            rows = rows.filter(r => r.is_offstage || r.stage_id === 'offstage');
+            rows = rows.filter(r => r.is_offstage);
         } else {
             rows = rows.filter(r => String(r.stage_id) === String(stageFilter) && !r.is_offstage);
         }
@@ -11134,7 +11211,6 @@ function renderScheduleSheet() {
     }
 
     const stageSelectOptions = `<option value="">-- No Stage / TBD --</option>`
-        + `<option value="offstage">📝 Offstage</option>`
         + (stagesList || []).map(s => `<option value="${s.id}">🎭 ${escapeSheetHtml(s.name)}</option>`).join('');
 
     let html = '';
@@ -11146,8 +11222,6 @@ function renderScheduleSheet() {
         if (isDirty) {
             statusBadge = `<span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:800; font-size:0.65rem; padding: 2px 6px;">EDITED</span>`;
         }
-
-        const selectedStage = item.is_offstage ? 'offstage' : (item.stage_id || '');
 
         let compStateStr = (item.compStatus || 'pending').toUpperCase().replace('_', ' ');
         let compStateColor = '#64748B';
@@ -11167,9 +11241,12 @@ function renderScheduleSheet() {
                     ${escapeSheetHtml(item.categoryName || 'General')}
                 </td>
                 <td>
-                    <select class="sheet-cell-select" onchange="markSchedSheetDirty('${item.compId}', 'stage_id', this.value)">
-                        ${stageSelectOptions.replace(`value="${selectedStage}"`, `value="${selectedStage}" selected`)}
-                    </select>
+                    ${item.is_offstage 
+                        ? `<span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:700; padding: 3px 8px; font-size:0.75rem;"><i class="fa-solid fa-layer-group"></i> Offstage</span>` 
+                        : `<select class="sheet-cell-select" onchange="markSchedSheetDirty('${item.compId}', 'stage_id', this.value)">
+                            ${stageSelectOptions.replace(`value="${item.stage_id || ''}"`, `value="${item.stage_id || ''}" selected`)}
+                        </select>`
+                    }
                 </td>
                 <td>
                     <input type="date" class="sheet-cell-input" style="text-transform: none; text-align: center;" value="${item.date}" onchange="markSchedSheetDirty('${item.compId}', 'date', this.value)">
@@ -11209,9 +11286,6 @@ window.filterSchedSheetTable = renderScheduleSheet;
 function markSchedSheetDirty(compId, field, value) {
     if (!window.schedSheetData[compId]) return;
     window.schedSheetData[compId][field] = value;
-    if (field === 'stage_id') {
-        window.schedSheetData[compId].is_offstage = (value === 'offstage');
-    }
     window.schedSheetDirtyIds.add(compId);
 
     const row = document.getElementById(`sched-sheet-row-${compId}`);
@@ -11316,7 +11390,7 @@ async function saveSchedSheetChanges() {
             };
 
             // Stage updates
-            const isOffstage = row.stage_id === 'offstage' || !!row.is_offstage;
+            const isOffstage = !!row.is_offstage;
             const stageId = isOffstage ? null : (row.stage_id || null);
             stageUpdates.push({
                 id: compId,
