@@ -10304,6 +10304,273 @@ function downloadScheduleTemplate() {
 }
 window.downloadScheduleTemplate = downloadScheduleTemplate;
 
+// --- Schedule Bulk Upload Fuzzy Matching & Auto-Correction Engine ---
+function normalizeStringForFuzzy(s) {
+    if (!s) return '';
+    return String(s)
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/['"`]/g, '') // remove quotes/apostrophes cleanly
+        .replace(/[^a-z0-9\s]/g, ' ') // treat other punctuation as word separators
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+window.normalizeStringForFuzzy = normalizeStringForFuzzy;
+
+function levenshteinDistance(s1, s2) {
+    if (s1 === s2) return 0;
+    if (s1.length === 0) return s2.length;
+    if (s2.length === 0) return s1.length;
+    
+    const v0 = new Array(s2.length + 1);
+    const v1 = new Array(s2.length + 1);
+    
+    for (let i = 0; i <= s2.length; i++) v0[i] = i;
+    
+    for (let i = 0; i < s1.length; i++) {
+        v1[0] = i + 1;
+        for (let j = 0; j < s2.length; j++) {
+            const cost = (s1[i] === s2[j]) ? 0 : 1;
+            v1[j + 1] = Math.min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost);
+        }
+        for (let j = 0; j <= s2.length; j++) v0[j] = v1[j];
+    }
+    return v1[s2.length];
+}
+window.levenshteinDistance = levenshteinDistance;
+
+function extractSuffixTokens(str) {
+    const m = str.match(/\b([a-z]|\d+)\b$/i) || str.match(/\(([a-z]|\d+)\)/i);
+    return m ? m[1].toLowerCase() : null;
+}
+
+function calculateSimilarity(str1, str2) {
+    const s1 = normalizeStringForFuzzy(str1);
+    const s2 = normalizeStringForFuzzy(str2);
+    if (!s1 || !s2) return 0;
+    if (s1 === s2) return 1.0;
+    
+    // Distinct variants like (A) and (B), or 1 vs 2 must not cross-match
+    const suf1 = extractSuffixTokens(str1);
+    const suf2 = extractSuffixTokens(str2);
+    if (suf1 && suf2 && suf1 !== suf2) {
+        return 0;
+    }
+
+    const maxLen = Math.max(s1.length, s2.length);
+    if (maxLen === 0) return 1.0;
+    const dist = levenshteinDistance(s1, s2);
+    const levScore = (maxLen - dist) / maxLen;
+
+    const minLen = Math.min(s1.length, s2.length);
+    let subScore = 0;
+    if ((s1.includes(s2) || s2.includes(s1)) && minLen >= 4 && (minLen / maxLen >= 0.55)) {
+        subScore = minLen / maxLen;
+    }
+    
+    // Word-level matching
+    const words1 = s1.split(' ').filter(w => w.length > 1);
+    const words2 = s2.split(' ').filter(w => w.length > 1);
+    let wordFuzzyScore = 0;
+    if (words1.length > 0 && words2.length > 0) {
+        let totalWordScore = 0;
+        const shorterWords = words1.length <= words2.length ? words1 : words2;
+        const longerWords = words1.length <= words2.length ? words2 : words1;
+        
+        for (const w1 of shorterWords) {
+            let bestWordMatch = 0;
+            for (const w2 of longerWords) {
+                const wDist = levenshteinDistance(w1, w2);
+                const wMax = Math.max(w1.length, w2.length);
+                const wScore = (wMax - wDist) / wMax;
+                if (wScore > bestWordMatch) bestWordMatch = wScore;
+            }
+            totalWordScore += bestWordMatch;
+        }
+        wordFuzzyScore = (totalWordScore / shorterWords.length) * (shorterWords.length / longerWords.length >= 0.5 ? 0.9 : 0.6);
+    }
+    
+    return Math.max(levScore, subScore, wordFuzzyScore);
+}
+window.calculateSimilarity = calculateSimilarity;
+
+// Stage matching helper (supports Stage 1 / stg 1 / Offstage / Auditorium typos)
+function findBestStageMatch(rawStage, stages = []) {
+    if (!rawStage) return null;
+    const norm = normalizeStringForFuzzy(rawStage);
+    if (!norm) return null;
+
+    // Check offstage indications
+    if (norm.includes('off') || norm.includes('ofstage') || norm.includes('offstage')) {
+        return { is_offstage: true, stage_id: null, name: 'Offstage', score: 1.0, isCorrected: rawStage.trim().toLowerCase() !== 'offstage' };
+    }
+
+    // Check number in stage e.g. "Stage 1", "stg 2", "stage3", "1"
+    const digitMatch = rawStage.match(/\d+/);
+    if (digitMatch) {
+        const num = parseInt(digitMatch[0], 10);
+        const stageByNum = stages.find(s => Number(s.stage_no) === num || normalizeStringForFuzzy(s.name).endsWith(String(num)));
+        if (stageByNum) {
+            const isExact = normalizeStringForFuzzy(stageByNum.name) === norm || `stage ${stageByNum.stage_no}` === norm;
+            return {
+                is_offstage: false,
+                stage_id: stageByNum.id,
+                name: stageByNum.name,
+                stage_no: stageByNum.stage_no,
+                score: 1.0,
+                isCorrected: !isExact
+            };
+        }
+    }
+
+    // Fuzzy match against stages
+    let best = null;
+    let maxScore = 0;
+    for (const s of stages) {
+        const targetName = s.name || `Stage ${s.stage_no}`;
+        const score = calculateSimilarity(rawStage, targetName);
+        if (score > maxScore) {
+            maxScore = score;
+            best = s;
+        }
+    }
+
+    if (best && maxScore >= 0.65) {
+        const isExact = normalizeStringForFuzzy(best.name) === norm;
+        return {
+            is_offstage: false,
+            stage_id: best.id,
+            name: best.name,
+            stage_no: best.stage_no,
+            score: maxScore,
+            isCorrected: !isExact
+        };
+    }
+
+    return null;
+}
+window.findBestStageMatch = findBestStageMatch;
+
+// Category matching helper (corrects Primery -> Primary, Secondery -> Secondary, etc.)
+function findBestCategoryMatch(rawCat, categories = []) {
+    if (!rawCat) return null;
+    const norm = normalizeStringForFuzzy(rawCat);
+    if (!norm) return null;
+
+    const byId = categories.find(c => String(c.id).trim() === String(rawCat).trim());
+    if (byId) return { category: byId, score: 1.0, isCorrected: false };
+
+    let best = null;
+    let maxScore = 0;
+    for (const c of categories) {
+        const catNorm = normalizeStringForFuzzy(c.name);
+        if (catNorm === norm) {
+            return { category: c, score: 1.0, isCorrected: false };
+        }
+        const score = calculateSimilarity(norm, catNorm);
+        if (score > maxScore) {
+            maxScore = score;
+            best = c;
+        }
+    }
+
+    if (best && maxScore >= 0.65) {
+        return { category: best, score: maxScore, isCorrected: true };
+    }
+    return null;
+}
+window.findBestCategoryMatch = findBestCategoryMatch;
+
+// Competition matching helper (resolves spelling mistakes in competition name & category)
+function findBestCompetitionMatch(rawName, rawCat, competitions = [], categories = []) {
+    if (!rawName) return null;
+    const norm = normalizeStringForFuzzy(rawName);
+    if (!norm) return null;
+
+    let targetCatId = null;
+    let catAutoCorrected = false;
+    let matchedCatObj = null;
+    if (rawCat) {
+        const catMatch = findBestCategoryMatch(rawCat, categories);
+        if (catMatch) {
+            targetCatId = catMatch.category.id;
+            catAutoCorrected = catMatch.isCorrected;
+            matchedCatObj = catMatch.category;
+        }
+    }
+
+    // 1. Try exact match
+    const exactMatches = (competitions || []).filter(c => {
+        const cNorm = normalizeStringForFuzzy(c.name);
+        return (cNorm === norm || String(c.id).trim() === String(rawName).trim());
+    });
+
+    if (exactMatches.length === 1) {
+        return {
+            comp: exactMatches[0],
+            score: 1.0,
+            isCorrected: catAutoCorrected,
+            correctedCat: catAutoCorrected ? matchedCatObj : null
+        };
+    } else if (exactMatches.length > 1) {
+        if (targetCatId) {
+            const catComp = exactMatches.find(c => String(c.category_id) === String(targetCatId));
+            if (catComp) {
+                return {
+                    comp: catComp,
+                    score: 1.0,
+                    isCorrected: catAutoCorrected,
+                    correctedCat: catAutoCorrected ? matchedCatObj : null
+                };
+            }
+        }
+        return {
+            comp: exactMatches[0],
+            score: 1.0,
+            isCorrected: catAutoCorrected,
+            correctedCat: catAutoCorrected ? matchedCatObj : null
+        };
+    }
+
+    // 2. Fuzzy match
+    let best = null;
+    let maxAdjustedScore = 0;
+    let bestRawScore = 0;
+
+    for (const c of (competitions || [])) {
+        const rawScore = calculateSimilarity(rawName, c.name);
+        if (rawScore < 0.62) continue; // Baseline threshold to prevent false matches
+
+        const sameCategory = targetCatId ? String(c.category_id) === String(targetCatId) : null;
+        let adjustedScore = rawScore;
+        if (targetCatId) {
+            if (sameCategory) adjustedScore += 0.12;
+            else adjustedScore -= 0.20;
+        }
+
+        if (adjustedScore > maxAdjustedScore) {
+            maxAdjustedScore = adjustedScore;
+            bestRawScore = rawScore;
+            best = c;
+        }
+    }
+
+    const minRequiredScore = targetCatId ? 0.64 : 0.68;
+    if (best && maxAdjustedScore >= minRequiredScore && bestRawScore >= 0.62) {
+        const isExactName = normalizeStringForFuzzy(best.name) === norm;
+        return {
+            comp: best,
+            score: maxAdjustedScore,
+            rawScore: bestRawScore,
+            isCorrected: !isExactName || catAutoCorrected || (rawCat && targetCatId !== best.category_id),
+            correctedCat: catAutoCorrected ? matchedCatObj : null
+        };
+    }
+
+    return null;
+}
+window.findBestCompetitionMatch = findBestCompetitionMatch;
+
 window.parsedBulkScheduleRows = [];
 
 function previewBulkScheduleCSV(input) {
@@ -10332,48 +10599,59 @@ function previewBulkScheduleCSV(input) {
                 return showToast('No rows found in CSV file.', 'warning');
             }
             
-            // Map rows and check matching against competitionsList (Name + Category)
+            // Map rows and resolve matches with auto-correction
             let matched = 0;
             let missing = 0;
+            let autoCorrectedCount = 0;
             let previewHtml = '';
             
             window.parsedBulkScheduleRows.forEach((row) => {
                 const rawName = row.competition_name || row.competition || row.name || row.event || '';
                 const rawCat = row.category || row.category_name || '';
-                const compName = String(rawName).trim().toLowerCase();
-                const catFilter = String(rawCat).trim().toLowerCase();
-                
-                const matchedComp = (competitionsList || []).find(c => {
-                    const nameMatch = String(c.name).trim().toLowerCase() === compName || String(c.id) === String(rawName).trim();
-                    if (!nameMatch) return false;
-                    if (catFilter) {
-                        const cCatName = String(c.categories?.name || (categoriesList.find(cat => String(cat.id) === String(c.category_id))?.name) || '').trim().toLowerCase();
-                        return cCatName === catFilter || String(c.category_id) === catFilter;
-                    }
-                    return true;
-                });
-                
+                const rawStage = row.stage_name || row.stage || '';
                 const rawDate = row.date || row.event_date || '';
                 const rawFrom = row.from_time || row.start_time || row.time || row['time (from)'] || '';
                 const rawTo = row.to_time || row.end_time || row['time (to)'] || '';
-                const rawStage = row.stage_name || row.stage || '';
                 
-                if (matchedComp) {
+                const compMatch = findBestCompetitionMatch(rawName, rawCat, competitionsList, categoriesList);
+                const stageMatch = rawStage ? findBestStageMatch(rawStage, stagesList) : null;
+                
+                if (compMatch && compMatch.comp) {
                     matched++;
+                    const matchedComp = compMatch.comp;
                     const cCatDisplay = matchedComp.categories?.name || (categoriesList.find(cat => String(cat.id) === String(matchedComp.category_id))?.name) || '';
+                    
+                    let corrections = [];
+                    if (compMatch.isCorrected && compMatch.score < 1.0) {
+                        corrections.push(`Comp: "${rawName}" ➔ "${matchedComp.name}"`);
+                    }
+                    if (rawCat && compMatch.correctedCat) {
+                        corrections.push(`Cat: "${rawCat}" ➔ "${compMatch.correctedCat.name.trim()}"`);
+                    }
+                    if (stageMatch && stageMatch.isCorrected) {
+                        corrections.push(`Stage: "${rawStage}" ➔ "${stageMatch.name}"`);
+                    }
+                    if (corrections.length > 0) autoCorrectedCount++;
+
+                    const stageDisplay = stageMatch ? (stageMatch.is_offstage ? 'Offstage' : stageMatch.name) : (rawStage || '');
+                    
                     previewHtml += `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border);">
-                            <div>
-                                <span style="font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-check" style="color: #059669; margin-right: 5px;"></i> ${matchedComp.name}</span>
-                                ${cCatDisplay ? `<span class="badge" style="background:#F1F5F9; color:#475569; font-size: 0.65rem; margin-left: 5px;">${cCatDisplay}</span>` : ''}
+                        <div style="padding: 6px 0; border-bottom: 1px solid var(--border);">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <span style="font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-check" style="color: #059669; margin-right: 5px;"></i> ${matchedComp.name}</span>
+                                    ${cCatDisplay ? `<span class="badge" style="background:#F1F5F9; color:#475569; font-size: 0.65rem; margin-left: 5px;">${cCatDisplay.trim()}</span>` : ''}
+                                    ${corrections.length > 0 ? `<span class="badge" style="background:#EEF2FF; color:#4F46E5; font-size: 0.65rem; margin-left: 5px; font-weight:700;"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto-corrected</span>` : ''}
+                                </div>
+                                <span style="color: var(--text-muted); font-size: 0.75rem;">${rawDate} ${rawFrom}${rawTo ? ' - ' + rawTo : ''} ${stageDisplay ? '(' + stageDisplay + ')' : ''}</span>
                             </div>
-                            <span style="color: var(--text-muted); font-size: 0.75rem;">${rawDate} ${rawFrom}${rawTo ? ' - ' + rawTo : ''} ${rawStage ? '(' + rawStage + ')' : ''}</span>
+                            ${corrections.length > 0 ? `<div style="font-size: 0.7rem; color: #4F46E5; margin-left: 18px; margin-top: 2px;">✨ ${corrections.join(' &bull; ')}</div>` : ''}
                         </div>
                     `;
                 } else {
                     missing++;
                     previewHtml += `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); color: #DC2626;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); color: #DC2626;">
                             <span><i class="fa-solid fa-triangle-exclamation" style="margin-right: 5px;"></i> "${rawName}" ${rawCat ? `(${rawCat})` : ''} (Not found)</span>
                             <span style="font-size: 0.75rem;">Skipped</span>
                         </div>
@@ -10382,7 +10660,10 @@ function previewBulkScheduleCSV(input) {
             });
             
             if (summary) {
-                summary.innerHTML = `<span style="color: #059669; font-weight: 800;">${matched} competitions matched</span>, <span style="color: ${missing > 0 ? '#DC2626' : 'var(--text-muted)'}; font-weight: 700;">${missing} not found</span>`;
+                summary.innerHTML = `
+                    <span style="color: #059669; font-weight: 800;">${matched} competitions matched</span>${autoCorrectedCount > 0 ? ` <span style="color: #4F46E5; font-weight: 700;">(${autoCorrectedCount} auto-corrected ✨)</span>` : ''}, 
+                    <span style="color: ${missing > 0 ? '#DC2626' : 'var(--text-muted)'}; font-weight: 700;">${missing} not found</span>
+                `;
             }
             if (list) list.innerHTML = previewHtml;
             if (previewContainer) previewContainer.style.display = 'block';
@@ -10409,7 +10690,7 @@ function openBulkScheduleModal() {
             <div style="font-weight: 800; margin-bottom: 0.25rem; font-size: 0.95rem;">
                 <i class="fa-solid fa-file-csv"></i> Bulk Event Scheduling via CSV
             </div>
-            Upload a spreadsheet with event dates, start times, stages, and categories to schedule all competitions at once.
+            Upload a spreadsheet with event dates, start times, stages, and categories to schedule all competitions at once. Spelling mistakes in names, categories, and stages are automatically corrected.
         </div>
 
         <div class="form-group" style="margin-bottom: 1.25rem;">
@@ -10471,25 +10752,19 @@ async function handleBulkScheduleUpload() {
     
     try {
         let scheduledCount = 0;
+        let autoCorrectedCount = 0;
         let stageUpdates = [];
         
         rows.forEach(row => {
             const rawName = row.competition_name || row.competition || row.name || row.event || '';
             const rawCat = row.category || row.category_name || '';
-            const compName = String(rawName).trim().toLowerCase();
-            const catFilter = String(rawCat).trim().toLowerCase();
+            const rawStage = row.stage_name || row.stage || '';
             
-            const matchedComp = (competitionsList || []).find(c => {
-                const nameMatch = String(c.name).trim().toLowerCase() === compName || String(c.id) === String(rawName).trim();
-                if (!nameMatch) return false;
-                if (catFilter) {
-                    const cCatName = String(c.categories?.name || (categoriesList.find(cat => String(cat.id) === String(c.category_id))?.name) || '').trim().toLowerCase();
-                    return cCatName === catFilter || String(c.category_id) === catFilter;
-                }
-                return true;
-            });
+            const compMatch = findBestCompetitionMatch(rawName, rawCat, competitionsList, categoriesList);
+            if (!compMatch || !compMatch.comp) return;
             
-            if (!matchedComp) return;
+            const matchedComp = compMatch.comp;
+            if (compMatch.isCorrected) autoCorrectedCount++;
             
             const rawDate = String(row.date || row.event_date || '').trim();
             const rawFrom = String(row.from_time || row.start_time || row.time || row['time (from)'] || '').trim();
@@ -10520,21 +10795,15 @@ async function handleBulkScheduleUpload() {
             };
             scheduledCount++;
             
-            // Stage update check
-            if (autoUpdateStage) {
-                const rawStage = String(row.stage_name || row.stage || '').trim().toLowerCase();
-                if (rawStage) {
-                    if (rawStage.includes('offstage')) {
+            // Stage update check with auto-correction
+            if (autoUpdateStage && rawStage) {
+                const stageMatch = findBestStageMatch(rawStage, stagesList);
+                if (stageMatch) {
+                    if (stageMatch.isCorrected) autoCorrectedCount++;
+                    if (stageMatch.is_offstage) {
                         stageUpdates.push({ id: matchedComp.id, stage_id: null, is_offstage: true });
-                    } else {
-                        const matchedStage = (stagesList || []).find(s => 
-                            String(s.name).trim().toLowerCase() === rawStage || 
-                            String(s.id) === rawStage ||
-                            `stage ${s.stage_no}` === rawStage
-                        );
-                        if (matchedStage) {
-                            stageUpdates.push({ id: matchedComp.id, stage_id: matchedStage.id, is_offstage: false });
-                        }
+                    } else if (stageMatch.stage_id) {
+                        stageUpdates.push({ id: matchedComp.id, stage_id: stageMatch.stage_id, is_offstage: false });
                     }
                 }
             }
@@ -10561,7 +10830,7 @@ async function handleBulkScheduleUpload() {
             await loadCompetitions();
         }
         
-        showToast(`Successfully scheduled ${scheduledCount} event(s)!`);
+        showToast(`Successfully scheduled ${scheduledCount} event(s)!${autoCorrectedCount > 0 ? ` (${autoCorrectedCount} auto-corrected ✨)` : ''}`);
         closeModal();
         await detectScheduleConflicts();
         filterScheduleTable();
