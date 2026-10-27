@@ -1701,6 +1701,85 @@ canvas {
     max-width: 100% !important;
 }
 
+/* --- COMPETITIONS SPREADSHEET SHEET VIEW (DESKTOP) --- */
+.desktop-sheet-switcher { display: inline-flex; }
+@media (max-width: 768px) {
+    .desktop-sheet-switcher { display: none !important; }
+    #comp-sheet-view { display: none !important; }
+    #comp-standard-view { display: block !important; }
+}
+
+.excel-sheet-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.excel-sheet-table th {
+    background: #F8FAFC !important;
+    color: #475569 !important;
+    font-weight: 700 !important;
+    font-size: 0.72rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+    padding: 0.65rem 0.6rem !important;
+    border-bottom: 2px solid var(--border) !important;
+    border-right: 1px solid var(--border) !important;
+    white-space: nowrap;
+}
+.excel-sheet-table td {
+    padding: 0 !important;
+    border-right: 1px solid var(--border) !important;
+    border-bottom: 1px solid var(--border) !important;
+    background: white;
+    font-size: 0.85rem;
+    height: 38px;
+    vertical-align: middle;
+}
+.excel-sheet-table tr:hover td { background: #F8FAFC; }
+.excel-sheet-table tr.row-dirty td { background: #FEF3C7 !important; }
+.excel-sheet-table tr.row-new td { background: #ECFDF5 !important; }
+
+.sheet-cell-input {
+    width: 100% !important;
+    height: 38px !important;
+    padding: 0 0.65rem !important;
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    color: var(--text-main) !important;
+    outline: none !important;
+    border-radius: 0 !important;
+    transition: background 0.12s, border-color 0.12s;
+}
+.sheet-cell-input:focus {
+    background: white !important;
+    border-color: var(--primary) !important;
+    box-shadow: inset 0 0 0 2px var(--primary) !important;
+}
+.sheet-cell-select {
+    width: 100% !important;
+    height: 38px !important;
+    padding: 0 0.5rem !important;
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    color: var(--text-main) !important;
+    outline: none !important;
+    border-radius: 0 !important;
+    cursor: pointer;
+}
+.sheet-cell-select:focus {
+    background: white !important;
+    border-color: var(--primary) !important;
+    box-shadow: inset 0 0 0 2px var(--primary) !important;
+}
+.sheet-cell-checkbox {
+    width: 18px !important;
+    height: 18px !important;
+    accent-color: var(--primary);
+    cursor: pointer;
+    margin: 0 auto !important;
+    display: block;
+}
+
 </style>
     <link rel="stylesheet" href="premium-forms.css">
     <link rel="stylesheet" href="newspaper-studio.css">
@@ -2637,8 +2716,19 @@ canvas {
         </div>
 
         <div id="competitions" class="content-section">
-            <div class="action-bar">
-                <button class="btn btn-primary" onclick="openCompModal()"><i class="fa-solid fa-plus"></i> New Competition</button>
+            <div class="action-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="openCompModal()"><i class="fa-solid fa-plus"></i> New Competition</button>
+                    <!-- Desktop Sheet View Switcher -->
+                    <div class="desktop-sheet-switcher" style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 3px; gap: 3px;">
+                        <button type="button" id="btnCompViewTable" class="btn-view-toggle" onclick="switchCompetitionsView('table')" style="padding: 0.45rem 0.85rem; font-size: 0.82rem; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s; background: white; color: var(--text-main); box-shadow: var(--shadow-sm);">
+                            <i class="fa-solid fa-table-list"></i> Table View
+                        </button>
+                        <button type="button" id="btnCompViewSheet" class="btn-view-toggle" onclick="switchCompetitionsView('sheet')" style="padding: 0.45rem 0.85rem; font-size: 0.82rem; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-muted);">
+                            <i class="fa-solid fa-table-cells"></i> Sheet View <span class="badge" style="background:#10B981; color:white; font-size:0.6rem; padding:2px 6px; border-radius:10px; margin-left:4px;">Desktop</span>
+                        </button>
+                    </div>
+                </div>
                 <div class="bulk-actions" style="flex-wrap: wrap; gap: 0.5rem;">
                     <button class="btn btn-outline" style="border-color: #D97706; color: #D97706;" onclick="openVacancyReportModal()">
                         <i class="fa-solid fa-user-clock"></i> Vacancy Audit
@@ -2647,41 +2737,116 @@ canvas {
                     <button class="btn btn-outline" onclick="downloadCSV('competitions')"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
                 </div>
             </div>
-            <div class="controls-bar" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-                <div class="search-box" style="flex: 1.5; min-width: 200px;">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="searchCompInput" placeholder="Search competitions..." onkeyup="filterCompetitions(true)">
+
+            <!-- 1. STANDARD TABLE VIEW -->
+            <div id="comp-standard-view">
+                <div class="controls-bar" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <div class="search-box" style="flex: 1.5; min-width: 200px;">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="searchCompInput" placeholder="Search competitions..." onkeyup="filterCompetitions(true)">
+                    </div>
+                    <div class="filter-box" style="flex: 1; min-width: 160px;">
+                        <select id="filterCompCategory" onchange="filterCompetitions(true)">
+                            <option value="">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="filter-box" style="flex: 1; min-width: 160px;">
+                        <select id="filterCompStage" onchange="filterCompetitions(true)">
+                            <option value="">All Stages</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="openBulkEditStageModal()" style="padding: 0.65rem 1rem; font-size: 0.85rem; font-weight: 600; white-space: nowrap;"><i class="fa-solid fa-layer-group"></i> Bulk Edit Stage</button>
+                    <button class="btn" onclick="openBulkConvertTypeModal()" style="background: #F59E0B; border: 1px solid #D97706; color: white; padding: 0.65rem 1rem; font-size: 0.85rem; font-weight: 600; white-space: nowrap;"><i class="fa-solid fa-arrows-rotate"></i> Convert Stage / Offstage</button>
+                    <button class="btn btn-danger" onclick="bulkDelete('competitions', 'competitions-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
                 </div>
-                <div class="filter-box" style="flex: 1; min-width: 160px;">
-                    <select id="filterCompCategory" onchange="filterCompetitions(true)">
-                        <option value="">All Categories</option>
-                    </select>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAll('competitions-tbody', this)"></th>
+                                <th>Competition</th>
+                                <th>Category</th>
+                                <th>Stage</th>
+                                <th>Max Marks</th>
+                                <th>Limit</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="competitions-tbody"></tbody>
+                    </table>
+                    <div id="comp-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: var(--bg-main); border-top: 1px solid var(--border);"></div>
                 </div>
-                <div class="filter-box" style="flex: 1; min-width: 160px;">
-                    <select id="filterCompStage" onchange="filterCompetitions(true)">
-                        <option value="">All Stages</option>
-                    </select>
-                </div>
-                <button class="btn btn-primary" onclick="openBulkEditStageModal()" style="padding: 0.65rem 1rem; font-size: 0.85rem; font-weight: 600; white-space: nowrap;"><i class="fa-solid fa-layer-group"></i> Bulk Edit Stage</button>
-                <button class="btn" onclick="openBulkConvertTypeModal()" style="background: #F59E0B; border: 1px solid #D97706; color: white; padding: 0.65rem 1rem; font-size: 0.85rem; font-weight: 600; white-space: nowrap;"><i class="fa-solid fa-arrows-rotate"></i> Convert Stage / Offstage</button>
-                <button class="btn btn-danger" onclick="bulkDelete('competitions', 'competitions-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
             </div>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th class="checkbox-cell"><input type="checkbox" onchange="toggleSelectAll('competitions-tbody', this)"></th>
-                            <th>Competition</th>
-                            <th>Category</th>
-                            <th>Stage</th>
-                            <th>Max Marks</th>
-                            <th>Limit</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="competitions-tbody"></tbody>
-                </table>
-                <div id="comp-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: var(--bg-main); border-top: 1px solid var(--border);"></div>
+
+            <!-- 2. SPREADSHEET SHEET VIEW (DESKTOP) -->
+            <div id="comp-sheet-view" style="display: none;">
+                <!-- Sheet Toolbar -->
+                <div class="sheet-toolbar" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; padding: 0.75rem 1.25rem; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span style="font-weight: 800; font-size: 0.95rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-table-cells" style="color: var(--primary);"></i> Competitions Sheet
+                        </span>
+                        <span id="sheetSaveStatusBadge" class="badge" style="background: #ECFDF5; color: #059669; font-weight: 700; border: 1px solid #A7F3D0; font-size: 0.75rem;">
+                            <i class="fa-solid fa-circle-check"></i> All Saved
+                        </span>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                        <div class="search-box" style="width: 200px; min-width: 160px;">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="sheetSearchInput" placeholder="Filter sheet..." oninput="filterCompSheetTable()">
+                        </div>
+                        <select id="sheetCategoryFilter" onchange="filterCompSheetTable()" style="padding: 0.5rem 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-main); font-size: 0.85rem; font-weight: 600;">
+                            <option value="">All Categories</option>
+                        </select>
+                        <button type="button" class="btn btn-outline" onclick="addCompSheetRow()" style="padding: 0.5rem 0.85rem; font-size: 0.85rem; font-weight: 700; border-color: var(--primary); color: var(--primary);">
+                            <i class="fa-solid fa-plus"></i> Add Row
+                        </button>
+                        <button type="button" class="btn btn-outline" id="btnSheetDiscard" onclick="discardCompSheetChanges()" style="padding: 0.5rem 0.85rem; font-size: 0.85rem; font-weight: 700; display: none;">
+                            <i class="fa-solid fa-rotate-left"></i> Discard
+                        </button>
+                        <button type="button" class="btn btn-primary" id="btnSheetSave" onclick="saveCompSheetChanges()" style="padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 800;" disabled>
+                            <i class="fa-solid fa-floppy-disk"></i> Save Changes (<span id="sheetDirtyCount">0</span>)
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="switchCompetitionsView('table')" title="Switch back to Standard Table View" style="padding: 0.5rem 0.85rem; font-size: 0.85rem;">
+                            <i class="fa-solid fa-xmark"></i> Close Sheet
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Spreadsheet Table Container -->
+                <div class="sheet-grid-container" style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+                    <div style="overflow-x: auto; max-height: calc(100vh - 250px); overflow-y: auto;">
+                        <table id="compSheetTable" class="excel-sheet-table" style="width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1100px;">
+                            <thead style="position: sticky; top: 0; z-index: 10; background: #F8FAFC;">
+                                <tr>
+                                    <th style="width: 45px; text-align: center;">#</th>
+                                    <th style="width: 75px; text-align: center;">Status</th>
+                                    <th style="min-width: 250px;">Competition Name</th>
+                                    <th style="width: 175px;">Category</th>
+                                    <th style="width: 165px;">Stage</th>
+                                    <th style="width: 135px;">Event Mode</th>
+                                    <th style="width: 90px; text-align: center;">Max Mark</th>
+                                    <th style="width: 90px; text-align: center;">Limit</th>
+                                    <th style="width: 95px; text-align: center;">Mins/Stud</th>
+                                    <th style="width: 75px; text-align: center;">Group?</th>
+                                    <th style="width: 135px;">Special Award</th>
+                                    <th style="width: 65px; text-align: center;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="compSheetTbody"></tbody>
+                        </table>
+                    </div>
+                    <!-- Sheet Footer Bar -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 1.25rem; background: var(--bg-main); border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--text-muted);">
+                        <div>
+                            <span id="sheetRowCount" style="font-weight: 700; color: var(--text-main);">0</span> competitions displayed
+                        </div>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <span>💡 <strong>Tip:</strong> Edit any cell directly. Modified rows turn amber. Click <strong>Save Changes</strong> to sync to database.</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         

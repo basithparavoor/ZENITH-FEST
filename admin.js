@@ -1334,7 +1334,11 @@ async function loadCompetitions() {
             populateBulkStageSelect();
         }
 
-        filterCompetitions(false); 
+        if (window.compCurrentViewMode === 'sheet') {
+            initCompetitionsSheet();
+        } else {
+            filterCompetitions(false);
+        } 
     } catch(e) { showToast(e.message, 'error'); }
 }
 
@@ -1708,6 +1712,399 @@ async function executeBulkConvertEventType(compIds, mode) {
     }
 }
 window.executeBulkConvertEventType = executeBulkConvertEventType;
+
+// =========================================================================
+// COMPETITIONS SPREADSHEET SHEET VIEW (DESKTOP)
+// =========================================================================
+window.compCurrentViewMode = 'table';
+window.compSheetData = {};
+window.compSheetDirtyIds = new Set();
+
+function escapeSheetHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function switchCompetitionsView(mode) {
+    if (mode === window.compCurrentViewMode) return;
+
+    if (mode === 'table' && window.compSheetDirtyIds && window.compSheetDirtyIds.size > 0) {
+        if (!confirm(`You have ${window.compSheetDirtyIds.size} unsaved change(s) in Sheet View. Discard and switch to Table View?`)) {
+            return;
+        }
+        window.compSheetDirtyIds.clear();
+    }
+
+    window.compCurrentViewMode = mode;
+    const standardView = document.getElementById('comp-standard-view');
+    const sheetView = document.getElementById('comp-sheet-view');
+    const btnTable = document.getElementById('btnCompViewTable');
+    const btnSheet = document.getElementById('btnCompViewSheet');
+
+    if (mode === 'sheet') {
+        if (standardView) standardView.style.display = 'none';
+        if (sheetView) sheetView.style.display = 'block';
+
+        if (btnSheet) {
+            btnSheet.style.background = 'white';
+            btnSheet.style.color = 'var(--text-main)';
+            btnSheet.style.boxShadow = 'var(--shadow-sm)';
+        }
+        if (btnTable) {
+            btnTable.style.background = 'transparent';
+            btnTable.style.color = 'var(--text-muted)';
+            btnTable.style.boxShadow = 'none';
+        }
+
+        initCompetitionsSheet();
+    } else {
+        if (sheetView) sheetView.style.display = 'none';
+        if (standardView) standardView.style.display = 'block';
+
+        if (btnTable) {
+            btnTable.style.background = 'white';
+            btnTable.style.color = 'var(--text-main)';
+            btnTable.style.boxShadow = 'var(--shadow-sm)';
+        }
+        if (btnSheet) {
+            btnSheet.style.background = 'transparent';
+            btnSheet.style.color = 'var(--text-muted)';
+            btnSheet.style.boxShadow = 'none';
+        }
+
+        renderCompetitionsTable();
+    }
+}
+window.switchCompetitionsView = switchCompetitionsView;
+
+function initCompetitionsSheet() {
+    const catFilter = document.getElementById('sheetCategoryFilter');
+    if (catFilter) {
+        catFilter.innerHTML = '<option value="">All Categories</option>';
+        (categoriesList || []).forEach(c => {
+            catFilter.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+        });
+    }
+
+    window.compSheetData = {};
+    window.compSheetDirtyIds = new Set();
+
+    (competitionsList || []).forEach(c => {
+        window.compSheetData[c.id] = {
+            id: c.id,
+            name: c.name || '',
+            category_id: c.category_id || '',
+            stage_id: c.stage_id || '',
+            is_offstage: !!c.is_offstage,
+            max_mark: c.max_mark ?? 100,
+            max_participants: c.max_participants ?? 1,
+            time_per_student: c.time_per_student ?? 0,
+            is_group: !!c.is_group,
+            award_type: c.award_type || 'none',
+            isNew: false
+        };
+    });
+
+    updateCompSheetToolbarStatus();
+    renderCompetitionsSheet();
+}
+window.initCompetitionsSheet = initCompetitionsSheet;
+
+function renderCompetitionsSheet() {
+    const tbody = document.getElementById('compSheetTbody');
+    if (!tbody) return;
+
+    const searchInput = document.getElementById('sheetSearchInput')?.value?.toLowerCase()?.trim() || '';
+    const catFilter = document.getElementById('sheetCategoryFilter')?.value || '';
+
+    let rows = Object.values(window.compSheetData || {});
+
+    if (searchInput) {
+        rows = rows.filter(r => (r.name || '').toLowerCase().includes(searchInput));
+    }
+    if (catFilter) {
+        rows = rows.filter(r => String(r.category_id) === String(catFilter));
+    }
+
+    rows.sort((a, b) => {
+        if (a.isNew && !b.isNew) return -1;
+        if (!a.isNew && b.isNew) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+    });
+
+    const rowCountEl = document.getElementById('sheetRowCount');
+    if (rowCountEl) rowCountEl.innerText = rows.length;
+
+    if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; padding: 3rem; color: var(--text-muted); font-size: 0.9rem;">No competitions match the filter. Click <strong>+ Add Row</strong> to create one.</td></tr>`;
+        return;
+    }
+
+    const catOptionsHtml = (categoriesList || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    const stageOptionsHtml = `<option value="">-- No Stage --</option>` + (stagesList || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+    let html = '';
+    rows.forEach((comp, idx) => {
+        const isDirty = window.compSheetDirtyIds.has(comp.id);
+        const rowClass = comp.isNew ? 'row-new' : (isDirty ? 'row-dirty' : '');
+
+        let statusBadge = `<span style="color:#94A3B8; font-size:0.75rem;"><i class="fa-solid fa-check"></i></span>`;
+        if (comp.isNew) {
+            statusBadge = `<span class="badge" style="background:#ECFDF5; color:#059669; font-weight:800; font-size:0.65rem; padding: 2px 6px;">NEW</span>`;
+        } else if (isDirty) {
+            statusBadge = `<span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:800; font-size:0.65rem; padding: 2px 6px;">EDITED</span>`;
+        }
+
+        html += `
+            <tr id="sheet-row-${comp.id}" class="${rowClass}">
+                <td style="text-align: center; color: var(--text-muted); font-weight: 700; font-size: 0.75rem;">${idx + 1}</td>
+                <td id="sheet-status-${comp.id}" style="text-align: center;">${statusBadge}</td>
+                <td>
+                    <input type="text" class="sheet-cell-input" value="${escapeSheetHtml(comp.name)}" placeholder="Competition Name" oninput="markCompSheetDirty('${comp.id}', 'name', this.value)">
+                </td>
+                <td>
+                    <select class="sheet-cell-select" onchange="markCompSheetDirty('${comp.id}', 'category_id', this.value)">
+                        ${catOptionsHtml.replace(`value="${comp.category_id}"`, `value="${comp.category_id}" selected`)}
+                    </select>
+                </td>
+                <td>
+                    <select class="sheet-cell-select" onchange="markCompSheetDirty('${comp.id}', 'stage_id', this.value)">
+                        ${comp.stage_id ? stageOptionsHtml.replace(`value="${comp.stage_id}"`, `value="${comp.stage_id}" selected`) : stageOptionsHtml}
+                    </select>
+                </td>
+                <td>
+                    <select class="sheet-cell-select" onchange="markCompSheetDirty('${comp.id}', 'is_offstage', this.value === 'offstage')">
+                        <option value="stage" ${!comp.is_offstage ? 'selected' : ''}>🎭 Stage</option>
+                        <option value="offstage" ${comp.is_offstage ? 'selected' : ''}>📝 Offstage</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="number" class="sheet-cell-input" style="text-align: center;" value="${comp.max_mark ?? 100}" min="1" max="1000" oninput="markCompSheetDirty('${comp.id}', 'max_mark', this.value)">
+                </td>
+                <td>
+                    <input type="number" class="sheet-cell-input" style="text-align: center;" value="${comp.max_participants ?? 1}" min="1" max="100" oninput="markCompSheetDirty('${comp.id}', 'max_participants', this.value)">
+                </td>
+                <td>
+                    <input type="number" class="sheet-cell-input" style="text-align: center;" value="${comp.time_per_student ?? 0}" min="0" max="600" oninput="markCompSheetDirty('${comp.id}', 'time_per_student', this.value)">
+                </td>
+                <td style="text-align: center;">
+                    <input type="checkbox" class="sheet-cell-checkbox" ${comp.is_group ? 'checked' : ''} onchange="markCompSheetDirty('${comp.id}', 'is_group', this.checked)">
+                </td>
+                <td>
+                    <select class="sheet-cell-select" onchange="markCompSheetDirty('${comp.id}', 'award_type', this.value)">
+                        <option value="none" ${comp.award_type === 'none' ? 'selected' : ''}>Standard</option>
+                        <option value="star" ${comp.award_type === 'star' ? 'selected' : ''}>⭐ Star Fest</option>
+                        <option value="pen" ${comp.award_type === 'pen' ? 'selected' : ''}>🖋️ Pen Fest</option>
+                    </select>
+                </td>
+                <td style="text-align: center;">
+                    <button type="button" class="btn btn-outline" style="padding: 0.25rem 0.5rem; color: #DC2626; border-color: transparent; font-size: 0.8rem;" onclick="deleteCompSheetRow('${comp.id}')" title="Delete competition">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+}
+window.renderCompetitionsSheet = renderCompetitionsSheet;
+window.filterCompSheetTable = renderCompetitionsSheet;
+
+function markCompSheetDirty(id, field, value) {
+    if (!window.compSheetData[id]) return;
+    window.compSheetData[id][field] = value;
+    window.compSheetDirtyIds.add(id);
+
+    const row = document.getElementById(`sheet-row-${id}`);
+    const statusCell = document.getElementById(`sheet-status-${id}`);
+    if (row) {
+        if (window.compSheetData[id].isNew) {
+            row.className = 'row-new';
+            if (statusCell) statusCell.innerHTML = `<span class="badge" style="background:#ECFDF5; color:#059669; font-weight:800; font-size:0.65rem; padding: 2px 6px;">NEW</span>`;
+        } else {
+            row.className = 'row-dirty';
+            if (statusCell) statusCell.innerHTML = `<span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:800; font-size:0.65rem; padding: 2px 6px;">EDITED</span>`;
+        }
+    }
+
+    updateCompSheetToolbarStatus();
+}
+window.markCompSheetDirty = markCompSheetDirty;
+
+function updateCompSheetToolbarStatus() {
+    const dirtyCount = window.compSheetDirtyIds ? window.compSheetDirtyIds.size : 0;
+    const saveBtn = document.getElementById('btnSheetSave');
+    const discardBtn = document.getElementById('btnSheetDiscard');
+    const badge = document.getElementById('sheetSaveStatusBadge');
+    const dirtyCountSpan = document.getElementById('sheetDirtyCount');
+
+    if (dirtyCountSpan) dirtyCountSpan.innerText = dirtyCount;
+
+    if (dirtyCount > 0) {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.style.background = '#059669';
+            saveBtn.style.borderColor = '#047857';
+        }
+        if (discardBtn) discardBtn.style.display = 'inline-flex';
+        if (badge) {
+            badge.style.background = '#FEF3C7';
+            badge.style.color = '#D97706';
+            badge.style.borderColor = '#FDE68A';
+            badge.innerHTML = `<i class="fa-solid fa-pen"></i> ${dirtyCount} Unsaved Change(s)`;
+        }
+    } else {
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.style.background = '';
+            saveBtn.style.borderColor = '';
+        }
+        if (discardBtn) discardBtn.style.display = 'none';
+        if (badge) {
+            badge.style.background = '#ECFDF5';
+            badge.style.color = '#059669';
+            badge.style.borderColor = '#A7F3D0';
+            badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> All Saved`;
+        }
+    }
+}
+
+function addCompSheetRow() {
+    const tempId = 'temp_' + Date.now();
+    const defaultCatId = categoriesList[0]?.id || '';
+
+    window.compSheetData[tempId] = {
+        id: tempId,
+        name: '',
+        category_id: defaultCatId,
+        stage_id: '',
+        is_offstage: false,
+        max_mark: 100,
+        max_participants: 1,
+        time_per_student: 5,
+        is_group: false,
+        award_type: 'none',
+        isNew: true
+    };
+    window.compSheetDirtyIds.add(tempId);
+
+    renderCompetitionsSheet();
+    updateCompSheetToolbarStatus();
+
+    setTimeout(() => {
+        const input = document.querySelector(`#sheet-row-${tempId} input.sheet-cell-input`);
+        if (input) input.focus();
+    }, 50);
+}
+window.addCompSheetRow = addCompSheetRow;
+
+function discardCompSheetChanges() {
+    if (window.compSheetDirtyIds.size > 0) {
+        if (!confirm(`Discard all ${window.compSheetDirtyIds.size} unsaved change(s)?`)) return;
+    }
+    initCompetitionsSheet();
+    showToast('All unsaved changes in sheet discarded.');
+}
+window.discardCompSheetChanges = discardCompSheetChanges;
+
+async function saveCompSheetChanges() {
+    if (!window.compSheetDirtyIds || window.compSheetDirtyIds.size === 0) {
+        return showToast('No changes to save.', 'info');
+    }
+
+    const dirtyList = Array.from(window.compSheetDirtyIds);
+    const toSave = [];
+
+    for (const id of dirtyList) {
+        const row = window.compSheetData[id];
+        if (!row) continue;
+        const name = String(row.name || '').trim();
+        if (!name) {
+            return showToast('Every competition must have a name.', 'error');
+        }
+        if (!row.category_id) {
+            return showToast(`Please select a category for "${name}".`, 'error');
+        }
+
+        const payload = {
+            name: name,
+            category_id: row.category_id,
+            stage_id: row.stage_id || null,
+            max_mark: parseInt(row.max_mark) || 100,
+            max_participants: parseInt(row.max_participants) || 1,
+            time_per_student: parseInt(row.time_per_student) || 0,
+            is_group: !!row.is_group,
+            is_offstage: !!row.is_offstage,
+            award_type: row.award_type || 'none'
+        };
+
+        if (!id.startsWith('temp_')) {
+            payload.id = id;
+        }
+
+        toSave.push(festPayload(payload));
+    }
+
+    const saveBtn = document.getElementById('btnSheetSave');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    }
+
+    try {
+        const { error } = await supabaseClient.from('competitions').upsert(toSave);
+        if (error) throw error;
+
+        showToast(`Successfully saved ${toSave.length} competition(s) in Sheet View!`, 'success');
+        window.compSheetDirtyIds.clear();
+        await loadCompetitions();
+        initCompetitionsSheet();
+    } catch (e) {
+        showToast('Save failed: ' + e.message, 'error');
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            updateCompSheetToolbarStatus();
+        }
+    }
+}
+window.saveCompSheetChanges = saveCompSheetChanges;
+
+async function deleteCompSheetRow(id) {
+    if (id.startsWith('temp_')) {
+        delete window.compSheetData[id];
+        window.compSheetDirtyIds.delete(id);
+        renderCompetitionsSheet();
+        updateCompSheetToolbarStatus();
+        return;
+    }
+
+    const comp = window.compSheetData[id];
+    const compName = comp ? comp.name : 'this competition';
+    if (!confirm(`Are you sure you want to delete "${compName}"? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const { error } = await supabaseClient.from('competitions').delete().eq('id', id);
+        if (error) throw error;
+
+        showToast(`Competition "${compName}" deleted.`);
+        delete window.compSheetData[id];
+        window.compSheetDirtyIds.delete(id);
+        await loadCompetitions();
+        initCompetitionsSheet();
+    } catch (e) {
+        showToast('Delete failed: ' + e.message, 'error');
+    }
+}
+window.deleteCompSheetRow = deleteCompSheetRow;
 
 // Generates a Premium PDF Directory for Competitions
 // Generates a Premium PDF Directory for Competitions
