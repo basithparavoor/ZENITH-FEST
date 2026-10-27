@@ -1742,6 +1742,28 @@ canvas {
 .excel-sheet-table tr.row-new td { background: #F0FDF4 !important; }
 .excel-sheet-table tr.row-new td:first-child { box-shadow: inset 3px 0 0 #059669 !important; }
 
+/* Dedicated compact styling for Event Schedule Sheet to prevent horizontal scrolling */
+#schedSheetTable {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: auto !important;
+}
+#schedSheetTable th {
+    padding: 0.5rem 0.35rem !important;
+    font-size: 0.68rem !important;
+    letter-spacing: 0.02em !important;
+    white-space: nowrap !important;
+}
+#schedSheetTable td {
+    height: 34px !important;
+}
+#schedSheetTable .sheet-cell-input,
+#schedSheetTable .sheet-cell-select {
+    height: 34px !important;
+    font-size: 0.78rem !important;
+    padding: 0 0.25rem !important;
+}
+
 .sheet-cell-input {
     width: 100% !important;
     height: 38px !important;
@@ -5576,7 +5598,6 @@ canvas {
                     <button class="btn btn-outline" id="btn-conflict-audit" onclick="openConflictAuditModal()"><i class="fa-solid fa-triangle-exclamation" style="color: #F59E0B;"></i> Conflict Audit <span id="conflict-badge-count" style="display:none; background:#EF4444; color:white; border-radius:999px; padding:2px 7px; font-size:0.75rem; font-weight:700; margin-left:4px;">0</span></button>
                     <button class="btn btn-primary" onclick="openScheduleModal()"><i class="fa-solid fa-plus"></i> Schedule Event</button>
                     <button class="btn btn-success" onclick="openBulkScheduleModal()"><i class="fa-solid fa-file-csv"></i> Upload Schedule CSV</button>
-                    <button class="btn btn-outline" onclick="downloadScheduleTemplate()"><i class="fa-solid fa-download"></i> CSV Template</button>
                     <button class="btn btn-outline" onclick="exportSchedulePDF()"><i class="fa-solid fa-file-pdf"></i> Export PDF</button>
                     <button class="btn btn-outline" onclick="exportScheduleCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
                 </div>
@@ -5709,21 +5730,21 @@ canvas {
                 <!-- Spreadsheet Table Container -->
                 <div class="sheet-grid-container" style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
                     <div style="overflow-x: auto; max-height: calc(100vh - 250px); overflow-y: auto;">
-                        <table id="schedSheetTable" class="excel-sheet-table" style="width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1100px;">
+                        <table id="schedSheetTable" class="excel-sheet-table" style="width: 100%; border-collapse: separate; border-spacing: 0;">
                             <thead style="position: sticky; top: 0; z-index: 10; background: #F1F5F9;">
                                 <tr>
-                                    <th style="width: 45px; text-align: center;">#</th>
-                                    <th style="width: 80px; text-align: center;">Status</th>
-                                    <th style="min-width: 240px;"><i class="fa-solid fa-trophy" style="margin-right: 4px; color: var(--primary);"></i> Competition</th>
-                                    <th style="width: 155px;"><i class="fa-solid fa-layer-group" style="margin-right: 4px;"></i> Category</th>
-                                    <th style="width: 170px;"><i class="fa-solid fa-microphone-lines" style="margin-right: 4px;"></i> Stage / Venue</th>
-                                    <th style="width: 145px;"><i class="fa-regular fa-calendar" style="margin-right: 4px;"></i> Date</th>
-                                    <th style="width: 110px; text-align: center;"><i class="fa-regular fa-clock" style="margin-right: 4px;"></i> From</th>
-                                    <th style="width: 110px; text-align: center;"><i class="fa-regular fa-clock" style="margin-right: 4px;"></i> To</th>
-                                    <th style="width: 95px; text-align: center;">Manual Mins</th>
-                                    <th style="width: 135px;"><i class="fa-solid fa-globe" style="margin-right: 4px;"></i> Publish</th>
-                                    <th style="width: 125px; text-align: center;">Event State</th>
-                                    <th style="width: 65px; text-align: center;">Action</th>
+                                    <th style="width: 32px; text-align: center;">#</th>
+                                    <th style="width: 55px; text-align: center;">Status</th>
+                                    <th style="min-width: 150px;"><i class="fa-solid fa-trophy" style="margin-right: 4px; color: var(--primary);"></i> Competition</th>
+                                    <th style="width: 100px;"><i class="fa-solid fa-layer-group" style="margin-right: 4px;"></i> Category</th>
+                                    <th style="width: 125px;"><i class="fa-solid fa-microphone-lines" style="margin-right: 4px;"></i> Venue</th>
+                                    <th style="width: 110px;"><i class="fa-regular fa-calendar" style="margin-right: 4px;"></i> Date</th>
+                                    <th style="width: 75px; text-align: center;"><i class="fa-regular fa-clock" style="margin-right: 4px;"></i> From</th>
+                                    <th style="width: 75px; text-align: center;"><i class="fa-regular fa-clock" style="margin-right: 4px;"></i> To</th>
+                                    <th style="width: 55px; text-align: center;">Mins</th>
+                                    <th style="width: 95px;"><i class="fa-solid fa-globe" style="margin-right: 4px;"></i> Publish</th>
+                                    <th style="width: 80px; text-align: center;">State</th>
+                                    <th style="width: 40px; text-align: center;">Del</th>
                                 </tr>
                             </thead>
                             <tbody id="schedSheetTbody"></tbody>

@@ -11292,42 +11292,42 @@ function renderScheduleSheet() {
 
         html += `
             <tr id="sched-sheet-row-${item.compId}" class="${rowClass}">
-                <td style="text-align: center; color: var(--text-muted); font-weight: 700; font-size: 0.75rem;">${idx + 1}</td>
-                <td id="sched-sheet-status-${item.compId}" style="text-align: center;">${statusBadge}</td>
-                <td style="font-weight: 700; color: var(--text-main); padding: 0.4rem 0.65rem !important;">
+                <td style="text-align: center; color: var(--text-muted); font-weight: 700; font-size: 0.72rem;">${idx + 1}</td>
+                <td id="sched-sheet-status-${item.compId}" style="text-align: center; padding: 0 2px !important;">${statusBadge}</td>
+                <td style="font-weight: 700; color: var(--text-main); padding: 0.35rem 0.5rem !important; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;" title="${escapeSheetHtml(item.compName)}">
                     ${escapeSheetHtml(item.compName)}
                 </td>
-                <td style="padding: 0.4rem 0.65rem !important; color: var(--text-muted); font-size: 0.82rem;">
+                <td style="padding: 0.35rem 0.5rem !important; color: var(--text-muted); font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${escapeSheetHtml(item.categoryName || 'General')}">
                     ${escapeSheetHtml(item.categoryName || 'General')}
                 </td>
                 <td>
-                    <select class="sheet-cell-select" onchange="markSchedSheetDirty('${item.compId}', 'stage_id', this.value)">
+                    <select class="sheet-cell-select" style="font-size: 0.78rem; padding: 0 4px !important;" onchange="markSchedSheetDirty('${item.compId}', 'stage_id', this.value)">
                         ${stageSelectOptions.replace(`value="${item.stage_id || ''}"`, `value="${item.stage_id || ''}" selected`)}
                     </select>
                 </td>
                 <td>
-                    <input type="date" class="sheet-cell-input" style="text-transform: none; text-align: center;" value="${item.date}" onchange="markSchedSheetDirty('${item.compId}', 'date', this.value)">
+                    <input type="date" class="sheet-cell-input" style="text-transform: none; text-align: center; font-size: 0.78rem; padding: 0 2px !important;" value="${item.date}" onchange="markSchedSheetDirty('${item.compId}', 'date', this.value)">
                 </td>
                 <td>
-                    <input type="time" class="sheet-cell-input" style="text-transform: none; text-align: center;" value="${item.time}" onchange="markSchedSheetDirty('${item.compId}', 'time', this.value)">
+                    <input type="time" class="sheet-cell-input" style="text-transform: none; text-align: center; font-size: 0.78rem; padding: 0 2px !important;" value="${item.time}" onchange="markSchedSheetDirty('${item.compId}', 'time', this.value)">
                 </td>
                 <td>
-                    <input type="time" class="sheet-cell-input" style="text-transform: none; text-align: center;" value="${item.to_time}" onchange="markSchedSheetDirty('${item.compId}', 'to_time', this.value)">
+                    <input type="time" class="sheet-cell-input" style="text-transform: none; text-align: center; font-size: 0.78rem; padding: 0 2px !important;" value="${item.to_time}" onchange="markSchedSheetDirty('${item.compId}', 'to_time', this.value)">
                 </td>
                 <td>
-                    <input type="number" class="sheet-cell-input" style="text-align: center;" value="${item.manual_time || ''}" placeholder="Auto" min="0" max="600" oninput="markSchedSheetDirty('${item.compId}', 'manual_time', this.value)">
+                    <input type="number" class="sheet-cell-input" style="text-align: center; font-size: 0.78rem; padding: 0 2px !important;" value="${item.manual_time || ''}" placeholder="Auto" min="0" max="600" oninput="markSchedSheetDirty('${item.compId}', 'manual_time', this.value)">
                 </td>
                 <td>
-                    <select class="sheet-cell-select" onchange="markSchedSheetDirty('${item.compId}', 'status', this.value)">
+                    <select class="sheet-cell-select" style="font-size: 0.78rem; padding: 0 4px !important;" onchange="markSchedSheetDirty('${item.compId}', 'status', this.value)">
                         <option value="published" ${item.status === 'published' ? 'selected' : ''}>🟢 Published</option>
                         <option value="draft" ${item.status === 'draft' ? 'selected' : ''}>📝 Draft</option>
                     </select>
                 </td>
-                <td style="text-align: center; font-size: 0.72rem; font-weight: 800; color: ${compStateColor};">
+                <td style="text-align: center; font-size: 0.7rem; font-weight: 800; color: ${compStateColor}; white-space: nowrap; padding: 0 4px !important;">
                     ${compStateStr}
                 </td>
-                <td style="text-align: center;">
-                    <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.55rem; color: #DC2626; border-color: transparent; font-size: 0.85rem; border-radius: 6px;" onclick="deleteSchedSheetRow('${item.compId}')" title="Delete schedule">
+                <td style="text-align: center; padding: 0 2px !important;">
+                    <button type="button" class="btn btn-outline" style="padding: 0.25rem 0.45rem; color: #DC2626; border-color: transparent; font-size: 0.8rem; border-radius: 6px;" onclick="deleteSchedSheetRow('${item.compId}')" title="Delete schedule">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
                 </td>
