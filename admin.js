@@ -10266,25 +10266,26 @@ async function exportScheduleCSV() {
 // ==========================================
 
 function downloadScheduleTemplate() {
-    const headers = ['competition_name', 'date', 'from_time', 'to_time', 'stage_name', 'status'];
+    const headers = ['competition_name', 'category', 'date', 'from_time', 'to_time', 'stage_name', 'status'];
     let sampleRows = [];
     
-    // Populate with real competition names from this festival if available
+    // Populate with real competition names and categories from this festival if available
     if (Array.isArray(competitionsList) && competitionsList.length > 0) {
-        competitionsList.slice(0, 10).forEach((c, idx) => {
+        competitionsList.slice(0, 15).forEach((c, idx) => {
+            const catName = c.categories?.name || (categoriesList.find(cat => String(cat.id) === String(c.category_id))?.name) || 'General';
             const stageName = c.stages?.name || (stagesList && stagesList[0] ? stagesList[0].name : 'Main Stage');
             const h = 9 + Math.floor(idx * 0.75);
             const m = (idx % 2 === 0) ? '00' : '30';
             const hEnd = h + 1;
             const fromT = `${String(h).padStart(2, '0')}:${m}`;
             const toT = `${String(hEnd).padStart(2, '0')}:${m}`;
-            sampleRows.push([c.name, '2026-11-15', fromT, toT, c.is_offstage ? 'Offstage' : stageName, 'published']);
+            sampleRows.push([c.name, catName.trim(), '2026-11-15', fromT, toT, c.is_offstage ? 'Offstage' : stageName, 'published']);
         });
     } else {
         sampleRows = [
-            ['SEMINAR', '2026-11-15', '09:30', '11:00', 'Stage 1', 'published'],
-            ['QURAN RECITATION', '2026-11-15', '11:15', '13:00', 'Stage 1', 'published'],
-            ['ESSAY WRITING', '2026-11-15', '14:00', '15:30', 'Offstage', 'published']
+            ['SEMINAR', 'General', '2026-11-15', '09:30', '11:00', 'Stage 1', 'published'],
+            ['QURAN RECITATION', 'PRIMARY', '2026-11-15', '11:15', '13:00', 'Stage 1', 'published'],
+            ['ESSAY WRITING', 'SECONDARY', '2026-11-15', '14:00', '15:30', 'Offstage', 'published']
         ];
     }
     
@@ -10331,18 +10332,26 @@ function previewBulkScheduleCSV(input) {
                 return showToast('No rows found in CSV file.', 'warning');
             }
             
-            // Map rows and check matching against competitionsList
+            // Map rows and check matching against competitionsList (Name + Category)
             let matched = 0;
             let missing = 0;
             let previewHtml = '';
             
             window.parsedBulkScheduleRows.forEach((row) => {
                 const rawName = row.competition_name || row.competition || row.name || row.event || '';
+                const rawCat = row.category || row.category_name || '';
                 const compName = String(rawName).trim().toLowerCase();
-                const matchedComp = (competitionsList || []).find(c => 
-                    String(c.name).trim().toLowerCase() === compName || 
-                    String(c.id) === String(rawName).trim()
-                );
+                const catFilter = String(rawCat).trim().toLowerCase();
+                
+                const matchedComp = (competitionsList || []).find(c => {
+                    const nameMatch = String(c.name).trim().toLowerCase() === compName || String(c.id) === String(rawName).trim();
+                    if (!nameMatch) return false;
+                    if (catFilter) {
+                        const cCatName = String(c.categories?.name || (categoriesList.find(cat => String(cat.id) === String(c.category_id))?.name) || '').trim().toLowerCase();
+                        return cCatName === catFilter || String(c.category_id) === catFilter;
+                    }
+                    return true;
+                });
                 
                 const rawDate = row.date || row.event_date || '';
                 const rawFrom = row.from_time || row.start_time || row.time || row['time (from)'] || '';
@@ -10351,17 +10360,21 @@ function previewBulkScheduleCSV(input) {
                 
                 if (matchedComp) {
                     matched++;
+                    const cCatDisplay = matchedComp.categories?.name || (categoriesList.find(cat => String(cat.id) === String(matchedComp.category_id))?.name) || '';
                     previewHtml += `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border);">
-                            <span style="font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-check" style="color: #059669; margin-right: 5px;"></i> ${matchedComp.name}</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border);">
+                            <div>
+                                <span style="font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-check" style="color: #059669; margin-right: 5px;"></i> ${matchedComp.name}</span>
+                                ${cCatDisplay ? `<span class="badge" style="background:#F1F5F9; color:#475569; font-size: 0.65rem; margin-left: 5px;">${cCatDisplay}</span>` : ''}
+                            </div>
                             <span style="color: var(--text-muted); font-size: 0.75rem;">${rawDate} ${rawFrom}${rawTo ? ' - ' + rawTo : ''} ${rawStage ? '(' + rawStage + ')' : ''}</span>
                         </div>
                     `;
                 } else {
                     missing++;
                     previewHtml += `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border); color: #DC2626;">
-                            <span><i class="fa-solid fa-triangle-exclamation" style="margin-right: 5px;"></i> "${rawName}" (Not found)</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); color: #DC2626;">
+                            <span><i class="fa-solid fa-triangle-exclamation" style="margin-right: 5px;"></i> "${rawName}" ${rawCat ? `(${rawCat})` : ''} (Not found)</span>
                             <span style="font-size: 0.75rem;">Skipped</span>
                         </div>
                     `;
@@ -10369,7 +10382,7 @@ function previewBulkScheduleCSV(input) {
             });
             
             if (summary) {
-                summary.innerHTML = `<span style="color: #059669;">${matched} competitions matched</span>, <span style="color: ${missing > 0 ? '#DC2626' : 'var(--text-muted)'};">${missing} not found</span>`;
+                summary.innerHTML = `<span style="color: #059669; font-weight: 800;">${matched} competitions matched</span>, <span style="color: ${missing > 0 ? '#DC2626' : 'var(--text-muted)'}; font-weight: 700;">${missing} not found</span>`;
             }
             if (list) list.innerHTML = previewHtml;
             if (previewContainer) previewContainer.style.display = 'block';
@@ -10396,7 +10409,7 @@ function openBulkScheduleModal() {
             <div style="font-weight: 800; margin-bottom: 0.25rem; font-size: 0.95rem;">
                 <i class="fa-solid fa-file-csv"></i> Bulk Event Scheduling via CSV
             </div>
-            Upload a spreadsheet with event dates, start times, and stages to schedule all competitions at once.
+            Upload a spreadsheet with event dates, start times, stages, and categories to schedule all competitions at once.
         </div>
 
         <div class="form-group" style="margin-bottom: 1.25rem;">
@@ -10462,11 +10475,19 @@ async function handleBulkScheduleUpload() {
         
         rows.forEach(row => {
             const rawName = row.competition_name || row.competition || row.name || row.event || '';
+            const rawCat = row.category || row.category_name || '';
             const compName = String(rawName).trim().toLowerCase();
-            const matchedComp = (competitionsList || []).find(c => 
-                String(c.name).trim().toLowerCase() === compName || 
-                String(c.id) === String(rawName).trim()
-            );
+            const catFilter = String(rawCat).trim().toLowerCase();
+            
+            const matchedComp = (competitionsList || []).find(c => {
+                const nameMatch = String(c.name).trim().toLowerCase() === compName || String(c.id) === String(rawName).trim();
+                if (!nameMatch) return false;
+                if (catFilter) {
+                    const cCatName = String(c.categories?.name || (categoriesList.find(cat => String(cat.id) === String(c.category_id))?.name) || '').trim().toLowerCase();
+                    return cCatName === catFilter || String(c.category_id) === catFilter;
+                }
+                return true;
+            });
             
             if (!matchedComp) return;
             
@@ -10520,7 +10541,7 @@ async function handleBulkScheduleUpload() {
         });
         
         if (scheduledCount === 0) {
-            throw new Error('No valid competitions could be scheduled. Please ensure competition names match accurately.');
+            throw new Error('No valid competitions could be scheduled. Please ensure competition and category names match accurately.');
         }
         
         // 1. Persist master schedule
