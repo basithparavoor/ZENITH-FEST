@@ -1312,7 +1312,7 @@ async function loadCompetitions() {
 
         const { data, error } = await festQuery(supabaseClient
             .from('competitions')
-            .select(`*, categories(name), stages(name), participant_competitions(count)`))
+            .select(`*, categories(id, name, is_general, allowed_general_categories), stages(name), participant_competitions(count)`))
             .order('name');
             
         if(error) throw error;
@@ -1328,6 +1328,10 @@ async function loadCompetitions() {
         const filterStage = document.getElementById('filterCompStage');
         if(filterStage && filterStage.options.length === 1) {
             stagesList.forEach(s => filterStage.innerHTML += `<option value="${s.name}">${s.name}</option>`);
+        }
+
+        if (typeof populateBulkStageSelect === 'function') {
+            populateBulkStageSelect();
         }
 
         filterCompetitions(false); 
@@ -1445,6 +1449,105 @@ function changeCompPage(direction) {
     if (compCurrentPage > totalPages) compCurrentPage = totalPages;
     renderCompetitionsTable();
 }
+
+// ==========================================
+// BULK EDIT STAGE FOR COMPETITIONS
+// ==========================================
+function populateBulkStageSelect() {
+    const select = document.getElementById('bulkStageSelect');
+    if (!select) return;
+    const curVal = select.value;
+    select.innerHTML = '<option value="">-- SELECT STAGE --</option>';
+    (stagesList || []).forEach(s => {
+        select.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+    });
+    select.innerHTML += '<option value="__offstage__">-- SET AS OFFSTAGE --</option>';
+    select.innerHTML += '<option value="__unassigned__">-- UNASSIGN STAGE --</option>';
+    if (curVal) select.value = curVal;
+}
+window.populateBulkStageSelect = populateBulkStageSelect;
+
+async function bulkAssignStage() {
+    const compIds = getSelectedIds('competitions-tbody');
+    if (!compIds || compIds.length === 0) {
+        return showToast('Please select at least one competition using the checkboxes.', 'error');
+    }
+    
+    const stageSelect = document.getElementById('bulkStageSelect');
+    const stageVal = stageSelect ? stageSelect.value : '';
+    
+    if (!stageVal) {
+        return openBulkEditStageModal(compIds);
+    }
+    
+    await executeBulkStageUpdate(compIds, stageVal);
+}
+window.bulkAssignStage = bulkAssignStage;
+
+function openBulkEditStageModal(compIds) {
+    if (!compIds || compIds.length === 0) {
+        compIds = getSelectedIds('competitions-tbody');
+    }
+    if (!compIds || compIds.length === 0) {
+        return showToast('Please select at least one competition using the checkboxes.', 'error');
+    }
+    
+    let stageOpts = (stagesList || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    
+    openModal('Bulk Edit Stage for Competitions', `
+        <div style="margin-bottom: 1.25rem; padding: 1rem; background: var(--primary-light); border-radius: var(--radius-md); color: var(--primary); font-weight: 700; font-size: 0.9rem;">
+            <i class="fa-solid fa-layer-group"></i> Assigning stage to ${compIds.length} selected competition(s).
+        </div>
+        <div class="form-group">
+            <label style="font-weight: 700;">Select New Stage</label>
+            <select id="modalBulkStageSelect" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; background: var(--bg-surface);">
+                <option value="">-- SELECT STAGE --</option>
+                ${stageOpts}
+                <option value="__offstage__">-- SET AS OFFSTAGE EVENT --</option>
+                <option value="__unassigned__">-- REMOVE STAGE (UNASSIGNED) --</option>
+            </select>
+        </div>
+    `, async () => {
+        const val = document.getElementById('modalBulkStageSelect')?.value;
+        if (!val) return showToast('Please select a stage option.', 'error');
+        await executeBulkStageUpdate(compIds, val);
+        closeModal();
+    });
+}
+window.openBulkEditStageModal = openBulkEditStageModal;
+
+async function executeBulkStageUpdate(compIds, stageVal) {
+    setLoading('modalSaveBtn', true);
+    try {
+        let updateData = {};
+        if (stageVal === '__offstage__') {
+            updateData = { stage_id: null, is_offstage: true };
+        } else if (stageVal === '__unassigned__') {
+            updateData = { stage_id: null, is_offstage: false };
+        } else {
+            updateData = { stage_id: stageVal, is_offstage: false };
+        }
+        
+        const { error } = await supabaseClient
+            .from('competitions')
+            .update(updateData)
+            .in('id', compIds);
+            
+        if (error) throw error;
+        
+        showToast(`Successfully updated stage for ${compIds.length} competition(s)!`);
+        clearSelection('competitions-tbody');
+        if (document.getElementById('bulkStageSelect')) {
+            document.getElementById('bulkStageSelect').value = '';
+        }
+        await loadCompetitions();
+    } catch (e) {
+        showToast(e.message, 'error');
+    } finally {
+        setLoading('modalSaveBtn', false);
+    }
+}
+window.executeBulkStageUpdate = executeBulkStageUpdate;
 
 // Generates a Premium PDF Directory for Competitions
 // Generates a Premium PDF Directory for Competitions
@@ -1676,6 +1779,7 @@ async function loadStagesAndTeams() {
         
         stagesList = stagesRes.data || [];
         teamsList = teamsRes.data || [];
+        if (typeof populateBulkStageSelect === 'function') populateBulkStageSelect();
         
         const stbody = document.getElementById('stages-tbody');
         stbody.innerHTML = '';
@@ -3746,7 +3850,6 @@ async function loadAssignWorkspaceStudents() {
     const tbody = document.getElementById('assign-workspace-tbody');
     
     const categoryId = catSelect.value;
-    const isGeneral = catSelect.options[catSelect.selectedIndex].getAttribute('data-general') === 'true';
     const compId = compSelect.value;
 
     if (!compId) {
@@ -3754,10 +3857,14 @@ async function loadAssignWorkspaceStudents() {
         return;
     }
 
-    currentAssignCompLimit = parseInt(compSelect.options[compSelect.selectedIndex].getAttribute('data-limit')) || 0;
+    const comp = (competitionsList || []).find(c => String(c.id) === String(compId));
+    const compCat = (categoriesList || []).find(c => String(c.id) === String(categoryId || comp?.category_id)) || comp?.categories;
+    const isGeneral = compCat ? (compCat.is_general === true || String(compCat.is_general) === 'true') : (catSelect.options[catSelect.selectedIndex]?.getAttribute('data-general') === 'true');
+
+    currentAssignCompLimit = comp?.max_participants ?? (parseInt(compSelect.options[compSelect.selectedIndex]?.getAttribute('data-limit')) || 0);
     
     // NEW: Capture if the selected competition is a group event
-    const isGroupComp = compSelect.options[compSelect.selectedIndex].getAttribute('data-is-group') === 'true';
+    const isGroupComp = comp ? !!comp.is_group : (compSelect.options[compSelect.selectedIndex]?.getAttribute('data-is-group') === 'true');
 
     workspace.style.display = 'block';
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading students...</td></tr>';
@@ -3766,12 +3873,18 @@ async function loadAssignWorkspaceStudents() {
         const limitDisplay = document.getElementById('assignLimitIndicator');
         limitDisplay.innerHTML = `<i class="fa-solid fa-users"></i> Max Enrollment: ${currentAssignCompLimit} Participants Per Team`;
         
-        // --- NEW: Calculate Allowed Categories ---
-        let allowedCatIds = [categoryId]; 
+        // --- Calculate Allowed Categories for General or Standard ---
+        let allowedCatIds = [String(categoryId)]; 
         if (isGeneral && typeof categoriesList !== 'undefined') {
             categoriesList.forEach(c => {
-                if (c.allowed_general_categories && c.allowed_general_categories.includes(categoryId)) {
-                    allowedCatIds.push(c.id);
+                let rawAllowed = c.allowed_general_categories;
+                let allowed = [];
+                try {
+                    if (typeof rawAllowed === 'string') allowed = JSON.parse(rawAllowed);
+                    else if (Array.isArray(rawAllowed)) allowed = rawAllowed;
+                } catch(e) {}
+                if (allowed.some(id => String(id) === String(categoryId))) {
+                    allowedCatIds.push(String(c.id));
                 }
             });
         }
@@ -10148,6 +10261,297 @@ async function exportScheduleCSV() {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
+// ==========================================
+// BULK EVENT SCHEDULER & CSV TEMPLATE ENGINE
+// ==========================================
+
+function downloadScheduleTemplate() {
+    const headers = ['competition_name', 'date', 'from_time', 'to_time', 'stage_name', 'status'];
+    let sampleRows = [];
+    
+    // Populate with real competition names from this festival if available
+    if (Array.isArray(competitionsList) && competitionsList.length > 0) {
+        competitionsList.slice(0, 10).forEach((c, idx) => {
+            const stageName = c.stages?.name || (stagesList && stagesList[0] ? stagesList[0].name : 'Main Stage');
+            const h = 9 + Math.floor(idx * 0.75);
+            const m = (idx % 2 === 0) ? '00' : '30';
+            const hEnd = h + 1;
+            const fromT = `${String(h).padStart(2, '0')}:${m}`;
+            const toT = `${String(hEnd).padStart(2, '0')}:${m}`;
+            sampleRows.push([c.name, '2026-11-15', fromT, toT, c.is_offstage ? 'Offstage' : stageName, 'published']);
+        });
+    } else {
+        sampleRows = [
+            ['SEMINAR', '2026-11-15', '09:30', '11:00', 'Stage 1', 'published'],
+            ['QURAN RECITATION', '2026-11-15', '11:15', '13:00', 'Stage 1', 'published'],
+            ['ESSAY WRITING', '2026-11-15', '14:00', '15:30', 'Offstage', 'published']
+        ];
+    }
+    
+    const csvContent = [headers.join(',')].concat(
+        sampleRows.map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
+    ).join('\r\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", "festos_schedule_template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Schedule CSV template downloaded successfully!');
+}
+window.downloadScheduleTemplate = downloadScheduleTemplate;
+
+window.parsedBulkScheduleRows = [];
+
+function previewBulkScheduleCSV(input) {
+    const file = input.files?.[0];
+    const previewContainer = document.getElementById('bulkSchedPreviewContainer');
+    const summary = document.getElementById('bulkSchedSummary');
+    const list = document.getElementById('bulkSchedPreviewList');
+    
+    if (!file) {
+        if (previewContainer) previewContainer.style.display = 'none';
+        window.parsedBulkScheduleRows = [];
+        return;
+    }
+    
+    if (typeof Papa === 'undefined') {
+        return showToast('PapaParse CSV engine not loaded.', 'error');
+    }
+    
+    Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+            window.parsedBulkScheduleRows = results.data || [];
+            if (window.parsedBulkScheduleRows.length === 0) {
+                if (previewContainer) previewContainer.style.display = 'none';
+                return showToast('No rows found in CSV file.', 'warning');
+            }
+            
+            // Map rows and check matching against competitionsList
+            let matched = 0;
+            let missing = 0;
+            let previewHtml = '';
+            
+            window.parsedBulkScheduleRows.forEach((row) => {
+                const rawName = row.competition_name || row.competition || row.name || row.event || '';
+                const compName = String(rawName).trim().toLowerCase();
+                const matchedComp = (competitionsList || []).find(c => 
+                    String(c.name).trim().toLowerCase() === compName || 
+                    String(c.id) === String(rawName).trim()
+                );
+                
+                const rawDate = row.date || row.event_date || '';
+                const rawFrom = row.from_time || row.start_time || row.time || row['time (from)'] || '';
+                const rawTo = row.to_time || row.end_time || row['time (to)'] || '';
+                const rawStage = row.stage_name || row.stage || '';
+                
+                if (matchedComp) {
+                    matched++;
+                    previewHtml += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border);">
+                            <span style="font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-check" style="color: #059669; margin-right: 5px;"></i> ${matchedComp.name}</span>
+                            <span style="color: var(--text-muted); font-size: 0.75rem;">${rawDate} ${rawFrom}${rawTo ? ' - ' + rawTo : ''} ${rawStage ? '(' + rawStage + ')' : ''}</span>
+                        </div>
+                    `;
+                } else {
+                    missing++;
+                    previewHtml += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border); color: #DC2626;">
+                            <span><i class="fa-solid fa-triangle-exclamation" style="margin-right: 5px;"></i> "${rawName}" (Not found)</span>
+                            <span style="font-size: 0.75rem;">Skipped</span>
+                        </div>
+                    `;
+                }
+            });
+            
+            if (summary) {
+                summary.innerHTML = `<span style="color: #059669;">${matched} competitions matched</span>, <span style="color: ${missing > 0 ? '#DC2626' : 'var(--text-muted)'};">${missing} not found</span>`;
+            }
+            if (list) list.innerHTML = previewHtml;
+            if (previewContainer) previewContainer.style.display = 'block';
+        },
+        error: function(err) {
+            showToast('CSV parse error: ' + err.message, 'error');
+        }
+    });
+}
+window.previewBulkScheduleCSV = previewBulkScheduleCSV;
+
+function openBulkScheduleModal() {
+    window.parsedBulkScheduleRows = [];
+    
+    if (!competitionsList || competitionsList.length === 0) {
+        loadCompetitions();
+    }
+    if (!stagesList || stagesList.length === 0) {
+        loadStagesAndTeams();
+    }
+    
+    openModal('Bulk Upload Event Schedule (CSV)', `
+        <div style="margin-bottom: 1.25rem; padding: 1rem; background: var(--primary-light); border-radius: var(--radius-md); color: var(--primary); font-size: 0.85rem; line-height: 1.5;">
+            <div style="font-weight: 800; margin-bottom: 0.25rem; font-size: 0.95rem;">
+                <i class="fa-solid fa-file-csv"></i> Bulk Event Scheduling via CSV
+            </div>
+            Upload a spreadsheet with event dates, start times, and stages to schedule all competitions at once.
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <label style="font-weight: 700; margin: 0;">Select Schedule CSV File</label>
+                <button type="button" class="btn btn-outline" onclick="downloadScheduleTemplate()" style="padding: 0.25rem 0.65rem; font-size: 0.75rem; border-color: var(--primary); color: var(--primary);">
+                    <i class="fa-solid fa-download"></i> Download Template CSV
+                </button>
+            </div>
+            <input type="file" id="bulkSchedCsvFile" accept=".csv" style="width: 100%; padding: 0.75rem; border: 2px dashed var(--border); border-radius: var(--radius-md); background: var(--bg-surface); cursor: pointer;" onchange="previewBulkScheduleCSV(this)">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div class="form-group" style="margin: 0;">
+                <label style="font-weight: 700;">Default Schedule Status</label>
+                <select id="bulkSchedDefaultStatus" style="width: 100%; padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-surface);">
+                    <option value="published" selected>Published (Visible to all)</option>
+                    <option value="draft">Draft (Admin only)</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin: 0; display: flex; flex-direction: column; justify-content: flex-end;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.85rem; cursor: pointer; margin-bottom: 0.4rem;">
+                    <input type="checkbox" id="bulkSchedUpdateStage" checked style="accent-color: var(--primary); width: 18px; height: 18px;">
+                    Auto-update competition stage from CSV
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
+                    <input type="checkbox" id="bulkSchedOverwrite" checked style="accent-color: var(--primary); width: 18px; height: 18px;">
+                    Overwrite existing event schedules
+                </label>
+            </div>
+        </div>
+
+        <div id="bulkSchedPreviewContainer" style="display: none; margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+            <div id="bulkSchedSummary" style="font-weight: 700; font-size: 0.85rem; margin-bottom: 0.5rem;"></div>
+            <div id="bulkSchedPreviewList" style="max-height: 180px; overflow-y: auto; background: var(--bg-main); border-radius: var(--radius-md); padding: 0.5rem; font-size: 0.8rem; border: 1px solid var(--border);"></div>
+        </div>
+    `, async () => {
+        await handleBulkScheduleUpload();
+    });
+}
+window.openBulkScheduleModal = openBulkScheduleModal;
+
+async function handleBulkScheduleUpload() {
+    const fileInput = document.getElementById('bulkSchedCsvFile');
+    if (!fileInput || !fileInput.files.length) {
+        return showToast('Please select a CSV file first.', 'error');
+    }
+    
+    const rows = window.parsedBulkScheduleRows || [];
+    if (rows.length === 0) {
+        return showToast('No data to schedule in CSV file.', 'error');
+    }
+    
+    const defaultStatus = document.getElementById('bulkSchedDefaultStatus')?.value || 'published';
+    const autoUpdateStage = document.getElementById('bulkSchedUpdateStage')?.checked ?? true;
+    const overwrite = document.getElementById('bulkSchedOverwrite')?.checked ?? true;
+    
+    setLoading('modalSaveBtn', true);
+    
+    try {
+        let scheduledCount = 0;
+        let stageUpdates = [];
+        
+        rows.forEach(row => {
+            const rawName = row.competition_name || row.competition || row.name || row.event || '';
+            const compName = String(rawName).trim().toLowerCase();
+            const matchedComp = (competitionsList || []).find(c => 
+                String(c.name).trim().toLowerCase() === compName || 
+                String(c.id) === String(rawName).trim()
+            );
+            
+            if (!matchedComp) return;
+            
+            const rawDate = String(row.date || row.event_date || '').trim();
+            const rawFrom = String(row.from_time || row.start_time || row.time || row['time (from)'] || '').trim();
+            let rawTo = String(row.to_time || row.end_time || row['time (to)'] || '').trim();
+            if (rawTo === '-') rawTo = '';
+            
+            if (!rawDate || !rawFrom) return;
+            
+            // Check if already scheduled and overwrite disabled
+            if (masterSchedule[matchedComp.id] && !overwrite) return;
+            
+            const rawStatus = String(row.status || defaultStatus).trim().toLowerCase();
+            const status = (rawStatus === 'draft') ? 'draft' : 'published';
+            
+            // Auto-calculate to_time if omitted
+            if (!rawTo && matchedComp.time_per_student) {
+                const fromMins = timeStringToMinutes(rawFrom);
+                const estMins = matchedComp.time_per_student * (matchedComp.max_participants || 1);
+                rawTo = minutesToTimeString(fromMins + (estMins > 0 ? estMins : 30));
+            }
+            
+            masterSchedule[matchedComp.id] = {
+                date: rawDate,
+                time: rawFrom,
+                to_time: rawTo,
+                manual_time: row.manual_time || '',
+                status: status
+            };
+            scheduledCount++;
+            
+            // Stage update check
+            if (autoUpdateStage) {
+                const rawStage = String(row.stage_name || row.stage || '').trim().toLowerCase();
+                if (rawStage) {
+                    if (rawStage.includes('offstage')) {
+                        stageUpdates.push({ id: matchedComp.id, stage_id: null, is_offstage: true });
+                    } else {
+                        const matchedStage = (stagesList || []).find(s => 
+                            String(s.name).trim().toLowerCase() === rawStage || 
+                            String(s.id) === rawStage ||
+                            `stage ${s.stage_no}` === rawStage
+                        );
+                        if (matchedStage) {
+                            stageUpdates.push({ id: matchedComp.id, stage_id: matchedStage.id, is_offstage: false });
+                        }
+                    }
+                }
+            }
+        });
+        
+        if (scheduledCount === 0) {
+            throw new Error('No valid competitions could be scheduled. Please ensure competition names match accurately.');
+        }
+        
+        // 1. Persist master schedule
+        const { error: schedError } = window.festosSaveSetting 
+            ? await window.festosSaveSetting('master_schedule', masterSchedule) 
+            : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+        if (schedError) throw schedError;
+        
+        // 2. Perform bulk stage updates if any
+        if (stageUpdates.length > 0) {
+            for (const update of stageUpdates) {
+                await supabaseClient.from('competitions').update({
+                    stage_id: update.stage_id,
+                    is_offstage: update.is_offstage
+                }).eq('id', update.id);
+            }
+            await loadCompetitions();
+        }
+        
+        showToast(`Successfully scheduled ${scheduledCount} event(s)!`);
+        closeModal();
+        await detectScheduleConflicts();
+        filterScheduleTable();
+    } catch (e) {
+        showToast('Bulk Schedule failed: ' + e.message, 'error');
+    } finally {
+        setLoading('modalSaveBtn', false);
+    }
+}
+window.handleBulkScheduleUpload = handleBulkScheduleUpload;
+
 
 
 // ============================================================================
@@ -11763,17 +12167,23 @@ window.tempSelectedStudents = [];
 window.tempAvailableStudents = [];
 
 window.openQuickAddModal = function(compId, teamId) {
-    const comp = competitionsList.find(c => c.id === compId);
+    const comp = competitionsList.find(c => String(c.id) === String(compId));
     if (!comp) return;
+
+    const compCat = (categoriesList || []).find(c => String(c.id) === String(comp.category_id)) || comp.categories;
+    const isGeneral = compCat ? (compCat.is_general === true || String(compCat.is_general) === 'true') : false;
 
     // Filter Eligible Students from memory
     const eligibleStudents = participantsList.filter(student => {
         // Enforce the team matching exactly
-        if (student.team_id != teamId) return false;
+        if (String(student.team_id) !== String(teamId)) return false;
         
-        if (student.category_id == comp.category_id) return true;
-        if (comp.categories?.is_general) {
-            const studentCategory = categoriesList.find(c => c.id == student.category_id);
+        // Direct category match
+        if (String(student.category_id) === String(comp.category_id)) return true;
+        
+        // General Category Cross-match
+        if (isGeneral) {
+            const studentCategory = (categoriesList || []).find(c => String(c.id) === String(student.category_id));
             if (studentCategory) {
                 let allowedCats = [];
                 try {
@@ -11781,19 +12191,19 @@ window.openQuickAddModal = function(compId, teamId) {
                     if (typeof rawAllowed === 'string') allowedCats = JSON.parse(rawAllowed);
                     else if (Array.isArray(rawAllowed)) allowedCats = rawAllowed;
                 } catch(e) {}
-                if (allowedCats.some(id => id == comp.category_id)) return true;
+                if (allowedCats.some(id => String(id) === String(comp.category_id))) return true;
             }
         }
         return false;
     });
 
-    const enrolledIds = window.globalAdminAssignments.filter(a => a.competition_id === compId).map(a => a.participant_id);
-    window.tempAvailableStudents = eligibleStudents.filter(s => !enrolledIds.includes(s.id));
+    const enrolledIds = window.globalAdminAssignments.filter(a => String(a.competition_id) === String(compId)).map(a => String(a.participant_id));
+    window.tempAvailableStudents = eligibleStudents.filter(s => !enrolledIds.includes(String(s.id)));
     window.tempSelectedStudents = [];
     
     // Strict Limit Validations
     window.tempCompLimit = comp.max_participants > 0 ? comp.max_participants : 999;
-    const enrolledTeamIds = window.globalAdminAssignments.filter(a => a.competition_id === compId && a.participants?.team_id == teamId).map(a => a.participant_id);
+    const enrolledTeamIds = window.globalAdminAssignments.filter(a => String(a.competition_id) === String(compId) && String(a.participants?.team_id || '') === String(teamId)).map(a => String(a.participant_id));
     window.tempSlotsLeft = window.tempCompLimit - enrolledTeamIds.length;
     
     window.tempCompId = compId;
@@ -11988,7 +12398,7 @@ window.initAssignWorkspace = async function() {
     if (categoriesList.length === 0) { const { data } = await festQuery(supabaseClient.from('categories').select('*')).order('name'); categoriesList = data || []; }
     if (teamsList.length === 0) { const { data } = await festQuery(supabaseClient.from('teams').select('*')).order('name'); teamsList = data || []; }
     if (participantsList.length === 0) { const { data } = await festQuery(supabaseClient.from('participants').select('*')).order('name'); participantsList = data || []; }
-    if (competitionsList.length === 0) { const { data } = await festQuery(supabaseClient.from('competitions').select('*, categories(name)')).order('name'); competitionsList = data || []; }
+    if (competitionsList.length === 0) { const { data } = await festQuery(supabaseClient.from('competitions').select('*, categories(id, name, is_general, allowed_general_categories)')).order('name'); competitionsList = data || []; }
     
     // Populate Overview Filters
     const catSelect = document.getElementById('filter-assign-overview-cat');
