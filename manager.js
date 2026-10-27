@@ -16,7 +16,7 @@ if (!user || (user.role !== 'fest_manager' && user.role !== 'master_admin' && us
 // Inject Return Button for Admins
 if (user.role === 'master_admin' || user.role === 'admin') {
     document.addEventListener("DOMContentLoaded", () => {
-        const headerDiv = document.querySelector('.header > div');
+        const headerDiv = document.querySelector('.header-actions') || document.querySelector('.header > div:last-child');
         if (headerDiv) {
             const returnBtn = document.createElement('button');
             returnBtn.className = 'btn btn-primary';
@@ -1520,3 +1520,68 @@ async function exportJudgesPDF() {
     document.getElementById('pdf-export-container').innerHTML = ''; // Clean buffer
     html2pdf().set(opt).from(container).save().then(() => showToast('Roster PDF Exported!'));
 }
+
+// =========================================================================
+// 3-STEP COLLAPSIBLE SIDEBAR ENGINE (MANAGER)
+// Step 0: Expanded -> Step 1: Compact (Buttons Only) -> Step 2: Hidden -> Step 0
+// =========================================================================
+function toggleManagerSidebar() {
+    if (window.innerWidth > 768) {
+        const body = document.body;
+        let nextState = 'compact';
+        if (body.classList.contains('sidebar-compact')) {
+            body.classList.remove('sidebar-compact');
+            body.classList.add('sidebar-hidden');
+            nextState = 'hidden';
+        } else if (body.classList.contains('sidebar-hidden') || body.classList.contains('sidebar-collapsed')) {
+            body.classList.remove('sidebar-hidden', 'sidebar-collapsed', 'sidebar-compact');
+            nextState = 'expanded';
+        } else {
+            body.classList.add('sidebar-compact');
+            nextState = 'compact';
+        }
+
+        try {
+            localStorage.setItem('festos_manager_sidebar_state', nextState);
+        } catch (e) {}
+        updateManagerSidebarTooltip(nextState);
+        window.dispatchEvent(new Event('resize'));
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 320);
+    }
+}
+
+function updateManagerSidebarTooltip(state) {
+    const btn = document.getElementById('managerSidebarToggle') || document.querySelector('.sidebar-toggle-btn');
+    if (!btn) return;
+    if (state === 'compact') {
+        btn.title = 'Sidebar: Buttons Only (Click to Hide) - Ctrl+B';
+    } else if (state === 'hidden') {
+        btn.title = 'Sidebar: Hidden (Click to Expand) - Ctrl+B';
+    } else {
+        btn.title = 'Sidebar: Expanded (Click for Buttons Only) - Ctrl+B';
+    }
+}
+
+// Restore Manager desktop 3-step state on load
+try {
+    if (window.innerWidth > 768) {
+        const savedState = localStorage.getItem('festos_manager_sidebar_state');
+        if (savedState === 'compact') {
+            document.body.classList.add('sidebar-compact');
+            updateManagerSidebarTooltip('compact');
+        } else if (savedState === 'hidden' || savedState === 'true' || localStorage.getItem('festos_manager_sidebar_collapsed') === 'true') {
+            document.body.classList.add('sidebar-hidden');
+            updateManagerSidebarTooltip('hidden');
+        } else {
+            updateManagerSidebarTooltip('expanded');
+        }
+    }
+} catch (e) {}
+
+// Ctrl+B shortcut for desktop sidebar collapse
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b' && !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+        e.preventDefault();
+        toggleManagerSidebar();
+    }
+});

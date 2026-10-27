@@ -2981,7 +2981,29 @@
         function renderDownloadsView() {
             const container = document.getElementById('downloads-container');
             if (!container) return;
-            const items = websiteConfig.downloads || [];
+            let items = websiteConfig.downloads || [];
+
+            // Gating check: Filter out Daily Newspaper if disabled by Super Admin or before fest dates
+            const festId = window.activeFestId || 'active_fest';
+            let npCfg = null;
+            try {
+                const rawCfg = localStorage.getItem('festos_cfg_newspaper_config_' + festId);
+                if (rawCfg) npCfg = JSON.parse(rawCfg);
+            } catch(e) {}
+            if (!npCfg && window.availableFests) {
+                const f = window.availableFests.find(x => x.id === festId);
+                if (f && f.newspaper_config) npCfg = f.newspaper_config;
+            }
+
+            const npEnabled = npCfg ? (npCfg.enabled !== false) : true;
+            if (!npEnabled) {
+                items = items.filter(d => d.category !== 'Daily Newspaper');
+            } else if (npCfg && npCfg.allowed_dates && npCfg.allowed_dates.length > 0) {
+                const todayStr = new Date().toISOString().split('T')[0];
+                if (todayStr < npCfg.allowed_dates[0]) {
+                    items = items.filter(d => d.category !== 'Daily Newspaper');
+                }
+            }
 
             if (items.length === 0) {
                 container.innerHTML = `<p style="text-align:center; color:var(--text-muted); grid-column: 1/-1; padding: 4rem 1rem; font-weight: 600; text-transform: uppercase;">No download files published yet.</p>`;
@@ -3049,7 +3071,29 @@
         function renderNewsView() {
             const container = document.getElementById('news-container');
             if (!container) return;
-            const items = websiteConfig.news || [];
+            let items = websiteConfig.news || [];
+
+            // Gating check: Filter out gazette news if disabled by Super Admin or before fest dates
+            const festId = window.activeFestId || 'active_fest';
+            let npCfg = null;
+            try {
+                const rawCfg = localStorage.getItem('festos_cfg_newspaper_config_' + festId);
+                if (rawCfg) npCfg = JSON.parse(rawCfg);
+            } catch(e) {}
+            if (!npCfg && window.availableFests) {
+                const f = window.availableFests.find(x => x.id === festId);
+                if (f && f.newspaper_config) npCfg = f.newspaper_config;
+            }
+
+            const npEnabled = npCfg ? (npCfg.enabled !== false) : true;
+            if (!npEnabled) {
+                items = items.filter(n => n.category !== 'Daily Gazette');
+            } else if (npCfg && npCfg.allowed_dates && npCfg.allowed_dates.length > 0) {
+                const todayStr = new Date().toISOString().split('T')[0];
+                if (todayStr < npCfg.allowed_dates[0]) {
+                    items = items.filter(n => n.category !== 'Daily Gazette');
+                }
+            }
 
             if (items.length === 0) {
                 container.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding: 4rem 1rem; font-weight: 600; text-transform: uppercase;">No announcements posted yet.</p>`;

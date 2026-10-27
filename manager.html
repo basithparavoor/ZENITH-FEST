@@ -97,10 +97,123 @@
             padding: 2.5rem 1.25rem; 
             z-index: 40;
             box-shadow: 10px 0 30px rgba(0,0,0,0.02); 
+            transition: margin-left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            flex-shrink: 0;
+        }
+
+        .sidebar-toggle-btn {
+            display: none;
+        }
+
+        @media (min-width: 769px) {
+            .sidebar {
+                transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+                            min-width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+                            margin-left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+                            padding 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+                flex-shrink: 0;
+                overflow-x: hidden;
+            }
+
+            /* STEP 1: Compact (Buttons / Icons Only) */
+            body.sidebar-compact .sidebar {
+                width: 76px !important;
+                min-width: 76px !important;
+                padding: 1.5rem 0.5rem !important;
+            }
+            body.sidebar-compact .sidebar .brand {
+                padding: 0.5rem 0.25rem !important;
+                margin: 0 auto 2rem auto !important;
+                justify-content: center !important;
+                align-items: center !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                font-size: 0 !important;
+            }
+            body.sidebar-compact .sidebar .brand i {
+                margin: 0 auto !important;
+                font-size: 1.75rem !important;
+                color: var(--primary) !important;
+                display: block !important;
+                text-align: center;
+            }
+            body.sidebar-compact .sidebar .brand img,
+            body.sidebar-compact .sidebar .brand .festos-dynamic-logo {
+                max-width: 48px !important;
+                max-height: 42px !important;
+                width: auto !important;
+                height: auto !important;
+                object-fit: contain !important;
+                margin: 0 auto !important;
+                display: block !important;
+                border-radius: 4px;
+            }
+            body.sidebar-compact .sidebar .brand span,
+            body.sidebar-compact .sidebar .brand .brand-badge,
+            body.sidebar-compact .sidebar .brand .festos-dynamic-name {
+                display: none !important;
+            }
+            body.sidebar-compact .sidebar .nav-item {
+                padding: 0.85rem 0 !important;
+                justify-content: center !important;
+                width: 100% !important;
+                font-size: 0 !important;
+                gap: 0 !important;
+            }
+            body.sidebar-compact .sidebar .nav-item i {
+                margin: 0 !important;
+                font-size: 1.35rem !important;
+                text-align: center;
+            }
+
+            /* STEP 2: Fully Collapsed (Hidden) */
+            body.sidebar-hidden .sidebar,
+    body.sidebar-collapsed .sidebar {
+        width: 0 !important;
+        min-width: 0 !important;
+        max-width: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+    }
+
+            .sidebar-toggle-btn {
+                display: inline-flex !important;
+                align-items: center;
+                justify-content: center;
+                width: 38px;
+                height: 38px;
+                border-radius: var(--radius-md);
+                background: transparent;
+                border: 1px solid var(--border);
+                font-size: 1.25rem;
+                color: var(--text-main);
+                cursor: pointer;
+                transition: var(--transition);
+                flex-shrink: 0;
+            }
+            .sidebar-toggle-btn:hover {
+                background: var(--bg-surface);
+                border-color: var(--border-hover, #CBD5E1);
+                color: var(--primary);
+                transform: translateY(-1px);
+            }
+            .sidebar-toggle-btn:active {
+                transform: scale(0.96);
+            }
         }
 
         .brand {
             font-family: 'Plus Jakarta Sans', sans-serif;
+            margin-bottom: 2.75rem !important;
+            padding-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
             font-size: 1.5rem; 
             font-weight: 800; 
             color: transparent;
@@ -116,7 +229,7 @@
         }
         .brand i { color: var(--primary); font-size: 1.75rem; }
 
-        .nav-items { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
+        .nav-items { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; margin-top: 0.75rem; }
 
         .nav-item {
             padding: 0.85rem 1.25rem; 
@@ -139,7 +252,7 @@
         .nav-item.active i { color: var(--primary); transform: scale(1.1); }
 
         /* --- MAIN CONTENT & HEADER --- */
-        .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; scroll-behavior: smooth; position: relative; }
+        .main-content { flex: 1; min-width: 0 !important; width: 0; max-width: 100%; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth; position: relative; }
 
         .header {
             background: rgba(255, 255, 255, 0.9); 
@@ -273,6 +386,7 @@
            ======================================================================== */
         @media (max-width: 768px) {
             body { flex-direction: column; background-color: #F8FAFC; }
+            .sidebar-toggle-btn { display: none !important; }
             
             /* Native Sticky Top Header */
             .header { 
@@ -728,19 +842,49 @@
 <body>
 
     <div class="sidebar">
-    <div class="brand"><i class="ph-fill ph-crown"></i> FestOS</div>
+    <div class="brand"><script>
+    (function(){
+        try {
+            const user = JSON.parse(localStorage.getItem('festUser') || localStorage.getItem('festSuperAdmin') || '{}');
+            const festId = user.fest_id || localStorage.getItem('festos_active_fest_id') || 'fest_zenith26';
+            const raw = localStorage.getItem('festos_branding_cache_' + festId) || 
+                        localStorage.getItem('festBranding') || 
+                        localStorage.getItem('festos_branding_cache_active') || 
+                        localStorage.getItem('festos_cfg_system_branding_' + festId);
+            if (raw) {
+                const b = JSON.parse(raw);
+                const name = b.fest_name || 'Zenith';
+                const logo = (b.fest_logo && b.fest_logo !== 'festos-logo.svg' && b.fest_logo !== '/festos-logo.svg') ? b.fest_logo : '';
+                let h = '';
+                if (logo) h += '<img src="' + logo + '" alt="' + name + ' Logo" class="festos-dynamic-logo" style="height: 36px; width: auto; max-width: 140px; object-fit: contain; border-radius: 6px; margin-right: 8px; display: inline-block; vertical-align: middle;">';
+                else h += '<i class="ph-fill ph-crown" style="color: var(--primary); margin-right: 8px;"></i>';
+                h += '<span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">' + name + '</span>';
+                document.write(h);
+            } else {
+                document.write('<i class="ph-fill ph-crown" style="color: var(--primary); margin-right: 8px;"></i><span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">Zenith</span>');
+            }
+        } catch(e) {
+            document.write('<i class="ph-fill ph-crown" style="color: var(--primary); margin-right: 8px;"></i><span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">Zenith</span>');
+        }
+    })();
+    </script></div>
     <div class="nav-items">
-        <div class="nav-item active" onclick="switchTab('assignments')"><i class="ph ph-users-three"></i> Assign Judges</div>
-        <div class="nav-item" onclick="switchTab('publish')"><i class="ph ph-megaphone"></i> Publish Results</div>
-        <div class="nav-item" onclick="switchTab('published-results')"><i class="ph ph-check-square-offset"></i> Published</div>
-        <div class="nav-item" onclick="switchTab('judges')"><i class="ph ph-scales"></i> Judge Management</div>
+        <div class="nav-item active" onclick="switchTab('assignments')" title="Assign Judges"><i class="ph ph-users-three"></i> Assign Judges</div>
+        <div class="nav-item" onclick="switchTab('publish')" title="Publish Results"><i class="ph ph-megaphone"></i> Publish Results</div>
+        <div class="nav-item" onclick="switchTab('published-results')" title="Published Results"><i class="ph ph-check-square-offset"></i> Published</div>
+        <div class="nav-item" onclick="switchTab('judges')" title="Judge Management"><i class="ph ph-scales"></i> Judge Management</div>
     </div>
 </div>
 
     <div class="main-content">
         <div class="header">
-            <h1 style="font-size: 1.25rem; font-weight: 700;">Manager Dashboard</h1>
-            <div>
+            <div style="display: flex; align-items: center; gap: 0.85rem; min-width: 0;" class="header-left">
+                <button class="sidebar-toggle-btn" id="managerSidebarToggle" onclick="toggleManagerSidebar()" aria-label="Toggle Sidebar" title="Toggle Sidebar (Ctrl+B)">
+                    <i class="ph ph-list"></i>
+                </button>
+                <h1 id="manager-page-title" data-no-auto-brand="true" style="font-size: 1.25rem; font-weight: 700; margin: 0;">Manager Dashboard</h1>
+            </div>
+            <div class="header-actions">
                 <button class="btn btn-outline" style="margin-right: 0.5rem;" onclick="openStatsModal()">
                     <i class="ph ph-chart-pie-slice"></i> <span>View Progress</span>
                 </button>

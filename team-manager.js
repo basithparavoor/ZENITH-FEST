@@ -10,7 +10,16 @@ if (!user || !allowedTmRoles.includes(user.role)) {
 }
 
 // Global State
-let myTeamId = user.team_id; 
+const urlParams = new URLSearchParams(window.location.search);
+let myTeamId = user.team_id || urlParams.get('team_id') || urlParams.get('id');
+if (!myTeamId) {
+    try {
+        myTeamId = sessionStorage.getItem('festos_tm_selected_team_id') || localStorage.getItem('festos_tm_selected_team_id');
+    } catch(e) {}
+}
+if (myTeamId) {
+    try { sessionStorage.setItem('festos_tm_selected_team_id', myTeamId); } catch(e) {}
+}
 let isAssignmentLocked = false;
 let globalStudents = [];
 let globalComps = [];
@@ -19,6 +28,33 @@ let globalCategories = [];
 let currentCropper = null;
 let systemSettings = {}; 
 let tmScheduleData = {};
+
+// Instantly restore cached team info so "LOADING TEAM..." never hangs on screen
+function restoreCachedTeamHeader() {
+    if (!myTeamId) return;
+    try {
+        const cachedTeam = JSON.parse(sessionStorage.getItem('festos_tm_team_' + myTeamId) || 'null');
+        if (cachedTeam) {
+            const titleEl = document.getElementById('team-name-title');
+            if (titleEl && cachedTeam.name) titleEl.innerText = cachedTeam.name;
+            const mgrNamesEl = document.getElementById('tm-manager-names');
+            if (mgrNamesEl) {
+                const mgr = cachedTeam.manager_name || 'NOT ASSIGNED';
+                const asst = cachedTeam.assistant_manager_name || 'NOT ASSIGNED';
+                mgrNamesEl.innerHTML = `<i class="fa-solid fa-user-tie"></i> MGR: ${mgr} <span style="color:var(--border);">|</span> ASST: ${asst}`;
+            }
+        }
+    } catch (e) {}
+}
+
+// Immediate invocation for zero-latency UI rendering
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', restoreCachedTeamHeader);
+    } else {
+        restoreCachedTeamHeader();
+    }
+}
 
 // UI Utils
 function showToast(message, type = 'success') {
@@ -61,10 +97,74 @@ function setLoading(btnId, isLoading) {
     }
 }
 
+// =========================================================================
+// 3-STEP COLLAPSIBLE SIDEBAR ENGINE (TEAM MANAGER)
+// Step 0: Expanded -> Step 1: Compact (Buttons Only) -> Step 2: Hidden -> Step 0
+// =========================================================================
 function toggleMobileMenu() {
-    document.getElementById('sidebar').classList.toggle('open');
-    document.querySelector('.mobile-overlay').classList.toggle('open');
+    if (window.innerWidth <= 768) {
+        document.getElementById('sidebar').classList.toggle('open');
+        document.querySelector('.mobile-overlay').classList.toggle('open');
+    } else {
+        const body = document.body;
+        let nextState = 'compact';
+        if (body.classList.contains('sidebar-compact')) {
+            body.classList.remove('sidebar-compact');
+            body.classList.add('sidebar-hidden');
+            nextState = 'hidden';
+        } else if (body.classList.contains('sidebar-hidden') || body.classList.contains('sidebar-collapsed')) {
+            body.classList.remove('sidebar-hidden', 'sidebar-collapsed', 'sidebar-compact');
+            nextState = 'expanded';
+        } else {
+            body.classList.add('sidebar-compact');
+            nextState = 'compact';
+        }
+
+        try {
+            localStorage.setItem('festos_team_sidebar_state', nextState);
+        } catch (e) {}
+        updateTeamSidebarTooltip(nextState);
+
+        window.dispatchEvent(new Event('resize'));
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 320);
+    }
 }
+
+function updateTeamSidebarTooltip(state) {
+    const btn = document.querySelector('.menu-toggle');
+    if (!btn) return;
+    if (state === 'compact') {
+        btn.title = 'Sidebar: Buttons Only (Click to Hide) - Ctrl+B';
+    } else if (state === 'hidden') {
+        btn.title = 'Sidebar: Hidden (Click to Expand) - Ctrl+B';
+    } else {
+        btn.title = 'Sidebar: Expanded (Click for Buttons Only) - Ctrl+B';
+    }
+}
+
+// Restore Team Manager desktop 3-step state on load
+try {
+    if (window.innerWidth > 768) {
+        const savedState = localStorage.getItem('festos_team_sidebar_state');
+        if (savedState === 'compact') {
+            document.body.classList.add('sidebar-compact');
+            updateTeamSidebarTooltip('compact');
+        } else if (savedState === 'hidden' || savedState === 'true') {
+            document.body.classList.add('sidebar-hidden');
+            updateTeamSidebarTooltip('hidden');
+        } else {
+            updateTeamSidebarTooltip('expanded');
+        }
+    }
+} catch (e) {}
+
+// Ctrl+B shortcut for desktop sidebar collapse
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b' && !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+        e.preventDefault();
+        toggleMobileMenu();
+    }
+});
 
 function switchTab(tabId) {
     document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
@@ -112,48 +212,115 @@ function logout() {
     });
 }
 
-async function initDashboard() {
-    if(window.innerWidth > 768) {
-        document.getElementById('desktop-subtitle').style.display = 'block';
-    }
-
+// Instant Local SWR Caching System
+function saveDashboardToCache() {
+    if (!myTeamId) return;
     try {
-        const pointVal = window.festosGetSetting ? await window.festosGetSetting('point_system') : null;
-        const [
-            { data: teamData },
-            settingsData
-        ] = await Promise.all([
-            supabaseClient.from('teams').select('name, manager_name, assistant_manager_name').eq('id', myTeamId).single(),
-            pointVal ? Promise.resolve({ data: { value: pointVal } }) : supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle()
-        ]);
+        const payload = {
+            teamData: {
+                name: document.getElementById('team-name-title')?.innerText || 'MY TEAM',
+                manager_names_html: document.getElementById('tm-manager-names')?.innerHTML || ''
+            },
+            categories: globalCategories,
+            students: globalStudents,
+            competitions: globalComps,
+            assignments: globalAssignments,
+            stats: {
+                studentsCount: globalStudents.length,
+                eventsCount: new Set(globalAssignments.map(a => a.competition_id)).size,
+                completedCount: globalComps.filter(c => c.status === 'published' || c.status === 'judgement_complete').length,
+                points: document.getElementById('stat-total-points')?.innerText || '0'
+            },
+            timestamp: Date.now()
+        };
+        sessionStorage.setItem('festos_tm_dashboard_cache_' + myTeamId, JSON.stringify(payload));
+        localStorage.setItem('festos_tm_dashboard_cache_' + myTeamId, JSON.stringify(payload));
+    } catch (e) {}
+}
 
-        document.getElementById('team-name-title').innerText = teamData ? teamData.name : 'MY TEAM';
-        
-        // Inject manager names into UI
-        if (teamData) {
-            const mgr = teamData.manager_name || 'NOT ASSIGNED';
-            const asst = teamData.assistant_manager_name || 'NOT ASSIGNED';
-            document.getElementById('tm-manager-names').innerHTML = `<i class="fa-solid fa-user-tie"></i> MGR: ${mgr} <span style="color:var(--border);">|</span> ASST: ${asst}`;
-        }
+function restoreDashboardFromCache() {
+    if (!myTeamId) return false;
+    try {
+        const raw = sessionStorage.getItem('festos_tm_dashboard_cache_' + myTeamId) || 
+                    localStorage.getItem('festos_tm_dashboard_cache_' + myTeamId);
+        if (!raw) return false;
+        const cache = JSON.parse(raw);
+        if (!cache || !Array.isArray(cache.students) || cache.students.length === 0) return false;
 
-        if (settingsData && settingsData.value) {
-            systemSettings = settingsData.value;
-            if (systemSettings.tm_access === false) {
-                isAssignmentLocked = true; 
+        // Restore team header
+        if (cache.teamData && cache.teamData.name && cache.teamData.name !== 'LOADING TEAM...') {
+            const titleEl = document.getElementById('team-name-title');
+            if (titleEl) titleEl.innerText = cache.teamData.name;
+            const mgrNamesEl = document.getElementById('tm-manager-names');
+            if (mgrNamesEl && cache.teamData.manager_names_html) {
+                mgrNamesEl.innerHTML = cache.teamData.manager_names_html;
             }
         }
 
-        if (isAssignmentLocked && !systemSettings.lock_date) {
-            document.getElementById('lock-banner').style.display = 'flex';
-            document.getElementById('btn-bulk-enroll').disabled = true;
-            document.getElementById('btn-bulk-remove').disabled = true;
+        if (Array.isArray(cache.categories) && cache.categories.length > 0) {
+            globalCategories = cache.categories;
+            window.categoriesList = globalCategories;
+        }
+        if (Array.isArray(cache.students) && cache.students.length > 0) {
+            globalStudents = cache.students;
+            window.globalStudents = globalStudents;
+            window.participantsList = globalStudents;
+        }
+        if (Array.isArray(cache.competitions) && cache.competitions.length > 0) {
+            globalComps = cache.competitions;
+        }
+        if (Array.isArray(cache.assignments)) {
+            globalAssignments = cache.assignments;
         }
 
-        await fetchAllData();
+        // Restore stats immediately (0ms)
+        if (cache.stats) {
+            const sTotal = document.getElementById('stat-total-students');
+            const sEvents = document.getElementById('stat-total-events');
+            const sComps = document.getElementById('stat-completed-events');
+            const sPts = document.getElementById('stat-total-points');
+            if (sTotal) sTotal.innerText = cache.stats.studentsCount || globalStudents.length;
+            if (sEvents) sEvents.innerText = cache.stats.eventsCount || 0;
+            if (sComps) sComps.innerText = cache.stats.completedCount || 0;
+            if (sPts) sPts.innerText = cache.stats.points || 0;
+        }
 
+        // Populate catalog filter dropdown
+        const catSet = new Set(globalComps.map(c => c.categories?.name || 'GENERAL'));
+        const catSelect = document.getElementById('filter-catalog-cat');
+        if (catSelect && catSet.size > 0) {
+            catSelect.innerHTML = '<option value="all">ALL CATEGORIES</option>';
+            catSet.forEach(cat => catSelect.innerHTML += `<option value="${cat}">${cat}</option>`);
+        }
+
+        // Render tables immediately
+        renderStudents();
+        renderCatalog();
+        renderLiveTracking();
+        populateBulkAssignCategoryDropdown();
+
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function initDashboard() {
+    if (window.innerWidth > 768) {
+        const sub = document.getElementById('desktop-subtitle');
+        if (sub) sub.style.display = 'block';
+    }
+
+    // 1. Instantly restore header and full dashboard from local cache in 0.001s!
+    restoreCachedTeamHeader();
+    const hasCachedData = restoreDashboardFromCache();
+
+    // 2. Fetch fresh data in parallel (SWR background revalidation)
+    try {
+        await fetchAllData(false, hasCachedData);
     } catch (e) {
         console.error(e);
-        showToast("Error loading dashboard data", "error");
+        if (!hasCachedData) showToast("Error loading dashboard data", "error");
     }
 }
 
@@ -164,7 +331,7 @@ async function refreshDashboard(btnElement) {
     }
     
     try {
-        await fetchAllData();
+        await fetchAllData(true);
         showToast('Dashboard Data Synced!', 'success');
     } catch (e) {
         console.error(e);
@@ -177,65 +344,146 @@ async function refreshDashboard(btnElement) {
     }
 }
 
-async function fetchAllData() {
+async function fetchAllData(forceFresh = false, isBackgroundSync = false) {
     try {
+        // Resolve fallback team if accessing without team_id (e.g. Master Admin / Super Admin)
+        if (!myTeamId && (user.role === 'admin' || user.role === 'super_admin' || user.role === 'master_admin')) {
+            const { data: firstTeam } = await supabaseClient.from('teams').select('id, name, manager_name, assistant_manager_name').limit(1).maybeSingle();
+            if (firstTeam) {
+                myTeamId = firstTeam.id;
+                try { sessionStorage.setItem('festos_tm_selected_team_id', myTeamId); } catch(e) {}
+            }
+        }
+
         let catsQuery = supabaseClient.from('categories').select('*');
-        let compsQuery = supabaseClient.from('competitions').select('*, categories(id, name, is_general, allowed_general_categories), stages(name)').order('name');
+        // Optimized: only select fields necessary for Team Manager
+        let compsQuery = supabaseClient.from('competitions').select('id, name, code, category_id, stage_id, status, is_group, is_offstage, max_participants, max_mark, categories(id, name, is_general, allowed_general_categories), stages(name)').order('name');
         if (window.festosApplyFilter) {
             catsQuery = window.festosApplyFilter(catsQuery);
             compsQuery = window.festosApplyFilter(compsQuery);
         }
 
-        const schedVal = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : null;
+        // Fire all independent queries in parallel (1 network round-trip)
+        const teamPromise = myTeamId 
+            ? supabaseClient.from('teams').select('name, manager_name, assistant_manager_name').eq('id', myTeamId).maybeSingle()
+            : Promise.resolve({ data: null });
+
+        const pointPromise = window.festosGetSetting 
+            ? window.festosGetSetting('point_system', null, { fresh: forceFresh }) 
+            : supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle().then(r => r.data?.value);
+
+        const schedPromise = window.festosGetSetting 
+            ? window.festosGetSetting('master_schedule', null, { fresh: forceFresh }) 
+            : supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle().then(r => r.data?.value);
+
+        const classSysPromise = window.festosGetSetting 
+            ? window.festosGetSetting('class_system', null, { fresh: forceFresh }) 
+            : Promise.resolve(null);
+
+        const catClassesPromise = window.festosGetSetting 
+            ? window.festosGetSetting('category_classes', null, { fresh: forceFresh }) 
+            : Promise.resolve({});
+
+        const partClassesPromise = window.festosGetSetting 
+            ? window.festosGetSetting('participant_classes', null, { fresh: forceFresh }) 
+            : Promise.resolve({});
+
+        const studentsPromise = myTeamId 
+            ? supabaseClient.from('participants').select('*, categories(name)').eq('team_id', myTeamId).order('name')
+            : Promise.resolve({ data: [] });
 
         const [
-            schedDataRes,
-            { data: cats },
-            { data: students },
-            { data: comps }
+            teamRes,
+            pointSysVal,
+            schedVal,
+            classSystemSetting,
+            catClassesMapRaw,
+            partClassesMapRaw,
+            catsRes,
+            studentsRes,
+            compsRes
         ] = await Promise.all([
-            schedVal ? Promise.resolve({ data: { value: schedVal } }) : supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle(),
+            teamPromise,
+            pointPromise,
+            schedPromise,
+            classSysPromise,
+            catClassesPromise,
+            partClassesPromise,
             catsQuery,
-            supabaseClient.from('participants').select('*, categories(name)').eq('team_id', myTeamId).order('name'),
+            studentsPromise,
             compsQuery
         ]);
 
-        const schedData = schedDataRes.data;
-
-        let classSystemSetting = null;
-        let catClassesMap = {};
-        let partClassesMap = {};
-        if (window.festosGetSetting) {
-            try {
-                classSystemSetting = await window.festosGetSetting('class_system');
-                catClassesMap = (await window.festosGetSetting('category_classes')) || {};
-                partClassesMap = (await window.festosGetSetting('participant_classes')) || {};
-            } catch(e) {}
+        // 1. Process Team Data
+        const teamData = teamRes?.data;
+        if (teamData) {
+            try { sessionStorage.setItem('festos_tm_team_' + myTeamId, JSON.stringify(teamData)); } catch(e) {}
+            const titleEl = document.getElementById('team-name-title');
+            if (titleEl) titleEl.innerText = teamData.name || 'MY TEAM';
+            const mgrNamesEl = document.getElementById('tm-manager-names');
+            if (mgrNamesEl) {
+                const mgr = teamData.manager_name || 'NOT ASSIGNED';
+                const asst = teamData.assistant_manager_name || 'NOT ASSIGNED';
+                mgrNamesEl.innerHTML = `<i class="fa-solid fa-user-tie"></i> MGR: ${mgr} <span style="color:var(--border);">|</span> ASST: ${asst}`;
+            }
+        } else if (!document.getElementById('team-name-title').innerText || document.getElementById('team-name-title').innerText === 'LOADING TEAM...') {
+            document.getElementById('team-name-title').innerText = 'MY TEAM';
         }
-        window.tmClassSystem = classSystemSetting || { enabled: false, mandatory: false, classes: [] };
 
-        tmScheduleData = schedData?.value || {};
-        globalCategories = (cats || []).map(c => ({
+        // 2. Process Point System & Lock Settings
+        if (pointSysVal) {
+            systemSettings = pointSysVal;
+            if (systemSettings.tm_access === false) {
+                isAssignmentLocked = true;
+            }
+        }
+        if (isAssignmentLocked && !systemSettings.lock_date) {
+            const lockBanner = document.getElementById('lock-banner');
+            if (lockBanner) lockBanner.style.display = 'flex';
+            const b1 = document.getElementById('btn-bulk-enroll');
+            const b2 = document.getElementById('btn-bulk-remove');
+            if (b1) b1.disabled = true;
+            if (b2) b2.disabled = true;
+        }
+
+        // 3. Process Class System & Categories & Participants
+        const catClassesMap = catClassesMapRaw || {};
+        const partClassesMap = partClassesMapRaw || {};
+        window.tmClassSystem = classSystemSetting || { enabled: false, mandatory: false, classes: [] };
+        tmScheduleData = schedVal || {};
+
+        const cats = catsRes?.data || [];
+        const students = studentsRes?.data || [];
+        const comps = compsRes?.data || [];
+
+        globalCategories = cats.map(c => ({
             ...c,
             eligible_classes: c.eligible_classes || catClassesMap[c.id] || []
         }));
-        globalStudents = (students || []).map(s => ({
+        globalStudents = students.map(s => ({
             ...s,
             class_name: s.class_name || partClassesMap[s.id] || ''
         }));
         window.globalStudents = globalStudents;
         window.participantsList = globalStudents;
         window.categoriesList = globalCategories;
-        globalComps = comps || [];
+        globalComps = comps;
 
+        // 4. Batch 2: Fetch participant assignments and judgements in parallel
         const studentIds = globalStudents.map(s => s.id);
-        if(studentIds.length > 0) {
-            const { data: assigns } = await supabaseClient
-                .from('participant_competitions')
-                .select(`id, participant_id, competition_id, is_leader, is_present`)
-                .in('participant_id', studentIds);
-            globalAssignments = assigns || [];
-        }
+        const publishedCompIds = globalComps.filter(c => c.status === 'published').map(c => c.id);
+
+        const [assignsRes, judgementsRes] = await Promise.all([
+            studentIds.length > 0 
+                ? supabaseClient.from('participant_competitions').select('id, participant_id, competition_id, is_leader, is_present').in('participant_id', studentIds)
+                : Promise.resolve({ data: [] }),
+            publishedCompIds.length > 0
+                ? supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark').in('competition_id', publishedCompIds)
+                : Promise.resolve({ data: [] })
+        ]);
+
+        globalAssignments = assignsRes?.data || [];
+        const judgements = judgementsRes?.data || [];
 
         const catSet = new Set(globalComps.map(c => c.categories?.name || 'GENERAL'));
         const catSelect = document.getElementById('filter-catalog-cat');
@@ -244,11 +492,10 @@ async function fetchAllData() {
             catSet.forEach(cat => catSelect.innerHTML += `<option value="${cat}">${cat}</option>`);
         }
 
-        // --- ENFORCE DEADLINE AND UPDATE UI ---
+        // Enforce Deadline & Update UI
         if (systemSettings.lock_date) {
             const deadline = new Date(systemSettings.lock_date);
             const now = new Date();
-            
             const deadlineBanner = document.getElementById('dashboard-deadline-banner');
             if (deadlineBanner) {
                 deadlineBanner.style.display = 'flex';
@@ -257,25 +504,21 @@ async function fetchAllData() {
 
             if (now > deadline) {
                 isAssignmentLocked = true;
-                
                 if (deadlineBanner) {
                     deadlineBanner.style.background = 'var(--danger-light)';
                     deadlineBanner.style.color = 'var(--danger)';
                     deadlineBanner.style.borderColor = 'rgba(225, 29, 72, 0.2)';
                     document.getElementById('deadline-text').innerText = `REGISTRATION CLOSED ON: ${deadline.toLocaleString()}`;
                 }
-                
                 const lockBanner = document.getElementById('lock-banner');
                 if (lockBanner) {
                     lockBanner.style.display = 'flex';
                     lockBanner.innerHTML = `<i class="fa-solid fa-lock"></i> REGISTRATION DEADLINE HAS PASSED. ENROLLMENTS ARE LOCKED.`;
-                    
                     const btnBulkEnroll = document.getElementById('btn-bulk-enroll');
                     const btnBulkRemove = document.getElementById('btn-bulk-remove');
-                    if(btnBulkEnroll) btnBulkEnroll.disabled = true;
-                    if(btnBulkRemove) btnBulkRemove.disabled = true;
+                    if (btnBulkEnroll) btnBulkEnroll.disabled = true;
+                    if (btnBulkRemove) btnBulkRemove.disabled = true;
                 }
-
                 const btnAddMember = document.getElementById('btn-add-member');
                 if (btnAddMember) {
                     btnAddMember.disabled = true;
@@ -283,17 +526,14 @@ async function fetchAllData() {
                     btnAddMember.style.opacity = '0.6';
                 }
             } else if (!isAssignmentLocked) {
-                // Time has been extended by admin, unlock the UI
                 const lockBanner = document.getElementById('lock-banner');
-                if(lockBanner) lockBanner.style.display = 'none';
-                
+                if (lockBanner) lockBanner.style.display = 'none';
                 const btnBulkEnroll = document.getElementById('btn-bulk-enroll');
                 const btnBulkRemove = document.getElementById('btn-bulk-remove');
-                if(btnBulkEnroll) btnBulkEnroll.disabled = false;
-                if(btnBulkRemove) btnBulkRemove.disabled = false;
-                
+                if (btnBulkEnroll) btnBulkEnroll.disabled = false;
+                if (btnBulkRemove) btnBulkRemove.disabled = false;
                 const btnAddMember = document.getElementById('btn-add-member');
-                if(btnAddMember) {
+                if (btnAddMember) {
                     btnAddMember.disabled = false;
                     btnAddMember.innerHTML = `<i class="fa-solid fa-user-plus"></i> ADD NEW MEMBER`;
                     btnAddMember.style.opacity = '1';
@@ -301,18 +541,21 @@ async function fetchAllData() {
             }
         }
 
-        updateDashboardStats();
+        updateDashboardStats(judgements);
         renderStudents();
         renderCatalog();
         renderLiveTracking();
         populateBulkAssignCategoryDropdown();
 
+        // Persist to local SWR cache for instant load next time
+        saveDashboardToCache();
+
     } catch (e) {
-        console.error(e);
+        console.error("fetchAllData error:", e);
     }
 }
 
-async function updateDashboardStats() {
+async function updateDashboardStats(prefetchedJudgements = null) {
     document.getElementById('stat-total-students').innerText = globalStudents.length;
     const uniqueEvents = new Set(globalAssignments.map(a => a.competition_id)).size;
     document.getElementById('stat-total-events').innerText = uniqueEvents;
@@ -325,10 +568,14 @@ async function updateDashboardStats() {
     try {
         const publishedCompIds = globalComps.filter(c => c.status === 'published').map(c => c.id);
         if (publishedCompIds.length > 0) {
-            const { data: judgements } = await supabaseClient
-                .from('judgements')
-                .select('participant_id, competition_id, awarded_mark')
-                .in('competition_id', publishedCompIds);
+            let judgements = prefetchedJudgements;
+            if (!judgements) {
+                const res = await supabaseClient
+                    .from('judgements')
+                    .select('participant_id, competition_id, awarded_mark')
+                    .in('competition_id', publishedCompIds);
+                judgements = res.data || [];
+            }
             
             const myStudentIds = globalStudents.map(s => s.id);
             const compAverages = {};
@@ -384,7 +631,7 @@ async function updateDashboardStats() {
         }
     } catch (e) { console.error("Point calculation error", e); }
     
-    document.getElementById('stat-total-points').innerText = totalPoints;
+    document.getElementById('stat-total-points').innerText = Math.round(totalPoints);
 }
 
 // ---------------- STUDENT DIRECTORY ----------------
@@ -1444,11 +1691,35 @@ async function exportTeamProgramListPDF() {
 // ==========================================
 // UNIFIED GLOBAL BRANDING ENGINE
 // ==========================================
+function applyCachedBrandingSync() {
+    try {
+        const u = (typeof festosAuth !== 'undefined') ? (festosAuth.getUser() || festosAuth.getSuperAdmin()) : JSON.parse(localStorage.getItem('festUser') || '{}');
+        const fid = (window.festosAuth && window.festosAuth.getCurrentFestId) ? window.festosAuth.getCurrentFestId() : (u?.fest_id || localStorage.getItem('festos_active_fest_id') || 'fest_zenith26');
+        const raw = localStorage.getItem('festos_branding_cache_' + fid) || 
+                    localStorage.getItem('festBranding') || 
+                    localStorage.getItem('festos_branding_cache_active') || 
+                    (fid ? localStorage.getItem('festos_cfg_system_branding_' + fid) : null);
+        if (raw) {
+            const cached = JSON.parse(raw);
+            if (cached && (cached.fest_name || cached.fest_logo)) {
+                applyGlobalBranding(cached);
+            }
+        }
+    } catch (e) {}
+}
+
+// Immediate synchronous invocation
+applyCachedBrandingSync();
+
 document.addEventListener("DOMContentLoaded", () => {
     fetchAndApplyBranding();
 });
 
 async function fetchAndApplyBranding() {
+    // 1. Immediately apply from local cache (0ms delay)
+    applyCachedBrandingSync();
+
+    // 2. Background revalidation
     try {
         const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
         let val = window.festosGetSetting ? await window.festosGetSetting('system_branding', festId) : null;
@@ -1988,6 +2259,14 @@ function applyGlobalBranding(brandingData) {
     const festName = validName ? brandingData.fest_name : 'Festival';
     document.title = `${festName} | Team Manager`;
 
+    try {
+        const u = (typeof festosAuth !== 'undefined') ? (festosAuth.getUser() || festosAuth.getSuperAdmin()) : JSON.parse(localStorage.getItem('festUser') || '{}');
+        const fid = (window.festosAuth && window.festosAuth.getCurrentFestId) ? window.festosAuth.getCurrentFestId() : (u?.fest_id || localStorage.getItem('festos_active_fest_id') || 'fest_zenith26');
+        localStorage.setItem('festBranding', JSON.stringify(brandingData));
+        if (fid) localStorage.setItem('festos_branding_cache_' + fid, JSON.stringify(brandingData));
+        sessionStorage.setItem('festBranding', JSON.stringify(brandingData));
+    } catch(e) {}
+
     if (validLogo) {
         let iconLinks = document.querySelectorAll("link[rel~='icon']");
         if (iconLinks.length === 0) {
@@ -2003,25 +2282,18 @@ function applyGlobalBranding(brandingData) {
     brandContainers.forEach(container => {
         let html = '';
         if (validLogo) {
-            html += `<img src="${brandingData.fest_logo}" alt="Logo" style="height: 36px; width: auto; max-width: 150px; object-fit: contain; border-radius: 6px; margin-right: 10px; display: inline-block; vertical-align: middle;">`;
+            html += `<img src="${brandingData.fest_logo}" alt="${festName} Logo" class="festos-dynamic-logo" style="height: 36px; width: auto; max-width: 140px; object-fit: contain; border-radius: 6px; margin-right: 8px; display: inline-block; vertical-align: middle;">`;
         } else {
             html += `<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>`;
         }
         
-        // CRITICAL FIX: Hide text if this container is inside the sidebar
-        if (!container.closest('.sidebar')) {
-            html += `<span style="letter-spacing: -0.5px; display: inline-block; vertical-align: middle;">${festName} TM</span>`;
-        }
+        html += `<span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">${festName}</span>`;
         
         container.innerHTML = html;
         container.style.display = 'flex';
         container.style.alignItems = 'center';
-        
-        // Center the logo nicely in the sidebar since it no longer has text next to it
-        if (container.closest('.sidebar')) {
-            container.style.justifyContent = 'center';
-            container.style.marginBottom = '2rem';
-        }
+        container.style.justifyContent = 'flex-start';
+        container.style.marginBottom = '2.5rem';
     });
 }
 

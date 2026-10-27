@@ -267,47 +267,89 @@
     }
 
     // Gate Enforcer: Only show contents during festival dates set in Admin
+    let countdownInterval = null;
+
+    function startFestivalCountdown(targetIsoDate) {
+        if (countdownInterval) clearInterval(countdownInterval);
+        
+        function updateTimer() {
+            const now = new Date().getTime();
+            const target = new Date(targetIsoDate).getTime();
+            const diff = target - now;
+
+            if (diff <= 0) {
+                if (countdownInterval) clearInterval(countdownInterval);
+                validateFestivalDateAccess();
+                return;
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+            const elD = document.getElementById('np-cd-days');
+            const elH = document.getElementById('np-cd-hours');
+            const elM = document.getElementById('np-cd-mins');
+            const elS = document.getElementById('np-cd-secs');
+
+            if (elD) elD.innerText = String(days).padStart(2, '0');
+            if (elH) elH.innerText = String(hours).padStart(2, '0');
+            if (elM) elM.innerText = String(mins).padStart(2, '0');
+            if (elS) elS.innerText = String(secs).padStart(2, '0');
+        }
+
+        updateTimer();
+        countdownInterval = setInterval(updateTimer, 1000);
+    }
+
     function validateFestivalDateAccess() {
         const schedule = getFestivalSchedule();
-        const selectedDate = NP_STATE.currentDate;
-        let isDateActive = true;
+        const selectedDate = NP_STATE.currentDate || new Date().toISOString().split('T')[0];
+        const todayStr = new Date().toISOString().split('T')[0];
 
-        if (schedule.allowedDates && schedule.allowedDates.length > 0) {
-            isDateActive = schedule.allowedDates.includes(selectedDate);
-        } else if (schedule.startDate && schedule.endDate) {
-            isDateActive = (selectedDate >= schedule.startDate && selectedDate <= schedule.endDate);
-        } else if (schedule.startDate) {
-            isDateActive = (selectedDate === schedule.startDate);
+        // Check if festival dates are configured in Super Admin
+        const hasDatesSet = (schedule.allowedDates && schedule.allowedDates.length > 0) || schedule.startDate;
+        const openingDate = schedule.startDate || (schedule.allowedDates ? schedule.allowedDates[0] : null);
+
+        let isDateActive = true;
+        let isFutureDate = false;
+
+        if (hasDatesSet) {
+            if (schedule.allowedDates && schedule.allowedDates.length > 0) {
+                isDateActive = schedule.allowedDates.includes(selectedDate) || schedule.allowedDates.includes(todayStr);
+                if (todayStr < schedule.allowedDates[0]) isFutureDate = true;
+            } else if (schedule.startDate) {
+                isDateActive = (todayStr >= schedule.startDate && (schedule.endDate ? todayStr <= schedule.endDate : true));
+                if (todayStr < schedule.startDate) isFutureDate = true;
+            }
         }
 
         const lockScreen = document.getElementById('np-date-gated-lock');
         const workspace = document.getElementById('np-main-studio-workspace');
         const lockRangeSpan = document.getElementById('np-lock-date-range');
-        const lockNote = document.getElementById('np-lock-fest-note');
-        const jumpBtn = document.getElementById('btn-jump-to-fest-date');
 
         if (lockRangeSpan) lockRangeSpan.innerText = schedule.dateRangeLabel;
-        if (lockNote) {
-            lockNote.innerText = `Official ${schedule.festName} newspaper broadsheet releases are scheduled for ${schedule.dateRangeLabel}. Selected date: ${selectedDate}.`;
-        }
 
-        if (jumpBtn) {
-            const firstDate = schedule.startDate || (schedule.allowedDates ? schedule.allowedDates[0] : null);
-            if (firstDate) {
-                jumpBtn.style.display = 'inline-flex';
-                jumpBtn.innerHTML = `<i class="fa-solid fa-calendar-check"></i> Open Fest Day Broadsheet (${firstDate})`;
-            } else {
-                jumpBtn.style.display = 'none';
-            }
-        }
+        // If Super Admin set dates and today is before festival dates, do NOT show any contents inside tab!
+        const shouldLock = hasDatesSet && (isFutureDate || !isDateActive) && !adminBypassActive;
 
-        if (!isDateActive && !adminBypassActive) {
+        if (shouldLock) {
             if (lockScreen) lockScreen.style.display = 'block';
             if (workspace) workspace.style.display = 'none';
+
+            // Launch live countdown timer
+            if (openingDate) {
+                startFestivalCountdown(`${openingDate}T03:00:00`);
+            }
             return false;
         } else {
             if (lockScreen) lockScreen.style.display = 'none';
             if (workspace) workspace.style.display = 'block';
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
             return true;
         }
     }
@@ -333,6 +375,33 @@
         } else {
             showToast("Fest Date Enforcement enabled.", "info");
         }
+    }
+
+    // View Mode Switcher: Mobile Reader View vs Print Broadsheet View
+    function switchNewspaperViewMode(mode) {
+        NP_STATE.viewMode = mode;
+        const workspace = document.getElementById('np-main-studio-workspace');
+        const btnMobile = document.getElementById('btn-mode-mobile');
+        const btnPrint = document.getElementById('btn-mode-print');
+
+        if (mode === 'mobile') {
+            if (workspace) workspace.classList.add('np-mobile-reader-mode');
+            if (btnMobile) btnMobile.classList.add('active');
+            if (btnPrint) btnPrint.classList.remove('active');
+            
+            const viewport = document.getElementById('np-sheets-container');
+            if (viewport) {
+                viewport.style.transform = 'none';
+                viewport.style.marginBottom = '0px';
+                viewport.style.width = '100%';
+            }
+        } else {
+            if (workspace) workspace.classList.remove('np-mobile-reader-mode');
+            if (btnPrint) btnPrint.classList.add('active');
+            if (btnMobile) btnMobile.classList.remove('active');
+            fitNewspaperToScreen();
+        }
+    }
     }
 
     // 1. Policy & Authorization Check (Super Admin Gating)
@@ -1143,6 +1212,11 @@
     }
 
     function openNewspaperStoryEditor(initialTab = 'header', storyKey = 'lead_story') {
+        const storyKeys = ['lead_story', 'side_story', 'side_story_2', 'stage_brief', 'venue_spotlight', 'star_performer', 'patron_column', 'tomorrow_preview', 'gallery_photo_1', 'gallery_photo_2', 'gallery_photo_3'];
+        if (storyKeys.includes(initialTab)) {
+            return openQuickStoryEditor(initialTab);
+        }
+
         const modal = document.getElementById('newspaperStoryModal');
         if (!modal) return;
 
@@ -1972,6 +2046,396 @@
         }
     }
 
+    // =========================================================================
+    // 12. QUICK STORY & ARTICLE EDITOR MODAL CONTROLLER
+    // =========================================================================
+    function openQuickStoryEditor(storyKey = 'lead_story') {
+        const modal = document.getElementById('quickStoryModal');
+        if (!modal) {
+            // Fallback to full customizer
+            return openNewspaperStoryEditor('page1', storyKey);
+        }
+
+        const ed = NP_STATE.currentEdition;
+        const lang = NP_STATE.currentLang;
+        const stories = ed?.translations[lang] || ed?.translations.en || createDefaultStories();
+        const data = stories[storyKey] || {};
+
+        const keyInput = document.getElementById('quick-story-key');
+        const titleInput = document.getElementById('quick-story-title');
+        const subheadInput = document.getElementById('quick-story-subhead');
+        const bodyInput = document.getElementById('quick-story-body');
+        const modalTitle = document.getElementById('quick-story-modal-title');
+        const modalSub = document.getElementById('quick-story-modal-sub');
+
+        if (keyInput) keyInput.value = storyKey;
+        if (titleInput) titleInput.value = data.title || data.name || '';
+        if (subheadInput) subheadInput.value = data.subhead || data.event || '';
+        if (bodyInput) bodyInput.value = data.body || data.quote || '';
+
+        const labels = {
+            lead_story: 'Front Page Lead Story',
+            side_story: 'Page 1 Bulletin',
+            side_story_2: 'Page 1 Flash Notice',
+            stage_brief: 'Stage Controller Dispatch',
+            venue_spotlight: 'Venue Spotlight',
+            star_performer: 'Star Performer of the Day',
+            patron_column: "Director's / Patron's Note",
+            tomorrow_preview: "Tomorrow's Curtain Raiser"
+        };
+
+        if (modalTitle) modalTitle.innerText = `Edit: ${labels[storyKey] || 'Story Section'}`;
+        if (modalSub) modalSub.innerText = `Language: ${LANG_LABELS[lang] || 'English'} • Instant Live Update`;
+
+        const photoWrap = document.getElementById('quick-story-photo-wrap');
+        const imgInput = document.getElementById('quick-story-img-url');
+        const imgPrev = document.getElementById('quick-story-img-preview');
+        const captionInput = document.getElementById('quick-story-caption');
+
+        const hasPhoto = ['lead_story', 'star_performer', 'gallery_photo_1', 'gallery_photo_2', 'gallery_photo_3'].includes(storyKey);
+        if (photoWrap) photoWrap.style.display = hasPhoto ? 'block' : 'none';
+
+        if (imgInput) imgInput.value = data.img || '';
+        if (imgPrev) {
+            if (data.img) {
+                imgPrev.src = data.img;
+                imgPrev.style.display = 'block';
+            } else {
+                imgPrev.style.display = 'none';
+            }
+        }
+        if (captionInput) captionInput.value = data.caption || '';
+
+        modal.classList.add('show');
+    }
+
+    function closeQuickStoryEditor() {
+        const modal = document.getElementById('quickStoryModal');
+        if (modal) modal.classList.remove('show');
+    }
+
+    function previewQuickStoryPhoto(url) {
+        const imgPrev = document.getElementById('quick-story-img-preview');
+        if (imgPrev) {
+            if (url) {
+                imgPrev.src = url;
+                imgPrev.style.display = 'block';
+            } else {
+                imgPrev.style.display = 'none';
+            }
+        }
+    }
+
+    function handleQuickStoryPhotoUpload(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUrl = e.target.result;
+            const imgInput = document.getElementById('quick-story-img-url');
+            if (imgInput) imgInput.value = dataUrl;
+            previewQuickStoryPhoto(dataUrl);
+            showToast("Photo uploaded successfully!", "success");
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function saveQuickStoryChanges() {
+        const key = document.getElementById('quick-story-key')?.value;
+        if (!key) return closeQuickStoryEditor();
+
+        const ed = NP_STATE.currentEdition;
+        if (!ed) return closeQuickStoryEditor();
+        const lang = NP_STATE.currentLang;
+        if (!ed.translations[lang]) ed.translations[lang] = createDefaultStories();
+
+        const title = document.getElementById('quick-story-title')?.value.trim() || '';
+        const subhead = document.getElementById('quick-story-subhead')?.value.trim() || '';
+        const body = document.getElementById('quick-story-body')?.value.trim() || '';
+        const img = document.getElementById('quick-story-img-url')?.value.trim() || '';
+        const caption = document.getElementById('quick-story-caption')?.value.trim() || '';
+
+        if (key === 'star_performer') {
+            ed.translations[lang][key] = {
+                name: title,
+                event: subhead,
+                quote: body,
+                img: img || ed.translations[lang][key]?.img || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80'
+            };
+        } else {
+            ed.translations[lang][key] = {
+                title,
+                subhead,
+                body,
+                img: img || ed.translations[lang][key]?.img || '',
+                caption: caption || ''
+            };
+        }
+
+        renderActiveNewspaperContent();
+        persistEditionsArchive();
+        closeQuickStoryEditor();
+        showToast("Article updated live on broadsheet!", "success");
+    }
+
+    function applyQuickAiPolish(tone) {
+        const titleEl = document.getElementById('quick-story-title');
+        const bodyEl = document.getElementById('quick-story-body');
+        if (!titleEl) return;
+
+        let curTitle = titleEl.value.trim();
+        let curBody = bodyEl ? bodyEl.value.trim() : '';
+
+        if (tone === 'headline') {
+            titleEl.value = curTitle ? `Clash of Titans: ${curTitle}` : 'Record Breakers Stun Packed Festival Arena';
+        } else if (tone === 'dramatic') {
+            titleEl.value = curTitle ? `⚡ High Stakes: ${curTitle}` : 'High-Stakes Showdown Ignites Cultural Arena';
+            if (bodyEl && curBody) bodyEl.value = curBody + '\n\nAdjudicators commended the electrifying standard, noting that margins throughout the morning remained separated by mere tenths of a point.';
+        } else if (tone === 'broadsheet') {
+            titleEl.value = curTitle.toUpperCase();
+            if (bodyEl && curBody) bodyEl.value = 'SPECIAL CORRESPONDENT DISPATCH — ' + curBody;
+        } else if (tone === 'summarize') {
+            if (bodyEl && curBody.length > 120) {
+                bodyEl.value = curBody.split('.').slice(0, 2).join('.') + '.';
+            }
+        }
+        showToast(`AI tone "${tone}" applied!`, "info");
+    }
+
+    // =========================================================================
+    // 13. FULLSCREEN INTERACTIVE READER & TTS AUDIO DISPATCH
+    // =========================================================================
+    let ttsUtterance = null;
+    let isTtsPlaying = false;
+
+    function openNewspaperReader(page = 1) {
+        const modal = document.getElementById('newspaperReaderModal');
+        if (!modal) return;
+
+        NP_STATE.readerPage = page;
+        renderReaderPage(page);
+        modal.classList.add('show');
+    }
+
+    function closeNewspaperReader() {
+        const modal = document.getElementById('newspaperReaderModal');
+        if (modal) modal.classList.remove('show');
+        stopNewspaperAudioReader();
+    }
+
+    function renderReaderPage(page) {
+        const stage = document.getElementById('np-reader-canvas-stage');
+        const counter = document.getElementById('reader-page-counter');
+        if (!stage) return;
+
+        stage.innerHTML = '';
+        if (page === 'all') {
+            for (let i = 1; i <= 4; i++) {
+                const src = document.getElementById(`bs-page-${i}`);
+                if (src) {
+                    const clone = src.cloneNode(true);
+                    clone.style.marginBottom = '2rem';
+                    clone.style.transform = 'none';
+                    stage.appendChild(clone);
+                }
+            }
+            if (counter) counter.innerText = 'All 4 Pages';
+        } else {
+            const src = document.getElementById(`bs-page-${page}`);
+            if (src) {
+                const clone = src.cloneNode(true);
+                clone.style.margin = '0 auto';
+                clone.style.transform = 'none';
+                stage.appendChild(clone);
+            }
+            if (counter) counter.innerText = `Page ${page} of 4`;
+        }
+    }
+
+    function flipReaderPage(delta) {
+        if (NP_STATE.readerPage === 'all') NP_STATE.readerPage = 1;
+        let next = (NP_STATE.readerPage || 1) + delta;
+        if (next < 1) next = 4;
+        if (next > 4) next = 1;
+        NP_STATE.readerPage = next;
+        renderReaderPage(next);
+    }
+
+    function toggleReaderAllPages() {
+        if (NP_STATE.readerPage === 'all') {
+            NP_STATE.readerPage = 1;
+            renderReaderPage(1);
+        } else {
+            NP_STATE.readerPage = 'all';
+            renderReaderPage('all');
+        }
+    }
+
+    function toggleNewspaperAudioReader() {
+        if (!('speechSynthesis' in window)) {
+            return showToast("Speech synthesis not supported in this browser.", "warning");
+        }
+
+        if (isTtsPlaying) {
+            window.speechSynthesis.pause();
+            isTtsPlaying = false;
+            updateTtsUI(false, "Paused audio dispatch");
+            return;
+        }
+
+        if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+            isTtsPlaying = true;
+            updateTtsUI(true, "Playing Daily Gazette audio broadcast...");
+            return;
+        }
+
+        const festInfo = getActiveFestivalInfo();
+        const lang = NP_STATE.currentLang;
+        const stories = NP_STATE.currentEdition?.translations[lang] || NP_STATE.currentEdition?.translations.en || createDefaultStories();
+        const lead = stories.lead_story || {};
+
+        const textToRead = `Good morning and welcome to the ${festInfo.name} Daily Broadsheet audio report. Headline: ${lead.title || 'Grand Stage Showdown'}. ${lead.subhead || ''}. ${lead.body || ''}. Today's star performer is ${stories.star_performer?.name || 'Candidate 104'}. More updates are live on the results hub.`;
+
+        ttsUtterance = new SpeechSynthesisUtterance(textToRead);
+        ttsUtterance.rate = 0.95;
+        ttsUtterance.pitch = 1.0;
+
+        ttsUtterance.onstart = () => {
+            isTtsPlaying = true;
+            updateTtsUI(true, "Playing Daily Gazette audio broadcast...");
+        };
+        ttsUtterance.onend = () => {
+            isTtsPlaying = false;
+            updateTtsUI(false, "Audio broadcast finished.");
+        };
+        ttsUtterance.onerror = () => {
+            isTtsPlaying = false;
+            updateTtsUI(false, "Audio playback error.");
+        };
+
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(ttsUtterance);
+    }
+
+    function stopNewspaperAudioReader() {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+        }
+        isTtsPlaying = false;
+        updateTtsUI(false, "Audio dispatch stopped.");
+    }
+
+    function updateTtsUI(playing, statusText) {
+        const btn = document.getElementById('icon-tts-play');
+        const wave = document.getElementById('np-audio-soundwave');
+        const lbl = document.getElementById('tts-status-label');
+
+        if (btn) btn.className = playing ? 'fa-solid fa-pause' : 'fa-solid fa-play';
+        if (wave) wave.style.display = playing ? 'flex' : 'none';
+        if (lbl) lbl.innerText = statusText;
+    }
+
+    function shareNewspaperEdition() {
+        const festInfo = getActiveFestivalInfo();
+        const shareData = {
+            title: `${festInfo.name} Daily Gazette`,
+            text: `Read today's official 4-Page broadsheet edition for ${NP_STATE.currentDate}!`,
+            url: window.location.href
+        };
+
+        if (navigator.share) {
+            navigator.share(shareData).catch(() => {});
+        } else {
+            navigator.clipboard.writeText(window.location.href);
+            showToast("Gazette link copied to clipboard!", "success");
+        }
+    }
+
+    // =========================================================================
+    // 14. EXPORT, PUBLISH & AI GENERATOR MODAL CONTROLLERS
+    // =========================================================================
+    function openNewspaperExportModal() {
+        const modal = document.getElementById('newspaperExportModal');
+        if (!modal) return exportNewspaperPDF();
+        const pageLbl = document.getElementById('pdf-active-page-label');
+        if (pageLbl) pageLbl.innerText = NP_STATE.currentPageView === 'all' ? '1' : NP_STATE.currentPageView;
+        modal.classList.add('show');
+    }
+
+    function closeNewspaperExportModal() {
+        const modal = document.getElementById('newspaperExportModal');
+        if (modal) modal.classList.remove('show');
+    }
+
+    function updatePdfExportScope(val) {
+        // scope change handled in confirmAndDownloadPdf
+    }
+
+    async function confirmAndDownloadPdf() {
+        closeNewspaperExportModal();
+        await exportNewspaperPDF();
+    }
+
+    function openNewspaperPublishModal() {
+        const modal = document.getElementById('newspaperPublishModal');
+        if (!modal) return publishNewspaperToResults();
+        modal.classList.add('show');
+    }
+
+    function closeNewspaperPublishModal() {
+        const modal = document.getElementById('newspaperPublishModal');
+        if (modal) modal.classList.remove('show');
+    }
+
+    async function confirmPublishNewspaper() {
+        closeNewspaperPublishModal();
+        await publishNewspaperToResults();
+    }
+
+    function openNewspaperAiGenModal() {
+        const modal = document.getElementById('newspaperAiGenModal');
+        if (!modal) return generateNewspaperWithAI();
+        modal.classList.add('show');
+    }
+
+    function closeNewspaperAiGenModal() {
+        const modal = document.getElementById('newspaperAiGenModal');
+        if (modal) modal.classList.remove('show');
+    }
+
+    async function confirmGenerateNewspaper() {
+        const btn = document.getElementById('btn-run-ai-gen');
+        const progressWrap = document.getElementById('ai-gen-progress-wrap');
+        const stepLabel = document.getElementById('ai-gen-step-label');
+        const percentLabel = document.getElementById('ai-gen-percent-label');
+        const bar = document.getElementById('ai-gen-progress-bar');
+
+        if (btn) btn.disabled = true;
+        if (progressWrap) progressWrap.style.display = 'block';
+
+        const steps = [
+            { pct: 25, label: "Ingesting live arena schedules & stage rosters..." },
+            { pct: 50, label: "Synthesizing breaking headlines & crowd chronicles..." },
+            { pct: 75, label: "Generating multilingual translations (6 languages)..." },
+            { pct: 100, label: "Assembling verified 4-page broadsheet edition..." }
+        ];
+
+        for (const s of steps) {
+            if (stepLabel) stepLabel.innerText = s.label;
+            if (percentLabel) percentLabel.innerText = s.pct + '%';
+            if (bar) bar.style.width = s.pct + '%';
+            await new Promise(r => setTimeout(r, 350));
+        }
+
+        await generateNewspaperWithAI();
+
+        if (progressWrap) progressWrap.style.display = 'none';
+        if (btn) btn.disabled = false;
+        closeNewspaperAiGenModal();
+        showToast("New AI Daily Gazette generated successfully!", "success");
+    }
+
     // Expose Functions to Global Window
     window.getActiveFestivalInfo = getActiveFestivalInfo;
     window.loadOrCreateEdition = loadOrCreateEdition;
@@ -1984,6 +2448,30 @@
     window.switchNpModalTab = switchNpModalTab;
     window.openNewspaperStoryEditor = openNewspaperStoryEditor;
     window.closeNewspaperStoryEditor = closeNewspaperStoryEditor;
+    window.openQuickStoryEditor = openQuickStoryEditor;
+    window.closeQuickStoryEditor = closeQuickStoryEditor;
+    window.saveQuickStoryChanges = saveQuickStoryChanges;
+    window.previewQuickStoryPhoto = previewQuickStoryPhoto;
+    window.handleQuickStoryPhotoUpload = handleQuickStoryPhotoUpload;
+    window.applyQuickAiPolish = applyQuickAiPolish;
+    window.openNewspaperReader = openNewspaperReader;
+    window.closeNewspaperReader = closeNewspaperReader;
+    window.flipReaderPage = flipReaderPage;
+    window.toggleReaderAllPages = toggleReaderAllPages;
+    window.toggleNewspaperAudioReader = toggleNewspaperAudioReader;
+    window.stopNewspaperAudioReader = stopNewspaperAudioReader;
+    window.shareNewspaperEdition = shareNewspaperEdition;
+    window.openNewspaperExportModal = openNewspaperExportModal;
+    window.closeNewspaperExportModal = closeNewspaperExportModal;
+    window.updatePdfExportScope = updatePdfExportScope;
+    window.confirmAndDownloadPdf = confirmAndDownloadPdf;
+    window.openNewspaperPublishModal = openNewspaperPublishModal;
+    window.closeNewspaperPublishModal = closeNewspaperPublishModal;
+    window.confirmPublishNewspaper = confirmPublishNewspaper;
+    window.openNewspaperAiGenModal = openNewspaperAiGenModal;
+    window.closeNewspaperAiGenModal = closeNewspaperAiGenModal;
+    window.confirmGenerateNewspaper = confirmGenerateNewspaper;
+    window.switchNewspaperViewMode = switchNewspaperViewMode;
     window.loadStoryIntoEditor = loadStoryIntoEditor;
     window.previewModalPhoto = previewModalPhoto;
     window.handleNewspaperPhotoUpload = handleNewspaperPhotoUpload;
@@ -2013,12 +2501,33 @@
         if (dateInput) dateInput.value = todayStr;
         loadOrCreateEdition(todayStr);
 
+        // Auto-select Mobile Reader view on screens <= 850px to eliminate horizontal scrolling
+        if (window.innerWidth <= 850) {
+            switchNewspaperViewMode('mobile');
+        } else {
+            switchNewspaperViewMode('print');
+        }
+
         setTimeout(fitNewspaperToScreen, 300);
         window.addEventListener('resize', () => {
-            if (window.innerWidth <= 950) {
+            if (window.innerWidth <= 850) {
+                switchNewspaperViewMode('mobile');
+            } else {
                 fitNewspaperToScreen();
             }
         });
+    });
+
+    // Real-Time Listeners for Super Admin Setting Changes
+    window.addEventListener('storage', (e) => {
+        if (e.key && (e.key.includes('newspaper_config') || e.key.includes('festMetadata') || e.key.includes('multi_fests'))) {
+            checkNewspaperPolicyStatus();
+            validateFestivalDateAccess();
+        }
+    });
+    window.addEventListener('festos_newspaper_config_updated', () => {
+        checkNewspaperPolicyStatus();
+        validateFestivalDateAccess();
     });
 
 })(window);

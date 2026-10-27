@@ -114,8 +114,8 @@ input[type="password"], input[type="file"], .file-input, textarea[style*="text-t
 .cand-rank.r3 { background: #3B82F6; }
 .cand-rank.other { background: #9CA3AF; }
 
-.main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; scroll-behavior: smooth; }
-.content-section { display: none; padding: 2rem 2.5rem; animation: fadeUp 0.4s ease forwards; opacity: 0; }
+.main-content { flex: 1; min-width: 0 !important; width: 0; max-width: 100%; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth; }
+.content-section { display: none; padding: 2rem 2.5rem; animation: fadeUp 0.4s ease forwards; opacity: 0; width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: hidden; }
 .content-section.active { display: block; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -174,7 +174,129 @@ tr:hover td { background: var(--bg-main); }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 
 .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.4); z-index: 30; opacity: 0; transition: opacity 0.4s; }
-.menu-toggle { display: none; background: transparent; border: none; font-size: 1.5rem; color: var(--text-main); cursor: pointer; }
+.menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-md);
+    background: transparent;
+    border: 1px solid var(--border);
+    font-size: 1.1rem;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+.menu-toggle:hover {
+    background: var(--bg-surface);
+    border-color: var(--border-hover, #CBD5E1);
+    color: var(--primary);
+    transform: translateY(-1px);
+}
+.menu-toggle:active {
+    transform: scale(0.96);
+}
+
+/* =========================================================================
+   3-STEP COLLAPSIBLE SIDEBAR (DESKTOP)
+   Step 0: Expanded (280px)
+   Step 1: Compact / Buttons Only (76px)
+   Step 2: Fully Collapsed / Hidden (0px)
+   Step 3: Expanded (280px)
+   ========================================================================= */
+@media (min-width: 769px) {
+    .sidebar {
+        transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+                    min-width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+                    margin-left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+                    padding 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        flex-shrink: 0;
+        overflow-x: hidden;
+    }
+
+    /* STEP 1: Compact (Buttons / Icons Only) */
+    body.sidebar-compact .sidebar {
+        width: 76px !important;
+        min-width: 76px !important;
+        padding: 1.5rem 0.5rem !important;
+    }
+    body.sidebar-compact .sidebar .brand {
+        padding: 0 !important;
+        margin: 0 auto 1.5rem auto !important;
+        justify-content: center !important;
+        font-size: 0 !important;
+    }
+    body.sidebar-compact .sidebar .brand {
+        padding: 0.5rem 0.25rem !important;
+        margin: 0 auto 1.75rem auto !important;
+        justify-content: center !important;
+        align-items: center !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    body.sidebar-compact .sidebar .brand i {
+        margin: 0 !important;
+        font-size: 1.5rem !important;
+        display: inline-block !important;
+    }
+    body.sidebar-compact .sidebar .brand img {
+        max-width: 48px !important;
+        max-height: 42px !important;
+        width: auto !important;
+        height: auto !important;
+        object-fit: contain !important;
+        margin: 0 auto !important;
+        display: block !important;
+    }
+    body.sidebar-compact .sidebar .brand span,
+    body.sidebar-compact .sidebar .brand .festos-dynamic-name {
+        display: none !important;
+    }
+    body.sidebar-compact .sidebar .nav-main {
+        padding: 0.85rem 0 !important;
+        justify-content: center !important;
+        width: 100% !important;
+        font-size: 0 !important;
+        gap: 0 !important;
+    }
+    body.sidebar-compact .sidebar .nav-main > div {
+        justify-content: center !important;
+        width: 100% !important;
+        font-size: 0 !important;
+        gap: 0 !important;
+    }
+    body.sidebar-compact .sidebar .nav-main i.icon-left {
+        margin: 0 !important;
+        font-size: 1.25rem !important;
+        text-align: center;
+    }
+    body.sidebar-compact .sidebar .nav-main i.icon-right {
+        display: none !important;
+    }
+    body.sidebar-compact .sidebar .nav-sub {
+        display: none !important;
+    }
+    body.sidebar-compact #master-admin-portals > div:first-child {
+        display: none !important;
+    }
+
+    /* STEP 2: Fully Collapsed (Hidden) */
+    body.sidebar-hidden .sidebar,
+    body.sidebar-collapsed .sidebar {
+        width: 0 !important;
+        min-width: 0 !important;
+        max-width: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+    }
+}
 
 #toast-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.75rem; max-width: 400px; width: calc(100% - 4rem); pointer-events: none; }
 .toast { background: var(--bg-surface); border: 1px solid var(--border); padding: 1.15rem 1.5rem; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 1rem; font-size: 0.95rem; font-weight: 500; color: var(--text-main); animation: slideInToast 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; pointer-events: auto; }
@@ -1427,7 +1549,79 @@ tr:hover td { background: var(--bg-main); }
 }
 
 
-   </style>
+   
+/* Floating Submenu Popover for Compact Sidebar */
+.sidebar-compact-flyout {
+    position: fixed;
+    z-index: 99999;
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    min-width: 200px;
+    padding: 0.5rem;
+    display: none;
+    pointer-events: auto;
+    animation: flyoutSlideIn 0.15s ease-out;
+}
+.sidebar-compact-flyout.active {
+    display: block;
+}
+.sidebar-compact-flyout .flyout-header {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    padding: 0.4rem 0.75rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0.35rem;
+}
+.sidebar-compact-flyout .flyout-item {
+    padding: 0.6rem 0.85rem;
+    border-radius: var(--radius-md);
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.sidebar-compact-flyout .flyout-item:hover {
+    background: var(--primary-light);
+    color: var(--primary);
+    font-weight: 600;
+}
+@keyframes flyoutSlideIn {
+    from { opacity: 0; transform: translateX(-6px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+
+/* Safety overrides to prevent chart canvases or fixed grid tracks from overflowing */
+div[style*="grid-template-columns: 2fr 1fr"] {
+    display: grid !important;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+div[style*="grid-template-columns: 2fr 1fr"] > div {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+.card {
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+}
+canvas {
+    max-width: 100% !important;
+}
+
+</style>
     <link rel="stylesheet" href="premium-forms.css">
     <link rel="stylesheet" href="newspaper-studio.css">
     <link rel="stylesheet" href="custom-pickers.css">
@@ -1438,7 +1632,32 @@ tr:hover td { background: var(--bg-main); }
     <div class="mobile-overlay" onclick="toggleSidebar()"></div>
 
     <div class="sidebar" id="sidebar">
-        <div class="brand"><i class="fa-solid fa-bolt"></i> FestOS</div>
+        <div class="brand"><script>
+        (function(){
+            try {
+                const user = JSON.parse(localStorage.getItem('festUser') || localStorage.getItem('festSuperAdmin') || '{}');
+                const festId = user.fest_id || localStorage.getItem('festos_active_fest_id') || 'fest_zenith26';
+                const raw = localStorage.getItem('festos_branding_cache_' + festId) || 
+                            localStorage.getItem('festBranding') || 
+                            localStorage.getItem('festos_branding_cache_active') || 
+                            localStorage.getItem('festos_cfg_system_branding_' + festId);
+                if (raw) {
+                    const b = JSON.parse(raw);
+                    const name = b.fest_name || 'Zenith';
+                    const logo = (b.fest_logo && b.fest_logo !== 'festos-logo.svg' && b.fest_logo !== '/festos-logo.svg') ? b.fest_logo : '';
+                    let h = '';
+                    if (logo) h += '<img src="' + logo + '" alt="' + name + ' Logo" class="festos-dynamic-logo" style="height: 36px; width: auto; max-width: 140px; object-fit: contain; border-radius: 6px; margin-right: 8px; display: inline-block; vertical-align: middle;">';
+                    else h += '<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>';
+                    h += '<span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">' + name + '</span>';
+                    document.write(h);
+                } else {
+                    document.write('<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i><span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">Zenith</span>');
+                }
+            } catch(e) {
+                document.write('<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i><span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">Zenith</span>');
+            }
+        })();
+        </script></div>
         
         <div class="nav-group">
             <div class="nav-main active" onclick="switchTab('dashboard')">
@@ -1492,7 +1711,7 @@ tr:hover td { background: var(--bg-main); }
                 <div class="nav-item" onclick="switchTab('branding-settings')">Branding & UI</div>
                 <div class="nav-item" onclick="switchTab('poster-templates')">Poster Templates</div>
                 <div class="nav-item" onclick="switchTab('website-builder')">Website Customizer</div>
-                <div class="nav-item" onclick="switchTab('ai-newspaper')">Daily AI Newspaper</div>
+                <div class="nav-item" id="nav-item-ai-newspaper" onclick="switchTab('ai-newspaper')">Daily AI Newspaper</div>
             </div>
         </div>
 
@@ -1541,8 +1760,8 @@ tr:hover td { background: var(--bg-main); }
     <div class="main-content">
         <div class="header">
             <div style="display: flex; align-items: center; gap: 1rem; flex: 1; min-width: 0;">
-                <button class="menu-toggle" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
-                <h1 id="page-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0;">Workspace Overview</h1>
+                <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle Sidebar" title="Toggle Sidebar (Ctrl+B)"><i class="fa-solid fa-bars"></i></button>
+                <h1 id="page-title" data-no-auto-brand="true" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0;">Workspace Overview</h1>
             </div>
             <div style="display: flex; align-items: center; gap: 0.65rem; flex-shrink: 0;">
                 <!-- Universal Notification Center Bell (Suitable for Mobile, Tablet, Desktop) -->
@@ -2210,14 +2429,14 @@ tr:hover td { background: var(--bg-main); }
             </div>
 
             <!-- Charts and Lists Row -->
-            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
-                <div style="display: flex; flex-direction: column; gap: 2rem;">
+            <div style="display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 2rem; width: 100%; max-width: 100%; box-sizing: border-box;">
+                <div style="display: flex; flex-direction: column; gap: 2rem; min-width: 0;">
                     <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                             <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main);">Registration Dynamic</h3>
                         </div>
-                        <div style="height: 300px; width: 100%;">
-                            <canvas id="regDynamicChart"></canvas>
+                        <div style="position: relative; height: 300px; width: 100%; min-width: 0; overflow: hidden;">
+                            <canvas id="regDynamicChart" style="max-width: 100%;"></canvas>
                         </div>
                     </div>
 
@@ -2225,13 +2444,13 @@ tr:hover td { background: var(--bg-main); }
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                             <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main);">Team Points</h3>
                         </div>
-                        <div style="height: 300px; width: 100%;">
-                            <canvas id="teamPointsChart"></canvas>
+                        <div style="position: relative; height: 300px; width: 100%; min-width: 0; overflow: hidden;">
+                            <canvas id="teamPointsChart" style="max-width: 100%;"></canvas>
                         </div>
                     </div>
                 </div>
 
-                <div style="display: flex; flex-direction: column; gap: 2rem;">
+                <div style="display: flex; flex-direction: column; gap: 2rem; min-width: 0;">
                     <!-- Registration Progress -->
                     <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
                         <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 1.5rem;">Registration & Results</h3>
@@ -3310,97 +3529,174 @@ tr:hover td { background: var(--bg-main); }
         <!-- DAILY AI NEWSPAPER & BROADSHEET STUDIO PRO               -->
         <!-- ========================================================= -->
         <div id="ai-newspaper" class="content-section">
-            <div class="action-bar" style="margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
-                <div>
-                    <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.6rem;">
-                        <span id="np-studio-fest-name">Festival Daily Gazette</span> &amp; AI Newspaper Studio
-                    </h2>
-                    <p style="color: var(--text-muted); font-size: 0.9rem;" id="np-studio-fest-sub">
-                        Enterprise 4-Page A4 Broadsheet • Multi-lingual AI Synthesis (6 Languages) • High-Res PDF Print Engine
-                    </p>
+            <!-- ========================================================= -->
+            <!-- FESTIVAL DATE GATING & PREMIERE COUNTDOWN SCREEN         -->
+            <!-- (Shown exclusively when current date is before fest days) -->
+            <!-- ========================================================= -->
+            <div id="np-date-gated-lock" class="np-luxury-lock-card" style="display: none;">
+                <div class="np-lock-emblem">
+                    <i class="fa-solid fa-newspaper"></i>
                 </div>
-                <div class="np-action-buttons-wrap" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn btn-primary" onclick="generateNewspaperWithAI()"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate AI Gazette</button>
-                    <button class="btn btn-outline" onclick="openNewspaperStoryEditor()"><i class="fa-solid fa-pen-to-square"></i> Edit Stories &amp; Photos</button>
-                    <button class="btn btn-outline" onclick="exportNewspaperPDF()"><i class="fa-solid fa-file-pdf"></i> Download 4-Page PDF</button>
-                    <button class="btn btn-success" style="background: #059669; color: white; border: none;" onclick="publishNewspaperToResults()"><i class="fa-solid fa-cloud-arrow-up"></i> Publish to Public Results</button>
+                <div class="np-lock-pill">
+                    <i class="fa-solid fa-sparkles"></i> FESTIVAL PREMIERE EXCLUSIVE
                 </div>
-            </div>
-
-            <!-- Super Admin Gating & Policy Status Banner -->
-            <div id="np-policy-banner" style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px; padding: 0.85rem 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(99, 102, 241, 0.15); display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 1.1rem;">
-                        <i class="fa-regular fa-clock"></i>
-                    </div>
-                    <div>
-                        <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);" id="np-policy-status-title">Release Schedule: 03:00 AM Daily Broadsheet</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted);" id="np-policy-status-desc">Official newspapers become unlocked for download after 03:00 AM. Admin override active for draft testing.</div>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <span id="np-policy-badge" class="badge" style="background: #10b981; color: white; padding: 0.35rem 0.75rem; font-size: 0.75rem; font-weight: 700; border-radius: 6px;">
-                        <i class="fa-solid fa-circle-check"></i> UNLOCKED
-                    </span>
-                    <button class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" onclick="checkNewspaperPolicyStatus()"><i class="fa-solid fa-rotate"></i> Re-check Policy</button>
-                </div>
-            </div>
-
-            <!-- Festival Date Gating Screen (Active when current date is outside fest dates set in Admin) -->
-            <div id="np-date-gated-lock" class="card" style="display: none; text-align: center; padding: 3rem 1.5rem; background: white; border-radius: 20px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); max-width: 680px; margin: 1.5rem auto;">
-                <div style="width: 72px; height: 72px; margin: 0 auto 1.25rem auto; border-radius: 50%; background: #FEF3C7; color: #D97706; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 4px 15px rgba(217, 119, 6, 0.15);">
-                    <i class="fa-solid fa-calendar-xmark"></i>
-                </div>
-                <h2 style="font-size: 1.45rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.6rem;">
-                    Daily AI Newspaper Only Available on Festival Days
+                <h2 class="np-lock-title">
+                    The Daily Broadsheet &amp; AI Gazette
                 </h2>
-                <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; max-width: 500px; margin: 0 auto 1.5rem auto;">
-                    Broadsheet releases, daily reports, and AI editorial synthesis are scheduled exclusively during official festival dates set in Admin (<span id="np-lock-date-range" style="font-weight: 700; color: var(--text-main);">Active Fest Dates</span>).
+                <p class="np-lock-sub">
+                    Enterprise 4-Page Broadsheet • Multi-lingual AI Synthesis • Real-Time Arena Rosters &amp; Points Podium
                 </p>
-                <div style="background: #F8FAFC; border: 1.5px dashed #CBD5E1; border-radius: 14px; padding: 1.25rem; margin-bottom: 1.75rem;">
-                    <div style="font-size: 0.95rem; font-weight: 800; color: #B45309; margin-bottom: 0.35rem; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                        <i class="fa-solid fa-bell"></i> Please come again at the fest days!
+
+                <!-- "Please Come Again on Fest Days!" Callout -->
+                <div class="np-lock-callout">
+                    <div class="np-lock-callout-title">
+                        <i class="fa-solid fa-bell"></i> Please come again on fest days!
                     </div>
-                    <div style="font-size: 0.82rem; color: var(--text-muted);" id="np-lock-fest-note">
-                        The full gazette generation, 4-page broadsheet editions, and public download pipelines will become fully available during the festival schedule.
+                    <div class="np-lock-callout-desc">
+                        Broadsheet releases, daily reports, stage rosters, and certified point standings are scheduled exclusively for official festival dates (<strong id="np-lock-date-range" style="color: #92400e;">Active Fest Dates</strong>). The entire AI Newspaper Studio and daily press editions will automatically premiere when the festival starts!
                     </div>
                 </div>
-                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                    <button type="button" class="btn btn-primary" onclick="jumpToOpeningFestDate()" id="btn-jump-to-fest-date" style="background: var(--primary); color: white;">
-                        <i class="fa-solid fa-calendar-check"></i> Open Fest Day Broadsheet
-                    </button>
-                    <button type="button" class="btn btn-outline" onclick="toggleAdminNewspaperBypass()" id="btn-admin-bypass" style="color: var(--text-main); border-color: var(--border);">
-                        <i class="fa-solid fa-shield-halved"></i> Admin Draft Mode (Bypass Lock)
+
+                <!-- Real-Time Countdown to Festival Opening -->
+                <div style="margin-bottom: 0.75rem; font-size: 0.82rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em;">
+                    <i class="fa-regular fa-clock" style="color: #d97706;"></i> Festival Opening Countdown:
+                </div>
+                <div class="np-countdown-grid" id="np-countdown-timer">
+                    <div class="np-countdown-box">
+                        <div class="np-countdown-num" id="np-cd-days">00</div>
+                        <div class="np-countdown-lbl">Days</div>
+                    </div>
+                    <div class="np-countdown-box">
+                        <div class="np-countdown-num" id="np-cd-hours">00</div>
+                        <div class="np-countdown-lbl">Hours</div>
+                    </div>
+                    <div class="np-countdown-box">
+                        <div class="np-countdown-num" id="np-cd-mins">00</div>
+                        <div class="np-countdown-lbl">Minutes</div>
+                    </div>
+                    <div class="np-countdown-box">
+                        <div class="np-countdown-num" id="np-cd-secs">00</div>
+                        <div class="np-countdown-lbl">Seconds</div>
+                    </div>
+                </div>
+
+                <!-- What's Coming 4-Card Teaser Showcase -->
+                <div style="margin-bottom: 0.75rem; font-size: 0.82rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; text-align: left;">
+                    What the Daily Gazette Brings on Fest Days:
+                </div>
+                <div class="np-teaser-grid">
+                    <div class="np-teaser-card">
+                        <div class="np-teaser-icon"><i class="fa-solid fa-scroll"></i></div>
+                        <div class="np-teaser-name">P.1 Front Page</div>
+                        <p class="np-teaser-desc">Breaking arena headlines, crowd chronicles &amp; festival masthead.</p>
+                    </div>
+                    <div class="np-teaser-card">
+                        <div class="np-teaser-icon"><i class="fa-solid fa-calendar-check"></i></div>
+                        <div class="np-teaser-name">P.2 Arena Dispatch</div>
+                        <p class="np-teaser-desc">Certified stage timetables, green room check-ins &amp; venue acoustics.</p>
+                    </div>
+                    <div class="np-teaser-card">
+                        <div class="np-teaser-icon"><i class="fa-solid fa-trophy"></i></div>
+                        <div class="np-teaser-name">P.3 Points Podium</div>
+                        <p class="np-teaser-desc">Leaderboard rankings, Top 3 podium squads &amp; star performer of the day.</p>
+                    </div>
+                    <div class="np-teaser-card">
+                        <div class="np-teaser-icon"><i class="fa-solid fa-camera-retro"></i></div>
+                        <div class="np-teaser-name">P.4 Cultural Strip</div>
+                        <p class="np-teaser-desc">Patron note, moment frames, next day preview &amp; verification hash.</p>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-outline" onclick="toggleAdminNewspaperBypass()" id="btn-admin-bypass" style="font-size: 0.78rem; color: #94a3b8; border-color: #cbd5e1; padding: 0.4rem 0.85rem;">
+                        <i class="fa-solid fa-shield-halved"></i> Admin Draft Override (Test Studio)
                     </button>
                 </div>
             </div>
 
+            <!-- ========================================================= -->
+            <!-- MAIN NEWSPAPER STUDIO WORKSPACE (UNLOCKED ON FEST DAYS)   -->
+            <!-- ========================================================= -->
             <div id="np-main-studio-workspace">
-            <!-- Toolbar Grid -->
-            <div class="newspaper-control-bar" style="margin-bottom: 1.25rem;">
-                <div class="np-toolbar-grid">
-                    <div class="form-group" style="margin: 0;">
-                        <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);"><i class="fa-regular fa-calendar"></i> Edition Date</label>
-                        <input type="date" class="form-control" id="np-edition-date" onchange="changeNewspaperDate(this.value)" style="font-weight: 600;">
+                <div class="action-bar" style="margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.6rem;">
+                            <span id="np-studio-fest-name">Festival Daily Gazette</span> &amp; AI Newspaper Studio
+                        </h2>
+                        <p style="color: var(--text-muted); font-size: 0.9rem;" id="np-studio-fest-sub">
+                            Enterprise 4-Page A4 Broadsheet • Multi-lingual AI Synthesis (6 Languages) • High-Res PDF Print Engine
+                        </p>
                     </div>
-                    <div class="form-group" style="margin: 0;">
-                        <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);"><i class="fa-solid fa-palette"></i> Broadsheet Theme</label>
-                        <select class="form-control" id="np-theme-select" onchange="setNewspaperTheme(this.value)">
-                            <option value="classic">Classic Oxford Broadsheet (Vintage Ivory &amp; Black Ink)</option>
-                            <option value="royal">Royal Crimson &amp; Gold (Imperial Gazette)</option>
-                            <option value="modern">Cyber Slate (Modern Minimalist Gazette)</option>
-                            <option value="emerald">Emerald Prestige (Forest Green &amp; Gold)</option>
-                        </select>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="btn btn-primary" onclick="autoTranslateAllNewspaperLanguages()" style="white-space: nowrap; flex: 1;">
-                            <i class="fa-solid fa-language"></i> Auto-Translate All (6 Langs)
-                        </button>
-                        <button type="button" class="btn btn-outline" onclick="window.print()" style="white-space: nowrap;">
-                            <i class="fa-solid fa-print"></i> Print
-                        </button>
+                    <div class="np-action-buttons-wrap" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="openNewspaperAiGenModal()"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate AI Gazette</button>
+                        <button class="btn btn-outline" onclick="openNewspaperReader(1)"><i class="fa-solid fa-book-open"></i> Fullscreen Reader &amp; Audio</button>
+                        <button class="btn btn-outline" onclick="openNewspaperStoryEditor()"><i class="fa-solid fa-sliders"></i> Broadsheet Studio</button>
+                        <button class="btn btn-outline" onclick="openNewspaperExportModal()"><i class="fa-solid fa-file-pdf"></i> Download 4-Page PDF</button>
+                        <button class="btn btn-success" style="background: #059669; color: white; border: none;" onclick="openNewspaperPublishModal()"><i class="fa-solid fa-cloud-arrow-up"></i> Publish to Public Results</button>
                     </div>
                 </div>
+
+                <!-- Super Admin Gating & Policy Status Banner -->
+                <div id="np-policy-banner" style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px; padding: 0.85rem 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(99, 102, 241, 0.15); display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 1.1rem;">
+                            <i class="fa-regular fa-clock"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);" id="np-policy-status-title">Release Schedule: 03:00 AM Daily Broadsheet</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);" id="np-policy-status-desc">Official newspapers become unlocked for download after 03:00 AM. Admin override active for draft testing.</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span id="np-policy-badge" class="badge" style="background: #10b981; color: white; padding: 0.35rem 0.75rem; font-size: 0.75rem; font-weight: 700; border-radius: 6px;">
+                            <i class="fa-solid fa-circle-check"></i> UNLOCKED
+                        </span>
+                        <button class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" onclick="checkNewspaperPolicyStatus()"><i class="fa-solid fa-rotate"></i> Re-check Policy</button>
+                    </div>
+                </div>
+
+                <!-- Toolbar Grid & Controls -->
+                <div class="newspaper-control-bar" style="margin-bottom: 1.25rem;">
+                    <!-- View Mode Switcher: Mobile Reader vs Print Broadsheet -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border);">
+                        <div class="np-view-mode-bar" style="margin-bottom: 0;">
+                            <button type="button" class="np-view-mode-btn" id="btn-mode-mobile" onclick="switchNewspaperViewMode('mobile')">
+                                <i class="fa-solid fa-mobile-screen"></i> Mobile Reader View
+                            </button>
+                            <button type="button" class="np-view-mode-btn active" id="btn-mode-print" onclick="switchNewspaperViewMode('print')">
+                                <i class="fa-solid fa-newspaper"></i> Print Broadsheet View
+                            </button>
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <button type="button" class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.75rem;" onclick="openNewspaperReader(1)">
+                                <i class="fa-solid fa-volume-high" style="color: var(--primary);"></i> Audio Dispatch
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="np-toolbar-grid">
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);"><i class="fa-regular fa-calendar"></i> Edition Date</label>
+                            <input type="date" class="form-control" id="np-edition-date" onchange="changeNewspaperDate(this.value)" style="font-weight: 600;">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);"><i class="fa-solid fa-palette"></i> Broadsheet Theme</label>
+                            <select class="form-control" id="np-theme-select" onchange="setNewspaperTheme(this.value)">
+                                <option value="classic">Classic Oxford Broadsheet (Vintage Ivory &amp; Black Ink)</option>
+                                <option value="royal">Royal Crimson &amp; Gold (Imperial Gazette)</option>
+                                <option value="modern">Cyber Slate (Modern Minimalist Gazette)</option>
+                                <option value="emerald">Emerald Prestige (Forest Green &amp; Gold)</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="btn btn-primary" onclick="autoTranslateAllNewspaperLanguages()" style="white-space: nowrap; flex: 1;">
+                                <i class="fa-solid fa-language"></i> Auto-Translate All (6 Langs)
+                            </button>
+                            <button type="button" class="btn btn-outline" onclick="window.print()" style="white-space: nowrap;">
+                                <i class="fa-solid fa-print"></i> Print
+                            </button>
+                        </div>
+                    </div>
 
                 <!-- Multilingual Language Bar -->
                 <div class="np-lang-bar">
@@ -4259,6 +4555,340 @@ tr:hover td { background: var(--bg-main); }
                             <i class="fa-solid fa-language"></i> Save &amp; Auto-Translate All
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- 1. QUICK STORY & ARTICLE EDITOR POPUP                     -->
+        <!-- ========================================================= -->
+        <div class="modal-overlay" id="quickStoryModal" style="z-index: 10001;">
+            <div class="modal-card np-fluid-modal">
+                <div class="np-fluid-header">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-pen-nib" style="color: #818cf8; font-size: 1.1rem;"></i>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 800; color: #ffffff;" id="quick-story-modal-title">Quick Article Editor</h3>
+                            <span style="font-size: 0.72rem; color: #94a3b8;" id="quick-story-modal-sub">Direct Section Customizer</span>
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeQuickStoryEditor()" style="background:transparent; border:none; color:#cbd5e1; cursor:pointer; font-size:1.2rem;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="np-fluid-body">
+                    <input type="hidden" id="quick-story-key" value="">
+                    
+                    <!-- One-Click AI Tone Polish Bar -->
+                    <div style="margin-bottom: 0.85rem;">
+                        <label style="font-size: 0.76rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; display: block;">
+                            <i class="fa-solid fa-wand-magic-sparkles" style="color: #6366f1;"></i> AI One-Click Tone Polish
+                        </label>
+                        <div class="np-ai-polish-bar">
+                            <button type="button" class="np-ai-polish-btn" onclick="applyQuickAiPolish('headline')"><i class="fa-solid fa-bolt"></i> Punchy Headline</button>
+                            <button type="button" class="np-ai-polish-btn" onclick="applyQuickAiPolish('dramatic')"><i class="fa-solid fa-fire"></i> High Drama</button>
+                            <button type="button" class="np-ai-polish-btn" onclick="applyQuickAiPolish('broadsheet')"><i class="fa-solid fa-newspaper"></i> Fleet Street Tone</button>
+                            <button type="button" class="np-ai-polish-btn" onclick="applyQuickAiPolish('summarize')"><i class="fa-solid fa-compress"></i> Tighten &amp; Trim</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0.85rem;">
+                        <label style="font-size: 0.8rem; font-weight: 700;">Headline / Title *</label>
+                        <input type="text" class="form-control" id="quick-story-title" placeholder="Enter headline">
+                    </div>
+
+                    <div class="form-group" id="quick-story-subhead-wrap" style="margin-bottom: 0.85rem;">
+                        <label style="font-size: 0.8rem; font-weight: 700;">Subheading / Performer Category</label>
+                        <input type="text" class="form-control" id="quick-story-subhead" placeholder="Enter secondary subheading or grade">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0.85rem;">
+                        <label style="font-size: 0.8rem; font-weight: 700;">Article Body / Quote Text</label>
+                        <textarea class="form-control" id="quick-story-body" rows="5" placeholder="Enter story text..."></textarea>
+                    </div>
+
+                    <!-- Photo Upload Section (Dynamic) -->
+                    <div class="form-group" id="quick-story-photo-wrap" style="margin-bottom: 0.5rem;">
+                        <label style="font-size: 0.8rem; font-weight: 700; display: flex; justify-content: space-between;">
+                            <span>Featured Photograph</span>
+                            <span style="font-size: 0.72rem; color: var(--text-muted);">URL or Local Upload</span>
+                        </label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" class="form-control" id="quick-story-img-url" placeholder="https://..." oninput="previewQuickStoryPhoto(this.value)">
+                            <label class="btn btn-outline" style="cursor: pointer; margin: 0; padding: 0.5rem 0.8rem; font-size: 0.8rem; white-space: nowrap;">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> Upload
+                                <input type="file" accept="image/*" style="display: none;" onchange="handleQuickStoryPhotoUpload(this)">
+                            </label>
+                        </div>
+                        <div style="margin-top: 6px; display: flex; gap: 8px; align-items: center;">
+                            <img id="quick-story-img-preview" src="" style="width: 70px; height: 50px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); display: none;">
+                            <input type="text" class="form-control" id="quick-story-caption" placeholder="Photo caption &amp; credits" style="flex: 1; font-size: 0.78rem;">
+                        </div>
+                    </div>
+                </div>
+                <div class="np-fluid-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeQuickStoryEditor()">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveQuickStoryChanges()">
+                        <i class="fa-solid fa-check"></i> Save Story
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- 2. FULLSCREEN INTERACTIVE READER & TTS AUDIO DISPATCH     -->
+        <!-- ========================================================= -->
+        <div class="modal-overlay" id="newspaperReaderModal" style="z-index: 10002;">
+            <div class="modal-card np-fluid-modal np-fluid-modal-lg" style="max-height: 94vh;">
+                <div class="np-fluid-header">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-book-open" style="color: #818cf8; font-size: 1.25rem;"></i>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #ffffff;" id="reader-modal-title">Festival Gazette Interactive Reader</h3>
+                            <span style="font-size: 0.75rem; color: #94a3b8;" id="reader-modal-sub">Certified Digital Broadsheet Edition</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button type="button" class="btn btn-outline" style="color: #ffffff; border-color: rgba(255,255,255,0.3); padding: 0.35rem 0.75rem; font-size: 0.75rem;" onclick="shareNewspaperEdition()">
+                            <i class="fa-solid fa-share-nodes"></i> Share
+                        </button>
+                        <button type="button" onclick="closeNewspaperReader()" style="background:transparent; border:none; color:#cbd5e1; cursor:pointer; font-size:1.3rem;">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="np-fluid-body" style="background: #0f172a; padding: 1.25rem; display: flex; flex-direction: column; align-items: center;">
+                    <!-- AI Text-To-Speech (TTS) Voice Dispatch Widget -->
+                    <div class="np-tts-bar" style="width: 100%; max-width: 794px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button type="button" class="np-tts-btn" onclick="toggleNewspaperAudioReader()" id="btn-tts-play" title="Listen to Gazette Audio Broadcast">
+                                <i class="fa-solid fa-play" id="icon-tts-play"></i>
+                            </button>
+                            <div>
+                                <div style="font-weight: 800; font-size: 0.88rem; display: flex; align-items: center; gap: 6px;">
+                                    <i class="fa-solid fa-radio"></i> AI Daily Audio Dispatch
+                                </div>
+                                <div style="font-size: 0.74rem; color: #cbd5e1;" id="tts-status-label">Click play to listen to today's news bulletin broadcast</div>
+                            </div>
+                        </div>
+                        <div class="np-tts-controls">
+                            <div class="np-soundwave" id="np-audio-soundwave" style="display: none;">
+                                <div class="np-soundwave-bar"></div>
+                                <div class="np-soundwave-bar"></div>
+                                <div class="np-soundwave-bar"></div>
+                                <div class="np-soundwave-bar"></div>
+                            </div>
+                            <button type="button" class="btn btn-outline" style="color: #ffffff; border-color: rgba(255,255,255,0.25); font-size: 0.72rem; padding: 0.25rem 0.6rem;" onclick="stopNewspaperAudioReader()">
+                                <i class="fa-solid fa-stop"></i> Stop
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Reader Interactive Flip Toolbar -->
+                    <div style="width: 100%; max-width: 794px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; color: #ffffff; flex-wrap: wrap; gap: 8px;">
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" class="btn btn-outline" style="color: #ffffff; border-color: rgba(255,255,255,0.25); font-size: 0.78rem; padding: 0.4rem 0.75rem;" onclick="flipReaderPage(-1)">
+                                <i class="fa-solid fa-chevron-left"></i> Prev Page
+                            </button>
+                            <span id="reader-page-counter" style="align-self: center; font-size: 0.82rem; font-weight: 700; background: rgba(255,255,255,0.1); padding: 0.35rem 0.8rem; border-radius: 6px;">Page 1 of 4</span>
+                            <button type="button" class="btn btn-outline" style="color: #ffffff; border-color: rgba(255,255,255,0.25); font-size: 0.78rem; padding: 0.4rem 0.75rem;" onclick="flipReaderPage(1)">
+                                Next Page <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" class="btn btn-outline" style="color: #ffffff; border-color: rgba(255,255,255,0.25); font-size: 0.78rem; padding: 0.4rem 0.75rem;" onclick="toggleReaderAllPages()">
+                                <i class="fa-solid fa-layer-group"></i> All 4 Pages
+                            </button>
+                            <button type="button" class="btn btn-primary" style="font-size: 0.78rem; padding: 0.4rem 0.75rem;" onclick="exportNewspaperPDF()">
+                                <i class="fa-solid fa-download"></i> PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Reader High-Res Canvas Target -->
+                    <div id="np-reader-canvas-stage" style="width: 100%; display: flex; justify-content: center; overflow-y: auto;">
+                        <!-- Cloned broadsheet page inserted dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- 3. DOWNLOAD 4-PAGE PDF EXPORT MODAL                       -->
+        <!-- ========================================================= -->
+        <div class="modal-overlay" id="newspaperExportModal" style="z-index: 10003;">
+            <div class="modal-card np-fluid-modal">
+                <div class="np-fluid-header">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-file-pdf" style="color: #ef4444; font-size: 1.2rem;"></i>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 800; color: #ffffff;">Download Festival Broadsheet PDF</h3>
+                            <span style="font-size: 0.72rem; color: #94a3b8;">High-Resolution A4 Print Engine</span>
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeNewspaperExportModal()" style="background:transparent; border:none; color:#cbd5e1; cursor:pointer; font-size:1.2rem;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="np-fluid-body">
+                    <div style="margin-bottom: 1.25rem;">
+                        <label style="font-size: 0.8rem; font-weight: 800; margin-bottom: 6px; display: block;">Pages to Include</label>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer;">
+                                <input type="radio" name="pdf-page-scope" value="all" checked onchange="updatePdfExportScope(this.value)">
+                                <span><strong>Complete 4-Page Broadsheet</strong> (Front Page, Arena, Standings, Chronicles)</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer;">
+                                <input type="radio" name="pdf-page-scope" value="single" onchange="updatePdfExportScope(this.value)">
+                                <span><strong>Current Active Page Only</strong> (Page <span id="pdf-active-page-label">1</span>)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 1.25rem;">
+                        <label style="font-size: 0.8rem; font-weight: 800; margin-bottom: 6px; display: block;">Color Output Mode</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <label class="np-preset-card active" style="margin: 0; cursor: pointer; text-align: center;">
+                                <input type="radio" name="pdf-color-mode" value="color" checked style="display: none;">
+                                <div style="font-weight: 800; font-size: 0.85rem; color: #1e293b;"><i class="fa-solid fa-palette" style="color: #6366f1;"></i> Full Color</div>
+                                <span style="font-size: 0.72rem; color: #64748b;">Luxury Broadsheet Tint</span>
+                            </label>
+                            <label class="np-preset-card" style="margin: 0; cursor: pointer; text-align: center;">
+                                <input type="radio" name="pdf-color-mode" value="mono" style="display: none;">
+                                <div style="font-weight: 800; font-size: 0.85rem; color: #1e293b;"><i class="fa-solid fa-print"></i> Ink-Saver</div>
+                                <span style="font-size: 0.72rem; color: #64748b;">High Contrast Grayscale</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.85rem 1rem;">
+                        <div style="font-size: 0.78rem; color: #475569; display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-circle-check" style="color: #10b981;"></i> Standard A4 Dimensions (210mm × 297mm) • Print-Ready Vector Typography
+                        </div>
+                    </div>
+                </div>
+                <div class="np-fluid-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeNewspaperExportModal()">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmAndDownloadPdf()" id="btn-run-export-pdf">
+                        <i class="fa-solid fa-file-arrow-down"></i> Download PDF Now
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- 4. PUBLISH TO RESULTS CONFIRMATION MODAL                  -->
+        <!-- ========================================================= -->
+        <div class="modal-overlay" id="newspaperPublishModal" style="z-index: 10004;">
+            <div class="modal-card np-fluid-modal">
+                <div class="np-fluid-header">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-cloud-arrow-up" style="color: #10b981; font-size: 1.2rem;"></i>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 800; color: #ffffff;">Publish Gazette to Public Results</h3>
+                            <span style="font-size: 0.72rem; color: #94a3b8;">Instant Spectator &amp; Student Broadcast</span>
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeNewspaperPublishModal()" style="background:transparent; border:none; color:#cbd5e1; cursor:pointer; font-size:1.2rem;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="np-fluid-body">
+                    <p style="font-size: 0.88rem; color: #334155; margin-bottom: 1.25rem; line-height: 1.5;">
+                        Publishing releases this certified edition to public viewers on the public results portal. Choose which channels to update:
+                    </p>
+
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.25rem;">
+                        <label style="display: flex; align-items: flex-start; gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.85rem; cursor: pointer;">
+                            <input type="checkbox" id="pub-dest-downloads" checked style="margin-top: 3px;">
+                            <div>
+                                <strong style="font-size: 0.85rem; color: #1e293b; display: block;">Official Downloads Hub</strong>
+                                <span style="font-size: 0.75rem; color: #64748b;">Add 4-Page certified PDF file to public downloads repository.</span>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: flex-start; gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.85rem; cursor: pointer;">
+                            <input type="checkbox" id="pub-dest-news" checked style="margin-top: 3px;">
+                            <div>
+                                <strong style="font-size: 0.85rem; color: #1e293b; display: block;">News &amp; Bulletins Tab</strong>
+                                <span style="font-size: 0.75rem; color: #64748b;">Post breaking headline chronicle and stage highlights bulletin.</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 0.85rem 1rem;">
+                        <div style="font-size: 0.78rem; color: #065f46; display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-shield-check"></i> Edition will be tagged as certified festival press dispatch.
+                        </div>
+                    </div>
+                </div>
+                <div class="np-fluid-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeNewspaperPublishModal()">Cancel</button>
+                    <button type="button" class="btn btn-success" style="background: #059669; color: white; border: none;" onclick="confirmPublishNewspaper()" id="btn-run-publish-results">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Confirm &amp; Publish
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- 5. AI GAZETTE GENERATOR OPTIONS MODAL                     -->
+        <!-- ========================================================= -->
+        <div class="modal-overlay" id="newspaperAiGenModal" style="z-index: 10005;">
+            <div class="modal-card np-fluid-modal">
+                <div class="np-fluid-header">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-wand-magic-sparkles" style="color: #6366f1; font-size: 1.2rem;"></i>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 800; color: #ffffff;">Generate AI Daily Gazette</h3>
+                            <span style="font-size: 0.72rem; color: #94a3b8;">Multi-Stage Synthesis &amp; Editorial Intelligence</span>
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeNewspaperAiGenModal()" style="background:transparent; border:none; color:#cbd5e1; cursor:pointer; font-size:1.2rem;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="np-fluid-body">
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label style="font-size: 0.8rem; font-weight: 700;">Editorial Tone &amp; Press Voice</label>
+                        <select class="form-control" id="ai-gen-tone">
+                            <option value="classic">Classic Fleet Street Broadsheet (Balanced, Elegant &amp; Literary)</option>
+                            <option value="dramatic">High-Octane Cultural Drama (Electric, High Stakes &amp; Hype)</option>
+                            <option value="scholarly">Academic &amp; Prestigious (Formal, Measured &amp; Dignified)</option>
+                            <option value="breaking">Breaking News Dispatch (Urgent, Fast-Paced &amp; Crisp)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label style="font-size: 0.8rem; font-weight: 700;">Data Sources to Ingest</label>
+                        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem;">
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="ai-gen-src-schedules" checked> Verified Arena Schedules &amp; Venues
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="ai-gen-src-standings" checked> Live Certified Leaderboard &amp; Points Ledger
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="ai-gen-src-winners" checked> Stage Winners &amp; Top Performers
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Animated Progress Bar (Active during generation) -->
+                    <div id="ai-gen-progress-wrap" style="display: none; margin-top: 1rem;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 700; color: #6366f1; margin-bottom: 4px;">
+                            <span id="ai-gen-step-label">Reading stage results &amp; schedules...</span>
+                            <span id="ai-gen-percent-label">35%</span>
+                        </div>
+                        <div style="height: 6px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                            <div id="ai-gen-progress-bar" style="width: 35%; height: 100%; background: linear-gradient(90deg, #6366f1, #10b981); transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="np-fluid-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeNewspaperAiGenModal()">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmGenerateNewspaper()" id="btn-run-ai-gen">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Synthesize 4-Page Gazette
+                    </button>
                 </div>
             </div>
         </div>
@@ -5645,5 +6275,6 @@ function toggleCustomGridFields() {
     </div>
 </div>
 
+<div id="sidebar-compact-flyout" class="sidebar-compact-flyout"></div>
 </body>
 </html>

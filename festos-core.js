@@ -278,7 +278,10 @@ const festosBranding = {
 
             const festId = festosAuth.getCurrentFestId();
             const key = this.getCacheKey(festId);
-            const cached = localStorage.getItem(key);
+            const cached = localStorage.getItem(key) || 
+                           localStorage.getItem('festBranding') || 
+                           localStorage.getItem('festos_branding_cache_active') ||
+                           (festId ? localStorage.getItem('festos_cfg_system_branding_' + festId) : null);
             if (cached) {
                 const data = JSON.parse(cached);
                 this.apply(data);
@@ -456,7 +459,14 @@ const festosBranding = {
         // 3. Update all Brand Containers & Logos on page
         const brandContainers = document.querySelectorAll('.brand, .navbar-brand, .logo-text, .header h1, .brand-container, .brand-logo-text');
         brandContainers.forEach(container => {
-            if (container.id === 'page-title' || container.getAttribute('data-no-auto-brand') === 'true') return;
+            if (
+                container.id === 'page-title' || 
+                container.id === 'top-page-title' || 
+                container.id === 'manager-page-title' || 
+                container.id === 'announcer-page-title' ||
+                container.getAttribute('data-no-auto-brand') === 'true' ||
+                (container.tagName === 'H1' && container.closest('.header') && document.querySelector('.sidebar .brand, #superSidebar .brand, .sidebar'))
+            ) return;
 
             let html = '';
             if (isLogin) {

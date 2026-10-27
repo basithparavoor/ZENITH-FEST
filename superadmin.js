@@ -2,6 +2,9 @@
 // =========================================================================
 // ENTERPRISE ROOT SUPER ADMIN & RBAC CONFIGURATION
 // =========================================================================
+if (typeof supabaseClient === 'undefined' && typeof window !== 'undefined') {
+    window.supabaseClient = window.festosSupabase || window.supabaseClient;
+}
 const SUPER_ADMIN_EMAIL = 'admin@festos.com';
 
 function isSuperAdminAccount(user) {
@@ -513,6 +516,19 @@ async function syncFestsToDatabase() {
 // 3. TAB NAVIGATION & MOBILE CONTROLS
 // =========================================================================
 function switchSuperTab(tabId) {
+    // 1. Direct deep links & route aliases
+    if (tabId === 'tab-logs') {
+        switchSuperTab('tab-super-dev');
+        setTimeout(() => switchSuperDevSubtab('audit-logs'), 50);
+        return;
+    }
+    if (tabId === 'tab-diagnostics') {
+        switchSuperTab('tab-super-dev');
+        setTimeout(() => switchSuperDevSubtab('system-doctor'), 50);
+        return;
+    }
+
+    // 2. Clear previous active states
     document.querySelectorAll('.nav-main').forEach(nav => nav.classList.remove('active'));
     document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
 
@@ -522,7 +538,23 @@ function switchSuperTab(tabId) {
     if (targetNav) targetNav.classList.add('active');
     if (targetSection) targetSection.classList.add('active');
 
-    // Close mobile navigation
+    // 3. Dynamic Top Page Title & Breadcrumb updates
+    const pageTitleEl = document.getElementById('top-page-title');
+    const tabTitles = {
+        'tab-overview': 'Control Room & Multi-Tenant Telemetry',
+        'tab-festivals': 'Festivals Hub & Tenant Management',
+        'tab-broadcasts': 'Emergency Broadcasts & Master Notices',
+        'tab-enquiries': 'Client Inquiries & Demo Leads',
+        'tab-admins': 'Master Admins & Staff Governance',
+        'tab-templates': 'Global Template Presets & Access Scope',
+        'tab-global-branding': 'Global Software Branding Studio',
+        'tab-super-dev': 'Root Privileged Diagnostics & Dev Suite'
+    };
+    if (pageTitleEl && tabTitles[tabId]) {
+        pageTitleEl.innerText = tabTitles[tabId];
+    }
+
+    // 4. Close mobile navigation drawer if open
     const sidebar = document.getElementById('superSidebar');
     const backdrop = document.getElementById('sidebarBackdrop');
     if (sidebar) {
@@ -534,39 +566,93 @@ function switchSuperTab(tabId) {
         backdrop.classList.remove('active');
     }
 
+    // 5. Trigger view specific data hydration
     if (tabId === 'tab-festivals') renderFestivalsGrid();
     if (tabId === 'tab-broadcasts') renderBroadcastsTab();
     if (tabId === 'tab-enquiries') renderEnquiriesTable();
     if (tabId === 'tab-admins') renderUsersTable();
     if (tabId === 'tab-global-branding') loadGlobalSoftwareBranding();
     if (tabId === 'tab-templates') loadSuperPresets();
-
-    // Unified Enterprise Super Admin & Dev Diagnostics Suite
-    if (tabId === 'tab-super-dev') {
-        initSuperDevSuite();
-    } else if (tabId === 'tab-logs') {
-        switchSuperTab('tab-super-dev');
-        setTimeout(() => switchSuperDevSubtab('audit-logs'), 60);
-        return;
-    } else if (tabId === 'tab-diagnostics') {
-        switchSuperTab('tab-super-dev');
-        setTimeout(() => switchSuperDevSubtab('system-doctor'), 60);
-        return;
-    }
+    if (tabId === 'tab-super-dev') initSuperDevSuite();
 }
 
+// =========================================================================
+// 3-STEP COLLAPSIBLE SIDEBAR ENGINE (SUPER ADMIN)
+// Step 0: Expanded -> Step 1: Compact (Buttons Only) -> Step 2: Hidden -> Step 0
+// =========================================================================
 function toggleMobileSidebar() {
-    const sidebar = document.getElementById('superSidebar');
-    const backdrop = document.getElementById('sidebarBackdrop');
-    if (sidebar) {
-        sidebar.classList.toggle('open');
-        sidebar.classList.toggle('mobile-open');
-    }
-    if (backdrop) {
-        backdrop.classList.toggle('open');
-        backdrop.classList.toggle('active');
+    if (window.innerWidth <= 768) {
+        // Mobile off-canvas drawer
+        const sidebar = document.getElementById('superSidebar');
+        const backdrop = document.getElementById('sidebarBackdrop');
+        if (sidebar) {
+            sidebar.classList.toggle('open');
+            sidebar.classList.toggle('mobile-open');
+        }
+        if (backdrop) {
+            backdrop.classList.toggle('open');
+            backdrop.classList.toggle('active');
+        }
+    } else {
+        // Desktop 3-Step Cycle
+        const body = document.body;
+        let nextState = 'compact';
+        if (body.classList.contains('sidebar-compact')) {
+            body.classList.remove('sidebar-compact');
+            body.classList.add('sidebar-hidden');
+            nextState = 'hidden';
+        } else if (body.classList.contains('sidebar-hidden') || body.classList.contains('sidebar-collapsed')) {
+            body.classList.remove('sidebar-hidden', 'sidebar-collapsed', 'sidebar-compact');
+            nextState = 'expanded';
+        } else {
+            body.classList.add('sidebar-compact');
+            nextState = 'compact';
+        }
+
+        try {
+            localStorage.setItem('festos_super_sidebar_state', nextState);
+        } catch (e) {}
+        updateSuperSidebarTooltip(nextState);
+        window.dispatchEvent(new Event('resize'));
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 320);
     }
 }
+
+function updateSuperSidebarTooltip(state) {
+    const btn = document.querySelector('.menu-toggle.mobile-toggle');
+    if (!btn) return;
+    if (state === 'compact') {
+        btn.title = 'Sidebar: Buttons Only (Click to Hide) - Ctrl+B';
+    } else if (state === 'hidden') {
+        btn.title = 'Sidebar: Hidden (Click to Expand) - Ctrl+B';
+    } else {
+        btn.title = 'Sidebar: Expanded (Click for Buttons Only) - Ctrl+B';
+    }
+}
+
+// Restore Super Admin desktop 3-step state on load
+try {
+    if (window.innerWidth > 768) {
+        const savedState = localStorage.getItem('festos_super_sidebar_state');
+        if (savedState === 'compact') {
+            document.body.classList.add('sidebar-compact');
+            updateSuperSidebarTooltip('compact');
+        } else if (savedState === 'hidden' || savedState === 'true' || localStorage.getItem('festos_super_sidebar_collapsed') === 'true') {
+            document.body.classList.add('sidebar-hidden');
+            updateSuperSidebarTooltip('hidden');
+        } else {
+            updateSuperSidebarTooltip('expanded');
+        }
+    }
+} catch (e) {}
+
+// Ctrl+B shortcut for desktop sidebar collapse
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b' && !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+        e.preventDefault();
+        toggleMobileSidebar();
+    }
+});
 
 function renderAllViews() {
     renderOverviewActiveSpotlight();
@@ -620,6 +706,21 @@ function updateKPIDisplays(fests, enquiries, admins, participants, compCount = 0
     const festSlugEl = document.getElementById('dash-active-fest-slug');
     if (festNameEl && activeFest) festNameEl.innerText = activeFest.name || 'Zenith Festival';
     if (festSlugEl && activeFest) festSlugEl.innerText = festDomainOf(activeFest);
+
+    // Dynamic Multi-Tenant Online Ratio
+    const liveFestsEl = document.getElementById('dash-live-fests-val');
+    if (liveFestsEl) {
+        const totalCount = Array.isArray(globalFests) ? globalFests.length : 0;
+        const activeCount = Array.isArray(globalFests) ? globalFests.filter(f => f.status === 'active').length : 0;
+        const pct = totalCount > 0 ? Math.round((activeCount / totalCount) * 100) : 100;
+        liveFestsEl.innerText = `${pct}% Online`;
+    }
+
+    // Section Header Badges
+    const enqBadge = document.getElementById('enquiries-count-badge');
+    if (enqBadge) enqBadge.innerText = `${enquiries} Requests`;
+    const admBadge = document.getElementById('admins-count-badge');
+    if (admBadge) admBadge.innerText = `${admins} Accounts`;
 }
 
 function changeActiveFestContext(festId) {
@@ -1083,6 +1184,9 @@ function renderFestivalsGrid() {
                     </div>
 
                     <div class="fest-actions-bar" onclick="event.stopPropagation()">
+                        <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem; color:${f.newspaper_config?.enabled !== false ? '#059669' : '#94a3b8'}; border-color:${f.newspaper_config?.enabled !== false ? 'rgba(5,150,105,0.4)' : 'rgba(148,163,184,0.4)'}; background:${f.newspaper_config?.enabled !== false ? 'rgba(5,150,105,0.08)' : 'transparent'};" onclick="quickToggleFestivalNewspaper('${f.id}')" title="AI Newspaper: ${f.newspaper_config?.enabled !== false ? 'Enabled (Click to turn OFF)' : 'Disabled (Click to turn ON)'}">
+                            <i class="fa-solid fa-newspaper"></i> ${f.newspaper_config?.enabled !== false ? 'News: ON' : 'News: OFF'}
+                        </button>
                         <button class="btn btn-primary" style="padding:4px 10px; font-size:0.75rem;" onclick="launchFestConsole('${f.id}')" title="Launch Festival Admin Console in New Tab">
                             <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Console
                         </button>
@@ -1569,25 +1673,32 @@ async function saveFestivalSubmit() {
             festosLogger.log('SYSTEM', `Created festival: ${name} (${domain})`, newFest, 'INFO');
         }
 
-        // Direct explicit Supabase update & fallback for instant DB persistence
-        if (festosSupabase) {
+        // 1. Instant optimistic local persistence (0ms delay)
+        const currentFestObj = globalFests.find(f => f.id === savedFestId);
+        if (currentFestObj) {
             try {
-                await festosSupabase.from('fests').upsert({
-                    id: savedFestId,
-                    name,
-                    slug,
-                    domain,
-                    public_results_slug: resultsSlug,
-                    status: status || 'active',
-                    venue,
-                    start_date: startDate || null,
-                    end_date: endDate || null,
-                    logo: logo || 'festos-logo.svg',
-                    updated_at: new Date().toISOString()
-                });
-            } catch (festTblErr) {
+                localStorage.setItem('festos_multi_fests', JSON.stringify(globalFests));
+                localStorage.setItem('festMetadata_' + savedFestId, JSON.stringify(currentFestObj));
+                localStorage.setItem('festos_cfg_newspaper_config_' + savedFestId, JSON.stringify(newspaper_config));
+                if (typeof festosDomains !== 'undefined' && festosDomains.setFestList) {
+                    festosDomains.setFestList(globalFests);
+                }
+                window.dispatchEvent(new CustomEvent('festos_newspaper_config_updated', { detail: { festId: savedFestId, config: newspaper_config } }));
+                window.dispatchEvent(new StorageEvent('storage', { key: 'festos_cfg_newspaper_config_' + savedFestId }));
+            } catch(e) {}
+        }
+
+        // 2. Immediately close modal and show instant success toast to user
+        closeModal('festModal');
+        renderAllViews();
+        showToast(`Festival "${name}" saved!`, 'success');
+
+        // 3. Background non-blocking sync to remote database (never hangs the UI)
+        (async () => {
+            if (festosSupabase) {
                 try {
-                    await festosSupabase.from('fests').update({
+                    await festosSupabase.from('fests').upsert({
+                        id: savedFestId,
                         name,
                         slug,
                         domain,
@@ -1598,36 +1709,74 @@ async function saveFestivalSubmit() {
                         end_date: endDate || null,
                         logo: logo || 'festos-logo.svg',
                         updated_at: new Date().toISOString()
-                    }).eq('id', savedFestId);
+                    });
+                } catch (festTblErr) {
+                    try {
+                        await festosSupabase.from('fests').update({
+                            name,
+                            slug,
+                            domain,
+                            public_results_slug: resultsSlug,
+                            status: status || 'active',
+                            venue,
+                            start_date: startDate || null,
+                            end_date: endDate || null,
+                            logo: logo || 'festos-logo.svg',
+                            updated_at: new Date().toISOString()
+                        }).eq('id', savedFestId);
+                    } catch(e) {}
+                }
+
+                try {
+                    await festosSupabase.from('settings').upsert({
+                        id: 'newspaper_config_' + savedFestId,
+                        value: newspaper_config
+                    });
                 } catch(e) {}
             }
-
             try {
-                await festosSupabase.from('settings').upsert({
-                    id: 'newspaper_config_' + savedFestId,
-                    value: newspaper_config
-                });
+                await syncFestsToDatabase();
             } catch(e) {}
-        }
-
-        // Cache immediately in localStorage
-        const currentFestObj = globalFests.find(f => f.id === savedFestId);
-        if (currentFestObj) {
-            try {
-                localStorage.setItem('festMetadata_' + savedFestId, JSON.stringify(currentFestObj));
-                localStorage.setItem('festos_cfg_newspaper_config_' + savedFestId, JSON.stringify(newspaper_config));
-            } catch(e) {}
-        }
-
-        await syncFestsToDatabase();
-        closeModal('festModal');
-        renderAllViews();
-        showToast(`Festival "${name}" saved!`, 'success');
+        })();
     } catch (e) {
         showToast('Error saving festival: ' + e.message, 'error');
     } finally {
         btn.disabled = false;
         btn.innerText = 'Save Festival';
+    }
+}
+
+// 1-Click Instant Quick-Toggle for Super Admin
+async function quickToggleFestivalNewspaper(festId) {
+    const f = globalFests.find(x => x.id === festId);
+    if (!f) return;
+    if (!f.newspaper_config) f.newspaper_config = { enabled: true, generation_time: '03:00', allowed_dates: [] };
+    
+    const newState = !(f.newspaper_config.enabled !== false);
+    f.newspaper_config.enabled = newState;
+    f.updated_at = new Date().toISOString();
+
+    // 1. Instant local persistence (0ms)
+    try {
+        localStorage.setItem('festos_multi_fests', JSON.stringify(globalFests));
+        localStorage.setItem('festMetadata_' + festId, JSON.stringify(f));
+        localStorage.setItem('festos_cfg_newspaper_config_' + festId, JSON.stringify(f.newspaper_config));
+        if (typeof festosDomains !== 'undefined' && festosDomains.setFestList) {
+            festosDomains.setFestList(globalFests);
+        }
+        window.dispatchEvent(new CustomEvent('festos_newspaper_config_updated', { detail: { festId, config: f.newspaper_config } }));
+        window.dispatchEvent(new StorageEvent('storage', { key: 'festos_cfg_newspaper_config_' + festId }));
+    } catch(e) {}
+
+    renderFestivalsGrid();
+    showToast(`AI Newspaper ${newState ? 'Enabled' : 'Disabled'} for "${f.name}"!`, newState ? 'success' : 'info');
+
+    // 2. Background remote sync
+    if (festosSupabase) {
+        festosSupabase.from('settings').upsert({
+            id: 'newspaper_config_' + festId,
+            value: f.newspaper_config
+        }).catch(err => console.warn('Background newspaper setting sync error:', err));
     }
 }
 
@@ -1716,6 +1865,9 @@ function renderEnquiriesTable() {
         const matchesStatus = statusFilter === 'all' || e.status === statusFilter;
         return matchesSearch && matchesStatus;
     });
+
+    const enqBadge = document.getElementById('enquiries-count-badge');
+    if (enqBadge) enqBadge.innerText = `${filtered.length} Requests`;
 
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">No client inquiries found.</td></tr>`;
@@ -1825,6 +1977,9 @@ function renderUsersTable() {
         const matchesFest = festFilterVal === 'all' || u.fest_id === festFilterVal || u.username.startsWith(globalFests.find(f => f.id === festFilterVal)?.slug || '');
         return matchesSearch && matchesRole && matchesFest;
     });
+
+    const admBadge = document.getElementById('admins-count-badge');
+    if (admBadge) admBadge.innerText = `${filtered.length} Accounts`;
 
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted);">No Master Admins match current filters.</td></tr>`;
@@ -4033,6 +4188,18 @@ function switchSuperDevSubtab(subtabId) {
 
     const activePane = document.getElementById(`submodule-${subtabId}`);
     if (activePane) activePane.style.display = 'block';
+
+    // Dynamic Title Update for Super Dev Suite
+    const pageTitleEl = document.getElementById('top-page-title');
+    const subTitles = {
+        'db-explorer': 'Super Dev / Developer DB Explorer',
+        'system-doctor': 'Super Dev / System Doctor & Auto-Repair',
+        'user-sessions': 'Super Dev / Active User Sessions',
+        'audit-logs': 'Super Dev / Security Audit Trail'
+    };
+    if (pageTitleEl && subTitles[subtabId]) {
+        pageTitleEl.innerText = subTitles[subtabId];
+    }
 
     if (subtabId === 'db-explorer') {
         updateDbDiagnosticsKpis();

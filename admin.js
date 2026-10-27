@@ -364,14 +364,183 @@ window.loadClassPreset = function(type) {
 };
 
 // --- UI UTILITIES (PREMIUM UPGRADES) ---
+// =========================================================================
+// 3-STEP COLLAPSIBLE SIDEBAR ENGINE (ADMIN)
+// Step 0: Expanded -> Step 1: Compact (Buttons Only) -> Step 2: Hidden -> Step 0
+// =========================================================================
 function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.querySelector('.mobile-overlay');
-    if (sidebar && overlay) {
-        sidebar.classList.toggle('open');
-        overlay.classList.toggle('open');
+    if (window.innerWidth <= 768) {
+        // Mobile off-canvas drawer
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.querySelector('.mobile-overlay');
+        if (sidebar && overlay) {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('open');
+        }
+    } else {
+        // Desktop 3-Step Cycle
+        const body = document.body;
+        let nextState = 'compact';
+        if (body.classList.contains('sidebar-compact')) {
+            body.classList.remove('sidebar-compact');
+            body.classList.add('sidebar-hidden');
+            nextState = 'hidden';
+        } else if (body.classList.contains('sidebar-hidden') || body.classList.contains('sidebar-collapsed')) {
+            body.classList.remove('sidebar-hidden', 'sidebar-collapsed', 'sidebar-compact');
+            nextState = 'expanded';
+        } else {
+            body.classList.add('sidebar-compact');
+            nextState = 'compact';
+        }
+
+        try {
+            localStorage.setItem('festos_admin_sidebar_state', nextState);
+        } catch (e) {}
+        updateAdminSidebarTooltip(nextState);
+
+        // Hide flyout if changing state
+        hideSidebarFlyout();
+
+        // Trigger resize events for Chart.js and grids so right cards are never pushed outside
+        window.dispatchEvent(new Event('resize'));
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+            if (typeof dashRegChart !== 'undefined' && dashRegChart) dashRegChart.resize();
+            if (typeof dashTeamChart !== 'undefined' && dashTeamChart) dashTeamChart.resize();
+        }, 320);
     }
 }
+
+// --- COMPACT SIDEBAR FLYOUT SUBMENU ENGINE ---
+let flyoutHideTimeout = null;
+
+function hideSidebarFlyout() {
+    const flyout = document.getElementById('sidebar-compact-flyout');
+    if (flyout) flyout.classList.remove('active');
+}
+
+function initCompactSidebarFlyout() {
+    const flyout = document.getElementById('sidebar-compact-flyout');
+    if (!flyout) return;
+
+    flyout.addEventListener('mouseenter', () => {
+        clearTimeout(flyoutHideTimeout);
+    });
+    flyout.addEventListener('mouseleave', () => {
+        hideSidebarFlyout();
+    });
+
+    document.addEventListener('mouseover', (e) => {
+        if (!document.body.classList.contains('sidebar-compact')) return;
+
+        const navGroup = e.target.closest('.sidebar .nav-group, .sidebar #master-admin-portals');
+        if (!navGroup) {
+            if (!e.target.closest('#sidebar-compact-flyout')) {
+                clearTimeout(flyoutHideTimeout);
+                flyoutHideTimeout = setTimeout(hideSidebarFlyout, 150);
+            }
+            return;
+        }
+
+        clearTimeout(flyoutHideTimeout);
+        const navMain = navGroup.querySelector('.nav-main');
+        const navSub = navGroup.querySelector('.nav-sub');
+        const portalLinks = navGroup.querySelectorAll('a.nav-main');
+
+        let title = '';
+        let items = [];
+
+        if (navSub) {
+            // Group with sub-items
+            title = navMain ? navMain.innerText.trim() : 'Menu';
+            const subItems = navSub.querySelectorAll('.nav-item');
+            subItems.forEach(item => {
+                items.push({
+                    text: item.innerText.trim(),
+                    onclick: item.getAttribute('onclick') || ''
+                });
+            });
+        } else if (navGroup.id === 'master-admin-portals' && portalLinks.length > 0) {
+            title = 'Cross-Portal Access';
+            portalLinks.forEach(a => {
+                items.push({
+                    text: a.innerText.trim(),
+                    href: a.getAttribute('href') || ''
+                });
+            });
+        } else {
+            hideSidebarFlyout();
+            return;
+        }
+
+        if (items.length === 0) {
+            hideSidebarFlyout();
+            return;
+        }
+
+        // Populate and position flyout
+        const rect = (navMain || navGroup).getBoundingClientRect();
+        let html = `<div class="flyout-header">${title}</div>`;
+        items.forEach(it => {
+            if (it.onclick) {
+                html += `<div class="flyout-item" onclick="${it.onclick}; hideSidebarFlyout();">${it.text}</div>`;
+            } else if (it.href) {
+                html += `<a href="${it.href}" class="flyout-item" style="text-decoration:none;" onclick="hideSidebarFlyout();">${it.text}</a>`;
+            }
+        });
+
+        flyout.innerHTML = html;
+        const topPos = Math.max(10, Math.min(rect.top, window.innerHeight - 300));
+        flyout.style.top = topPos + 'px';
+        flyout.style.left = '76px';
+        flyout.classList.add('active');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.sidebar') && !e.target.closest('#sidebar-compact-flyout')) {
+            hideSidebarFlyout();
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initCompactSidebarFlyout);
+
+
+function updateAdminSidebarTooltip(state) {
+    const btn = document.querySelector('.menu-toggle');
+    if (!btn) return;
+    if (state === 'compact') {
+        btn.title = 'Sidebar: Buttons Only (Click to Hide) - Ctrl+B';
+    } else if (state === 'hidden') {
+        btn.title = 'Sidebar: Hidden (Click to Expand) - Ctrl+B';
+    } else {
+        btn.title = 'Sidebar: Expanded (Click for Buttons Only) - Ctrl+B';
+    }
+}
+
+// Restore Admin desktop 3-step state on load
+try {
+    if (window.innerWidth > 768) {
+        const savedState = localStorage.getItem('festos_admin_sidebar_state');
+        if (savedState === 'compact') {
+            document.body.classList.add('sidebar-compact');
+            updateAdminSidebarTooltip('compact');
+        } else if (savedState === 'hidden' || savedState === 'true' || localStorage.getItem('festos_admin_sidebar_collapsed') === 'true') {
+            document.body.classList.add('sidebar-hidden');
+            updateAdminSidebarTooltip('hidden');
+        } else {
+            updateAdminSidebarTooltip('expanded');
+        }
+    }
+} catch (e) {}
+
+// Ctrl+B shortcut for desktop sidebar collapse
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b' && !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+        e.preventDefault();
+        toggleSidebar();
+    }
+});
 
 function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
@@ -428,6 +597,23 @@ function toggleSubmenu(element) {
 }
 
 function switchTab(tabId) {
+    if (tabId === 'ai-newspaper') {
+        const festId = (typeof getActiveFestId === 'function') ? getActiveFestId() : (window.festosAuth?.getCurrentFestId() || 'active_fest');
+        let cfg = null;
+        try {
+            const raw = localStorage.getItem('festos_cfg_newspaper_config_' + festId) || localStorage.getItem('festMetadata_' + festId);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                cfg = parsed.newspaper_config || parsed;
+            }
+        } catch(e) {}
+        if (cfg && cfg.enabled === false) {
+            showToast("Daily AI Newspaper is currently disabled by Super Admin.", "warning");
+            syncNewspaperTabVisibility();
+            return;
+        }
+    }
+
     // 1. Remove active states from EVERYTHING
     document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
@@ -519,6 +705,62 @@ function switchTab(tabId) {
     }
 }
 window.switchTab = switchTab;
+
+function syncNewspaperTabVisibility() {
+    try {
+        const festId = (typeof getActiveFestId === 'function') ? getActiveFestId() : (window.festosAuth?.getCurrentFestId() || 'active_fest');
+        const navItem = document.getElementById('nav-item-ai-newspaper') || document.querySelector('[onclick*="switchTab(\'ai-newspaper\')"]');
+        if (!navItem) return;
+
+        let config = null;
+        try {
+            const rawCfg = localStorage.getItem('festos_cfg_newspaper_config_' + festId);
+            if (rawCfg) config = JSON.parse(rawCfg);
+        } catch(e) {}
+        if (!config) {
+            try {
+                const rawMeta = localStorage.getItem('festMetadata_' + festId);
+                if (rawMeta) {
+                    const parsed = JSON.parse(rawMeta);
+                    if (parsed && parsed.newspaper_config) config = parsed.newspaper_config;
+                }
+            } catch(e) {}
+        }
+        if (!config && window.availableFests) {
+            const f = window.availableFests.find(x => x.id === festId);
+            if (f && f.newspaper_config) config = f.newspaper_config;
+        }
+
+        const isEnabled = config ? (config.enabled !== false) : true;
+        if (!isEnabled) {
+            navItem.style.display = 'none';
+            const aiSec = document.getElementById('ai-newspaper');
+            if (aiSec && aiSec.classList.contains('active')) {
+                switchTab('dashboard');
+                if (typeof showToast === 'function') {
+                    showToast('Daily AI Newspaper is disabled by Super Admin.', 'warning');
+                }
+            }
+        } else {
+            navItem.style.display = '';
+        }
+    } catch(e) {
+        console.warn('syncNewspaperTabVisibility error:', e);
+    }
+}
+window.syncNewspaperTabVisibility = syncNewspaperTabVisibility;
+
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(syncNewspaperTabVisibility, 150);
+});
+window.addEventListener('storage', (e) => {
+    if (e.key && (e.key.includes('newspaper_config') || e.key.includes('festMetadata') || e.key.includes('multi_fests'))) {
+        syncNewspaperTabVisibility();
+    }
+});
+window.addEventListener('festos_newspaper_config_updated', () => {
+    syncNewspaperTabVisibility();
+});
 
 
 async function loadAdminDashboard() {
