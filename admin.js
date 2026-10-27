@@ -2174,13 +2174,17 @@ async function refreshAdminData(btn) {
         const promises = [
             typeof loadCompetitions === 'function' ? loadCompetitions() : Promise.resolve(),
             typeof loadStagesAndTeams === 'function' ? loadStagesAndTeams() : Promise.resolve(),
-            typeof loadCategories === 'function' ? loadCategories() : Promise.resolve()
+            typeof loadCategories === 'function' ? loadCategories() : Promise.resolve(),
+            typeof loadSchedules === 'function' ? loadSchedules() : Promise.resolve()
         ];
         if (typeof loadDashboardMetrics === 'function') promises.push(loadDashboardMetrics());
         await Promise.all(promises);
 
         if (window.compCurrentViewMode === 'sheet' && typeof initCompetitionsSheet === 'function') {
             initCompetitionsSheet();
+        }
+        if (window.schedCurrentViewMode === 'sheet' && typeof initScheduleSheet === 'function') {
+            initScheduleSheet();
         }
 
         showToast('System data refreshed successfully!', 'success');
@@ -2194,7 +2198,7 @@ async function refreshAdminData(btn) {
 }
 window.refreshAdminData = refreshAdminData;
 
-// Ctrl+S / Cmd+S Keyboard Shortcut for Sheet View
+// Ctrl+S / Cmd+S Keyboard Shortcut for Sheet Views (Competitions & Schedule)
 if (!window._compSheetKeydownBound) {
     window._compSheetKeydownBound = true;
     document.addEventListener('keydown', (e) => {
@@ -2204,7 +2208,14 @@ if (!window._compSheetKeydownBound) {
                 if (window.compSheetDirtyIds && window.compSheetDirtyIds.size > 0) {
                     saveCompSheetChanges();
                 } else {
-                    showToast('All sheet changes are already saved.', 'info');
+                    showToast('All competition sheet changes are already saved.', 'info');
+                }
+            } else if (window.schedCurrentViewMode === 'sheet') {
+                e.preventDefault();
+                if (window.schedSheetDirtyIds && window.schedSheetDirtyIds.size > 0) {
+                    saveSchedSheetChanges();
+                } else {
+                    showToast('All schedule sheet changes are already saved.', 'info');
                 }
             }
         }
@@ -9721,14 +9732,35 @@ async function loadSchedules() {
     } catch(e) { showToast(e.message, 'error'); }
 }
 
+function populateScheduleDateFilter() {
+    const filterDate = document.getElementById('filterSchedDate');
+    if (!filterDate) return;
+    const currentVal = filterDate.value;
+    const dates = Array.from(new Set(Object.values(masterSchedule || {}).map(s => s.date).filter(Boolean))).sort();
+    
+    const existingValues = Array.from(filterDate.options).map(o => o.value).filter(Boolean);
+    const isSame = existingValues.length === dates.length && existingValues.every((v, i) => v === dates[i]);
+    if (!isSame) {
+        filterDate.innerHTML = '<option value="">All Dates</option>' + dates.map(d => `<option value="${d}">${d}</option>`).join('');
+        if (currentVal && dates.includes(currentVal)) {
+            filterDate.value = currentVal;
+        }
+    }
+}
+window.populateScheduleDateFilter = populateScheduleDateFilter;
+
 function filterScheduleTable() {
-    const search = document.getElementById('searchSchedInput').value.toLowerCase();
-    const catId = document.getElementById('filterSchedCat').value;
-    const stageId = document.getElementById('filterSchedStage').value; 
-    const statusVal = document.getElementById('filterSchedStatus').value;
+    populateScheduleDateFilter();
+
+    const search = document.getElementById('searchSchedInput')?.value?.toLowerCase() || '';
+    const dateVal = document.getElementById('filterSchedDate')?.value || '';
+    const catId = document.getElementById('filterSchedCat')?.value || '';
+    const stageId = document.getElementById('filterSchedStage')?.value || ''; 
+    const statusVal = document.getElementById('filterSchedStatus')?.value || '';
     const compStatusVal = document.getElementById('filterSchedCompStatus') ? document.getElementById('filterSchedCompStatus').value : ""; 
     
     const tbody = document.getElementById('schedule-tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
     
     let scheduledItems = Object.keys(masterSchedule).map(compId => {
@@ -9738,23 +9770,33 @@ function filterScheduleTable() {
     
     // STRICT SORT: Chronologically by Date, then Time
     scheduledItems.sort((a,b) => {
-        if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
-        return a.sched.time.localeCompare(b.sched.time);
+        if (a.sched.date !== b.sched.date) return (a.sched.date || '').localeCompare(b.sched.date || '');
+        return (a.sched.time || '').localeCompare(b.sched.time || '');
     });
 
     scheduledItems.forEach(item => {
         const compCatId = item.comp.category_id;
         const compCatName = item.comp.categories?.name || 'General';
         const compStageId = item.comp.stage_id; 
-        const compStageName = item.comp.stages?.name || 'TBD'; 
+        
+        let compStageName = 'TBD';
+        if (item.comp.is_offstage) {
+            compStageName = '📝 Offstage';
+        } else if (item.comp.stages?.name) {
+            compStageName = item.comp.stages.name;
+        } else if (item.comp.stage_id) {
+            const stg = (stagesList || []).find(s => String(s.id) === String(item.comp.stage_id));
+            compStageName = stg ? stg.name : `Stage #${item.comp.stage_id}`;
+        }
         
         const matchSearch = item.comp.name.toLowerCase().includes(search);
+        const matchDate = dateVal === "" || item.sched.date === dateVal;
         const matchCat = catId === "" || compCatId == catId;
-        const matchStage = stageId === "" || compStageId == stageId; 
+        const matchStage = stageId === "" || (stageId === 'offstage' ? item.comp.is_offstage : compStageId == stageId); 
         const matchStatus = statusVal === "" || item.sched.status === statusVal;
         const matchCompStatus = compStatusVal === "" || item.comp.status === compStatusVal; 
         
-        if (!(matchSearch && matchCat && matchStage && matchStatus && matchCompStatus)) return; 
+        if (!(matchSearch && matchDate && matchCat && matchStage && matchStatus && matchCompStatus)) return; 
         
         const isPub = item.sched.status === 'published';
         const publishBadge = isPub 
@@ -9789,9 +9831,9 @@ function filterScheduleTable() {
 
         tbody.innerHTML += `
             <tr>
-                <td style="font-weight: 700;">${item.comp.name}</td>
-                <td>${compCatName}</td>
-                <td>${compStageName}</td>
+                <td style="font-weight: 700;">${escapeSheetHtml(item.comp.name)}</td>
+                <td>${escapeSheetHtml(compCatName)}</td>
+                <td>${escapeSheetHtml(compStageName)}</td>
                 <td style="font-weight: 700; color: var(--primary);">${item.sched.date}</td>
                 <td style="font-weight: 700;">${item.sched.time}</td>
                 <td style="font-weight: 700;">${item.sched.to_time || '-'}</td>
@@ -9808,7 +9850,7 @@ function filterScheduleTable() {
     });
     
     if(tbody.innerHTML === '') {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">No scheduled events found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">No scheduled events found matching filters.</td></tr>`;
     }
 }
 
@@ -10708,32 +10750,38 @@ window.updateScheduleTimeCalc = function() {
 function openScheduleModal(editCompId = null) {
     const isEdit = !!editCompId;
     const schedData = isEdit ? masterSchedule[editCompId] : null;
+    const currentComp = isEdit ? (competitionsList || []).find(c => String(c.id) === String(editCompId)) : null;
     
-    let catOpts = `<option value="">-- SELECT CATEGORY --</option>` + categoriesList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    let catOpts = `<option value="">-- ALL CATEGORIES --</option>` + (categoriesList || []).map(c => `
+        <option value="${c.id}" ${currentComp && String(currentComp.category_id) === String(c.id) ? 'selected' : ''}>${escapeSheetHtml(c.name)}</option>
+    `).join('');
     
-    // NEW: Generate Stage Options
-    let stageOpts = `<option value="">-- ALL STAGES --</option>` + stagesList.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    const isCurrentOffstage = currentComp && !!currentComp.is_offstage;
+    let stageOpts = `<option value="">-- NO STAGE / TBD --</option>`
+        + `<option value="offstage" ${isCurrentOffstage ? 'selected' : ''}>📝 Offstage</option>`
+        + (stagesList || []).map(s => `
+            <option value="${s.id}" ${currentComp && !isCurrentOffstage && String(currentComp.stage_id) === String(s.id) ? 'selected' : ''}>🎭 ${escapeSheetHtml(s.name)}</option>
+        `).join('');
     
-    openModal(isEdit ? 'Edit Schedule' : 'Schedule Event', `
+    openModal(isEdit ? 'Edit Schedule Event' : 'Schedule Event', `
         <div class="grid-2" style="gap: 1rem;">
             <div class="form-group">
-                <label>1. Select Category</label>
-                <select id="modSchedCat" onchange="loadModSchedComps()" ${isEdit ? 'disabled' : ''}>
+                <label>1. Category</label>
+                <select id="modSchedCat" onchange="loadModSchedComps('${editCompId || ''}')">
                     ${catOpts}
                 </select>
             </div>
-            <!-- NEW: Stage Dropdown -->
             <div class="form-group">
-                <label>2. Select Stage</label>
-                <select id="modSchedStage" onchange="loadModSchedComps()" ${isEdit ? 'disabled' : ''}>
+                <label>2. Stage / Venue</label>
+                <select id="modSchedStage" onchange="loadModSchedComps('${editCompId || ''}')">
                     ${stageOpts}
                 </select>
             </div>
         </div>
         <div class="form-group">
-            <label>3. Select Competition</label>
-            <select id="modSchedComp" onchange="window.updateScheduleTimeCalc()" ${isEdit ? 'disabled' : ''}>
-                <option value="">-- CHOOSE CATEGORY FIRST --</option>
+            <label>3. Competition</label>
+            <select id="modSchedComp" onchange="window.updateScheduleTimeCalc()">
+                <option value="">-- SELECT COMPETITION --</option>
             </select>
         </div>
         <div class="grid-2" style="gap: 1rem;">
@@ -10762,85 +10810,633 @@ function openScheduleModal(editCompId = null) {
         </div>
     `, () => saveSchedule(editCompId));
     
-    if (isEdit) {
-        const comp = competitionsList.find(c => c.id == editCompId);
-        if (comp) {
-            document.getElementById('modSchedCat').value = comp.category_id;
-            
-            // NEW: Pre-select the stage if editing
-            if (document.getElementById('modSchedStage') && comp.stage_id) {
-                document.getElementById('modSchedStage').value = comp.stage_id;
-            }
-            
-            document.getElementById('modSchedComp').innerHTML = `<option value="${comp.id}">${comp.name}</option>`;
-            document.getElementById('modSchedComp').value = comp.id;
-            setTimeout(() => window.updateScheduleTimeCalc(), 100);
-        }
-    }
+    // Populate competition options
+    loadModSchedComps(editCompId);
 }
 
-function loadModSchedComps() {
-    const catId = document.getElementById('modSchedCat').value;
-    const stageId = document.getElementById('modSchedStage')?.value; // NEW: Grab stage value
+function loadModSchedComps(keepCompId = null) {
+    const catId = document.getElementById('modSchedCat')?.value;
+    const stageId = document.getElementById('modSchedStage')?.value;
     const compSelect = document.getElementById('modSchedComp');
+    if (!compSelect) return;
     
     compSelect.innerHTML = '<option value="">-- SELECT COMPETITION --</option>';
     
-    if(!catId) {
-        window.updateScheduleTimeCalc();
-        return;
-    }
+    let eligibleComps = (competitionsList || []).filter(c => {
+        if (catId && String(c.category_id) !== String(catId)) return false;
+        if (stageId === 'offstage' && !c.is_offstage) return false;
+        if (stageId && stageId !== 'offstage' && String(c.stage_id) !== String(stageId)) return false;
+        return !masterSchedule[c.id] || (keepCompId && String(c.id) === String(keepCompId));
+    });
     
-    // Filter by Category and exclude already scheduled competitions
-    let eligibleComps = competitionsList.filter(c => c.category_id == catId && !masterSchedule[c.id]);
-    
-    // NEW: Further filter by Stage if a stage is selected in the dropdown
-    if (stageId) {
-        eligibleComps = eligibleComps.filter(c => String(c.stage_id) === String(stageId));
+    // Always guarantee keepCompId is in the list
+    if (keepCompId && !eligibleComps.some(c => String(c.id) === String(keepCompId))) {
+        const currentComp = (competitionsList || []).find(c => String(c.id) === String(keepCompId));
+        if (currentComp) eligibleComps.unshift(currentComp);
     }
     
     eligibleComps.forEach(c => {
-        compSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+        const isSel = keepCompId && String(c.id) === String(keepCompId);
+        compSelect.innerHTML += `<option value="${c.id}" ${isSel ? 'selected' : ''}>${escapeSheetHtml(c.name)}</option>`;
     });
     
+    if (keepCompId) compSelect.value = keepCompId;
     window.updateScheduleTimeCalc();
 }
+
 async function saveSchedule(editCompId) {
-    const compId = editCompId || document.getElementById('modSchedComp').value;
-    const date = document.getElementById('modSchedDate').value;
-    const time = document.getElementById('modSchedTime').value;
-    
-    if(!compId || !date || !time) return showToast("All fields are required", "error");
-    
+    const selectedCompId = document.getElementById('modSchedComp')?.value;
+    const targetCompId = selectedCompId || editCompId;
+    const date = document.getElementById('modSchedDate')?.value;
+    const time = document.getElementById('modSchedTime')?.value;
+    const toTime = document.getElementById('modSchedToTime')?.value;
+    const manualTime = document.getElementById('modSchedManualTime')?.value;
+    const selectedCatId = document.getElementById('modSchedCat')?.value;
+    const selectedStageVal = document.getElementById('modSchedStage')?.value;
+
+    if (!targetCompId || !date || !time) return showToast("Competition, Date and Start Time are required", "error");
+
     setLoading('modalSaveBtn', true);
-    
-    masterSchedule[compId] = {
-        date: date,
-        time: time,
-        to_time: document.getElementById('modSchedToTime').value,
-        manual_time: document.getElementById('modSchedManualTime').value,
-        status: masterSchedule[compId]?.status || 'draft'
-    };
-    
+
     try {
-        const { error } = window.festosSaveSetting ? await window.festosSaveSetting('master_schedule', masterSchedule) : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+        // 1. If competition changed during edit (editCompId -> targetCompId)
+        if (editCompId && String(editCompId) !== String(targetCompId)) {
+            delete masterSchedule[editCompId];
+        }
+
+        // 2. Update Competition's Stage & Category if modified
+        const targetComp = (competitionsList || []).find(c => String(c.id) === String(targetCompId));
+        if (targetComp) {
+            const compUpdates = {};
+            if (selectedStageVal === 'offstage') {
+                compUpdates.stage_id = null;
+                compUpdates.is_offstage = true;
+            } else if (selectedStageVal) {
+                compUpdates.stage_id = selectedStageVal;
+                compUpdates.is_offstage = false;
+            } else {
+                compUpdates.stage_id = null;
+            }
+
+            if (selectedCatId) {
+                compUpdates.category_id = selectedCatId;
+            }
+
+            const { error: compErr } = await supabaseClient.from('competitions').update(compUpdates).eq('id', targetCompId);
+            if (compErr) console.warn('Could not update competition details:', compErr);
+
+            // Update in-memory
+            Object.assign(targetComp, compUpdates);
+            if (compUpdates.stage_id) {
+                const s = (stagesList || []).find(stg => String(stg.id) === String(compUpdates.stage_id));
+                targetComp.stages = s ? { name: s.name } : null;
+            } else {
+                targetComp.stages = null;
+            }
+            if (compUpdates.category_id) {
+                const c = (categoriesList || []).find(cat => String(cat.id) === String(compUpdates.category_id));
+                targetComp.categories = c ? { name: c.name } : null;
+            }
+        }
+
+        // 3. Save master schedule
+        masterSchedule[targetCompId] = {
+            date: date,
+            time: time,
+            to_time: toTime,
+            manual_time: manualTime,
+            status: masterSchedule[targetCompId]?.status || 'draft'
+        };
+
+        const { error } = window.festosSaveSetting 
+            ? await window.festosSaveSetting('master_schedule', masterSchedule) 
+            : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
         if (error) throw error;
-        showToast("Schedule Saved!");
+
+        showToast("Schedule Saved Successfully!");
         closeModal();
+        await detectScheduleConflicts();
         filterScheduleTable();
-    } catch(e) { showToast(e.message, 'error'); }
-    finally { setLoading('modalSaveBtn', false); }
+        if (window.schedCurrentViewMode === 'sheet') {
+            initScheduleSheet();
+        }
+    } catch(e) {
+        showToast(e.message, 'error');
+    } finally {
+        setLoading('modalSaveBtn', false);
+    }
 }
 
 async function toggleScheduleStatus(compId, newStatus) {
+    if (!masterSchedule[compId]) return;
     masterSchedule[compId].status = newStatus;
     try {
         const { error } = window.festosSaveSetting ? await window.festosSaveSetting('master_schedule', masterSchedule) : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
         if (error) throw error;
         showToast(`Schedule ${newStatus}!`);
         filterScheduleTable();
+        if (window.schedCurrentViewMode === 'sheet') {
+            initScheduleSheet();
+        }
     } catch(e) { showToast(e.message, 'error'); }
 }
+
+// ==========================================
+// EVENT SCHEDULE SPREADSHEET SHEET VIEW (DESKTOP)
+// ==========================================
+window.schedCurrentViewMode = 'table';
+window.schedSheetData = {};
+window.schedSheetDirtyIds = new Set();
+
+function switchScheduleView(mode) {
+    if (mode === window.schedCurrentViewMode) return;
+
+    if (mode === 'table' && window.schedSheetDirtyIds && window.schedSheetDirtyIds.size > 0) {
+        openConfirmModal(
+            'Unsaved Sheet Changes',
+            `You have <strong>${window.schedSheetDirtyIds.size} unsaved change(s)</strong> in Schedule Sheet View.<br>Switching to Table View will discard these unsaved edits.<br><br>Do you want to discard them and continue?`,
+            () => {
+                window.schedSheetDirtyIds.clear();
+                executeSwitchScheduleView(mode);
+            },
+            {
+                confirmText: 'Discard & Switch',
+                cancelText: 'Stay in Sheet',
+                confirmBtnClass: 'btn-warning',
+                icon: 'fa-solid fa-arrow-right-from-bracket',
+                iconColor: '#D97706',
+                iconBg: '#FEF3C7'
+            }
+        );
+        return;
+    }
+
+    executeSwitchScheduleView(mode);
+}
+
+function executeSwitchScheduleView(mode) {
+    window.schedCurrentViewMode = mode;
+    const standardView = document.getElementById('sched-standard-view');
+    const sheetView = document.getElementById('sched-sheet-view');
+    const btnTable = document.getElementById('btnSchedViewTable');
+    const btnSheet = document.getElementById('btnSchedViewSheet');
+
+    if (mode === 'sheet') {
+        if (standardView) standardView.style.display = 'none';
+        if (sheetView) sheetView.style.display = 'block';
+
+        if (btnSheet) {
+            btnSheet.style.background = 'white';
+            btnSheet.style.color = 'var(--text-main)';
+            btnSheet.style.boxShadow = 'var(--shadow-sm)';
+        }
+        if (btnTable) {
+            btnTable.style.background = 'transparent';
+            btnTable.style.color = 'var(--text-muted)';
+            btnTable.style.boxShadow = 'none';
+        }
+
+        initScheduleSheet();
+    } else {
+        if (sheetView) sheetView.style.display = 'none';
+        if (standardView) standardView.style.display = 'block';
+
+        if (btnTable) {
+            btnTable.style.background = 'white';
+            btnTable.style.color = 'var(--text-main)';
+            btnTable.style.boxShadow = 'var(--shadow-sm)';
+        }
+        if (btnSheet) {
+            btnSheet.style.background = 'transparent';
+            btnSheet.style.color = 'var(--text-muted)';
+            btnSheet.style.boxShadow = 'none';
+        }
+
+        filterScheduleTable();
+    }
+}
+window.switchScheduleView = switchScheduleView;
+
+function initScheduleSheet() {
+    // Populate Date Filter
+    const dateFilter = document.getElementById('schedSheetDateFilter');
+    const allDates = Array.from(new Set(Object.values(masterSchedule || {}).map(s => s.date).filter(Boolean))).sort();
+    if (dateFilter) {
+        dateFilter.innerHTML = '<option value="">All Dates</option>' + allDates.map(d => `<option value="${d}">${d}</option>`).join('');
+    }
+
+    // Populate Category Filter
+    const catFilter = document.getElementById('schedSheetCatFilter');
+    if (catFilter) {
+        catFilter.innerHTML = '<option value="">All Categories</option>' + (categoriesList || []).map(c => `<option value="${c.id}">${escapeSheetHtml(c.name)}</option>`).join('');
+    }
+
+    // Populate Stage Filter
+    const stageFilter = document.getElementById('schedSheetStageFilter');
+    if (stageFilter) {
+        stageFilter.innerHTML = '<option value="">All Stages</option>' 
+            + '<option value="offstage">📝 Offstage</option>'
+            + (stagesList || []).map(s => `<option value="${s.id}">🎭 ${escapeSheetHtml(s.name)}</option>`).join('');
+    }
+
+    window.schedSheetData = {};
+    window.schedSheetDirtyIds = new Set();
+
+    Object.keys(masterSchedule || {}).forEach(compId => {
+        const comp = (competitionsList || []).find(c => String(c.id) === String(compId));
+        if (!comp) return;
+
+        const sched = masterSchedule[compId] || {};
+        window.schedSheetData[compId] = {
+            compId: compId,
+            compName: comp.name || '',
+            category_id: comp.category_id || '',
+            categoryName: comp.categories?.name || '',
+            stage_id: comp.is_offstage ? 'offstage' : (comp.stage_id || ''),
+            is_offstage: !!comp.is_offstage,
+            date: sched.date || '',
+            time: sched.time || '',
+            to_time: sched.to_time || '',
+            manual_time: sched.manual_time || '',
+            status: sched.status || 'draft',
+            compStatus: comp.status || 'pending'
+        };
+    });
+
+    updateSchedSheetToolbarStatus();
+    renderScheduleSheet();
+}
+window.initScheduleSheet = initScheduleSheet;
+
+function renderScheduleSheet() {
+    const tbody = document.getElementById('schedSheetTbody');
+    if (!tbody) return;
+
+    const searchInput = document.getElementById('schedSheetSearchInput')?.value?.toLowerCase()?.trim() || '';
+    const dateFilter = document.getElementById('schedSheetDateFilter')?.value || '';
+    const catFilter = document.getElementById('schedSheetCatFilter')?.value || '';
+    const stageFilter = document.getElementById('schedSheetStageFilter')?.value || '';
+
+    let rows = Object.values(window.schedSheetData || {});
+
+    // Live stat totals calculation across all items
+    const totalSched = rows.length;
+    const pubSched = rows.filter(r => r.status === 'published').length;
+    const draftSched = rows.filter(r => r.status === 'draft').length;
+    const clashesCount = Object.keys(scheduleConflictsReport?.compConflictMap || {}).length;
+
+    const statTotalEl = document.getElementById('schedStatTotal');
+    const statPubEl = document.getElementById('schedStatPublished');
+    const statDraftEl = document.getElementById('schedStatDraft');
+    const statClashesEl = document.getElementById('schedStatClashes');
+    if (statTotalEl) statTotalEl.innerText = `${totalSched} Total`;
+    if (statPubEl) statPubEl.innerText = `🟢 ${pubSched} Published`;
+    if (statDraftEl) statDraftEl.innerText = `📝 ${draftSched} Draft`;
+    if (statClashesEl) {
+        if (clashesCount > 0) {
+            statClashesEl.style.display = 'inline-block';
+            statClashesEl.innerText = `⚠️ ${clashesCount} Clashes`;
+        } else {
+            statClashesEl.style.display = 'none';
+        }
+    }
+
+    // Filter rows
+    if (searchInput) {
+        rows = rows.filter(r => (r.compName || '').toLowerCase().includes(searchInput));
+    }
+    if (dateFilter) {
+        rows = rows.filter(r => r.date === dateFilter);
+    }
+    if (catFilter) {
+        rows = rows.filter(r => String(r.category_id) === String(catFilter));
+    }
+    if (stageFilter) {
+        if (stageFilter === 'offstage') {
+            rows = rows.filter(r => r.is_offstage || r.stage_id === 'offstage');
+        } else {
+            rows = rows.filter(r => String(r.stage_id) === String(stageFilter) && !r.is_offstage);
+        }
+    }
+
+    // Sort chronologically
+    rows.sort((a, b) => {
+        if (a.date !== b.date) return (a.date || '').localeCompare(b.date || '');
+        return (a.time || '').localeCompare(b.time || '');
+    });
+
+    const rowCountEl = document.getElementById('schedSheetRowCount');
+    if (rowCountEl) rowCountEl.innerText = rows.length;
+
+    if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; padding: 3rem; color: var(--text-muted); font-size: 0.9rem;"><i class="fa-solid fa-calendar-xmark" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; opacity: 0.4;"></i>No scheduled events match the current filter.</td></tr>`;
+        return;
+    }
+
+    const stageSelectOptions = `<option value="">-- No Stage / TBD --</option>`
+        + `<option value="offstage">📝 Offstage</option>`
+        + (stagesList || []).map(s => `<option value="${s.id}">🎭 ${escapeSheetHtml(s.name)}</option>`).join('');
+
+    let html = '';
+    rows.forEach((item, idx) => {
+        const isDirty = window.schedSheetDirtyIds.has(item.compId);
+        const rowClass = isDirty ? 'row-dirty' : '';
+
+        let statusBadge = `<span style="color:#94A3B8; font-size:0.8rem;" title="Synced"><i class="fa-solid fa-check"></i></span>`;
+        if (isDirty) {
+            statusBadge = `<span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:800; font-size:0.65rem; padding: 2px 6px;">EDITED</span>`;
+        }
+
+        const selectedStage = item.is_offstage ? 'offstage' : (item.stage_id || '');
+
+        let compStateStr = (item.compStatus || 'pending').toUpperCase().replace('_', ' ');
+        let compStateColor = '#64748B';
+        if (item.compStatus === 'registration') compStateColor = '#1D4ED8';
+        if (item.compStatus === 'ongoing') compStateColor = '#059669';
+        if (item.compStatus === 'valuation') compStateColor = '#D97706';
+        if (item.compStatus === 'judgement_complete') compStateColor = '#7E22CE';
+
+        html += `
+            <tr id="sched-sheet-row-${item.compId}" class="${rowClass}">
+                <td style="text-align: center; color: var(--text-muted); font-weight: 700; font-size: 0.75rem;">${idx + 1}</td>
+                <td id="sched-sheet-status-${item.compId}" style="text-align: center;">${statusBadge}</td>
+                <td style="font-weight: 700; color: var(--text-main); padding: 0.4rem 0.65rem !important;">
+                    ${escapeSheetHtml(item.compName)}
+                </td>
+                <td style="padding: 0.4rem 0.65rem !important; color: var(--text-muted); font-size: 0.82rem;">
+                    ${escapeSheetHtml(item.categoryName || 'General')}
+                </td>
+                <td>
+                    <select class="sheet-cell-select" onchange="markSchedSheetDirty('${item.compId}', 'stage_id', this.value)">
+                        ${stageSelectOptions.replace(`value="${selectedStage}"`, `value="${selectedStage}" selected`)}
+                    </select>
+                </td>
+                <td>
+                    <input type="date" class="sheet-cell-input" style="text-transform: none; text-align: center;" value="${item.date}" onchange="markSchedSheetDirty('${item.compId}', 'date', this.value)">
+                </td>
+                <td>
+                    <input type="time" class="sheet-cell-input" style="text-transform: none; text-align: center;" value="${item.time}" onchange="markSchedSheetDirty('${item.compId}', 'time', this.value)">
+                </td>
+                <td>
+                    <input type="time" class="sheet-cell-input" style="text-transform: none; text-align: center;" value="${item.to_time}" onchange="markSchedSheetDirty('${item.compId}', 'to_time', this.value)">
+                </td>
+                <td>
+                    <input type="number" class="sheet-cell-input" style="text-align: center;" value="${item.manual_time || ''}" placeholder="Auto" min="0" max="600" oninput="markSchedSheetDirty('${item.compId}', 'manual_time', this.value)">
+                </td>
+                <td>
+                    <select class="sheet-cell-select" onchange="markSchedSheetDirty('${item.compId}', 'status', this.value)">
+                        <option value="published" ${item.status === 'published' ? 'selected' : ''}>🟢 Published</option>
+                        <option value="draft" ${item.status === 'draft' ? 'selected' : ''}>📝 Draft</option>
+                    </select>
+                </td>
+                <td style="text-align: center; font-size: 0.72rem; font-weight: 800; color: ${compStateColor};">
+                    ${compStateStr}
+                </td>
+                <td style="text-align: center;">
+                    <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.55rem; color: #DC2626; border-color: transparent; font-size: 0.85rem; border-radius: 6px;" onclick="deleteSchedSheetRow('${item.compId}')" title="Delete schedule">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+}
+window.renderScheduleSheet = renderScheduleSheet;
+window.filterSchedSheetTable = renderScheduleSheet;
+
+function markSchedSheetDirty(compId, field, value) {
+    if (!window.schedSheetData[compId]) return;
+    window.schedSheetData[compId][field] = value;
+    if (field === 'stage_id') {
+        window.schedSheetData[compId].is_offstage = (value === 'offstage');
+    }
+    window.schedSheetDirtyIds.add(compId);
+
+    const row = document.getElementById(`sched-sheet-row-${compId}`);
+    const statusCell = document.getElementById(`sched-sheet-status-${compId}`);
+    if (row) {
+        row.className = 'row-dirty';
+        if (statusCell) statusCell.innerHTML = `<span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:800; font-size:0.65rem; padding: 2px 6px;">EDITED</span>`;
+    }
+
+    updateSchedSheetToolbarStatus();
+}
+window.markSchedSheetDirty = markSchedSheetDirty;
+
+function updateSchedSheetToolbarStatus() {
+    const dirtyCount = window.schedSheetDirtyIds ? window.schedSheetDirtyIds.size : 0;
+    const saveBtn = document.getElementById('btnSchedSheetSave');
+    const discardBtn = document.getElementById('btnSchedSheetDiscard');
+    const badge = document.getElementById('schedSaveStatusBadge');
+    const dirtyCountSpan = document.getElementById('schedDirtyCount');
+
+    if (dirtyCountSpan) dirtyCountSpan.innerText = dirtyCount;
+
+    if (dirtyCount > 0) {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.classList.add('btn-sheet-save-active');
+            saveBtn.style.background = '#059669';
+            saveBtn.style.borderColor = '#047857';
+        }
+        if (discardBtn) discardBtn.style.display = 'inline-flex';
+        if (badge) {
+            badge.style.background = '#FEF3C7';
+            badge.style.color = '#D97706';
+            badge.style.borderColor = '#FDE68A';
+            badge.innerHTML = `<i class="fa-solid fa-pen"></i> ${dirtyCount} Unsaved Change(s)`;
+        }
+    } else {
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.classList.remove('btn-sheet-save-active');
+            saveBtn.style.background = '';
+            saveBtn.style.borderColor = '';
+        }
+        if (discardBtn) discardBtn.style.display = 'none';
+        if (badge) {
+            badge.style.background = '#ECFDF5';
+            badge.style.color = '#059669';
+            badge.style.borderColor = '#A7F3D0';
+            badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> All Saved`;
+        }
+    }
+}
+
+function discardSchedSheetChanges() {
+    if (!window.schedSheetDirtyIds || window.schedSheetDirtyIds.size === 0) {
+        return showToast('No changes to discard.', 'info');
+    }
+    openConfirmModal(
+        'Discard Unsaved Edits?',
+        `Are you sure you want to discard all <strong>${window.schedSheetDirtyIds.size} unsaved schedule edit(s)</strong>?<br><br>The sheet will be reset back to the saved state.`,
+        () => {
+            window.schedSheetDirtyIds.clear();
+            initScheduleSheet();
+            showToast('All unsaved changes in schedule sheet discarded.', 'info');
+        },
+        {
+            confirmText: 'Discard All',
+            cancelText: 'Keep Editing',
+            confirmBtnClass: 'btn-warning',
+            icon: 'fa-solid fa-rotate-left',
+            iconColor: '#D97706',
+            iconBg: '#FEF3C7'
+        }
+    );
+}
+window.discardSchedSheetChanges = discardSchedSheetChanges;
+
+async function saveSchedSheetChanges() {
+    if (!window.schedSheetDirtyIds || window.schedSheetDirtyIds.size === 0) {
+        return showToast('No changes to save.', 'info');
+    }
+
+    const dirtyList = Array.from(window.schedSheetDirtyIds);
+    const saveBtn = document.getElementById('btnSchedSheetSave');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    }
+
+    try {
+        const stageUpdates = [];
+        dirtyList.forEach(compId => {
+            const row = window.schedSheetData[compId];
+            if (!row) return;
+
+            masterSchedule[compId] = {
+                date: row.date,
+                time: row.time,
+                to_time: row.to_time,
+                manual_time: row.manual_time,
+                status: row.status || 'draft'
+            };
+
+            // Stage updates
+            const isOffstage = row.stage_id === 'offstage' || !!row.is_offstage;
+            const stageId = isOffstage ? null : (row.stage_id || null);
+            stageUpdates.push({
+                id: compId,
+                stage_id: stageId,
+                is_offstage: isOffstage
+            });
+
+            // Update in-memory competitionsList immediately
+            const comp = (competitionsList || []).find(c => String(c.id) === String(compId));
+            if (comp) {
+                comp.stage_id = stageId;
+                comp.is_offstage = isOffstage;
+                if (stageId) {
+                    const stg = (stagesList || []).find(s => String(s.id) === String(stageId));
+                    comp.stages = stg ? { name: stg.name } : null;
+                } else {
+                    comp.stages = null;
+                }
+            }
+        });
+
+        // 1. Save master schedule
+        const { error: schedError } = window.festosSaveSetting 
+            ? await window.festosSaveSetting('master_schedule', masterSchedule) 
+            : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+        if (schedError) throw schedError;
+
+        // 2. Save stage updates to database
+        if (stageUpdates.length > 0) {
+            for (const update of stageUpdates) {
+                await supabaseClient.from('competitions').update({
+                    stage_id: update.stage_id,
+                    is_offstage: update.is_offstage
+                }).eq('id', update.id);
+            }
+        }
+
+        // 3. Instant Optimistic UI feedback
+        dirtyList.forEach(compId => {
+            const rowEl = document.getElementById(`sched-sheet-row-${compId}`);
+            const statusCell = document.getElementById(`sched-sheet-status-${compId}`);
+            if (rowEl) rowEl.className = '';
+            if (statusCell) statusCell.innerHTML = `<span style="color:#059669; font-size:0.85rem;"><i class="fa-solid fa-check"></i></span>`;
+        });
+
+        window.schedSheetDirtyIds.clear();
+        updateSchedSheetToolbarStatus();
+
+        if (saveBtn) {
+            saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Saved!';
+            saveBtn.style.background = '#059669';
+            saveBtn.style.borderColor = '#047857';
+        }
+
+        showToast(`Saved ${dirtyList.length} scheduled event(s) successfully!`, 'success');
+
+        // Background non-blocking sync
+        detectScheduleConflicts().catch(console.warn);
+        loadCompetitions().catch(console.warn);
+
+        setTimeout(() => {
+            if (saveBtn && (!window.schedSheetDirtyIds || window.schedSheetDirtyIds.size === 0)) {
+                saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes (<span id="schedDirtyCount">0</span>)';
+                updateSchedSheetToolbarStatus();
+            }
+        }, 1500);
+
+    } catch (e) {
+        console.error(e);
+        showToast('Save failed: ' + e.message, 'error');
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            updateSchedSheetToolbarStatus();
+        }
+    }
+}
+window.saveSchedSheetChanges = saveSchedSheetChanges;
+
+async function deleteSchedSheetRow(compId) {
+    const row = window.schedSheetData[compId];
+    const compName = row ? row.compName : 'this event';
+
+    openConfirmModal(
+        'Remove Event Schedule?',
+        `Are you sure you want to remove the schedule for <strong>"${escapeSheetHtml(compName)}"</strong>?<br><br>The event will return to unscheduled status.`,
+        async () => {
+            try {
+                showToast(`Removing schedule for "${compName}"...`, 'info');
+                delete masterSchedule[compId];
+                const { error } = window.festosSaveSetting 
+                    ? await window.festosSaveSetting('master_schedule', masterSchedule) 
+                    : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+                if (error) throw error;
+
+                delete window.schedSheetData[compId];
+                if (window.schedSheetDirtyIds) window.schedSheetDirtyIds.delete(compId);
+
+                const rowEl = document.getElementById(`sched-sheet-row-${compId}`);
+                if (rowEl) rowEl.remove();
+
+                updateSchedSheetToolbarStatus();
+                renderScheduleSheet();
+                showToast(`Schedule removed for "${compName}".`, 'success');
+
+                detectScheduleConflicts().catch(console.warn);
+            } catch (e) {
+                showToast('Failed to delete schedule: ' + e.message, 'error');
+            }
+        },
+        {
+            confirmText: 'Yes, Remove',
+            cancelText: 'Cancel',
+            confirmBtnClass: 'btn-danger',
+            icon: 'fa-solid fa-calendar-xmark',
+            iconColor: '#DC2626',
+            iconBg: '#FEE2E2'
+        }
+    );
+}
+window.deleteSchedSheetRow = deleteSchedSheetRow;
 
 
 
@@ -10853,11 +11449,12 @@ async function exportSchedulePDF() {
         container.innerHTML = getPDFHeaderHTML('Master Event Schedule');
 
         // 1. Get current filter values
-        const search = document.getElementById('searchSchedInput').value.toLowerCase();
-        const catId = document.getElementById('filterSchedCat').value;
-        const stageId = document.getElementById('filterSchedStage').value; 
-        const statusVal = document.getElementById('filterSchedStatus').value;
-        const compStatusVal = document.getElementById('filterSchedCompStatus') ? document.getElementById('filterSchedCompStatus').value : ""; // NEW
+        const search = document.getElementById('searchSchedInput')?.value?.toLowerCase() || '';
+        const dateVal = document.getElementById('filterSchedDate')?.value || '';
+        const catId = document.getElementById('filterSchedCat')?.value || '';
+        const stageId = document.getElementById('filterSchedStage')?.value || ''; 
+        const statusVal = document.getElementById('filterSchedStatus')?.value || '';
+        const compStatusVal = document.getElementById('filterSchedCompStatus') ? document.getElementById('filterSchedCompStatus').value : ""; 
 
         // 2. Map items and apply filters
         let scheduledItems = Object.keys(masterSchedule).map(compId => {
@@ -10870,35 +11467,48 @@ async function exportSchedulePDF() {
             const compStageId = item.comp.stage_id; 
 
             const matchSearch = item.comp.name.toLowerCase().includes(search);
+            const matchDate = dateVal === "" || item.sched.date === dateVal;
             const matchCat = catId === "" || compCatId == catId;
-            const matchStage = stageId === "" || compStageId == stageId; 
+            const matchStage = stageId === "" || (stageId === 'offstage' ? item.comp.is_offstage : compStageId == stageId); 
             const matchStatus = statusVal === "" || item.sched.status === statusVal;
-            const matchCompStatus = compStatusVal === "" || item.comp.status === compStatusVal; // NEW
+            const matchCompStatus = compStatusVal === "" || item.comp.status === compStatusVal; 
 
-            return matchSearch && matchCat && matchStage && matchStatus && matchCompStatus; // UPDATED
+            return matchSearch && matchDate && matchCat && matchStage && matchStatus && matchCompStatus;
         });
         
         // 3. Sort chronologically
         scheduledItems.sort((a,b) => {
-            if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
-            return a.sched.time.localeCompare(b.sched.time);
+            if (a.sched.date !== b.sched.date) return (a.sched.date || '').localeCompare(b.sched.date || '');
+            return (a.sched.time || '').localeCompare(b.sched.time || '');
         });
 
         // 4. Generate Rows
-        let tableRows = scheduledItems.map((item) => `
+        let tableRows = scheduledItems.map((item) => {
+            let compStageName = 'TBD';
+            if (item.comp.is_offstage) {
+                compStageName = 'Offstage';
+            } else if (item.comp.stages?.name) {
+                compStageName = item.comp.stages.name;
+            } else if (item.comp.stage_id) {
+                const stg = (stagesList || []).find(s => String(s.id) === String(item.comp.stage_id));
+                compStageName = stg ? stg.name : `Stage #${item.comp.stage_id}`;
+            }
+
+            return `
             <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.sched.date}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700;">${item.sched.time}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700;">${item.sched.to_time || '-'}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${item.comp.name}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.comp.categories?.name || 'GEN'}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.comp.stages?.name || 'TBD'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${compStageName}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #4F46E5;">${item.comp.status.toUpperCase().replace('_', ' ')}</td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
 
         if (scheduledItems.length === 0) {
-            tableRows = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: #64748B;">No scheduled events match your current filters.</td></tr>`;
+            tableRows = `<tr><td colspan="7" style="padding: 20px; text-align: center; color: #64748B;">No scheduled events match your current filters.</td></tr>`;
         }
 
         container.innerHTML += `
@@ -10930,11 +11540,12 @@ async function exportSchedulePDF() {
 
 async function exportScheduleCSV() {
     // 1. Get current filter values
-    const search = document.getElementById('searchSchedInput').value.toLowerCase();
-    const catId = document.getElementById('filterSchedCat').value;
-    const stageId = document.getElementById('filterSchedStage').value; 
-    const statusVal = document.getElementById('filterSchedStatus').value;
-    const compStatusVal = document.getElementById('filterSchedCompStatus') ? document.getElementById('filterSchedCompStatus').value : ""; // NEW
+    const search = document.getElementById('searchSchedInput')?.value?.toLowerCase() || '';
+    const dateVal = document.getElementById('filterSchedDate')?.value || '';
+    const catId = document.getElementById('filterSchedCat')?.value || '';
+    const stageId = document.getElementById('filterSchedStage')?.value || ''; 
+    const statusVal = document.getElementById('filterSchedStatus')?.value || '';
+    const compStatusVal = document.getElementById('filterSchedCompStatus') ? document.getElementById('filterSchedCompStatus').value : ""; 
 
     let dataToExport = [];
     
@@ -10946,20 +11557,31 @@ async function exportScheduleCSV() {
             const compCatId = comp.category_id;
             const compStageId = comp.stage_id; 
 
-            const matchSearch = comp.name.toLowerCase().includes(search);
-            const matchCat = catId === "" || compCatId == catId;
-            const matchStage = stageId === "" || compStageId == stageId; 
-            const matchStatus = statusVal === "" || sched.status === statusVal;
-            const matchCompStatus = compStatusVal === "" || comp.status === compStatusVal; // NEW
+            let compStageName = 'TBD';
+            if (comp.is_offstage) {
+                compStageName = 'Offstage';
+            } else if (comp.stages?.name) {
+                compStageName = comp.stages.name;
+            } else if (comp.stage_id) {
+                const stg = (stagesList || []).find(s => String(s.id) === String(comp.stage_id));
+                compStageName = stg ? stg.name : `Stage #${comp.stage_id}`;
+            }
 
-            if (matchSearch && matchCat && matchStage && matchStatus && matchCompStatus) { // UPDATED
+            const matchSearch = comp.name.toLowerCase().includes(search);
+            const matchDate = dateVal === "" || sched.date === dateVal;
+            const matchCat = catId === "" || compCatId == catId;
+            const matchStage = stageId === "" || (stageId === 'offstage' ? comp.is_offstage : compStageId == stageId); 
+            const matchStatus = statusVal === "" || sched.status === statusVal;
+            const matchCompStatus = compStatusVal === "" || comp.status === compStatusVal; 
+
+            if (matchSearch && matchDate && matchCat && matchStage && matchStatus && matchCompStatus) {
                 dataToExport.push({
                     "DATE": sched.date,
                     "TIME (FROM)": sched.time,
                     "TIME (TO)": sched.to_time || '-',
                     "COMPETITION": comp.name,
                     "CATEGORY": comp.categories?.name || 'General',
-                    "STAGE": comp.stages?.name || 'TBD',
+                    "STAGE": compStageName,
                     "STATUS": sched.status.toUpperCase()
                 });
             }
@@ -10969,8 +11591,8 @@ async function exportScheduleCSV() {
     if (dataToExport.length === 0) return showToast("No scheduled events match your filters.", "error");
 
     dataToExport.sort((a,b) => {
-        if (a.DATE !== b.DATE) return a.DATE.localeCompare(b.DATE);
-        return a["TIME (FROM)"].localeCompare(b["TIME (FROM)"]);
+        if (a.DATE !== b.DATE) return (a.DATE || '').localeCompare(b.DATE || '');
+        return (a["TIME (FROM)"] || '').localeCompare(b["TIME (FROM)"] || '');
     });
 
     const blob = new Blob([Papa.unparse(dataToExport)], { type: 'text/csv;charset=utf-8;' });
@@ -11113,22 +11735,68 @@ function calculateSimilarity(str1, str2) {
 }
 window.calculateSimilarity = calculateSimilarity;
 
+// CSV Header Extractor Helper - case-insensitive, space-insensitive, punctuation-insensitive
+function getCsvFieldValue(row, possibleKeys) {
+    if (!row || typeof row !== 'object') return '';
+    const rowKeys = Object.keys(row);
+    for (const key of possibleKeys) {
+        const cleanKey = key.toLowerCase().replace(/[\s_\-\/\(\)\.]+/g, '');
+        const matchedKey = rowKeys.find(k => {
+            const cleanK = k.toLowerCase().replace(/[\s_\-\/\(\)\.]+/g, '');
+            return cleanK === cleanKey;
+        });
+        if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null) {
+            const val = String(row[matchedKey]).trim();
+            if (val !== '') return val;
+        }
+    }
+    return '';
+}
+window.getCsvFieldValue = getCsvFieldValue;
+
 // Stage matching helper (supports Stage 1 / stg 1 / Offstage / Auditorium typos)
 function findBestStageMatch(rawStage, stages = []) {
     if (!rawStage) return null;
-    const norm = normalizeStringForFuzzy(rawStage);
+    const stagePool = (stages && stages.length > 0) ? stages : (stagesList || []);
+    const norm = normalizeStringForFuzzy(String(rawStage).trim());
     if (!norm) return null;
 
     // Check offstage indications
-    if (norm.includes('off') || norm.includes('ofstage') || norm.includes('offstage')) {
-        return { is_offstage: true, stage_id: null, name: 'Offstage', score: 1.0, isCorrected: rawStage.trim().toLowerCase() !== 'offstage' };
+    if (norm.includes('off') || norm.includes('ofstage') || norm.includes('offstage') || norm.includes('nonstage')) {
+        return { is_offstage: true, stage_id: null, name: 'Offstage', score: 1.0, isCorrected: norm !== 'offstage' };
     }
 
-    // Check number in stage e.g. "Stage 1", "stg 2", "stage3", "1"
-    const digitMatch = rawStage.match(/\d+/);
+    // Direct check by ID
+    const stageById = stagePool.find(s => String(s.id) === String(rawStage).trim());
+    if (stageById) {
+        return {
+            is_offstage: false,
+            stage_id: stageById.id,
+            name: stageById.name,
+            stage_no: stageById.stage_no,
+            score: 1.0,
+            isCorrected: false
+        };
+    }
+
+    // Check exact name match
+    const exactNameMatch = stagePool.find(s => normalizeStringForFuzzy(s.name) === norm);
+    if (exactNameMatch) {
+        return {
+            is_offstage: false,
+            stage_id: exactNameMatch.id,
+            name: exactNameMatch.name,
+            stage_no: exactNameMatch.stage_no,
+            score: 1.0,
+            isCorrected: false
+        };
+    }
+
+    // Check number in stage e.g. "Stage 1", "stg 2", "stage3", "1", "Stage #1"
+    const digitMatch = String(rawStage).match(/\d+/);
     if (digitMatch) {
         const num = parseInt(digitMatch[0], 10);
-        const stageByNum = stages.find(s => Number(s.stage_no) === num || normalizeStringForFuzzy(s.name).endsWith(String(num)));
+        const stageByNum = stagePool.find(s => Number(s.stage_no) === num || normalizeStringForFuzzy(s.name).endsWith(String(num)) || normalizeStringForFuzzy(s.name) === `stage ${num}`);
         if (stageByNum) {
             const isExact = normalizeStringForFuzzy(stageByNum.name) === norm || `stage ${stageByNum.stage_no}` === norm;
             return {
@@ -11145,7 +11813,7 @@ function findBestStageMatch(rawStage, stages = []) {
     // Fuzzy match against stages
     let best = null;
     let maxScore = 0;
-    for (const s of stages) {
+    for (const s of stagePool) {
         const targetName = s.name || `Stage ${s.stage_no}`;
         const score = calculateSimilarity(rawStage, targetName);
         if (score > maxScore) {
@@ -11154,7 +11822,7 @@ function findBestStageMatch(rawStage, stages = []) {
         }
     }
 
-    if (best && maxScore >= 0.65) {
+    if (best && maxScore >= 0.60) {
         const isExact = normalizeStringForFuzzy(best.name) === norm;
         return {
             is_offstage: false,
@@ -11325,12 +11993,12 @@ function previewBulkScheduleCSV(input) {
             let previewHtml = '';
             
             window.parsedBulkScheduleRows.forEach((row) => {
-                const rawName = row.competition_name || row.competition || row.name || row.event || '';
-                const rawCat = row.category || row.category_name || '';
-                const rawStage = row.stage_name || row.stage || '';
-                const rawDate = row.date || row.event_date || '';
-                const rawFrom = row.from_time || row.start_time || row.time || row['time (from)'] || '';
-                const rawTo = row.to_time || row.end_time || row['time (to)'] || '';
+                const rawName = getCsvFieldValue(row, ['competition_name', 'competition', 'name', 'event', 'program', 'item', 'comp_name', 'comp']);
+                const rawCat = getCsvFieldValue(row, ['category', 'category_name', 'cat', 'section', 'group']);
+                const rawStage = getCsvFieldValue(row, ['stage', 'stage_name', 'stagename', 'stage/venue', 'stage / venue', 'venue', 'arena']);
+                const rawDate = getCsvFieldValue(row, ['date', 'event_date', 'schedule_date', 'day']);
+                const rawFrom = getCsvFieldValue(row, ['from_time', 'start_time', 'from', 'time', 'start', 'time_from', 'time (from)', 'time(from)']);
+                const rawTo = getCsvFieldValue(row, ['to_time', 'end_time', 'to', 'end', 'time_to', 'time (to)', 'time(to)']);
                 
                 const compMatch = findBestCompetitionMatch(rawName, rawCat, competitionsList, categoriesList);
                 const stageMatch = rawStage ? findBestStageMatch(rawStage, stagesList) : null;
@@ -11352,17 +12020,17 @@ function previewBulkScheduleCSV(input) {
                     }
                     if (corrections.length > 0) autoCorrectedCount++;
 
-                    const stageDisplay = stageMatch ? (stageMatch.is_offstage ? 'Offstage' : stageMatch.name) : (rawStage || '');
+                    const stageDisplay = stageMatch ? (stageMatch.is_offstage ? '📝 Offstage' : `🎭 ${stageMatch.name}`) : (rawStage || '');
                     
                     previewHtml += `
                         <div style="padding: 6px 0; border-bottom: 1px solid var(--border);">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <span style="font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-check" style="color: #059669; margin-right: 5px;"></i> ${matchedComp.name}</span>
-                                    ${cCatDisplay ? `<span class="badge" style="background:#F1F5F9; color:#475569; font-size: 0.65rem; margin-left: 5px;">${cCatDisplay.trim()}</span>` : ''}
+                                    <span style="font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-check" style="color: #059669; margin-right: 5px;"></i> ${escapeSheetHtml(matchedComp.name)}</span>
+                                    ${cCatDisplay ? `<span class="badge" style="background:#F1F5F9; color:#475569; font-size: 0.65rem; margin-left: 5px;">${escapeSheetHtml(cCatDisplay.trim())}</span>` : ''}
                                     ${corrections.length > 0 ? `<span class="badge" style="background:#EEF2FF; color:#4F46E5; font-size: 0.65rem; margin-left: 5px; font-weight:700;"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto-corrected</span>` : ''}
                                 </div>
-                                <span style="color: var(--text-muted); font-size: 0.75rem;">${rawDate} ${rawFrom}${rawTo ? ' - ' + rawTo : ''} ${stageDisplay ? '(' + stageDisplay + ')' : ''}</span>
+                                <span style="color: var(--text-muted); font-size: 0.75rem;">${rawDate} ${rawFrom}${rawTo ? ' - ' + rawTo : ''} ${stageDisplay ? '(' + escapeSheetHtml(stageDisplay) + ')' : ''}</span>
                             </div>
                             ${corrections.length > 0 ? `<div style="font-size: 0.7rem; color: #4F46E5; margin-left: 18px; margin-top: 2px;">✨ ${corrections.join(' &bull; ')}</div>` : ''}
                         </div>
@@ -11371,7 +12039,7 @@ function previewBulkScheduleCSV(input) {
                     missing++;
                     previewHtml += `
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); color: #DC2626;">
-                            <span><i class="fa-solid fa-triangle-exclamation" style="margin-right: 5px;"></i> "${rawName}" ${rawCat ? `(${rawCat})` : ''} (Not found)</span>
+                            <span><i class="fa-solid fa-triangle-exclamation" style="margin-right: 5px;"></i> "${escapeSheetHtml(rawName)}" ${rawCat ? `(${escapeSheetHtml(rawCat)})` : ''} (Not found)</span>
                             <span style="font-size: 0.75rem;">Skipped</span>
                         </div>
                     `;
@@ -11394,14 +12062,16 @@ function previewBulkScheduleCSV(input) {
 }
 window.previewBulkScheduleCSV = previewBulkScheduleCSV;
 
-function openBulkScheduleModal() {
+async function openBulkScheduleModal() {
     window.parsedBulkScheduleRows = [];
     
-    if (!competitionsList || competitionsList.length === 0) {
-        loadCompetitions();
-    }
-    if (!stagesList || stagesList.length === 0) {
-        loadStagesAndTeams();
+    // Ensure prerequisites are loaded before modal opens
+    const preLoads = [];
+    if (!competitionsList || competitionsList.length === 0) preLoads.push(loadCompetitions());
+    if (!stagesList || stagesList.length === 0) preLoads.push(loadStagesAndTeams());
+    if (!categoriesList || categoriesList.length === 0) preLoads.push(loadCategories());
+    if (preLoads.length > 0) {
+        await Promise.all(preLoads);
     }
     
     openModal('Bulk Upload Event Schedule (CSV)', `
@@ -11475,9 +12145,9 @@ async function handleBulkScheduleUpload() {
         let stageUpdates = [];
         
         rows.forEach(row => {
-            const rawName = row.competition_name || row.competition || row.name || row.event || '';
-            const rawCat = row.category || row.category_name || '';
-            const rawStage = row.stage_name || row.stage || '';
+            const rawName = getCsvFieldValue(row, ['competition_name', 'competition', 'name', 'event', 'program', 'item', 'comp_name', 'comp']);
+            const rawCat = getCsvFieldValue(row, ['category', 'category_name', 'cat', 'section', 'group']);
+            const rawStage = getCsvFieldValue(row, ['stage', 'stage_name', 'stagename', 'stage/venue', 'stage / venue', 'venue', 'arena']);
             
             const compMatch = findBestCompetitionMatch(rawName, rawCat, competitionsList, categoriesList);
             if (!compMatch || !compMatch.comp) return;
@@ -11485,9 +12155,9 @@ async function handleBulkScheduleUpload() {
             const matchedComp = compMatch.comp;
             if (compMatch.isCorrected) autoCorrectedCount++;
             
-            const rawDate = String(row.date || row.event_date || '').trim();
-            const rawFrom = String(row.from_time || row.start_time || row.time || row['time (from)'] || '').trim();
-            let rawTo = String(row.to_time || row.end_time || row['time (to)'] || '').trim();
+            const rawDate = getCsvFieldValue(row, ['date', 'event_date', 'schedule_date', 'day']);
+            const rawFrom = getCsvFieldValue(row, ['from_time', 'start_time', 'from', 'time', 'start', 'time_from', 'time (from)', 'time(from)']);
+            let rawTo = getCsvFieldValue(row, ['to_time', 'end_time', 'to', 'end', 'time_to', 'time (to)', 'time(to)']);
             if (rawTo === '-') rawTo = '';
             
             if (!rawDate || !rawFrom) return;
@@ -11495,8 +12165,8 @@ async function handleBulkScheduleUpload() {
             // Check if already scheduled and overwrite disabled
             if (masterSchedule[matchedComp.id] && !overwrite) return;
             
-            const rawStatus = String(row.status || defaultStatus).trim().toLowerCase();
-            const status = (rawStatus === 'draft') ? 'draft' : 'published';
+            const rawStatus = getCsvFieldValue(row, ['status', 'publish_status', 'published', 'state']) || defaultStatus;
+            const status = (rawStatus.toLowerCase() === 'draft') ? 'draft' : 'published';
             
             // Auto-calculate to_time if omitted
             if (!rawTo && matchedComp.time_per_student) {
@@ -11509,7 +12179,7 @@ async function handleBulkScheduleUpload() {
                 date: rawDate,
                 time: rawFrom,
                 to_time: rawTo,
-                manual_time: row.manual_time || '',
+                manual_time: getCsvFieldValue(row, ['manual_time', 'manual_mins', 'duration', 'minutes']),
                 status: status
             };
             scheduledCount++;
@@ -11520,16 +12190,16 @@ async function handleBulkScheduleUpload() {
                 if (stageMatch) {
                     if (stageMatch.isCorrected) autoCorrectedCount++;
                     if (stageMatch.is_offstage) {
-                        stageUpdates.push({ id: matchedComp.id, stage_id: null, is_offstage: true });
+                        stageUpdates.push({ id: matchedComp.id, stage_id: null, is_offstage: true, name: 'Offstage' });
                     } else if (stageMatch.stage_id) {
-                        stageUpdates.push({ id: matchedComp.id, stage_id: stageMatch.stage_id, is_offstage: false });
+                        stageUpdates.push({ id: matchedComp.id, stage_id: stageMatch.stage_id, is_offstage: false, name: stageMatch.name });
                     }
                 }
             }
         });
         
         if (scheduledCount === 0) {
-            throw new Error('No valid competitions could be scheduled. Please ensure competition and category names match accurately.');
+            throw new Error('No valid competitions could be scheduled. Please ensure competition names match your festival events.');
         }
         
         // 1. Persist master schedule
@@ -11538,21 +12208,37 @@ async function handleBulkScheduleUpload() {
             : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
         if (schedError) throw schedError;
         
-        // 2. Perform bulk stage updates if any
+        // 2. Perform bulk stage updates and immediately update in-memory cache
         if (stageUpdates.length > 0) {
             for (const update of stageUpdates) {
                 await supabaseClient.from('competitions').update({
                     stage_id: update.stage_id,
                     is_offstage: update.is_offstage
                 }).eq('id', update.id);
+
+                // Update local memory cache immediately so schedule table never shows TBD!
+                const comp = (competitionsList || []).find(c => String(c.id) === String(update.id));
+                if (comp) {
+                    comp.stage_id = update.stage_id;
+                    comp.is_offstage = update.is_offstage;
+                    if (update.stage_id) {
+                        const stg = (stagesList || []).find(s => String(s.id) === String(update.stage_id));
+                        comp.stages = stg ? { name: stg.name } : { name: update.name };
+                    } else {
+                        comp.stages = null;
+                    }
+                }
             }
-            await loadCompetitions();
+            loadCompetitions().catch(console.warn);
         }
         
         showToast(`Successfully scheduled ${scheduledCount} event(s)!${autoCorrectedCount > 0 ? ` (${autoCorrectedCount} auto-corrected ✨)` : ''}`);
         closeModal();
         await detectScheduleConflicts();
         filterScheduleTable();
+        if (window.schedCurrentViewMode === 'sheet') {
+            initScheduleSheet();
+        }
     } catch (e) {
         showToast('Bulk Schedule failed: ' + e.message, 'error');
     } finally {
