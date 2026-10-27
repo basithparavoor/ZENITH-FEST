@@ -1590,42 +1590,44 @@ function openBulkConvertTypeModal(compIds) {
     const stageEventCount = selectedComps.filter(c => !c.is_offstage).length;
     const offstageEventCount = selectedComps.filter(c => c.is_offstage).length;
 
+    // Smart default: if currently stage events, suggest converting to offstage, and vice versa
+    const defaultMode = (stageEventCount > 0 && offstageEventCount === 0) ? 'offstage' : 'stage';
+
     openModal('Convert Event Type (Stage / Offstage)', `
         <div style="margin-bottom: 1.25rem; padding: 1rem; background: var(--primary-light); border-radius: var(--radius-md); color: var(--primary); font-size: 0.85rem; line-height: 1.5;">
             <div style="font-weight: 800; margin-bottom: 0.25rem; font-size: 0.95rem;">
                 <i class="fa-solid fa-arrows-rotate"></i> Bulk Convert Event Type
             </div>
-            Switch selected competitions between <strong>Stage (On-stage)</strong> and <strong>Offstage</strong> event modes.
-            <div style="margin-top: 0.6rem; display: flex; gap: 0.75rem; font-size: 0.8rem; flex-wrap: wrap;">
+            Switch ${compIds.length} selected competition(s) between <strong>Stage (On-stage)</strong> and <strong>Offstage</strong> mode.
+            <div style="margin-top: 0.5rem; display: flex; gap: 0.75rem; font-size: 0.8rem; flex-wrap: wrap;">
                 <span class="badge" style="background: #E0E7FF; color: #4338CA; font-weight: 700; padding: 0.35rem 0.65rem;">🎭 ${stageEventCount} Stage Event(s)</span>
                 <span class="badge" style="background: #FEF3C7; color: #D97706; font-weight: 700; padding: 0.35rem 0.65rem;">📝 ${offstageEventCount} Offstage Event(s)</span>
             </div>
         </div>
 
-        <div class="form-group" style="margin-bottom: 1rem;">
-            <label style="font-weight: 700; margin-bottom: 0.65rem; display: block;">Choose Target Event Mode</label>
-            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.85rem; border: 2px solid var(--border); border-radius: var(--radius-md); cursor: pointer; background: var(--bg-surface);">
-                    <input type="radio" name="bulkTargetType" value="offstage" checked style="margin-top: 3px; accent-color: #D97706;">
-                    <div>
-                        <div style="font-weight: 700; color: #D97706;"><i class="fa-solid fa-pen-nib"></i> Convert to OFFSTAGE Event</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Events occur simultaneously. Evaluated as offstage competitions (e.g. essay writing, drawing, tests).</div>
+        <div style="margin-bottom: 0.5rem;">
+            <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+                <!-- 1. Convert to Offstage -->
+                <label id="cardModeOffstage" onclick="selectBulkConvertMode('offstage')" style="display: flex; align-items: center; gap: 1rem; padding: 1rem 1.15rem; border: 2px solid ${defaultMode === 'offstage' ? '#D97706' : 'var(--border)'}; border-radius: var(--radius-lg); cursor: pointer; background: ${defaultMode === 'offstage' ? '#FEF3C7' : 'var(--bg-surface)'}; transition: all 0.2s ease;">
+                    <input type="radio" name="bulkTargetType" value="offstage" ${defaultMode === 'offstage' ? 'checked' : ''} style="width: 20px !important; min-width: 20px !important; height: 20px !important; margin: 0 !important; cursor: pointer; flex: none; accent-color: #D97706;">
+                    <div style="width: 42px; height: 42px; border-radius: 12px; background: #D97706; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0;">
+                        <i class="fa-solid fa-pen-nib"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 800; font-size: 0.95rem; color: #78350F;">Convert to OFFSTAGE Event</div>
+                        <div style="font-size: 0.75rem; color: #92400E; margin-top: 3px;">Events occur simultaneously (e.g. essay writing, drawing, tests).</div>
                     </div>
                 </label>
 
-                <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.85rem; border: 2px solid var(--border); border-radius: var(--radius-md); cursor: pointer; background: var(--bg-surface);">
-                    <input type="radio" name="bulkTargetType" value="stage" style="margin-top: 3px; accent-color: var(--primary);">
-                    <div>
-                        <div style="font-weight: 700; color: var(--primary);"><i class="fa-solid fa-masks-theater"></i> Convert to STAGE Event (On-stage)</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Live on-stage presentations with duration scaled per participant.</div>
+                <!-- 2. Convert to Stage -->
+                <label id="cardModeStage" onclick="selectBulkConvertMode('stage')" style="display: flex; align-items: center; gap: 1rem; padding: 1rem 1.15rem; border: 2px solid ${defaultMode === 'stage' ? 'var(--primary)' : 'var(--border)'}; border-radius: var(--radius-lg); cursor: pointer; background: ${defaultMode === 'stage' ? 'var(--primary-light)' : 'var(--bg-surface)'}; transition: all 0.2s ease;">
+                    <input type="radio" name="bulkTargetType" value="stage" ${defaultMode === 'stage' ? 'checked' : ''} style="width: 20px !important; min-width: 20px !important; height: 20px !important; margin: 0 !important; cursor: pointer; flex: none; accent-color: var(--primary);">
+                    <div style="width: 42px; height: 42px; border-radius: 12px; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0;">
+                        <i class="fa-solid fa-masks-theater"></i>
                     </div>
-                </label>
-
-                <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.85rem; border: 2px solid var(--border); border-radius: var(--radius-md); cursor: pointer; background: var(--bg-surface);">
-                    <input type="radio" name="bulkTargetType" value="toggle" style="margin-top: 3px; accent-color: #6366F1;">
-                    <div>
-                        <div style="font-weight: 700; color: #6366F1;"><i class="fa-solid fa-shuffle"></i> Toggle / Invert Mode</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Invert current mode: Stage becomes Offstage, and Offstage becomes Stage.</div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 800; font-size: 0.95rem; color: var(--text-main);">Convert to STAGE Event (On-stage)</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 3px;">Live on-stage presentations with duration scaled per participant.</div>
                     </div>
                 </label>
             </div>
@@ -1635,41 +1637,67 @@ function openBulkConvertTypeModal(compIds) {
         await executeBulkConvertEventType(compIds, mode);
         closeModal();
     });
+
+    const saveBtn = document.getElementById('modalSaveBtn');
+    if (saveBtn) {
+        saveBtn.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> Convert to ${defaultMode === 'offstage' ? 'Offstage' : 'Stage'}`;
+        saveBtn.style.background = defaultMode === 'offstage' ? '#D97706' : 'var(--primary)';
+        saveBtn.style.borderColor = defaultMode === 'offstage' ? '#B45309' : 'var(--primary)';
+    }
 }
 window.openBulkConvertTypeModal = openBulkConvertTypeModal;
+
+window.selectBulkConvertMode = function(mode) {
+    const stageCard = document.getElementById('cardModeStage');
+    const offstageCard = document.getElementById('cardModeOffstage');
+    const stageRadio = document.querySelector('input[name="bulkTargetType"][value="stage"]');
+    const offstageRadio = document.querySelector('input[name="bulkTargetType"][value="offstage"]');
+    const saveBtn = document.getElementById('modalSaveBtn');
+
+    if (mode === 'stage') {
+        if (stageRadio) stageRadio.checked = true;
+        if (stageCard) {
+            stageCard.style.borderColor = 'var(--primary)';
+            stageCard.style.background = 'var(--primary-light)';
+        }
+        if (offstageCard) {
+            offstageCard.style.borderColor = 'var(--border)';
+            offstageCard.style.background = 'var(--bg-surface)';
+        }
+        if (saveBtn) {
+            saveBtn.innerHTML = '<i class="fa-solid fa-masks-theater"></i> Convert to Stage Event';
+            saveBtn.style.background = 'var(--primary)';
+            saveBtn.style.borderColor = 'var(--primary)';
+        }
+    } else {
+        if (offstageRadio) offstageRadio.checked = true;
+        if (offstageCard) {
+            offstageCard.style.borderColor = '#D97706';
+            offstageCard.style.background = '#FEF3C7';
+        }
+        if (stageCard) {
+            stageCard.style.borderColor = 'var(--border)';
+            stageCard.style.background = 'var(--bg-surface)';
+        }
+        if (saveBtn) {
+            saveBtn.innerHTML = '<i class="fa-solid fa-pen-nib"></i> Convert to Offstage Event';
+            saveBtn.style.background = '#D97706';
+            saveBtn.style.borderColor = '#B45309';
+        }
+    }
+};
 
 async function executeBulkConvertEventType(compIds, mode) {
     setLoading('modalSaveBtn', true);
     try {
-        if (mode === 'toggle') {
-            const toOffstage = [];
-            const toStage = [];
-            (competitionsList || []).forEach(c => {
-                if (compIds.includes(String(c.id))) {
-                    if (c.is_offstage) toStage.push(c.id);
-                    else toOffstage.push(c.id);
-                }
-            });
+        const isOffstage = (mode === 'offstage');
+        const { error } = await supabaseClient
+            .from('competitions')
+            .update({ is_offstage: isOffstage })
+            .in('id', compIds);
 
-            if (toOffstage.length > 0) {
-                const { error: e1 } = await supabaseClient.from('competitions').update({ is_offstage: true }).in('id', toOffstage);
-                if (e1) throw e1;
-            }
-            if (toStage.length > 0) {
-                const { error: e2 } = await supabaseClient.from('competitions').update({ is_offstage: false }).in('id', toStage);
-                if (e2) throw e2;
-            }
-            showToast(`Toggled event mode for ${compIds.length} competition(s)!`);
-        } else {
-            const isOffstage = (mode === 'offstage');
-            const { error } = await supabaseClient
-                .from('competitions')
-                .update({ is_offstage: isOffstage })
-                .in('id', compIds);
-
-            if (error) throw error;
-            showToast(`Successfully converted ${compIds.length} competition(s) to ${isOffstage ? 'Offstage' : 'Stage'} events!`);
-        }
+        if (error) throw error;
+        showToast(`Successfully converted ${compIds.length} competition(s) to ${isOffstage ? 'Offstage' : 'Stage'} events!`);
 
         clearSelection('competitions-tbody');
         await loadCompetitions();

@@ -169,8 +169,9 @@ tr:hover td { background: var(--bg-main); }
 .form-group { margin-bottom: 1.25rem; }
 .form-group label { display: block; margin-bottom: 0.5rem; font-size: 0.85rem; font-weight: 500; color: var(--text-muted); }
 .form-group input, .form-group select { width: 100%; padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-main); font-size: 0.95rem; font-weight: 500; outline: none; transition: var(--transition); }
+.form-group input[type="checkbox"], .form-group input[type="radio"], .modal input[type="checkbox"], .modal input[type="radio"] { width: auto !important; padding: 0 !important; }
 .form-group input:focus, .form-group select:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px var(--primary-ring); }
-.modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 2rem; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; padding-bottom: 0.25rem; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 
 .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.4); z-index: 30; opacity: 0; transition: opacity 0.4s; }
