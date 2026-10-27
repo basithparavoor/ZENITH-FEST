@@ -2499,15 +2499,23 @@ window.closeConfirmModal = closeConfirmModal;
 // --- STAGES & TEAMS MANAGEMENT ---
 async function loadStagesAndTeams() {
     try {
-        const [stagesRes, teamsRes] = await Promise.all([
+        const [stagesRes, teamsRes, stageFlagsVal] = await Promise.all([
             festQuery(supabaseClient.from('stages').select(`*, users(username), competitions(count)`)).order('stage_no'),
-            festQuery(supabaseClient.from('teams').select('*, participants(count), users(username, password_hash)')).order('name')
+            festQuery(supabaseClient.from('teams').select('*, participants(count), users(username, password_hash)')).order('name'),
+            window.festosGetSetting ? window.festosGetSetting('stage_offstage_flags') : (supabaseClient.from('settings').select('value').eq('id', 'stage_offstage_flags').maybeSingle().then(r => r.data?.value))
         ]);
         
         if (stagesRes.error) throw stagesRes.error;
         if (teamsRes.error) throw teamsRes.error;
         
+        window.stageOffstageFlags = stageFlagsVal || {};
         stagesList = stagesRes.data || [];
+        stagesList.forEach(s => {
+            s.is_offstage = (window.stageOffstageFlags && window.stageOffstageFlags[s.id] !== undefined)
+                ? !!window.stageOffstageFlags[s.id]
+                : (s.name && s.name.toUpperCase().includes('OFFSTAGE'));
+        });
+
         teamsList = teamsRes.data || [];
         if (typeof populateBulkStageSelect === 'function') populateBulkStageSelect();
         
@@ -2516,11 +2524,16 @@ async function loadStagesAndTeams() {
         
         stagesList.forEach(s => {
             const compCount = s.competitions[0]?.count || 0;
+            const modeBadge = s.is_offstage 
+                ? `<span class="badge" style="background:#FEF3C7; color:#D97706; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:4px; margin-top:4px; display:inline-block;"><i class="fa-solid fa-layer-group"></i> OFFSTAGE VENUE</span>`
+                : `<span class="badge" style="background:#EEF2FF; color:#4F46E5; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:4px; margin-top:4px; display:inline-block;"><i class="fa-solid fa-microphone-lines"></i> ONSTAGE VENUE</span>`;
+
             stbody.innerHTML += `
                 <tr>
                     <td>
-                        <strong>${s.name}</strong><br>
-                        <small style="color:var(--text-muted)">CONTROLLER: ${s.users?.username || 'NONE'}</small>
+                        <strong>${escapeSheetHtml(s.name)}</strong><br>
+                        <small style="color:var(--text-muted)">CONTROLLER: ${s.users?.username || 'NONE'}</small><br>
+                        ${modeBadge}
                     </td>
                     <td>STAGE ${s.stage_no}</td>
                     <td><span class="badge-count" onclick="viewRelationalData('competitions', 'stage_id', '${s.id}')">${compCount} COMPS</span></td>
@@ -2612,21 +2625,37 @@ async function openStageModal(editData = null) {
         const sId = isEdit ? editData.id : '';
         const sName = isEdit ? editData.name : '';
         const sNo = isEdit ? editData.stage_no : '1';
+        const sIsOffstage = isEdit 
+            ? (editData.is_offstage !== undefined ? editData.is_offstage : (window.stageOffstageFlags && !!window.stageOffstageFlags[editData.id]))
+            : false;
         
         let controllerOpts = availableControllers.map(c => 
             `<option value="${c.id}" ${isEdit && editData.controller_id === c.id ? 'selected' : ''}>${c.username}</option>`
         ).join('');
         
-        openModal(isEdit ? 'Edit Stage' : 'Add Stage', `
+        openModal(isEdit ? 'Edit Stage / Venue' : 'Add Stage / Venue', `
             <input type="hidden" id="stageId" value="${sId}">
-            <div class="form-group"><label>Stage Name</label><input type="text" id="stageName" value="${sName}"></div>
+            <div class="form-group"><label>Stage / Venue Name</label><input type="text" id="stageName" value="${escapeSheetHtml(sName)}" placeholder="e.g. Main Auditorium, Stage 1, Drawing Hall"></div>
             <div class="form-group"><label>Stage Number (ID)</label><input type="number" id="stageNo" value="${sNo}"></div>
             <div class="form-group"><label>Assign Controller</label><select id="stageController"><option value="">-- SELECT CONTROLLER --</option>${controllerOpts}</select></div>
+
+            <div class="form-group" style="display: flex; align-items: flex-start; gap: 0.85rem; background: #FEF3C7; padding: 1rem; border-radius: var(--radius-md); border: 1.5px solid #FDE68A; margin-top: 1rem;">
+                <input type="checkbox" id="stageIsOffstage" ${sIsOffstage ? 'checked' : ''} style="width: 22px; height: 22px; accent-color: #D97706; cursor: pointer; margin-top: 2px;">
+                <div style="flex: 1;">
+                    <label for="stageIsOffstage" style="margin: 0; font-weight: 800; color: #92400E; cursor: pointer; font-size: 0.95rem; display: flex; align-items: center; gap: 0.4rem;">
+                        <i class="fa-solid fa-layer-group"></i> Offstage Venue
+                    </label>
+                    <small style="display: block; color: #B45309; font-size: 0.8rem; margin-top: 4px; line-height: 1.4;">
+                        Check this if this venue is for offstage competitions (e.g. writing, drawing halls). In Stage Controller, offstage venues do <strong>not</strong> require an assigned judge to start or end the competition. A judge only evaluates after completion.
+                    </small>
+                </div>
+            </div>
         `, async () => {
             const id = document.getElementById('stageId').value;
             const name = document.getElementById('stageName').value;
             const stage_no = document.getElementById('stageNo').value;
             const controller_id = document.getElementById('stageController').value || null;
+            const isOffstage = document.getElementById('stageIsOffstage')?.checked || false;
             
             if(!name || !stage_no) return showToast('Name and Number required', 'error');
             
@@ -2634,11 +2663,29 @@ async function openStageModal(editData = null) {
             const payload = { name, stage_no, controller_id };
             if (id) payload.id = id;
 
-            const { error } = await supabaseClient.from('stages').upsert([festPayload(payload)]);
-            setLoading('modalSaveBtn', false);
+            const { data: upsertData, error } = await supabaseClient.from('stages').upsert([festPayload(payload)]).select();
             
-            if(error) showToast(error.message, 'error'); 
-            else { showToast(id ? 'Stage updated!' : 'Stage added!'); closeModal(); loadStagesAndTeams(); }
+            if (error) {
+                setLoading('modalSaveBtn', false);
+                return showToast(error.message, 'error');
+            }
+
+            // Persist the offstage venue flag in settings
+            const savedStageId = id || (upsertData && upsertData[0] ? upsertData[0].id : null);
+            if (savedStageId) {
+                window.stageOffstageFlags = window.stageOffstageFlags || {};
+                window.stageOffstageFlags[savedStageId] = isOffstage;
+                if (window.festosSaveSetting) {
+                    await window.festosSaveSetting('stage_offstage_flags', window.stageOffstageFlags);
+                } else {
+                    await supabaseClient.from('settings').upsert({ id: 'stage_offstage_flags', value: window.stageOffstageFlags });
+                }
+            }
+
+            setLoading('modalSaveBtn', false);
+            showToast(id ? 'Stage updated successfully!' : 'Stage added successfully!');
+            closeModal();
+            loadStagesAndTeams();
         });
     } catch(e) { showToast(e.message, 'error'); }
 }
@@ -10757,9 +10804,13 @@ function openScheduleModal(editCompId = null) {
     `).join('');
     
     let stageOpts = `<option value="">-- NO STAGE ASSIGNED (TBD) --</option>`
-        + (stagesList || []).map(s => `
-            <option value="${s.id}" ${currentComp && !currentComp.is_offstage && String(currentComp.stage_id) === String(s.id) ? 'selected' : ''}>🎭 ${escapeSheetHtml(s.name)}</option>
-        `).join('');
+        + (stagesList || []).map(s => {
+            const isOff = s.is_offstage || (window.stageOffstageFlags && window.stageOffstageFlags[s.id]);
+            const prefix = isOff ? '📝 ' : '🎭 ';
+            const suffix = isOff ? ' [Offstage Venue]' : '';
+            const isSel = currentComp && String(currentComp.stage_id) === String(s.id);
+            return `<option value="${s.id}" ${isSel ? 'selected' : ''}>${prefix}${escapeSheetHtml(s.name)}${suffix}</option>`;
+        }).join('');
     
     openModal(isEdit ? 'Edit Schedule Event' : 'Schedule Event', `
         <div class="grid-2" style="gap: 1rem;">
@@ -10779,17 +10830,17 @@ function openScheduleModal(editCompId = null) {
 
         <div class="form-group" style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.85rem 1rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
-                <label style="margin: 0; font-weight: 700; font-size: 0.85rem; color: var(--text-main);">Venue / Stage</label>
+                <label style="margin: 0; font-weight: 700; font-size: 0.85rem; color: var(--text-main);">Venue / Stage (Mark from Added Stages)</label>
                 <span id="modSchedVenueBadge" style="font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: #E0E7FF; color: #4338CA;">
                     Auto-fetched from Competition
                 </span>
             </div>
             <div id="modSchedStageContainer">
-                <select id="modSchedStage" style="width: 100%; background: white;">
+                <select id="modSchedStage" style="width: 100%; background: white;" onchange="window.updateScheduleVenueUI()">
                     ${stageOpts}
                 </select>
             </div>
-            <div id="modSchedOffstageNotice" style="display: none; padding: 0.5rem 0.75rem; background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 6px; color: #92400E; font-size: 0.82rem; font-weight: 600;">
+            <div id="modSchedOffstageNotice" style="display: none; padding: 0.6rem 0.85rem; background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 6px; color: #92400E; font-size: 0.82rem; font-weight: 600; margin-top: 0.5rem;">
                 <i class="fa-solid fa-layer-group" style="margin-right: 4px;"></i> Offstage Competition &mdash; Conducted off-stage (No physical stage required).
             </div>
         </div>
@@ -10863,20 +10914,11 @@ function loadModSchedComps(keepCompId = null) {
 window.onScheduleCompChange = function() {
     const compId = document.getElementById('modSchedComp')?.value;
     const stageSelect = document.getElementById('modSchedStage');
-    const stageContainer = document.getElementById('modSchedStageContainer');
-    const offstageNotice = document.getElementById('modSchedOffstageNotice');
-    const venueBadge = document.getElementById('modSchedVenueBadge');
     const catSelect = document.getElementById('modSchedCat');
 
     if (!compId) {
         if (stageSelect) stageSelect.value = '';
-        if (stageContainer) stageContainer.style.display = 'block';
-        if (offstageNotice) offstageNotice.style.display = 'none';
-        if (venueBadge) {
-            venueBadge.innerHTML = 'Select a competition';
-            venueBadge.style.background = '#F1F5F9';
-            venueBadge.style.color = '#64748B';
-        }
+        window.updateScheduleVenueUI();
         window.updateScheduleTimeCalc();
         return;
     }
@@ -10892,38 +10934,46 @@ window.onScheduleCompChange = function() {
         catSelect.value = comp.category_id;
     }
 
-    // Auto-fetch Venue (Stage or Offstage)
-    if (comp.is_offstage) {
-        if (stageContainer) stageContainer.style.display = 'none';
-        if (offstageNotice) offstageNotice.style.display = 'block';
-        if (stageSelect) stageSelect.value = '';
-        if (venueBadge) {
-            venueBadge.innerHTML = '<i class="fa-solid fa-layer-group"></i> Offstage Mode';
-            venueBadge.style.background = '#FEF3C7';
-            venueBadge.style.color = '#D97706';
-        }
-    } else {
-        if (offstageNotice) offstageNotice.style.display = 'none';
-        if (stageContainer) stageContainer.style.display = 'block';
-        if (stageSelect) {
-            stageSelect.value = comp.stage_id || '';
-        }
-        if (venueBadge) {
-            if (comp.stage_id) {
-                const stageObj = (stagesList || []).find(s => String(s.id) === String(comp.stage_id));
-                const stageName = stageObj ? stageObj.name : (comp.stages?.name || 'Stage');
-                venueBadge.innerHTML = `<i class="fa-solid fa-check"></i> Auto-fetched: ${escapeSheetHtml(stageName)}`;
-                venueBadge.style.background = '#ECFDF5';
-                venueBadge.style.color = '#059669';
-            } else {
-                venueBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> No Stage in Competitions (Set below)`;
-                venueBadge.style.background = '#FEF3C7';
-                venueBadge.style.color = '#D97706';
-            }
-        }
+    // Auto-select venue from competition if assigned
+    if (stageSelect && comp.stage_id) {
+        stageSelect.value = comp.stage_id;
     }
 
+    window.updateScheduleVenueUI();
     window.updateScheduleTimeCalc();
+};
+
+window.updateScheduleVenueUI = function() {
+    const stageId = document.getElementById('modSchedStage')?.value;
+    const venueBadge = document.getElementById('modSchedVenueBadge');
+    const offstageNotice = document.getElementById('modSchedOffstageNotice');
+    if (!venueBadge) return;
+
+    if (!stageId) {
+        venueBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> No Venue Selected (TBD)';
+        venueBadge.style.background = '#F1F5F9';
+        venueBadge.style.color = '#64748B';
+        if (offstageNotice) offstageNotice.style.display = 'none';
+        return;
+    }
+
+    const stage = (stagesList || []).find(s => String(s.id) === String(stageId));
+    const isOffstage = stage ? (stage.is_offstage || (window.stageOffstageFlags && window.stageOffstageFlags[stage.id])) : false;
+
+    if (isOffstage) {
+        venueBadge.innerHTML = `<i class="fa-solid fa-layer-group"></i> Offstage Venue (No judge required to start/end in stage controller)`;
+        venueBadge.style.background = '#FEF3C7';
+        venueBadge.style.color = '#D97706';
+        if (offstageNotice) {
+            offstageNotice.style.display = 'block';
+            offstageNotice.innerHTML = `<i class="fa-solid fa-layer-group" style="margin-right: 4px;"></i> <strong>Offstage Venue:</strong> Stage Controller can start and end this event without an assigned judge. Judge evaluates after completion.`;
+        }
+    } else {
+        venueBadge.innerHTML = `<i class="fa-solid fa-microphone-lines"></i> Onstage Venue (Judge required before starting event)`;
+        venueBadge.style.background = '#ECFDF5';
+        venueBadge.style.color = '#059669';
+        if (offstageNotice) offstageNotice.style.display = 'none';
+    }
 };
 
 async function saveSchedule(editCompId) {
@@ -10950,9 +11000,14 @@ async function saveSchedule(editCompId) {
         const targetComp = (competitionsList || []).find(c => String(c.id) === String(targetCompId));
         if (targetComp) {
             const compUpdates = {};
-            if (!targetComp.is_offstage) {
-                compUpdates.stage_id = selectedStageVal || null;
+            if (selectedStageVal) {
+                compUpdates.stage_id = selectedStageVal;
+                const chosenStage = (stagesList || []).find(s => String(s.id) === String(selectedStageVal));
+                compUpdates.is_offstage = chosenStage ? !!chosenStage.is_offstage : targetComp.is_offstage;
+            } else {
+                compUpdates.stage_id = null;
             }
+
             if (selectedCatId) {
                 compUpdates.category_id = selectedCatId;
             }
@@ -10965,8 +11020,8 @@ async function saveSchedule(editCompId) {
                 Object.assign(targetComp, compUpdates);
                 if (compUpdates.stage_id) {
                     const s = (stagesList || []).find(stg => String(stg.id) === String(compUpdates.stage_id));
-                    targetComp.stages = s ? { name: s.name } : null;
-                } else if (compUpdates.stage_id === null && !targetComp.is_offstage) {
+                    targetComp.stages = s ? { name: s.name, is_offstage: s.is_offstage } : null;
+                } else if (compUpdates.stage_id === null) {
                     targetComp.stages = null;
                 }
                 if (compUpdates.category_id) {
@@ -11211,7 +11266,12 @@ function renderScheduleSheet() {
     }
 
     const stageSelectOptions = `<option value="">-- No Stage / TBD --</option>`
-        + (stagesList || []).map(s => `<option value="${s.id}">🎭 ${escapeSheetHtml(s.name)}</option>`).join('');
+        + (stagesList || []).map(s => {
+            const isOff = s.is_offstage || (window.stageOffstageFlags && window.stageOffstageFlags[s.id]);
+            const prefix = isOff ? '📝 ' : '🎭 ';
+            const suffix = isOff ? ' [Offstage]' : '';
+            return `<option value="${s.id}">${prefix}${escapeSheetHtml(s.name)}${suffix}</option>`;
+        }).join('');
 
     let html = '';
     rows.forEach((item, idx) => {
@@ -11241,12 +11301,9 @@ function renderScheduleSheet() {
                     ${escapeSheetHtml(item.categoryName || 'General')}
                 </td>
                 <td>
-                    ${item.is_offstage 
-                        ? `<span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:700; padding: 3px 8px; font-size:0.75rem;"><i class="fa-solid fa-layer-group"></i> Offstage</span>` 
-                        : `<select class="sheet-cell-select" onchange="markSchedSheetDirty('${item.compId}', 'stage_id', this.value)">
-                            ${stageSelectOptions.replace(`value="${item.stage_id || ''}"`, `value="${item.stage_id || ''}" selected`)}
-                        </select>`
-                    }
+                    <select class="sheet-cell-select" onchange="markSchedSheetDirty('${item.compId}', 'stage_id', this.value)">
+                        ${stageSelectOptions.replace(`value="${item.stage_id || ''}"`, `value="${item.stage_id || ''}" selected`)}
+                    </select>
                 </td>
                 <td>
                     <input type="date" class="sheet-cell-input" style="text-transform: none; text-align: center;" value="${item.date}" onchange="markSchedSheetDirty('${item.compId}', 'date', this.value)">
@@ -11390,8 +11447,9 @@ async function saveSchedSheetChanges() {
             };
 
             // Stage updates
-            const isOffstage = !!row.is_offstage;
-            const stageId = isOffstage ? null : (row.stage_id || null);
+            const chosenStage = (stagesList || []).find(s => String(s.id) === String(row.stage_id));
+            const isOffstage = chosenStage ? !!chosenStage.is_offstage : !!row.is_offstage;
+            const stageId = row.stage_id || null;
             stageUpdates.push({
                 id: compId,
                 stage_id: stageId,

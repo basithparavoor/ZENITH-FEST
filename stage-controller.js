@@ -106,7 +106,15 @@ async function loadCompetitions(stageId) {
         query = query.eq('stage_id', stageId);
     }
     
-    const { data: competitionsData, error } = await query;
+    const [compsRes, stageFlagsVal] = await Promise.all([
+        query,
+        window.festosGetSetting ? window.festosGetSetting('stage_offstage_flags') : (supabaseClient.from('settings').select('value').eq('id', 'stage_offstage_flags').maybeSingle().then(r => r.data?.value))
+    ]);
+
+    const competitionsData = compsRes.data;
+    const error = compsRes.error;
+    window.stageOffstageFlags = stageFlagsVal || {};
+    window.allLoadedCompetitions = competitionsData || [];
     
     // Fetch Master Schedule
     const schedVal = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : null;
@@ -299,8 +307,23 @@ function filterCompetitions() {
     adjustLayoutPadding();
 }
 
+function checkIsCompOffstage(comp) {
+    if (!comp) return false;
+    if (comp.is_offstage) return true;
+    const sId = comp.stage_id || comp.stages?.id;
+    if (sId && window.stageOffstageFlags && window.stageOffstageFlags[sId] !== undefined) {
+        return !!window.stageOffstageFlags[sId];
+    }
+    if (comp.stages?.name && comp.stages.name.toUpperCase().includes('OFFSTAGE')) {
+        return true;
+    }
+    return false;
+}
+window.checkIsCompOffstage = checkIsCompOffstage;
+
 function getButtonsForStatus(comp) {
     const safeName = comp.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+    const isOff = checkIsCompOffstage(comp);
 
     if (comp.status === 'pending') {
         return `
@@ -321,18 +344,18 @@ function getButtonsForStatus(comp) {
     }
     
     if (comp.status === 'ongoing') {
-        if (comp.is_offstage) {
+        if (isOff) {
             return `
                 <div>
                     <button class="btn btn-outline btn-full" onclick="backToRegistration('${comp.id}', this)" style="margin-bottom: 0.25rem !important;"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT TO REGISTRATION</button>
-                    <button class="btn btn-warning btn-full" onclick="changeCompetitionState('${comp.id}', 'valuation', this, 'ENDING')"><i class="fa-solid fa-file-export"></i> SEND TO VALUATION</button>
+                    <button class="btn btn-warning btn-full" onclick="changeCompetitionState('${comp.id}', 'valuation', this, 'ENDING')"><i class="fa-solid fa-flag-checkered"></i> END EVENT (SEND TO VALUATION)</button>
                 </div>
             `;
         } else {
             const hasMarks = comp.judgements && comp.judgements.some(j => j.awarded_mark !== null);
             const endBtn = hasMarks 
                 ? `<button class="btn btn-warning" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'ENDING')"><i class="fa-solid fa-flag-checkered"></i> END EVENT</button>`
-                : `<button class="btn btn-outline" style="opacity: 0.6; pointer-events: none;" disabled><i class="fa-solid fa-hourglass-half"></i> AWAITING...</button>`;
+                : `<button class="btn btn-outline" style="opacity: 0.6; pointer-events: none;" disabled><i class="fa-solid fa-hourglass-half"></i> AWAITING JUDGE MARKS...</button>`;
 
             return `
                 <div>
@@ -346,8 +369,8 @@ function getButtonsForStatus(comp) {
     if (comp.status === 'valuation') {
         const hasMarks = comp.judgements && comp.judgements.some(j => j.awarded_mark !== null);
         const endBtn = hasMarks 
-            ? `<button class="btn btn-success" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'SUBMITTING')"><i class="fa-solid fa-check-double"></i> SUBMIT MARKS</button>`
-            : `<button class="btn btn-outline" style="opacity: 0.6; pointer-events: none;" disabled><i class="fa-solid fa-hourglass-half"></i> AWAITING MARKS</button>`;
+            ? `<button class="btn btn-success" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'SUBMITTING')"><i class="fa-solid fa-check-double"></i> PUSH TO MANAGER</button>`
+            : `<button class="btn btn-outline" style="opacity: 0.6; pointer-events: none;" disabled><i class="fa-solid fa-hourglass-half"></i> AWAITING JUDGE MARKS</button>`;
         return `
             <div>
                 <button class="btn btn-outline" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'REVERTING')"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT</button>
@@ -610,9 +633,38 @@ async function executeStateChange(compId, newStatus, btnElement, loadingText) {
 
 // Wrapper function mapped to UI buttons
 async function changeCompetitionState(compId, newStatus, btnElement, loadingText) {
-    if (newStatus === 'ongoing' || newStatus === 'judgement_complete') {
-        let title = newStatus === 'ongoing' ? "Start Event?" : "End Event?";
-        let text = newStatus === 'ongoing' ? "Lock registration and start the event?" : "End competition? This locks marks and notifies the Manager.";
+    const comp = (window.allLoadedCompetitions || []).find(c => String(c.id) === String(compId));
+    const isOffstage = checkIsCompOffstage(comp);
+
+    // Rule: All other stage competitions (onstage) need an assigned judge before starting event (no need judge to start registration)
+    if (newStatus === 'ongoing' && !isOffstage) {
+        const assignedJudges = (comp?.judgements || []).filter(j => !!j.judge_id);
+        if (assignedJudges.length === 0) {
+            showToast("Cannot Start Event: An assigned judge is required before starting an onstage competition.", "error");
+            openConfirmModal(
+                "Judge Required to Start Event",
+                `<strong>"${comp ? comp.name : 'This competition'}"</strong> is an onstage competition and requires an assigned judge before the live event can be started.<br><br>Please assign a judge in the Judge Management portal.`,
+                null,
+                { confirmText: "Understood", hideCancel: true }
+            );
+            return;
+        }
+    }
+
+    if (newStatus === 'ongoing' || newStatus === 'judgement_complete' || newStatus === 'valuation') {
+        let title = "Confirm Action";
+        let text = "Are you sure you want to proceed?";
+        if (newStatus === 'ongoing') {
+            title = "Start Event?";
+            text = "Lock registration and start the event now?";
+        } else if (newStatus === 'valuation') {
+            title = "End Event & Send to Valuation?";
+            text = "End offstage competition? The event will now move to Valuation for judge evaluation.";
+        } else if (newStatus === 'judgement_complete') {
+            title = "End Event & Send to Manager?";
+            text = "End competition? This finalizes marks and notifies the Manager to publish results.";
+        }
+
         openConfirmModal(title, text, () => {
             executeStateChange(compId, newStatus, btnElement, loadingText);
         });
@@ -738,20 +790,28 @@ function applyGlobalBranding(brandingData) {
 initializeApp();
 
 // --- MODAL & AUTH UTILITIES ---
-function openConfirmModal(title, text, confirmCallback) {
+function openConfirmModal(title, text, confirmCallback, options = {}) {
     document.getElementById('confirmModalTitle').innerText = title;
-    document.getElementById('confirmModalText').innerText = text;
+    document.getElementById('confirmModalText').innerHTML = text;
     
     const confirmBtn = document.getElementById('confirmModalBtn');
+    confirmBtn.innerText = options.confirmText || 'Yes, Proceed';
     confirmBtn.onclick = () => {
         closeConfirmModal();
         if (confirmCallback) confirmCallback();
     };
+
+    const cancelBtn = document.querySelector('#confirmModal .btn-outline');
+    if (cancelBtn) {
+        cancelBtn.style.display = options.hideCancel ? 'none' : 'inline-block';
+    }
     
     document.getElementById('confirmModal').style.display = 'flex';
 }
 
 function closeConfirmModal() {
+    const cancelBtn = document.querySelector('#confirmModal .btn-outline');
+    if (cancelBtn) cancelBtn.style.display = 'inline-block';
     document.getElementById('confirmModal').style.display = 'none';
 }
 

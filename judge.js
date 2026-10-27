@@ -338,7 +338,10 @@ async function submitJudgement() {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Final Marks';
     } else {
-        showToast('Marks submitted successfully!', "success");
+        try {
+            await supabaseClient.from('competitions').update({ status: 'judgement_complete' }).eq('id', currentCompId);
+        } catch(e) { console.warn(e); }
+        showToast('Marks submitted successfully! Sent to Manager for publishing.', "success");
         closeEvaluation();
         loadDashboard(); 
     }
