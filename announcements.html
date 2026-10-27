@@ -249,53 +249,53 @@
 
         .hidden { display: none !important; }
 
-        /* --- AI ANNOUNCER SUITE (EXECUTIVE BROADCAST STUDIO CONSOLE) --- */
+        /* --- AI ANNOUNCER SUITE (LIGHT THEME STUDIO CONSOLE) --- */
         .ai-deck-card {
-            background: #0B1120 !important;
+            background: #FFFFFF !important;
             border-radius: var(--radius-xl);
             padding: 2rem;
-            border: 1px solid rgba(255, 255, 255, 0.12) !important;
-            box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid var(--border) !important;
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02) !important;
             margin-bottom: 2rem;
-            color: #F8FAFC !important;
+            color: var(--text-main) !important;
         }
         .ai-deck-card h2, .ai-deck-card h3, .ai-deck-card h4 {
-            color: #FFFFFF !important;
+            color: var(--text-main) !important;
         }
         .tts-studio-select {
             width: 100%;
             padding: 0.75rem 1rem;
             border-radius: 10px;
-            border: 1.5px solid rgba(255, 255, 255, 0.15);
-            background: #1E293B;
-            color: #F8FAFC;
+            border: 1.5px solid var(--border);
+            background: #FFFFFF;
+            color: var(--text-main);
             font-size: 0.9rem;
             font-weight: 600;
             outline: none;
             transition: border-color 0.2s, box-shadow 0.2s;
             appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748B'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
             background-position: right 0.85rem center;
             background-size: 1rem;
             cursor: pointer;
         }
         .tts-studio-select:focus {
-            border-color: #6366F1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
-            background-color: #0F172A;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-ring);
+            background-color: #FFFFFF;
         }
         .tts-studio-select option, .tts-studio-select optgroup {
-            background: #0F172A;
-            color: #F8FAFC;
+            background: #FFFFFF;
+            color: var(--text-main);
         }
         .tts-slider {
             width: 100%;
             height: 6px;
             border-radius: 4px;
-            background: rgba(255, 255, 255, 0.15);
+            background: #E2E8F0;
             outline: none;
-            accent-color: #6366F1;
+            accent-color: var(--primary);
             cursor: pointer;
             margin: 6px 0;
         }
@@ -304,8 +304,8 @@
             width: 16px;
             height: 16px;
             border-radius: 50%;
-            background: #6366F1;
-            box-shadow: 0 0 8px rgba(99, 102, 241, 0.8);
+            background: var(--primary);
+            box-shadow: 0 0 6px rgba(79, 70, 229, 0.4);
             cursor: pointer;
         }
         .mic-record-btn {
@@ -2532,16 +2532,16 @@ if (allCompIds.length > 0) {
             container.innerHTML = '';
 
             if (festivalVoiceModels.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: #94A3B8; padding: 2rem;">No human voice models registered for this festival yet.<br><small>Click "Record Another Model" to create one.</small></div>';
+                container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem;">No human voice models registered for this festival yet.<br><small>Click "Record Another Model" to create one.</small></div>';
             } else {
                 festivalVoiceModels.forEach(m => {
                     container.innerHTML += `
-                        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 0.85rem 1.15rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-main); padding: 0.85rem 1.15rem; border-radius: 10px; border: 1px solid var(--border);">
                             <div>
-                                <div style="font-weight: 800; font-size: 0.95rem; color: #FFFFFF; display: flex; align-items: center; gap: 0.5rem;">
+                                <div style="font-weight: 800; font-size: 0.95rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
                                     <i class="fa-solid fa-microphone-lines" style="color: #EC4899;"></i> ${m.name}
                                 </div>
-                                <div style="font-size: 0.75rem; color: #94A3B8; margin-top: 2px;">
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">
                                     ${m.gender.toUpperCase()} | ${m.lang.toUpperCase()} | Pitch: ${m.pitch}x | Pace: ${m.rate}x
                                 </div>
                             </div>
@@ -2939,6 +2939,22 @@ if (allCompIds.length > 0) {
                         osc2.stop(now + 0.9);
 
                         setTimeout(resolve, 850);
+                    } else if (style === 'stadium') {
+                        // Grand Stadium Horn (Dual-Brass Chords F4 349.23Hz + Bb4 466.16Hz)
+                        [349.23, 466.16, 698.46].forEach((freq, idx) => {
+                            const osc = ttsAudioCtx.createOscillator();
+                            const gain = ttsAudioCtx.createGain();
+                            osc.type = 'sawtooth';
+                            osc.frequency.setValueAtTime(freq, now);
+                            gain.gain.setValueAtTime(0, now);
+                            gain.gain.linearRampToValueAtTime(0.25 * masterVol, now + 0.08);
+                            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.85);
+                            osc.connect(gain);
+                            gain.connect(ttsAudioCtx.destination);
+                            osc.start(now);
+                            osc.stop(now + 0.9);
+                        });
+                        setTimeout(resolve, 900);
                     } else if (style === 'airport') {
                         // Airport 2-tone Ding-Dong (F5 698.46Hz -> C6 1046.5Hz)
                         const osc1 = ttsAudioCtx.createOscillator();
@@ -3000,6 +3016,37 @@ if (allCompIds.length > 0) {
                             o.stop(t + 0.55);
                         });
                         setTimeout(resolve, 1000);
+                    } else if (style === 'temple') {
+                        // Majestic Temple Bells (Deep resonant bells)
+                        [220, 440, 660].forEach((freq) => {
+                            const o = ttsAudioCtx.createOscillator();
+                            const g = ttsAudioCtx.createGain();
+                            o.type = 'sine';
+                            o.frequency.setValueAtTime(freq, now);
+                            g.gain.setValueAtTime(0, now);
+                            g.gain.linearRampToValueAtTime(0.3 * masterVol, now + 0.05);
+                            g.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+                            o.connect(g);
+                            g.connect(ttsAudioCtx.destination);
+                            o.start(now);
+                            o.stop(now + 1.25);
+                        });
+                        setTimeout(resolve, 1100);
+                    } else if (style === 'synth') {
+                        // Cyber Synth Pulse (Sub-bass Drop)
+                        const o = ttsAudioCtx.createOscillator();
+                        const g = ttsAudioCtx.createGain();
+                        o.type = 'sawtooth';
+                        o.frequency.setValueAtTime(700, now);
+                        o.frequency.exponentialRampToValueAtTime(110, now + 0.45);
+                        g.gain.setValueAtTime(0, now);
+                        g.gain.linearRampToValueAtTime(0.4 * masterVol, now + 0.03);
+                        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+                        o.connect(g);
+                        g.connect(ttsAudioCtx.destination);
+                        o.start(now);
+                        o.stop(now + 0.65);
+                        setTimeout(resolve, 650);
                     } else {
                         resolve();
                     }
@@ -3111,7 +3158,7 @@ if (allCompIds.length > 0) {
                 if (onAirBadge) onAirBadge.style.display = 'inline-flex';
                 if (statusLabel) {
                     statusLabel.innerText = ttsTotalRepeats > 1 ? `BROADCASTING (${ttsCurrentRepeat}/${ttsTotalRepeats})...` : 'BROADCASTING...';
-                    statusLabel.style.color = '#38BDF8';
+                    statusLabel.style.color = 'var(--primary)';
                 }
 
                 try {

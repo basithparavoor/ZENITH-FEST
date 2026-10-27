@@ -111,6 +111,16 @@ const supabaseClient = window.supabaseClient || (window.supabase ? window.supaba
 window.supabaseClient = supabaseClient;
 window.festosSupabase = supabaseClient;
 
+// Initialize available fests for studio engines & tabs
+try {
+    let fList = (typeof festosDomains !== 'undefined' && festosDomains.getFestList) ? festosDomains.getFestList() : [];
+    if (!fList.length) {
+        const rawMulti = localStorage.getItem('festos_multi_fests');
+        if (rawMulti) fList = JSON.parse(rawMulti);
+    }
+    window.availableFests = Array.isArray(fList) ? fList : [];
+} catch(e) { window.availableFests = []; }
+
 // Auth check (allow admin, master_admin, or super_admin)
 const user = (typeof festosAuth !== 'undefined') ? (festosAuth.getUser() || festosAuth.getSuperAdmin()) : JSON.parse(localStorage.getItem('festUser') || localStorage.getItem('festSuperAdmin') || 'null');
 const allowedAdminRoles = ['admin', 'master_admin', 'super_admin'];
@@ -480,11 +490,19 @@ function switchTab(tabId) {
             if (typeof loadTemplatesList === 'function') loadTemplatesList();
         }
         else if (tabId === 'ai-newspaper') {
+            if (typeof window.checkNewspaperPolicyStatus === 'function') {
+                window.checkNewspaperPolicyStatus();
+            } else if (typeof window.validateFestivalDateAccess === 'function') {
+                window.validateFestivalDateAccess();
+            }
             if (typeof window.loadOrCreateEdition === 'function') {
                 const todayStr = document.getElementById('np-edition-date')?.value || new Date().toISOString().split('T')[0];
                 window.loadOrCreateEdition(todayStr);
             }
             setTimeout(() => {
+                if (typeof window.validateFestivalDateAccess === 'function') {
+                    window.validateFestivalDateAccess();
+                }
                 if (typeof window.fitNewspaperToScreen === 'function') {
                     window.fitNewspaperToScreen();
                 }

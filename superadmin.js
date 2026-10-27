@@ -236,7 +236,14 @@ async function loadInitialData() {
                     .order('created_at', { ascending: false });
 
                 if (!festsError && festsData && festsData.length > 0) {
-                    globalFests = festsData;
+                    globalFests = festsData.map(f => ({
+                        ...f,
+                        startDate: f.startDate || f.start_date || '',
+                        endDate: f.endDate || f.end_date || '',
+                        start_date: f.start_date || f.startDate || '',
+                        end_date: f.end_date || f.endDate || '',
+                        public_results_slug: f.public_results_slug || 'results'
+                    }));
                     festsLoaded = true;
                 }
             } catch (e) {}
@@ -251,35 +258,53 @@ async function loadInitialData() {
                 .maybeSingle();
 
             if (festSettings && festSettings.value && Array.isArray(festSettings.value)) {
-                globalFests = festSettings.value;
+                globalFests = festSettings.value.map(f => ({
+                    ...f,
+                    startDate: f.startDate || f.start_date || '',
+                    endDate: f.endDate || f.end_date || '',
+                    start_date: f.start_date || f.startDate || '',
+                    end_date: f.end_date || f.endDate || '',
+                    public_results_slug: f.public_results_slug || 'results'
+                }));
             } else if (festosSupabase) {
-                // Bootstrap from the fests table (single source of truth) instead of
-                // seeding a hardcoded demo festival that may no longer exist.
+                // Bootstrap from the fests table (single source of truth)
                 try {
                     const { data: festRows } = await festosSupabase.from('fests').select('*');
                     globalFests = (festRows || []).map(f => ({
                         ...f,
-                        startDate: f.start_date,
-                        endDate: f.end_date,
+                        startDate: f.start_date || f.startDate || '',
+                        endDate: f.end_date || f.endDate || '',
+                        start_date: f.start_date || f.startDate || '',
+                        end_date: f.end_date || f.endDate || '',
                         public_results_slug: f.public_results_slug || 'results'
                     }));
                 } catch (e) {
                     globalFests = [];
                 }
                 if (globalFests.length) await syncFestsToDatabase();
-        try {
-            if (typeof festosSupabase !== 'undefined' && festosSupabase) {
-                const targetFestId = id || (globalFests[globalFests.length - 1] ? globalFests[globalFests.length - 1].id : null);
-                if (targetFestId) {
-                    await festosSupabase.from('settings').upsert({
-                        id: 'newspaper_config_' + targetFestId,
-                        value: newspaper_config
-                    });
-                }
-            }
-        } catch(cfgErr) { console.warn('Could not sync newspaper_config setting:', cfgErr); }
             } else {
                 globalFests = [];
+            }
+        }
+
+        // Attach newspaper_config for each festival if stored in settings table
+        if (festosSupabase && globalFests.length > 0) {
+            try {
+                const { data: npRows } = await festosSupabase
+                    .from('settings')
+                    .select('id, value')
+                    .ilike('id', 'newspaper_config_%');
+                if (npRows && Array.isArray(npRows)) {
+                    npRows.forEach(r => {
+                        const targetId = r.id.replace('newspaper_config_', '');
+                        const targetFest = globalFests.find(f => f.id === targetId);
+                        if (targetFest) {
+                            targetFest.newspaper_config = r.value;
+                        }
+                    });
+                }
+            } catch(npErr) {
+                console.warn('Newspaper config fetch notice:', npErr);
             }
         }
 
@@ -407,25 +432,72 @@ async function loadEnquiriesFromDatabase() {
 
 async function syncFestsToDatabase() {
     try {
+        // 1. Immediately sync to localStorage cache and festosDomains for 0ms lag
+        try {
+            localStorage.setItem('festos_multi_fests', JSON.stringify(globalFests));
+            if (typeof festosDomains !== 'undefined' && festosDomains.setFestList) {
+                festosDomains.setFestList(globalFests);
+            }
+            globalFests.forEach(f => {
+                if (f && f.id) {
+                    localStorage.setItem('festMetadata_' + f.id, JSON.stringify(f));
+                    if (f.newspaper_config) {
+                        localStorage.setItem('festos_cfg_newspaper_config_' + f.id, JSON.stringify(f.newspaper_config));
+                    }
+                }
+            });
+        } catch(cacheErr) {}
+
         if (!festosSupabase) return;
 
+        // 2. Persist to fests table and settings table in Supabase
         try {
             for (const f of globalFests) {
-                await festosSupabase.from('fests').upsert({
-                    id: f.id,
-                    name: f.name,
-                    slug: f.slug,
-                    domain: festDomainOf(f),
-                    public_results_slug: f.public_results_slug || 'results',
-                    status: f.status || 'active',
-                    venue: f.venue,
-                    start_date: f.startDate || f.start_date,
-                    end_date: f.endDate || f.end_date,
-                    logo: f.logo,
-                    updated_at: new Date().toISOString()
-                });
+                const sDate = f.startDate || f.start_date || null;
+                const eDate = f.endDate || f.end_date || null;
+                try {
+                    await festosSupabase.from('fests').upsert({
+                        id: f.id,
+                        name: f.name,
+                        slug: f.slug,
+                        domain: festDomainOf(f),
+                        public_results_slug: f.public_results_slug || 'results',
+                        status: f.status || 'active',
+                        venue: f.venue,
+                        start_date: sDate,
+                        end_date: eDate,
+                        logo: f.logo,
+                        updated_at: new Date().toISOString()
+                    });
+                } catch (upsertErr) {
+                    try {
+                        await festosSupabase.from('fests').update({
+                            name: f.name,
+                            slug: f.slug,
+                            domain: festDomainOf(f),
+                            public_results_slug: f.public_results_slug || 'results',
+                            status: f.status || 'active',
+                            venue: f.venue,
+                            start_date: sDate,
+                            end_date: eDate,
+                            logo: f.logo,
+                            updated_at: new Date().toISOString()
+                        }).eq('id', f.id);
+                    } catch(upErr) {}
+                }
+
+                if (f.newspaper_config) {
+                    try {
+                        await festosSupabase.from('settings').upsert({
+                            id: 'newspaper_config_' + f.id,
+                            value: f.newspaper_config
+                        });
+                    } catch(cfgErr) {}
+                }
             }
-        } catch (tableErr) {}
+        } catch (tableErr) {
+            console.warn('Fests table sync notice:', tableErr);
+        }
 
         await festosSupabase.from('settings').upsert({
             id: 'festos_multi_fests',
@@ -1449,15 +1521,12 @@ async function saveFestivalSubmit() {
     btn.innerText = 'Saving...';
 
     try {
+        let savedFestId = id;
         if (id) {
             const index = globalFests.findIndex(f => f.id === id);
-            if (index !== -1) {
-                globalFests[index] = { ...globalFests[index], name, slug, domain, status, public_results_slug: resultsSlug, venue, startDate, endDate, logo, newspaper_config };
-            }
-            festosLogger.log('SYSTEM', `Updated festival: ${name}`, { festId: id }, 'INFO');
-        } else {
-            const newFest = {
-                id: 'fest_' + slug + '_' + Date.now().toString(36),
+            const updatedFest = {
+                ...(index !== -1 ? globalFests[index] : {}),
+                id,
                 name,
                 slug,
                 domain,
@@ -1466,12 +1535,88 @@ async function saveFestivalSubmit() {
                 venue,
                 startDate,
                 endDate,
+                start_date: startDate,
+                end_date: endDate,
+                logo,
+                newspaper_config,
+                updated_at: new Date().toISOString()
+            };
+            if (index !== -1) {
+                globalFests[index] = updatedFest;
+            } else {
+                globalFests.push(updatedFest);
+            }
+            festosLogger.log('SYSTEM', `Updated festival: ${name}`, { festId: id }, 'INFO');
+        } else {
+            savedFestId = 'fest_' + slug + '_' + Date.now().toString(36);
+            const newFest = {
+                id: savedFestId,
+                name,
+                slug,
+                domain,
+                status,
+                public_results_slug: resultsSlug,
+                venue,
+                startDate,
+                endDate,
+                start_date: startDate,
+                end_date: endDate,
                 logo: logo || 'festos-logo.svg',
                 newspaper_config,
                 created_at: new Date().toISOString()
             };
             globalFests.push(newFest);
             festosLogger.log('SYSTEM', `Created festival: ${name} (${domain})`, newFest, 'INFO');
+        }
+
+        // Direct explicit Supabase update & fallback for instant DB persistence
+        if (festosSupabase) {
+            try {
+                await festosSupabase.from('fests').upsert({
+                    id: savedFestId,
+                    name,
+                    slug,
+                    domain,
+                    public_results_slug: resultsSlug,
+                    status: status || 'active',
+                    venue,
+                    start_date: startDate || null,
+                    end_date: endDate || null,
+                    logo: logo || 'festos-logo.svg',
+                    updated_at: new Date().toISOString()
+                });
+            } catch (festTblErr) {
+                try {
+                    await festosSupabase.from('fests').update({
+                        name,
+                        slug,
+                        domain,
+                        public_results_slug: resultsSlug,
+                        status: status || 'active',
+                        venue,
+                        start_date: startDate || null,
+                        end_date: endDate || null,
+                        logo: logo || 'festos-logo.svg',
+                        updated_at: new Date().toISOString()
+                    }).eq('id', savedFestId);
+                } catch(e) {}
+            }
+
+            try {
+                await festosSupabase.from('settings').upsert({
+                    id: 'newspaper_config_' + savedFestId,
+                    value: newspaper_config
+                });
+            } catch(e) {}
+        }
+
+        // Cache immediately in localStorage
+        const currentFestObj = globalFests.find(f => f.id === savedFestId);
+        if (currentFestObj) {
+            try {
+                localStorage.setItem('festMetadata_' + savedFestId, JSON.stringify(currentFestObj));
+                localStorage.setItem('festos_cfg_newspaper_config_' + savedFestId, JSON.stringify(newspaper_config));
+            } catch(e) {}
         }
 
         await syncFestsToDatabase();
