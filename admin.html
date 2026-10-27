@@ -1703,37 +1703,44 @@ canvas {
 
 /* --- COMPETITIONS SPREADSHEET SHEET VIEW (DESKTOP) --- */
 .desktop-sheet-switcher { display: inline-flex; }
+.desktop-only-refresh-btn { display: inline-flex; }
 @media (max-width: 768px) {
     .desktop-sheet-switcher { display: none !important; }
+    .desktop-only-refresh-btn { display: none !important; }
     #comp-sheet-view { display: none !important; }
     #comp-standard-view { display: block !important; }
 }
 
 .excel-sheet-table { width: 100%; border-collapse: separate; border-spacing: 0; }
 .excel-sheet-table th {
-    background: #F8FAFC !important;
-    color: #475569 !important;
-    font-weight: 700 !important;
+    background: #F1F5F9 !important;
+    color: #334155 !important;
+    font-weight: 800 !important;
     font-size: 0.72rem !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.04em !important;
-    padding: 0.65rem 0.6rem !important;
-    border-bottom: 2px solid var(--border) !important;
-    border-right: 1px solid var(--border) !important;
+    letter-spacing: 0.05em !important;
+    padding: 0.7rem 0.65rem !important;
+    border-bottom: 2px solid #CBD5E1 !important;
+    border-right: 1px solid #E2E8F0 !important;
     white-space: nowrap;
+    user-select: none;
 }
 .excel-sheet-table td {
     padding: 0 !important;
-    border-right: 1px solid var(--border) !important;
-    border-bottom: 1px solid var(--border) !important;
+    border-right: 1px solid #E2E8F0 !important;
+    border-bottom: 1px solid #E2E8F0 !important;
     background: white;
     font-size: 0.85rem;
     height: 38px;
     vertical-align: middle;
+    transition: background 0.1s ease;
 }
 .excel-sheet-table tr:hover td { background: #F8FAFC; }
-.excel-sheet-table tr.row-dirty td { background: #FEF3C7 !important; }
-.excel-sheet-table tr.row-new td { background: #ECFDF5 !important; }
+.excel-sheet-table tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
+.excel-sheet-table tr.row-dirty td { background: #FFFBEB !important; }
+.excel-sheet-table tr.row-dirty td:first-child { box-shadow: inset 3px 0 0 #D97706 !important; }
+.excel-sheet-table tr.row-new td { background: #F0FDF4 !important; }
+.excel-sheet-table tr.row-new td:first-child { box-shadow: inset 3px 0 0 #059669 !important; }
 
 .sheet-cell-input {
     width: 100% !important;
@@ -1746,12 +1753,14 @@ canvas {
     color: var(--text-main) !important;
     outline: none !important;
     border-radius: 0 !important;
-    transition: background 0.12s, border-color 0.12s;
+    transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
 }
 .sheet-cell-input:focus {
-    background: white !important;
-    border-color: var(--primary) !important;
-    box-shadow: inset 0 0 0 2px var(--primary) !important;
+    background: #FFFFFF !important;
+    border-color: #6366F1 !important;
+    box-shadow: inset 0 0 0 2px #6366F1 !important;
+    z-index: 2;
+    position: relative;
 }
 .sheet-cell-select {
     width: 100% !important;
@@ -1765,11 +1774,14 @@ canvas {
     outline: none !important;
     border-radius: 0 !important;
     cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
 }
 .sheet-cell-select:focus {
-    background: white !important;
-    border-color: var(--primary) !important;
-    box-shadow: inset 0 0 0 2px var(--primary) !important;
+    background: #FFFFFF !important;
+    border-color: #6366F1 !important;
+    box-shadow: inset 0 0 0 2px #6366F1 !important;
+    z-index: 2;
+    position: relative;
 }
 .sheet-cell-checkbox {
     width: 18px !important;
@@ -1778,6 +1790,14 @@ canvas {
     cursor: pointer;
     margin: 0 auto !important;
     display: block;
+}
+
+@keyframes sheetPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    50% { transform: scale(1.02); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+}
+.btn-sheet-save-active {
+    animation: sheetPulse 2s infinite ease-in-out;
 }
 
 </style>
@@ -1923,6 +1943,11 @@ canvas {
                 <h1 id="page-title" data-no-auto-brand="true" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0;">Workspace Overview</h1>
             </div>
             <div style="display: flex; align-items: center; gap: 0.65rem; flex-shrink: 0;">
+                <!-- Desktop Only Quick Data Refresh Button -->
+                <button class="desktop-only-refresh-btn" id="header-refresh-btn" onclick="refreshAdminData(this)" title="Refresh System Data (Ctrl+R / Sync)" style="height: 40px; padding: 0 0.95rem; border-radius: var(--radius-md, 8px); border: 1px solid var(--border); background: white; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; box-shadow: var(--shadow-sm);">
+                    <i class="fa-solid fa-arrows-rotate refresh-icon" style="color: var(--primary);"></i>
+                    <span>Refresh</span>
+                </button>
                 <!-- Universal Notification Center Bell (Suitable for Mobile, Tablet, Desktop) -->
                 <button class="header-notify-btn" id="header-notify-btn" onclick="toggleNotificationCenter()" title="Notifications & System Updates" style="position: relative; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--border); background: white; color: var(--text-main); display: flex; align-items: center; justify-content: center; font-size: 1.15rem; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; box-shadow: var(--shadow-sm);">
                     <i class="fa-solid fa-bell"></i>
@@ -2782,30 +2807,38 @@ canvas {
             <div id="comp-sheet-view" style="display: none;">
                 <!-- Sheet Toolbar -->
                 <div class="sheet-toolbar" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; padding: 0.75rem 1.25rem; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); flex-wrap: wrap;">
-                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="display: flex; align-items: center; gap: 0.85rem; flex-wrap: wrap;">
                         <span style="font-weight: 800; font-size: 0.95rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
                             <i class="fa-solid fa-table-cells" style="color: var(--primary);"></i> Competitions Sheet
                         </span>
                         <span id="sheetSaveStatusBadge" class="badge" style="background: #ECFDF5; color: #059669; font-weight: 700; border: 1px solid #A7F3D0; font-size: 0.75rem;">
                             <i class="fa-solid fa-circle-check"></i> All Saved
                         </span>
+                        <!-- Live Stat Chips -->
+                        <div style="display: flex; gap: 0.4rem; align-items: center;">
+                            <span class="badge" id="sheetStatTotal" style="background: #F1F5F9; color: #475569; font-weight: 700; border: 1px solid #E2E8F0; font-size: 0.75rem;">0 Total</span>
+                            <span class="badge" id="sheetStatStage" style="background: #EEF2FF; color: #4338CA; font-weight: 700; border: 1px solid #C7D2FE; font-size: 0.75rem;">0 Stage</span>
+                            <span class="badge" id="sheetStatOffstage" style="background: #FEF3C7; color: #92400E; font-weight: 700; border: 1px solid #FDE68A; font-size: 0.75rem;">0 Offstage</span>
+                        </div>
                     </div>
                     
                     <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
-                        <div class="search-box" style="width: 200px; min-width: 160px;">
+                        <div class="search-box" style="width: 190px; min-width: 150px;">
                             <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="sheetSearchInput" placeholder="Filter sheet..." oninput="filterCompSheetTable()">
+                            <input type="text" id="sheetSearchInput" placeholder="Filter by name..." oninput="filterCompSheetTable()">
                         </div>
                         <select id="sheetCategoryFilter" onchange="filterCompSheetTable()" style="padding: 0.5rem 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-main); font-size: 0.85rem; font-weight: 600;">
                             <option value="">All Categories</option>
                         </select>
-                        <button type="button" class="btn btn-outline" onclick="addCompSheetRow()" style="padding: 0.5rem 0.85rem; font-size: 0.85rem; font-weight: 700; border-color: var(--primary); color: var(--primary);">
-                            <i class="fa-solid fa-plus"></i> Add Row
-                        </button>
+                        <select id="sheetModeFilter" onchange="filterCompSheetTable()" style="padding: 0.5rem 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-main); font-size: 0.85rem; font-weight: 600;">
+                            <option value="">All Modes</option>
+                            <option value="stage">🎭 Stage Only</option>
+                            <option value="offstage">📝 Offstage Only</option>
+                        </select>
                         <button type="button" class="btn btn-outline" id="btnSheetDiscard" onclick="discardCompSheetChanges()" style="padding: 0.5rem 0.85rem; font-size: 0.85rem; font-weight: 700; display: none;">
                             <i class="fa-solid fa-rotate-left"></i> Discard
                         </button>
-                        <button type="button" class="btn btn-primary" id="btnSheetSave" onclick="saveCompSheetChanges()" style="padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 800;" disabled>
+                        <button type="button" class="btn btn-primary" id="btnSheetSave" onclick="saveCompSheetChanges()" style="padding: 0.5rem 1.15rem; font-size: 0.85rem; font-weight: 800;" disabled>
                             <i class="fa-solid fa-floppy-disk"></i> Save Changes (<span id="sheetDirtyCount">0</span>)
                         </button>
                         <button type="button" class="btn btn-outline" onclick="switchCompetitionsView('table')" title="Switch back to Standard Table View" style="padding: 0.5rem 0.85rem; font-size: 0.85rem;">
@@ -2817,20 +2850,20 @@ canvas {
                 <!-- Spreadsheet Table Container -->
                 <div class="sheet-grid-container" style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
                     <div style="overflow-x: auto; max-height: calc(100vh - 250px); overflow-y: auto;">
-                        <table id="compSheetTable" class="excel-sheet-table" style="width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1100px;">
-                            <thead style="position: sticky; top: 0; z-index: 10; background: #F8FAFC;">
+                        <table id="compSheetTable" class="excel-sheet-table" style="width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1120px;">
+                            <thead style="position: sticky; top: 0; z-index: 10; background: #F1F5F9;">
                                 <tr>
                                     <th style="width: 45px; text-align: center;">#</th>
-                                    <th style="width: 75px; text-align: center;">Status</th>
-                                    <th style="min-width: 250px;">Competition Name</th>
-                                    <th style="width: 175px;">Category</th>
-                                    <th style="width: 165px;">Stage</th>
-                                    <th style="width: 135px;">Event Mode</th>
+                                    <th style="width: 80px; text-align: center;">Status</th>
+                                    <th style="min-width: 250px;"><i class="fa-solid fa-trophy" style="margin-right: 4px; color: var(--primary);"></i> Competition Name</th>
+                                    <th style="width: 175px;"><i class="fa-solid fa-layer-group" style="margin-right: 4px;"></i> Category</th>
+                                    <th style="width: 165px;"><i class="fa-solid fa-microphone-lines" style="margin-right: 4px;"></i> Stage</th>
+                                    <th style="width: 135px;"><i class="fa-solid fa-masks-theater" style="margin-right: 4px;"></i> Event Mode</th>
                                     <th style="width: 90px; text-align: center;">Max Mark</th>
                                     <th style="width: 90px; text-align: center;">Limit</th>
                                     <th style="width: 95px; text-align: center;">Mins/Stud</th>
                                     <th style="width: 75px; text-align: center;">Group?</th>
-                                    <th style="width: 135px;">Special Award</th>
+                                    <th style="width: 135px;"><i class="fa-solid fa-award" style="margin-right: 4px;"></i> Award</th>
                                     <th style="width: 65px; text-align: center;">Action</th>
                                 </tr>
                             </thead>
@@ -2843,7 +2876,7 @@ canvas {
                             <span id="sheetRowCount" style="font-weight: 700; color: var(--text-main);">0</span> competitions displayed
                         </div>
                         <div style="display: flex; gap: 1rem; align-items: center;">
-                            <span>💡 <strong>Tip:</strong> Edit any cell directly. Modified rows turn amber. Click <strong>Save Changes</strong> to sync to database.</span>
+                            <span>💡 <strong>Quick Save:</strong> Press <kbd style="background: white; border: 1px solid #CBD5E1; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Ctrl + S</kbd> to save. Direct cell edits save instantly to database.</span>
                         </div>
                     </div>
                 </div>
@@ -5674,17 +5707,17 @@ canvas {
     </div>
 </div>
 
-<!-- Custom Delete Confirmation Modal -->
-<div id="confirmModal" class="modal-overlay">
-    <div class="modal" style="max-width: 400px; text-align: center;">
-        <div style="font-size: 3rem; color: var(--danger); margin-bottom: 1rem;">
-            <i class="fa-solid fa-triangle-exclamation"></i>
+<!-- Premium Confirmation Modal -->
+<div id="confirmModal" class="modal-overlay" style="z-index: 2500;">
+    <div class="modal" style="max-width: 440px; text-align: center; padding: 2rem 1.75rem; border-radius: var(--radius-xl, 18px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);">
+        <div id="confirmModalIconBox" style="width: 64px; height: 64px; border-radius: 50%; background: #FEE2E2; color: #EF4444; display: flex; align-items: center; justify-content: center; font-size: 1.85rem; margin: 0 auto 1.25rem; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.15);">
+            <i class="fa-solid fa-triangle-exclamation" id="confirmModalIcon"></i>
         </div>
-        <h2 style="margin-bottom: 0.5rem;" id="confirmModalTitle">Are you sure?</h2>
-        <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 0.95rem;" id="confirmModalText">This action cannot be undone.</p>
-        <div style="display: flex; gap: 1rem; justify-content: center;">
-            <button class="btn btn-outline" style="flex: 1;" onclick="document.getElementById('confirmModal').classList.remove('show')">Cancel</button>
-            <button class="btn btn-danger" style="flex: 1;" id="confirmModalBtn">Yes, Delete</button>
+        <h2 style="margin-bottom: 0.5rem; font-size: 1.35rem; font-weight: 800; color: var(--text-main);" id="confirmModalTitle">Are you sure?</h2>
+        <div style="color: var(--text-muted); margin-bottom: 1.75rem; font-size: 0.92rem; line-height: 1.55;" id="confirmModalText">This action cannot be undone.</div>
+        <div style="display: flex; gap: 0.85rem; justify-content: center;">
+            <button class="btn btn-outline" style="flex: 1; padding: 0.7rem 1rem; font-weight: 700; border-radius: var(--radius-md);" id="confirmModalCancelBtn" onclick="closeConfirmModal(true)">Cancel</button>
+            <button class="btn btn-danger" style="flex: 1; padding: 0.7rem 1rem; font-weight: 800; border-radius: var(--radius-md);" id="confirmModalBtn">Confirm</button>
         </div>
     </div>
 </div>

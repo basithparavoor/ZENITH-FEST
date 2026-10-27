@@ -1734,12 +1734,29 @@ function switchCompetitionsView(mode) {
     if (mode === window.compCurrentViewMode) return;
 
     if (mode === 'table' && window.compSheetDirtyIds && window.compSheetDirtyIds.size > 0) {
-        if (!confirm(`You have ${window.compSheetDirtyIds.size} unsaved change(s) in Sheet View. Discard and switch to Table View?`)) {
-            return;
-        }
-        window.compSheetDirtyIds.clear();
+        openConfirmModal(
+            'Unsaved Sheet Changes',
+            `You have <strong>${window.compSheetDirtyIds.size} unsaved change(s)</strong> in Sheet View.<br>Switching to Table View will discard these unsaved edits.<br><br>Do you want to discard them and continue?`,
+            () => {
+                window.compSheetDirtyIds.clear();
+                executeSwitchCompetitionsView(mode);
+            },
+            {
+                confirmText: 'Discard & Switch',
+                cancelText: 'Stay in Sheet',
+                confirmBtnClass: 'btn-warning',
+                icon: 'fa-solid fa-arrow-right-from-bracket',
+                iconColor: '#D97706',
+                iconBg: '#FEF3C7'
+            }
+        );
+        return;
     }
 
+    executeSwitchCompetitionsView(mode);
+}
+
+function executeSwitchCompetitionsView(mode) {
     window.compCurrentViewMode = mode;
     const standardView = document.getElementById('comp-standard-view');
     const sheetView = document.getElementById('comp-sheet-view');
@@ -1821,19 +1838,36 @@ function renderCompetitionsSheet() {
 
     const searchInput = document.getElementById('sheetSearchInput')?.value?.toLowerCase()?.trim() || '';
     const catFilter = document.getElementById('sheetCategoryFilter')?.value || '';
+    const modeFilter = document.getElementById('sheetModeFilter')?.value || '';
 
     let rows = Object.values(window.compSheetData || {});
 
+    // Live stat totals calculation across all items
+    const totalComps = rows.length;
+    const stageComps = rows.filter(r => !r.is_offstage).length;
+    const offstageComps = rows.filter(r => !!r.is_offstage).length;
+
+    const statTotalEl = document.getElementById('sheetStatTotal');
+    const statStageEl = document.getElementById('sheetStatStage');
+    const statOffstageEl = document.getElementById('sheetStatOffstage');
+    if (statTotalEl) statTotalEl.innerText = `${totalComps} Total`;
+    if (statStageEl) statStageEl.innerText = `🎭 ${stageComps} Stage`;
+    if (statOffstageEl) statOffstageEl.innerText = `📝 ${offstageComps} Offstage`;
+
+    // Filter by search, category, and mode
     if (searchInput) {
         rows = rows.filter(r => (r.name || '').toLowerCase().includes(searchInput));
     }
     if (catFilter) {
         rows = rows.filter(r => String(r.category_id) === String(catFilter));
     }
+    if (modeFilter === 'stage') {
+        rows = rows.filter(r => !r.is_offstage);
+    } else if (modeFilter === 'offstage') {
+        rows = rows.filter(r => !!r.is_offstage);
+    }
 
     rows.sort((a, b) => {
-        if (a.isNew && !b.isNew) return -1;
-        if (!a.isNew && b.isNew) return 1;
         return (a.name || '').localeCompare(b.name || '');
     });
 
@@ -1841,22 +1875,20 @@ function renderCompetitionsSheet() {
     if (rowCountEl) rowCountEl.innerText = rows.length;
 
     if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; padding: 3rem; color: var(--text-muted); font-size: 0.9rem;">No competitions match the filter. Click <strong>+ Add Row</strong> to create one.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; padding: 3rem; color: var(--text-muted); font-size: 0.9rem;"><i class="fa-solid fa-filter" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; opacity: 0.4;"></i>No competitions match the selected filter.</td></tr>`;
         return;
     }
 
-    const catOptionsHtml = (categoriesList || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-    const stageOptionsHtml = `<option value="">-- No Stage --</option>` + (stagesList || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    const catOptionsHtml = (categoriesList || []).map(c => `<option value="${c.id}">${escapeSheetHtml(c.name)}</option>`).join('');
+    const stageOptionsHtml = `<option value="">-- No Stage --</option>` + (stagesList || []).map(s => `<option value="${s.id}">${escapeSheetHtml(s.name)}</option>`).join('');
 
     let html = '';
     rows.forEach((comp, idx) => {
         const isDirty = window.compSheetDirtyIds.has(comp.id);
-        const rowClass = comp.isNew ? 'row-new' : (isDirty ? 'row-dirty' : '');
+        const rowClass = isDirty ? 'row-dirty' : '';
 
-        let statusBadge = `<span style="color:#94A3B8; font-size:0.75rem;"><i class="fa-solid fa-check"></i></span>`;
-        if (comp.isNew) {
-            statusBadge = `<span class="badge" style="background:#ECFDF5; color:#059669; font-weight:800; font-size:0.65rem; padding: 2px 6px;">NEW</span>`;
-        } else if (isDirty) {
+        let statusBadge = `<span style="color:#94A3B8; font-size:0.8rem;" title="Synced to database"><i class="fa-solid fa-check"></i></span>`;
+        if (isDirty) {
             statusBadge = `<span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:800; font-size:0.65rem; padding: 2px 6px;">EDITED</span>`;
         }
 
@@ -1903,7 +1935,7 @@ function renderCompetitionsSheet() {
                     </select>
                 </td>
                 <td style="text-align: center;">
-                    <button type="button" class="btn btn-outline" style="padding: 0.25rem 0.5rem; color: #DC2626; border-color: transparent; font-size: 0.8rem;" onclick="deleteCompSheetRow('${comp.id}')" title="Delete competition">
+                    <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.55rem; color: #DC2626; border-color: transparent; font-size: 0.85rem; border-radius: 6px;" onclick="deleteCompSheetRow('${comp.id}')" title="Delete competition">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
                 </td>
@@ -1924,13 +1956,8 @@ function markCompSheetDirty(id, field, value) {
     const row = document.getElementById(`sheet-row-${id}`);
     const statusCell = document.getElementById(`sheet-status-${id}`);
     if (row) {
-        if (window.compSheetData[id].isNew) {
-            row.className = 'row-new';
-            if (statusCell) statusCell.innerHTML = `<span class="badge" style="background:#ECFDF5; color:#059669; font-weight:800; font-size:0.65rem; padding: 2px 6px;">NEW</span>`;
-        } else {
-            row.className = 'row-dirty';
-            if (statusCell) statusCell.innerHTML = `<span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:800; font-size:0.65rem; padding: 2px 6px;">EDITED</span>`;
-        }
+        row.className = 'row-dirty';
+        if (statusCell) statusCell.innerHTML = `<span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:800; font-size:0.65rem; padding: 2px 6px;">EDITED</span>`;
     }
 
     updateCompSheetToolbarStatus();
@@ -1949,6 +1976,7 @@ function updateCompSheetToolbarStatus() {
     if (dirtyCount > 0) {
         if (saveBtn) {
             saveBtn.disabled = false;
+            saveBtn.classList.add('btn-sheet-save-active');
             saveBtn.style.background = '#059669';
             saveBtn.style.borderColor = '#047857';
         }
@@ -1962,6 +1990,7 @@ function updateCompSheetToolbarStatus() {
     } else {
         if (saveBtn) {
             saveBtn.disabled = true;
+            saveBtn.classList.remove('btn-sheet-save-active');
             saveBtn.style.background = '';
             saveBtn.style.borderColor = '';
         }
@@ -1975,41 +2004,27 @@ function updateCompSheetToolbarStatus() {
     }
 }
 
-function addCompSheetRow() {
-    const tempId = 'temp_' + Date.now();
-    const defaultCatId = categoriesList[0]?.id || '';
-
-    window.compSheetData[tempId] = {
-        id: tempId,
-        name: '',
-        category_id: defaultCatId,
-        stage_id: '',
-        is_offstage: false,
-        max_mark: 100,
-        max_participants: 1,
-        time_per_student: 5,
-        is_group: false,
-        award_type: 'none',
-        isNew: true
-    };
-    window.compSheetDirtyIds.add(tempId);
-
-    renderCompetitionsSheet();
-    updateCompSheetToolbarStatus();
-
-    setTimeout(() => {
-        const input = document.querySelector(`#sheet-row-${tempId} input.sheet-cell-input`);
-        if (input) input.focus();
-    }, 50);
-}
-window.addCompSheetRow = addCompSheetRow;
-
 function discardCompSheetChanges() {
-    if (window.compSheetDirtyIds.size > 0) {
-        if (!confirm(`Discard all ${window.compSheetDirtyIds.size} unsaved change(s)?`)) return;
+    if (!window.compSheetDirtyIds || window.compSheetDirtyIds.size === 0) {
+        return showToast('No changes to discard.', 'info');
     }
-    initCompetitionsSheet();
-    showToast('All unsaved changes in sheet discarded.');
+    openConfirmModal(
+        'Discard Unsaved Edits?',
+        `Are you sure you want to discard all <strong>${window.compSheetDirtyIds.size} unsaved edit(s)</strong> in the sheet?<br><br>The sheet values will be reset back to the saved database state.`,
+        () => {
+            window.compSheetDirtyIds.clear();
+            initCompetitionsSheet();
+            showToast('All unsaved changes in sheet discarded.', 'info');
+        },
+        {
+            confirmText: 'Discard All',
+            cancelText: 'Keep Editing',
+            confirmBtnClass: 'btn-warning',
+            icon: 'fa-solid fa-rotate-left',
+            iconColor: '#D97706',
+            iconBg: '#FEF3C7'
+        }
+    );
 }
 window.discardCompSheetChanges = discardCompSheetChanges;
 
@@ -2033,6 +2048,7 @@ async function saveCompSheetChanges() {
         }
 
         const payload = {
+            id: id,
             name: name,
             category_id: row.category_id,
             stage_id: row.stage_id || null,
@@ -2043,10 +2059,6 @@ async function saveCompSheetChanges() {
             is_offstage: !!row.is_offstage,
             award_type: row.award_type || 'none'
         };
-
-        if (!id.startsWith('temp_')) {
-            payload.id = id;
-        }
 
         toSave.push(festPayload(payload));
     }
@@ -2061,13 +2073,46 @@ async function saveCompSheetChanges() {
         const { error } = await supabaseClient.from('competitions').upsert(toSave);
         if (error) throw error;
 
-        showToast(`Successfully saved ${toSave.length} competition(s) in Sheet View!`, 'success');
+        // 1. Instant Optimistic In-Memory Cache Update
+        toSave.forEach(savedItem => {
+            const idx = (competitionsList || []).findIndex(c => String(c.id) === String(savedItem.id));
+            if (idx !== -1) {
+                competitionsList[idx] = { ...competitionsList[idx], ...savedItem };
+            }
+        });
+
+        // 2. Direct DOM update for instant zero-latency feedback
+        dirtyList.forEach(id => {
+            const rowEl = document.getElementById(`sheet-row-${id}`);
+            const statusCell = document.getElementById(`sheet-status-${id}`);
+            if (rowEl) rowEl.className = '';
+            if (statusCell) statusCell.innerHTML = `<span style="color:#059669; font-size:0.85rem;"><i class="fa-solid fa-check"></i></span>`;
+        });
+
         window.compSheetDirtyIds.clear();
-        await loadCompetitions();
-        initCompetitionsSheet();
+        updateCompSheetToolbarStatus();
+
+        if (saveBtn) {
+            saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Saved!';
+            saveBtn.style.background = '#059669';
+            saveBtn.style.borderColor = '#047857';
+        }
+
+        showToast(`Saved ${toSave.length} competition(s) successfully!`, 'success');
+
+        // 3. Non-blocking background sync of full joined relations
+        loadCompetitions().catch(err => console.warn('Background sync warning:', err));
+
+        setTimeout(() => {
+            if (saveBtn && (!window.compSheetDirtyIds || window.compSheetDirtyIds.size === 0)) {
+                saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes (<span id="sheetDirtyCount">0</span>)';
+                updateCompSheetToolbarStatus();
+            }
+        }, 1500);
+
     } catch (e) {
+        console.error(e);
         showToast('Save failed: ' + e.message, 'error');
-    } finally {
         if (saveBtn) {
             saveBtn.disabled = false;
             updateCompSheetToolbarStatus();
@@ -2077,34 +2122,94 @@ async function saveCompSheetChanges() {
 window.saveCompSheetChanges = saveCompSheetChanges;
 
 async function deleteCompSheetRow(id) {
-    if (id.startsWith('temp_')) {
-        delete window.compSheetData[id];
-        window.compSheetDirtyIds.delete(id);
-        renderCompetitionsSheet();
-        updateCompSheetToolbarStatus();
-        return;
-    }
-
-    const comp = window.compSheetData[id];
+    const comp = window.compSheetData[id] || (competitionsList || []).find(c => String(c.id) === String(id));
     const compName = comp ? comp.name : 'this competition';
-    if (!confirm(`Are you sure you want to delete "${compName}"? This action cannot be undone.`)) {
-        return;
-    }
 
-    try {
-        const { error } = await supabaseClient.from('competitions').delete().eq('id', id);
-        if (error) throw error;
+    openConfirmModal(
+        'Delete Competition?',
+        `Are you sure you want to permanently delete <strong>"${escapeSheetHtml(compName)}"</strong>?<br><span style="font-size: 0.82rem; color: #DC2626; margin-top: 0.6rem; display: block;"><i class="fa-solid fa-triangle-exclamation"></i> All participant marks, stage assignments, and schedule entries associated with this competition will also be deleted. This cannot be undone.</span>`,
+        async () => {
+            try {
+                showToast(`Deleting "${compName}"...`, 'info');
+                const { error } = await supabaseClient.from('competitions').delete().eq('id', id);
+                if (error) throw error;
 
-        showToast(`Competition "${compName}" deleted.`);
-        delete window.compSheetData[id];
-        window.compSheetDirtyIds.delete(id);
-        await loadCompetitions();
-        initCompetitionsSheet();
-    } catch (e) {
-        showToast('Delete failed: ' + e.message, 'error');
-    }
+                delete window.compSheetData[id];
+                if (window.compSheetDirtyIds) window.compSheetDirtyIds.delete(id);
+                competitionsList = (competitionsList || []).filter(c => String(c.id) !== String(id));
+
+                const rowEl = document.getElementById(`sheet-row-${id}`);
+                if (rowEl) rowEl.remove();
+
+                updateCompSheetToolbarStatus();
+                renderCompetitionsSheet();
+                showToast(`Competition "${compName}" deleted.`, 'success');
+
+                // Background sync
+                loadCompetitions().catch(console.warn);
+            } catch (e) {
+                showToast('Delete failed: ' + e.message, 'error');
+            }
+        },
+        {
+            confirmText: 'Yes, Delete',
+            cancelText: 'Cancel',
+            confirmBtnClass: 'btn-danger',
+            icon: 'fa-solid fa-trash-can',
+            iconColor: '#DC2626',
+            iconBg: '#FEE2E2'
+        }
+    );
 }
 window.deleteCompSheetRow = deleteCompSheetRow;
+
+// Desktop Admin Header Data Refresh
+async function refreshAdminData(btn) {
+    const icon = btn ? btn.querySelector('.refresh-icon') : null;
+    if (icon) icon.classList.add('fa-spin');
+    if (btn) btn.disabled = true;
+
+    try {
+        showToast('Refreshing system data...', 'info');
+        const promises = [
+            typeof loadCompetitions === 'function' ? loadCompetitions() : Promise.resolve(),
+            typeof loadStagesAndTeams === 'function' ? loadStagesAndTeams() : Promise.resolve(),
+            typeof loadCategories === 'function' ? loadCategories() : Promise.resolve()
+        ];
+        if (typeof loadDashboardMetrics === 'function') promises.push(loadDashboardMetrics());
+        await Promise.all(promises);
+
+        if (window.compCurrentViewMode === 'sheet' && typeof initCompetitionsSheet === 'function') {
+            initCompetitionsSheet();
+        }
+
+        showToast('System data refreshed successfully!', 'success');
+    } catch (err) {
+        console.error('Refresh error:', err);
+        showToast('Failed to refresh data: ' + (err.message || err), 'error');
+    } finally {
+        if (icon) icon.classList.remove('fa-spin');
+        if (btn) btn.disabled = false;
+    }
+}
+window.refreshAdminData = refreshAdminData;
+
+// Ctrl+S / Cmd+S Keyboard Shortcut for Sheet View
+if (!window._compSheetKeydownBound) {
+    window._compSheetKeydownBound = true;
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+            if (window.compCurrentViewMode === 'sheet') {
+                e.preventDefault();
+                if (window.compSheetDirtyIds && window.compSheetDirtyIds.size > 0) {
+                    saveCompSheetChanges();
+                } else {
+                    showToast('All sheet changes are already saved.', 'info');
+                }
+            }
+        }
+    });
+}
 
 // Generates a Premium PDF Directory for Competitions
 // Generates a Premium PDF Directory for Competitions
@@ -2307,21 +2412,78 @@ const payload = { name, category_id, stage_id, max_mark, max_participants, is_gr
 
 
 // --- STAGES & TEAMS MANAGEMENT ---
-// --- NEW FRONTEND CONFIRMATION LOGIC ---
-function openConfirmModal(title, text, confirmCallback) {
-    document.getElementById('confirmModalTitle').innerText = title;
-    document.getElementById('confirmModalText').innerText = text;
-    
-    const confirmBtn = document.getElementById('confirmModalBtn');
-    
-    // Assign the execution function to the button
-    confirmBtn.onclick = () => {
-        document.getElementById('confirmModal').classList.remove('show');
+// --- PREMIUM FRONTEND CONFIRMATION LOGIC ---
+let _activeConfirmCallback = null;
+let _activeCancelCallback = null;
+
+function openConfirmModal(title, text, confirmCallback, options = {}) {
+    const modal = document.getElementById('confirmModal');
+    if (!modal) {
         if (confirmCallback) confirmCallback();
+        return;
+    }
+
+    const titleEl = document.getElementById('confirmModalTitle');
+    const textEl = document.getElementById('confirmModalText');
+    const confirmBtn = document.getElementById('confirmModalBtn');
+    const cancelBtn = document.getElementById('confirmModalCancelBtn');
+    const iconBox = document.getElementById('confirmModalIconBox');
+    const iconEl = document.getElementById('confirmModalIcon');
+
+    if (titleEl) titleEl.innerText = title || 'Are you sure?';
+    if (textEl) textEl.innerHTML = text || 'This action cannot be undone.';
+
+    // Options customization
+    const confirmText = options.confirmText || 'Yes, Delete';
+    const cancelText = options.cancelText || 'Cancel';
+    const confirmBtnClass = options.confirmBtnClass || 'btn-danger';
+    const iconClass = options.icon || 'fa-solid fa-triangle-exclamation';
+    const iconColor = options.iconColor || (confirmBtnClass.includes('danger') ? '#EF4444' : (confirmBtnClass.includes('warning') ? '#D97706' : 'var(--primary)'));
+    const iconBg = options.iconBg || (confirmBtnClass.includes('danger') ? '#FEE2E2' : (confirmBtnClass.includes('warning') ? '#FEF3C7' : 'var(--primary-light)'));
+
+    if (confirmBtn) {
+        confirmBtn.className = `btn ${confirmBtnClass}`;
+        confirmBtn.innerHTML = options.confirmIcon ? `<i class="${options.confirmIcon}"></i> ${confirmText}` : confirmText;
+        confirmBtn.style.flex = '1';
+    }
+    if (cancelBtn) {
+        cancelBtn.innerText = cancelText;
+        cancelBtn.style.flex = '1';
+    }
+    if (iconBox) {
+        iconBox.style.background = iconBg;
+        iconBox.style.color = iconColor;
+    }
+    if (iconEl) {
+        iconEl.className = iconClass;
+    }
+
+    _activeConfirmCallback = confirmCallback || null;
+    _activeCancelCallback = options.onCancel || null;
+
+    confirmBtn.onclick = () => {
+        modal.classList.remove('show');
+        if (_activeConfirmCallback) {
+            const cb = _activeConfirmCallback;
+            _activeConfirmCallback = null;
+            cb();
+        }
     };
-    
-    document.getElementById('confirmModal').classList.add('show');
+
+    modal.classList.add('show');
 }
+
+function closeConfirmModal(triggerCancel = true) {
+    const modal = document.getElementById('confirmModal');
+    if (modal) modal.classList.remove('show');
+    if (triggerCancel && _activeCancelCallback) {
+        const cb = _activeCancelCallback;
+        _activeCancelCallback = null;
+        cb();
+    }
+}
+window.openConfirmModal = openConfirmModal;
+window.closeConfirmModal = closeConfirmModal;
 
 // --- STAGES & TEAMS MANAGEMENT ---
 async function loadStagesAndTeams() {
@@ -12830,10 +12992,17 @@ window.saveNewAlbum = function() {
     executeWebsiteSave(null);
 };
 window.deleteAlbum = function(id) {
-    if (!confirm("Are you sure you want to delete this album?")) return;
-    websiteConfig.gallery = (websiteConfig.gallery || []).filter(a => a.id !== id);
-    renderGalleryBuilder();
-    executeWebsiteSave(null);
+    openConfirmModal(
+        'Delete Album?',
+        'Are you sure you want to permanently delete this photo album from the gallery?',
+        () => {
+            websiteConfig.gallery = (websiteConfig.gallery || []).filter(a => a.id !== id);
+            renderGalleryBuilder();
+            executeWebsiteSave(null);
+            showToast('Album deleted.', 'success');
+        },
+        { confirmText: 'Yes, Delete', confirmBtnClass: 'btn-danger', icon: 'fa-solid fa-trash-can' }
+    );
 };
 
 // --- DOWNLOADS BUILDER ENGINE ---
@@ -12896,10 +13065,17 @@ window.saveNewDownload = function() {
     executeWebsiteSave(null);
 };
 window.deleteDownload = function(id) {
-    if (!confirm("Delete this download item?")) return;
-    websiteConfig.downloads = (websiteConfig.downloads || []).filter(d => d.id !== id);
-    renderDownloadsBuilder();
-    executeWebsiteSave(null);
+    openConfirmModal(
+        'Delete Download Item?',
+        'Are you sure you want to delete this downloadable file?',
+        () => {
+            websiteConfig.downloads = (websiteConfig.downloads || []).filter(d => d.id !== id);
+            renderDownloadsBuilder();
+            executeWebsiteSave(null);
+            showToast('Download item deleted.', 'success');
+        },
+        { confirmText: 'Yes, Delete', confirmBtnClass: 'btn-danger', icon: 'fa-solid fa-trash-can' }
+    );
 };
 
 // --- NEWS BUILDER ENGINE ---
@@ -12964,10 +13140,17 @@ window.saveNewNews = function() {
     executeWebsiteSave(null);
 };
 window.deleteNews = function(id) {
-    if (!confirm("Delete this announcement?")) return;
-    websiteConfig.news = (websiteConfig.news || []).filter(n => n.id !== id);
-    renderNewsBuilder();
-    executeWebsiteSave(null);
+    openConfirmModal(
+        'Delete Announcement?',
+        'Are you sure you want to permanently delete this news announcement?',
+        () => {
+            websiteConfig.news = (websiteConfig.news || []).filter(n => n.id !== id);
+            renderNewsBuilder();
+            executeWebsiteSave(null);
+            showToast('Announcement deleted.', 'success');
+        },
+        { confirmText: 'Yes, Delete', confirmBtnClass: 'btn-danger', icon: 'fa-solid fa-trash-can' }
+    );
 };
 
 // --- DRAG & DROP LOGIC ---
