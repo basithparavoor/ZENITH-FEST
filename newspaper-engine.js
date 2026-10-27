@@ -41,6 +41,24 @@
         if (window.availableFests && Array.isArray(window.availableFests)) {
             festMeta = window.availableFests.find(f => f.id === fid);
         }
+        if (!festMeta && typeof festosDomains !== 'undefined' && festosDomains.getFestList) {
+            festMeta = festosDomains.getFestList().find(f => f.id === fid);
+        }
+        if (!festMeta) {
+            try {
+                const rawMeta = localStorage.getItem('festMetadata_' + fid);
+                if (rawMeta) festMeta = JSON.parse(rawMeta);
+            } catch(e) {}
+        }
+        if (!festMeta) {
+            try {
+                const rawMulti = localStorage.getItem('festos_multi_fests');
+                if (rawMulti) {
+                    const arr = JSON.parse(rawMulti);
+                    if (Array.isArray(arr)) festMeta = arr.find(f => f.id === fid);
+                }
+            } catch(e) {}
+        }
 
         let branding = null;
         try {
@@ -209,11 +227,29 @@
         if (window.availableFests && Array.isArray(window.availableFests)) {
             festObj = window.availableFests.find(f => f.id === fid);
         }
+        if (!festObj && typeof festosDomains !== 'undefined' && festosDomains.getFestList) {
+            festObj = festosDomains.getFestList().find(f => f.id === fid);
+        }
+        if (!festObj) {
+            try {
+                const rawMeta = localStorage.getItem('festMetadata_' + fid);
+                if (rawMeta) festObj = JSON.parse(rawMeta);
+            } catch(e) {}
+        }
+        if (!festObj) {
+            try {
+                const rawMulti = localStorage.getItem('festos_multi_fests');
+                if (rawMulti) {
+                    const arr = JSON.parse(rawMulti);
+                    if (Array.isArray(arr)) festObj = arr.find(f => f.id === fid);
+                }
+            } catch(e) {}
+        }
 
-        const config = NP_STATE.festConfig || {};
-        const allowedDates = Array.isArray(config.allowed_dates) && config.allowed_dates.length > 0 
+        const config = NP_STATE.festConfig || festObj?.newspaper_config || {};
+        const allowedDates = (Array.isArray(config.allowed_dates) && config.allowed_dates.length > 0)
             ? config.allowed_dates 
-            : null;
+            : (Array.isArray(festObj?.newspaper_config?.allowed_dates) && festObj.newspaper_config.allowed_dates.length > 0 ? festObj.newspaper_config.allowed_dates : null);
 
         const startDate = festObj?.startDate || festObj?.start_date || (allowedDates ? allowedDates[0] : null);
         const endDate = festObj?.endDate || festObj?.end_date || (allowedDates ? allowedDates[allowedDates.length - 1] : null);
@@ -222,7 +258,7 @@
         if (allowedDates && allowedDates.length > 0) {
             dateRangeLabel = allowedDates.join(', ');
         } else if (startDate && endDate) {
-            dateRangeLabel = `${startDate} to ${endDate}`;
+            dateRangeLabel = (startDate === endDate) ? startDate : `${startDate} to ${endDate}`;
         } else if (startDate) {
             dateRangeLabel = startDate;
         }
@@ -312,6 +348,23 @@
         if (!config && window.availableFests) {
             const f = window.availableFests.find(x => x.id === fid);
             if (f && f.newspaper_config) config = f.newspaper_config;
+        }
+
+        if (!config) {
+            try {
+                const rawCfg = localStorage.getItem('festos_cfg_newspaper_config_' + fid);
+                if (rawCfg) config = JSON.parse(rawCfg);
+            } catch(e) {}
+        }
+
+        if (!config) {
+            try {
+                const rawMeta = localStorage.getItem('festMetadata_' + fid);
+                if (rawMeta) {
+                    const parsed = JSON.parse(rawMeta);
+                    if (parsed && parsed.newspaper_config) config = parsed.newspaper_config;
+                }
+            } catch(e) {}
         }
 
         if (!config) {
