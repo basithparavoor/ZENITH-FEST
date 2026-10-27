@@ -402,7 +402,6 @@
             fitNewspaperToScreen();
         }
     }
-    }
 
     // 1. Policy & Authorization Check (Super Admin Gating)
     async function checkNewspaperPolicyStatus() {
