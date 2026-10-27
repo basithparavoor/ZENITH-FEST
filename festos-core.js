@@ -122,7 +122,14 @@ const festosDomains = {
                     name: f.name || '',
                     slug: f.slug || '',
                     domain: f.domain || '',
-                    created_at: f.created_at || ''
+                    created_at: f.created_at || '',
+                    start_date: f.start_date || f.startDate || '',
+                    end_date: f.end_date || f.endDate || '',
+                    startDate: f.startDate || f.start_date || '',
+                    endDate: f.endDate || f.end_date || '',
+                    status: f.status || 'active',
+                    venue: f.venue || '',
+                    newspaper_config: f.newspaper_config || null
                 }));
             localStorage.setItem(this.FESTS_CACHE_KEY, JSON.stringify(list));
         } catch (e) { /* ignore */ }
@@ -155,7 +162,7 @@ const festosDomains = {
             : (typeof window !== 'undefined' ? window.festosSupabase : null);
         if (!client) return null;
         try {
-            const { data, error } = await client.from('fests').select('id, name, slug, domain, created_at');
+            const { data, error } = await client.from('fests').select('id, name, slug, domain, created_at, start_date, end_date, venue, status');
             if (error || !data) return null;
             this.setIndex(this.buildIndex(data));
             this.setFestList(data);
@@ -1111,8 +1118,8 @@ async function festosGetSetting(key, targetFestId = null, options = {}) {
             return data.value;
         }
 
-        // Do NOT fallback to Zenith Fest for festival-specific scheduling, website customizer, branding, or point system
-        const isolatedKeys = ['master_schedule', 'website_config', 'display_settings', 'system_branding', 'point_system'];
+        // Do NOT fallback to Zenith Fest for festival-specific scheduling, website customizer, branding, point system, or newspaper config
+        const isolatedKeys = ['master_schedule', 'website_config', 'display_settings', 'system_branding', 'point_system', 'newspaper_config'];
         if (isolatedKeys.includes(key)) {
             return null; // Return clean empty state for new festivals
         }
