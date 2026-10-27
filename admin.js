@@ -1461,7 +1461,6 @@ function populateBulkStageSelect() {
     (stagesList || []).forEach(s => {
         select.innerHTML += `<option value="${s.id}">${s.name}</option>`;
     });
-    select.innerHTML += '<option value="__offstage__">-- SET AS OFFSTAGE --</option>';
     select.innerHTML += '<option value="__unassigned__">-- UNASSIGN STAGE --</option>';
     if (curVal) select.value = curVal;
 }
@@ -1492,40 +1491,69 @@ function openBulkEditStageModal(compIds) {
         return showToast('Please select at least one competition using the checkboxes.', 'error');
     }
     
+    // Only show the added stages from stagesList
     let stageOpts = (stagesList || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    const noStages = !stagesList || stagesList.length === 0;
     
     openModal('Bulk Edit Stage for Competitions', `
         <div style="margin-bottom: 1.25rem; padding: 1rem; background: var(--primary-light); border-radius: var(--radius-md); color: var(--primary); font-weight: 700; font-size: 0.9rem;">
             <i class="fa-solid fa-layer-group"></i> Assigning stage to ${compIds.length} selected competition(s).
         </div>
-        <div class="form-group">
-            <label style="font-weight: 700;">Select New Stage</label>
+        
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label style="font-weight: 700; margin-bottom: 0.35rem; display: block;">Select Stage</label>
             <select id="modalBulkStageSelect" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; background: var(--bg-surface);">
                 <option value="">-- SELECT STAGE --</option>
                 ${stageOpts}
-                <option value="__offstage__">-- SET AS OFFSTAGE EVENT --</option>
-                <option value="__unassigned__">-- REMOVE STAGE (UNASSIGNED) --</option>
+                <option value="__unassigned__">-- REMOVE / UNASSIGN STAGE --</option>
             </select>
+            ${noStages ? `<div style="font-size: 0.75rem; color: #DC2626; margin-top: 5px;"><i class="fa-solid fa-triangle-exclamation"></i> No stages added yet. Add stages under the Stages tab first.</div>` : ''}
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label style="font-weight: 700; margin-bottom: 0.35rem; display: block;">Event Type Action</label>
+            <select id="modalBulkTypeAction" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; background: var(--bg-surface);">
+                <option value="keep" selected>Keep Current Type (Offstage stays Offstage, Stage stays Stage)</option>
+                <option value="to_stage">Convert to STAGE Event (On-stage)</option>
+                <option value="to_offstage">Convert to OFFSTAGE Event</option>
+            </select>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                Selecting a stage preserves whether each event is Offstage or Stage unless you choose to convert above.
+            </div>
         </div>
     `, async () => {
-        const val = document.getElementById('modalBulkStageSelect')?.value;
-        if (!val) return showToast('Please select a stage option.', 'error');
-        await executeBulkStageUpdate(compIds, val);
+        const stageVal = document.getElementById('modalBulkStageSelect')?.value;
+        const typeAction = document.getElementById('modalBulkTypeAction')?.value || 'keep';
+        
+        if (!stageVal && typeAction === 'keep') {
+            return showToast('Please select a stage or choose an event type action.', 'error');
+        }
+        
+        await executeBulkStageUpdate(compIds, stageVal, typeAction);
         closeModal();
     });
 }
 window.openBulkEditStageModal = openBulkEditStageModal;
 
-async function executeBulkStageUpdate(compIds, stageVal) {
+async function executeBulkStageUpdate(compIds, stageVal, typeAction = 'keep') {
     setLoading('modalSaveBtn', true);
     try {
         let updateData = {};
-        if (stageVal === '__offstage__') {
-            updateData = { stage_id: null, is_offstage: true };
-        } else if (stageVal === '__unassigned__') {
-            updateData = { stage_id: null, is_offstage: false };
-        } else {
-            updateData = { stage_id: stageVal, is_offstage: false };
+        if (stageVal === '__unassigned__') {
+            updateData.stage_id = null;
+        } else if (stageVal) {
+            updateData.stage_id = stageVal;
+        }
+        
+        // Only modify is_offstage if explicitly requested
+        if (typeAction === 'to_offstage') {
+            updateData.is_offstage = true;
+        } else if (typeAction === 'to_stage') {
+            updateData.is_offstage = false;
+        }
+        
+        if (Object.keys(updateData).length === 0) {
+            return showToast('No changes to apply.', 'warning');
         }
         
         const { error } = await supabaseClient
@@ -1535,7 +1563,7 @@ async function executeBulkStageUpdate(compIds, stageVal) {
             
         if (error) throw error;
         
-        showToast(`Successfully updated stage for ${compIds.length} competition(s)!`);
+        showToast(`Successfully updated ${compIds.length} competition(s)!`);
         clearSelection('competitions-tbody');
         if (document.getElementById('bulkStageSelect')) {
             document.getElementById('bulkStageSelect').value = '';
@@ -1548,6 +1576,110 @@ async function executeBulkStageUpdate(compIds, stageVal) {
     }
 }
 window.executeBulkStageUpdate = executeBulkStageUpdate;
+
+// Dedicated Modal to Convert Event Type (Stage <-> Offstage)
+function openBulkConvertTypeModal(compIds) {
+    if (!compIds || compIds.length === 0) {
+        compIds = getSelectedIds('competitions-tbody');
+    }
+    if (!compIds || compIds.length === 0) {
+        return showToast('Please select at least one competition using the checkboxes.', 'error');
+    }
+
+    const selectedComps = (competitionsList || []).filter(c => compIds.includes(String(c.id)));
+    const stageEventCount = selectedComps.filter(c => !c.is_offstage).length;
+    const offstageEventCount = selectedComps.filter(c => c.is_offstage).length;
+
+    openModal('Convert Event Type (Stage / Offstage)', `
+        <div style="margin-bottom: 1.25rem; padding: 1rem; background: var(--primary-light); border-radius: var(--radius-md); color: var(--primary); font-size: 0.85rem; line-height: 1.5;">
+            <div style="font-weight: 800; margin-bottom: 0.25rem; font-size: 0.95rem;">
+                <i class="fa-solid fa-arrows-rotate"></i> Bulk Convert Event Type
+            </div>
+            Switch selected competitions between <strong>Stage (On-stage)</strong> and <strong>Offstage</strong> event modes.
+            <div style="margin-top: 0.6rem; display: flex; gap: 0.75rem; font-size: 0.8rem; flex-wrap: wrap;">
+                <span class="badge" style="background: #E0E7FF; color: #4338CA; font-weight: 700; padding: 0.35rem 0.65rem;">🎭 ${stageEventCount} Stage Event(s)</span>
+                <span class="badge" style="background: #FEF3C7; color: #D97706; font-weight: 700; padding: 0.35rem 0.65rem;">📝 ${offstageEventCount} Offstage Event(s)</span>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+            <label style="font-weight: 700; margin-bottom: 0.65rem; display: block;">Choose Target Event Mode</label>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.85rem; border: 2px solid var(--border); border-radius: var(--radius-md); cursor: pointer; background: var(--bg-surface);">
+                    <input type="radio" name="bulkTargetType" value="offstage" checked style="margin-top: 3px; accent-color: #D97706;">
+                    <div>
+                        <div style="font-weight: 700; color: #D97706;"><i class="fa-solid fa-pen-nib"></i> Convert to OFFSTAGE Event</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Events occur simultaneously. Evaluated as offstage competitions (e.g. essay writing, drawing, tests).</div>
+                    </div>
+                </label>
+
+                <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.85rem; border: 2px solid var(--border); border-radius: var(--radius-md); cursor: pointer; background: var(--bg-surface);">
+                    <input type="radio" name="bulkTargetType" value="stage" style="margin-top: 3px; accent-color: var(--primary);">
+                    <div>
+                        <div style="font-weight: 700; color: var(--primary);"><i class="fa-solid fa-masks-theater"></i> Convert to STAGE Event (On-stage)</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Live on-stage presentations with duration scaled per participant.</div>
+                    </div>
+                </label>
+
+                <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.85rem; border: 2px solid var(--border); border-radius: var(--radius-md); cursor: pointer; background: var(--bg-surface);">
+                    <input type="radio" name="bulkTargetType" value="toggle" style="margin-top: 3px; accent-color: #6366F1;">
+                    <div>
+                        <div style="font-weight: 700; color: #6366F1;"><i class="fa-solid fa-shuffle"></i> Toggle / Invert Mode</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Invert current mode: Stage becomes Offstage, and Offstage becomes Stage.</div>
+                    </div>
+                </label>
+            </div>
+        </div>
+    `, async () => {
+        const mode = document.querySelector('input[name="bulkTargetType"]:checked')?.value || 'offstage';
+        await executeBulkConvertEventType(compIds, mode);
+        closeModal();
+    });
+}
+window.openBulkConvertTypeModal = openBulkConvertTypeModal;
+
+async function executeBulkConvertEventType(compIds, mode) {
+    setLoading('modalSaveBtn', true);
+    try {
+        if (mode === 'toggle') {
+            const toOffstage = [];
+            const toStage = [];
+            (competitionsList || []).forEach(c => {
+                if (compIds.includes(String(c.id))) {
+                    if (c.is_offstage) toStage.push(c.id);
+                    else toOffstage.push(c.id);
+                }
+            });
+
+            if (toOffstage.length > 0) {
+                const { error: e1 } = await supabaseClient.from('competitions').update({ is_offstage: true }).in('id', toOffstage);
+                if (e1) throw e1;
+            }
+            if (toStage.length > 0) {
+                const { error: e2 } = await supabaseClient.from('competitions').update({ is_offstage: false }).in('id', toStage);
+                if (e2) throw e2;
+            }
+            showToast(`Toggled event mode for ${compIds.length} competition(s)!`);
+        } else {
+            const isOffstage = (mode === 'offstage');
+            const { error } = await supabaseClient
+                .from('competitions')
+                .update({ is_offstage: isOffstage })
+                .in('id', compIds);
+
+            if (error) throw error;
+            showToast(`Successfully converted ${compIds.length} competition(s) to ${isOffstage ? 'Offstage' : 'Stage'} events!`);
+        }
+
+        clearSelection('competitions-tbody');
+        await loadCompetitions();
+    } catch (e) {
+        showToast('Convert failed: ' + e.message, 'error');
+    } finally {
+        setLoading('modalSaveBtn', false);
+    }
+}
+window.executeBulkConvertEventType = executeBulkConvertEventType;
 
 // Generates a Premium PDF Directory for Competitions
 // Generates a Premium PDF Directory for Competitions
