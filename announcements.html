@@ -91,15 +91,27 @@
             text-transform: none !important;
         }
         
+        html, body {
+            height: 100%;
+            height: 100vh;
+            height: 100dvh;
+            margin: 0;
+            padding: 0;
+        }
         body { 
             background-color: var(--bg-main); 
             color: var(--text-main); 
-            height: 100vh; 
             display: flex;
+            overflow: hidden;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            overflow: hidden;
         }
+
+        /* Luxury Scrollbar Styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
         /* --- PRELOADER --- */
         .loader-overlay {
@@ -259,7 +271,19 @@
 
         /* Main Content Area */
         #app-screen { 
-            flex: 1; min-width: 0 !important; width: 0; max-width: 100%; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth; position: relative; 
+            flex: 1 1 0%; 
+            min-width: 0 !important; 
+            width: 0; 
+            max-width: 100%; 
+            height: 100%;
+            min-height: 0 !important;
+            display: flex; 
+            flex-direction: column; 
+            overflow-y: auto !important; 
+            overflow-x: hidden !important; 
+            -webkit-overflow-scrolling: touch; 
+            scroll-behavior: smooth; 
+            position: relative; 
         }
 
         /* Glassmorphic Header */
@@ -1017,7 +1041,14 @@
            CSS-ONLY NATIVE MOBILE APP SHELL & RESPONSIVE COMPONENT SYSTEM
            ======================================================================== */
         @media (max-width: 768px) {
-            body { flex-direction: column; background-color: #F8FAFC; }
+            body { 
+                flex-direction: column; 
+                background-color: #F8FAFC; 
+                height: 100%;
+                height: 100vh;
+                height: 100dvh;
+                overflow: hidden;
+            }
             .sidebar-toggle-btn { display: none !important; }
             
             /* Native Sticky Top Header */
@@ -1140,9 +1171,13 @@
                 width: 100% !important; 
                 min-width: 100% !important; 
                 max-width: 100vw !important; 
-                flex: 1 0 auto !important; 
-                padding-bottom: calc(90px + env(safe-area-inset-bottom)) !important; 
+                height: 100% !important;
+                min-height: 0 !important;
+                flex: 1 1 auto !important; 
+                overflow-y: auto !important;
                 overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+                padding-bottom: calc(90px + env(safe-area-inset-bottom)) !important; 
             }
             .container { padding: 1.25rem; }
 

@@ -357,7 +357,7 @@ async function fetchAllData(forceFresh = false, isBackgroundSync = false) {
 
         let catsQuery = supabaseClient.from('categories').select('*');
         // Optimized: only select fields necessary for Team Manager
-        let compsQuery = supabaseClient.from('competitions').select('id, name, code, category_id, stage_id, status, is_group, is_offstage, max_participants, max_mark, categories(id, name, is_general, allowed_general_categories), stages(name)').order('name');
+        let compsQuery = supabaseClient.from('competitions').select('id, name, category_id, stage_id, status, is_group, is_offstage, max_participants, max_mark, categories(id, name, is_general, allowed_general_categories), stages(name)').order('name');
         if (window.festosApplyFilter) {
             catsQuery = window.festosApplyFilter(catsQuery);
             compsQuery = window.festosApplyFilter(compsQuery);
@@ -669,33 +669,42 @@ function renderStudents() {
 }
 
 function viewStudentEvents(studentId) {
-    const student = globalStudents.find(s => s.id === studentId);
-    const assignedComps = globalAssignments.filter(a => a.participant_id === studentId).map(a => a.competition_id);
+    const student = globalStudents.find(s => String(s.id) === String(studentId));
+    if (!student) {
+        if (typeof showToast === 'function') showToast('Participant details not found', 'error');
+        return;
+    }
+    const assignedComps = globalAssignments.filter(a => String(a.participant_id) === String(studentId)).map(a => a.competition_id);
     
-    document.getElementById('se-modal-title').innerText = `${student.name}'S EVENTS`;
+    const titleEl = document.getElementById('se-modal-title');
+    if (titleEl) titleEl.innerText = `${(student.name || 'STUDENT').toUpperCase()}'S EVENTS`;
     const body = document.getElementById('se-modal-body');
+    if (!body) return;
     body.innerHTML = '';
     
     if (assignedComps.length === 0) {
-        body.innerHTML = `<p style="color: var(--text-muted); text-align: center; font-weight: 700; padding: 2rem 0;">NO STUDENTS ENROLLED IN THIS EVENT.</p>`;
+        body.innerHTML = `<p style="color: var(--text-muted); text-align: center; font-weight: 700; padding: 2rem 0;">NO EVENTS ASSIGNED TO THIS PARTICIPANT.</p>`;
     } else {
         assignedComps.forEach(compId => {
-            const comp = globalComps.find(c => c.id === compId);
+            const comp = globalComps.find(c => String(c.id) === String(compId));
             if (comp) {
+                const statusText = comp.status ? comp.status.replace(/_/g, ' ') : 'SCHEDULED';
                 body.innerHTML += `
                     <div style="padding: 1.25rem; background: var(--bg-surface); border-radius: var(--radius-md); border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <div style="font-weight: 800; font-size: 1.1rem; margin-bottom: 0.25rem; color: var(--text-main);">${comp.name}</div>
+                            <div style="font-weight: 800; font-size: 1.1rem; margin-bottom: 0.25rem; color: var(--text-main);">${comp.name || 'Unnamed Event'}</div>
                             <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;"><i class="fa-solid fa-layer-group" style="margin-right: 4px;"></i> ${comp.categories?.name || 'EVENT'}</div>
                         </div>
-                        <span class="badge badge-gray" style="text-transform: uppercase;">${comp.status.replace('_', ' ')}</span>
+                        <span class="badge badge-gray" style="text-transform: uppercase;">${statusText}</span>
                     </div>
                 `;
             }
         });
     }
-    document.getElementById('studentEventsModal').classList.add('show');
+    const modal = document.getElementById('studentEventsModal');
+    if (modal) modal.classList.add('show');
 }
+window.viewStudentEvents = viewStudentEvents;
 
 window.validateTMDobAndClass = function() {
     const catSelect = document.getElementById('partCategory');
@@ -1260,11 +1269,16 @@ function renderLiveTracking() {
 }
 
 function viewEnrolledDetails(compId) {
-    const comp = globalComps.find(c => c.id === compId);
-    const assignments = globalAssignments.filter(a => a.competition_id === compId);
+    const comp = globalComps.find(c => String(c.id) === String(compId));
+    if (!comp) {
+        if (typeof showToast === 'function') showToast('Competition not found', 'error');
+        return;
+    }
+    const assignments = globalAssignments.filter(a => String(a.competition_id) === String(compId));
     
     // Check if the event is closed/live
-    const isEventClosed = ['ongoing', 'valuation', 'judgement_complete', 'published'].includes(comp.status);
+    const status = comp.status || 'scheduled';
+    const isEventClosed = ['ongoing', 'valuation', 'judgement_complete', 'published'].includes(status);
     const pendingLabel = isEventClosed ? 'NOT PARTICIPATED' : 'PENDING';
     const pendingBg = isEventClosed ? 'var(--danger-light)' : 'var(--warning-light)';
     const pendingColor = isEventClosed ? 'var(--danger)' : '#D97706';
@@ -1274,7 +1288,7 @@ function viewEnrolledDetails(compId) {
     let pendingHtml = '';
 
     assignments.forEach(a => {
-        const s = globalStudents.find(student => student.id === a.participant_id);
+        const s = globalStudents.find(student => String(student.id) === String(a.participant_id));
         if (s) {
             if(a.is_present) {
                 checkedInHtml += `<div style="padding: 1rem; background: var(--success-light); color: #059669; border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-md); font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">${s.name} <span style="font-family: monospace; font-size: 0.8rem; background: white; padding: 4px 8px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">${s.unique_id}</span></div>`;
@@ -1287,16 +1301,24 @@ function viewEnrolledDetails(compId) {
     if(!checkedInHtml) checkedInHtml = '<div style="padding: 2.5rem; text-align: center; background: var(--bg-main); border-radius: var(--radius-md); color: var(--text-muted); font-weight: 700;">NO STUDENTS CHECKED IN</div>';
     if(!pendingHtml) pendingHtml = `<div style="padding: 2.5rem; text-align: center; background: var(--bg-main); border-radius: var(--radius-md); color: var(--text-muted); font-weight: 700;">NO ${pendingLabel} STUDENTS</div>`;
 
-    document.getElementById('enroll-modal-title').innerText = comp.name;
-    document.getElementById('enroll-modal-enrolled').innerHTML = checkedInHtml;
-    document.getElementById('enroll-modal-pending').innerHTML = pendingHtml;
+    const titleEl = document.getElementById('enroll-modal-title');
+    if (titleEl) titleEl.innerText = comp.name || 'EVENT';
+    const enrolledEl = document.getElementById('enroll-modal-enrolled');
+    if (enrolledEl) enrolledEl.innerHTML = checkedInHtml;
+    const pendingEl = document.getElementById('enroll-modal-pending');
+    if (pendingEl) pendingEl.innerHTML = pendingHtml;
     
     // Update the pending column header
-    document.getElementById('enroll-modal-pending-title').innerHTML = `<i class="fa-solid fa-clock"></i> ${pendingLabel}`;
-    document.getElementById('enroll-modal-pending-title').style.color = pendingColor;
+    const pTitleEl = document.getElementById('enroll-modal-pending-title');
+    if (pTitleEl) {
+        pTitleEl.innerHTML = `<i class="fa-solid fa-clock"></i> ${pendingLabel}`;
+        pTitleEl.style.color = pendingColor;
+    }
     
-    document.getElementById('enrollmentDetailsModal').classList.add('show');
+    const modal = document.getElementById('enrollmentDetailsModal');
+    if (modal) modal.classList.add('show');
 }
+window.viewEnrolledDetails = viewEnrolledDetails;
 
 // ---------------- BULK ASSIGNMENTS ----------------
 
