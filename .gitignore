@@ -1,0 +1,8 @@
+node_modules/
+.idea/
+dist/
+dist-desktop/
+android/
+www/
+.DS_Store
+Thumbs.db

@@ -1175,10 +1175,10 @@ function openCategoryModal(editData = null) {
         </div>
         <div class="form-group" style="padding-top: 0.5rem;">
             <label>Allowed Date of Birth Period (Optional)</label>
-            <div style="display: flex; gap: 1rem; align-items: center;">
-                <input type="date" id="catDobStart" value="${catDobStart}" style="flex: 1; text-transform: none;">
-                <span style="color: var(--text-muted); font-weight: 800;">TO</span>
-                <input type="date" id="catDobEnd" value="${catDobEnd}" style="flex: 1; text-transform: none;">
+            <div class="cat-dob-range-row" style="display: flex; gap: 0.75rem; align-items: center;">
+                <input type="date" id="catDobStart" value="${catDobStart}" style="flex: 1; min-width: 0; text-transform: none;">
+                <span style="color: var(--text-muted); font-weight: 800; font-size: 0.8rem; text-align: center;">TO</span>
+                <input type="date" id="catDobEnd" value="${catDobEnd}" style="flex: 1; min-width: 0; text-transform: none;">
             </div>
             <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">If set, participants must be born between these dates to register.</p>
         </div>

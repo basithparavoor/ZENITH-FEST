@@ -609,7 +609,14 @@
 
 
             /* Main Content Adjustments */
-            .main-content { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+            .main-content { 
+                width: 100% !important; 
+                min-width: 100% !important; 
+                max-width: 100vw !important; 
+                flex: 1 0 auto !important; 
+                padding-bottom: calc(90px + env(safe-area-inset-bottom)) !important; 
+                overflow-x: hidden !important;
+            }
             .content-section { padding: 1.25rem; }
             
             /* Fix Top Section Header */

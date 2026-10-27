@@ -1136,7 +1136,14 @@
             }
 
             /* --- MAIN CONTENT ADJUSTMENTS --- */
-            #app-screen { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+            #app-screen { 
+                width: 100% !important; 
+                min-width: 100% !important; 
+                max-width: 100vw !important; 
+                flex: 1 0 auto !important; 
+                padding-bottom: calc(90px + env(safe-area-inset-bottom)) !important; 
+                overflow-x: hidden !important;
+            }
             .container { padding: 1.25rem; }
 
             /* --- TOOLBARS & FILTERS --- */
