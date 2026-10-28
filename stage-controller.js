@@ -231,17 +231,22 @@ async function loadCompetitions(stageId) {
         // For offstage competitions marked as end (in valuation), do not show them in stage controller
         if (comp.status === 'valuation' && checkIsCompOffstage(comp)) return false;
 
-        // Apply pre-schedule visibility offset to pending competitions (same as Announcer portal)
+        // Pending competitions must be scheduled before appearing in the stage controller
         if (comp.status === 'pending') {
             const sched = masterSchedule[comp.id];
-            if (sched && sched.date && sched.time) {
-                const schedDate = new Date(`${sched.date}T${sched.time}`);
-                if (!isNaN(schedDate)) {
-                    const diffMins = (schedDate - now) / 60000;
-                    if (diffMins > announcerOffset) {
-                        return false;
-                    }
-                }
+            // If competition is not scheduled (missing date/time or marked as draft), do not show until scheduled
+            if (!sched || !sched.date || !sched.time || sched.status === 'draft') {
+                return false;
+            }
+
+            const schedDate = new Date(`${sched.date}T${sched.time}`);
+            if (isNaN(schedDate)) {
+                return false;
+            }
+
+            const diffMins = (schedDate - now) / 60000;
+            if (diffMins > announcerOffset) {
+                return false;
             }
         }
 
