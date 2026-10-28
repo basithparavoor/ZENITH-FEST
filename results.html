@@ -2114,7 +2114,7 @@
                     stagesCntQuery,
                     teamsQuery,
                     compsQuery,
-                    supabaseClient.from('templates').select('*').eq('type', 'individual')
+                    festId ? supabaseClient.from('templates').select('*').eq('type', 'individual').or(`fest_id.eq.${festId},fest_id.eq.global,fest_id.is.null,fest_id.eq.fest_zenith_2026`) : supabaseClient.from('templates').select('*').eq('type', 'individual')
                 ]);
 
                 // 4. Apply Festival Entity & Live Details from Superadmin
@@ -2204,6 +2204,15 @@
                 if (countDisplayElement) countDisplayElement.innerText = publishedCompetitions.length;
 
                 cachedTemplates = templatesRes?.data || [];
+                if (festId && Array.isArray(cachedTemplates)) {
+                    cachedTemplates.sort((a, b) => {
+                        const aMatch = a.fest_id === festId;
+                        const bMatch = b.fest_id === festId;
+                        if (aMatch && !bMatch) return -1;
+                        if (!aMatch && bMatch) return 1;
+                        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+                    });
+                }
                 cachedTemplates.forEach(tpl => ensureFontsLoaded(tpl));
 
                 // 9. Parallel Second Burst: Judgements & Participant Competitions
@@ -2525,7 +2534,19 @@
                     }
                 }
 
-                const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', type).limit(1);
+                const targetFestId = currentFestDetails.id || window.activeFestId || (window.festosAuth ? window.festosAuth.getCurrentFestId() : null);
+                let tplQuery = supabaseClient.from('templates').select('*').eq('type', type);
+                if (targetFestId) {
+                    tplQuery = tplQuery.or(`fest_id.eq.${targetFestId},fest_id.eq.global,fest_id.is.null,fest_id.eq.fest_zenith_2026`);
+                }
+                const { data: rawTpls } = await tplQuery;
+                const templates = (rawTpls || []).sort((a, b) => {
+                    const aMatch = a.fest_id === targetFestId;
+                    const bMatch = b.fest_id === targetFestId;
+                    if (aMatch && !bMatch) return -1;
+                    if (!aMatch && bMatch) return 1;
+                    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+                });
                 
                 const canvas = document.createElement('canvas'); 
                 const ctx = canvas.getContext('2d');

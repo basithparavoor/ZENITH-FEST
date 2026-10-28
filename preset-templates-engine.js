@@ -861,9 +861,11 @@
         if (typeof showToast === 'function') showToast(`Installing "${preset.name}"...`, 'info');
 
         const bgBase64 = typeof preset.generateBg === 'function' ? preset.generateBg() : preset.bg_base64;
-        const activeFid = (typeof getActiveFestId === 'function') ? getActiveFestId() : (localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
+        const activeFid = (typeof window.getActiveFestId === 'function') 
+            ? window.getActiveFestId() 
+            : (window.festosAuth?.getCurrentFestId?.() || localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
 
-        const installId = `TPL_PRESET_${preset.id.replace('PRESET_', '')}_${Date.now().toString(36)}`;
+        const installId = `TPL_PRESET_${preset.id.replace('PRESET_', '')}_${activeFid}_${Date.now().toString(36)}`;
 
         const payload = {
             id: installId,
@@ -874,8 +876,28 @@
             fest_id: activeFid
         };
 
+        // If helper is available, optimize background storage
+        if (typeof window.ensureTemplateBgUploaded === 'function') {
+            try {
+                await window.ensureTemplateBgUploaded(payload);
+            } catch(e) {}
+        }
+
         const { error } = await client.from('templates').upsert(payload);
         if (error) throw error;
+
+        // Optimistically update local templates if in admin context
+        if (Array.isArray(window.savedTemplates)) {
+            const existingIdx = window.savedTemplates.findIndex(t => t.id === installId);
+            if (existingIdx >= 0) {
+                window.savedTemplates[existingIdx] = payload;
+            } else {
+                window.savedTemplates.unshift(payload);
+            }
+            try {
+                localStorage.setItem(`festos_tpl_cache_${activeFid}`, JSON.stringify(window.savedTemplates));
+            } catch(e) {}
+        }
 
         if (typeof showToast === 'function') showToast(`Installed "${preset.name}" successfully!`, 'success');
 
@@ -891,29 +913,20 @@
         if (!client) return alert('Supabase client is not available.');
 
         const presets = await getAccessiblePresets();
-        if (typeof showToast === 'function') showToast(`Generating & installing ${presets.length} premium templates...`, 'info');
+        if (typeof showToast === 'function') showToast(`Installing ${presets.length} premium templates...`, 'info');
 
         try {
-            const activeFid = (typeof getActiveFestId === 'function') ? getActiveFestId() : (localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
-            const rows = [];
-
+            let successCount = 0;
             for (const preset of presets) {
-                const bgBase64 = typeof preset.generateBg === 'function' ? preset.generateBg() : preset.bg_base64;
-                const installId = `TPL_PRESET_${preset.id.replace('PRESET_', '')}_${Date.now().toString(36)}`;
-                rows.push({
-                    id: installId,
-                    name: preset.name.toUpperCase(),
-                    type: preset.type,
-                    bg_base64: bgBase64,
-                    fields: preset.fields,
-                    fest_id: activeFid
-                });
+                try {
+                    await installPresetTemplate(preset.id);
+                    successCount++;
+                } catch (pe) {
+                    console.warn(`Notice: Could not install preset ${preset.id}:`, pe);
+                }
             }
 
-            const { error } = await client.from('templates').upsert(rows);
-            if (error) throw error;
-
-            if (typeof showToast === 'function') showToast(`All ${rows.length} Templates installed to Festival!`, 'success');
+            if (typeof showToast === 'function') showToast(`Installed ${successCount} of ${presets.length} Templates to Festival!`, 'success');
 
             if (typeof loadTemplatesList === 'function') {
                 await loadTemplatesList();
@@ -937,19 +950,39 @@
         if (typeof showToast === 'function') showToast(`Applying ${preset.name} to Studio...`, 'info');
 
         const bgBase64 = typeof preset.generateBg === 'function' ? preset.generateBg() : preset.bg_base64;
+        const activeFid = (typeof window.getActiveFestId === 'function') 
+            ? window.getActiveFestId() 
+            : (window.festosAuth?.getCurrentFestId?.() || localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
+
+        const newId = `TPL_PRESET_${preset.id.replace('PRESET_', '')}_${Date.now().toString(36)}`;
 
         // If in template studio
         if (window.studioActiveData) {
+            window.studioActiveData.id = newId;
             window.studioActiveData.type = preset.type;
             window.studioActiveData.name = preset.name;
             window.studioActiveData.bg_base64 = bgBase64;
             window.studioActiveData.fields = JSON.parse(JSON.stringify(preset.fields));
+            window.studioActiveData.groups = {};
+            window.studioActiveData.pendingFile = null;
+            window.studioActiveData.fest_id = activeFid;
 
             const nameInput = document.getElementById('studio-template-name');
             if (nameInput) nameInput.value = preset.name;
 
             const typeSelect = document.getElementById('studio-template-type');
             if (typeSelect) typeSelect.value = preset.type;
+
+            // Rehydrate background image for canvas immediately
+            window.studioActiveData.imgObj = new Image();
+            window.studioActiveData.imgObj.crossOrigin = "Anonymous";
+            window.studioActiveData.imgObj.onload = () => {
+                if (typeof drawStudioCanvas === 'function') drawStudioCanvas();
+            };
+            window.studioActiveData.imgObj.src = bgBase64;
+            if (window.studioActiveData.imgObj.complete && typeof drawStudioCanvas === 'function') {
+                drawStudioCanvas();
+            }
 
             if (typeof renderLayersPanel === 'function') renderLayersPanel();
             if (typeof renderPropertiesPanel === 'function') renderPropertiesPanel();
@@ -960,11 +993,12 @@
         } else {
             // Open studio with this preset
             const payload = {
-                id: preset.id,
+                id: newId,
                 name: preset.name,
                 type: preset.type,
                 bg_base64: bgBase64,
-                fields: preset.fields
+                fields: preset.fields,
+                fest_id: activeFid
             };
             if (typeof openTemplateStudio === 'function') {
                 openTemplateStudio(payload);

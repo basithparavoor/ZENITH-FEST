@@ -5247,17 +5247,45 @@ function getDynamicPdfConfig(canvas, baseWidthMm = 63.5) {
 }
 window.generateParticipantIDCanvas = generateParticipantIDCanvas;
 window.getDynamicPdfConfig = getDynamicPdfConfig;
+// Helper: Multi-tenant resilient template resolver
+async function fetchBestTemplate(type) {
+    const activeFid = (typeof getActiveFestId === 'function') ? getActiveFestId() : (localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
+    if (Array.isArray(savedTemplates) && savedTemplates.length > 0) {
+        const matching = savedTemplates.filter(t => t.type === type);
+        if (matching.length > 0) {
+            const festTpl = matching.find(t => t.fest_id === activeFid);
+            if (festTpl) return festTpl;
+            return matching[0];
+        }
+    }
+    try {
+        const orClause = `fest_id.eq.${activeFid},fest_id.eq.global,fest_id.is.null,fest_id.eq.fest_zenith_2026`;
+        const { data } = await supabaseClient.from('templates').select('*').eq('type', type).or(orClause).order('created_at', { ascending: false });
+        if (Array.isArray(data) && data.length > 0) {
+            const festTpl = data.find(t => t.fest_id === activeFid);
+            if (festTpl) return festTpl;
+            return data[0];
+        }
+        const { data: anyData } = await supabaseClient.from('templates').select('*').eq('type', type).limit(1);
+        if (Array.isArray(anyData) && anyData.length > 0) return anyData[0];
+    } catch(e) {
+        console.warn("fetchBestTemplate notice:", e);
+    }
+    return null;
+}
+window.fetchBestTemplate = fetchBestTemplate;
+
 // --- 1. SINGLE CARD GENERATOR ---
 async function generateSingleCard(participantId) {
     showToast('Fetching template and generating PDF...', 'success');
     try {
-        const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', 'id_card').limit(1);
-        if (!templates || templates.length === 0) return showToast("No ID Card template found! Create one in the Studio first.", "error");
+        const template = await fetchBestTemplate('id_card');
+        if (!template) return showToast("No ID Card template found! Create one in the Studio first.", "error");
         
         const { data: p, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').eq('id', participantId).single();
         if (error || !p) return showToast("Could not fetch participant data.", 'error');
         
-        const cardCanvas = await generateParticipantIDCanvas(p, templates[0]);
+        const cardCanvas = await generateParticipantIDCanvas(p, template);
         const imgData = cardCanvas.toDataURL('image/jpeg', 1.0);
         
         // Dynamically calculate size to prevent stretching!
@@ -5282,9 +5310,8 @@ async function bulkPrintSelected() {
     btn.disabled = true;
 
     try {
-        const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', 'id_card').limit(1);
-        if (!templates || templates.length === 0) throw new Error("No ID Card template found! Create one in the Studio first.");
-        const template = templates[0];
+        const template = await fetchBestTemplate('id_card');
+        if (!template) throw new Error("No ID Card template found! Create one in the Studio first.");
 
         const { data: participants, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').in('id', ids).order('name');
         if (error) throw error;
@@ -5324,9 +5351,8 @@ async function generateBulkCards() {
     btn.disabled = true;
 
     try {
-        const { data: templates } = await supabaseClient.from('templates').select('*').eq('type', 'id_card').limit(1);
-        if (!templates || templates.length === 0) throw new Error("No ID Card template found! Create one in the Studio first.");
-        const template = templates[0];
+        const template = await fetchBestTemplate('id_card');
+        if (!template) throw new Error("No ID Card template found! Create one in the Studio first.");
 
         const { data: participants, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').order('name');
         if (error) throw error;
@@ -5602,13 +5628,146 @@ const AVAILABLE_FONTS = [
     { name: 'Serif', value: "'Times New Roman', Times, serif" }
 ];
 
+// Helper: Convert DataURL to Blob safely
+function dataURLtoBlob(dataurl) {
+    if (!dataurl || typeof dataurl !== 'string' || !dataurl.startsWith('data:')) return null;
+    try {
+        const arr = dataurl.split(',');
+        const mimeMatch = arr[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], { type: mime });
+    } catch(e) {
+        console.warn("dataURLtoBlob error:", e);
+        return null;
+    }
+}
+
+// Helper: Downscale / compress image via offscreen canvas for reliable fast upload & compact storage
+async function compressImageForStorage(imageSource, maxDim = 1920, quality = 0.86) {
+    return new Promise((resolve) => {
+        try {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = () => {
+                let w = img.naturalWidth || img.width;
+                let h = img.naturalHeight || img.height;
+                if (!w || !h) return resolve(null);
+
+                let scale = 1;
+                if (w > maxDim || h > maxDim) {
+                    scale = Math.min(maxDim / w, maxDim / h);
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(w * scale);
+                canvas.height = Math.round(h * scale);
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                canvas.toBlob((blob) => {
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                    resolve({ blob, dataUrl: compressedDataUrl });
+                }, 'image/jpeg', quality);
+            };
+            img.onerror = () => resolve(null);
+
+            if (typeof imageSource === 'string') {
+                img.src = imageSource;
+            } else if (imageSource instanceof File || imageSource instanceof Blob) {
+                img.src = URL.createObjectURL(imageSource);
+            } else {
+                resolve(null);
+            }
+        } catch(e) {
+            console.warn("compressImageForStorage error:", e);
+            resolve(null);
+        }
+    });
+}
+
+// Helper: Ensure template background image is uploaded to cloud storage or cleanly compressed
+async function ensureTemplateBgUploaded(activeData) {
+    if (!activeData) return null;
+
+    // Already a remote URL and no pending replacement file
+    if (activeData.bg_base64 && (activeData.bg_base64.startsWith('http://') || activeData.bg_base64.startsWith('https://')) && !activeData.pendingFile) {
+        return activeData.bg_base64;
+    }
+
+    const fid = (typeof getActiveFestId === 'function') ? getActiveFestId() : 'fest';
+    const fileName = `bg_${fid}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.jpg`;
+
+    const source = activeData.pendingFile || activeData.bg_base64;
+    if (!source) return activeData.bg_base64;
+
+    try {
+        const compressed = await compressImageForStorage(source, 1920, 0.86);
+        const blobToUpload = compressed ? compressed.blob : (activeData.pendingFile || (typeof activeData.bg_base64 === 'string' && activeData.bg_base64.startsWith('data:') ? dataURLtoBlob(activeData.bg_base64) : null));
+
+        if (blobToUpload && typeof supabaseClient !== 'undefined' && supabaseClient.storage) {
+            const { error: uploadError } = await supabaseClient.storage
+                .from('templates')
+                .upload(fileName, blobToUpload, { contentType: 'image/jpeg', upsert: true });
+
+            if (!uploadError) {
+                const { data: publicUrlData } = supabaseClient.storage
+                    .from('templates')
+                    .getPublicUrl(fileName);
+
+                if (publicUrlData && publicUrlData.publicUrl) {
+                    activeData.bg_base64 = publicUrlData.publicUrl;
+                    activeData.pendingFile = null;
+                    return activeData.bg_base64;
+                }
+            } else {
+                console.warn("Storage upload notice (falling back to compressed data URL):", uploadError);
+            }
+        }
+
+        // Fallback: use compressed data URL so payload stays small (<400KB)
+        if (compressed && compressed.dataUrl) {
+            activeData.bg_base64 = compressed.dataUrl;
+        }
+    } catch (err) {
+        console.warn("ensureTemplateBgUploaded caught error:", err);
+    } finally {
+        activeData.pendingFile = null;
+    }
+
+    return activeData.bg_base64;
+}
+window.ensureTemplateBgUploaded = ensureTemplateBgUploaded;
+
 // --- 1. LIBRARY INIT ---
 async function loadTemplatesList() {
-    showToast("Syncing templates from cloud...", "success");
+    const activeFid = (typeof getActiveFestId === 'function') ? getActiveFestId() : (localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
+
+    // 1. Instant hydration from localStorage cache (0ms perceived load)
     try {
-        let { data: templates, error } = await festQuery(supabaseClient
+        const cachedRaw = localStorage.getItem(`festos_tpl_cache_${activeFid}`) || localStorage.getItem('festos_tpl_cache_all');
+        if (cachedRaw) {
+            const cached = JSON.parse(cachedRaw);
+            if (Array.isArray(cached) && cached.length > 0) {
+                savedTemplates = cached;
+                renderTemplateLibrary();
+            }
+        }
+    } catch(e) {
+        console.warn("Template cache parse notice:", e);
+    }
+
+    try {
+        // Multi-tenant query: fetch festival-specific templates, global presets, legacy/null templates, or default fallback
+        const orClause = `fest_id.eq.${activeFid},fest_id.eq.global,fest_id.is.null,fest_id.eq.fest_zenith_2026`;
+        let { data: templates, error } = await supabaseClient
             .from('templates')
-            .select('*'))
+            .select('*')
+            .or(orClause)
             .order('created_at', { ascending: false });
 
         if (error && (error.code === '42703' || error.message?.includes('column templates.fest_id does not exist'))) {
@@ -5620,16 +5779,30 @@ async function loadTemplatesList() {
 
         if (error) {
             console.error("Template Sync Error:", error);
-            showToast("Failed to load templates", "error");
-            savedTemplates = [];
-        } else {
-            savedTemplates = templates || [];
+            if (!savedTemplates || savedTemplates.length === 0) {
+                showToast("Failed to load templates from cloud", "error");
+            }
+        } else if (Array.isArray(templates)) {
+            // Sort: prioritize current festival templates first, then newer templates
+            templates.sort((a, b) => {
+                const aCurrent = a.fest_id === activeFid;
+                const bCurrent = b.fest_id === activeFid;
+                if (aCurrent && !bCurrent) return -1;
+                if (!aCurrent && bCurrent) return 1;
+                return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+            });
+
+            savedTemplates = templates;
+
+            // Persist to local storage cache for instant next-load
+            try {
+                localStorage.setItem(`festos_tpl_cache_${activeFid}`, JSON.stringify(savedTemplates));
+            } catch(e) {}
         }
     } catch(err) {
         console.error("Template Sync Exception:", err);
-        savedTemplates = [];
     }
-    
+
     renderTemplateLibrary();
 }
 
@@ -5650,29 +5823,44 @@ function filterTemplateLibrary(type) {
 
 function renderTemplateLibrary() {
     const grid = document.getElementById('saved-templates-grid');
+    if (!grid) return;
     grid.innerHTML = '';
     const filtered = currentLibraryFilter === 'all' ? savedTemplates : savedTemplates.filter(t => t.type === currentLibraryFilter);
+    const activeFid = (typeof getActiveFestId === 'function') ? getActiveFestId() : '';
 
     if (filtered.length === 0) {
-        grid.innerHTML = `<div style="grid-column: 1/-1; padding: 3rem; text-align: center; color: var(--text-muted); background: white; border-radius: var(--radius-lg); border: 1px dashed var(--border);">No templates found.</div>`;
+        grid.innerHTML = `
+            <div style="grid-column: 1/-1; padding: 3rem 1.5rem; text-align: center; color: var(--text-muted); background: white; border-radius: var(--radius-lg); border: 1px dashed var(--border);">
+                <i class="fa-solid fa-layer-group" style="font-size: 2.5rem; color: #CBD5E1; margin-bottom: 0.75rem; display: block;"></i>
+                <h4 style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem;">No Templates Found</h4>
+                <p style="font-size: 0.88rem; margin-bottom: 1.25rem;">Create a custom template in the Studio or load from our premium presets gallery.</p>
+                <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="openTemplateStudio()"><i class="fa-solid fa-plus"></i> Create Template</button>
+                    <button class="btn btn-outline" onclick="openPresetTemplatesModal()"><i class="fa-solid fa-wand-magic-sparkles"></i> Browse Presets</button>
+                </div>
+            </div>`;
         return;
     }
 
     filtered.forEach((tpl) => {
-        const trueIndex = savedTemplates.findIndex(t => t.id === tpl.id);
         let tag = tpl.type === 'id_card' ? 'ID Card' : tpl.type === 'team' ? 'Team' : tpl.type === 'final' ? 'Final' : tpl.type === 'certificate' ? 'Certificate' : 'Individual';
+        const isCurrentFest = tpl.fest_id === activeFid;
+        const scopeBadge = isCurrentFest ? '' : `<span style="position: absolute; top: 10px; left: 10px; background: rgba(15, 23, 42, 0.85); color: #FCD34D; padding: 0.25rem 0.6rem; border-radius: 50px; font-size: 0.65rem; font-weight: 700; border: 1px solid rgba(245, 158, 11, 0.4);"><i class="fa-solid fa-globe"></i> Default</span>`;
+        const activeFieldsCount = tpl.fields ? Object.keys(tpl.fields).filter(k => !k.startsWith('__') && tpl.fields[k] && tpl.fields[k].enabled).length : 0;
 
         grid.innerHTML += `
             <div style="background: white; border-radius: var(--radius-lg); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
                 <div style="height: 180px; background: #E2E8F0; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative;">
-${tpl.bg_base64 ? `<img src="${tpl.bg_base64}" loading="lazy" decoding="async" style="width: 100%; height: 100%; object-fit: cover;">` : `<i class="fa-solid fa-image" style="font-size: 3rem; color: #CBD5E1;"></i>`}                    <div style="position: absolute; top: 10px; right: 10px; background: rgba(79, 70, 229, 0.9); color: white; padding: 0.3rem 0.75rem; border-radius: 50px; font-size: 0.7rem; font-weight: 700;">${tag}</div>
+                    ${tpl.bg_base64 ? `<img src="${tpl.bg_base64}" loading="lazy" decoding="async" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none';">` : `<i class="fa-solid fa-image" style="font-size: 3rem; color: #CBD5E1;"></i>`}
+                    ${scopeBadge}
+                    <div style="position: absolute; top: 10px; right: 10px; background: rgba(79, 70, 229, 0.9); color: white; padding: 0.3rem 0.75rem; border-radius: 50px; font-size: 0.7rem; font-weight: 700;">${tag}</div>
                 </div>
-                <div style="padding: 1.5rem;">
-                    <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.25rem;">${tpl.name}</h3>
-                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">${Object.keys(tpl.fields).filter(k => tpl.fields[k].enabled).length} Active Fields</p>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <button class="btn btn-outline" style="flex: 1;" onclick="editTemplate(${trueIndex})">Edit</button>
-                        <button class="btn btn-outline" style="padding: 0.5rem 1rem; color: var(--danger); border-color: var(--danger);" onclick="deleteTemplate(${trueIndex})"><i class="fa-solid fa-trash"></i></button>
+                <div style="padding: 1.5rem; display: flex; flex-direction: column; flex: 1;">
+                    <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.25rem; word-break: break-word;">${tpl.name}</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">${activeFieldsCount} Active Fields</p>
+                    <div style="display: flex; gap: 0.5rem; margin-top: auto;">
+                        <button class="btn btn-outline" style="flex: 1;" onclick="editTemplateById('${tpl.id}')"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
+                        <button class="btn btn-outline" style="padding: 0.5rem 1rem; color: var(--danger); border-color: var(--danger);" onclick="deleteTemplateById('${tpl.id}')"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
             </div>
@@ -5680,16 +5868,16 @@ ${tpl.bg_base64 ? `<img src="${tpl.bg_base64}" loading="lazy" decoding="async" s
     });
 }
 
-
-
 function openTemplateStudio(template = null) {
     document.getElementById('template-library-view').style.display = 'none';
     document.getElementById('template-studio-view').style.display = 'block';
 
+    const activeFid = (typeof getActiveFestId === 'function') ? getActiveFestId() : (localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
+
     if (template) {
         studioActiveData = JSON.parse(JSON.stringify(template)); 
-        document.getElementById('studio-template-name').value = studioActiveData.name;
-        document.getElementById('studio-template-type').value = studioActiveData.type;
+        document.getElementById('studio-template-name').value = studioActiveData.name || '';
+        document.getElementById('studio-template-type').value = studioActiveData.type || 'individual';
         
         // HIDDEN GROUPS WORKAROUND: Extract the hidden groups object from fields
         if (studioActiveData.fields && studioActiveData.fields['__groups__']) {
@@ -5698,22 +5886,48 @@ function openTemplateStudio(template = null) {
         } else {
             studioActiveData.groups = {};
         }
+
+        // HIDDEN CUSTOM FONTS: Extract custom fonts
+        if (studioActiveData.fields && studioActiveData.fields['__customFonts__']) {
+            studioActiveData.customFonts = studioActiveData.fields['__customFonts__'];
+            delete studioActiveData.fields['__customFonts__'];
+        } else if (!studioActiveData.customFonts) {
+            studioActiveData.customFonts = [];
+        }
         
         // Rehydrate main background image
         studioActiveData.imgObj = new Image();
         studioActiveData.imgObj.crossOrigin = "Anonymous"; 
         studioActiveData.imgObj.onload = () => drawStudioCanvas();
-        if (studioActiveData.bg_base64) studioActiveData.imgObj.src = studioActiveData.bg_base64;
+        studioActiveData.imgObj.onerror = () => {
+            console.warn("Background image CORS error, retrying without crossOrigin...");
+            const fbImg = new Image();
+            fbImg.onload = () => {
+                studioActiveData.imgObj = fbImg;
+                drawStudioCanvas();
+            };
+            fbImg.src = studioActiveData.bg_base64;
+        };
+        if (studioActiveData.bg_base64) {
+            studioActiveData.imgObj.src = studioActiveData.bg_base64;
+            if (studioActiveData.imgObj.complete) drawStudioCanvas();
+        }
 
         // Rehydrate static uploaded elements
         if (studioActiveData.fields) {
             Object.keys(studioActiveData.fields).forEach(key => {
                 const field = studioActiveData.fields[key];
-                if (field.isStaticElement && field.src) {
+                if (field && field.isStaticElement && field.src) {
                     field.imgObj = new Image();
                     field.imgObj.crossOrigin = "Anonymous";
                     field.imgObj.onload = () => drawStudioCanvas();
+                    field.imgObj.onerror = () => {
+                        const fb = new Image();
+                        fb.onload = () => { field.imgObj = fb; drawStudioCanvas(); };
+                        fb.src = field.src;
+                    };
                     field.imgObj.src = field.src;
+                    if (field.imgObj.complete) drawStudioCanvas();
                 }
             });
         }
@@ -5738,14 +5952,15 @@ function openTemplateStudio(template = null) {
     } else {
         // Initialize a brand new template
         studioActiveData = { 
-            id: 'TPL_' + Date.now(), 
+            id: 'TPL_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6), 
             name: '', 
             type: 'individual', 
             bg_base64: null, 
             imgObj: new Image(), 
             fields: {},
             groups: {}, 
-            customFonts: [] 
+            customFonts: [],
+            fest_id: activeFid
         };
         
         studioActiveData.imgObj.crossOrigin = "Anonymous";
@@ -6575,7 +6790,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // --- 5. SAVING ---
 async function saveActiveTemplate() {
-    const name = document.getElementById('studio-template-name').value;
+    const nameInput = document.getElementById('studio-template-name');
+    const name = nameInput ? nameInput.value.trim() : '';
     if (!name) return showToast("Please enter a Template Name.", "error");
     
     // Ensure they have either uploaded a new file or already have an image loaded
@@ -6585,58 +6801,85 @@ async function saveActiveTemplate() {
 
     studioActiveData.name = name;
 
-    // Show loading state
+    // Show loading state safely
     const saveBtn = document.querySelector('#template-studio-view .btn-success');
-    const originalText = saveBtn.innerHTML;
-    saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving to Cloud...';
-    saveBtn.disabled = true;
+    const originalText = saveBtn ? saveBtn.innerHTML : '';
+    if (saveBtn) {
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving to Cloud...';
+        saveBtn.disabled = true;
+    }
 
     try {
-        if (studioActiveData.pendingFile) {
-            showToast("Uploading background image...", "success");
-            const file = studioActiveData.pendingFile;
-            const fileExt = file.name.split('.').pop();
-            const fileName = `bg_${Date.now()}.${fileExt}`;
+        showToast("Processing & optimizing template...", "info");
+        await ensureTemplateBgUploaded(studioActiveData);
 
-            const { data: uploadData, error: uploadError } = await supabaseClient.storage
-                .from('templates')
-                .upload(fileName, file, { contentType: file.type });
-
-            if (uploadError) throw uploadError;
-
-            const { data: publicUrlData } = supabaseClient.storage
-                .from('templates')
-                .getPublicUrl(fileName);
-
-            studioActiveData.bg_base64 = publicUrlData.publicUrl;
-            studioActiveData.pendingFile = null; 
+        // Strip non-serializable DOM objects (imgObj) and pack hidden groups & custom fonts
+        const cleanFields = {};
+        if (studioActiveData.fields) {
+            Object.keys(studioActiveData.fields).forEach(key => {
+                if (key === '__groups__' || key === '__customFonts__') return;
+                const f = studioActiveData.fields[key];
+                const { imgObj, ...fieldData } = f;
+                cleanFields[key] = fieldData;
+            });
         }
+        cleanFields['__groups__'] = studioActiveData.groups || {};
+        cleanFields['__customFonts__'] = studioActiveData.customFonts || [];
 
-        // HIDDEN GROUPS WORKAROUND: Pack the groups object INSIDE the fields JSON
-        // so we don't have to alter the Supabase database schema!
-        const packedFields = { ...studioActiveData.fields };
-        packedFields['__groups__'] = studioActiveData.groups || {};
+        const activeFid = (typeof getActiveFestId === 'function') ? getActiveFestId() : (localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
+        let targetId = studioActiveData.id;
+
+        // If from another festival or a preset or newly generated, ensure an isolated ID for this festival
+        if (!targetId || targetId.startsWith('PRESET_') || (studioActiveData.fest_id && studioActiveData.fest_id !== activeFid)) {
+            targetId = 'TPL_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+            studioActiveData.id = targetId;
+        }
+        studioActiveData.fest_id = activeFid;
 
         const savePayload = { 
-            id: studioActiveData.id,
+            id: targetId,
             name: studioActiveData.name,
             type: studioActiveData.type,
             bg_base64: studioActiveData.bg_base64, 
-            fields: packedFields // Save the combined object to the existing column
+            fields: cleanFields,
+            fest_id: activeFid
         };
 
-        const { error } = await supabaseClient.from('templates').upsert(festPayload(savePayload));
-        if (error) throw error;
+        // Optimistic local update so savedTemplates reflects the save immediately
+        const existingIdx = savedTemplates.findIndex(t => t.id === targetId);
+        const record = { ...savePayload, created_at: new Date().toISOString() };
+        if (existingIdx >= 0) {
+            savedTemplates[existingIdx] = record;
+        } else {
+            savedTemplates.unshift(record);
+        }
+        try {
+            localStorage.setItem(`festos_tpl_cache_${activeFid}`, JSON.stringify(savedTemplates));
+        } catch(e) {}
+
+        const { error } = await supabaseClient.from('templates').upsert(savePayload);
+        if (error) {
+            console.warn("Supabase upsert warning:", error);
+            if (error.code === '42703' || error.message?.includes('fest_id')) {
+                const { fest_id, ...fallbackPayload } = savePayload;
+                const fbRes = await supabaseClient.from('templates').upsert(fallbackPayload);
+                if (fbRes.error) throw fbRes.error;
+            } else {
+                throw error;
+            }
+        }
         
         showToast("Template Saved to Cloud Successfully!", "success");
         closeTemplateStudio();
         
     } catch (err) {
-        console.error(err);
+        console.error("Save template error:", err);
         showToast(err.message || "Error saving template to cloud.", "error");
     } finally {
-        saveBtn.innerHTML = originalText;
-        saveBtn.disabled = false;
+        if (saveBtn) {
+            saveBtn.innerHTML = originalText;
+            saveBtn.disabled = false;
+        }
     }
 }
 function openFullViewModal() {
@@ -6846,7 +7089,17 @@ async function submitDirectValuation() {
 
 
 
-// --- MISSING EDIT FUNCTION FIX ---
+// --- TEMPLATE EDIT & DELETE HANDLERS ---
+function editTemplateById(id) {
+    const templateToEdit = savedTemplates.find(t => t.id === id);
+    if (templateToEdit) {
+        openTemplateStudio(templateToEdit);
+    } else {
+        showToast("Error: Could not load template data.", "error");
+    }
+}
+window.editTemplateById = editTemplateById;
+
 function editTemplate(index) {
     const templateToEdit = savedTemplates[index];
     if (templateToEdit) {
@@ -6855,6 +7108,36 @@ function editTemplate(index) {
         showToast("Error: Could not load template data.", "error");
     }
 }
+window.editTemplate = editTemplate;
+
+async function deleteTemplateById(templateId) {
+    openConfirmModal("Delete Template?", "Permanently delete this template from the cloud?", async () => {
+        try {
+            const { error } = await supabaseClient.from('templates').delete().eq('id', templateId);
+            if (error) throw error;
+
+            showToast("Template Deleted.");
+            savedTemplates = savedTemplates.filter(t => t.id !== templateId);
+            const activeFid = (typeof getActiveFestId === 'function') ? getActiveFestId() : (localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
+            try {
+                localStorage.setItem(`festos_tpl_cache_${activeFid}`, JSON.stringify(savedTemplates));
+            } catch(e){}
+            renderTemplateLibrary();
+        } catch(err) {
+            console.error("Error deleting template:", err);
+            showToast("Error deleting template: " + (err.message || ''), "error");
+        }
+    });
+}
+window.deleteTemplateById = deleteTemplateById;
+
+async function deleteTemplate(index) {
+    const tpl = savedTemplates[index];
+    if (tpl) {
+        deleteTemplateById(tpl.id);
+    }
+}
+window.deleteTemplate = deleteTemplate;
 
 // Populate the Team dropdown for bulk assignment
 async function initBulkTeamControls() {
@@ -8470,9 +8753,8 @@ async function bulkDownloadCertificates(compId) {
 
     try {
         // 1. Fetch Certificate Template
-        const { data: certTemplates } = await supabaseClient.from('templates').select('*').eq('type', 'certificate').limit(1);
-        if (!certTemplates || certTemplates.length === 0) throw new Error("No Certificate template found. Please design one in the Poster Templates Studio first.");
-        const template = certTemplates[0];
+        const template = await fetchBestTemplate('certificate');
+        if (!template) throw new Error("No Certificate template found. Please design one in the Poster Templates Studio first.");
 
         // 2. Fetch Competition & Judgements with Registered Count
         const { data: comp } = await supabaseClient
@@ -9546,18 +9828,7 @@ async function toggleCustomSlide(index, isEnabled) {
     await saveDisplaySettings(true); // silent sync
 }
 
-async function deleteTemplate(index) {
-    openConfirmModal("Delete Template?", "Permanently delete this template from the cloud?", async () => {
-        const templateId = savedTemplates[index].id;
-        const { error } = await supabaseClient.from('templates').delete().eq('id', templateId);
-        if (error) {
-            showToast("Error deleting template", "error");
-        } else {
-            showToast("Template Deleted.");
-            loadTemplatesList();
-        }
-    });
-}
+// deleteTemplate and deleteTemplateById are defined above
 
 function deleteStudioLayer(key) {
     openConfirmModal("Delete Layer?", "Delete this layer permanently?", () => {
