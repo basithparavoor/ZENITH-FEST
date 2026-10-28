@@ -181,6 +181,27 @@ function getActiveFestId() {
         (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_zenith_2026');
 }
 
+// Category Limit Helpers
+async function festosGetAdminCategoryLimitConfig(...args) {
+    if (typeof window.festosGetCategoryLimitConfig === 'function') {
+        return await window.festosGetCategoryLimitConfig(...args);
+    }
+    if (typeof festosGetCategoryLimitConfig === 'function') {
+        return await festosGetCategoryLimitConfig(...args);
+    }
+    return { enabled: false, default_limit: 3, categories: {} };
+}
+
+async function festosSaveAdminCategoryLimitConfig(...args) {
+    if (typeof window.festosSaveCategoryLimitConfig === 'function') {
+        return await window.festosSaveCategoryLimitConfig(...args);
+    }
+    if (typeof festosSaveCategoryLimitConfig === 'function') {
+        return await festosSaveCategoryLimitConfig(...args);
+    }
+    return Promise.resolve();
+}
+
 function festQuery(query, targetFestId = null) {
     if (window.festosApplyFilter) {
         return window.festosApplyFilter(query, targetFestId);
@@ -765,6 +786,10 @@ window.addEventListener('festos_newspaper_config_updated', () => {
 
 async function loadAdminDashboard() {
     try {
+        if (window.festosHostFestReady) {
+            try { await window.festosHostFestReady; } catch (e) {}
+        }
+
         const [
             { count: compCount },
             { count: partCount },

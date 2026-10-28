@@ -396,7 +396,7 @@ const festosDomains = {
         if (client) {
             try {
                 const { data, error } = await client.from('fests')
-                    .select('id, name, slug, domain, public_results_slug, logo, created_at, start_date, end_date, venue, status, newspaper_config, theme_color');
+                    .select('id, name, slug, domain, public_results_slug, logo, created_at, start_date, end_date, venue, status, theme_color');
 
                 if (!error && Array.isArray(data) && data.length > 0) {
                     this.setFestList(data);
@@ -413,12 +413,14 @@ const festosDomains = {
             }
         }
 
-        // 3. Fallback: primary fest
-        const list = this.getFestList();
-        if (list && list.length > 0) {
-            const primary = list[0];
-            this.applyResolvedFest(primary);
-            return primary;
+        // 3. Fallback: only fallback to primary fest if we are NOT on a specific tenant subdomain
+        if (!sub || ['www', 'app', 'admin', 'superadmin', 'api'].includes(sub)) {
+            const list = this.getFestList();
+            if (list && list.length > 0) {
+                const primary = list[0];
+                this.applyResolvedFest(primary);
+                return primary;
+            }
         }
 
         return null;
@@ -1943,6 +1945,10 @@ async function festosSaveCategoryLimitConfig(config) {
     return await festosSaveSetting('category_comp_limits', config);
 }
 
+// Aliases for admin portal compatibility
+const festosGetAdminCategoryLimitConfig = festosGetCategoryLimitConfig;
+const festosSaveAdminCategoryLimitConfig = festosSaveCategoryLimitConfig;
+
 function festosEvaluateStudentCategoryLimit(studentId, targetCompId, studentsList, compsList, categoriesList, allAssignments, limitConfig) {
     if (!limitConfig) {
         return { allowed: true, isExempt: true, reason: 'Limit configuration not found' };
@@ -2395,6 +2401,8 @@ if (typeof window !== 'undefined') {
     window.festosSaveSetting = festosSaveSetting;
     window.festosGetCategoryLimitConfig = festosGetCategoryLimitConfig;
     window.festosSaveCategoryLimitConfig = festosSaveCategoryLimitConfig;
+    window.festosGetAdminCategoryLimitConfig = festosGetCategoryLimitConfig;
+    window.festosSaveAdminCategoryLimitConfig = festosSaveCategoryLimitConfig;
     window.festosEvaluateStudentCategoryLimit = festosEvaluateStudentCategoryLimit;
     window.festosGetTopBannerHost = festosGetTopBannerHost;
     window.festosUpdateTopBannerPadding = festosUpdateTopBannerPadding;
