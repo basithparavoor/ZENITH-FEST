@@ -10288,10 +10288,13 @@ function renderOptimizerStageSelector(effectiveStages = []) {
 
     const stages = (effectiveStages && effectiveStages.length > 0) ? effectiveStages : stagesList;
 
-    const stageItems = [
-        ...stages.map(s => ({ id: s.id, name: s.name, isOffstage: !!s.is_offstage, stageNo: s.stage_no })),
-        { id: 'offstage', name: 'Offstage Venues', isOffstage: true, stageNo: 99 }
-    ];
+    // Display ONLY actual stages (venues). Offstage is a venue mode, not a stage!
+    const stageItems = stages.map(s => ({
+        id: s.id,
+        name: s.name,
+        isOffstage: !!s.is_offstage,
+        stageNo: s.stage_no
+    }));
 
     if (!optimizerSelectedStageIds || optimizerSelectedStageIds.length === 0) {
         optimizerSelectedStageIds = stageItems.map(s => String(s.id));
@@ -10299,9 +10302,10 @@ function renderOptimizerStageSelector(effectiveStages = []) {
 
     container.innerHTML = stageItems.map(s => {
         const isChecked = optimizerSelectedStageIds.includes(String(s.id));
-        const badgeColor = s.isOffstage ? '#0D9488' : '#4F46E5';
-        const badgeBg = s.isOffstage ? '#CCFBF1' : '#EEF2FF';
+        const badgeColor = s.isOffstage ? '#D97706' : '#4F46E5';
+        const badgeBg = s.isOffstage ? '#FEF3C7' : '#EEF2FF';
         const icon = s.isOffstage ? 'fa-layer-group' : 'fa-microphone-lines';
+        const venueLabel = s.isOffstage ? 'Offstage Venue' : 'Onstage Venue';
 
         return `
             <div class="opt-stage-pill" id="opt-stage-pill-${s.id}" style="display: inline-flex; align-items: center; gap: 0.5rem; background: ${isChecked ? badgeBg : 'white'}; border: 1.5px solid ${isChecked ? badgeColor : 'var(--border)'}; padding: 0.4rem 0.75rem; border-radius: 8px; transition: all 0.15s ease;">
@@ -10309,6 +10313,7 @@ function renderOptimizerStageSelector(effectiveStages = []) {
                     <input type="checkbox" class="opt-stage-checkbox" value="${s.id}" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px; accent-color: ${badgeColor};" onchange="onOptimizerStageToggle('${s.id}')">
                     <i class="fa-solid ${icon}" style="color: ${badgeColor}; font-size: 0.8rem;"></i>
                     <span>${optEscapeHtml(s.name)}</span>
+                    <span style="font-size: 0.65rem; font-weight: 800; color: ${badgeColor}; opacity: 0.9;">(${venueLabel})</span>
                 </label>
                 <button type="button" class="btn btn-outline" style="padding: 1px 6px; font-size: 0.65rem; font-weight: 800; border-radius: 4px; border: 1px solid var(--border); color: var(--text-muted); background: white; margin-left: 2px;" title="Schedule ONLY ${optEscapeHtml(s.name)}" onclick="selectOnlyOptimizerStage('${s.id}')">
                     Only
@@ -10327,9 +10332,10 @@ function onOptimizerStageToggle(stageId) {
         } else {
             optimizerSelectedStageIds = optimizerSelectedStageIds.filter(id => id !== String(stageId));
         }
-        const isOffstage = stageId === 'offstage';
-        const badgeColor = isOffstage ? '#0D9488' : '#4F46E5';
-        const badgeBg = isOffstage ? '#CCFBF1' : '#EEF2FF';
+        const stageObj = (window._optimizerEffectiveStages || stagesList || []).find(s => String(s.id) === String(stageId));
+        const isOffstage = stageObj ? !!stageObj.is_offstage : false;
+        const badgeColor = isOffstage ? '#D97706' : '#4F46E5';
+        const badgeBg = isOffstage ? '#FEF3C7' : '#EEF2FF';
         pill.style.background = cb.checked ? badgeBg : 'white';
         pill.style.borderColor = cb.checked ? badgeColor : 'var(--border)';
     }
@@ -10343,9 +10349,10 @@ function selectAllOptimizerStages(selectAll = true) {
         if (selectAll) optimizerSelectedStageIds.push(String(cb.value));
         const pill = document.getElementById(`opt-stage-pill-${cb.value}`);
         if (pill) {
-            const isOffstage = cb.value === 'offstage';
-            const badgeColor = isOffstage ? '#0D9488' : '#4F46E5';
-            const badgeBg = isOffstage ? '#CCFBF1' : '#EEF2FF';
+            const stageObj = (window._optimizerEffectiveStages || stagesList || []).find(s => String(s.id) === String(cb.value));
+            const isOffstage = stageObj ? !!stageObj.is_offstage : false;
+            const badgeColor = isOffstage ? '#D97706' : '#4F46E5';
+            const badgeBg = isOffstage ? '#FEF3C7' : '#EEF2FF';
             pill.style.background = selectAll ? badgeBg : 'white';
             pill.style.borderColor = selectAll ? badgeColor : 'var(--border)';
         }
@@ -10360,9 +10367,10 @@ function selectOnlyOptimizerStage(stageId) {
         cb.checked = isTarget;
         const pill = document.getElementById(`opt-stage-pill-${cb.value}`);
         if (pill) {
-            const isOffstage = cb.value === 'offstage';
-            const badgeColor = isOffstage ? '#0D9488' : '#4F46E5';
-            const badgeBg = isOffstage ? '#CCFBF1' : '#EEF2FF';
+            const stageObj = (window._optimizerEffectiveStages || stagesList || []).find(s => String(s.id) === String(cb.value));
+            const isOffstage = stageObj ? !!stageObj.is_offstage : false;
+            const badgeColor = isOffstage ? '#D97706' : '#4F46E5';
+            const badgeBg = isOffstage ? '#FEF3C7' : '#EEF2FF';
             pill.style.background = isTarget ? badgeBg : 'white';
             pill.style.borderColor = isTarget ? badgeColor : 'var(--border)';
         }
@@ -10508,7 +10516,6 @@ async function generateOptimizedSchedule() {
         return;
     }
 
-    const includeOffstage = selectedStageIds.includes('offstage');
     const targetStages = effectiveStages.filter(s => selectedStageIds.includes(String(s.id)));
 
     const enrollments = await fetchScheduleEnrollments(true);
@@ -10530,18 +10537,20 @@ async function generateOptimizedSchedule() {
         candidates = [...competitionsList];
     }
 
-    // Filter candidates strictly for the selected stages/venues
+    // Filter strictly to selected stages
     candidates = candidates.filter(comp => {
-        if (comp.is_offstage) {
-            return includeOffstage;
-        }
         if (comp.stage_id) {
-            // If pre-assigned to a stage, only include if that stage is selected!
+            // Pre-assigned competition: only include if its pre-assigned stage is selected
             return selectedStageIds.includes(String(comp.stage_id));
         }
-        // If not pre-assigned to any stage:
-        // Only include if at least one physical/virtual onstage stage is selected
-        return targetStages.length > 0;
+        // Unassigned competition:
+        if (comp.is_offstage) {
+            // Prioritize offstage venues if available among selected stages
+            return targetStages.some(s => s.is_offstage) || targetStages.length > 0;
+        } else {
+            // Prioritize onstage venues if available among selected stages
+            return targetStages.some(s => !s.is_offstage) || targetStages.length > 0;
+        }
     });
 
     if (candidates.length === 0) {
@@ -10598,14 +10607,11 @@ async function generateOptimizedSchedule() {
     // Sort by constraint degree descending (hardest constraints first)
     candidates.sort((a, b) => b.constraintDegree - a.constraintDegree);
 
-    // 3. Initialize Stage and Offstage Timelines for selected stages
+    // 3. Initialize Stage Timelines for selected stages
     const stageTimelines = {};
     targetStages.forEach(s => {
         stageTimelines[s.id] = [];
     });
-    if (includeOffstage) {
-        stageTimelines['offstage'] = [];
-    }
 
     const studentTimelines = {}; // { studentId: [ { start, end } ] }
 
@@ -10620,7 +10626,7 @@ async function generateOptimizedSchedule() {
         if (sEnd <= sStart) sEnd = sStart + 30;
 
         if (scope === 'unscheduled_only') {
-            const stageKey = comp.is_offstage ? 'offstage' : (comp.stage_id || targetStages[0]?.id);
+            const stageKey = comp.stage_id || targetStages[0]?.id;
             if (stageKey && stageTimelines[stageKey]) {
                 stageTimelines[stageKey].push({ compId, start: sStart, end: sEnd });
             }
@@ -10644,15 +10650,20 @@ async function generateOptimizedSchedule() {
 
         // Determine eligible stages among the selected stages
         let eligibleStages = [];
-        if (comp.is_offstage) {
-            eligibleStages = includeOffstage ? ['offstage'] : [];
-        } else if (stageStrategy === 'preserve' && comp.stage_id && targetStages.some(s => String(s.id) === String(comp.stage_id))) {
+        if (stageStrategy === 'preserve' && comp.stage_id && targetStages.some(s => String(s.id) === String(comp.stage_id))) {
             eligibleStages = [comp.stage_id];
+        } else if (comp.stage_id && targetStages.some(s => String(s.id) === String(comp.stage_id))) {
+            eligibleStages = [comp.stage_id, ...targetStages.map(s => s.id).filter(id => String(id) !== String(comp.stage_id))];
         } else {
-            if (comp.stage_id && targetStages.some(s => String(s.id) === String(comp.stage_id))) {
-                eligibleStages = [comp.stage_id, ...targetStages.map(s => s.id).filter(id => String(id) !== String(comp.stage_id))];
+            // If competition is offstage, prioritize offstage venues; if onstage, prioritize onstage venues
+            if (comp.is_offstage) {
+                const offVenues = targetStages.filter(s => s.is_offstage).map(s => s.id);
+                const onVenues = targetStages.filter(s => !s.is_offstage).map(s => s.id);
+                eligibleStages = offVenues.length > 0 ? [...offVenues, ...onVenues] : onVenues;
             } else {
-                eligibleStages = targetStages.map(s => s.id);
+                const onVenues = targetStages.filter(s => !s.is_offstage).map(s => s.id);
+                const offVenues = targetStages.filter(s => s.is_offstage).map(s => s.id);
+                eligibleStages = onVenues.length > 0 ? [...onVenues, ...offVenues] : offVenues;
             }
         }
 
@@ -10677,14 +10688,12 @@ async function generateOptimizedSchedule() {
                 if (clashedWithBreak) continue;
 
                 // Check Stage Occupancy
-                if (stageKey !== 'offstage') {
-                    const stageOccupied = (stageTimelines[stageKey] || []).some(slot => 
-                        (candidateStart < slot.end + bufferMins) && (candidateEnd > slot.start)
-                    );
-                    if (stageOccupied) {
-                        candidateStart += 10;
-                        continue;
-                    }
+                const stageOccupied = (stageTimelines[stageKey] || []).some(slot => 
+                    (candidateStart < slot.end + bufferMins) && (candidateEnd > slot.start)
+                );
+                if (stageOccupied) {
+                    candidateStart += 10;
+                    continue;
                 }
 
                 // Check Student Clash across all stages
@@ -10726,7 +10735,7 @@ async function generateOptimizedSchedule() {
                 to_time: minutesToTimeString(bestSlot.end),
                 manual_time: compDuration,
                 status: 'draft',
-                stage_id: bestSlot.stageKey === 'offstage' ? (comp.stage_id || null) : bestSlot.stageKey,
+                stage_id: bestSlot.stageKey,
                 is_offstage: comp.is_offstage
             };
 
@@ -10748,7 +10757,7 @@ async function generateOptimizedSchedule() {
     pendingOptimizedSchedule = proposedSchedule;
 
     // 5. Render Visual Timeline Gantt Preview
-    renderOptimizationPreview(proposedSchedule, targetDate, startMins, endLimitMins, activeBreaks, unplacedList, targetStages, isSimulatedStages, compStudentsMap, includeOffstage);
+    renderOptimizationPreview(proposedSchedule, targetDate, startMins, endLimitMins, activeBreaks, unplacedList, targetStages, isSimulatedStages, compStudentsMap);
 
     // Update Badges & Actions
     const metricsBadge = document.getElementById('opt-metrics-badge');
@@ -10777,7 +10786,7 @@ async function generateOptimizedSchedule() {
     if (applyBtn) applyBtn.style.display = 'inline-flex';
 }
 
-function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540, endLimitMins = 1080, activeBreaks = [], unplacedList = [], targetStages = [], isSimulatedStages = false, compStudentsMap = {}, includeOffstage = true) {
+function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540, endLimitMins = 1080, activeBreaks = [], unplacedList = [], targetStages = [], isSimulatedStages = false, compStudentsMap = {}) {
     const container = document.getElementById('opt-preview-container');
     if (!container) return;
 
@@ -10844,17 +10853,19 @@ function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540
         }
     });
 
-    // Build stage swimlanes for selected stages
+    // Build stage swimlanes for selected stages (actual stages only)
     const activeStageList = (targetStages && targetStages.length > 0) ? targetStages : (window._optimizerEffectiveStages || stagesList);
-    const stageTracks = [
-        ...activeStageList.map(s => ({ id: s.id, name: s.name, isOffstage: false, is_simulated: s.is_simulated })),
-        ...(includeOffstage ? [{ id: 'offstage', name: 'Offstage Venues', isOffstage: true }] : [])
-    ];
+    const stageTracks = activeStageList.map(s => ({
+        id: s.id,
+        name: s.name,
+        isOffstage: !!s.is_offstage,
+        is_simulated: s.is_simulated
+    }));
 
     let swimlanesHtml = '';
 
     stageTracks.forEach(track => {
-        // Collect items in this track
+        // Collect items in this stage track
         const trackItems = compIds
             .map(id => {
                 const sched = proposedSchedule[id];
@@ -10869,11 +10880,8 @@ function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540
             })
             .filter(item => {
                 if (!item.comp) return false;
-                if (track.isOffstage) return item.comp.is_offstage;
-                return !item.comp.is_offstage && String(item.sched.stage_id) === String(track.id);
+                return String(item.sched.stage_id) === String(track.id);
             });
-
-        if (track.isOffstage && trackItems.length === 0) return; // Hide offstage lane if empty
 
         // Dynamic multi-row packing: assigns non-overlapping rowIdx to every event
         const { packed, rowCount } = packSwimlaneEvents(trackItems);
@@ -10891,9 +10899,9 @@ function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540
             const topPos = lanePadding + (item.rowIdx * (rowHeight + rowGap));
 
             const bgGradient = track.isOffstage 
-                ? 'linear-gradient(135deg, #0D9488 0%, #14B8A6 100%)' 
+                ? 'linear-gradient(135deg, #D97706 0%, #F59E0B 100%)' 
                 : 'linear-gradient(135deg, #4338CA 0%, #6366F1 100%)';
-            const shadowColor = track.isOffstage ? 'rgba(13, 148, 136, 0.3)' : 'rgba(79, 70, 229, 0.3)';
+            const shadowColor = track.isOffstage ? 'rgba(217, 119, 6, 0.3)' : 'rgba(79, 70, 229, 0.3)';
             const categoryName = item.comp.categories?.name || 'General';
             const studentCount = (compStudentsMap[item.id] || []).length;
 
@@ -10915,15 +10923,19 @@ function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540
             `;
         });
 
+        const trackBadgeColor = track.isOffstage ? '#D97706' : '#4F46E5';
+        const trackBadgeBg = track.isOffstage ? '#FEF3C7' : '#EEF2FF';
+
         swimlanesHtml += `
             <div style="display: flex; border-bottom: 1px solid var(--border); min-height: ${totalLaneHeight}px;">
                 <div style="width: 175px; min-width: 175px; padding: 0.75rem 1rem; background: var(--bg-main); border-right: 1px solid var(--border); display: flex; flex-direction: column; justify-content: center; gap: 0.25rem;">
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="${track.isOffstage ? 'fa-solid fa-layer-group' : 'fa-solid fa-microphone-stage'}" style="color: ${track.isOffstage ? '#0D9488' : '#4F46E5'}; font-size: 0.95rem;"></i>
+                        <i class="${track.isOffstage ? 'fa-solid fa-layer-group' : 'fa-solid fa-microphone-stage'}" style="color: ${trackBadgeColor}; font-size: 0.95rem;"></i>
                         <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-main); word-break: break-word;">${optEscapeHtml(track.name)}</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
-                        <span style="font-size: 0.68rem; font-weight: 700; color: ${track.isOffstage ? '#0F766E' : '#4338CA'}; background: ${track.isOffstage ? '#CCFBF1' : '#EEF2FF'}; padding: 1px 6px; border-radius: 999px;">${trackItems.length} comp${trackItems.length === 1 ? '' : 's'}</span>
+                        <span style="font-size: 0.68rem; font-weight: 700; color: ${trackBadgeColor}; background: ${trackBadgeBg}; padding: 1px 6px; border-radius: 999px;">${trackItems.length} comp${trackItems.length === 1 ? '' : 's'}</span>
+                        <span style="font-size: 0.65rem; color: ${trackBadgeColor}; background: ${trackBadgeBg}; padding: 1px 5px; border-radius: 4px; font-weight: 700;">${track.isOffstage ? 'Offstage Venue' : 'Onstage Venue'}</span>
                         ${track.is_simulated ? `<span style="font-size: 0.65rem; color: #4338CA; background: #E0E7FF; padding: 1px 5px; border-radius: 4px; font-weight: 600;">Auto-Created</span>` : ''}
                         ${rowCount > 1 ? `<span style="font-size: 0.65rem; color: var(--text-muted); background: #F1F5F9; padding: 1px 5px; border-radius: 4px;">${rowCount} parallel tracks</span>` : ''}
                     </div>
@@ -11051,7 +11063,7 @@ async function applyOptimizedSchedule() {
             };
 
             const existingComp = competitionsList.find(c => c.id == id);
-            if (existingComp && item.stage_id && String(existingComp.stage_id) !== String(item.stage_id) && !existingComp.is_offstage) {
+            if (existingComp && item.stage_id && String(existingComp.stage_id) !== String(item.stage_id)) {
                 stageUpdates.push(supabaseClient.from('competitions').update({ stage_id: item.stage_id }).eq('id', id));
             }
         });
@@ -11078,6 +11090,7 @@ async function applyOptimizedSchedule() {
         }
     }
 }
+
 
 // NEW: Global Calculator Function
 window.updateScheduleTimeCalc = function() {
