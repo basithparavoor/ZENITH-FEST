@@ -10155,8 +10155,226 @@ async function exportConflictReportPDF() {
 }
 
 // ==========================================
-// AUTO-SCHEDULE OPTIMIZER ENGINE
+// AUTO-SCHEDULE OPTIMIZER ENGINE (AI ENGINE)
 // ==========================================
+
+function optEscapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+let optimizerBreaks = [
+    { id: 'break_lunch', name: 'Lunch Break', start: '13:00', end: '14:00' }
+];
+let optimizerSelectedStageIds = [];
+
+function renderOptimizerBreaks() {
+    const container = document.getElementById('opt-breaks-container');
+    if (!container) return;
+
+    if (!optimizerBreaks || optimizerBreaks.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 0.75rem; background: white; border-radius: 8px; border: 1px dashed var(--border);">
+                No breaks configured. Click <strong>"+ Add Lunch (1:00 - 2:00 PM)"</strong> or <strong>"+ Add Custom Break"</strong> to reserve break times.
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = optimizerBreaks.map(b => `
+        <div class="opt-break-row" data-id="${b.id}" style="display: flex; align-items: center; gap: 0.6rem; background: white; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.4rem; flex: 1; min-width: 140px;">
+                <i class="fa-solid fa-utensils" style="color: #D97706; font-size: 0.85rem;"></i>
+                <input type="text" class="opt-break-name" value="${optEscapeHtml(b.name)}" placeholder="Break Name (e.g. Lunch)" 
+                    style="width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.6rem; font-size: 0.82rem; font-weight: 700; color: var(--text-main);"
+                    onchange="updateOptimizerBreakField('${b.id}', 'name', this.value)">
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted);">FROM:</span>
+                <input type="time" class="opt-break-start" value="${b.start}"
+                    style="border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.5rem; font-size: 0.82rem; font-weight: 700; color: var(--text-main);"
+                    onchange="updateOptimizerBreakField('${b.id}', 'start', this.value)">
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted);">TO:</span>
+                <input type="time" class="opt-break-end" value="${b.end}"
+                    style="border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.5rem; font-size: 0.82rem; font-weight: 700; color: var(--text-main);"
+                    onchange="updateOptimizerBreakField('${b.id}', 'end', this.value)">
+            </div>
+            <button type="button" class="btn btn-outline" style="padding: 0.35rem 0.6rem; color: #DC2626; border-color: #FECACA; font-size: 0.75rem;" title="Remove Break" onclick="removeOptimizerBreak('${b.id}')">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function updateOptimizerBreakField(id, field, value) {
+    const b = optimizerBreaks.find(x => x.id === id);
+    if (b) {
+        b[field] = value;
+    }
+}
+
+function addOptimizerLunchBreak() {
+    const hasLunch = optimizerBreaks.some(b => b.name.toLowerCase().includes('lunch'));
+    if (hasLunch) {
+        if (typeof showToast === 'function') {
+            showToast("Lunch break is already in the list. You can edit its start and end times directly.", "info");
+        }
+        return;
+    }
+    optimizerBreaks.push({
+        id: 'break_' + Date.now(),
+        name: 'Lunch Break',
+        start: '13:00',
+        end: '14:00'
+    });
+    renderOptimizerBreaks();
+}
+
+function addOptimizerBreak() {
+    optimizerBreaks.push({
+        id: 'break_' + Date.now(),
+        name: 'Interval / Tea Break',
+        start: '16:30',
+        end: '17:00'
+    });
+    renderOptimizerBreaks();
+}
+
+function removeOptimizerBreak(id) {
+    optimizerBreaks = optimizerBreaks.filter(b => b.id !== id);
+    renderOptimizerBreaks();
+}
+
+function getOptimizerBreaks() {
+    const rows = document.querySelectorAll('.opt-break-row');
+    const result = [];
+    rows.forEach(row => {
+        const id = row.getAttribute('data-id');
+        const nameInput = row.querySelector('.opt-break-name');
+        const startInput = row.querySelector('.opt-break-start');
+        const endInput = row.querySelector('.opt-break-end');
+
+        const name = nameInput ? nameInput.value.trim() : 'Break';
+        const start = startInput ? startInput.value : '';
+        const end = endInput ? endInput.value : '';
+
+        if (start && end) {
+            const sM = timeStringToMinutes(start);
+            const eM = timeStringToMinutes(end);
+            if (eM > sM) {
+                result.push({ id, name, start, end, startMins: sM, endMins: eM });
+                const existing = optimizerBreaks.find(b => b.id === id);
+                if (existing) {
+                    existing.name = name;
+                    existing.start = start;
+                    existing.end = end;
+                }
+            }
+        }
+    });
+    return result;
+}
+
+function renderOptimizerStageSelector(effectiveStages = []) {
+    const container = document.getElementById('opt-stages-container');
+    if (!container) return;
+
+    const stages = (effectiveStages && effectiveStages.length > 0) ? effectiveStages : stagesList;
+
+    const stageItems = [
+        ...stages.map(s => ({ id: s.id, name: s.name, isOffstage: !!s.is_offstage, stageNo: s.stage_no })),
+        { id: 'offstage', name: 'Offstage Venues', isOffstage: true, stageNo: 99 }
+    ];
+
+    if (!optimizerSelectedStageIds || optimizerSelectedStageIds.length === 0) {
+        optimizerSelectedStageIds = stageItems.map(s => String(s.id));
+    }
+
+    container.innerHTML = stageItems.map(s => {
+        const isChecked = optimizerSelectedStageIds.includes(String(s.id));
+        const badgeColor = s.isOffstage ? '#0D9488' : '#4F46E5';
+        const badgeBg = s.isOffstage ? '#CCFBF1' : '#EEF2FF';
+        const icon = s.isOffstage ? 'fa-layer-group' : 'fa-microphone-lines';
+
+        return `
+            <div class="opt-stage-pill" id="opt-stage-pill-${s.id}" style="display: inline-flex; align-items: center; gap: 0.5rem; background: ${isChecked ? badgeBg : 'white'}; border: 1.5px solid ${isChecked ? badgeColor : 'var(--border)'}; padding: 0.4rem 0.75rem; border-radius: 8px; transition: all 0.15s ease;">
+                <label style="display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer; margin: 0; font-weight: 700; font-size: 0.8rem; color: var(--text-main);">
+                    <input type="checkbox" class="opt-stage-checkbox" value="${s.id}" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px; accent-color: ${badgeColor};" onchange="onOptimizerStageToggle('${s.id}')">
+                    <i class="fa-solid ${icon}" style="color: ${badgeColor}; font-size: 0.8rem;"></i>
+                    <span>${optEscapeHtml(s.name)}</span>
+                </label>
+                <button type="button" class="btn btn-outline" style="padding: 1px 6px; font-size: 0.65rem; font-weight: 800; border-radius: 4px; border: 1px solid var(--border); color: var(--text-muted); background: white; margin-left: 2px;" title="Schedule ONLY ${optEscapeHtml(s.name)}" onclick="selectOnlyOptimizerStage('${s.id}')">
+                    Only
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+function onOptimizerStageToggle(stageId) {
+    const cb = document.querySelector(`.opt-stage-checkbox[value="${stageId}"]`);
+    const pill = document.getElementById(`opt-stage-pill-${stageId}`);
+    if (cb && pill) {
+        if (cb.checked) {
+            if (!optimizerSelectedStageIds.includes(String(stageId))) optimizerSelectedStageIds.push(String(stageId));
+        } else {
+            optimizerSelectedStageIds = optimizerSelectedStageIds.filter(id => id !== String(stageId));
+        }
+        const isOffstage = stageId === 'offstage';
+        const badgeColor = isOffstage ? '#0D9488' : '#4F46E5';
+        const badgeBg = isOffstage ? '#CCFBF1' : '#EEF2FF';
+        pill.style.background = cb.checked ? badgeBg : 'white';
+        pill.style.borderColor = cb.checked ? badgeColor : 'var(--border)';
+    }
+}
+
+function selectAllOptimizerStages(selectAll = true) {
+    const checkboxes = document.querySelectorAll('.opt-stage-checkbox');
+    optimizerSelectedStageIds = [];
+    checkboxes.forEach(cb => {
+        cb.checked = selectAll;
+        if (selectAll) optimizerSelectedStageIds.push(String(cb.value));
+        const pill = document.getElementById(`opt-stage-pill-${cb.value}`);
+        if (pill) {
+            const isOffstage = cb.value === 'offstage';
+            const badgeColor = isOffstage ? '#0D9488' : '#4F46E5';
+            const badgeBg = isOffstage ? '#CCFBF1' : '#EEF2FF';
+            pill.style.background = selectAll ? badgeBg : 'white';
+            pill.style.borderColor = selectAll ? badgeColor : 'var(--border)';
+        }
+    });
+}
+
+function selectOnlyOptimizerStage(stageId) {
+    const checkboxes = document.querySelectorAll('.opt-stage-checkbox');
+    optimizerSelectedStageIds = [String(stageId)];
+    checkboxes.forEach(cb => {
+        const isTarget = String(cb.value) === String(stageId);
+        cb.checked = isTarget;
+        const pill = document.getElementById(`opt-stage-pill-${cb.value}`);
+        if (pill) {
+            const isOffstage = cb.value === 'offstage';
+            const badgeColor = isOffstage ? '#0D9488' : '#4F46E5';
+            const badgeBg = isOffstage ? '#CCFBF1' : '#EEF2FF';
+            pill.style.background = isTarget ? badgeBg : 'white';
+            pill.style.borderColor = isTarget ? badgeColor : 'var(--border)';
+        }
+    });
+    // Immediately re-run optimizer for this single stage!
+    generateOptimizedSchedule();
+}
+
+function getOptimizerSelectedStages() {
+    const checkboxes = document.querySelectorAll('.opt-stage-checkbox:checked');
+    return Array.from(checkboxes).map(cb => String(cb.value));
+}
 
 function packSwimlaneEvents(items) {
     if (!items || items.length === 0) return { packed: [], rowCount: 1 };
@@ -10187,7 +10405,7 @@ function packSwimlaneEvents(items) {
     return { packed, rowCount: Math.max(1, rowEnds.length) };
 }
 
-function openAutoSchedulerModal() {
+async function openAutoSchedulerModal() {
     const optDateInput = document.getElementById('opt-date');
     if (optDateInput && !optDateInput.value) {
         // Find earliest date from schedule or default to today
@@ -10208,6 +10426,27 @@ function openAutoSchedulerModal() {
     if (metricsBadge) metricsBadge.style.display = 'none';
     if (statusIndicator) statusIndicator.innerText = 'Initializing optimizer...';
 
+    // Ensure baseline data is loaded before rendering stages
+    if (competitionsList.length === 0) await loadCompetitions();
+    if (stagesList.length === 0) await loadStagesAndTeams();
+
+    let effectiveStages = [...stagesList];
+    let isSimulatedStages = false;
+    if (effectiveStages.length === 0) {
+        isSimulatedStages = true;
+        effectiveStages = [
+            { id: 'sim_stage_1', name: 'Stage 1 (Main Stage)', stage_no: 1, is_simulated: true },
+            { id: 'sim_stage_2', name: 'Stage 2 (Auditorium)', stage_no: 2, is_simulated: true },
+            { id: 'sim_stage_3', name: 'Stage 3 (Mini Hall)', stage_no: 3, is_simulated: true }
+        ];
+    }
+    window._optimizerEffectiveStages = effectiveStages;
+    window._optimizerIsSimulated = isSimulatedStages;
+
+    // Render Stage Selector & Breaks UI
+    renderOptimizerStageSelector(effectiveStages);
+    renderOptimizerBreaks();
+
     document.getElementById('autoSchedulerModal').classList.add('show');
 
     // Automatically run the optimizer calculation
@@ -10222,7 +10461,6 @@ async function generateOptimizedSchedule() {
     const endTimeStr = document.getElementById('opt-end-time')?.value || '18:00';
     const bufferMins = parseInt(document.getElementById('opt-buffer-mins')?.value) || 15;
     const stageStrategy = document.getElementById('opt-stage-strategy')?.value || 'auto_balance';
-    const breakWindow = document.getElementById('opt-break-window')?.value || '13:00-14:00';
     const scope = document.getElementById('opt-scope')?.value || 'unscheduled_only';
 
     if (!targetDate) {
@@ -10259,6 +10497,20 @@ async function generateOptimizedSchedule() {
     window._optimizerEffectiveStages = effectiveStages;
     window._optimizerIsSimulated = isSimulatedStages;
 
+    // Read configured breaks (Lunch, Tea, etc.)
+    const activeBreaks = getOptimizerBreaks();
+
+    // Read selected stages
+    const selectedStageIds = getOptimizerSelectedStages();
+    if (selectedStageIds.length === 0) {
+        alert("Please select at least one stage or venue to schedule.");
+        if (statusIndicator) statusIndicator.innerText = 'No stages selected.';
+        return;
+    }
+
+    const includeOffstage = selectedStageIds.includes('offstage');
+    const targetStages = effectiveStages.filter(s => selectedStageIds.includes(String(s.id)));
+
     const enrollments = await fetchScheduleEnrollments(true);
     const compStudentsMap = {};
     enrollments.forEach(e => {
@@ -10267,18 +10519,7 @@ async function generateOptimizedSchedule() {
         compStudentsMap[e.competition_id].push(e.participant_id);
     });
 
-    // Parse Break Window
-    let breakStartMins = -1;
-    let breakEndMins = -1;
-    if (breakWindow && breakWindow !== 'none') {
-        const [bStart, bEnd] = breakWindow.split('-');
-        if (bStart && bEnd) {
-            breakStartMins = timeStringToMinutes(bStart);
-            breakEndMins = timeStringToMinutes(bEnd);
-        }
-    }
-
-    // 1. Filter Candidate Competitions based on Scope
+    // 1. Filter Candidate Competitions based on Scope and Selected Stages
     let candidates = [];
     if (scope === 'unscheduled_only') {
         candidates = competitionsList.filter(c => {
@@ -10289,9 +10530,36 @@ async function generateOptimizedSchedule() {
         candidates = [...competitionsList];
     }
 
+    // Filter candidates strictly for the selected stages/venues
+    candidates = candidates.filter(comp => {
+        if (comp.is_offstage) {
+            return includeOffstage;
+        }
+        if (comp.stage_id) {
+            // If pre-assigned to a stage, only include if that stage is selected!
+            return selectedStageIds.includes(String(comp.stage_id));
+        }
+        // If not pre-assigned to any stage:
+        // Only include if at least one physical/virtual onstage stage is selected
+        return targetStages.length > 0;
+    });
+
     if (candidates.length === 0) {
-        alert("No candidate competitions found matching the selected optimization scope.");
-        if (statusIndicator) statusIndicator.innerText = 'No candidates to schedule.';
+        const previewContainer = document.getElementById('opt-preview-container');
+        if (previewContainer) {
+            previewContainer.innerHTML = `
+                <div style="text-align: center; color: var(--text-muted); padding: 3rem; font-weight: 600;">
+                    <i class="fa-solid fa-circle-check" style="font-size: 2.2rem; color: #10B981; margin-bottom: 0.75rem; display: block;"></i>
+                    No candidate competitions found for the selected stage(s).<br>
+                    <span style="font-size: 0.82rem; font-weight: 500; color: var(--text-muted);">
+                        Either all events on this stage are already scheduled, or no unscheduled events are assigned to this stage.
+                    </span>
+                </div>
+            `;
+        }
+        if (statusIndicator) statusIndicator.innerText = 'No candidate competitions for selected stage(s).';
+        const applyBtn = document.getElementById('btn-apply-optimized-schedule');
+        if (applyBtn) applyBtn.style.display = 'none';
         return;
     }
 
@@ -10330,39 +10598,40 @@ async function generateOptimizedSchedule() {
     // Sort by constraint degree descending (hardest constraints first)
     candidates.sort((a, b) => b.constraintDegree - a.constraintDegree);
 
-    // 3. Initialize Stage and Offstage Timelines
+    // 3. Initialize Stage and Offstage Timelines for selected stages
     const stageTimelines = {};
-    effectiveStages.forEach(s => {
+    targetStages.forEach(s => {
         stageTimelines[s.id] = [];
     });
-    // Dedicated track for offstage
-    stageTimelines['offstage'] = [];
+    if (includeOffstage) {
+        stageTimelines['offstage'] = [];
+    }
 
     const studentTimelines = {}; // { studentId: [ { start, end } ] }
 
-    // If scope is unscheduled_only, load existing slots on targetDate
-    if (scope === 'unscheduled_only') {
-        Object.entries(masterSchedule).forEach(([compId, sched]) => {
-            if (sched.date !== targetDate) return;
-            const comp = competitionsList.find(c => c.id == compId);
-            if (!comp) return;
+    // Load existing slots on targetDate (load ALL students across whole fest to prevent clash!)
+    Object.entries(masterSchedule).forEach(([compId, sched]) => {
+        if (sched.date !== targetDate) return;
+        const comp = competitionsList.find(c => c.id == compId);
+        if (!comp) return;
 
-            const sStart = timeStringToMinutes(sched.time);
-            let sEnd = sched.to_time ? timeStringToMinutes(sched.to_time) : (sStart + (parseInt(sched.manual_time) || 30));
-            if (sEnd <= sStart) sEnd = sStart + 30;
+        const sStart = timeStringToMinutes(sched.time);
+        let sEnd = sched.to_time ? timeStringToMinutes(sched.to_time) : (sStart + (parseInt(sched.manual_time) || 30));
+        if (sEnd <= sStart) sEnd = sStart + 30;
 
-            const stageKey = comp.is_offstage ? 'offstage' : (comp.stage_id || effectiveStages[0]?.id);
-            if (stageTimelines[stageKey]) {
+        if (scope === 'unscheduled_only') {
+            const stageKey = comp.is_offstage ? 'offstage' : (comp.stage_id || targetStages[0]?.id);
+            if (stageKey && stageTimelines[stageKey]) {
                 stageTimelines[stageKey].push({ compId, start: sStart, end: sEnd });
             }
+        }
 
-            const sList = compStudentsMap[compId] || [];
-            sList.forEach(sId => {
-                if (!studentTimelines[sId]) studentTimelines[sId] = [];
-                studentTimelines[sId].push({ start: sStart, end: sEnd });
-            });
+        const sList = compStudentsMap[compId] || [];
+        sList.forEach(sId => {
+            if (!studentTimelines[sId]) studentTimelines[sId] = [];
+            studentTimelines[sId].push({ start: sStart, end: sEnd });
         });
-    }
+    });
 
     // 4. Constraint-Satisfaction Greedy Placement
     const proposedSchedule = {};
@@ -10373,18 +10642,17 @@ async function generateOptimizedSchedule() {
         const compDuration = comp.calculatedDuration;
         const compStudents = compStudentsMap[comp.id] || [];
 
-        // Determine eligible stages
+        // Determine eligible stages among the selected stages
         let eligibleStages = [];
         if (comp.is_offstage) {
-            eligibleStages = ['offstage'];
-        } else if (stageStrategy === 'preserve' && comp.stage_id && effectiveStages.some(s => s.id == comp.stage_id)) {
+            eligibleStages = includeOffstage ? ['offstage'] : [];
+        } else if (stageStrategy === 'preserve' && comp.stage_id && targetStages.some(s => String(s.id) === String(comp.stage_id))) {
             eligibleStages = [comp.stage_id];
         } else {
-            // If auto_balance or unassigned: try pre-assigned first, then all available stages sorted by current load
-            if (comp.stage_id && effectiveStages.some(s => s.id == comp.stage_id)) {
-                eligibleStages = [comp.stage_id, ...effectiveStages.map(s => s.id).filter(id => id != comp.stage_id)];
+            if (comp.stage_id && targetStages.some(s => String(s.id) === String(comp.stage_id))) {
+                eligibleStages = [comp.stage_id, ...targetStages.map(s => s.id).filter(id => String(id) !== String(comp.stage_id))];
             } else {
-                eligibleStages = effectiveStages.map(s => s.id);
+                eligibleStages = targetStages.map(s => s.id);
             }
         }
 
@@ -10397,13 +10665,16 @@ async function generateOptimizedSchedule() {
             while (candidateStart + compDuration <= endLimitMins) {
                 const candidateEnd = candidateStart + compDuration;
 
-                // Check Break / Lunch Window
-                if (breakStartMins !== -1 && breakEndMins !== -1) {
-                    if (candidateStart < breakEndMins && candidateEnd > breakStartMins) {
-                        candidateStart = breakEndMins;
-                        continue;
+                // Check ALL configured Breaks & Intervals (Lunch, Tea, etc.)
+                let clashedWithBreak = false;
+                for (const b of activeBreaks) {
+                    if (candidateStart < b.endMins && candidateEnd > b.startMins) {
+                        candidateStart = b.endMins;
+                        clashedWithBreak = true;
+                        break;
                     }
                 }
+                if (clashedWithBreak) continue;
 
                 // Check Stage Occupancy
                 if (stageKey !== 'offstage') {
@@ -10477,7 +10748,7 @@ async function generateOptimizedSchedule() {
     pendingOptimizedSchedule = proposedSchedule;
 
     // 5. Render Visual Timeline Gantt Preview
-    renderOptimizationPreview(proposedSchedule, targetDate, startMins, endLimitMins, breakStartMins, breakEndMins, unplacedList, effectiveStages, isSimulatedStages, compStudentsMap);
+    renderOptimizationPreview(proposedSchedule, targetDate, startMins, endLimitMins, activeBreaks, unplacedList, targetStages, isSimulatedStages, compStudentsMap, includeOffstage);
 
     // Update Badges & Actions
     const metricsBadge = document.getElementById('opt-metrics-badge');
@@ -10506,7 +10777,7 @@ async function generateOptimizedSchedule() {
     if (applyBtn) applyBtn.style.display = 'inline-flex';
 }
 
-function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540, endLimitMins = 1080, breakStartMins = -1, breakEndMins = -1, unplacedList = [], effectiveStages = [], isSimulatedStages = false, compStudentsMap = {}) {
+function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540, endLimitMins = 1080, activeBreaks = [], unplacedList = [], targetStages = [], isSimulatedStages = false, compStudentsMap = {}, includeOffstage = true) {
     const container = document.getElementById('opt-preview-container');
     if (!container) return;
 
@@ -10550,30 +10821,34 @@ function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540
         `;
     }
 
-    // Lunch Break Window
-    let headerLunchBadgeHtml = '';
-    let laneBreakShadeHtml = '';
-    if (breakStartMins !== -1 && breakEndMins !== -1 && breakEndMins > startMins && breakStartMins < endLimitMins) {
-        const bLeft = Math.max(0, ((breakStartMins - startMins) / totalDuration) * 100);
-        const bWidth = Math.min(100 - bLeft, ((breakEndMins - breakStartMins) / totalDuration) * 100);
-        
-        headerLunchBadgeHtml = `
-            <div style="position: absolute; left: ${bLeft}%; width: ${bWidth}%; top: 4px; bottom: 4px; background: #FEF3C7; border: 1.5px dashed #F59E0B; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; z-index: 5;">
-                <i class="fa-solid fa-utensils" style="font-size: 0.72rem; color: #D97706;"></i>
-                <span style="font-size: 0.72rem; font-weight: 800; color: #92400E; letter-spacing: 0.05em;">LUNCH BREAK</span>
-            </div>
-        `;
+    // Breaks Badges in Header & Shading in Lanes
+    let headerBreaksBadgesHtml = '';
+    let laneBreakShadesHtml = '';
+    (activeBreaks || []).forEach(b => {
+        if (b.endMins > startMins && b.startMins < endLimitMins) {
+            const bLeft = Math.max(0, ((b.startMins - startMins) / totalDuration) * 100);
+            const bWidth = Math.min(100 - bLeft, ((b.endMins - b.startMins) / totalDuration) * 100);
+            const bName = (b.name || 'BREAK').toUpperCase();
+            const iconClass = bName.includes('LUNCH') ? 'fa-utensils' : (bName.includes('TEA') ? 'fa-mug-hot' : 'fa-clock');
 
-        laneBreakShadeHtml = `
-            <div style="position: absolute; left: ${bLeft}%; width: ${bWidth}%; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, rgba(245, 158, 11, 0.04), rgba(245, 158, 11, 0.04) 10px, rgba(245, 158, 11, 0.09) 10px, rgba(245, 158, 11, 0.09) 20px); border-left: 1.5px dashed rgba(245, 158, 11, 0.4); border-right: 1.5px dashed rgba(245, 158, 11, 0.4); z-index: 1; pointer-events: none;"></div>
-        `;
-    }
+            headerBreaksBadgesHtml += `
+                <div style="position: absolute; left: ${bLeft}%; width: ${bWidth}%; top: 4px; bottom: 4px; background: #FEF3C7; border: 1.5px dashed #F59E0B; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; z-index: 5; overflow: hidden; padding: 0 4px;" title="${optEscapeHtml(b.name)} (${minutesToTimeString(b.startMins)} - ${minutesToTimeString(b.endMins)})">
+                    <i class="fa-solid ${iconClass}" style="font-size: 0.72rem; color: #D97706;"></i>
+                    <span style="font-size: 0.72rem; font-weight: 800; color: #92400E; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${optEscapeHtml(bName)}</span>
+                </div>
+            `;
 
-    // Build stage swimlanes
-    const activeStageList = (effectiveStages && effectiveStages.length > 0) ? effectiveStages : stagesList;
+            laneBreakShadesHtml += `
+                <div style="position: absolute; left: ${bLeft}%; width: ${bWidth}%; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, rgba(245, 158, 11, 0.04), rgba(245, 158, 11, 0.04) 10px, rgba(245, 158, 11, 0.09) 10px, rgba(245, 158, 11, 0.09) 20px); border-left: 1.5px dashed rgba(245, 158, 11, 0.4); border-right: 1.5px dashed rgba(245, 158, 11, 0.4); z-index: 1; pointer-events: none;"></div>
+            `;
+        }
+    });
+
+    // Build stage swimlanes for selected stages
+    const activeStageList = (targetStages && targetStages.length > 0) ? targetStages : (window._optimizerEffectiveStages || stagesList);
     const stageTracks = [
         ...activeStageList.map(s => ({ id: s.id, name: s.name, isOffstage: false, is_simulated: s.is_simulated })),
-        { id: 'offstage', name: 'Offstage Venues', isOffstage: true }
+        ...(includeOffstage ? [{ id: 'offstage', name: 'Offstage Venues', isOffstage: true }] : [])
     ];
 
     let swimlanesHtml = '';
@@ -10624,15 +10899,15 @@ function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540
 
             blocksHtml += `
                 <div style="position: absolute; left: ${leftPct}%; width: ${widthPct}%; top: ${topPos}px; height: ${rowHeight}px; background: ${bgGradient}; border-radius: 6px; color: white; padding: 3px 8px; overflow: hidden; box-shadow: 0 2px 5px ${shadowColor}; border: 1px solid rgba(255,255,255,0.25); cursor: pointer; z-index: 2; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; transition: transform 0.15s ease, box-shadow 0.15s ease;"
-                     title="${item.comp.name} (${categoryName})&#10;Time: ${item.sched.time} - ${item.sched.to_time} (${item.sched.manual_time}m)&#10;Students: ${studentCount} enrolled"
+                     title="${optEscapeHtml(item.comp.name)} (${optEscapeHtml(categoryName)})&#10;Time: ${item.sched.time} - ${item.sched.to_time} (${item.sched.manual_time}m)&#10;Students: ${studentCount} enrolled"
                      onmouseover="this.style.transform='translateY(-2px) scale(1.02)'; this.style.zIndex='20'; this.style.boxShadow='0 6px 14px rgba(0,0,0,0.25)';"
                      onmouseout="this.style.transform='none'; this.style.zIndex='2'; this.style.boxShadow='0 2px 5px ${shadowColor}';">
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; overflow: hidden; line-height: 1.15;">
-                        <span style="font-weight: 700; font-size: 0.73rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.comp.name}</span>
+                        <span style="font-weight: 700; font-size: 0.73rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${optEscapeHtml(item.comp.name)}</span>
                         <span style="font-size: 0.62rem; opacity: 0.9; font-family: monospace; white-space: nowrap; flex-shrink: 0;">${item.sched.time}</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 6px; font-size: 0.62rem; opacity: 0.9; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">
-                        <span style="background: rgba(255,255,255,0.22); padding: 1px 4px; border-radius: 3px; font-weight: 600;">${categoryName}</span>
+                        <span style="background: rgba(255,255,255,0.22); padding: 1px 4px; border-radius: 3px; font-weight: 600;">${optEscapeHtml(categoryName)}</span>
                         <span>${item.sched.manual_time}m</span>
                         ${studentCount > 0 ? `<span>• ${studentCount} part.</span>` : ''}
                     </div>
@@ -10645,7 +10920,7 @@ function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540
                 <div style="width: 175px; min-width: 175px; padding: 0.75rem 1rem; background: var(--bg-main); border-right: 1px solid var(--border); display: flex; flex-direction: column; justify-content: center; gap: 0.25rem;">
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                         <i class="${track.isOffstage ? 'fa-solid fa-layer-group' : 'fa-solid fa-microphone-stage'}" style="color: ${track.isOffstage ? '#0D9488' : '#4F46E5'}; font-size: 0.95rem;"></i>
-                        <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-main); word-break: break-word;">${track.name}</span>
+                        <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-main); word-break: break-word;">${optEscapeHtml(track.name)}</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
                         <span style="font-size: 0.68rem; font-weight: 700; color: ${track.isOffstage ? '#0F766E' : '#4338CA'}; background: ${track.isOffstage ? '#CCFBF1' : '#EEF2FF'}; padding: 1px 6px; border-radius: 999px;">${trackItems.length} comp${trackItems.length === 1 ? '' : 's'}</span>
@@ -10655,7 +10930,7 @@ function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540
                 </div>
                 <div style="flex: 1; position: relative; min-height: ${totalLaneHeight}px; background: white;">
                     ${laneGridLinesHtml}
-                    ${laneBreakShadeHtml}
+                    ${laneBreakShadesHtml}
                     ${blocksHtml}
                 </div>
             </div>
@@ -10681,8 +10956,8 @@ function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540
                     ${unplacedList.map(c => `
                         <span style="display: inline-flex; align-items: center; gap: 0.35rem; background: white; border: 1px solid #FCD34D; color: #78350F; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
                             <i class="${c.is_offstage ? 'fa-solid fa-layer-group' : 'fa-solid fa-microphone-stage'}" style="font-size: 0.7rem; color: #D97706;"></i>
-                            <span>${c.name}</span>
-                            <span style="font-size: 0.65rem; color: #92400E; background: #FEF3C7; padding: 1px 4px; border-radius: 3px;">${c.categories?.name || 'Gen'} • ${c.calculatedDuration || 30}m</span>
+                            <span>${optEscapeHtml(c.name)}</span>
+                            <span style="font-size: 0.65rem; color: #92400E; background: #FEF3C7; padding: 1px 4px; border-radius: 3px;">${optEscapeHtml(c.categories?.name || 'Gen')} • ${c.calculatedDuration || 30}m</span>
                         </span>
                     `).join('')}
                 </div>
@@ -10712,7 +10987,7 @@ function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540
                     </div>
                     <div style="flex: 1; position: relative; height: 36px;">
                         ${headerTimeMarkersHtml}
-                        ${headerLunchBadgeHtml}
+                        ${headerBreaksBadgesHtml}
                     </div>
                 </div>
                 <!-- Swimlanes Body -->

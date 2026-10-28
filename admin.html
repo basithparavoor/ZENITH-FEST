@@ -6148,7 +6148,7 @@ canvas {
 
         <div style="padding: 1.25rem 0 0 0; overflow-y: auto; flex: 1;">
             <!-- Configuration Form Deck -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; background: var(--bg-main); padding: 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border); margin-bottom: 1.5rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; background: var(--bg-main); padding: 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border); margin-bottom: 1.25rem;">
                 <div>
                     <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">TARGET FEST DATE</label>
                     <input type="date" id="opt-date" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
@@ -6172,16 +6172,8 @@ canvas {
                 <div>
                     <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">STAGE STRATEGY</label>
                     <select id="opt-stage-strategy" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
-                        <option value="auto_balance" selected>Auto-Balance Across Stages</option>
+                        <option value="auto_balance" selected>Auto-Balance Across Selected Stages</option>
                         <option value="preserve">Strict: Pre-Assigned Stages</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">BREAK / LUNCH</label>
-                    <select id="opt-break-window" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
-                        <option value="none">No Break</option>
-                        <option value="13:00-14:00" selected>1:00 PM - 2:00 PM (Lunch)</option>
-                        <option value="12:30-13:30">12:30 PM - 1:30 PM</option>
                     </select>
                 </div>
                 <div>
@@ -6190,6 +6182,58 @@ canvas {
                         <option value="unscheduled_only" selected>Unscheduled Events Only</option>
                         <option value="all_replace">Re-optimize All on Date</option>
                     </select>
+                </div>
+            </div>
+
+            <!-- Stage & Venue Selection Panel (Single or Multi-Stage) -->
+            <div style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 26px; height: 26px; border-radius: 6px; background: #EEF2FF; color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+                            <i class="fa-solid fa-microphone-stage"></i>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.85rem; font-weight: 800; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.04em;">Target Stages & Venues</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-left: 6px;">(Select 1 stage to schedule step-by-step, or select multiple stages)</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.65rem; font-size: 0.75rem; font-weight: 700;" onclick="selectAllOptimizerStages(true)">
+                            <i class="fa-solid fa-check-double"></i> Select All
+                        </button>
+                        <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.65rem; font-size: 0.75rem; font-weight: 700;" onclick="selectAllOptimizerStages(false)">
+                            <i class="fa-solid fa-square"></i> Clear
+                        </button>
+                    </div>
+                </div>
+                <div id="opt-stages-container" style="display: flex; flex-wrap: wrap; gap: 0.6rem;">
+                    <div style="color: var(--text-muted); font-size: 0.82rem; padding: 0.5rem;">Loading stages...</div>
+                </div>
+            </div>
+
+            <!-- Break Times & Intervals Deck (Lunch, Tea, etc.) -->
+            <div style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 26px; height: 26px; border-radius: 6px; background: #FEF3C7; color: #D97706; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+                            <i class="fa-solid fa-utensils"></i>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.85rem; font-weight: 800; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.04em;">Scheduled Breaks & Intervals</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-left: 6px;">(No competitions scheduled during these hours; edit times anytime)</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.65rem; font-size: 0.75rem; font-weight: 700; color: #D97706; border-color: #FCD34D;" onclick="addOptimizerLunchBreak()">
+                            <i class="fa-solid fa-utensils"></i> + Add Lunch (1:00 - 2:00 PM)
+                        </button>
+                        <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.65rem; font-size: 0.75rem; font-weight: 700; color: #4F46E5; border-color: #C7D2FE;" onclick="addOptimizerBreak()">
+                            <i class="fa-solid fa-plus"></i> + Add Custom Break
+                        </button>
+                    </div>
+                </div>
+                <div id="opt-breaks-container" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <!-- Dynamically rendered editable break rows -->
                 </div>
             </div>
 
