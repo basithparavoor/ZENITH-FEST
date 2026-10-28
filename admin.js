@@ -10172,6 +10172,7 @@ let optimizerBreaks = [
     { id: 'break_lunch', name: 'Lunch Break', start: '13:00', end: '14:00' }
 ];
 let optimizerSelectedStageIds = [];
+let optimizerSelectedCategoryIds = [];
 
 function renderOptimizerBreaks() {
     const container = document.getElementById('opt-breaks-container');
@@ -10384,6 +10385,137 @@ function getOptimizerSelectedStages() {
     return Array.from(checkboxes).map(cb => String(cb.value));
 }
 
+function renderOptimizerCategorySelector(categories = []) {
+    const container = document.getElementById('opt-categories-container');
+    if (!container) return;
+
+    const cats = (categories && categories.length > 0) ? categories : categoriesList;
+
+    // Build category items from categoriesList
+    const catItems = cats.map(c => {
+        const compCount = (competitionsList || []).filter(comp => String(comp.category_id) === String(c.id)).length;
+        return {
+            id: String(c.id),
+            name: c.name || 'Unnamed Category',
+            isGeneral: !!c.is_general,
+            count: compCount
+        };
+    });
+
+    // Also check if there are competitions without a defined category
+    const unassignedCount = (competitionsList || []).filter(comp => {
+        if (!comp.category_id) return true;
+        return !cats.some(c => String(c.id) === String(comp.category_id));
+    }).length;
+
+    if (unassignedCount > 0) {
+        catItems.push({
+            id: '__unassigned__',
+            name: 'General / Uncategorized',
+            isGeneral: true,
+            count: unassignedCount
+        });
+    }
+
+    if (catItems.length === 0) {
+        container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.82rem; padding: 0.5rem;">No categories defined yet in this fest.</div>`;
+        return;
+    }
+
+    if (!optimizerSelectedCategoryIds || optimizerSelectedCategoryIds.length === 0) {
+        optimizerSelectedCategoryIds = catItems.map(c => String(c.id));
+    }
+
+    container.innerHTML = catItems.map(c => {
+        const isChecked = optimizerSelectedCategoryIds.includes(String(c.id));
+        const badgeColor = c.isGeneral ? '#D97706' : '#059669';
+        const badgeBg = c.isGeneral ? '#FEF3C7' : '#ECFDF5';
+        const icon = c.isGeneral ? 'fa-layer-group' : 'fa-tag';
+        const subLabel = `${c.count} ${c.count === 1 ? 'event' : 'events'}`;
+
+        return `
+            <div class="opt-category-pill" id="opt-cat-pill-${c.id}" style="display: inline-flex; align-items: center; gap: 0.5rem; background: ${isChecked ? badgeBg : 'white'}; border: 1.5px solid ${isChecked ? badgeColor : 'var(--border)'}; padding: 0.4rem 0.75rem; border-radius: 8px; transition: all 0.15s ease;">
+                <label style="display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer; margin: 0; font-weight: 700; font-size: 0.8rem; color: var(--text-main);">
+                    <input type="checkbox" class="opt-category-checkbox" value="${c.id}" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px; accent-color: ${badgeColor};" onchange="onOptimizerCategoryToggle('${c.id}')">
+                    <i class="fa-solid ${icon}" style="color: ${badgeColor}; font-size: 0.8rem;"></i>
+                    <span>${optEscapeHtml(c.name)}</span>
+                    <span style="font-size: 0.65rem; font-weight: 800; color: ${badgeColor}; opacity: 0.9;">(${subLabel})</span>
+                </label>
+                <button type="button" class="btn btn-outline" style="padding: 1px 6px; font-size: 0.65rem; font-weight: 800; border-radius: 4px; border: 1px solid var(--border); color: var(--text-muted); background: white; margin-left: 2px;" title="Schedule ONLY ${optEscapeHtml(c.name)}" onclick="selectOnlyOptimizerCategory('${c.id}')">
+                    Only
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+function onOptimizerCategoryToggle(categoryId) {
+    const cb = document.querySelector(`.opt-category-checkbox[value="${categoryId}"]`);
+    const pill = document.getElementById(`opt-cat-pill-${categoryId}`);
+    if (cb && pill) {
+        if (cb.checked) {
+            if (!optimizerSelectedCategoryIds.includes(String(categoryId))) optimizerSelectedCategoryIds.push(String(categoryId));
+        } else {
+            optimizerSelectedCategoryIds = optimizerSelectedCategoryIds.filter(id => id !== String(categoryId));
+        }
+        const isGeneral = categoryId === '__unassigned__' || (categoriesList || []).some(c => String(c.id) === String(categoryId) && !!c.is_general);
+        const badgeColor = isGeneral ? '#D97706' : '#059669';
+        const badgeBg = isGeneral ? '#FEF3C7' : '#ECFDF5';
+        pill.style.background = cb.checked ? badgeBg : 'white';
+        pill.style.borderColor = cb.checked ? badgeColor : 'var(--border)';
+    }
+}
+
+function selectAllOptimizerCategories(selectAll = true) {
+    const checkboxes = document.querySelectorAll('.opt-category-checkbox');
+    optimizerSelectedCategoryIds = [];
+    checkboxes.forEach(cb => {
+        cb.checked = selectAll;
+        if (selectAll) optimizerSelectedCategoryIds.push(String(cb.value));
+        const pill = document.getElementById(`opt-cat-pill-${cb.value}`);
+        if (pill) {
+            const isGeneral = cb.value === '__unassigned__' || (categoriesList || []).some(c => String(c.id) === String(cb.value) && !!c.is_general);
+            const badgeColor = isGeneral ? '#D97706' : '#059669';
+            const badgeBg = isGeneral ? '#FEF3C7' : '#ECFDF5';
+            pill.style.background = selectAll ? badgeBg : 'white';
+            pill.style.borderColor = selectAll ? badgeColor : 'var(--border)';
+        }
+    });
+}
+
+function selectOnlyOptimizerCategory(categoryId) {
+    const checkboxes = document.querySelectorAll('.opt-category-checkbox');
+    optimizerSelectedCategoryIds = [String(categoryId)];
+    checkboxes.forEach(cb => {
+        const isTarget = String(cb.value) === String(categoryId);
+        cb.checked = isTarget;
+        const pill = document.getElementById(`opt-cat-pill-${cb.value}`);
+        if (pill) {
+            const isGeneral = cb.value === '__unassigned__' || (categoriesList || []).some(c => String(c.id) === String(cb.value) && !!c.is_general);
+            const badgeColor = isGeneral ? '#D97706' : '#059669';
+            const badgeBg = isGeneral ? '#FEF3C7' : '#ECFDF5';
+            pill.style.background = isTarget ? badgeBg : 'white';
+            pill.style.borderColor = isTarget ? badgeColor : 'var(--border)';
+        }
+    });
+    // Immediately re-run optimizer for this single category!
+    generateOptimizedSchedule();
+}
+
+function getOptimizerSelectedCategories() {
+    const checkboxes = document.querySelectorAll('.opt-category-checkbox:checked');
+    if (checkboxes.length > 0) {
+        return Array.from(checkboxes).map(cb => String(cb.value));
+    }
+    return optimizerSelectedCategoryIds || [];
+}
+
+window.renderOptimizerCategorySelector = renderOptimizerCategorySelector;
+window.onOptimizerCategoryToggle = onOptimizerCategoryToggle;
+window.selectAllOptimizerCategories = selectAllOptimizerCategories;
+window.selectOnlyOptimizerCategory = selectOnlyOptimizerCategory;
+window.getOptimizerSelectedCategories = getOptimizerSelectedCategories;
+
 function packSwimlaneEvents(items) {
     if (!items || items.length === 0) return { packed: [], rowCount: 1 };
     
@@ -10434,9 +10566,10 @@ async function openAutoSchedulerModal() {
     if (metricsBadge) metricsBadge.style.display = 'none';
     if (statusIndicator) statusIndicator.innerText = 'Initializing optimizer...';
 
-    // Ensure baseline data is loaded before rendering stages
+    // Ensure baseline data is loaded before rendering stages & categories
     if (competitionsList.length === 0) await loadCompetitions();
     if (stagesList.length === 0) await loadStagesAndTeams();
+    if (categoriesList.length === 0) await loadCategories();
 
     let effectiveStages = [...stagesList];
     let isSimulatedStages = false;
@@ -10451,8 +10584,9 @@ async function openAutoSchedulerModal() {
     window._optimizerEffectiveStages = effectiveStages;
     window._optimizerIsSimulated = isSimulatedStages;
 
-    // Render Stage Selector & Breaks UI
+    // Render Stage Selector, Category Selector & Breaks UI
     renderOptimizerStageSelector(effectiveStages);
+    renderOptimizerCategorySelector();
     renderOptimizerBreaks();
 
     document.getElementById('autoSchedulerModal').classList.add('show');
@@ -10516,6 +10650,14 @@ async function generateOptimizedSchedule() {
         return;
     }
 
+    // Read selected categories
+    const selectedCategoryIds = getOptimizerSelectedCategories();
+    if (selectedCategoryIds.length === 0 && (categoriesList.length > 0 || competitionsList.some(c => c.category_id))) {
+        alert("Please select at least one category to schedule.");
+        if (statusIndicator) statusIndicator.innerText = 'No categories selected.';
+        return;
+    }
+
     const targetStages = effectiveStages.filter(s => selectedStageIds.includes(String(s.id)));
 
     const enrollments = await fetchScheduleEnrollments(true);
@@ -10526,7 +10668,7 @@ async function generateOptimizedSchedule() {
         compStudentsMap[e.competition_id].push(e.participant_id);
     });
 
-    // 1. Filter Candidate Competitions based on Scope and Selected Stages
+    // 1. Filter Candidate Competitions based on Scope, Selected Categories and Selected Stages
     let candidates = [];
     if (scope === 'unscheduled_only') {
         candidates = competitionsList.filter(c => {
@@ -10535,6 +10677,17 @@ async function generateOptimizedSchedule() {
         });
     } else {
         candidates = [...competitionsList];
+    }
+
+    // Filter strictly to selected categories (if categories are configured)
+    if (selectedCategoryIds.length > 0) {
+        candidates = candidates.filter(comp => {
+            const compCatId = comp.category_id ? String(comp.category_id) : '__unassigned__';
+            if (selectedCategoryIds.includes(compCatId)) return true;
+            const isKnown = (categoriesList || []).some(cat => String(cat.id) === String(comp.category_id));
+            if (!isKnown && selectedCategoryIds.includes('__unassigned__')) return true;
+            return false;
+        });
     }
 
     // Filter strictly to selected stages
