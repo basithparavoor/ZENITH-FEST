@@ -24,7 +24,8 @@ let isAssignmentLocked = false;
 let globalStudents = [];
 let globalComps = [];
 let globalAssignments = [];
-let globalCategories = []; 
+let globalCategories = [];
+let globalStages = []; 
 let currentCropper = null;
 let systemSettings = {}; 
 let tmScheduleData = {};
@@ -176,7 +177,15 @@ function switchTab(tabId) {
     });
 
     if (tabId === 'appeals') loadAppeals();
-    if (tabId === 'assignments') populateBulkAssignCategoryDropdown();
+    if (tabId === 'assignments') {
+        if (typeof window.switchAssignView === 'function') {
+            window.switchAssignView('list');
+        } else {
+            populateAssignOverviewCategoryDropdown();
+            renderAssignOverview();
+            populateBulkAssignCategoryDropdown();
+        }
+    }
     if (tabId === 'schedule') { populateSchedCatFilter(); renderTMSchedule(); }
 
     const mainContent = document.querySelector('.main-content');
@@ -207,8 +216,19 @@ function closeConfirmModal() {
 
 function logout() {
     openConfirmModal("Sign Out", "Are you sure you want to securely log out of the Team Manager portal?", () => {
-        localStorage.removeItem('festUser');
-        window.location.href = 'index.html';
+        if (typeof festosAuth !== 'undefined' && festosAuth.logout) {
+            festosAuth.logout('index.html?logout=true');
+        } else {
+            localStorage.removeItem('festUser');
+            localStorage.removeItem('festSuperAdmin');
+            localStorage.removeItem('festos_remember_session');
+            localStorage.removeItem('festos_active_fest_id');
+            localStorage.removeItem('festos_tm_selected_team_id');
+            localStorage.removeItem('festBranding');
+            localStorage.removeItem('festos_branding_cache_active');
+            if (typeof sessionStorage !== 'undefined') sessionStorage.clear();
+            window.location.href = 'index.html?logout=true';
+        }
     });
 }
 
@@ -222,6 +242,7 @@ function saveDashboardToCache() {
                 manager_names_html: document.getElementById('tm-manager-names')?.innerHTML || ''
             },
             categories: globalCategories,
+            stages: globalStages,
             students: globalStudents,
             competitions: globalComps,
             assignments: globalAssignments,
@@ -261,6 +282,10 @@ function restoreDashboardFromCache() {
             globalCategories = cache.categories;
             window.categoriesList = globalCategories;
         }
+        if (Array.isArray(cache.stages) && cache.stages.length > 0) {
+            globalStages = cache.stages;
+            window.globalStages = globalStages;
+        }
         if (Array.isArray(cache.students) && cache.students.length > 0) {
             globalStudents = cache.students;
             window.globalStudents = globalStudents;
@@ -298,6 +323,8 @@ function restoreDashboardFromCache() {
         renderCatalog();
         renderLiveTracking();
         populateBulkAssignCategoryDropdown();
+        populateAssignOverviewCategoryDropdown();
+        renderAssignOverview();
 
         return true;
     } catch (e) {
@@ -346,9 +373,28 @@ async function refreshDashboard(btnElement) {
 
 async function fetchAllData(forceFresh = false, isBackgroundSync = false) {
     try {
-        // Resolve fallback team if accessing without team_id (e.g. Master Admin / Super Admin)
-        if (!myTeamId && (user.role === 'admin' || user.role === 'super_admin' || user.role === 'master_admin')) {
-            const { data: firstTeam } = await supabaseClient.from('teams').select('id, name, manager_name, assistant_manager_name').limit(1).maybeSingle();
+        // Ensure myTeamId is resolved for all roles including team_manager
+        if (!myTeamId) {
+            myTeamId = user.team_id || sessionStorage.getItem('festos_tm_selected_team_id') || localStorage.getItem('festos_tm_selected_team_id');
+        }
+        if (!myTeamId && user && user.id && supabaseClient) {
+            try {
+                const { data: uRec } = await supabaseClient.from('users').select('team_id, fest_id').eq('id', user.id).maybeSingle();
+                if (uRec && uRec.team_id) {
+                    myTeamId = uRec.team_id;
+                    user.team_id = myTeamId;
+                    try {
+                        localStorage.setItem('festUser', JSON.stringify(user));
+                        sessionStorage.setItem('festos_tm_selected_team_id', myTeamId);
+                    } catch(e) {}
+                }
+            } catch(e) {}
+        }
+        if (!myTeamId && supabaseClient) {
+            const activeFid = (window.festosAuth && window.festosAuth.getCurrentFestId) ? window.festosAuth.getCurrentFestId() : (user.fest_id || localStorage.getItem('festos_active_fest_id'));
+            let fallbackTeamQuery = supabaseClient.from('teams').select('id, name, manager_name, assistant_manager_name');
+            if (activeFid) fallbackTeamQuery = fallbackTeamQuery.eq('fest_id', activeFid);
+            const { data: firstTeam } = await fallbackTeamQuery.limit(1).maybeSingle();
             if (firstTeam) {
                 myTeamId = firstTeam.id;
                 try { sessionStorage.setItem('festos_tm_selected_team_id', myTeamId); } catch(e) {}
@@ -356,11 +402,13 @@ async function fetchAllData(forceFresh = false, isBackgroundSync = false) {
         }
 
         let catsQuery = supabaseClient.from('categories').select('*');
+        let stagesQuery = supabaseClient.from('stages').select('*').order('stage_no');
         // Optimized: only select fields necessary for Team Manager
         let compsQuery = supabaseClient.from('competitions').select('id, name, category_id, stage_id, status, is_group, is_offstage, max_participants, max_mark, categories(id, name, is_general, allowed_general_categories), stages(name)').order('name');
         if (window.festosApplyFilter) {
             catsQuery = window.festosApplyFilter(catsQuery);
             compsQuery = window.festosApplyFilter(compsQuery);
+            stagesQuery = window.festosApplyFilter(stagesQuery);
         }
 
         // Fire all independent queries in parallel (1 network round-trip)
@@ -401,7 +449,8 @@ async function fetchAllData(forceFresh = false, isBackgroundSync = false) {
             partClassesMapRaw,
             catsRes,
             studentsRes,
-            compsRes
+            compsRes,
+            stagesRes
         ] = await Promise.all([
             teamPromise,
             pointPromise,
@@ -411,7 +460,8 @@ async function fetchAllData(forceFresh = false, isBackgroundSync = false) {
             partClassesPromise,
             catsQuery,
             studentsPromise,
-            compsQuery
+            compsQuery,
+            stagesQuery
         ]);
 
         // 1. Process Team Data
@@ -455,6 +505,9 @@ async function fetchAllData(forceFresh = false, isBackgroundSync = false) {
         const cats = catsRes?.data || [];
         const students = studentsRes?.data || [];
         const comps = compsRes?.data || [];
+        const stages = stagesRes?.data || [];
+        globalStages = stages;
+        window.globalStages = globalStages;
 
         globalCategories = cats.map(c => ({
             ...c,
@@ -465,9 +518,12 @@ async function fetchAllData(forceFresh = false, isBackgroundSync = false) {
             class_name: s.class_name || partClassesMap[s.id] || ''
         }));
         window.globalStudents = globalStudents;
+        window.globalParticipants = globalStudents;
         window.participantsList = globalStudents;
         window.categoriesList = globalCategories;
+        window.globalCategories = globalCategories;
         globalComps = comps;
+        window.globalCompetitions = globalComps;
 
         // 4. Batch 2: Fetch participant assignments and judgements in parallel
         const studentIds = globalStudents.map(s => s.id);
@@ -546,6 +602,8 @@ async function fetchAllData(forceFresh = false, isBackgroundSync = false) {
         renderCatalog();
         renderLiveTracking();
         populateBulkAssignCategoryDropdown();
+        populateAssignOverviewCategoryDropdown();
+        renderAssignOverview();
 
         // Persist to local SWR cache for instant load next time
         saveDashboardToCache();
@@ -1129,10 +1187,8 @@ function renderCatalog() {
         if (catFilter !== 'all' && catName !== catFilter) return;
         if (search && !comp.name.toLowerCase().includes(search) && !catName.toLowerCase().includes(search)) return;
 
-        // FIXED: Replaced explicit stage names with pure "OFFSTAGE" or "STAGE" label
-        const stageName = comp.is_offstage 
-            ? '<span style="color:#D97706; font-weight:800; background: #FEF3C7; padding: 4px 8px; border-radius: 6px;"><i class="fa-solid fa-pen-nib"></i> OFFSTAGE</span>' 
-            : `<span style="color: var(--primary); font-weight: 800; background: var(--primary-light); padding: 4px 8px; border-radius: 6px;"><i class="fa-solid fa-microphone-stage"></i> STAGE</span>`;
+        const venueInfo = (window.festosGetCompVenueStage || getCompVenueStage)(comp, globalStages);
+        const stageName = venueInfo.htmlBadge;
             
         const limitDisplay = comp.max_participants ? comp.max_participants : 'NO LIMIT';
         
@@ -1144,7 +1200,7 @@ function renderCatalog() {
             <tr>
                 <td data-label="EVENT NAME" style="font-weight: 700; color: var(--text-main);"></td>
                 <td data-label="CATEGORY"><span class="badge badge-gray">${catName}</span></td>
-                <td data-label="STAGE PRESENCE">${stageName}</td>
+                <td data-label="VENUE / STAGE">${stageName}</td>
                 <td data-label="TYPE & LIMIT">${typeBadge}</td>
             </tr>
         `;
@@ -1174,7 +1230,8 @@ async function exportCatalogPDF() {
     container.innerHTML = getPDFHeaderHTML(`Event Catalog`);
 
     let tableRows = filteredComps.map((c, i) => {
-        const stageName = c.is_offstage ? 'OFFSTAGE' : 'STAGE';
+        const venueInfo = (window.festosGetCompVenueStage || getCompVenueStage)(c, globalStages);
+        const stageName = venueInfo.displayText;
         const typeBadge = c.is_group ? `GROUP (MAX ${c.max_participants})` : `SOLO (MAX ${c.max_participants})`;
         return `
         <tr>
@@ -1190,7 +1247,7 @@ async function exportCatalogPDF() {
         <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
             <thead>
                 <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;">
-                    <th style="padding: 10px;">#</th><th style="padding: 10px;">EVENT NAME</th><th style="padding: 10px;">CATEGORY</th><th style="padding: 10px;">PRESENCE</th><th style="padding: 10px;">TYPE & LIMIT</th>
+                    <th style="padding: 10px;">#</th><th style="padding: 10px;">EVENT NAME</th><th style="padding: 10px;">CATEGORY</th><th style="padding: 10px;">VENUE / STAGE</th><th style="padding: 10px;">TYPE & LIMIT</th>
                 </tr>
             </thead>
             <tbody style="font-size: 12px; color: #334155;">${tableRows}</tbody>
@@ -1322,7 +1379,59 @@ window.viewEnrolledDetails = viewEnrolledDetails;
 
 // ---------------- BULK ASSIGNMENTS ----------------
 
-// NEW: Populates the first dropdown with categories
+// ==========================================
+// UNIFIED CATEGORY & STUDENT ELIGIBILITY ENGINE
+// ==========================================
+function isCategoryGeneral(catId, compCat) {
+    if (!catId && !compCat) return false;
+    const cat = compCat || (globalCategories || []).find(c => String(c.id) === String(catId));
+    if (!cat) return false;
+    if (cat.is_general === true || String(cat.is_general) === 'true') return true;
+    const name = String(cat.name || '').trim().toLowerCase();
+    if (name === 'general' || name.startsWith('general')) return true;
+
+    // Check if any category has this category's ID in allowed_general_categories
+    const targetId = String(cat.id || catId);
+    return (globalCategories || []).some(c => {
+        let raw = c.allowed_general_categories;
+        let arr = [];
+        try {
+            if (typeof raw === 'string') arr = JSON.parse(raw);
+            else if (Array.isArray(raw)) arr = raw;
+        } catch(e) {}
+        return arr.some(x => String(x) === targetId);
+    });
+}
+
+function isStudentEligibleForComp(student, comp) {
+    if (!student || !comp) return false;
+    // 1. Direct category match
+    if (String(student.category_id) === String(comp.category_id)) return true;
+
+    // 2. Cross-category match for General Competitions
+    const compCat = (globalCategories || []).find(c => String(c.id) === String(comp.category_id)) || comp.categories;
+    const isGeneral = isCategoryGeneral(comp.category_id, compCat);
+
+    if (isGeneral) {
+        const studentCategory = (globalCategories || []).find(c => String(c.id) === String(student.category_id));
+        if (!studentCategory) return true;
+
+        let rawAllowed = studentCategory.allowed_general_categories;
+        let allowedCats = [];
+        try {
+            if (typeof rawAllowed === 'string') allowedCats = JSON.parse(rawAllowed);
+            else if (Array.isArray(rawAllowed)) allowedCats = rawAllowed;
+        } catch(e) {}
+
+        if (allowedCats.length > 0) {
+            return allowedCats.some(id => String(id) === String(comp.category_id));
+        }
+        return true;
+    }
+    return false;
+}
+
+// Populates the first dropdown with categories
 function populateBulkAssignCategoryDropdown() {
     const catSelect = document.getElementById('bulkAssignCategory');
     if (!catSelect) return;
@@ -1338,19 +1447,19 @@ function populateBulkAssignCategoryDropdown() {
         compSelect.innerHTML = '<option value="">-- CHOOSE CATEGORY FIRST --</option>';
         compSelect.disabled = true;
     }
-    document.getElementById('bulk-table-wrapper').style.display = 'none';
+    const wrap = document.getElementById('bulk-table-wrapper');
+    if (wrap) wrap.style.display = 'none';
 }
 
-// UPDATED: Populates the second dropdown based on the category chosen
+// Populates the second dropdown based on the category chosen
 function populateBulkAssignDropdown() {
-    const categoryId = document.getElementById('bulkAssignCategory').value;
+    const catSelect = document.getElementById('bulkAssignCategory');
     const select = document.getElementById('bulkAssignComp');
+    const wrap = document.getElementById('bulk-table-wrapper');
+    if (wrap) wrap.style.display = 'none';
+    if (!select || !catSelect) return;
     
-    // Hide the workspace table whenever a new category is selected
-    document.getElementById('bulk-table-wrapper').style.display = 'none';
-    
-    if (!select) return;
-    
+    const categoryId = catSelect.value;
     if (!categoryId) {
         select.innerHTML = '<option value="">-- CHOOSE CATEGORY FIRST --</option>';
         select.disabled = true;
@@ -1359,31 +1468,49 @@ function populateBulkAssignDropdown() {
     
     select.innerHTML = '<option value="">-- CHOOSE A COMPETITION --</option>';
     
-    // Filter competitions by pending statuses AND the selected category
-    const eligibleComps = globalComps.filter(c => 
-        c.status !== 'published' && 
-        c.status !== 'judgement_complete' &&
-        c.category_id == categoryId // Use == to fix String vs Integer mismatch
-    );
+    const selectedCat = (globalCategories || []).find(c => String(c.id) === String(categoryId));
+    const eligibleComps = globalComps.filter(c => {
+        if (c.status === 'published' || c.status === 'judgement_complete') return false;
+        if (String(c.category_id) === String(categoryId)) return true;
+        const compCat = (globalCategories || []).find(cat => String(cat.id) === String(c.category_id)) || c.categories;
+        if (isCategoryGeneral(c.category_id, compCat)) {
+            let allowed = selectedCat?.allowed_general_categories;
+            let arr = [];
+            try {
+                if (typeof allowed === 'string') arr = JSON.parse(allowed);
+                else if (Array.isArray(allowed)) arr = allowed;
+            } catch(e) {}
+            if (arr.length === 0 || arr.some(id => String(id) === String(c.category_id))) {
+                return true;
+            }
+        }
+        return false;
+    });
+
     eligibleComps.forEach(c => {
-        select.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+        const isGen = isCategoryGeneral(c.category_id, c.categories);
+        const label = isGen && String(c.category_id) !== String(categoryId) ? `${c.name} (General)` : c.name;
+        select.innerHTML += `<option value="${c.id}">${label}</option>`;
     });
     
-    // Unlock the competition dropdown
     select.disabled = false;
 }
+
 function renderBulkAssignmentTable() {
-    const compId = document.getElementById('bulkAssignComp').value;
+    const compSelect = document.getElementById('bulkAssignComp');
     const tbody = document.getElementById('bulk-assignments-tbody');
     const wrapper = document.getElementById('bulk-table-wrapper');
     const thLeader = document.getElementById('th-leader'); 
 
+    if (!compSelect || !tbody || !wrapper) return;
+
+    const compId = compSelect.value;
     if (!compId) {
         wrapper.style.display = 'none';
         return;
     }
 
-    const comp = globalComps.find(c => c.id == compId);
+    const comp = globalComps.find(c => String(c.id) === String(compId));
     if (!comp) return;
 
     wrapper.style.display = 'block';
@@ -1391,36 +1518,8 @@ function renderBulkAssignmentTable() {
 
     tbody.innerHTML = '';
     
-    // Corrected Eligibility Logic: allowed_general_categories belongs to the Student's category, not the Competition's category
-    const compCat = (globalCategories || []).find(c => String(c.id) === String(comp.category_id)) || comp.categories;
-    const isGeneral = compCat ? (compCat.is_general === true || String(compCat.is_general) === 'true') : false;
-
-    const eligibleStudents = globalStudents.filter(student => {
-        // 1. Direct match (Works for standard comps, or if student is natively in the general category)
-        if (String(student.category_id) === String(comp.category_id)) return true;
-
-        // 2. Cross-category match for General Competitions
-        if (isGeneral) {
-            // Find the student's category data from the global catalog
-            const studentCategory = globalCategories.find(c => String(c.id) === String(student.category_id));
-            if (studentCategory) {
-                let rawAllowed = studentCategory.allowed_general_categories;
-                let allowedCats = [];
-                try {
-                    if (typeof rawAllowed === 'string') allowedCats = JSON.parse(rawAllowed);
-                    else if (Array.isArray(rawAllowed)) allowedCats = rawAllowed;
-                } catch(e) {}
-                
-                // Check if the student's category explicitly allows this general competition's category
-                if (allowedCats.some(id => String(id) === String(comp.category_id))) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    });
-
-    const enrolledData = globalAssignments.filter(a => a.competition_id == compId);
+    const eligibleStudents = globalStudents.filter(student => isStudentEligibleForComp(student, comp));
+    const enrolledData = globalAssignments.filter(a => String(a.competition_id) === String(compId));
 
     document.getElementById('bulk-comp-info').innerHTML = `<i class="fa-solid fa-users"></i> ${comp.name} <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 10px;">(Max ${comp.max_participants} per team)</span>`;
 
@@ -1505,8 +1604,8 @@ async function executeBulkAction(action) {
                         const check = festosEvaluateStudentCategoryLimit(
                             pId,
                             compId,
-                            globalParticipants || [],
-                            globalCompetitions || [],
+                            globalStudents || [],
+                            globalComps || [],
                             globalCategories || [],
                             globalAssignments || [],
                             limitCfg
@@ -1656,7 +1755,7 @@ async function exportTeamProgramListPDF() {
                     compsMap[comp.id] = {
                         compName: comp.name,
                         category: comp.categories?.name || 'GENERAL',
-                        stage: comp.is_offstage ? 'OFFSTAGE' : (comp.stages?.name || 'TBD'),
+                        stage: ((window.festosGetCompVenueStage || getCompVenueStage)(comp, globalStages)).displayText,
                         participants: []
                     };
                 }
@@ -1714,23 +1813,61 @@ async function exportTeamProgramListPDF() {
 }
 
 // ==========================================
-// UNIFIED GLOBAL BRANDING ENGINE
+// UNIFIED GLOBAL BRANDING ENGINE (STRICT TENANT POLICY)
 // ==========================================
 function applyCachedBrandingSync() {
     try {
         const u = (typeof festosAuth !== 'undefined') ? (festosAuth.getUser() || festosAuth.getSuperAdmin()) : JSON.parse(localStorage.getItem('festUser') || '{}');
-        const fid = (window.festosAuth && window.festosAuth.getCurrentFestId) ? window.festosAuth.getCurrentFestId() : (u?.fest_id || localStorage.getItem('festos_active_fest_id') || 'fest_zenith26');
-        const raw = localStorage.getItem('festos_branding_cache_' + fid) || 
-                    localStorage.getItem('festBranding') || 
-                    localStorage.getItem('festos_branding_cache_active') || 
-                    (fid ? localStorage.getItem('festos_cfg_system_branding_' + fid) : null);
+        const fid = (window.festosAuth && window.festosAuth.getCurrentFestId) ? window.festosAuth.getCurrentFestId() : (u?.fest_id || localStorage.getItem('festos_active_fest_id') || null);
+        if (!fid) return;
+
+        // Strict Policy: Purge any foreign un-scoped branding
+        if (typeof festosPurgeCrossTenantBranding === 'function') {
+            festosPurgeCrossTenantBranding(fid);
+        }
+
+        // 1. Strictly look for fid-scoped cache
+        let raw = localStorage.getItem('festos_branding_cache_' + fid) || 
+                  localStorage.getItem('festos_cfg_system_branding_' + fid);
+
+        // 2. Only accept un-scoped cache if explicitly verified matching current fid
+        if (!raw) {
+            const legacyFb = localStorage.getItem('festBranding');
+            if (legacyFb) {
+                try {
+                    const parsedFb = JSON.parse(legacyFb);
+                    if (parsedFb && parsedFb._fest_id === fid) raw = legacyFb;
+                    else localStorage.removeItem('festBranding');
+                } catch(e) {
+                    localStorage.removeItem('festBranding');
+                }
+            }
+        }
+
         if (raw) {
             const cached = JSON.parse(raw);
             if (cached && (cached.fest_name || cached.fest_logo)) {
+                cached._fest_id = fid;
                 applyGlobalBranding(cached);
+                return;
             }
         }
-    } catch (e) {}
+
+        // 3. Fallback to registered festival details strictly for fid
+        if (typeof festosBranding !== 'undefined' && festosBranding.getDetails) {
+            const details = festosBranding.getDetails(fid);
+            if (details && (details.name || details.logo)) {
+                applyGlobalBranding({
+                    fest_name: details.name || 'Festival',
+                    fest_logo: (details.logo && !details.logo.includes('festos-logo.svg')) ? details.logo : '',
+                    display_mode: details.logo ? 'both' : 'name',
+                    _fest_id: fid
+                });
+            }
+        }
+    } catch (e) {
+        console.warn('Sync cached branding notice:', e);
+    }
 }
 
 // Immediate synchronous invocation
@@ -1744,17 +1881,24 @@ async function fetchAndApplyBranding() {
     // 1. Immediately apply from local cache (0ms delay)
     applyCachedBrandingSync();
 
-    // 2. Background revalidation
+    // 2. Background revalidation strictly for this festival
     try {
-        const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+        const festId = (window.festosAuth && window.festosAuth.getCurrentFestId) 
+            ? window.festosAuth.getCurrentFestId() 
+            : (user?.fest_id || localStorage.getItem('festos_active_fest_id') || null);
+        if (!festId) return;
+
         let val = window.festosGetSetting ? await window.festosGetSetting('system_branding', festId) : null;
-        if (!val && festId && typeof supabaseClient !== 'undefined') {
+        if (!val && typeof supabaseClient !== 'undefined') {
             const { data: fData } = await supabaseClient.from('fests').select('name, logo').eq('id', festId).maybeSingle();
             if (fData && (fData.name || fData.logo)) {
-                val = { fest_name: fData.name, fest_logo: fData.logo, display_mode: fData.logo ? 'both' : 'name' };
+                val = { fest_name: fData.name, fest_logo: fData.logo || '', display_mode: fData.logo ? 'both' : 'name', _fest_id: festId };
             }
         }
-        if (val) applyGlobalBranding(val);
+        if (val) {
+            val._fest_id = festId;
+            applyGlobalBranding(val);
+        }
     } catch (e) {
         console.warn("Could not fetch global branding:", e.message);
     }
@@ -1936,19 +2080,29 @@ function populateSchedCatFilter() {
     const catFilter = document.getElementById('filter-schedule-cat');
     const stageFilter = document.getElementById('filter-schedule-stage');
     
-    if(catFilter && catFilter.options.length <= 1) {
+    if (catFilter && catFilter.options.length <= 1) {
         const catSet = new Set();
-        const stageSet = new Set();
-        
         globalComps.forEach(c => {
-            if(tmScheduleData[c.id] && tmScheduleData[c.id].status === 'published') {
+            if (tmScheduleData[c.id] && tmScheduleData[c.id].status === 'published') {
                 catSet.add(JSON.stringify({ id: c.category_id, name: c.categories?.name || 'UNCATEGORIZED' }));
-                stageSet.add(JSON.stringify({ id: c.stage_id, name: c.stages?.name || 'OFFSTAGE' }));
             }
         });
-        
         Array.from(catSet).map(JSON.parse).forEach(cat => catFilter.innerHTML += `<option value="${cat.id}">${cat.name}</option>`);
-        Array.from(stageSet).map(JSON.parse).forEach(stage => stageFilter.innerHTML += `<option value="${stage.id}">${stage.name}</option>`);
+    }
+
+    if (stageFilter && stageFilter.options.length <= 1) {
+        const stageMap = new Map();
+        (globalStages || []).forEach(stg => stageMap.set(String(stg.id), stg.name));
+        globalComps.forEach(c => {
+            if (tmScheduleData[c.id] && tmScheduleData[c.id].status === 'published') {
+                if (c.stage_id && c.stages?.name) stageMap.set(String(c.stage_id), c.stages.name);
+            }
+        });
+        stageFilter.innerHTML = '<option value="all">ALL STAGES / VENUES</option>';
+        stageMap.forEach((name, id) => {
+            stageFilter.innerHTML += `<option value="${id}">${name}</option>`;
+        });
+        stageFilter.innerHTML += '<option value="offstage">OFFSTAGE VENUES ONLY</option>';
     }
 }
 
@@ -2038,8 +2192,14 @@ function renderTMSchedule() {
         if (!sched || sched.status !== 'published') return false;
         
         const catName = c.categories?.name || 'UNCATEGORIZED';
-        if (catFilter !== 'all' && c.category_id != catFilter) return false;
-        if (stageFilter !== 'all' && c.stage_id != stageFilter) return false;
+        if (catFilter !== 'all' && String(c.category_id) !== String(catFilter)) return false;
+        if (stageFilter !== 'all') {
+            if (stageFilter === 'offstage') {
+                if (!c.is_offstage) return false;
+            } else if (String(c.stage_id) !== String(stageFilter)) {
+                return false;
+            }
+        }
         if (search && !c.name.toLowerCase().includes(search) && !catName.toLowerCase().includes(search)) return false;
         
         return true;
@@ -2048,19 +2208,19 @@ function renderTMSchedule() {
     scheduledComps.sort((a,b) => {
         const sA = tmScheduleData[a.id];
         const sB = tmScheduleData[b.id];
-        if (sA.date !== sB.date) return sA.date.localeCompare(sB.date);
-        return sA.time.localeCompare(sB.time);
+        if (sA.date !== sB.date) return (sA.date || '').localeCompare(sB.date || '');
+        return (sA.time || '').localeCompare(sB.time || '');
     });
 
     if(scheduledComps.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">NO PUBLISHED SCHEDULES FOUND.</td></tr>`;
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted); font-weight: 600;">NO PUBLISHED SCHEDULES FOUND MATCHING FILTERS.</td></tr>';
         return;
     }
 
     scheduledComps.forEach(comp => {
         const sched = tmScheduleData[comp.id];
         const catName = comp.categories?.name || 'UNCATEGORIZED';
-        const stageName = comp.is_offstage ? 'OFFSTAGE' : (comp.stages?.name || 'TBD');
+        const venueInfo = (window.festosGetCompVenueStage || getCompVenueStage)(comp, globalStages);
         
         const clashes = compConflictMap[comp.id] || [];
         let clashBadge = '';
@@ -2071,11 +2231,11 @@ function renderTMSchedule() {
 
         tbody.innerHTML += `
             <tr>
-                <td data-label="DATE" style="font-weight: 700; color: var(--primary);">${sched.date}</td>
-                <td data-label="FROM TIME" style="font-weight: 700;">${sched.time}</td>
+                <td data-label="DATE" style="font-weight: 700; color: var(--primary);">${sched.date || 'TBD'}</td>
+                <td data-label="FROM TIME" style="font-weight: 700;">${sched.time || '--:--'}</td>
                 <td data-label="TO TIME" style="font-weight: 700; color: var(--text-muted);">${sched.to_time || '-'}</td>
                 <td data-label="EVENT NAME" style="font-weight: 800; color: var(--text-main); font-size: 1.05rem;">${comp.name} ${clashBadge}</td>
-                <td data-label="STAGE"><span style="font-weight: 600; color: var(--primary);"><i class="fa-solid fa-microphone-stage" style="margin-right: 4px;"></i> ${stageName}</span></td>
+                <td data-label="VENUE / STAGE">${venueInfo.htmlBadge}</td>
                 <td data-label="CATEGORY"><span class="badge badge-gray">${catName}</span></td>
             </tr>
         `;
@@ -2084,50 +2244,278 @@ function renderTMSchedule() {
 
 async function exportTMSchedulePDF() {
     showToast('Generating Schedule PDF...', 'success');
-    const search = document.getElementById('search-schedule').value.toLowerCase();
-    const catFilter = document.getElementById('filter-schedule-cat').value;
-    const stageFilter = document.getElementById('filter-schedule-stage').value;
+    const search = document.getElementById('search-schedule')?.value.toLowerCase() || '';
+    const catFilter = document.getElementById('filter-schedule-cat')?.value || 'all';
+    const stageFilter = document.getElementById('filter-schedule-stage')?.value || 'all';
 
     const scheduledComps = globalComps.filter(c => {
         const sched = tmScheduleData[c.id];
         if (!sched || sched.status !== 'published') return false;
-        if (catFilter !== 'all' && c.category_id != catFilter) return false;
-        if (stageFilter !== 'all' && c.stage_id != stageFilter) return false;
+        if (catFilter !== 'all' && String(c.category_id) !== String(catFilter)) return false;
+        if (stageFilter !== 'all') {
+            if (stageFilter === 'offstage') {
+                if (!c.is_offstage) return false;
+            } else if (String(c.stage_id) !== String(stageFilter)) {
+                return false;
+            }
+        }
         if (search && !c.name.toLowerCase().includes(search)) return false;
         return true;
     }).sort((a,b) => {
-        if (tmScheduleData[a.id].date !== tmScheduleData[b.id].date) return tmScheduleData[a.id].date.localeCompare(tmScheduleData[b.id].date);
-        return tmScheduleData[a.id].time.localeCompare(tmScheduleData[b.id].time);
+        const sA = tmScheduleData[a.id];
+        const sB = tmScheduleData[b.id];
+        if (sA.date !== sB.date) return (sA.date || '').localeCompare(sB.date || '');
+        return (sA.time || '').localeCompare(sB.time || '');
+    });
+
+    if (scheduledComps.length === 0) {
+        return showToast('No scheduled events match your current filters.', 'error');
+    }
+
+    const teamTitle = document.getElementById('team-name-title')?.innerText || 'Team';
+    const mgrNames = document.getElementById('tm-manager-names')?.innerText || '';
+
+    // Summary metrics
+    const distinctDates = [...new Set(scheduledComps.map(c => tmScheduleData[c.id]?.date).filter(Boolean))].sort();
+    const distinctVenues = [...new Set(scheduledComps.map(c => ((window.festosGetCompVenueStage || getCompVenueStage)(c, globalStages)).displayText))];
+    const soloCount = scheduledComps.filter(c => !c.is_group).length;
+    const groupCount = scheduledComps.filter(c => c.is_group).length;
+
+    // Group comps by date
+    const dateGroups = {};
+    scheduledComps.forEach(c => {
+        const d = tmScheduleData[c.id]?.date || 'Date TBD';
+        if (!dateGroups[d]) dateGroups[d] = [];
+        dateGroups[d].push(c);
     });
 
     const container = document.createElement('div');
-    container.style.padding = '40px';
-    container.style.fontFamily = 'Inter, sans-serif';
-    container.innerHTML = getPDFHeaderHTML(`Event Schedule`);
+    container.style.padding = '24px 30px';
+    container.style.fontFamily = "'Plus Jakarta Sans', Inter, -apple-system, sans-serif";
+    container.style.color = '#0F172A';
+    container.style.background = '#FFFFFF';
 
-    let tableRows = scheduledComps.map((c, i) => {
-        const sched = tmScheduleData[c.id];
-        const stageName = c.is_offstage ? 'OFFSTAGE' : (c.stages?.name || 'TBD');
-        return `
-        <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${sched.date}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${sched.time}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A;">${c.name.toUpperCase()}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; color: #4F46E5; font-weight: 600;">${stageName.toUpperCase()}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${(c.categories?.name || 'GENERAL').toUpperCase()}</td>
-        </tr>
-    `}).join('');
+    const pdfHeader = typeof getPDFHeaderHTML === 'function' 
+        ? getPDFHeaderHTML(`OFFICIAL EVENT SCHEDULE & TIMETABLE`) 
+        : `<h1 style="color:#4F46E5; text-align:center; font-weight:800; font-size:22px; margin-bottom:4px;">EVENT SCHEDULE</h1>`;
 
-    container.innerHTML += `
-        <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
-            <thead><tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;"><th style="padding: 10px;">DATE</th><th style="padding: 10px;">TIME</th><th style="padding: 10px;">EVENT NAME</th><th style="padding: 10px;">STAGE</th><th style="padding: 10px;">CATEGORY</th></tr></thead>
-            <tbody style="font-size: 12px; color: #334155;">${tableRows}</tbody>
-        </table>
+    container.innerHTML = `
+        ${pdfHeader}
+        
+        <!-- Team Sub-Banner -->
+        <div style="background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 10px; padding: 12px 18px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <span style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px;">TEAM ROSTER SCHEDULE</span>
+                <div style="font-size: 17px; font-weight: 800; color: #1E293B;">${teamTitle}</div>
+            </div>
+            ${mgrNames ? `<div style="font-size: 11px; font-weight: 700; color: #475569; background: #FFFFFF; padding: 6px 12px; border-radius: 6px; border: 1px solid #E2E8F0;">${mgrNames}</div>` : ''}
+        </div>
+
+        <!-- KPI Metrics Grid -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 22px;">
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <div style="font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase;">Scheduled Events</div>
+                <div style="font-size: 18px; font-weight: 800; color: #0F172A; margin-top: 2px;">${scheduledComps.length}</div>
+            </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <div style="font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase;">Festival Days</div>
+                <div style="font-size: 18px; font-weight: 800; color: #4F46E5; margin-top: 2px;">${distinctDates.length} Day${distinctDates.length > 1 ? 's' : ''}</div>
+            </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <div style="font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase;">Active Venues</div>
+                <div style="font-size: 18px; font-weight: 800; color: #059669; margin-top: 2px;">${distinctVenues.length}</div>
+            </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <div style="font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase;">Format Split</div>
+                <div style="font-size: 13px; font-weight: 800; color: #0F172A; margin-top: 4px;">${soloCount} Solo <span style="color:#CBD5E1;">|</span> ${groupCount} Group</div>
+            </div>
+        </div>
     `;
 
-    const opt = { margin: 10, filename: typeof getFestFileName === 'function' ? getFestFileName('Schedule', 'pdf') : 'Schedule.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-    html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+    let globalIndex = 1;
+    Object.keys(dateGroups).forEach(d => {
+        const compsForDate = dateGroups[d];
+        let dayRows = compsForDate.map(c => {
+            const sched = tmScheduleData[c.id];
+            const venueInfo = (window.festosGetCompVenueStage || getCompVenueStage)(c, globalStages);
+            const timeRange = (sched.time || '') + (sched.to_time ? ` &ndash; ${sched.to_time}` : '');
+            
+            const enrolled = (globalAssignments || [])
+                .filter(a => a.competition_id === c.id)
+                .map(a => {
+                    const st = (globalStudents || []).find(s => s.id === a.participant_id);
+                    return st ? `${st.name}${a.is_leader ? ' (Leader)' : ''}` : null;
+                })
+                .filter(Boolean);
+
+            const enrolledHtml = enrolled.length > 0 
+                ? `<div style="font-size: 10px; color: #1E293B; font-weight: 600; line-height: 1.3;">${enrolled.join(', ')}</div>` 
+                : `<span style="color: #94A3B8; font-size: 10px; font-style: italic;">No student enrolled</span>`;
+
+            const modeBadge = c.is_offstage 
+                ? `<span style="background: #FEF3C7; color: #92400E; font-size: 9.5px; font-weight: 800; padding: 2px 6px; border-radius: 4px; border: 1px solid #FDE68A; display: inline-block;">OFFSTAGE</span>`
+                : `<span style="background: #EEF2FF; color: #4338CA; font-size: 9.5px; font-weight: 800; padding: 2px 6px; border-radius: 4px; border: 1px solid #C7D2FE; display: inline-block;">ONSTAGE</span>`;
+
+            const formatBadge = c.is_group 
+                ? `<span style="background: #FDF2F8; color: #9D174D; font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 4px; margin-left: 6px;">GROUP</span>`
+                : `<span style="background: #F0FDF4; color: #166534; font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 4px; margin-left: 6px;">SOLO</span>`;
+
+            return `
+                <tr style="border-bottom: 1px solid #E2E8F0; page-break-inside: avoid;">
+                    <td style="padding: 9px 8px; text-align: center; font-weight: 700; color: #64748B; font-size: 11px;">${globalIndex++}</td>
+                    <td style="padding: 9px 10px; font-weight: 800; color: #0F172A; font-size: 11.5px; white-space: nowrap;">
+                        ${timeRange}
+                    </td>
+                    <td style="padding: 9px 10px;">
+                        <span style="font-weight: 800; color: #0F172A; font-size: 12px; text-transform: uppercase;">${c.name}</span>
+                        ${formatBadge}
+                    </td>
+                    <td style="padding: 9px 10px; font-weight: 700; color: #475569; font-size: 11px;">${(c.categories?.name || 'GENERAL').toUpperCase()}</td>
+                    <td style="padding: 9px 10px;">
+                        <span style="font-weight: 800; color: #4F46E5; font-size: 11.5px;">${venueInfo.displayText.toUpperCase()}</span>
+                    </td>
+                    <td style="padding: 9px 8px; text-align: center;">${modeBadge}</td>
+                    <td style="padding: 9px 10px; max-width: 220px;">${enrolledHtml}</td>
+                </tr>
+            `;
+        }).join('');
+
+        container.innerHTML += `
+            <div style="margin-bottom: 24px; page-break-inside: avoid;">
+                <div style="background: linear-gradient(135deg, #1E293B 0%, #334155 100%); color: white; padding: 8px 14px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800; font-size: 12px; letter-spacing: 0.5px; text-transform: uppercase;">
+                        📅 ${d}
+                    </span>
+                    <span style="font-size: 10.5px; font-weight: 700; color: #94A3B8; background: rgba(255,255,255,0.12); padding: 2px 8px; border-radius: 4px;">
+                        ${compsForDate.length} EVENT${compsForDate.length > 1 ? 'S' : ''}
+                    </span>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; border-top: none;">
+                    <thead>
+                        <tr style="background: #F1F5F9; text-align: left; font-size: 10px; color: #475569; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #CBD5E1;">
+                            <th style="padding: 8px; width: 35px; text-align: center;">#</th>
+                            <th style="padding: 8px 10px; width: 140px;">TIME WINDOW</th>
+                            <th style="padding: 8px 10px;">EVENT NAME</th>
+                            <th style="padding: 8px 10px; width: 120px;">CATEGORY</th>
+                            <th style="padding: 8px 10px; width: 150px;">VENUE / STAGE</th>
+                            <th style="padding: 8px 8px; width: 85px; text-align: center;">MODE</th>
+                            <th style="padding: 8px 10px;">TEAM ENROLLED</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 11px; color: #1E293B;">
+                        ${dayRows}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    });
+
+    container.innerHTML += `
+        <div style="margin-top: 25px; padding-top: 12px; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748B;">
+            <span>Official Festival Timetable &bull; FestOS Verified</span>
+            <span>Generated on: ${new Date().toLocaleString()}</span>
+        </div>
+    `;
+
+    const opt = {
+        margin: [8, 10, 8, 10],
+        filename: typeof getFestFileName === 'function' ? getFestFileName(`${teamTitle}_Schedule`, 'pdf') : `${teamTitle}_Schedule.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    html2pdf().set(opt).from(container).save().then(() => showToast('Schedule PDF Exported!'));
 }
+
+async function exportTMScheduleCSV() {
+    const search = document.getElementById('search-schedule')?.value.toLowerCase() || '';
+    const catFilter = document.getElementById('filter-schedule-cat')?.value || 'all';
+    const stageFilter = document.getElementById('filter-schedule-stage')?.value || 'all';
+
+    const scheduledComps = globalComps.filter(c => {
+        const sched = tmScheduleData[c.id];
+        if (!sched || sched.status !== 'published') return false;
+        if (catFilter !== 'all' && String(c.category_id) !== String(catFilter)) return false;
+        if (stageFilter !== 'all') {
+            if (stageFilter === 'offstage') {
+                if (!c.is_offstage) return false;
+            } else if (String(c.stage_id) !== String(stageFilter)) {
+                return false;
+            }
+        }
+        if (search && !c.name.toLowerCase().includes(search)) return false;
+        return true;
+    }).sort((a, b) => {
+        const sA = tmScheduleData[a.id];
+        const sB = tmScheduleData[b.id];
+        if (sA.date !== sB.date) return (sA.date || '').localeCompare(sB.date || '');
+        return (sA.time || '').localeCompare(sB.time || '');
+    });
+
+    if (scheduledComps.length === 0) {
+        return showToast('No scheduled events match your current filters.', 'error');
+    }
+
+    const compConflictMap = typeof detectTMStudentScheduleConflicts === 'function' ? detectTMStudentScheduleConflicts() : {};
+    let slNo = 1;
+
+    const dataToExport = scheduledComps.map(c => {
+        const sched = tmScheduleData[c.id];
+        const venueInfo = (window.festosGetCompVenueStage || getCompVenueStage)(c, globalStages);
+        const catName = c.categories?.name || 'General';
+
+        const enrolledParticipants = (globalAssignments || [])
+            .filter(a => a.competition_id === c.id)
+            .map(a => {
+                const s = (globalStudents || []).find(st => st.id === a.participant_id);
+                return s ? `${s.name}${a.is_leader ? ' [LEADER]' : ''}` : null;
+            })
+            .filter(Boolean);
+
+        const clashes = compConflictMap[c.id] || [];
+
+        let durationMins = '';
+        if (sched.time && sched.to_time) {
+            const startM = timeStringToMinutes(sched.time);
+            const endM = timeStringToMinutes(sched.to_time);
+            if (endM > startM) durationMins = endM - startM;
+        }
+        if (!durationMins && sched.manual_time) durationMins = sched.manual_time;
+
+        return {
+            'SL NO': slNo++,
+            'DATE': sched.date || '',
+            'FROM TIME': sched.time || '',
+            'TO TIME': sched.to_time || '-',
+            'DURATION (MINS)': durationMins || '-',
+            'COMPETITION NAME': c.name,
+            'CATEGORY': catName,
+            'VENUE / STAGE': venueInfo.displayText,
+            'EVENT MODE': c.is_offstage ? 'Offstage' : 'Onstage',
+            'PARTICIPATION TYPE': c.is_group ? 'Group' : 'Solo',
+            'MY TEAM ENROLLED COUNT': enrolledParticipants.length,
+            'MY TEAM PARTICIPANTS': enrolledParticipants.join('; ') || 'None Enrolled',
+            'SCHEDULE CONFLICT': clashes.length > 0 ? `YES (${clashes.length} overlap)` : 'No'
+        };
+    });
+
+    const teamTitle = document.getElementById('team-name-title')?.innerText || 'Team';
+    const csvFileName = typeof getFestFileName === 'function' ? getFestFileName(`${teamTitle}_Schedule`, 'csv') : `${teamTitle}_Schedule.csv`;
+    
+    if (typeof festosExportCSV === 'function') {
+        festosExportCSV(csvFileName, dataToExport, `${teamTitle} - Event Schedule`);
+    } else {
+        const blob = new Blob([Papa.unparse(dataToExport)], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a'); 
+        link.href = URL.createObjectURL(blob); 
+        link.setAttribute('download', csvFileName);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+    showToast('Schedule CSV exported successfully!');
+}
+window.exportTMScheduleCSV = exportTMScheduleCSV;
 
 let tmVacancyData = [];
 
@@ -2298,6 +2686,16 @@ async function exportTMVacancyPDF() {
 // ==========================================
 function applyGlobalBranding(brandingData) {
     if (!brandingData) return;
+    const u = (typeof festosAuth !== 'undefined') ? (festosAuth.getUser() || festosAuth.getSuperAdmin()) : JSON.parse(localStorage.getItem('festUser') || '{}');
+    const fid = (window.festosAuth && window.festosAuth.getCurrentFestId) ? window.festosAuth.getCurrentFestId() : (u?.fest_id || localStorage.getItem('festos_active_fest_id') || null);
+
+    // STRICT MULTI-TENANT POLICY: Reject any cross-tenant injection
+    if (brandingData._fest_id && fid && brandingData._fest_id !== fid) {
+        console.warn(`[Branding Security] Blocked cross-tenant branding injection from ${brandingData._fest_id} to ${fid}`);
+        return;
+    }
+    brandingData._fest_id = fid;
+
     const validName = brandingData.fest_name && brandingData.fest_name.trim() !== '';
     const rawLogo = brandingData.fest_logo && brandingData.fest_logo.trim() !== '' ? brandingData.fest_logo.trim() : '';
     const validLogo = rawLogo !== '' && rawLogo !== 'festos-logo.svg' && rawLogo !== '/festos-logo.svg';
@@ -2306,11 +2704,11 @@ function applyGlobalBranding(brandingData) {
     document.title = `${festName} | Team Manager`;
 
     try {
-        const u = (typeof festosAuth !== 'undefined') ? (festosAuth.getUser() || festosAuth.getSuperAdmin()) : JSON.parse(localStorage.getItem('festUser') || '{}');
-        const fid = (window.festosAuth && window.festosAuth.getCurrentFestId) ? window.festosAuth.getCurrentFestId() : (u?.fest_id || localStorage.getItem('festos_active_fest_id') || 'fest_zenith26');
-        localStorage.setItem('festBranding', JSON.stringify(brandingData));
-        if (fid) localStorage.setItem('festos_branding_cache_' + fid, JSON.stringify(brandingData));
-        sessionStorage.setItem('festBranding', JSON.stringify(brandingData));
+        if (fid) {
+            localStorage.setItem('festos_branding_cache_' + fid, JSON.stringify(brandingData));
+            localStorage.setItem('festBranding', JSON.stringify(brandingData));
+            sessionStorage.setItem('festBranding', JSON.stringify(brandingData));
+        }
     } catch(e) {}
 
     if (validLogo) {
@@ -2414,7 +2812,10 @@ function renderAssignOverview() {
             studentsHtml = '<div style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">';
             enrolled.forEach((a, index) => {
                 const student = globalStudents.find(s => String(s.id) === String(a.participant_id));
-                if (!student) return;
+                const sName = student ? student.name : `STUDENT #${String(a.participant_id).substring(0, 8)}`;
+                const sUnique = student ? student.unique_id : '';
+                const sCat = (student && student.categories?.name) ? student.categories.name : 'GEN';
+                const sId = student ? student.id : a.participant_id;
                 
                 let leaderBadge = '';
                 if (comp.is_group && index === 0) {
@@ -2434,11 +2835,11 @@ function renderAssignOverview() {
                         <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap;">
                             ${dragIcon}
                             ${leaderBadge}
-                            <strong style="color: var(--text-main); font-size: 0.95rem;">${student.name}</strong>
-                            <span style="color: var(--text-muted); font-family: monospace; font-size: 0.75rem; margin-left: 4px;">${student.unique_id}</span>
-                            <span style="font-size: 0.65rem; color: var(--text-muted); background: var(--bg-main); padding: 2px 6px; border-radius: 4px; margin-left: 4px;">${student.categories?.name || 'GEN'}</span>
+                            <strong style="color: var(--text-main); font-size: 0.95rem;">${sName}</strong>
+                            <span style="color: var(--text-muted); font-family: monospace; font-size: 0.75rem; margin-left: 4px;">${sUnique}</span>
+                            <span style="font-size: 0.65rem; color: var(--text-muted); background: var(--bg-main); padding: 2px 6px; border-radius: 4px; margin-left: 4px;">${sCat}</span>
                         </div>
-                        <button class="btn btn-outline" style="padding: 0.35rem 0.6rem; min-height: auto; border-color: var(--danger); color: var(--danger); border-radius: 6px; width: auto; flex-shrink: 0;" onclick="quickRemoveStudent('${comp.id}', '${student.id}')"><i class="fa-solid fa-xmark"></i></button>
+                        <button class="btn btn-outline" style="padding: 0.35rem 0.6rem; min-height: auto; border-color: var(--danger); color: var(--danger); border-radius: 6px; width: auto; flex-shrink: 0;" onclick="quickRemoveStudent('${comp.id}', '${sId}')"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                 `;
             });
@@ -2578,28 +2979,23 @@ window.tempAvailableStudents = [];
 
 window.openQuickAddModal = function(compId) {
     if (isAssignmentLocked) return showToast("Registration is locked.", "error");
-    const comp = globalComps.find(c => c.id === compId);
+    const comp = globalComps.find(c => String(c.id) === String(compId));
     if (!comp) return;
 
-    // Filter Eligible Students
-    const compCat = (globalCategories || []).find(c => String(c.id) === String(comp.category_id)) || comp.categories;
-    const isGeneral = compCat ? (compCat.is_general === true || String(compCat.is_general) === 'true') : false;
-
-    const eligibleStudents = globalStudents.filter(student => {
-        if (String(student.category_id) === String(comp.category_id)) return true;
-        if (isGeneral) {
-            const studentCategory = globalCategories.find(c => String(c.id) === String(student.category_id));
-            if (studentCategory) {
-                let allowedCats = [];
-                try {
-                    if (typeof rawAllowed === 'string') allowedCats = JSON.parse(rawAllowed);
-                    else if (Array.isArray(rawAllowed)) allowedCats = rawAllowed;
-                } catch(e) {}
-                if (allowedCats.some(id => String(id) === String(comp.category_id))) return true;
+    if (!globalStudents || globalStudents.length === 0) {
+        showToast("Loading student directory, please wait...", "warning");
+        fetchAllData(false).then(() => {
+            if (globalStudents && globalStudents.length > 0) {
+                openQuickAddModal(compId);
+            } else {
+                showToast("No students found in team directory. Add students in Directory first.", "error");
             }
-        }
-        return false;
-    });
+        });
+        return;
+    }
+
+    // Filter Eligible Students using unified robust helper
+    const eligibleStudents = globalStudents.filter(student => isStudentEligibleForComp(student, comp));
 
     const enrolledIds = globalAssignments.filter(a => String(a.competition_id) === String(compId)).map(a => String(a.participant_id));
     window.tempAvailableStudents = eligibleStudents.filter(s => !enrolledIds.includes(String(s.id)));
@@ -2645,8 +3041,8 @@ window.openQuickAddModal = function(compId) {
                         const check = festosEvaluateStudentCategoryLimit(
                             s.id,
                             window.tempCompId,
-                            globalParticipants || [],
-                            globalCompetitions || [],
+                            globalStudents || [],
+                            globalComps || [],
                             globalCategories || [],
                             globalAssignments || [],
                             limitCfg
@@ -2730,7 +3126,7 @@ window.renderQAUI = function() {
 window.qaAdd = function(id) {
     const slotsLeft = window.tempSlotsLeft - window.tempSelectedStudents.length;
     if(slotsLeft <= 0) return;
-    const studentIndex = window.tempAvailableStudents.findIndex(s => s.id === id);
+    const studentIndex = window.tempAvailableStudents.findIndex(s => String(s.id) === String(id));
     if(studentIndex > -1) {
         window.tempSelectedStudents.push(window.tempAvailableStudents[studentIndex]);
         window.tempAvailableStudents.splice(studentIndex, 1);
@@ -2739,7 +3135,7 @@ window.qaAdd = function(id) {
 };
 
 window.qaRemove = function(id) {
-    const studentIndex = window.tempSelectedStudents.findIndex(s => s.id === id);
+    const studentIndex = window.tempSelectedStudents.findIndex(s => String(s.id) === String(id));
     if(studentIndex > -1) {
         window.tempAvailableStudents.push(window.tempSelectedStudents[studentIndex]);
         window.tempSelectedStudents.splice(studentIndex, 1);

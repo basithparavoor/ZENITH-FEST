@@ -157,31 +157,104 @@ if (loginForm) {
             if (error || !data) throw new Error('Account not found. Please check your username.');
             if (data.password_hash !== password) throw new Error('Incorrect password. Please try again.');
 
-            // Multi-tenant festival scoping
+            // Multi-tenant festival scoping & strict tenant validation
             if (data.role === 'super_admin') {
                 data.fest_id = null;
-            } else if (!data.fest_id) {
-                const prefix = (data.username || '').split('_')[0].toLowerCase().trim();
-                const defaultFestId = (typeof window.festosDefaultFestId === 'function')
-                    ? window.festosDefaultFestId()
-                    : 'fest_zenith_2026';
-                if (prefix === 'zenith26' || prefix === 'zenith') {
-                    data.fest_id = defaultFestId;
-                } else if (/^[a-z0-9]{3,20}$/.test(prefix) && prefix !== 'superadmin' && prefix !== 'admin') {
-                    const matchedFest = (window.festosDomains && typeof window.festosDomains.findFest === 'function')
-                        ? window.festosDomains.findFest(prefix)
-                        : null;
-                    if (matchedFest && matchedFest.id) {
-                        data.fest_id = matchedFest.id;
+            } else {
+                // If user is a team manager or has a team_id, resolve/verify festival strictly from teams table
+                if (data.team_id && supabaseClient) {
+                    try {
+                        const { data: tmRecord } = await supabaseClient
+                            .from('teams')
+                            .select('fest_id')
+                            .eq('id', data.team_id)
+                            .maybeSingle();
+                        if (tmRecord && tmRecord.fest_id) {
+                            data.fest_id = tmRecord.fest_id;
+                        }
+                    } catch(e) {}
+                }
+
+                if (!data.fest_id) {
+                    const prefix = (data.username || '').split('_')[0].toLowerCase().trim();
+                    const defaultFestId = (typeof window.festosDefaultFestId === 'function')
+                        ? window.festosDefaultFestId()
+                        : 'fest_zenith_2026';
+                    if (prefix === 'zenith26' || prefix === 'zenith') {
+                        data.fest_id = defaultFestId;
+                    } else if (/^[a-z0-9]{3,20}$/.test(prefix) && prefix !== 'superadmin' && prefix !== 'admin') {
+                        const matchedFest = (window.festosDomains && typeof window.festosDomains.findFest === 'function')
+                            ? window.festosDomains.findFest(prefix)
+                            : null;
+                        if (matchedFest && matchedFest.id) {
+                            data.fest_id = matchedFest.id;
+                        } else {
+                            const candidate = `fest_${prefix}`;
+                            const known = (window.festosDomains && typeof window.festosDomains.hasFest === 'function')
+                                ? window.festosDomains.hasFest(candidate)
+                                : true;
+                            data.fest_id = known ? candidate : defaultFestId;
+                        }
                     } else {
-                        const candidate = `fest_${prefix}`;
-                        const known = (window.festosDomains && typeof window.festosDomains.hasFest === 'function')
-                            ? window.festosDomains.hasFest(candidate)
-                            : true;
-                        data.fest_id = known ? candidate : defaultFestId;
+                        data.fest_id = defaultFestId;
                     }
+                }
+            }
+
+            // Strict Tenant Sanitation: Purge foreign branding caches before saving session
+            if (data.fest_id) {
+                localStorage.setItem('festos_active_fest_id', data.fest_id);
+                if (typeof festosPurgeCrossTenantBranding === 'function') {
+                    festosPurgeCrossTenantBranding(data.fest_id);
                 } else {
-                    data.fest_id = defaultFestId;
+                    localStorage.removeItem('festos_branding_cache_active');
+                    localStorage.removeItem('festBranding');
+                }
+            }
+            if (data.team_id) {
+                sessionStorage.setItem('festos_tm_selected_team_id', data.team_id);
+                localStorage.setItem('festos_tm_selected_team_id', data.team_id);
+            }
+
+            // Pre-warm festival branding strictly before page redirect
+            if (data.fest_id && supabaseClient) {
+                try {
+                    let brandObj = null;
+                    const festKey = `system_branding_${data.fest_id}`;
+                    const { data: sData } = await supabaseClient
+                        .from('settings')
+                        .select('value')
+                        .eq('id', festKey)
+                        .maybeSingle();
+                    if (sData && sData.value && (sData.value.fest_name || sData.value.fest_logo)) {
+                        brandObj = { ...sData.value };
+                    }
+
+                    if (!brandObj) {
+                        const { data: fData } = await supabaseClient
+                            .from('fests')
+                            .select('name, logo')
+                            .eq('id', data.fest_id)
+                            .maybeSingle();
+                        if (fData && (fData.name || fData.logo)) {
+                            brandObj = {
+                                fest_name: fData.name || 'Festival',
+                                fest_logo: (fData.logo && !fData.logo.includes('festos-logo.svg')) ? fData.logo : '',
+                                display_mode: fData.logo ? 'both' : 'name'
+                            };
+                        }
+                    }
+
+                    if (brandObj) {
+                        brandObj._fest_id = data.fest_id;
+                        localStorage.setItem(`festos_branding_cache_${data.fest_id}`, JSON.stringify(brandObj));
+                        localStorage.setItem('festBranding', JSON.stringify(brandObj));
+                        if (typeof sessionStorage !== 'undefined') {
+                            sessionStorage.setItem('festBranding', JSON.stringify(brandObj));
+                        }
+                    }
+                } catch(e) {
+                    console.warn('Branding pre-warm error:', e);
                 }
             }
 

@@ -1269,25 +1269,65 @@
         (function(){
             try {
                 const user = JSON.parse(localStorage.getItem('festUser') || localStorage.getItem('festSuperAdmin') || '{}');
-                const festId = user.fest_id || localStorage.getItem('festos_active_fest_id') || 'fest_zenith26';
-                const raw = localStorage.getItem('festos_branding_cache_' + festId) || 
-                            localStorage.getItem('festBranding') || 
-                            localStorage.getItem('festos_branding_cache_active') || 
-                            localStorage.getItem('festos_cfg_system_branding_' + festId);
-                if (raw) {
-                    const b = JSON.parse(raw);
-                    const name = b.fest_name || 'Zenith';
-                    const logo = (b.fest_logo && b.fest_logo !== 'festos-logo.svg' && b.fest_logo !== '/festos-logo.svg') ? b.fest_logo : '';
-                    let h = '';
-                    if (logo) h += '<img src="' + logo + '" alt="' + name + ' Logo" class="festos-dynamic-logo" style="height: 36px; width: auto; max-width: 140px; object-fit: contain; border-radius: 6px; margin-right: 8px; display: inline-block; vertical-align: middle;">';
-                    else h += '<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>';
-                    h += '<span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">' + name + '</span>';
-                    document.write(h);
-                } else {
-                    document.write('<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i><span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">Zenith</span>');
+                const festId = (window.festosAuth && window.festosAuth.getCurrentFestId)
+                    ? window.festosAuth.getCurrentFestId()
+                    : (user.fest_id || localStorage.getItem('festos_active_fest_id') || '');
+
+                let raw = null;
+                if (festId) {
+                    raw = localStorage.getItem('festos_branding_cache_' + festId) || 
+                          localStorage.getItem('festos_cfg_system_branding_' + festId);
+                    if (!raw) {
+                        const legacyFb = localStorage.getItem('festBranding');
+                        if (legacyFb) {
+                            try {
+                                const parsedFb = JSON.parse(legacyFb);
+                                if (parsedFb && parsedFb._fest_id === festId) raw = legacyFb;
+                            } catch(e) {}
+                        }
+                    }
                 }
+
+                let name = '';
+                let logo = '';
+                if (raw) {
+                    try {
+                        const b = JSON.parse(raw);
+                        if (b.fest_name && b.fest_name !== 'FestOS' && b.fest_name !== 'Festival') name = b.fest_name;
+                        if (b.fest_logo && b.fest_logo !== 'festos-logo.svg' && b.fest_logo !== '/festos-logo.svg') logo = b.fest_logo;
+                    } catch(e) {}
+                }
+
+                if (!name && festId && typeof festosDomains !== 'undefined') {
+                    const f = festosDomains.findFest ? festosDomains.findFest(festId) : null;
+                    if (f) {
+                        if (f.name) name = f.name;
+                        if (f.logo && !f.logo.includes('festos-logo.svg')) logo = f.logo;
+                    }
+                }
+                if (!name && festId) {
+                    try {
+                        const festsList = JSON.parse(localStorage.getItem('festos_fests_cache') || '[]');
+                        const f = festsList.find(x => x.id === festId || x.slug === festId.replace(/^fest_/, ''));
+                        if (f) {
+                            if (f.name) name = f.name;
+                            if (f.logo && !f.logo.includes('festos-logo.svg')) logo = f.logo;
+                        }
+                    } catch(e) {}
+                }
+
+                if (!name) name = 'Festival';
+
+                let h = '';
+                if (logo) {
+                    h += '<img src="' + logo + '" alt="' + name + ' Logo" class="festos-dynamic-logo" style="height: 36px; width: auto; max-width: 140px; object-fit: contain; border-radius: 6px; margin-right: 8px; display: inline-block; vertical-align: middle;">';
+                } else {
+                    h += '<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i>';
+                }
+                h += '<span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">' + name + '</span>';
+                document.write(h);
             } catch(e) {
-                document.write('<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i><span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">Zenith</span>');
+                document.write('<i class="fa-solid fa-bolt" style="color: var(--primary); margin-right: 8px;"></i><span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">Festival</span>');
             }
         })();
         </script></div>

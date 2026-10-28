@@ -47,6 +47,7 @@ function switchTab(tabId) {
     event.currentTarget.classList.add('active');
 
     if (tabId === 'assignments') loadAssignments();
+    if (tabId === 'valuation') loadValuations();
     if (tabId === 'publish') loadPublishableComps();
     if (tabId === 'published-results') loadPublishedResults(); 
     if (tabId === 'judges') loadJudgesManagement(); // <--- Add this
@@ -127,6 +128,7 @@ function filterCompetitions() {
         let statusMatch = true;
         if (statusFilter === 'unassigned') statusMatch = !isAssigned;
         if (statusFilter === 'assigned') statusMatch = isAssigned;
+        if (statusFilter === 'valuation') statusMatch = (comp.status === 'valuation');
 
         return compNameMatch && catMatch && stageMatch && statusMatch;
     });
@@ -156,7 +158,7 @@ async function loadAssignments() {
         // 1. Fetch Competitions, grabbing the stage_no alongside the name
         let compsQuery = supabaseClient.from('competitions')
             .select('*, categories(name), stages(name, stage_no)') 
-            .in('status', ['pending', 'registration', 'ongoing']);
+            .in('status', ['pending', 'registration', 'ongoing', 'valuation']);
         if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery);
         const { data: comps } = await compsQuery;
             
@@ -234,7 +236,8 @@ function renderGrid(competitions) {
 
     competitions.forEach(comp => {
         const compAssignments = allAssignments.filter(a => a.competition_id === comp.id);
-        const badgeClass = comp.status === 'pending' ? 'badge-pending' : 'badge-ongoing';
+        const badgeClass = comp.status === 'pending' ? 'badge-pending' : comp.status === 'valuation' ? 'badge-valuation' : 'badge-ongoing';
+        const badgeLabel = comp.status === 'valuation' ? 'IN VALUATION' : comp.status;
         
         // Build the interactive tags for assigned judges
         let assignedJudgesHTML = `<span style="color: var(--text-muted);">No judges assigned yet</span>`;
@@ -269,7 +272,7 @@ function renderGrid(competitions) {
                         <input type="checkbox" class="comp-checkbox" value="${comp.id}" onchange="toggleBulkActions()" style="width: 18px; height: 18px; cursor: pointer; margin-top: 3px;">
                         <div class="card-title">${comp.name}</div>
                     </div>
-                    <span class="badge ${badgeClass}">${comp.status}</span>
+                    <span class="badge ${badgeClass}">${badgeLabel}</span>
                 </div>
                 
                 <div class="card-meta" style="margin-bottom: 0.25rem;"><i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}</div>
@@ -1592,3 +1595,261 @@ document.addEventListener('keydown', (e) => {
         toggleManagerSidebar();
     }
 });
+
+
+// =========================================================================
+// OFFSTAGE VALUATION MANAGEMENT ENGINE
+// =========================================================================
+let allValuationComps = [];
+
+async function updateValuationBadgeCount() {
+    try {
+        let q = window.db.from('competitions')
+            .select('id, is_offstage, status, stages(name)')
+            .eq('status', 'valuation');
+        if (window.festosApplyFilter) q = window.festosApplyFilter(q);
+        const { data: valComps } = await q;
+        
+        const offstageValComps = (valComps || []).filter(c => {
+            if (c.is_offstage) return true;
+            if (c.stages?.name && c.stages.name.toUpperCase().includes('OFFSTAGE')) return true;
+            return false;
+        });
+        
+        const badge = document.getElementById('valuation-counter');
+        if (badge) {
+            const num = offstageValComps.length;
+            if (num > 0) {
+                badge.style.display = 'inline-block';
+                badge.innerText = num;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    } catch (e) {
+        console.warn('Valuation counter notice:', e);
+    }
+}
+
+async function loadValuations() {
+    const grid = document.getElementById('valuation-grid');
+    if (!grid) return;
+    grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1; color: var(--text-muted);"><i class="ph ph-spinner-gap" style="font-size:2rem; animation: spin 1s linear infinite;"></i><p>Loading offstage valuations...</p></div>`;
+
+    try {
+        if (availableJudges.length === 0) {
+            let judgesQuery = supabaseClient.from('users').select('id, username').eq('role', 'judge');
+            if (window.festosApplyFilter) judgesQuery = window.festosApplyFilter(judgesQuery);
+            const { data: judges } = await judgesQuery;
+            availableJudges = judges || [];
+        }
+
+        // Fetch competitions in status 'valuation'
+        let q = window.db.from('competitions')
+            .select('*, categories(name), stages(name, stage_no)')
+            .eq('status', 'valuation');
+        if (window.festosApplyFilter) q = window.festosApplyFilter(q);
+        const { data: comps, error } = await q.order('name');
+
+        if (error) throw error;
+
+        // Fetch assignments
+        let assignQuery = supabaseClient.from('judgements').select('competition_id, judge_id, users(username)').is('awarded_mark', null);
+        if (window.festosApplyFilter) assignQuery = window.festosApplyFilter(assignQuery);
+        const { data: assignments } = await assignQuery;
+        allAssignments = assignments || [];
+
+        // Filter strictly for offstage competitions
+        allValuationComps = (comps || []).filter(c => {
+            if (c.is_offstage) return true;
+            if (c.stages?.name && c.stages.name.toUpperCase().includes('OFFSTAGE')) return true;
+            return false;
+        });
+
+        updateValuationBadgeCount();
+        filterValuations();
+    } catch (err) {
+        console.error('Error loading valuations:', err);
+        showToast('Error loading valuations: ' + err.message, 'error');
+    }
+}
+
+function filterValuations() {
+    const search = (document.getElementById('searchValuation')?.value || '').trim().toLowerCase();
+    const grid = document.getElementById('valuation-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const filtered = allValuationComps.filter(c => 
+        (c.name || '').toLowerCase().includes(search) || 
+        (c.categories?.name || '').toLowerCase().includes(search) ||
+        (c.stages?.name || '').toLowerCase().includes(search)
+    );
+
+    const banner = document.getElementById('valuation-alert-banner');
+    const alertText = document.getElementById('valuation-alert-text');
+    
+    // Count unassigned competitions
+    const unassignedComps = filtered.filter(comp => {
+        const compAssignments = allAssignments.filter(a => a.competition_id === comp.id);
+        return compAssignments.length === 0;
+    });
+
+    if (banner) {
+        if (unassignedComps.length > 0) {
+            banner.style.display = 'flex';
+            if (alertText) {
+                alertText.innerHTML = `<strong>${unassignedComps.length} offstage competition(s)</strong> are in valuation without any assigned judge. Please assign judges below so valuation can proceed.`;
+            }
+        } else {
+            banner.style.display = 'none';
+        }
+    }
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1; color: var(--text-muted);"><i class="ph ph-clipboard-text" style="font-size:2.5rem; margin-bottom:1rem; color: #CBD5E1;"></i><p style="font-weight: 600;">No offstage competitions currently in valuation.</p></div>`;
+        return;
+    }
+
+    let judgeOptions = availableJudges.map(j => `<option value="${j.id}">${j.username}</option>`).join('');
+
+    filtered.forEach(comp => {
+        const compAssignments = allAssignments.filter(a => a.competition_id === comp.id);
+        const hasJudges = compAssignments.length > 0;
+        const compStage = comp.stages ? `${comp.stages.name}` : 'Offstage Venue';
+
+        let judgeSectionHtml = '';
+        if (!hasJudges) {
+            judgeSectionHtml = `
+                <div style="background: #FEF2F2; border: 1.5px dashed #F87171; border-radius: 12px; padding: 1rem; margin-top: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #DC2626; font-weight: 800; font-size: 0.88rem; margin-bottom: 0.35rem;">
+                        <i class="ph-bold ph-warning-octagon" style="font-size: 1.25rem;"></i>
+                        <span>JUDGE NOT ASSIGNED</span>
+                    </div>
+                    <p style="color: #991B1B; font-size: 0.85rem; margin: 0 0 0.85rem 0; line-height: 1.4; font-weight: 500;">
+                        This offstage event has ended and is in valuation. <strong>Please assign a judge to valuate this competition and award marks.</strong>
+                    </p>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <select id="val-judge-select-${comp.id}" class="control-input" style="flex: 1; min-width: 160px; min-height: 40px; background: white; font-weight: 600;">
+                            <option value="">-- Choose Judge to Valuate --</option>
+                            ${judgeOptions}
+                        </select>
+                        <button class="btn btn-primary" onclick="assignJudgeForValuation('${comp.id}', this)" style="min-height: 40px; white-space: nowrap; font-weight: 700; padding: 0.5rem 1.25rem;">
+                            <i class="ph-bold ph-scales"></i> Assign Judge
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            const judgeTags = compAssignments.map(a => `
+                <span class="judge-tag" style="background: white; border: 1.5px solid #10B981; font-weight: 600; color: #065F46;">
+                    <i class="ph-bold ph-user-check" style="color: #10B981;"></i> ${a.users?.username}
+                    <button onclick="revokeJudgeFromValuation('${comp.id}', '${a.judge_id}', this)" title="Revoke ${a.users?.username}">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </span>
+            `).join('');
+
+            judgeSectionHtml = `
+                <div style="background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 1rem; margin-top: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <span style="font-weight: 700; font-size: 0.85rem; color: #166534;"><i class="ph-bold ph-scales"></i> Assigned Valuating Judge(s):</span>
+                        <span style="font-size: 0.75rem; background: #DCFCE7; color: #15803D; font-weight: 700; padding: 3px 10px; border-radius: 50px; border: 1px solid #86EFAC;">Awaiting Marks in Judge Portal</span>
+                    </div>
+                    <div class="judge-tags-container" style="margin-bottom: 0.75rem;">
+                        ${judgeTags}
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; border-top: 1px dashed #86EFAC; padding-top: 0.75rem; align-items: center; flex-wrap: wrap;">
+                        <select id="val-judge-select-${comp.id}" class="control-input" style="flex: 1; min-height: 36px; font-size: 0.82rem; background: white;">
+                            <option value="">Assign Additional Judge...</option>
+                            ${judgeOptions}
+                        </select>
+                        <button class="btn btn-outline" onclick="assignJudgeForValuation('${comp.id}', this)" style="min-height: 36px; padding: 0.4rem 0.85rem; font-size: 0.82rem; white-space: nowrap; font-weight: 600;">
+                            <i class="ph ph-plus"></i> Add
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.style.borderColor = hasJudges ? 'rgba(16, 185, 129, 0.4)' : '#FCA5A5';
+        card.style.boxShadow = hasJudges ? 'var(--shadow-sm)' : '0 4px 14px rgba(239, 68, 68, 0.08)';
+
+        card.innerHTML = `
+            <div class="card-header">
+                <div class="card-title" style="font-size: 1.15rem; font-weight: 800; color: var(--text-main);">${comp.name}</div>
+                <span class="badge badge-valuation" style="background: #FEF3C7; color: #B45309; border: 1.5px solid #FDE68A; font-weight: 800;">
+                    <i class="ph-bold ph-pen-nib"></i> IN VALUATION
+                </span>
+            </div>
+            
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.25rem; margin-bottom: 0.5rem;">
+                <span style="font-size: 0.8rem; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 0.25rem 0.65rem; border-radius: 6px;">
+                    <i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}
+                </span>
+                <span style="font-size: 0.8rem; font-weight: 700; color: #7C3AED; background: #F5F3FF; padding: 0.25rem 0.65rem; border-radius: 6px;">
+                    <i class="ph ph-map-pin"></i> ${compStage}
+                </span>
+                <span style="font-size: 0.8rem; font-weight: 700; color: #0284C7; background: #E0F2FE; padding: 0.25rem 0.65rem; border-radius: 6px;">
+                    <i class="ph ph-layer-group"></i> Offstage Competition
+                </span>
+            </div>
+
+            ${judgeSectionHtml}
+        `;
+        grid.appendChild(card);
+    });
+}
+
+async function assignJudgeForValuation(compId, btnElement) {
+    const select = document.getElementById(`val-judge-select-${compId}`);
+    const judgeId = select ? select.value : null;
+    if (!judgeId) return showToast('Please select a judge to valuate this competition.', 'error');
+
+    const isAlreadyAssigned = allAssignments.some(a => a.competition_id === compId && a.judge_id === judgeId);
+    if (isAlreadyAssigned) return showToast('This judge is already assigned to this competition!', 'error');
+
+    btnElement.disabled = true;
+    const origHtml = btnElement.innerHTML;
+    btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Assigning...';
+
+    const { error } = await window.db.from('judgements').insert([{ competition_id: compId, judge_id: judgeId }]);
+
+    if (error) {
+        showToast("Error assigning judge: " + error.message, 'error');
+        btnElement.disabled = false;
+        btnElement.innerHTML = origHtml;
+    } else {
+        showToast("Judge successfully assigned to valuate competition!");
+        loadValuations();
+        updateValuationBadgeCount();
+        if (typeof loadAssignments === 'function') loadAssignments();
+    }
+}
+
+async function revokeJudgeFromValuation(compId, judgeId, btnElement) {
+    btnElement.disabled = true;
+    const { error } = await window.db.from('judgements')
+        .delete()
+        .eq('competition_id', compId)
+        .eq('judge_id', judgeId)
+        .is('awarded_mark', null);
+
+    if (error) {
+        showToast("Error revoking judge: " + error.message, 'error');
+    } else {
+        showToast("Judge assignment removed.");
+        loadValuations();
+        updateValuationBadgeCount();
+        if (typeof loadAssignments === 'function') loadAssignments();
+    }
+}
+
+// Hook into loadAssignments to keep valuation badge updated
+const _origLoadAssignments = loadAssignments;
+loadAssignments = async function() {
+    await _origLoadAssignments();
+    updateValuationBadgeCount();
+};

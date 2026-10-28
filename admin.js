@@ -3903,7 +3903,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (legacyFb) {
             try {
                 const bData = JSON.parse(legacyFb);
-                if (!bData._fest_id || bData._fest_id === activeFid) cachedBranding = legacyFb;
+                if (bData && bData._fest_id === activeFid) cachedBranding = legacyFb;
             } catch(e) {}
         }
     }

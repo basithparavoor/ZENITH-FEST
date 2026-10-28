@@ -839,6 +839,13 @@
                 <h1 class="hero-title" id="home-hero-title">Welcome to FestOS</h1>
                 <p class="hero-subtitle" id="home-hero-subtitle">Real-time scores, verified stage results, and championship standings live as they happen.</p>
                 
+                <!-- Live Festival Metadata Badges (Dates, Venue & Domain) as setted in Superadmin -->
+                <div class="hero-fest-meta" id="home-fest-meta" style="display: none; align-items: center; justify-content: center; gap: 0.75rem; flex-wrap: wrap; margin-top: -0.5rem; margin-bottom: 2rem; font-size: 0.9rem; font-weight: 600;">
+                    <span class="hero-meta-pill" id="home-fest-dates-pill" style="display: none; background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 0.35rem 0.95rem; border-radius: 50px; color: var(--text-main);"><i class="fa-regular fa-calendar-check" style="color: var(--primary); margin-right: 6px;"></i><span id="home-fest-dates-val"></span></span>
+                    <span class="hero-meta-pill" id="home-fest-venue-pill" style="display: none; background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 0.35rem 0.95rem; border-radius: 50px; color: var(--text-main);"><i class="fa-solid fa-location-dot" style="color: var(--primary); margin-right: 6px;"></i><span id="home-fest-venue-val"></span></span>
+                    <span class="hero-meta-pill" id="home-fest-domain-pill" style="display: none; background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 0.35rem 0.95rem; border-radius: 50px; color: var(--primary); font-family: var(--font-mono); font-size: 0.85rem;"><i class="fa-solid fa-globe" style="margin-right: 6px;"></i><span id="home-fest-domain-val"></span></span>
+                </div>
+                
                 <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem;">
                     <button class="btn" id="home-cta-results" style="width: auto; padding: 0.85rem 1.75rem;" onclick="switchMainTab('results')">
                         <i class="fa-solid fa-trophy"></i> View Standings & Results
@@ -1340,7 +1347,13 @@
             name: '',
             slug: '',
             domain: '',
-            logo: ''
+            logo: '',
+            dates: '',
+            venue: '',
+            theme_color: '',
+            status: 'active',
+            public_results_slug: 'results',
+            newspaper_config: null
         };
 
         // Default Website Customizer Config
@@ -1747,11 +1760,12 @@
             const mobileCards = document.getElementById('public-schedule-mobile-cards');
             
             try {
-                const schedVal = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : null;
+                const targetFestId = currentFestDetails.id || window.activeFestId || (window.festosAuth ? window.festosAuth.getCurrentFestId() : null);
+                const schedVal = window.festosGetSetting ? await window.festosGetSetting('master_schedule', targetFestId) : null;
                 const masterSchedule = schedVal || {};
                 
                 let compsQuery = supabaseClient.from('competitions').select('id, name, is_group, categories(id, name), stages(id, name)');
-                if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery);
+                if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery, targetFestId);
                 const { data: comps } = await compsQuery;
                 
                 let scheduledItems = Object.keys(masterSchedule).map(compId => {
@@ -1920,14 +1934,95 @@
             }
         }
 
+        // Live Festival Metadata UI Updater (Dates, Venue, Domain badge)
+        function updateHeroFestMeta(details) {
+            if (!details) return;
+            const metaBar = document.getElementById('home-fest-meta');
+            const datesPill = document.getElementById('home-fest-dates-pill');
+            const datesVal = document.getElementById('home-fest-dates-val');
+            const venuePill = document.getElementById('home-fest-venue-pill');
+            const venueVal = document.getElementById('home-fest-venue-val');
+            const domainPill = document.getElementById('home-fest-domain-pill');
+            const domainVal = document.getElementById('home-fest-domain-val');
+
+            let hasAny = false;
+            const datesStr = details.dates || (details.start_date ? details.start_date + (details.end_date ? ' - ' + details.end_date : '') : '');
+            if (datesStr && datesPill && datesVal) {
+                datesVal.innerText = datesStr;
+                datesPill.style.display = 'inline-flex';
+                hasAny = true;
+            }
+            if (details.venue && venuePill && venueVal) {
+                venueVal.innerText = details.venue;
+                venuePill.style.display = 'inline-flex';
+                hasAny = true;
+            }
+            const activeDomain = details.domain || (typeof window !== 'undefined' && window.location ? window.location.hostname : '');
+            if (activeDomain && domainPill && domainVal && activeDomain !== 'localhost' && !activeDomain.startsWith('127.0')) {
+                domainVal.innerText = activeDomain;
+                domainPill.style.display = 'inline-flex';
+                hasAny = true;
+            }
+            if (metaBar && hasAny) {
+                metaBar.style.display = 'flex';
+            }
+        }
+
         // --- Main Init ---
         async function init() {
             try {
-                // 1. Instant 0ms Synchronous Hydration from Local Storage Cache
-                const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+                // 1. Resolve Active Festival by Domain / Subdomain / URL param FIRST
+                if (window.festosHostFestReady) {
+                    try { await window.festosHostFestReady; } catch (e) {}
+                }
 
+                let resolvedFest = null;
+                if (window.festosDomains && typeof window.festosDomains.resolveCurrentFest === 'function') {
+                    try {
+                        resolvedFest = await window.festosDomains.resolveCurrentFest();
+                    } catch (e) {}
+                }
+
+                // Primary source of truth for the active festival on this domain
+                let festId = resolvedFest?.id || (window.festosAuth ? window.festosAuth.getCurrentFestId() : null);
+                if (festId) {
+                    window.activeFestId = festId;
+                }
+
+                // If resolved from domain/subdomain, immediately hydrate festival state & branding
+                if (resolvedFest) {
+                    currentFestDetails = {
+                        id: resolvedFest.id,
+                        name: resolvedFest.name || 'Festival',
+                        slug: resolvedFest.slug || '',
+                        domain: resolvedFest.domain || '',
+                        logo: resolvedFest.logo || '',
+                        dates: (resolvedFest.start_date ? resolvedFest.start_date + (resolvedFest.end_date ? ' - ' + resolvedFest.end_date : '') : ''),
+                        venue: resolvedFest.venue || '',
+                        theme_color: resolvedFest.theme_color || '',
+                        status: resolvedFest.status || 'active',
+                        public_results_slug: resolvedFest.public_results_slug || 'results',
+                        newspaper_config: resolvedFest.newspaper_config || null
+                    };
+                    updateHeroFestMeta(currentFestDetails);
+                    applyGlobalBranding({
+                        fest_name: resolvedFest.name,
+                        fest_logo: resolvedFest.logo,
+                        display_mode: resolvedFest.logo ? 'both' : 'name',
+                        theme_color: resolvedFest.theme_color
+                    });
+                    if (resolvedFest.theme_color) {
+                        document.documentElement.style.setProperty('--primary', resolvedFest.theme_color);
+                        document.documentElement.style.setProperty('--primary-hover', resolvedFest.theme_color);
+                        document.documentElement.style.setProperty('--primary-light', resolvedFest.theme_color + '18');
+                        document.documentElement.style.setProperty('--primary-ring', resolvedFest.theme_color + '33');
+                        document.documentElement.style.setProperty('--primary-glow', resolvedFest.theme_color + '25');
+                    }
+                }
+
+                // 2. Instant 0ms Synchronous Hydration from Local Storage Cache for this resolved festival
                 try {
-                    // 1.1 Local Website Config Cache
+                    // 2.1 Local Website Config Cache
                     const rawWebCfg = (festId ? localStorage.getItem('festos_cfg_website_config_' + festId) : null) || 
                                       localStorage.getItem('festos_cfg_website_config') || 
                                       localStorage.getItem('websiteConfig');
@@ -1935,7 +2030,7 @@
                         applyWebsiteCustomizerConfig(JSON.parse(rawWebCfg));
                     }
 
-                    // 1.2 Local Festival Branding Cache
+                    // 2.2 Local Festival Branding Cache
                     if (festId) {
                         const rawBrand = localStorage.getItem('festos_branding_cache_' + festId);
                         if (rawBrand) {
@@ -1943,13 +2038,13 @@
                             if (b && b.fest_name) {
                                 currentFestDetails.id = festId;
                                 currentFestDetails.name = b.fest_name;
-                                currentFestDetails.logo = b.fest_logo || '';
+                                currentFestDetails.logo = b.fest_logo || currentFestDetails.logo || '';
                                 applyGlobalBranding(b);
                             }
                         }
                     }
 
-                    // 1.3 Local Results & Standings Cache (Instant 0ms UI Rendering)
+                    // 2.3 Local Results & Standings Cache (Instant 0ms UI Rendering)
                     const rawResults = festId ? localStorage.getItem('festos_results_cache_' + festId) : null;
                     if (rawResults) {
                         const r = JSON.parse(rawResults);
@@ -1972,10 +2067,7 @@
                     console.warn("Local cache hydration notice:", cacheErr);
                 }
 
-                // 2. Wait for host subdomain resolution if in-flight
-                if (window.festosHostFestReady) { try { await window.festosHostFestReady; } catch (e) {} }
-
-                // 3. Build Parallel Query Group
+                // 3. Build Parallel Query Group STRICTLY scoped to this festival
                 let compsCntQuery = supabaseClient.from('competitions').select('*', { count: 'exact', head: true });
                 let partsCntQuery = supabaseClient.from('participants').select('*', { count: 'exact', head: true });
                 let teamsCntQuery = supabaseClient.from('teams').select('*', { count: 'exact', head: true });
@@ -1986,12 +2078,12 @@
                     .eq('status', 'published');
 
                 if (window.festosApplyFilter) {
-                    compsCntQuery = window.festosApplyFilter(compsCntQuery);
-                    partsCntQuery = window.festosApplyFilter(partsCntQuery);
-                    teamsCntQuery = window.festosApplyFilter(teamsCntQuery);
-                    stagesCntQuery = window.festosApplyFilter(stagesCntQuery);
-                    teamsQuery = window.festosApplyFilter(teamsQuery);
-                    compsQuery = window.festosApplyFilter(compsQuery);
+                    compsCntQuery = window.festosApplyFilter(compsCntQuery, festId);
+                    partsCntQuery = window.festosApplyFilter(partsCntQuery, festId);
+                    teamsCntQuery = window.festosApplyFilter(teamsCntQuery, festId);
+                    stagesCntQuery = window.festosApplyFilter(stagesCntQuery, festId);
+                    teamsQuery = window.festosApplyFilter(teamsQuery, festId);
+                    compsQuery = window.festosApplyFilter(compsQuery, festId);
                 }
 
                 // Execute ALL independent round-trips in ONE parallel burst
@@ -2010,8 +2102,8 @@
                     templatesRes
                 ] = await Promise.all([
                     (festId && typeof supabaseClient !== 'undefined') ? 
-                        supabaseClient.from('fests').select('id, name, slug, domain, logo, start_date, end_date, venue').eq('id', festId).maybeSingle() : 
-                        Promise.resolve({ data: null }),
+                        supabaseClient.from('fests').select('*').eq('id', festId).maybeSingle() : 
+                        Promise.resolve({ data: resolvedFest || null }),
                     window.festosGetSetting ? window.festosGetSetting('system_branding', festId) : null,
                     window.festosGetSetting ? window.festosGetSetting('website_config', festId) : null,
                     window.festosGetSetting ? window.festosGetSetting('point_system', festId) : null,
@@ -2025,8 +2117,8 @@
                     supabaseClient.from('templates').select('*').eq('type', 'individual')
                 ]);
 
-                // 4. Apply Festival Entity & Branding
-                const fData = fDataRes?.data;
+                // 4. Apply Festival Entity & Live Details from Superadmin
+                const fData = fDataRes?.data || resolvedFest;
                 if (fData) {
                     currentFestDetails = {
                         id: fData.id,
@@ -2035,8 +2127,13 @@
                         domain: fData.domain || '',
                         logo: fData.logo || '',
                         dates: (fData.start_date ? fData.start_date + (fData.end_date ? ' - ' + fData.end_date : '') : ''),
-                        venue: fData.venue || ''
+                        venue: fData.venue || '',
+                        theme_color: fData.theme_color || '',
+                        status: fData.status || 'active',
+                        public_results_slug: fData.public_results_slug || 'results',
+                        newspaper_config: fData.newspaper_config || null
                     };
+                    updateHeroFestMeta(currentFestDetails);
                 }
 
                 let finalBranding = brandVal;
@@ -2044,11 +2141,13 @@
                     finalBranding = {
                         fest_name: fData.name || 'Festival',
                         fest_logo: fData.logo || '',
-                        display_mode: fData.logo ? 'both' : 'name'
+                        display_mode: fData.logo ? 'both' : 'name',
+                        theme_color: fData.theme_color || ''
                     };
                 } else if (finalBranding && fData) {
                     if (!finalBranding.fest_name) finalBranding.fest_name = fData.name;
                     if (!finalBranding.fest_logo && fData.logo) finalBranding.fest_logo = fData.logo;
+                    if (!finalBranding.theme_color && fData.theme_color) finalBranding.theme_color = fData.theme_color;
                     currentFestDetails.name = finalBranding.fest_name || fData.name || 'Festival';
                     if (finalBranding.fest_logo) currentFestDetails.logo = finalBranding.fest_logo;
                 }
@@ -2056,6 +2155,15 @@
                 if (finalBranding) {
                     try { if (festId) localStorage.setItem('festos_branding_cache_' + festId, JSON.stringify(finalBranding)); } catch(e) {}
                     applyGlobalBranding(finalBranding);
+                }
+
+                // Dynamic theme color application if set in Superadmin
+                if (fData && fData.theme_color && (!webCfgVal || !webCfgVal.theme || !webCfgVal.theme.primary)) {
+                    document.documentElement.style.setProperty('--primary', fData.theme_color);
+                    document.documentElement.style.setProperty('--primary-hover', fData.theme_color);
+                    document.documentElement.style.setProperty('--primary-light', fData.theme_color + '18');
+                    document.documentElement.style.setProperty('--primary-ring', fData.theme_color + '33');
+                    document.documentElement.style.setProperty('--primary-glow', fData.theme_color + '25');
                 }
 
                 // 5. Apply Fresh Website Customizer Config
@@ -2405,7 +2513,10 @@
             try {
                 let isFestEnded = false; 
                 if (type === 'final') {
-                    const { count: totalComps, error: countError } = await supabaseClient.from('competitions').select('*', { count: 'exact', head: true });
+                    const targetFestId = currentFestDetails.id || window.activeFestId || (window.festosAuth ? window.festosAuth.getCurrentFestId() : null);
+                    let compsCntQuery = supabaseClient.from('competitions').select('*', { count: 'exact', head: true });
+                    if (window.festosApplyFilter) compsCntQuery = window.festosApplyFilter(compsCntQuery, targetFestId);
+                    const { count: totalComps, error: countError } = await compsCntQuery;
                     if (countError) throw countError;
                     if (totalComps > 0 && publishedCompetitions.length === totalComps) { isFestEnded = true; }
                     if (!isFestEnded) {
@@ -2831,12 +2942,14 @@
             errorEl.style.display = 'none';
 
             try {
-                // Query participant with unique_id (Chest No)
-                const { data, error } = await supabaseClient
+                // Query participant with unique_id (Chest No) scoped to this festival
+                const targetFestId = currentFestDetails.id || window.activeFestId || (window.festosAuth ? window.festosAuth.getCurrentFestId() : null);
+                let pQuery = supabaseClient
                     .from('participants')
                     .select('*, teams(name), categories(name)')
-                    .eq('unique_id', chestInput)
-                    .maybeSingle();
+                    .eq('unique_id', chestInput);
+                if (window.festosApplyFilter) pQuery = window.festosApplyFilter(pQuery, targetFestId);
+                const { data, error } = await pQuery.maybeSingle();
 
                 if (error) throw error;
 
@@ -2984,7 +3097,7 @@
             let items = websiteConfig.downloads || [];
 
             // Gating check: Filter out Daily Newspaper if disabled by Super Admin or before fest dates
-            const festId = window.activeFestId || 'active_fest';
+            const festId = currentFestDetails.id || window.activeFestId || (window.festosAuth ? window.festosAuth.getCurrentFestId() : null);
             let npCfg = null;
             try {
                 const rawCfg = localStorage.getItem('festos_cfg_newspaper_config_' + festId);
@@ -3074,7 +3187,7 @@
             let items = websiteConfig.news || [];
 
             // Gating check: Filter out gazette news if disabled by Super Admin or before fest dates
-            const festId = window.activeFestId || 'active_fest';
+            const festId = currentFestDetails.id || window.activeFestId || (window.festosAuth ? window.festosAuth.getCurrentFestId() : null);
             let npCfg = null;
             try {
                 const rawCfg = localStorage.getItem('festos_cfg_newspaper_config_' + festId);
@@ -3299,6 +3412,13 @@
             });
             await Promise.all(loadPromises);
         }
+
+        // Listen for domain resolution events across sessions
+        window.addEventListener('festos:festresolved', (e) => {
+            if (e && e.detail && e.detail.fest && e.detail.changed) {
+                init();
+            }
+        });
 
         document.addEventListener("DOMContentLoaded", () => { 
             init(); 

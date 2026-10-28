@@ -337,9 +337,9 @@ body, input, button, select, .toast, .card-title {
                 <p id="stage-name" style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.15rem; font-weight: 500;">Authenticating...</p>
                 <div id="welcome-msg" style="color: var(--primary); font-weight: 700; font-size: 0.8rem; letter-spacing: 0.05em; margin-top: 0.25rem;"></div>
                 
-               <div id="master-filter-container" style="display: none; margin-top: 1.25rem; width: 100%;">
-                    <select id="master-stage-filter" onchange="loadCompetitions(this.value)" class="controls-bar" style="width: 100%;">
-                        <option value="ALL">-- ALL STAGES (MASTER VIEW) --</option>
+               <div id="master-filter-container" class="controls-bar" style="display: none; margin-top: 0.85rem; width: 100%;">
+                    <select id="master-stage-filter" onchange="loadCompetitions(this.value)" style="width: 100%; font-weight: 700; color: var(--primary);">
+                        <option value="ALL">-- ALL STAGES --</option>
                     </select>
                 </div>
 

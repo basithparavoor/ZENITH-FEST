@@ -343,6 +343,7 @@
 
         /* --- BADGES --- */
         .badge { padding: 0.4rem 0.85rem; border-radius: 50px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; }
+        .badge-valuation { background: #FEF3C7; color: #B45309; border-color: rgba(245, 158, 11, 0.4); }
         .badge-pending { background: var(--warning-light); color: #B45309; border-color: rgba(245, 158, 11, 0.2); }
         .badge-ongoing { background: #DBEAFE; color: #1D4ED8; border-color: rgba(59, 130, 246, 0.2); }
         .badge-ready { background: var(--success-light); color: var(--success-hover); border-color: rgba(16, 185, 129, 0.2); }
@@ -880,33 +881,77 @@
 
     <div class="sidebar">
     <div class="brand"><script>
-    (function(){
-        try {
-            const user = JSON.parse(localStorage.getItem('festUser') || localStorage.getItem('festSuperAdmin') || '{}');
-            const festId = user.fest_id || localStorage.getItem('festos_active_fest_id') || 'fest_zenith26';
-            const raw = localStorage.getItem('festos_branding_cache_' + festId) || 
-                        localStorage.getItem('festBranding') || 
-                        localStorage.getItem('festos_branding_cache_active') || 
-                        localStorage.getItem('festos_cfg_system_branding_' + festId);
-            if (raw) {
-                const b = JSON.parse(raw);
-                const name = b.fest_name || 'Zenith';
-                const logo = (b.fest_logo && b.fest_logo !== 'festos-logo.svg' && b.fest_logo !== '/festos-logo.svg') ? b.fest_logo : '';
+        (function(){
+            try {
+                const user = JSON.parse(localStorage.getItem('festUser') || localStorage.getItem('festSuperAdmin') || '{}');
+                const festId = (window.festosAuth && window.festosAuth.getCurrentFestId)
+                    ? window.festosAuth.getCurrentFestId()
+                    : (user.fest_id || localStorage.getItem('festos_active_fest_id') || '');
+
+                let raw = null;
+                if (festId) {
+                    raw = localStorage.getItem('festos_branding_cache_' + festId) || 
+                          localStorage.getItem('festos_cfg_system_branding_' + festId);
+                    if (!raw) {
+                        const legacyFb = localStorage.getItem('festBranding');
+                        if (legacyFb) {
+                            try {
+                                const parsedFb = JSON.parse(legacyFb);
+                                if (parsedFb && parsedFb._fest_id === festId) raw = legacyFb;
+                            } catch(e) {}
+                        }
+                    }
+                }
+
+                let name = '';
+                let logo = '';
+                if (raw) {
+                    try {
+                        const b = JSON.parse(raw);
+                        if (b.fest_name && b.fest_name !== 'FestOS' && b.fest_name !== 'Festival') name = b.fest_name;
+                        if (b.fest_logo && b.fest_logo !== 'festos-logo.svg' && b.fest_logo !== '/festos-logo.svg') logo = b.fest_logo;
+                    } catch(e) {}
+                }
+
+                if (!name && festId && typeof festosDomains !== 'undefined') {
+                    const f = festosDomains.findFest ? festosDomains.findFest(festId) : null;
+                    if (f) {
+                        if (f.name) name = f.name;
+                        if (f.logo && !f.logo.includes('festos-logo.svg')) logo = f.logo;
+                    }
+                }
+                if (!name && festId) {
+                    try {
+                        const festsList = JSON.parse(localStorage.getItem('festos_fests_cache') || '[]');
+                        const f = festsList.find(x => x.id === festId || x.slug === festId.replace(/^fest_/, ''));
+                        if (f) {
+                            if (f.name) name = f.name;
+                            if (f.logo && !f.logo.includes('festos-logo.svg')) logo = f.logo;
+                        }
+                    } catch(e) {}
+                }
+
+                if (!name) name = 'Festival';
+
                 let h = '';
-                if (logo) h += '<img src="' + logo + '" alt="' + name + ' Logo" class="festos-dynamic-logo" style="height: 36px; width: auto; max-width: 140px; object-fit: contain; border-radius: 6px; margin-right: 8px; display: inline-block; vertical-align: middle;">';
-                else h += '<i class="ph-fill ph-crown" style="color: var(--primary); margin-right: 8px;"></i>';
+                if (logo) {
+                    h += '<img src="' + logo + '" alt="' + name + ' Logo" class="festos-dynamic-logo" style="height: 36px; width: auto; max-width: 140px; object-fit: contain; border-radius: 6px; margin-right: 8px; display: inline-block; vertical-align: middle;">';
+                } else {
+                    h += '<i class="ph-fill ph-crown" style="color: var(--primary); margin-right: 8px;"></i>';
+                }
                 h += '<span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">' + name + '</span>';
                 document.write(h);
-            } else {
-                document.write('<i class="ph-fill ph-crown" style="color: var(--primary); margin-right: 8px;"></i><span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">Zenith</span>');
+            } catch(e) {
+                document.write('<i class="ph-fill ph-crown" style="color: var(--primary); margin-right: 8px;"></i><span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">Festival</span>');
             }
-        } catch(e) {
-            document.write('<i class="ph-fill ph-crown" style="color: var(--primary); margin-right: 8px;"></i><span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">Zenith</span>');
-        }
-    })();
-    </script></div>
+        })();
+        </script></div>
     <div class="nav-items">
         <div class="nav-item active" onclick="switchTab('assignments')" title="Assign Judges"><i class="ph ph-users-three"></i> Assign Judges</div>
+        <div class="nav-item" id="nav-item-valuation" onclick="switchTab('valuation')" title="Offstage Valuations">
+            <i class="ph ph-clipboard-text"></i> Offstage Valuations
+            <span id="valuation-counter" style="display: none; background: #F59E0B; color: white; border-radius: 50px; padding: 2px 8px; font-size: 0.72rem; font-weight: 700; margin-left: auto;">0</span>
+        </div>
         <div class="nav-item" onclick="switchTab('publish')" title="Publish Results"><i class="ph ph-megaphone"></i> Publish Results</div>
         <div class="nav-item" onclick="switchTab('published-results')" title="Published Results"><i class="ph ph-check-square-offset"></i> Published</div>
         <div class="nav-item" onclick="switchTab('judges')" title="Judge Management"><i class="ph ph-scales"></i> Judge Management</div>
@@ -956,6 +1001,7 @@
                         <option value="all">Assignment Status (All)</option>
                         <option value="unassigned">Needs Judges</option>
                         <option value="assigned">Judges Assigned</option>
+                    <option value="valuation">In Valuation (Offstage)</option>
                     </select>
                 </div>
 
@@ -991,6 +1037,37 @@
 
             <div class="card-grid" id="comps-grid">
             </div>
+        </div>
+
+        <div id="valuation" class="content-section">
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h2>Offstage Valuations</h2>
+                    <p>Offstage competitions marked as ended by stage controllers. Review valuation status and assign judges to evaluate submissions.</p>
+                </div>
+                <div style="display: flex; gap: 1rem; align-items: center; width: 100%; max-width: 500px;">
+                    <div class="search-wrapper" style="flex: 1;">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <input type="text" id="searchValuation" class="control-input" placeholder="Search offstage valuations..." oninput="filterValuations()">
+                    </div>
+                    <button class="btn btn-outline" onclick="loadValuations()">
+                        <i class="ph ph-arrows-clockwise"></i> <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Action Alert Banner when judges are missing -->
+            <div id="valuation-alert-banner" style="display: none; margin-bottom: 1.5rem; background: #FEF3C7; border: 1.5px solid #FDE68A; border-radius: var(--radius-md); padding: 1rem 1.25rem; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="ph-fill ph-warning-circle" style="color: #D97706; font-size: 1.5rem; flex-shrink: 0;"></i>
+                    <div>
+                        <strong style="color: #92400E; font-size: 0.95rem; display: block;">Judge Assignment Required for Valuation</strong>
+                        <span id="valuation-alert-text" style="color: #B45309; font-size: 0.85rem;">One or more offstage competitions are awaiting judge assignment.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-grid" id="valuation-grid"></div>
         </div>
 
         <div id="publish" class="content-section">

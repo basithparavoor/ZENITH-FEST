@@ -1,0 +1,17 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/results", "destination": "/results.html" },
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/superadmin", "destination": "/superadmin.html" },
+    { "source": "/judge", "destination": "/judge.html" },
+    { "source": "/spectator", "destination": "/spectator.html" },
+    { "source": "/display", "destination": "/display.html" },
+    { "source": "/manager", "destination": "/manager.html" },
+    { "source": "/team-manager", "destination": "/team-manager.html" },
+    { "source": "/stage-controller", "destination": "/stage-controller.html" },
+    { "source": "/scan", "destination": "/scan.html" },
+    { "source": "/announcements", "destination": "/announcements.html" },
+    { "source": "/landing", "destination": "/landing.html" }
+  ]
+}

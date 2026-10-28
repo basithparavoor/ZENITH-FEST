@@ -52,38 +52,79 @@ async function loadDashboard() {
     const container = document.getElementById('competitions-container');
     container.innerHTML = `<div style="text-align:center; padding: 3rem;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i><p style="margin-top: 1rem; color: var(--text-muted); font-weight: 600;">Loading Stage Data...</p></div>`;
 
-    if (user.role === 'master_admin' || user.role === 'admin') {
-        document.getElementById('stage-name').innerText = "Admin Override";
-        document.getElementById('master-filter-container').style.display = 'block';
-        
-        let stagesQuery = supabaseClient.from('stages').select('id, name').order('stage_no');
-        if (window.festosApplyFilter) stagesQuery = window.festosApplyFilter(stagesQuery);
-        const { data: stages } = await stagesQuery;
+    // Fetch all stages for this festival
+    let stagesQuery = supabaseClient.from('stages').select('id, name, stage_no, controller_id').order('stage_no');
+    if (window.festosApplyFilter) stagesQuery = window.festosApplyFilter(stagesQuery);
+    const { data: stages } = await stagesQuery;
+    window.allStagesList = stages || [];
 
-        const filterDropdown = document.getElementById('master-stage-filter');
-        filterDropdown.innerHTML = '<option value="ALL">-- ALL STAGES (MASTER VIEW) --</option>';
+    const filterContainer = document.getElementById('master-filter-container');
+    const filterDropdown = document.getElementById('master-stage-filter');
+    const prevSelectedStage = filterDropdown ? filterDropdown.value : null;
+
+    if (user.role === 'master_admin' || user.role === 'admin' || user.role === 'super_admin') {
+        document.getElementById('stage-name').innerText = "Admin Override (All Venues)";
+        if (filterContainer) filterContainer.style.display = 'block';
         
-        if (stages) {
+        let filterHtml = '<option value="ALL">-- ALL STAGES (MASTER VIEW) --</option>';
+        if (stages && stages.length > 0) {
             stages.forEach(s => {
-                filterDropdown.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+                filterHtml += `<option value="${s.id}">${s.name}</option>`;
             });
         }
+        filterHtml += '<option value="UNASSIGNED">-- UNASSIGNED VENUES / STAGES --</option>';
+        if (filterDropdown) filterDropdown.innerHTML = filterHtml;
 
-        loadCompetitions('ALL');
+        const targetStage = prevSelectedStage && (prevSelectedStage === 'ALL' || prevSelectedStage === 'UNASSIGNED' || (stages && stages.some(s => s.id === prevSelectedStage)))
+            ? prevSelectedStage 
+            : 'ALL';
+            
+        if (filterDropdown) filterDropdown.value = targetStage;
+        loadCompetitions(targetStage);
         return;
     }
 
-    const { data: stage, error: stageError } = await supabaseClient
-        .from('stages').select('*').eq('controller_id', user.id).maybeSingle();
+    // Role is stage_controller: find any stages assigned to this controller
+    const myStages = (stages || []).filter(s => s.controller_id === user.id);
 
-    if (stageError || !stage) {
-        document.getElementById('stage-name').innerText = "Unassigned / Error";
-        container.innerHTML = `<p style="color: var(--danger); text-align:center; background: white; padding: 2rem; border-radius: 12px; font-weight: 600;">Failed to load stage data. Ask the Master Admin to assign you to a stage.</p>`;
-        return;
+    if (filterContainer) filterContainer.style.display = 'block';
+
+    let filterHtml = '';
+    if (myStages.length > 1) {
+        filterHtml += `<option value="MY_STAGES">-- ALL MY ASSIGNED STAGES (${myStages.length}) --</option>`;
+    }
+    
+    if (myStages.length > 0) {
+        myStages.forEach(s => {
+            filterHtml += `<option value="${s.id}">${s.name}</option>`;
+        });
+        filterHtml += '<option disabled>──────────</option>';
     }
 
-    document.getElementById('stage-name').innerText = stage.name;
-    loadCompetitions(stage.id);
+    filterHtml += '<option value="ALL">-- ALL FESTIVAL STAGES --</option>';
+    
+    // List any other stages
+    const otherStages = (stages || []).filter(s => !myStages.some(ms => ms.id === s.id));
+    otherStages.forEach(s => {
+        filterHtml += `<option value="${s.id}">${s.name}</option>`;
+    });
+    filterHtml += '<option value="UNASSIGNED">-- UNASSIGNED VENUES / STAGES --</option>';
+
+    if (filterDropdown) filterDropdown.innerHTML = filterHtml;
+
+    let targetStage = 'ALL';
+    if (prevSelectedStage && (prevSelectedStage === 'ALL' || prevSelectedStage === 'MY_STAGES' || prevSelectedStage === 'UNASSIGNED' || (stages && stages.some(s => s.id === prevSelectedStage)))) {
+        targetStage = prevSelectedStage;
+    } else if (myStages.length === 1) {
+        targetStage = myStages[0].id;
+    } else if (myStages.length > 1) {
+        targetStage = 'MY_STAGES';
+    } else if (stages && stages.length > 0) {
+        targetStage = stages[0].id;
+    }
+
+    if (filterDropdown) filterDropdown.value = targetStage;
+    loadCompetitions(targetStage);
 }
 
 function adjustLayoutPadding() {
@@ -92,17 +133,39 @@ function adjustLayoutPadding() {
         document.body.style.paddingTop = `${navbar.offsetHeight + 15}px`;
     }
 }
+window.addEventListener('resize', adjustLayoutPadding);
 
 async function loadCompetitions(stageId) {
+    // Update stage name display to match active dropdown selection
+    const filterDropdown = document.getElementById('master-stage-filter');
+    if (filterDropdown && window.allStagesList) {
+        const selectedStage = window.allStagesList.find(s => s.id === stageId);
+        if (selectedStage) {
+            document.getElementById('stage-name').innerText = selectedStage.name;
+        } else if (stageId === 'ALL') {
+            document.getElementById('stage-name').innerText = "All Festival Stages";
+        } else if (stageId === 'UNASSIGNED') {
+            document.getElementById('stage-name').innerText = "Unassigned Venues / Stages";
+        } else if (stageId === 'MY_STAGES') {
+            document.getElementById('stage-name').innerText = "My Assigned Stages";
+        }
+    }
+
     let query = supabaseClient.from('competitions')
-        // Ensure we fetch stages(id, name, stage_no) and judgements
         .select('*, categories(name), stages(id, name, stage_no), judgements(judge_id, awarded_mark, users(username)), participant_competitions(participant_id)');
 
     if (window.festosApplyFilter) {
         query = window.festosApplyFilter(query);
     }
 
-    if (stageId && stageId !== 'ALL') {
+    if (stageId === 'UNASSIGNED') {
+        query = query.is('stage_id', null);
+    } else if (stageId === 'MY_STAGES') {
+        const myStageIds = (window.allStagesList || []).filter(s => s.controller_id === user.id).map(s => s.id);
+        if (myStageIds.length > 0) {
+            query = query.in('stage_id', myStageIds);
+        }
+    } else if (stageId && stageId !== 'ALL') {
         query = query.eq('stage_id', stageId);
     }
     
@@ -119,10 +182,6 @@ async function loadCompetitions(stageId) {
     // Fetch Master Schedule
     const schedVal = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : null;
     const masterSchedule = schedVal || {};
-    
-    // Fetch Offset Setting
-    const pointVal = window.festosGetSetting ? await window.festosGetSetting('point_system') : null;
-    const announcerOffset = pointVal?.announcer_offset !== undefined ? parseInt(pointVal.announcer_offset) : 30;
 
     const container = document.getElementById('competitions-container');
     container.innerHTML = '';
@@ -131,47 +190,56 @@ async function loadCompetitions(stageId) {
         container.innerHTML = `
             <div style="text-align: center; padding: 3rem 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 2px dashed var(--border);">
                 <i class="fa-solid fa-clipboard-check" style="font-size: 3rem; color: #CBD5E1; margin-bottom: 1rem;"></i>
-                <p style="color: var(--text-muted); font-size: 1.05rem; font-weight: 600;">No competitions assigned to this stage yet.</p>
+                <p style="color: var(--text-muted); font-size: 1.05rem; font-weight: 600;">No competitions assigned to this selection yet.</p>
             </div>`;
         adjustLayoutPadding(); 
         return;
     }
 
-    const now = new Date();
-    
-    // Filter out Completed Events and Future Events beyond the offset limit
+    // Retain all pending, registration, ongoing, valuation, and judgement_complete competitions!
+    // Filter out only 'published' events (final published results where event has ended)
     const visibleComps = competitionsData.filter(comp => {
-        // Goal: Remove it entirely once it hits judgement_complete (or published)
-        if (comp.status === 'published' || comp.status === 'judgement_complete') return false; 
-        
-        // Show ongoing, registration, and valuation immediately without time bounds
-        if (comp.status !== 'pending') return true; 
-        
-        const sched = masterSchedule[comp.id];
-        if (!sched || sched.status !== 'published') return false; 
-        
-        const schedDate = new Date(`${sched.date}T${sched.time}`);
-        if (isNaN(schedDate)) return true; // Failsafe: show it if the date format is corrupt
-        
-        // Check if the scheduled time is within the offset window
-        const diffMins = (schedDate - now) / 60000;
-        return diffMins <= announcerOffset;
+        if (comp.status === 'published') return false; 
+        // For offstage competitions marked as end (in valuation), do not show them in stage controller
+        if (comp.status === 'valuation' && checkIsCompOffstage(comp)) return false;
+        return true;
     });
 
-    // Goal: Order chronologically by Scheduled Time
+    // Intelligent Sorting:
+    // 1. Live Active events first: ongoing -> registration -> valuation
+    // 2. Upcoming pending events (chronologically by schedule date/time, then name)
+    // 3. Completed judging events (judgement_complete)
+    const statusPriority = {
+        'ongoing': 1,
+        'registration': 2,
+        'valuation': 3,
+        'pending': 4,
+        'judgement_complete': 5
+    };
+
     visibleComps.sort((a, b) => {
+        const priorityA = statusPriority[a.status] || 99;
+        const priorityB = statusPriority[b.status] || 99;
+        if (priorityA !== priorityB) {
+            return priorityA - priorityB;
+        }
+
         const schedA = masterSchedule[a.id];
         const schedB = masterSchedule[b.id];
         const timeA = schedA && schedA.date && schedA.time ? new Date(`${schedA.date}T${schedA.time}`).getTime() : Infinity;
         const timeB = schedB && schedB.date && schedB.time ? new Date(`${schedB.date}T${schedB.time}`).getTime() : Infinity;
-        return timeA - timeB;
+        if (timeA !== timeB) {
+            return timeA - timeB;
+        }
+
+        return (a.name || '').localeCompare(b.name || '');
     });
 
     if (visibleComps.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; padding: 3rem 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 2px dashed var(--border);">
                 <i class="fa-solid fa-calendar-check" style="font-size: 3rem; color: #CBD5E1; margin-bottom: 1rem;"></i>
-                <p style="color: var(--text-muted); font-size: 1.05rem; font-weight: 600;">No active or upcoming events within the time limit.</p>
+                <p style="color: var(--text-muted); font-size: 1.05rem; font-weight: 600;">No active or upcoming events found for this selection.</p>
             </div>`;
         adjustLayoutPadding(); 
         return;
@@ -200,6 +268,7 @@ async function loadCompetitions(stageId) {
         if (comp.status === 'registration') { badgeClass = 'badge-registration'; statusText = 'REGISTRATION'; statusIcon = '<i class="fa-solid fa-qrcode"></i>';}
         if (comp.status === 'ongoing') { badgeClass = 'badge-ongoing'; statusText = 'ONGOING'; statusIcon = '<i class="fa-solid fa-circle-play"></i>';}
         if (comp.status === 'valuation') { badgeClass = 'badge-pending'; statusText = 'IN VALUATION'; statusIcon = '<i class="fa-solid fa-pen-clip"></i>';}
+        if (comp.status === 'judgement_complete') { badgeClass = 'badge-complete'; statusText = 'AWAITING RESULTS'; statusIcon = '<i class="fa-solid fa-flag-checkered"></i>';}
 
         const enrolledCount = comp.participant_competitions ? comp.participant_competitions.length : 0;
         const categoryName = comp.categories?.name || 'Uncategorized';
@@ -217,19 +286,26 @@ async function loadCompetitions(stageId) {
             schedBadge = `<span style="display: inline-flex; align-items: center; gap: 0.4rem;"><i class="fa-regular fa-clock" style="color: var(--primary);"></i> Sched: <strong style="color: var(--text-main);">${sched.date} @ ${timeStr}</strong></span>`;
         }
 
+        const stageBadge = comp.stages?.name 
+            ? `<span style="color: #6366F1; font-size: 0.72rem; font-weight: 800; background: #EEF2FF; padding: 0.3rem 0.65rem; border-radius: 6px;"><i class="fa-solid fa-location-dot"></i> ${comp.stages.name}</span>`
+            : `<span style="color: var(--text-muted); font-size: 0.72rem; font-weight: 700; background: var(--bg-main); padding: 0.3rem 0.65rem; border-radius: 6px;"><i class="fa-solid fa-location-dot"></i> Unassigned</span>`;
+
         const card = document.createElement('div');
         card.className = 'card comp-card';
-        card.setAttribute('data-comp-name', comp.name.toLowerCase()); 
+        card.setAttribute('data-comp-name', (comp.name || '').toLowerCase()); 
         card.setAttribute('data-category', categoryName); 
         card.setAttribute('data-status', comp.status); 
         
         card.innerHTML = `
             <div class="card-header">
                 <div style="width: 100%;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; gap: 1rem;">
-                        <span style="color: var(--primary); font-size: 0.75rem; font-weight: 800; background: var(--primary-light); padding: 0.35rem 0.75rem; border-radius: 6px;">
-                            ${categoryName}
-                        </span>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; gap: 0.75rem; flex-wrap: wrap;">
+                        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center;">
+                            <span style="color: var(--primary); font-size: 0.75rem; font-weight: 800; background: var(--primary-light); padding: 0.35rem 0.75rem; border-radius: 6px;">
+                                ${categoryName}
+                            </span>
+                            ${stageBadge}
+                        </div>
                         <span class="badge ${badgeClass}" style="white-space: nowrap;">${statusIcon} ${statusText}</span>
                     </div>
                     
@@ -280,18 +356,18 @@ function filterCompetitions() {
     
     if (!searchInput) return;
     
-    const textFilter = searchInput.value.toLowerCase();
+    const textFilter = (searchInput.value || '').trim().toLowerCase();
     const catFilter = categoryDropdown ? categoryDropdown.value : 'ALL';
     const statusFilter = statusDropdown ? statusDropdown.value : 'ALL';
     
     const cards = document.querySelectorAll('.comp-card');
     
     cards.forEach(card => {
-        const compName = card.getAttribute('data-comp-name');
-        const compCat = card.getAttribute('data-category');
-        const compStatus = card.getAttribute('data-status');
+        const compName = card.getAttribute('data-comp-name') || '';
+        const compCat = card.getAttribute('data-category') || '';
+        const compStatus = card.getAttribute('data-status') || '';
         
-        const matchesText = compName.includes(textFilter);
+        const matchesText = !textFilter || compName.includes(textFilter);
         const matchesCategory = (catFilter === 'ALL' || compCat === catFilter);
         
         // Ensure 'valuation' is treated correctly under the filter logic
@@ -306,20 +382,6 @@ function filterCompetitions() {
     
     adjustLayoutPadding();
 }
-
-function checkIsCompOffstage(comp) {
-    if (!comp) return false;
-    if (comp.is_offstage) return true;
-    const sId = comp.stage_id || comp.stages?.id;
-    if (sId && window.stageOffstageFlags && window.stageOffstageFlags[sId] !== undefined) {
-        return !!window.stageOffstageFlags[sId];
-    }
-    if (comp.stages?.name && comp.stages.name.toUpperCase().includes('OFFSTAGE')) {
-        return true;
-    }
-    return false;
-}
-window.checkIsCompOffstage = checkIsCompOffstage;
 
 function getButtonsForStatus(comp) {
     const safeName = comp.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -384,16 +446,9 @@ function getButtonsForStatus(comp) {
 
 async function openScannerModal(compId, compName) {
     activeScanCompId = compId;
+    isProcessingScan = false;
     document.getElementById('modal-comp-name').innerText = `Scanning: ${compName}`;
     document.getElementById('scanner-modal').style.display = 'flex';
-
-    const { count } = await supabaseClient
-        .from('participant_competitions') 
-        .select('*', { count: 'exact', head: true })
-        .eq('competition_id', compId)
-        .eq('is_present', true);
-    
-    currentPresentCount = count || 0;
 
     // Removed qrbox to scan full-frame and boosted fps to 20 for instant reads
     html5QrcodeScanner = new Html5QrcodeScanner("global-reader", { fps: 20 }, false);
@@ -406,6 +461,7 @@ function closeScannerModal() {
     }
     document.getElementById('scanner-modal').style.display = 'none';
     activeScanCompId = null;
+    isProcessingScan = false;
     loadDashboard(); 
 }
 
@@ -418,10 +474,41 @@ function generateCodeLetter(index) {
     return letter;
 }
 
+// Guarantee unique code letters by scanning current database records in real-time
+async function getFreshNextCodeLetter(compId, currentRegId) {
+    const { data: records, error } = await supabaseClient
+        .from('participant_competitions')
+        .select('id, code_letter, is_present')
+        .eq('competition_id', compId);
+
+    const usedLetters = new Set();
+    if (records) {
+        records.forEach(r => {
+            // Exclude current participant being updated
+            if (r.id !== currentRegId && r.code_letter && typeof r.code_letter === 'string') {
+                const cleaned = r.code_letter.trim().toUpperCase();
+                if (cleaned) usedLetters.add(cleaned);
+            }
+        });
+    }
+
+    // Find the first letter in sequence (A, B, C, ..., Z, AA, AB, ...) not in usedLetters
+    let index = 0;
+    while (true) {
+        const candidate = generateCodeLetter(index);
+        if (!usedLetters.has(candidate)) {
+            return candidate;
+        }
+        index++;
+    }
+}
+
 async function onScanSuccess(decodedText) {
     if (isProcessingScan || !activeScanCompId) return; 
     isProcessingScan = true;
-    html5QrcodeScanner.pause();
+    if (html5QrcodeScanner) {
+        try { html5QrcodeScanner.pause(); } catch(e) {}
+    }
 
     let qrId = decodedText.trim();
     if (qrId.includes('?id=')) {
@@ -454,7 +541,7 @@ async function onScanSuccess(decodedText) {
             return;
         }
 
-        // --- CORRECTED: STRICT LEADER VERIFICATION ---
+        // --- STRICT LEADER VERIFICATION FOR GROUP EVENTS ---
         const { data: compData } = await supabaseClient
             .from('competitions')
             .select('is_group')
@@ -466,30 +553,44 @@ async function onScanSuccess(decodedText) {
             resetScanner();
             return; 
         }
-        // ---------------------------------------------
 
-        if (registration.is_present) {
-            showToast(`${participant.name} is already checked in.`, "warning");
+        if (registration.is_present && registration.code_letter) {
+            showToast(`${participant.name} is already checked in (Code ${registration.code_letter}).`, "warning");
             resetScanner();
             return;
         } 
 
-        const codeLetter = generateCodeLetter(currentPresentCount);
+        // Strictly determine unique next available code letter from real-time DB records
+        let codeLetter = registration.code_letter ? registration.code_letter.trim().toUpperCase() : null;
+        if (!codeLetter) {
+            codeLetter = await getFreshNextCodeLetter(activeScanCompId, registration.id);
+        }
         
-        const { error: updateErr } = await supabaseClient
-            .from('participant_competitions')
-            .update({ is_present: true, code_letter: codeLetter })
-            .eq('id', registration.id);
+        let updateQuery;
+        if (compData && compData.is_group && registration.group_id) {
+            // Group event: assign the code letter to the whole group and mark them present
+            updateQuery = supabaseClient
+                .from('participant_competitions')
+                .update({ is_present: true, code_letter: codeLetter })
+                .eq('competition_id', activeScanCompId)
+                .eq('group_id', registration.group_id);
+        } else {
+            updateQuery = supabaseClient
+                .from('participant_competitions')
+                .update({ is_present: true, code_letter: codeLetter })
+                .eq('id', registration.id);
+        }
 
-        if(!updateErr) {
-            currentPresentCount++;
-            showToast(`Success! ${participant.name} assigned: ${codeLetter}`);
+        const { error: updateErr } = await updateQuery;
+
+        if (!updateErr) {
+            showToast(`Success! ${participant.name} assigned: Code ${codeLetter}`);
             loadCheckedInList(activeScanCompId); 
         } else {
-            showToast("Database error saving check-in.", "error");
+            showToast("Database error saving check-in: " + updateErr.message, "error");
         }
     } catch (err) {
-        showToast("System error during scan.", "error");
+        showToast("System error during scan: " + err.message, "error");
     }
 
     resetScanner();
@@ -498,10 +599,10 @@ async function onScanSuccess(decodedText) {
 function resetScanner() {
     setTimeout(() => {
         isProcessingScan = false;
-        if (document.getElementById('scanner-modal').style.display === 'flex') {
-            html5QrcodeScanner.resume();
+        if (document.getElementById('scanner-modal').style.display === 'flex' && html5QrcodeScanner) {
+            try { html5QrcodeScanner.resume(); } catch(e) {}
         }
-    }, 800); 
+    }, 1000); 
 }
 
 function onScanFailure(error) { /* Ignore routine frame failures */ }

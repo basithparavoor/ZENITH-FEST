@@ -1685,6 +1685,9 @@ async function saveFestivalSubmit() {
                 localStorage.setItem('festos_cfg_newspaper_config_' + savedFestId, JSON.stringify(newspaper_config));
                 if (typeof festosDomains !== 'undefined' && festosDomains.setFestList) {
                     festosDomains.setFestList(globalFests);
+                    if (festosDomains.buildIndex && festosDomains.setIndex) {
+                        festosDomains.setIndex(festosDomains.buildIndex(globalFests));
+                    }
                 }
                 window.dispatchEvent(new CustomEvent('festos_newspaper_config_updated', { detail: { festId: savedFestId, config: newspaper_config } }));
                 window.dispatchEvent(new StorageEvent('storage', { key: 'festos_cfg_newspaper_config_' + savedFestId }));
@@ -1766,6 +1769,9 @@ async function quickToggleFestivalNewspaper(festId) {
         localStorage.setItem('festos_cfg_newspaper_config_' + festId, JSON.stringify(f.newspaper_config));
         if (typeof festosDomains !== 'undefined' && festosDomains.setFestList) {
             festosDomains.setFestList(globalFests);
+            if (festosDomains.buildIndex && festosDomains.setIndex) {
+                festosDomains.setIndex(festosDomains.buildIndex(globalFests));
+            }
         }
         window.dispatchEvent(new CustomEvent('festos_newspaper_config_updated', { detail: { festId, config: f.newspaper_config } }));
         window.dispatchEvent(new StorageEvent('storage', { key: 'festos_cfg_newspaper_config_' + festId }));

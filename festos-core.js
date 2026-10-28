@@ -41,16 +41,41 @@ const festosDomains = {
 
     getHostname() {
         if (typeof window === 'undefined' || !window.location) return '';
-        return (window.location.hostname || '').toLowerCase();
+        return (window.location.hostname || '').toLowerCase().trim();
     },
 
     // Returns the subdomain label when the current host is
-    // <label>.<FESTOS_BASE_DOMAIN>, otherwise an empty string.
+    // <label>.<FESTOS_BASE_DOMAIN>, otherwise extracts candidate subdomain
+    // for localhost, vercel.app, festos.app, or custom domains.
     getSubdomain() {
         const host = this.getHostname();
-        const base = this.BASE;
-        if (!host || host === base) return '';
-        if (host.endsWith('.' + base)) return host.slice(0, -(base.length + 1));
+        if (!host || host === 'localhost' || host === '127.0.0.1') return '';
+        const base = (this.BASE || 'festos.clubad.space').toLowerCase();
+
+        // 1. Primary wildcard base: e.g. vibranium.festos.clubad.space
+        if (host !== base && host.endsWith('.' + base)) {
+            return host.slice(0, -(base.length + 1)).toLowerCase();
+        }
+
+        // 2. Local dev subdomain: e.g. vibranium.localhost
+        if (host.endsWith('.localhost')) {
+            return host.slice(0, -('.localhost'.length)).toLowerCase();
+        }
+
+        // 3. Common alternative deployment bases
+        const altBases = ['festos.app', 'clubad.space', 'vercel.app'];
+        for (const b of altBases) {
+            if (host !== b && host.endsWith('.' + b)) {
+                return host.slice(0, -(b.length + 1)).toLowerCase();
+            }
+        }
+
+        // 4. Any 3+ segment host where first segment is not generic
+        const parts = host.split('.');
+        if (parts.length >= 3 && !['www', 'app', 'admin', 'superadmin', 'api'].includes(parts[0])) {
+            return parts[0].toLowerCase();
+        }
+
         return '';
     },
 
@@ -66,39 +91,160 @@ const festosDomains = {
         try { localStorage.setItem(this.INDEX_KEY, JSON.stringify(map || {})); } catch (e) { /* ignore */ }
     },
 
-    // Normalize any stored domain value into a bare hostname (no scheme/path)
+    // Normalize any stored domain value into a bare hostname (no scheme/path/port)
     normalizeDomain(value) {
         return String(value || '')
             .trim()
             .toLowerCase()
             .replace(/^https?:\/\//, '')
             .replace(/\/.*$/, '')
-            .replace(/:\d+$/, '');
+            .replace(/:\d+$/, '')
+            .replace(/^www\./, '');
     },
 
-    // Build a lookup table { host-or-subdomain: festId } from fests rows
+    // Build an exhaustive lookup table { host-or-subdomain: festId } from fests rows
     buildIndex(fests) {
         const map = {};
+        const base = (this.BASE || 'festos.clubad.space').toLowerCase();
+
         (fests || []).forEach(f => {
             if (!f || !f.id) return;
+            const fid = f.id;
+
+            // 1. Normalized domain value
             const dom = this.normalizeDomain(f.domain);
-            if (dom) map[dom] = f.id;
+            if (dom) {
+                map[dom] = fid;
+                // If dom is vibranium.festos.clubad.space, also index "vibranium"
+                if (dom.endsWith('.' + base)) {
+                    const subLabel = dom.slice(0, -(base.length + 1));
+                    if (subLabel && !map[subLabel]) map[subLabel] = fid;
+                } else if (!dom.includes('.')) {
+                    // Stored as bare subdomain in domain column (e.g. "vibranium")
+                    map[dom] = fid;
+                    map[`${dom}.${base}`] = fid;
+                }
+            }
+
+            // 2. Slug & subdomain under base
             if (f.slug) {
-                const slug = String(f.slug).toLowerCase();
-                if (!map[slug]) map[slug] = f.id;
+                const slug = String(f.slug).trim().toLowerCase();
+                if (!map[slug]) map[slug] = fid;
+                if (!map[`${slug}.${base}`]) map[`${slug}.${base}`] = fid;
+            }
+
+            // 3. ID and bare ID without fest_ prefix
+            const idLow = String(fid).trim().toLowerCase();
+            if (!map[idLow]) map[idLow] = fid;
+            if (idLow.startsWith('fest_')) {
+                const bareId = idLow.replace(/^fest_/, '');
+                if (bareId) {
+                    if (!map[bareId]) map[bareId] = fid;
+                    if (!map[`${bareId}.${base}`]) map[`${bareId}.${base}`] = fid;
+                }
+            }
+
+            // 4. Normalized name (e.g. "Vibranium" -> "vibranium")
+            if (f.name) {
+                const nameSlug = String(f.name).toLowerCase().replace(/[^a-z0-9_-]/g, '');
+                if (nameSlug && !map[nameSlug]) map[nameSlug] = fid;
+                if (nameSlug && !map[`${nameSlug}.${base}`]) map[`${nameSlug}.${base}`] = fid;
             }
         });
         return map;
     },
 
-    // Synchronous resolution from the cached index
+    // Flexible multi-factor matcher: finds festival entity from an array of fests
+    matchFestInList(fests, host, sub, query) {
+        if (!Array.isArray(fests) || fests.length === 0) return null;
+
+        const normHost = this.normalizeDomain(host);
+        const normSub = String(sub || '').trim().toLowerCase();
+        const normQuery = String(query || '').trim().toLowerCase();
+        const cleanQuery = normQuery ? this.normalizeDomain(normQuery) : '';
+        const base = (this.BASE || 'festos.clubad.space').toLowerCase();
+
+        // 1. Match by explicit query parameter (?fest=... or ?domain=... or ?slug=...)
+        if (normQuery || cleanQuery) {
+            const byQuery = fests.find(f => {
+                if (!f) return false;
+                const d = this.normalizeDomain(f.domain);
+                const s = String(f.slug || '').toLowerCase();
+                const id = String(f.id || '').toLowerCase();
+                const bareId = id.replace(/^fest_/, '');
+                const n = String(f.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                return d === cleanQuery || d === normQuery ||
+                       s === normQuery || id === normQuery || bareId === normQuery ||
+                       n === normQuery.replace(/[^a-z0-9]/g, '');
+            });
+            if (byQuery) return byQuery;
+        }
+
+        // 2. Exact match on normalized full hostname
+        if (normHost) {
+            const byDomain = fests.find(f => f && this.normalizeDomain(f.domain) === normHost);
+            if (byDomain) return byDomain;
+        }
+
+        // 3. Subdomain match (e.g. "vibranium" from "vibranium.festos.clubad.space")
+        if (normSub) {
+            const bySub = fests.find(f => {
+                if (!f) return false;
+                const d = this.normalizeDomain(f.domain);
+                const s = String(f.slug || '').toLowerCase();
+                const id = String(f.id || '').toLowerCase();
+                const bareId = id.replace(/^fest_/, '');
+                const n = String(f.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+                // Match domain variations
+                if (d === normSub || d === `${normSub}.${base}`) return true;
+                if (d.endsWith('.' + base) && d.slice(0, -(base.length + 1)) === normSub) return true;
+                if (d.split('.')[0] === normSub) return true;
+
+                // Match slug, id or name
+                if (s === normSub) return true;
+                if (id === normSub || id === `fest_${normSub}` || bareId === normSub) return true;
+                if (n === normSub.replace(/[^a-z0-9]/g, '')) return true;
+
+                return false;
+            });
+            if (bySub) return bySub;
+        }
+
+        return null;
+    },
+
+    // Synchronous resolution from cached index and cached fest list
     getHostFestId() {
         const host = this.getHostname();
-        if (!host) return null;
-        const index = this.getIndex();
-        if (index[host]) return index[host];
         const sub = this.getSubdomain();
+
+        // 1. URL search params override (?fest=... or ?domain=... or ?slug=...)
+        let urlQuery = null;
+        if (typeof window !== 'undefined' && window.location && window.location.search) {
+            const params = new URLSearchParams(window.location.search);
+            urlQuery = params.get('fest') || params.get('fest_id') || params.get('domain') || params.get('slug');
+        }
+
+        const index = this.getIndex();
+        if (urlQuery) {
+            const q = urlQuery.trim().toLowerCase();
+            const qNorm = this.normalizeDomain(q);
+            if (index[q]) return index[q];
+            if (index[qNorm]) return index[qNorm];
+        }
+
+        // 2. Direct match in lookup table
+        if (host && index[host]) return index[host];
         if (sub && index[sub]) return index[sub];
+
+        // 3. Scan cached live fests list
+        const list = this.getFestList();
+        if (list && list.length > 0) {
+            const matched = this.matchFestInList(list, host, sub, urlQuery);
+            if (matched && matched.id) return matched.id;
+        }
+
         return null;
     },
 
@@ -142,6 +288,8 @@ const festosDomains = {
                     endDate: f.endDate || f.end_date || '',
                     status: f.status || 'active',
                     venue: f.venue || '',
+                    theme_color: f.theme_color || '',
+                    public_results_slug: f.public_results_slug || 'results',
                     newspaper_config: f.newspaper_config || null
                 }));
             localStorage.setItem(this.FESTS_CACHE_KEY, JSON.stringify(list));
@@ -155,7 +303,9 @@ const festosDomains = {
         return list.find(f => 
             (f.id && f.id.toLowerCase() === q) || 
             (f.slug && f.slug.toLowerCase() === q) ||
-            (`fest_${f.slug}`.toLowerCase() === q)
+            (`fest_${f.slug}`.toLowerCase() === q) ||
+            (f.domain && this.normalizeDomain(f.domain) === q) ||
+            (f.name && f.name.toLowerCase().replace(/[^a-z0-9]/g, '') === q.replace(/[^a-z0-9]/g, ''))
         ) || null;
     },
 
@@ -184,33 +334,99 @@ const festosDomains = {
         return sorted[0].id || null;
     },
 
-    // Refresh the cached index from the fests table and (re)apply the active fest
-    async refresh() {
-        const client = (typeof festosSupabase !== 'undefined' && festosSupabase)
-            ? festosSupabase
-            : (typeof window !== 'undefined' ? window.festosSupabase : null);
-        if (!client) return null;
-        try {
-            const { data, error } = await client.from('fests').select('id, name, slug, domain, logo, created_at, start_date, end_date, venue, status');
-            if (error || !data) return null;
-            this.setIndex(this.buildIndex(data));
-            this.setFestList(data);
+    // Apply a resolved festival to global state and trigger reactive events
+    applyResolvedFest(fest) {
+        if (!fest || !fest.id) return;
+        const prev = localStorage.getItem('festos_active_fest_id');
+        localStorage.setItem('festos_active_fest_id', fest.id);
 
-            const hostFest = this.getHostFestId();
-            if (hostFest) {
-                const prev = localStorage.getItem('festos_active_fest_id');
-                localStorage.setItem('festos_active_fest_id', hostFest);
-                if (typeof window !== 'undefined' && window.dispatchEvent) {
-                    window.dispatchEvent(new CustomEvent('festos:festresolved', {
-                        detail: { festId: hostFest, changed: prev !== hostFest }
-                    }));
+        if (typeof window !== 'undefined') {
+            window.activeFestId = fest.id;
+            window.currentFestDetails = {
+                id: fest.id,
+                name: fest.name || 'Festival',
+                slug: fest.slug || '',
+                domain: fest.domain || '',
+                logo: fest.logo || '',
+                venue: fest.venue || '',
+                dates: (fest.start_date ? fest.start_date + (fest.end_date ? ' - ' + fest.end_date : '') : ''),
+                start_date: fest.start_date || fest.startDate || '',
+                end_date: fest.end_date || fest.endDate || '',
+                theme_color: fest.theme_color || '',
+                public_results_slug: fest.public_results_slug || 'results',
+                newspaper_config: fest.newspaper_config || null
+            };
+
+            if (window.dispatchEvent) {
+                window.dispatchEvent(new CustomEvent('festos:festresolved', {
+                    detail: { festId: fest.id, fest, changed: prev !== fest.id }
+                }));
+            }
+        }
+    },
+
+    // Guaranteed async resolution: fetches live fests table and identifies the exact fest
+    async resolveCurrentFest(forceRefresh = false) {
+        const host = this.getHostname();
+        const sub = this.getSubdomain();
+
+        let urlQuery = null;
+        if (typeof window !== 'undefined' && window.location && window.location.search) {
+            const params = new URLSearchParams(window.location.search);
+            urlQuery = params.get('fest') || params.get('fest_id') || params.get('domain') || params.get('slug');
+        }
+
+        // 1. Synchronous attempt from cache if not forcing refresh
+        if (!forceRefresh) {
+            const cachedList = this.getFestList();
+            if (cachedList && cachedList.length > 0) {
+                const matched = this.matchFestInList(cachedList, host, sub, urlQuery);
+                if (matched) {
+                    this.applyResolvedFest(matched);
+                    return matched;
                 }
             }
-            return this.getIndex();
-        } catch (e) {
-            console.warn('[FestOS Domains] Index refresh failed:', e);
-            return null;
         }
+
+        // 2. Fetch fresh live festival metadata from Supabase fests table
+        const client = (typeof festosSupabase !== 'undefined' && festosSupabase)
+            ? festosSupabase
+            : (typeof window !== 'undefined' ? (window.festosSupabase || window.supabaseClient) : null);
+
+        if (client) {
+            try {
+                const { data, error } = await client.from('fests')
+                    .select('id, name, slug, domain, public_results_slug, logo, created_at, start_date, end_date, venue, status, newspaper_config, theme_color');
+
+                if (!error && Array.isArray(data) && data.length > 0) {
+                    this.setFestList(data);
+                    this.setIndex(this.buildIndex(data));
+
+                    const matched = this.matchFestInList(data, host, sub, urlQuery);
+                    if (matched) {
+                        this.applyResolvedFest(matched);
+                        return matched;
+                    }
+                }
+            } catch (err) {
+                console.warn('[FestOS Domains] Remote fetch error during resolution:', err);
+            }
+        }
+
+        // 3. Fallback: primary fest
+        const list = this.getFestList();
+        if (list && list.length > 0) {
+            const primary = list[0];
+            this.applyResolvedFest(primary);
+            return primary;
+        }
+
+        return null;
+    },
+
+    // Refresh the cached index from the fests table and (re)apply the active fest
+    async refresh() {
+        return this.resolveCurrentFest(true);
     },
 
     // Build a public URL. `target` may be a full domain or a bare subdomain label.
@@ -255,6 +471,48 @@ function festosIsLegacyFest(festId) {
 // =========================================================================
 // 1. DYNAMIC AUTO-REBRANDING ENGINE
 // =========================================================================
+
+// Universal Cross-Tenant Branding Sanitation Policy
+function festosPurgeCrossTenantBranding(targetFestId = null) {
+    try {
+        const checkKeys = ['festBranding', 'festos_branding_cache_active'];
+        checkKeys.forEach(k => {
+            const raw = localStorage.getItem(k);
+            if (raw) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (!targetFestId || (parsed && parsed._fest_id && parsed._fest_id !== targetFestId)) {
+                        localStorage.removeItem(k);
+                    }
+                } catch(e) {
+                    localStorage.removeItem(k);
+                }
+            }
+        });
+        if (typeof sessionStorage !== 'undefined') {
+            const sRaw = sessionStorage.getItem('festBranding');
+            if (sRaw) {
+                try {
+                    const parsed = JSON.parse(sRaw);
+                    if (!targetFestId || (parsed && parsed._fest_id && parsed._fest_id !== targetFestId)) {
+                        sessionStorage.removeItem('festBranding');
+                    }
+                } catch(e) {
+                    sessionStorage.removeItem('festBranding');
+                }
+            }
+        }
+        if (typeof window !== 'undefined' && window.systemBranding) {
+            if (!targetFestId || (window.systemBranding._fest_id && window.systemBranding._fest_id !== targetFestId)) {
+                window.systemBranding = null;
+            }
+        }
+    } catch(e) {}
+}
+if (typeof window !== 'undefined') {
+    window.festosPurgeCrossTenantBranding = festosPurgeCrossTenantBranding;
+}
+
 const festosBranding = {
     DEFAULT_NAME: 'FestOS',
     DEFAULT_LOGO: 'festos-logo.svg',
@@ -316,25 +574,54 @@ const festosBranding = {
             }
 
             const festId = festosAuth.getCurrentFestId();
-            const key = this.getCacheKey(festId);
-            let cached = localStorage.getItem(key) || 
-                         (festId ? localStorage.getItem('festos_cfg_system_branding_' + festId) : null) ||
-                         localStorage.getItem('festos_branding_cache_active');
-            
-            // Only accept legacy festBranding if it matches the current festId
-            if (!cached && festId) {
-                const legacyFb = localStorage.getItem('festBranding');
-                if (legacyFb) {
-                    try {
-                        const parsed = JSON.parse(legacyFb);
-                        if (parsed._fest_id === festId) cached = legacyFb;
-                    } catch(e) {}
+            if (!festId) return;
+
+            // Strict policy: Clean up any foreign cross-tenant branding
+            festosPurgeCrossTenantBranding(festId);
+
+            // 1. Check scoped cache for this exact festival
+            let cached = localStorage.getItem(`festos_branding_cache_${festId}`) || 
+                         localStorage.getItem('festos_cfg_system_branding_' + festId);
+
+            // 2. Strict verification of un-scoped legacy cache (only accept if stamped matching festId)
+            if (!cached) {
+                const candidates = ['festos_branding_cache_active', 'festBranding'];
+                for (const cKey of candidates) {
+                    const rawVal = localStorage.getItem(cKey);
+                    if (rawVal) {
+                        try {
+                            const parsed = JSON.parse(rawVal);
+                            if (parsed && parsed._fest_id === festId) {
+                                cached = rawVal;
+                                break;
+                            } else {
+                                localStorage.removeItem(cKey);
+                            }
+                        } catch(e) {
+                            localStorage.removeItem(cKey);
+                        }
+                    }
                 }
             }
 
             if (cached) {
                 const data = JSON.parse(cached);
+                data._fest_id = festId;
                 this.apply(data);
+                return;
+            }
+
+            // 3. 0ms Immediate Synchronous Fallback: Lookup in live fests cache strictly for festId
+            if (typeof festosDomains !== 'undefined') {
+                const f = festosDomains.findFest ? festosDomains.findFest(festId) : null;
+                if (f && (f.name || f.logo)) {
+                    this.apply({
+                        fest_name: f.name || 'Festival',
+                        fest_logo: (f.logo && !f.logo.includes('festos-logo.svg')) ? f.logo : '',
+                        display_mode: f.logo ? 'both' : 'name',
+                        _fest_id: festId
+                    });
+                }
             }
         } catch (e) {
             console.warn('[FestOS Branding] Cache read warning:', e);
@@ -464,6 +751,13 @@ const festosBranding = {
         const isLogin = this.isLoginPage();
         const isSuper = this.isSuperAdminPage();
         const isPlatform = this.isPlatformPage();
+        const currentFestId = isPlatform ? null : festosAuth.getCurrentFestId();
+
+        // Strict cross-tenant protection: reject if brandingData explicitly belongs to another festival
+        if (!isPlatform && currentFestId && brandingData._fest_id && brandingData._fest_id !== currentFestId) {
+            console.warn(`[Branding Security] Rejecting brandingData from '${brandingData._fest_id}' on '${currentFestId}' portal.`);
+            return;
+        }
 
         let festName = brandingData.fest_name ? brandingData.fest_name.trim() : '';
         let festLogo = brandingData.fest_logo ? brandingData.fest_logo.trim() : '';
@@ -564,13 +858,13 @@ const festosBranding = {
         });
 
         // Store active branding in global window & synchronize active fest cache
-        const currentFestId = isPlatform ? null : festosAuth.getCurrentFestId();
         if (brandingData && currentFestId) {
             brandingData._fest_id = currentFestId;
         }
         window.systemBranding = brandingData;
-        if (!isPlatform && brandingData) {
+        if (!isPlatform && brandingData && currentFestId) {
             try {
+                localStorage.setItem(`festos_branding_cache_${currentFestId}`, JSON.stringify(brandingData));
                 localStorage.setItem('festBranding', JSON.stringify(brandingData));
             } catch(e) {}
         }
@@ -627,15 +921,31 @@ const festosAuth = {
         // 1. Check URL parameters first (e.g., results.html?fest=fest_vib26... or spectator.html?fest=...)
         if (typeof window !== 'undefined' && window.location && window.location.search) {
             const params = new URLSearchParams(window.location.search);
-            const urlFest = params.get('fest') || params.get('fest_id');
+            const urlFest = params.get('fest') || params.get('fest_id') || params.get('domain') || params.get('slug');
             if (urlFest && urlFest.trim() !== '') {
-                return urlFest.trim();
+                const clean = urlFest.trim();
+                const matched = (typeof festosDomains !== 'undefined' && festosDomains.findFest) ? festosDomains.findFest(clean) : null;
+                if (matched && matched.id) return matched.id;
+                return clean;
             }
         }
 
-        // 1.5. Resolve from the hostname / festival subdomain (e.g. sahi26.festos.clubad.space)
-        const hostFestId = festosDomains.getHostFestId();
-        if (hostFestId) return hostFestId;
+        // 1.5. Resolve from the hostname / festival subdomain (e.g. vibranium.festos.clubad.space)
+        if (typeof festosDomains !== 'undefined' && festosDomains.getHostFestId) {
+            const hostFestId = festosDomains.getHostFestId();
+            if (hostFestId) return hostFestId;
+
+            // CRITICAL FOR TENANT ISOLATION:
+            // If on a specific festival subdomain (e.g. vibranium.festos.clubad.space or vibranium.localhost),
+            // strictly prioritize that subdomain so that another festival stored in localStorage never bleeds in!
+            const sub = festosDomains.getSubdomain();
+            if (sub && !['www', 'app', 'admin', 'superadmin', 'api'].includes(sub)) {
+                const matched = festosDomains.findFest ? festosDomains.findFest(sub) : null;
+                if (matched && matched.id) return matched.id;
+                // Optimistic resolution candidate before DB sync finishes
+                return `fest_${sub}`;
+            }
+        }
 
         // 2. Check logged-in user context
         const user = this.getUser();
@@ -650,11 +960,11 @@ const festosAuth = {
         
         if (user && user.username) {
             const prefix = user.username.split('_')[0].toLowerCase().trim();
-            const matched = festosDomains.findFest ? festosDomains.findFest(prefix) : null;
+            const matched = (typeof festosDomains !== 'undefined' && festosDomains.findFest) ? festosDomains.findFest(prefix) : null;
             if (matched && matched.id) return matched.id;
             if (/^[a-z0-9]{3,20}$/.test(prefix) && prefix !== 'superadmin' && prefix !== 'admin') {
                 const candidate = `fest_${prefix}`;
-                if (festosDomains.hasFest(candidate)) return candidate;
+                if (typeof festosDomains !== 'undefined' && festosDomains.hasFest && festosDomains.hasFest(candidate)) return candidate;
             }
         }
 
@@ -682,6 +992,11 @@ const festosAuth = {
             } else {
                 user.fest_id = festosDefaultFestId();
             }
+        }
+
+        // Strict cross-tenant sanitation
+        if (typeof festosPurgeCrossTenantBranding === 'function') {
+            festosPurgeCrossTenantBranding(user.fest_id);
         }
 
         localStorage.setItem('festUser', JSON.stringify(user));
@@ -717,6 +1032,14 @@ const festosAuth = {
         localStorage.removeItem('festSuperAdmin');
         localStorage.removeItem('festos_remember_session');
         localStorage.removeItem('festos_remember_superadmin');
+        localStorage.removeItem('festos_tm_selected_team_id');
+        localStorage.removeItem('festos_active_fest_id');
+        if (typeof festosPurgeCrossTenantBranding === 'function') {
+            festosPurgeCrossTenantBranding(null);
+        }
+        try {
+            if (typeof sessionStorage !== 'undefined') sessionStorage.clear();
+        } catch(e) {}
         if (typeof festosRefreshSupabaseHeaders === 'function') {
             festosRefreshSupabaseHeaders();
         }
@@ -1509,6 +1832,91 @@ function festosExportCSV(filename, rows, reportTitle = 'Festival Data Export') {
 }
 window.festosExportCSV = festosExportCSV;
 
+// Universal Venue & Stage Resolver for Competitions
+function festosGetCompVenueStage(comp, stagesList = []) {
+    if (!comp) {
+        return {
+            name: 'TBD',
+            isOffstage: false,
+            isTbd: true,
+            displayText: 'Venue TBD',
+            htmlBadge: '<span style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600;"><i class="fa-regular fa-clock" style="margin-right: 4px;"></i> Venue TBD</span>'
+        };
+    }
+
+    const safe = (str) => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    let stageName = '';
+
+    // 1. Direct object relation from Supabase join
+    if (comp.stages && typeof comp.stages === 'object') {
+        if (typeof comp.stages.name === 'string' && comp.stages.name.trim() !== '') {
+            stageName = comp.stages.name.trim();
+        } else if (Array.isArray(comp.stages) && comp.stages[0]?.name) {
+            stageName = String(comp.stages[0].name).trim();
+        }
+    }
+
+    // 2. Lookup via stage_id in provided stagesList
+    if (!stageName && comp.stage_id && Array.isArray(stagesList) && stagesList.length > 0) {
+        const found = stagesList.find(s => String(s.id) === String(comp.stage_id));
+        if (found && found.name) stageName = String(found.name).trim();
+    }
+
+    // 3. Fallback: Lookup in window globals if available
+    if (!stageName && comp.stage_id) {
+        const globalPool = window.stagesList || window.globalStages || [];
+        if (Array.isArray(globalPool) && globalPool.length > 0) {
+            const found = globalPool.find(s => String(s.id) === String(comp.stage_id));
+            if (found && found.name) stageName = String(found.name).trim();
+        }
+    }
+
+    const isOffstage = !!comp.is_offstage;
+
+    // Case A: A physical venue/stage is assigned
+    if (stageName) {
+        if (isOffstage) {
+            return {
+                name: stageName,
+                isOffstage: true,
+                isTbd: false,
+                displayText: `${stageName} (Offstage)`,
+                htmlBadge: `<span style="font-weight: 700; color: var(--primary);"><i class="fa-solid fa-microphone-lines" style="margin-right: 4px;"></i> ${safe(stageName)}</span> <span class="badge" style="background:#FEF3C7; color:#D97706; font-size: 0.65rem; font-weight: 800; margin-left: 4px; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;"><i class="fa-solid fa-pen-nib"></i> OFFSTAGE</span>`
+            };
+        } else {
+            return {
+                name: stageName,
+                isOffstage: false,
+                isTbd: false,
+                displayText: stageName,
+                htmlBadge: `<span style="font-weight: 700; color: var(--primary);"><i class="fa-solid fa-microphone-stage" style="margin-right: 4px;"></i> ${safe(stageName)}</span>`
+            };
+        }
+    }
+
+    // Case B: Marked offstage with no specific physical stage selected
+    if (isOffstage) {
+        return {
+            name: 'Offstage',
+            isOffstage: true,
+            isTbd: false,
+            displayText: 'Offstage Venue',
+            htmlBadge: `<span class="badge" style="background:#FEF3C7; color:#D97706; font-size: 0.72rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-pen-nib"></i> OFFSTAGE VENUE</span>`
+        };
+    }
+
+    // Case C: Unassigned venue
+    return {
+        name: 'TBD',
+        isOffstage: false,
+        isTbd: true,
+        displayText: 'Venue TBD',
+        htmlBadge: `<span style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600;"><i class="fa-regular fa-clock" style="margin-right: 4px;"></i> Venue TBD</span>`
+    };
+}
+window.festosGetCompVenueStage = festosGetCompVenueStage;
+
+
 
 // =========================================================================
 // 6. CATEGORY STUDENT COMPETITION LIMIT ENGINE
@@ -1925,25 +2333,45 @@ const festosBroadcasts = {
     }
 };
 
+// Reactive auto-rebrand when host festival resolves
+if (typeof window !== 'undefined') {
+    window.addEventListener('festos:festresolved', (e) => {
+        if (e && e.detail && e.detail.festId) {
+            try {
+                if (window.festosBranding && typeof window.festosBranding.fetchAndSubscribe === 'function') {
+                    window.festosBranding.fetchAndSubscribe();
+                }
+                if (window.festosBroadcasts && typeof window.festosBroadcasts.init === 'function') {
+                    window.festosBroadcasts.init();
+                }
+            } catch(err) {}
+        }
+    });
+}
+
 // Auto-run branding and core initialization on DOM Ready
 if (typeof document !== 'undefined') {
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            festosBranding.init();
-            festosDomains.refresh();
-            festosBroadcasts.init();
-        });
-    } else {
+    const bootstrapCore = async () => {
+        try {
+            if (window.festosHostFestReady) {
+                await window.festosHostFestReady;
+            }
+        } catch (e) {}
         festosBranding.init();
-        festosDomains.refresh();
         festosBroadcasts.init();
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootstrapCore);
+    } else {
+        bootstrapCore();
     }
 }
 
 // Promise that resolves once the fests list / subdomain index is ready.
-// Refreshed on every load so the dynamic default festival is always current.
+// Refreshed on every load so the dynamic domain festival is immediately current.
 if (typeof window !== 'undefined') {
-    window.festosHostFestReady = festosDomains.refresh();
+    window.festosHostFestReady = festosDomains.resolveCurrentFest();
 }
 
 // Expose on window object
