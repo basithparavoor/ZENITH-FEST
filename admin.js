@@ -3896,13 +3896,20 @@ document.addEventListener("DOMContentLoaded", () => {
         if (dataCenterTab) dataCenterTab.style.display = 'block';
     }
     
-    const cachedBranding = localStorage.getItem('festBranding');
+    const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : null;
+    let cachedBranding = activeFid ? (localStorage.getItem('festos_branding_cache_' + activeFid) || localStorage.getItem('festos_cfg_system_branding_' + activeFid)) : null;
+    if (!cachedBranding) {
+        const legacyFb = localStorage.getItem('festBranding');
+        if (legacyFb) {
+            try {
+                const bData = JSON.parse(legacyFb);
+                if (!bData._fest_id || bData._fest_id === activeFid) cachedBranding = legacyFb;
+            } catch(e) {}
+        }
+    }
     if (cachedBranding) {
         try {
-            const bData = JSON.parse(cachedBranding);
-            if (!String(bData.fest_name || '').toLowerCase().includes('vib') && !String(bData.fest_logo || '').toLowerCase().includes('vib')) {
-                applyGlobalBranding(bData);
-            }
+            applyGlobalBranding(JSON.parse(cachedBranding));
         } catch(e) {}
     }
     
@@ -7020,7 +7027,7 @@ async function saveBrandingSettings() {
 // ==========================================
 async function fetchAndApplyBranding() {
     try {
-        const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+        const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : (typeof getActiveFestId === 'function' ? getActiveFestId() : null);
         let val = window.festosGetSetting ? await window.festosGetSetting('system_branding', festId) : null;
         if (!val && festId && typeof supabaseClient !== 'undefined') {
             const { data: fData } = await supabaseClient.from('fests').select('name, logo').eq('id', festId).maybeSingle();
@@ -7029,6 +7036,12 @@ async function fetchAndApplyBranding() {
             }
         }
         if (val) {
+            if (festId && typeof val === 'object') {
+                val._fest_id = festId;
+                try {
+                    localStorage.setItem('festos_branding_cache_' + festId, JSON.stringify(val));
+                } catch(e) {}
+            }
             applyGlobalBranding(val);
         }
     } catch (e) {
@@ -7099,7 +7112,15 @@ function applyGlobalBranding(brandingData) {
         }
     });
 
-    if (typeof window !== 'undefined') window.systemBranding = brandingData;
+    if (typeof window !== 'undefined') {
+        window.systemBranding = brandingData;
+        const activeFid = brandingData._fest_id || (window.festosAuth ? window.festosAuth.getCurrentFestId() : (typeof getActiveFestId === 'function' ? getActiveFestId() : null));
+        if (activeFid) {
+            try {
+                localStorage.setItem('festos_branding_cache_' + activeFid, JSON.stringify(brandingData));
+            } catch(e) {}
+        }
+    }
 }
 
 let pointsAdminSettings = {
@@ -8904,21 +8925,24 @@ async function downloadCompLogPDF() {
 
 // Dynamic Branded PDF Header Generator
 function getPDFHeaderHTML(reportTitle) {
+    const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
+    if (typeof window !== 'undefined' && typeof window.festosGetPDFHeaderHTML === 'function') {
+        return window.festosGetPDFHeaderHTML(reportTitle, activeFid);
+    }
     const branding = typeof festosGetActiveBranding === 'function' 
-        ? festosGetActiveBranding() 
+        ? festosGetActiveBranding(activeFid) 
         : (window.systemBranding || {});
     
-    let festName = branding.fest_name && branding.fest_name.trim() !== '' ? branding.fest_name.trim() : 'ZENITH FEST';
-    if (festName === 'FestOS' || festName === 'Festival' || festName.toLowerCase().includes('vib')) {
-        festName = 'ZENITH FEST';
+    let festName = branding.fest_name && branding.fest_name.trim() !== '' ? branding.fest_name.trim() : 'Festival';
+    if (festName === 'FestOS') {
+        festName = 'Festival';
     }
 
     const rawLogo = branding.fest_logo ? branding.fest_logo.trim() : '';
     const validLogo = Boolean(
         rawLogo && 
         rawLogo !== 'festos-logo.svg' && 
-        rawLogo !== '/festos-logo.svg' && 
-        !rawLogo.toLowerCase().includes('vib')
+        rawLogo !== '/festos-logo.svg'
     );
     const displayMode = branding.display_mode || 'both';
     
@@ -8928,7 +8952,7 @@ function getPDFHeaderHTML(reportTitle) {
     const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
     
     if (showLogo) {
-        brandHtml += `<img src="${rawLogo}" style="height: 60px; max-width: 250px; object-fit: contain; margin-bottom: 12px; border-radius: 8px;">`;
+        brandHtml += `<img src="${rawLogo}" alt="Logo" style="height: 60px; max-width: 250px; object-fit: contain; margin-bottom: 12px; border-radius: 8px;">`;
     }
     
     if (showName) {

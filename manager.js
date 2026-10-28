@@ -362,7 +362,7 @@ function exportToPDF() {
     
     // Build a clean, professional HTML table for the PDF
     let htmlStr = `
-        ${typeof getPDFHeaderHTML === 'function' ? getPDFHeaderHTML('Manager Report') : '<h2 style="color: #4F46E5; margin-bottom: 5px;">ZENITH FEST Manager Report</h2>'}
+        ${typeof getPDFHeaderHTML === 'function' ? getPDFHeaderHTML('Manager Report') : '<h2 style="color: #4F46E5; margin-bottom: 5px;">Manager Report</h2>'}
         <table style="width: 100%; border-collapse: collapse; text-align: left;">
             <tr style="background-color: #F3F4F6; border-bottom: 2px solid #E5E7EB;">
                 <th style="padding: 12px; font-weight: bold;">Competition</th>
@@ -1363,12 +1363,17 @@ async function viewJudgeDetails(judgeId) {
 
 // --- LIGHTWEIGHT PDF HEADER FOR MANAGER ---
 function getManagerPDFHeaderHTML(title) {
+    if (typeof window !== 'undefined' && typeof window.festosGetPDFHeaderHTML === 'function') {
+        return window.festosGetPDFHeaderHTML(title);
+    }
     if (typeof getPDFHeaderHTML === 'function') {
         return getPDFHeaderHTML(title);
     }
+    const branding = typeof festosGetActiveBranding === 'function' ? festosGetActiveBranding() : (window.systemBranding || {});
+    const festName = branding.fest_name || 'Festival';
     return `
         <div style="text-align: center; margin-bottom: 30px; font-family: 'Plus Jakarta Sans', sans-serif;">
-            <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 26px; text-transform: uppercase; font-weight: 800;">ZENITH FEST</h1>
+            <h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 26px; text-transform: uppercase; font-weight: 800;">${festName}</h1>
             <h2 style="color: #1F2937; font-size: 18px; margin-top: 0; text-transform: uppercase;">${title}</h2>
             <p style="color: #64748B; font-size: 12px; margin-top: 4px;">Generated on: ${new Date().toLocaleString()}</p>
         </div>

@@ -107,10 +107,22 @@ const festosDomains = {
         try {
             const raw = localStorage.getItem(this.FESTS_CACHE_KEY);
             const list = raw ? JSON.parse(raw) : [];
-            return Array.isArray(list) ? list.filter(f => f && f.id) : [];
-        } catch (e) {
-            return [];
+            if (Array.isArray(list) && list.length > 0) return list.filter(f => f && f.id);
+        } catch (e) {}
+
+        try {
+            const rawMulti = localStorage.getItem('festos_multi_fests');
+            if (rawMulti) {
+                const multi = JSON.parse(rawMulti);
+                if (Array.isArray(multi) && multi.length > 0) return multi.filter(f => f && f.id);
+            }
+        } catch (e) {}
+
+        if (typeof window !== 'undefined' && Array.isArray(window.availableFests) && window.availableFests.length > 0) {
+            return window.availableFests.filter(f => f && f.id);
         }
+
+        return [];
     },
 
     setFestList(fests) {
@@ -122,6 +134,7 @@ const festosDomains = {
                     name: f.name || '',
                     slug: f.slug || '',
                     domain: f.domain || '',
+                    logo: f.logo || '',
                     created_at: f.created_at || '',
                     start_date: f.start_date || f.startDate || '',
                     end_date: f.end_date || f.endDate || '',
@@ -135,13 +148,29 @@ const festosDomains = {
         } catch (e) { /* ignore */ }
     },
 
+    findFest(query) {
+        if (!query) return null;
+        const list = this.getFestList();
+        const q = String(query).toLowerCase().trim();
+        return list.find(f => 
+            (f.id && f.id.toLowerCase() === q) || 
+            (f.slug && f.slug.toLowerCase() === q) ||
+            (`fest_${f.slug}`.toLowerCase() === q)
+        ) || null;
+    },
+
     // True when the given fest id belongs to the cached live list. When nothing
     // is cached yet we cannot verify, so we optimistically accept the id.
     hasFest(festId) {
         if (!festId) return false;
         const list = this.getFestList();
         if (!list.length) return true;
-        return list.some(f => f.id === festId);
+        const q = String(festId).toLowerCase().trim();
+        return list.some(f => 
+            (f.id && f.id.toLowerCase() === q) || 
+            (f.slug && f.slug.toLowerCase() === q) ||
+            (`fest_${f.slug}`.toLowerCase() === q)
+        );
     },
 
     // The primary festival used when no URL / hostname / user context exists.
@@ -162,7 +191,7 @@ const festosDomains = {
             : (typeof window !== 'undefined' ? window.festosSupabase : null);
         if (!client) return null;
         try {
-            const { data, error } = await client.from('fests').select('id, name, slug, domain, created_at, start_date, end_date, venue, status');
+            const { data, error } = await client.from('fests').select('id, name, slug, domain, logo, created_at, start_date, end_date, venue, status');
             if (error || !data) return null;
             this.setIndex(this.buildIndex(data));
             this.setFestList(data);
@@ -252,26 +281,19 @@ const festosBranding = {
     },
 
     init() {
-        // Clear any contaminated unscoped branding cache on festival pages
+        // Clear any placeholder software branding cache on festival pages
         try {
             if (!this.isPlatformPage()) {
                 const legacy = localStorage.getItem('festos_branding_cache');
                 if (legacy) {
                     try {
                         const parsed = JSON.parse(legacy);
-                        if (parsed.fest_name === 'FestOS' || parsed.fest_logo === 'festos-logo.svg' || String(parsed.fest_name).toLowerCase().includes('vib')) {
+                        if (parsed.fest_name === 'FestOS' || parsed.fest_logo === 'festos-logo.svg') {
                             localStorage.removeItem('festos_branding_cache');
                         }
                     } catch(e) {
                         localStorage.removeItem('festos_branding_cache');
                     }
-                }
-                // Purge stale foreign fest cache from localStorage (e.g. Vibranium)
-                localStorage.removeItem('festos_branding_cache_fest_vib26_muml4haa');
-                localStorage.removeItem('festos_cfg_system_branding_fest_vib26_muml4haa');
-                const fb = localStorage.getItem('festBranding');
-                if (fb && (fb.toLowerCase().includes('vib') || fb.toLowerCase().includes('vibranium'))) {
-                    localStorage.removeItem('festBranding');
                 }
             }
         } catch(e) {}
@@ -299,10 +321,15 @@ const festosBranding = {
                          (festId ? localStorage.getItem('festos_cfg_system_branding_' + festId) : null) ||
                          localStorage.getItem('festos_branding_cache_active');
             
-            // Only accept legacy festBranding if not contaminated by another festival
-            const legacyFb = localStorage.getItem('festBranding');
-            if (!cached && legacyFb && !legacyFb.toLowerCase().includes('vib')) {
-                cached = legacyFb;
+            // Only accept legacy festBranding if it matches the current festId
+            if (!cached && festId) {
+                const legacyFb = localStorage.getItem('festBranding');
+                if (legacyFb) {
+                    try {
+                        const parsed = JSON.parse(legacyFb);
+                        if (parsed._fest_id === festId) cached = legacyFb;
+                    } catch(e) {}
+                }
             }
 
             if (cached) {
@@ -537,6 +564,10 @@ const festosBranding = {
         });
 
         // Store active branding in global window & synchronize active fest cache
+        const currentFestId = isPlatform ? null : festosAuth.getCurrentFestId();
+        if (brandingData && currentFestId) {
+            brandingData._fest_id = currentFestId;
+        }
         window.systemBranding = brandingData;
         if (!isPlatform && brandingData) {
             try {
@@ -611,7 +642,7 @@ const festosAuth = {
         if (user && user.role === 'super_admin') {
             // Super admins have global context; fall back to stored active fest or default
             const stored = localStorage.getItem('festos_active_fest_id');
-            return (stored && stored.trim() !== '' && festosDomains.hasFest(stored.trim()))
+            return (stored && stored.trim() !== '')
                 ? stored.trim()
                 : festosDefaultFestId();
         }
@@ -619,16 +650,17 @@ const festosAuth = {
         
         if (user && user.username) {
             const prefix = user.username.split('_')[0].toLowerCase().trim();
-            if (prefix === 'zenith26' || prefix === 'zenith') return festosDefaultFestId();
+            const matched = festosDomains.findFest ? festosDomains.findFest(prefix) : null;
+            if (matched && matched.id) return matched.id;
             if (/^[a-z0-9]{3,20}$/.test(prefix) && prefix !== 'superadmin' && prefix !== 'admin') {
                 const candidate = `fest_${prefix}`;
-                return festosDomains.hasFest(candidate) ? candidate : festosDefaultFestId();
+                if (festosDomains.hasFest(candidate)) return candidate;
             }
         }
 
         // 3. Check active fest context from storage
         const stored = localStorage.getItem('festos_active_fest_id');
-        if (stored && stored.trim() !== '' && festosDomains.hasFest(stored.trim())) return stored.trim();
+        if (stored && stored.trim() !== '') return stored.trim();
 
         return festosDefaultFestId();
     },
@@ -641,8 +673,9 @@ const festosAuth = {
             user.fest_id = null;
         } else if (!user.fest_id && user.username) {
             const prefix = user.username.split('_')[0].toLowerCase().trim();
-            if (prefix === 'zenith26' || prefix === 'zenith') {
-                user.fest_id = festosDefaultFestId();
+            const matched = festosDomains.findFest ? festosDomains.findFest(prefix) : null;
+            if (matched && matched.id) {
+                user.fest_id = matched.id;
             } else if (/^[a-z0-9]{3,20}$/.test(prefix) && prefix !== 'superadmin' && prefix !== 'admin') {
                 const candidate = `fest_${prefix}`;
                 user.fest_id = festosDomains.hasFest(candidate) ? candidate : festosDefaultFestId();
@@ -1201,103 +1234,181 @@ festosBranding.getDetails = function(targetFestId = null) {
     let venue = '';
 
     try {
-        if (window.systemBranding) {
-            if (window.systemBranding.fest_name && window.systemBranding.fest_name !== 'FestOS' && window.systemBranding.fest_name !== 'Festival') {
-                name = window.systemBranding.fest_name;
-            }
-            if (window.systemBranding.fest_logo && !window.systemBranding.fest_logo.includes('festos-logo.svg')) {
-                logo = window.systemBranding.fest_logo;
-            }
-        }
+        // 1. Scoped branding cache for this specific festival
         if (fid) {
-            const cached = localStorage.getItem('festos_branding_cache_' + fid) || localStorage.getItem('festos_cfg_system_branding_' + fid);
+            const cached = localStorage.getItem('festos_branding_cache_' + fid) || 
+                           localStorage.getItem('festos_cfg_system_branding_' + fid);
             if (cached) {
-                const b = JSON.parse(cached);
-                if (!name && b.fest_name && b.fest_name !== 'FestOS' && b.fest_name !== 'Festival') name = b.fest_name;
-                if (!logo && b.fest_logo && !b.fest_logo.includes('festos-logo.svg')) logo = b.fest_logo;
+                try {
+                    const b = JSON.parse(cached);
+                    if (b.fest_name && b.fest_name !== 'FestOS' && b.fest_name !== 'Festival') name = b.fest_name;
+                    if (b.fest_logo && !b.fest_logo.includes('festos-logo.svg')) logo = b.fest_logo;
+                } catch(e) {}
             }
         }
-        if (typeof festosDomains !== 'undefined' && festosDomains.getFestList) {
-            const fests = festosDomains.getFestList();
-            const f = fests.find(x => x.id === fid) || fests.find(x => (x.id && x.id.includes('zenith')) || (x.name && x.name.toLowerCase().includes('zenith')));
+
+        // 2. Lookup in festivals list (live cache / snapshot / multi_fests / availableFests)
+        if (typeof festosDomains !== 'undefined') {
+            const f = festosDomains.findFest ? festosDomains.findFest(fid) : null;
             if (f) {
                 if (!name && f.name) name = f.name;
                 if (!logo && f.logo && !f.logo.includes('festos-logo.svg')) logo = f.logo;
                 if (f.venue) venue = f.venue;
                 if (f.start_date) date = f.start_date + (f.end_date ? ' - ' + f.end_date : '');
+            } else {
+                const list = festosDomains.getFestList ? festosDomains.getFestList() : [];
+                const q = String(fid || '').toLowerCase().trim();
+                const matched = list.find(x => 
+                    (x.id && x.id.toLowerCase() === q) || 
+                    (x.slug && x.slug.toLowerCase() === q) ||
+                    (`fest_${x.slug}`.toLowerCase() === q)
+                );
+                if (matched) {
+                    if (!name && matched.name) name = matched.name;
+                    if (!logo && matched.logo && !matched.logo.includes('festos-logo.svg')) logo = matched.logo;
+                    if (matched.venue) venue = matched.venue;
+                    if (matched.start_date) date = matched.start_date + (matched.end_date ? ' - ' + matched.end_date : '');
+                }
+            }
+        }
+
+        // 3. Check window.systemBranding ONLY if it matches this festival
+        if (window.systemBranding) {
+            const sb = window.systemBranding;
+            const sbFestId = sb._fest_id || sb.fest_id || null;
+            if (!sbFestId || sbFestId === fid) {
+                if (!name && sb.fest_name && sb.fest_name !== 'FestOS' && sb.fest_name !== 'Festival') {
+                    name = sb.fest_name;
+                }
+                if (!logo && sb.fest_logo && !sb.fest_logo.includes('festos-logo.svg')) {
+                    logo = sb.fest_logo;
+                }
+            }
+        }
+
+        // 4. Check website config for this festival if available
+        if (!name && fid) {
+            const cfgRaw = localStorage.getItem('festos_cfg_website_config_' + fid) || 
+                           localStorage.getItem('website_config_' + fid);
+            if (cfgRaw) {
+                try {
+                    const cfg = JSON.parse(cfgRaw);
+                    if (cfg.hero_title && !cfg.hero_title.includes('FestOS')) name = cfg.hero_title;
+                } catch(e) {}
+            }
+        }
+
+        // 5. Fallback: check document title if on this festival's page
+        if (!name && typeof document !== 'undefined' && document.title) {
+            const parts = document.title.split('|');
+            if (parts.length > 0) {
+                const candidate = parts[0].trim();
+                if (candidate && 
+                    !candidate.toLowerCase().includes('festos') && 
+                    candidate !== 'Festival' && 
+                    !candidate.toLowerCase().includes('portal') &&
+                    !candidate.toLowerCase().includes('control panel')) {
+                    name = candidate;
+                }
             }
         }
     } catch(e) {}
 
-    // Never return another fest's logo or Vibranium
-    if (logo && (logo.toLowerCase().includes('vib') || logo.toLowerCase().includes('vibranium'))) {
-        logo = '';
-    }
-    if (!name || name === 'Festival' || name === 'FestOS' || name.toLowerCase().includes('vibranium')) {
-        name = 'ZENITH FEST';
+    // Fallback: If name is still empty, derive a clean label from fid
+    if (!name || name === 'Festival' || name === 'FestOS') {
+        if (fid && fid.startsWith('fest_')) {
+            const rawSlug = fid.replace(/^fest_/, '');
+            const part = rawSlug.split('_')[0];
+            name = part.charAt(0).toUpperCase() + part.slice(1);
+        } else if (fid) {
+            name = String(fid);
+        } else {
+            name = 'Festival';
+        }
     }
 
     return { id: fid, name, logo, subtitle, date, venue };
 };
 
 // Universal Active Branding Resolution
-function festosGetActiveBranding() {
-    let festName = '';
-    let festLogo = '';
+function festosGetActiveBranding(targetFestId = null) {
+    const fid = targetFestId || (window.festosAuth && window.festosAuth.getCurrentFestId ? window.festosAuth.getCurrentFestId() : (localStorage.getItem('festos_active_fest_id') || null));
+    const details = festosBranding.getDetails(fid);
+
     let displayMode = 'both';
-
-    // 1. window.systemBranding
-    if (window.systemBranding) {
-        const sb = window.systemBranding;
-        if (sb.fest_name && sb.fest_name !== 'FestOS' && sb.fest_name !== 'Festival' && !sb.fest_name.toLowerCase().includes('vib')) {
-            festName = sb.fest_name;
-        }
-        if (sb.fest_logo && !sb.fest_logo.includes('festos-logo.svg') && !sb.fest_logo.toLowerCase().includes('vib')) {
-            festLogo = sb.fest_logo;
-        }
-        if (sb.display_mode) displayMode = sb.display_mode;
-    }
-
-    // 2. festosBranding.getDetails()
-    if (!festName || !festLogo) {
-        const d = festosBranding.getDetails();
-        if (d) {
-            if (!festName && d.name && d.name !== 'Festival' && d.name !== 'FestOS') festName = d.name;
-            if (!festLogo && d.logo) festLogo = d.logo;
-        }
-    }
-
-    // 3. Fallback to active festival / document title
-    if (!festName || festName === 'Festival' || festName === 'FestOS' || festName.toLowerCase().includes('vib')) {
-        festName = 'ZENITH FEST';
+    if (fid) {
+        try {
+            const cached = localStorage.getItem('festos_branding_cache_' + fid) || localStorage.getItem('festos_cfg_system_branding_' + fid);
+            if (cached) {
+                const b = JSON.parse(cached);
+                if (b.display_mode) displayMode = b.display_mode;
+            }
+        } catch(e) {}
     }
 
     return {
-        fest_name: festName,
-        fest_logo: festLogo,
-        display_mode: displayMode
+        fest_name: details.name || 'Festival',
+        fest_logo: details.logo || '',
+        display_mode: displayMode,
+        fest_id: fid
     };
 }
 window.festosGetActiveBranding = festosGetActiveBranding;
 
 // Universal Fest-Prefixed Filename Generator
-function getFestFileName(baseName, ext = 'pdf') {
-    let festName = 'Zenith_Fest';
+function getFestFileName(baseName, ext = 'pdf', targetFestId = null) {
+    const fid = targetFestId || 
+                (typeof getActiveFestId === 'function' ? getActiveFestId() : null) ||
+                (window.festosAuth && window.festosAuth.getCurrentFestId ? window.festosAuth.getCurrentFestId() : null) || 
+                (typeof localStorage !== 'undefined' ? localStorage.getItem('festos_active_fest_id') : null);
+    
+    let festName = '';
     try {
-        if (typeof festosGetActiveBranding === 'function') {
-            const b = festosGetActiveBranding();
-            if (b && b.fest_name) festName = b.fest_name;
+        const b = festosGetActiveBranding(fid);
+        if (b && b.fest_name && b.fest_name !== 'FestOS' && b.fest_name !== 'Festival') {
+            festName = b.fest_name;
         }
     } catch(e) {}
 
+    if (!festName) {
+        try {
+            const d = festosBranding.getDetails(fid);
+            if (d && d.name && d.name !== 'FestOS' && d.name !== 'Festival') {
+                festName = d.name;
+            }
+        } catch(e) {}
+    }
+
+    if (!festName && window.systemBranding && window.systemBranding.fest_name) {
+        const sb = window.systemBranding;
+        const sbFid = sb._fest_id || sb.fest_id;
+        if (!sbFid || !fid || sbFid === fid) {
+            if (sb.fest_name !== 'FestOS' && sb.fest_name !== 'Festival') {
+                festName = sb.fest_name;
+            }
+        }
+    }
+
+    if (!festName) {
+        if (fid && fid.startsWith('fest_')) {
+            const rawSlug = fid.replace(/^fest_/, '');
+            const part = rawSlug.split('_')[0];
+            festName = part.charAt(0).toUpperCase() + part.slice(1);
+        } else if (fid) {
+            festName = String(fid);
+        } else {
+            festName = 'Fest';
+        }
+    }
+
     // Clean festName: letters, digits, underscores
     let safeFest = festName.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_');
-    if (!safeFest || safeFest.toLowerCase().includes('vibranium')) safeFest = 'Zenith_Fest';
+    if (!safeFest) safeFest = 'Fest';
 
-    // Clean baseName and strip redundant existing prefixes
+    // Clean baseName and strip redundant generic prefixes (e.g. FestOS_, Fest_)
     let cleanBase = (baseName || 'Report')
         .replace(/\.(pdf|csv|json)$/i, '')
-        .replace(/^(FestOS_|Fest_|Zenith_Fest_)/i, '')
+        .replace(/^(FestOS_|Fest_)/i, '')
         .replace(/[^\w\s-]/g, '')
         .trim()
         .replace(/\s+/g, '_');
@@ -1310,24 +1421,24 @@ function getFestFileName(baseName, ext = 'pdf') {
 window.getFestFileName = getFestFileName;
 
 // Universal Branded PDF Header Generator
-function getPDFHeaderHTML(reportTitle) {
+function getPDFHeaderHTML(reportTitle, targetFestId = null) {
+    const fid = targetFestId || 
+                (typeof getActiveFestId === 'function' ? getActiveFestId() : null) ||
+                (window.festosAuth && window.festosAuth.getCurrentFestId ? window.festosAuth.getCurrentFestId() : null) || 
+                (typeof localStorage !== 'undefined' ? localStorage.getItem('festos_active_fest_id') : null);
     const branding = typeof festosGetActiveBranding === 'function'
-        ? festosGetActiveBranding()
-        : { fest_name: 'ZENITH FEST', fest_logo: '', display_mode: 'both' };
+        ? festosGetActiveBranding(fid)
+        : (window.systemBranding || {});
     
     let validName = Boolean(branding.fest_name && branding.fest_name.trim());
-    let festName = validName ? branding.fest_name.trim() : 'ZENITH FEST';
-    if (festName === 'FestOS' || festName === 'Festival' || festName.toLowerCase().includes('vibranium')) {
-        festName = 'ZENITH FEST';
-    }
+    let festName = validName ? branding.fest_name.trim() : 'FESTIVAL';
+    if (festName === 'FestOS') festName = 'FESTIVAL';
 
     const rawLogo = branding.fest_logo ? branding.fest_logo.trim() : '';
     const validLogo = Boolean(
         rawLogo && 
         rawLogo !== 'festos-logo.svg' && 
-        rawLogo !== '/festos-logo.svg' && 
-        !rawLogo.toLowerCase().includes('vibranium') &&
-        !rawLogo.toLowerCase().includes('vib')
+        rawLogo !== '/festos-logo.svg'
     );
     const displayMode = branding.display_mode || 'both';
 
@@ -1354,6 +1465,7 @@ function getPDFHeaderHTML(reportTitle) {
     `;
 }
 window.getPDFHeaderHTML = getPDFHeaderHTML;
+window.festosGetPDFHeaderHTML = getPDFHeaderHTML;
 
 // Universal CSV Export with Festival Header Metadata
 function festosExportCSV(filename, rows, reportTitle = 'Festival Data Export') {

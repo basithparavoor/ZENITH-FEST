@@ -367,6 +367,9 @@ async function loadInitialData() {
             activeFestId = globalFests[0].id;
             festosFeatures.setActiveFestId(activeFestId);
         }
+        if (typeof festosDomains !== 'undefined' && festosDomains.setFestList && globalFests.length > 0) {
+            festosDomains.setFestList(globalFests);
+        }
 
         // Load Users
         if (festosSupabase) {

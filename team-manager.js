@@ -1762,21 +1762,29 @@ async function fetchAndApplyBranding() {
 
 
 function getPDFHeaderHTML(reportTitle) {
+    const u = JSON.parse(localStorage.getItem('festUser') || '{}');
+    const activeFid = (window.festosAuth && window.festosAuth.getCurrentFestId)
+        ? window.festosAuth.getCurrentFestId()
+        : (u.fest_id || localStorage.getItem('festos_active_fest_id') || null);
+
+    if (typeof window !== 'undefined' && typeof window.festosGetPDFHeaderHTML === 'function') {
+        return window.festosGetPDFHeaderHTML(reportTitle, activeFid);
+    }
+
     const branding = typeof festosGetActiveBranding === 'function' 
-        ? festosGetActiveBranding() 
+        ? festosGetActiveBranding(activeFid) 
         : (window.systemBranding || {});
     
-    let festName = branding.fest_name && branding.fest_name.trim() !== '' ? branding.fest_name.trim() : 'ZENITH FEST';
-    if (festName === 'FestOS' || festName === 'Festival' || festName.toLowerCase().includes('vib')) {
-        festName = 'ZENITH FEST';
+    let festName = branding.fest_name && branding.fest_name.trim() !== '' ? branding.fest_name.trim() : 'Festival';
+    if (festName === 'FestOS') {
+        festName = 'Festival';
     }
 
     const rawLogo = branding.fest_logo ? branding.fest_logo.trim() : '';
     const validLogo = Boolean(
         rawLogo && 
         rawLogo !== 'festos-logo.svg' && 
-        rawLogo !== '/festos-logo.svg' && 
-        !rawLogo.toLowerCase().includes('vib')
+        rawLogo !== '/festos-logo.svg'
     );
     const displayMode = branding.display_mode || 'both';
     

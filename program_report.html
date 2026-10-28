@@ -721,7 +721,7 @@
                     const brandingData = typeof festosGetActiveBranding === 'function' ? festosGetActiveBranding() : (window.systemBranding || {});
                     let brandHtml = '';
                     const rLogo = brandingData.fest_logo ? brandingData.fest_logo.trim() : '';
-                    if (rLogo && rLogo !== 'festos-logo.svg' && !rLogo.toLowerCase().includes('vib')) {
+                    if (rLogo && rLogo !== 'festos-logo.svg' && rLogo !== '/festos-logo.svg') {
                         brandHtml = `<img src="${rLogo}" style="height: 36px; width: auto; object-fit: contain; margin-right: 12px; border-radius: 4px;">`;
                     }
 

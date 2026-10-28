@@ -168,11 +168,18 @@ if (loginForm) {
                 if (prefix === 'zenith26' || prefix === 'zenith') {
                     data.fest_id = defaultFestId;
                 } else if (/^[a-z0-9]{3,20}$/.test(prefix) && prefix !== 'superadmin' && prefix !== 'admin') {
-                    const candidate = `fest_${prefix}`;
-                    const known = (window.festosDomains && typeof window.festosDomains.hasFest === 'function')
-                        ? window.festosDomains.hasFest(candidate)
-                        : true;
-                    data.fest_id = known ? candidate : defaultFestId;
+                    const matchedFest = (window.festosDomains && typeof window.festosDomains.findFest === 'function')
+                        ? window.festosDomains.findFest(prefix)
+                        : null;
+                    if (matchedFest && matchedFest.id) {
+                        data.fest_id = matchedFest.id;
+                    } else {
+                        const candidate = `fest_${prefix}`;
+                        const known = (window.festosDomains && typeof window.festosDomains.hasFest === 'function')
+                            ? window.festosDomains.hasFest(candidate)
+                            : true;
+                        data.fest_id = known ? candidate : defaultFestId;
+                    }
                 } else {
                     data.fest_id = defaultFestId;
                 }
