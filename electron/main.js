@@ -10,8 +10,8 @@ function createWindow() {
         height: 900,
         minWidth: 1024,
         minHeight: 700,
-        title: 'FestOS | Festival Operating System',
-        icon: path.join(__dirname, '../festos-logo.svg'),
+        title: 'VIBRANIUM',
+        icon: path.join(__dirname, '../vibranium-icon.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
@@ -22,9 +22,9 @@ function createWindow() {
         show: false
     });
 
-    // Load initial entry point (Live local server on port 3050 with automatic offline file fallback)
-    mainWindow.loadURL('http://localhost:3050/landing.html').catch(() => {
-        mainWindow.loadFile(path.join(__dirname, '../landing.html'));
+    // Direct open to the Login Page (index.html)
+    mainWindow.loadURL('http://localhost:3050/index.html').catch(() => {
+        mainWindow.loadFile(path.join(__dirname, '../index.html'));
     });
 
     // Graceful show on ready
@@ -54,13 +54,13 @@ function setupAppMenu() {
     const template = [
         ...(isMac ? [{ role: 'appMenu' }] : []),
         {
-            label: 'FestOS',
+            label: 'VIBRANIUM',
             submenu: [
-                { label: 'Public Website', click: () => mainWindow.loadFile(path.join(__dirname, '../landing.html')) },
                 { label: 'Staff Login', click: () => mainWindow.loadFile(path.join(__dirname, '../index.html')) },
                 { label: 'Results Portal', click: () => mainWindow.loadFile(path.join(__dirname, '../results.html')) },
                 { label: 'Stage HUD (4K)', click: () => mainWindow.loadFile(path.join(__dirname, '../display.html')) },
                 { label: 'Super Admin Hub', click: () => mainWindow.loadFile(path.join(__dirname, '../superadmin.html')) },
+                { label: 'Public Website', click: () => mainWindow.loadFile(path.join(__dirname, '../landing.html')) },
                 { type: 'separator' },
                 { role: 'quit' }
             ]
