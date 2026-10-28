@@ -53,6 +53,7 @@ const filesAndDirsToCopy = [
     'package.json',
     'server.js',
     'electron',
+    'assets',
     'festos-logo.svg',
     'festos-core.js',
     'mobile-native.js',
@@ -71,17 +72,26 @@ const filesAndDirsToCopy = [
     'landing.html',
     'announcements.html',
     'manager.html',
+    'manager.js',
+    'judge.html',
+    'judge.js',
+    'login.js',
+    'stage-controller.html',
+    'stage-controller.js',
+    'team-manager.html',
+    'team-manager.js',
     'program_report.html',
     'scan.html',
     'spectator.html',
-    'stage-controller.html',
-    'team-manager.html'
+    'id-badge-engine.js',
+    'ai-template-generator.js',
+    'preset-templates-engine.js'
 ];
 
-// Also copy all css, svg, png files in root
+// Also copy all html, js, css, svg, png, etc. files in root
 fs.readdirSync(ROOT_DIR).forEach(file => {
     const ext = path.extname(file).toLowerCase();
-    if (['.html', '.css', '.svg', '.png', '.jpg', '.jpeg', '.json', '.wav', '.mp3'].includes(ext)) {
+    if (['.html', '.css', '.svg', '.png', '.jpg', '.jpeg', '.json', '.wav', '.mp3', '.js'].includes(ext)) {
         if (!filesAndDirsToCopy.includes(file)) {
             filesAndDirsToCopy.push(file);
         }
