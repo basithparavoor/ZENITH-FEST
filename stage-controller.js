@@ -183,9 +183,10 @@ async function loadCompetitions(stageId) {
         query = query.eq('stage_id', stageId);
     }
     
-    const [compsRes, stageFlagsVal] = await Promise.all([
+    const [compsRes, stageFlagsVal, pointVal] = await Promise.all([
         query,
-        window.festosGetSetting ? window.festosGetSetting('stage_offstage_flags') : (supabaseClient.from('settings').select('value').eq('id', 'stage_offstage_flags').maybeSingle().then(r => r.data?.value))
+        window.festosGetSetting ? window.festosGetSetting('stage_offstage_flags') : (supabaseClient.from('settings').select('value').eq('id', 'stage_offstage_flags').maybeSingle().then(r => r.data?.value)),
+        window.festosGetSetting ? window.festosGetSetting('point_system') : (supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle().then(r => r.data?.value))
     ]);
 
     const competitionsData = compsRes.data;
@@ -196,6 +197,17 @@ async function loadCompetitions(stageId) {
     // Fetch Master Schedule
     const schedVal = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : null;
     const masterSchedule = schedVal || {};
+    window.masterSchedule = masterSchedule;
+
+    const announcerOffset = pointVal?.announcer_offset !== undefined ? parseInt(pointVal.announcer_offset) : 30;
+    const registrationOffset = pointVal?.registration_offset !== undefined ? parseInt(pointVal.registration_offset) : 15;
+    const strictStartTime = pointVal?.strict_start_time !== undefined ? (pointVal.strict_start_time === true || pointVal.strict_start_time === 'true') : true;
+
+    window.stageControllerSettings = {
+        announcerOffset,
+        registrationOffset,
+        strictStartTime
+    };
 
     const container = document.getElementById('competitions-container');
     container.innerHTML = '';
@@ -210,12 +222,29 @@ async function loadCompetitions(stageId) {
         return;
     }
 
+    const now = new Date();
+
     // Retain all pending, registration, ongoing, valuation, and judgement_complete competitions!
     // Filter out only 'published' events (final published results where event has ended)
     const visibleComps = competitionsData.filter(comp => {
         if (comp.status === 'published') return false; 
         // For offstage competitions marked as end (in valuation), do not show them in stage controller
         if (comp.status === 'valuation' && checkIsCompOffstage(comp)) return false;
+
+        // Apply pre-schedule visibility offset to pending competitions (same as Announcer portal)
+        if (comp.status === 'pending') {
+            const sched = masterSchedule[comp.id];
+            if (sched && sched.date && sched.time) {
+                const schedDate = new Date(`${sched.date}T${sched.time}`);
+                if (!isNaN(schedDate)) {
+                    const diffMins = (schedDate - now) / 60000;
+                    if (diffMins > announcerOffset) {
+                        return false;
+                    }
+                }
+            }
+        }
+
         return true;
     });
 
@@ -294,6 +323,7 @@ async function loadCompetitions(stageId) {
         // Extract Schedule
         let schedBadge = '';
         const sched = masterSchedule[comp.id];
+        comp.schedule = sched;
         if (sched) {
             const timeObj = new Date(`${sched.date}T${sched.time}`);
             const timeStr = isNaN(timeObj) ? sched.time : timeObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -400,8 +430,27 @@ function filterCompetitions() {
 function getButtonsForStatus(comp) {
     const safeName = comp.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const isOff = checkIsCompOffstage(comp);
+    const sched = comp.schedule || (window.masterSchedule ? window.masterSchedule[comp.id] : null);
+    const regOffset = window.stageControllerSettings?.registrationOffset !== undefined ? window.stageControllerSettings.registrationOffset : 15;
+    const strictStart = window.stageControllerSettings?.strictStartTime !== undefined ? window.stageControllerSettings.strictStartTime : true;
 
     if (comp.status === 'pending') {
+        if (sched && sched.date && sched.time) {
+            const schedDate = new Date(`${sched.date}T${sched.time}`);
+            if (!isNaN(schedDate)) {
+                const diffMins = (schedDate - new Date()) / 60000;
+                if (diffMins > regOffset) {
+                    const minsUntilReg = Math.ceil(diffMins - regOffset);
+                    return `
+                        <div>
+                            <button class="btn btn-outline btn-full" style="border-color: #CBD5E1; color: var(--text-muted); background: #F8FAFC;" onclick="alertRegistrationEarly('${comp.id}', ${minsUntilReg}, '${sched.time}', ${regOffset})">
+                                <i class="fa-solid fa-clock"></i> REGISTRATION OPENS IN ${minsUntilReg}m
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        }
         return `
             <div>
                 <button class="btn btn-primary btn-full" onclick="changeCompetitionState('${comp.id}', 'registration', this, 'STARTING')"><i class="fa-solid fa-qrcode"></i> START REGISTRATION</button>
@@ -410,11 +459,31 @@ function getButtonsForStatus(comp) {
     }
     
     if (comp.status === 'registration') {
+        let isStartLocked = false;
+        let minsUntilStart = 0;
+        let schedStartTimeStr = '';
+
+        if (strictStart && sched && sched.date && sched.time) {
+            const schedDate = new Date(`${sched.date}T${sched.time}`);
+            if (!isNaN(schedDate)) {
+                const diffMins = (schedDate - new Date()) / 60000;
+                if (diffMins > 0) {
+                    isStartLocked = true;
+                    minsUntilStart = Math.ceil(diffMins);
+                    schedStartTimeStr = sched.time;
+                }
+            }
+        }
+
+        const startEventBtn = isStartLocked
+            ? `<button class="btn btn-outline" style="border-color: #CBD5E1; color: var(--text-muted); background: #F8FAFC;" onclick="alertStartBeforeSchedule('${comp.id}', ${minsUntilStart}, '${schedStartTimeStr}')" title="Scheduled to start at ${schedStartTimeStr}"><i class="fa-solid fa-hourglass-half"></i> STARTS AT ${schedStartTimeStr} (${minsUntilStart}m)</button>`
+            : `<button class="btn btn-success" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'STARTING')"><i class="fa-solid fa-play"></i> START EVENT</button>`;
+
         return `
             <div>
                 <button class="btn btn-outline btn-full" style="color: var(--primary); border-color: var(--primary); margin-bottom: 0.25rem !important;" onclick="openScannerModal('${comp.id}', '${safeName}')" title="SCAN QR"><i class="fa-solid fa-expand"></i> SCAN QR</button>
                 <button class="btn btn-danger" onclick="cancelRegistration('${comp.id}', this)"><i class="fa-solid fa-xmark"></i> CANCEL</button>
-                <button class="btn btn-success" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'STARTING')"><i class="fa-solid fa-play"></i> START EVENT</button>
+                ${startEventBtn}
             </div>
         `;
     }
@@ -750,6 +819,51 @@ async function executeStateChange(compId, newStatus, btnElement, loadingText) {
 async function changeCompetitionState(compId, newStatus, btnElement, loadingText) {
     const comp = (window.allLoadedCompetitions || []).find(c => String(c.id) === String(compId));
     const isOffstage = checkIsCompOffstage(comp);
+    const sched = comp?.schedule || (window.masterSchedule ? window.masterSchedule[compId] : null);
+
+    // Rule: Registration window enforcement
+    if (newStatus === 'registration') {
+        const regOffset = window.stageControllerSettings?.registrationOffset !== undefined ? window.stageControllerSettings.registrationOffset : 15;
+        if (sched && sched.date && sched.time) {
+            const schedDate = new Date(`${sched.date}T${sched.time}`);
+            if (!isNaN(schedDate)) {
+                const diffMins = (schedDate - new Date()) / 60000;
+                if (diffMins > regOffset) {
+                    const minsLeft = Math.ceil(diffMins - regOffset);
+                    showToast(`Registration Locked: Opens ${regOffset} mins before schedule (${minsLeft}m left).`, "error");
+                    openConfirmModal(
+                        "Registration Not Open Yet",
+                        `Registration for <strong>"${comp ? comp.name : 'this competition'}"</strong> cannot be started yet.<br><br>Registration opens <strong>${regOffset} minutes</strong> before scheduled time (<strong>${sched.time}</strong>).<br><br>Please wait <strong>${minsLeft} more minute(s)</strong>.`,
+                        null,
+                        { confirmText: "Understood", hideCancel: true }
+                    );
+                    return;
+                }
+            }
+        }
+    }
+
+    // Rule: Strict Event Start Time enforcement
+    if (newStatus === 'ongoing') {
+        const strictStart = window.stageControllerSettings?.strictStartTime !== undefined ? window.stageControllerSettings.strictStartTime : true;
+        if (strictStart && sched && sched.date && sched.time) {
+            const schedDate = new Date(`${sched.date}T${sched.time}`);
+            if (!isNaN(schedDate)) {
+                const diffMins = (schedDate - new Date()) / 60000;
+                if (diffMins > 0) {
+                    const minsLeft = Math.ceil(diffMins);
+                    showToast(`Cannot Start Event: Scheduled start time is ${sched.time}. (${minsLeft}m left)`, "error");
+                    openConfirmModal(
+                        "Scheduled Start Time Enforced",
+                        `<strong>"${comp ? comp.name : 'This competition'}"</strong> is scheduled to start at <strong>${sched.time}</strong>.<br><br>Strict event timing is enabled, so the event cannot be started before its official scheduled time.<br><br>Time remaining: <strong>${minsLeft} minute(s)</strong>.`,
+                        null,
+                        { confirmText: "Understood", hideCancel: true }
+                    );
+                    return;
+                }
+            }
+        }
+    }
 
     // Rule: All other stage competitions (onstage) need an assigned judge before starting event (no need judge to start registration)
     if (newStatus === 'ongoing' && !isOffstage) {
@@ -928,6 +1042,41 @@ function closeConfirmModal() {
     const cancelBtn = document.querySelector('#confirmModal .btn-outline');
     if (cancelBtn) cancelBtn.style.display = 'inline-block';
     document.getElementById('confirmModal').style.display = 'none';
+}
+
+function alertRegistrationEarly(compId, minsLeft, schedTime, regOffset) {
+    const comp = (window.allLoadedCompetitions || []).find(c => String(c.id) === String(compId));
+    openConfirmModal(
+        "Registration Not Open Yet",
+        `Registration for <strong>"${comp ? comp.name : 'this competition'}"</strong> cannot be started yet.<br><br>Registration opens <strong>${regOffset} minutes</strong> before scheduled time (<strong>${schedTime || 'TBD'}</strong>).<br><br>Time remaining: <strong>${minsLeft} minute(s)</strong>.`,
+        null,
+        { confirmText: "Understood", hideCancel: true }
+    );
+}
+
+function alertStartBeforeSchedule(compId, minsLeft, schedTime) {
+    const comp = (window.allLoadedCompetitions || []).find(c => String(c.id) === String(compId));
+    openConfirmModal(
+        "Scheduled Start Time Enforced",
+        `<strong>"${comp ? comp.name : 'This competition'}"</strong> is scheduled to start at <strong>${schedTime}</strong>.<br><br>Strict event timing is enabled, so the event cannot be started before its official scheduled time.<br><br>Time remaining: <strong>${minsLeft} minute(s)</strong>.`,
+        null,
+        { confirmText: "Understood", hideCancel: true }
+    );
+}
+
+// Background auto-refresh for countdowns and schedule windows (every 30 seconds)
+if (!window._schedRefreshInterval) {
+    window._schedRefreshInterval = setInterval(() => {
+        const scannerModal = document.getElementById('scanner-modal');
+        const confirmModal = document.getElementById('confirmModal');
+        const isScannerOpen = scannerModal && scannerModal.style.display !== 'none';
+        const isConfirmOpen = confirmModal && confirmModal.style.display === 'flex';
+        if (!isScannerOpen && !isConfirmOpen) {
+            const currentFilter = document.getElementById('master-stage-filter');
+            const targetStage = currentFilter ? currentFilter.value : 'ALL';
+            loadCompetitions(targetStage);
+        }
+    }, 30000);
 }
 
 function logout() {

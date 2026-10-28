@@ -3554,9 +3554,27 @@ canvas {
                     </div>
 
                     <div class="form-group" style="margin-bottom: 1rem; border-top: 1px dashed var(--border); padding-top: 1rem;">
-                        <label>Announcer Pre-Schedule Visibility (Mins)</label>
+                        <label>Announcer & Stage Controller Pre-Schedule Visibility (Mins)</label>
                         <input type="number" id="setting-announcer-offset" value="30">
                         <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">How many minutes before a scheduled event should it automatically appear in the Announcer & Stage Controller Portals.</p>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label>Stage Controller Registration Open Window (Mins)</label>
+                        <input type="number" id="setting-registration-offset" value="15" min="0">
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">How many minutes before the scheduled time the Stage Controller can start registration.</p>
+                    </div>
+
+                    <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-main); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1rem;">
+                        <div>
+                            <label style="margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--text-main);">Strict Event Start Time</label>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Stage Controller can only start the event (move from registration to ongoing) at or after scheduled time.</p>
+                        </div>
+                        <label style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                            <input type="checkbox" id="setting-strict-start-time" style="opacity: 0; width: 0; height: 0;" checked onchange="this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#D1D5DB'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(20px)' : 'translateX(0)';">
+                            <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .3s; border-radius: 34px;"></span>
+                            <span id="strict-start-toggle-knob" style="position: absolute; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; transform: translateX(20px); box-shadow: 0 1px 2px rgba(0,0,0,0.1);"></span>
+                        </label>
                     </div>
     
                     <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-main); padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">

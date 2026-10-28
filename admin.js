@@ -7131,6 +7131,8 @@ let pointsAdminSettings = {
     pos_points: { p1: 3, p2: 2, p3: 1 },
     poster_interval: 10,
     announcer_offset: 30, // NEW DEFAULT
+    registration_offset: 15,
+    strict_start_time: true,
     tm_access: true
 };
 
@@ -7147,6 +7149,8 @@ async function loadPointSettings() {
             pos_points: { p1: 3, p2: 2, p3: 1 },
             poster_interval: 10,
             announcer_offset: 30,
+            registration_offset: 15,
+            strict_start_time: true,
             lock_date: '',
             tm_access: true
         };
@@ -7169,6 +7173,16 @@ async function loadPointSettings() {
         // Announcer Offset
         if(document.getElementById('setting-announcer-offset')) document.getElementById('setting-announcer-offset').value = v.announcer_offset !== undefined ? v.announcer_offset : defaults.announcer_offset;
         
+        // Registration Offset
+        if(document.getElementById('setting-registration-offset')) document.getElementById('setting-registration-offset').value = v.registration_offset !== undefined ? v.registration_offset : defaults.registration_offset;
+
+        // Strict Start Time
+        if(document.getElementById('setting-strict-start-time')) {
+            const checkbox = document.getElementById('setting-strict-start-time');
+            checkbox.checked = v.strict_start_time !== false;
+            checkbox.dispatchEvent(new Event('change'));
+        }
+
         if(document.getElementById('setting-lock-date')) document.getElementById('setting-lock-date').value = v.lock_date || '';
         
         if(document.getElementById('setting-tm-access')) {
@@ -7252,6 +7266,8 @@ async function savePointSettings() {
         pos_points: { p1: getVal('pos-1'), p2: getVal('pos-2'), p3: getVal('pos-3') },
         poster_interval: getVal('setting-poster-interval'),
         announcer_offset: getVal('setting-announcer-offset'),
+        registration_offset: getVal('setting-registration-offset'),
+        strict_start_time: document.getElementById('setting-strict-start-time') ? document.getElementById('setting-strict-start-time').checked : true,
         lock_date: document.getElementById('setting-lock-date') ? document.getElementById('setting-lock-date').value : null,
         tm_access: document.getElementById('setting-tm-access') ? document.getElementById('setting-tm-access').checked : true,
         class_system: window.currentClassSystem
