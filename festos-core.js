@@ -1945,10 +1945,6 @@ async function festosSaveCategoryLimitConfig(config) {
     return await festosSaveSetting('category_comp_limits', config);
 }
 
-// Aliases for admin portal compatibility
-const festosGetAdminCategoryLimitConfig = festosGetCategoryLimitConfig;
-const festosSaveAdminCategoryLimitConfig = festosSaveCategoryLimitConfig;
-
 function festosEvaluateStudentCategoryLimit(studentId, targetCompId, studentsList, compsList, categoriesList, allAssignments, limitConfig) {
     if (!limitConfig) {
         return { allowed: true, isExempt: true, reason: 'Limit configuration not found' };

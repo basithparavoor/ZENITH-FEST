@@ -181,27 +181,6 @@ function getActiveFestId() {
         (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_zenith_2026');
 }
 
-// Category Limit Helpers
-async function festosGetAdminCategoryLimitConfig(...args) {
-    if (typeof window.festosGetCategoryLimitConfig === 'function') {
-        return await window.festosGetCategoryLimitConfig(...args);
-    }
-    if (typeof festosGetCategoryLimitConfig === 'function') {
-        return await festosGetCategoryLimitConfig(...args);
-    }
-    return { enabled: false, default_limit: 3, categories: {} };
-}
-
-async function festosSaveAdminCategoryLimitConfig(...args) {
-    if (typeof window.festosSaveCategoryLimitConfig === 'function') {
-        return await window.festosSaveCategoryLimitConfig(...args);
-    }
-    if (typeof festosSaveCategoryLimitConfig === 'function') {
-        return await festosSaveCategoryLimitConfig(...args);
-    }
-    return Promise.resolve();
-}
-
 function festQuery(query, targetFestId = null) {
     if (window.festosApplyFilter) {
         return window.festosApplyFilter(query, targetFestId);
@@ -1275,7 +1254,8 @@ async function saveCategory() {
         try {
             const isLimited = document.getElementById('catLimitCustomToggle')?.checked;
             const limitVal = parseInt(document.getElementById('catLimitVal')?.value) || 3;
-            const limConfig = await festosGetAdminCategoryLimitConfig();
+            const getLimitCfg = window.festosGetAdminCategoryLimitConfig || window.festosGetCategoryLimitConfig;
+            const limConfig = getLimitCfg ? await getLimitCfg() : { enabled: false, default_limit: 3, categories: {} };
             if (!limConfig.categories) limConfig.categories = {};
             if (targetCatId) {
                 if (isLimited && !is_general) {
@@ -1287,7 +1267,8 @@ async function saveCategory() {
                 } else {
                     delete limConfig.categories[targetCatId];
                 }
-                await festosSaveAdminCategoryLimitConfig(limConfig);
+                const saveLimitCfg = window.festosSaveAdminCategoryLimitConfig || window.festosSaveCategoryLimitConfig;
+                if (saveLimitCfg) await saveLimitCfg(limConfig);
                 window.cachedCategoryLimitConfig = limConfig;
             }
         } catch(limErr) {
@@ -7247,7 +7228,8 @@ async function loadPointSettings() {
 
         // Load Student Category Limit Rules
         try {
-            const limConfig = await festosGetAdminCategoryLimitConfig();
+            const getLimitCfg = window.festosGetAdminCategoryLimitConfig || window.festosGetCategoryLimitConfig;
+            const limConfig = getLimitCfg ? await getLimitCfg() : { enabled: false, default_limit: 3, categories: {} };
             const grpEl = document.getElementById('setting-limit-group-events');
             const genEl = document.getElementById('setting-limit-general-comps');
             if (grpEl) grpEl.value = (limConfig.exclude_group_events === false) ? 'include' : 'exclude';
@@ -7272,12 +7254,14 @@ async function savePointSettings() {
 
     // Student Category Participation Limit Rules
     try {
-        const limConfig = await festosGetAdminCategoryLimitConfig();
+        const getLimitCfg = window.festosGetAdminCategoryLimitConfig || window.festosGetCategoryLimitConfig;
+        const limConfig = getLimitCfg ? await getLimitCfg() : { enabled: false, default_limit: 3, categories: {} };
         const grpVal = document.getElementById('setting-limit-group-events')?.value;
         const genVal = document.getElementById('setting-limit-general-comps')?.value;
         limConfig.exclude_group_events = (grpVal !== 'include');
         limConfig.exclude_general_competitions = (genVal !== 'include');
-        await festosSaveAdminCategoryLimitConfig(limConfig);
+        const saveLimitCfg = window.festosSaveAdminCategoryLimitConfig || window.festosSaveCategoryLimitConfig;
+        if (saveLimitCfg) await saveLimitCfg(limConfig);
         window.cachedCategoryLimitConfig = limConfig;
     } catch(limSaveErr) {
         console.warn("Error saving limit rules in savePointSettings:", limSaveErr);
