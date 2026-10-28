@@ -33,7 +33,7 @@ if %ERRORLEVEL% NEQ 0 (
 echo [3/4] Releasing File Locks...
 cd /d "%~dp0\..\android"
 call gradlew.bat --stop >nul 2>&1
-timeout /t 2 /nobreak >nul 2>&1
+ping 127.0.0.1 -n 3 >nul 2>&1
 
 echo [4/4] Compiling Android APK with Gradle...
 call gradlew.bat assembleDebug --no-daemon --no-build-cache

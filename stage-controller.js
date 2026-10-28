@@ -48,6 +48,20 @@ async function initializeApp() {
     loadDashboard();
 }
 
+function checkIsCompOffstage(comp) {
+    if (!comp) return false;
+    if (comp.is_offstage) return true;
+    const sId = comp.stage_id || comp.stages?.id;
+    if (sId && window.stageOffstageFlags && window.stageOffstageFlags[sId] !== undefined) {
+        return !!window.stageOffstageFlags[sId];
+    }
+    if (comp.stages?.name && comp.stages.name.toUpperCase().includes('OFFSTAGE')) {
+        return true;
+    }
+    return false;
+}
+window.checkIsCompOffstage = checkIsCompOffstage;
+
 async function loadDashboard() {
     const container = document.getElementById('competitions-container');
     container.innerHTML = `<div style="text-align:center; padding: 3rem;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i><p style="margin-top: 1rem; color: var(--text-muted); font-weight: 600;">Loading Stage Data...</p></div>`;
