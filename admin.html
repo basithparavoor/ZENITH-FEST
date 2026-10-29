@@ -13,6 +13,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -6458,8 +6459,18 @@ canvas {
         </div>
 
         <div style="padding: 1.25rem 0 0 0;">
-            <!-- Conflict Category Tabs / Metrics -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <!-- Active vs History Tab Navigation -->
+            <div class="conflict-nav-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem;">
+                <button type="button" class="btn btn-primary" id="tab-active-conflicts" onclick="switchConflictAuditTab('active')" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; border-radius: 8px;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Active Conflicts (<span id="audit-active-tab-count">0</span>)
+                </button>
+                <button type="button" class="btn btn-outline" id="tab-history-conflicts" onclick="switchConflictAuditTab('history')" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; border-radius: 8px; color: #475569;">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Conflict History (<span id="audit-history-tab-count">0</span>)
+                </button>
+            </div>
+
+            <!-- Active Conflict Category Tabs / Metrics -->
+            <div id="conflict-metrics-deck" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
                 <div style="background: #FEF2F2; border: 1.5px solid #FCA5A5; border-radius: 12px; padding: 1rem; text-align: center;">
                     <div style="font-size: 1.5rem; font-weight: 800; color: #DC2626;" id="audit-hard-count">0</div>
                     <div style="font-size: 0.75rem; font-weight: 700; color: #991B1B; text-transform: uppercase;">Hard Student Clashes</div>
@@ -6474,9 +6485,21 @@ canvas {
                 </div>
             </div>
 
+            <!-- History Notice Banner -->
+            <div id="conflict-history-banner" style="display: none; background: #F8FAFC; border: 1.5px solid #CBD5E1; border-radius: 12px; padding: 0.85rem 1.25rem; margin-bottom: 1rem; color: #334155; font-size: 0.85rem; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 0.65rem;">
+                    <i class="fa-solid fa-clock-rotate-left" style="color: #64748B; font-size: 1.2rem;"></i>
+                    <div>
+                        <strong style="color: var(--text-main); font-size: 0.9rem; display: block;">Archived / Concluded Conflicts Record</strong>
+                        <span style="color: var(--text-muted); font-size: 0.8rem;">These overlaps involved events that have already ended on stage (valuation, judgement complete, or published). They do not affect active stage operations.</span>
+                    </div>
+                </div>
+                <span class="badge" style="background: #E2E8F0; color: #334155; font-weight: 800; padding: 4px 10px; border-radius: 6px;"><span id="audit-history-count-badge">0</span> RESOLVED</span>
+            </div>
+
             <!-- Filter Type -->
-            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
-                <button class="btn btn-primary" id="btn-filter-all-conflicts" onclick="filterAuditList('all')" style="padding: 0.4rem 0.85rem; font-size: 0.8rem;">All Issues (<span id="audit-total-count">0</span>)</button>
+            <div id="conflict-filter-buttons" style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                <button class="btn btn-primary" id="btn-filter-all-conflicts" onclick="filterAuditList('all')" style="padding: 0.4rem 0.85rem; font-size: 0.8rem;">All Active Issues (<span id="audit-total-count">0</span>)</button>
                 <button class="btn btn-outline" id="btn-filter-hard-conflicts" onclick="filterAuditList('hard')" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; color: #DC2626; border-color: #FCA5A5;">Hard Clashes Only</button>
                 <button class="btn btn-outline" id="btn-filter-buffer-conflicts" onclick="filterAuditList('buffer')" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; color: #D97706; border-color: #FDE68A;">Tight Buffers</button>
                 <button class="btn btn-outline" id="btn-filter-stage-conflicts" onclick="filterAuditList('stage')" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; color: #7C3AED; border-color: #DDD6FE;">Stage Overlaps</button>
@@ -6517,41 +6540,55 @@ canvas {
         </div>
 
         <div style="padding: 1.25rem 0 0 0; overflow-y: auto; flex: 1;">
-            <!-- Configuration Form Deck -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; background: var(--bg-main); padding: 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border); margin-bottom: 1.25rem;">
+            <!-- Configuration Form Deck (Scope, Buffer, Strategy) -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; background: var(--bg-main); padding: 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border); margin-bottom: 1.25rem;">
                 <div>
-                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">TARGET FEST DATE</label>
-                    <input type="date" id="opt-date" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
+                    <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">SCHEDULING SCOPE</label>
+                    <select id="opt-scope" onchange="generateOptimizedSchedule()" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1.5px solid var(--primary); font-size: 0.85rem; font-weight: 700; outline: none; background: white; color: var(--text-main);">
+                        <option value="pending_only" selected>✨ Pending Competitions Only (Status: Pending)</option>
+                        <option value="pending_unscheduled">⏳ Pending & Unscheduled Competitions</option>
+                        <option value="unscheduled_only">📅 All Unscheduled Events Only</option>
+                        <option value="all_replace">🔄 Re-optimize All Events on Dates</option>
+                    </select>
                 </div>
                 <div>
-                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">START TIME</label>
-                    <input type="time" id="opt-start-time" value="09:00" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
-                </div>
-                <div>
-                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">END TIME</label>
-                    <input type="time" id="opt-end-time" value="18:00" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
-                </div>
-                <div>
-                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">BUFFER (MINS)</label>
-                    <select id="opt-buffer-mins" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
+                    <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">BUFFER BETWEEN EVENTS</label>
+                    <select id="opt-buffer-mins" onchange="generateOptimizedSchedule()" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
                         <option value="10">10 Mins</option>
                         <option value="15" selected>15 Mins (Recommended)</option>
                         <option value="20">20 Mins</option>
+                        <option value="30">30 Mins</option>
                     </select>
                 </div>
                 <div>
-                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">STAGE STRATEGY</label>
-                    <select id="opt-stage-strategy" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
+                    <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">STAGE STRATEGY</label>
+                    <select id="opt-stage-strategy" onchange="generateOptimizedSchedule()" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
                         <option value="auto_balance" selected>Auto-Balance Across Selected Stages</option>
-                        <option value="preserve">Strict: Pre-Assigned Stages</option>
+                        <option value="preserve">Strict: Pre-Assigned Stages Only</option>
                     </select>
                 </div>
-                <div>
-                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">SCOPE</label>
-                    <select id="opt-scope" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; outline: none; background: white;">
-                        <option value="unscheduled_only" selected>Unscheduled Events Only</option>
-                        <option value="all_replace">Re-optimize All on Date</option>
-                    </select>
+            </div>
+
+            <!-- Multi-Day Festival Scheduling & Operating Hours Deck -->
+            <div style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.25rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 28px; height: 28px; border-radius: 6px; background: #EEF2FF; color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+                            <i class="fa-solid fa-calendar-days"></i>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.88rem; font-weight: 800; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.04em;">Multiple Dates, Separate Operating Hours & Breaks</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-left: 6px;">(Configure separate From - To times and individual breaks for each festival day)</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; font-weight: 700;" onclick="addOptimizerDay()">
+                        <i class="fa-solid fa-calendar-plus"></i> + Add Another Festival Day
+                    </button>
+                </div>
+
+                <!-- Container where each day's card with date, hours, and breaks is rendered -->
+                <div id="opt-days-container" style="display: flex; flex-direction: column; gap: 1rem;">
+                    <!-- Rendered dynamically -->
                 </div>
             </div>
 
@@ -6607,31 +6644,7 @@ canvas {
                 </div>
             </div>
 
-            <!-- Break Times & Intervals Deck (Lunch, Tea, etc.) -->
-            <div style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
-                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <div style="width: 26px; height: 26px; border-radius: 6px; background: #FEF3C7; color: #D97706; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
-                            <i class="fa-solid fa-utensils"></i>
-                        </div>
-                        <div>
-                            <span style="font-size: 0.85rem; font-weight: 800; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.04em;">Scheduled Breaks & Intervals</span>
-                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-left: 6px;">(No competitions scheduled during these hours; edit times anytime)</span>
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                        <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.65rem; font-size: 0.75rem; font-weight: 700; color: #D97706; border-color: #FCD34D;" onclick="addOptimizerLunchBreak()">
-                            <i class="fa-solid fa-utensils"></i> + Add Lunch (1:00 - 2:00 PM)
-                        </button>
-                        <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.65rem; font-size: 0.75rem; font-weight: 700; color: #4F46E5; border-color: #C7D2FE;" onclick="addOptimizerBreak()">
-                            <i class="fa-solid fa-plus"></i> + Add Custom Break
-                        </button>
-                    </div>
-                </div>
-                <div id="opt-breaks-container" style="display: flex; flex-direction: column; gap: 0.5rem;">
-                    <!-- Dynamically rendered editable break rows -->
-                </div>
-            </div>
+
 
             <!-- Optimizer Control Actions -->
             <div style="display: flex; gap: 0.75rem; margin-bottom: 1.25rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">

@@ -8,6 +8,8 @@
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     
@@ -363,6 +365,123 @@
 
         .assigned-judges { background: var(--bg-main); padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; font-size: 0.85rem; border: 1.5px dashed var(--border); }
         .form-group { margin-top: auto; padding-top: 1.5rem; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 0.75rem; }
+
+        /* --- PREMIUM JUDGE ASSIGN DROPDOWN & COMPONENT --- */
+        .judge-assign-box {
+            margin-top: auto;
+            padding-top: 1.25rem;
+            border-top: 1px dashed var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+        }
+
+        .judge-select-wrapper {
+            position: relative;
+            width: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .judge-select-icon {
+            position: absolute;
+            left: 0.95rem;
+            color: #64748B;
+            font-size: 1.15rem;
+            pointer-events: none;
+            z-index: 2;
+            transition: color 0.2s ease;
+        }
+
+        .judge-select-wrapper:focus-within .judge-select-icon {
+            color: var(--primary);
+        }
+
+        .judge-assign-select {
+            width: 100%;
+            min-height: 44px;
+            height: 44px;
+            padding: 0 2.5rem 0 2.65rem !important;
+            background-color: #FFFFFF !important;
+            border: 1.5px solid var(--border) !important;
+            border-radius: var(--radius-md) !important;
+            font-size: 0.9rem !important;
+            font-weight: 600 !important;
+            font-family: inherit !important;
+            color: var(--text-main) !important;
+            outline: none !important;
+            cursor: pointer !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+        }
+
+        .judge-assign-select:hover {
+            border-color: #CBD5E1 !important;
+            background-color: #FAFAFA !important;
+        }
+
+        .judge-assign-select:focus {
+            border-color: var(--primary) !important;
+            background-color: #FFFFFF !important;
+            box-shadow: 0 0 0 3.5px var(--primary-ring), 0 2px 4px rgba(59, 130, 246, 0.08) !important;
+        }
+
+        .judge-assign-select.has-selection {
+            border-color: var(--primary) !important;
+            background-color: #EFF6FF !important;
+            color: var(--primary) !important;
+        }
+
+        .judge-select-arrow {
+            position: absolute;
+            right: 0.95rem;
+            color: #64748B;
+            font-size: 1rem;
+            pointer-events: none;
+            z-index: 2;
+            transition: transform 0.2s ease, color 0.2s ease;
+        }
+
+        .judge-select-wrapper:focus-within .judge-select-arrow {
+            color: var(--primary);
+            transform: rotate(180deg);
+        }
+
+        .judge-assign-btn {
+            width: 100% !important;
+            min-height: 44px !important;
+            height: 44px !important;
+            font-size: 0.92rem !important;
+            font-weight: 700 !important;
+            border-radius: var(--radius-md) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 0.5rem !important;
+            background: var(--primary-gradient) !important;
+            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2) !important;
+            transition: all 0.2s ease !important;
+            color: white !important;
+            border: none !important;
+            cursor: pointer !important;
+            letter-spacing: 0.01em !important;
+        }
+
+        .judge-assign-btn:hover {
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35) !important;
+            transform: translateY(-1px) !important;
+        }
+
+        .judge-assign-btn:active {
+            transform: translateY(0) scale(0.98) !important;
+        }
+
+        .judge-assign-btn.btn-ready {
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4) !important;
+        }
 
         /* --- JUDGE INTERACTIVE TAGS --- */
         .judge-tags-container { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
@@ -724,6 +843,7 @@
             }
             
             .form-group .btn { min-height: 48px; }
+            .judge-assign-btn, .judge-assign-select { min-height: 46px !important; height: 46px !important; }
             
             /* Publish tab extra buttons fix */
             [id="publish-grid"] .card > div:last-child { flex-direction: column; gap: 0.75rem !important; }

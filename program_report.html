@@ -9,6 +9,8 @@
     <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="festos-core.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -966,8 +968,9 @@
                             ? window.festosGetPDFFooterHTML(pageNum, totalPages, `Category: ${page.cat}`)
                             : `<div style="margin-top:15px; font-size:9px; color:#94A3B8;">Page ${pageNum} of ${totalPages}</div>`;
 
+                        const compColWidth = Math.max(58, Math.min(100, Math.floor(580 / Math.max(1, page.comps.length))));
                         const compThs = page.comps.map(c => `
-                            <th style="height: 95px; width: 64px; min-width: 64px; max-width: 64px; vertical-align: bottom; padding: 6px 2px; background: #F8FAFC; text-align: center; border: 1px solid #CBD5E1;">
+                            <th style="height: 95px; width: ${compColWidth}px; min-width: ${compColWidth}px; max-width: ${compColWidth}px; vertical-align: bottom; padding: 6px 2px; background: #F8FAFC; text-align: center; border: 1px solid #CBD5E1;">
                                 <div style="writing-mode: vertical-rl; transform: rotate(180deg); display: inline-block; white-space: nowrap; max-height: 85px; font-size: 10px; font-weight: 700; color: #1E293B; letter-spacing: 0.03em;">
                                     ${c}
                                 </div>
@@ -982,7 +985,7 @@
                                 const mark = isEnrolled 
                                     ? `<span style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; background:#EEF2FF; color:#4F46E5; border-radius:50%; font-size:11px; font-weight:800; border:1px solid #C7D2FE;">&#10003;</span>` 
                                     : '';
-                                return `<td style="padding: 4px; text-align: center; border: 1px solid #CBD5E1; background: ${bg};">${mark}</td>`;
+                                return `<td style="padding: 4px; text-align: center; border: 1px solid #CBD5E1; background: ${bg}; width: ${compColWidth}px;">${mark}</td>`;
                             }).join('');
 
                             return `

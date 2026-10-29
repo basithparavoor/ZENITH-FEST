@@ -265,6 +265,13 @@ function renderGrid(competitions) {
             schedBadge = `<div class="card-meta" style="color: var(--primary); font-weight: 700; margin-bottom: 1rem;"><i class="ph ph-clock"></i> ${comp.schedule.date} @ ${timeStr}</div>`;
         }
 
+        // Build options with assigned indicators
+        const assignedJudgeIds = new Set(compAssignments.map(a => a.judge_id));
+        const compJudgeOptions = availableJudges.map(j => {
+            const isAssigned = assignedJudgeIds.has(j.id);
+            return `<option value="${j.id}" ${isAssigned ? 'disabled style="color: #94A3B8;"' : ''}>${j.username}${isAssigned ? ' (Assigned)' : ''}</option>`;
+        }).join('');
+
         grid.innerHTML += `
             <div class="card">
                 <div class="card-header">
@@ -284,13 +291,34 @@ function renderGrid(competitions) {
                     ${assignedJudgesHTML}
                 </div>
                 
-                <div class="form-group">
-                    <select id="judge-select-${comp.id}"><option value="">Select a Judge...</option>${judgeOptions}</select>
-                    <button class="btn btn-primary" style="width: 100%;" onclick="assignJudge('${comp.id}', this)"><i class="ph ph-user-plus"></i> Assign Judge</button>
+                <div class="judge-assign-box">
+                    <div class="judge-select-wrapper">
+                        <i class="ph ph-scales judge-select-icon"></i>
+                        <select id="judge-select-${comp.id}" class="judge-assign-select" onchange="onJudgeSelectChange(this)">
+                            <option value="">Select a Judge to Assign...</option>
+                            ${compJudgeOptions}
+                        </select>
+                        <i class="ph ph-caret-down judge-select-arrow"></i>
+                    </div>
+                    <button class="judge-assign-btn" onclick="assignJudge('${comp.id}', this)">
+                        <i class="ph-bold ph-user-plus"></i> Assign Judge
+                    </button>
                 </div>
             </div>
         `;
     });
+}
+
+function onJudgeSelectChange(selectEl) {
+    const box = selectEl.closest('.judge-assign-box');
+    const btn = box ? box.querySelector('.judge-assign-btn') : null;
+    if (selectEl.value) {
+        selectEl.classList.add('has-selection');
+        if (btn) btn.classList.add('btn-ready');
+    } else {
+        selectEl.classList.remove('has-selection');
+        if (btn) btn.classList.remove('btn-ready');
+    }
 }
 
 async function assignJudge(compId, btnElement) {
@@ -310,7 +338,7 @@ async function assignJudge(compId, btnElement) {
     if (error) {
         showToast("Error: " + error.message, 'error');
         btnElement.disabled = false;
-        btnElement.innerHTML = '<i class="ph ph-user-plus"></i> Assign Judge';
+        btnElement.innerHTML = '<i class="ph-bold ph-user-plus"></i> Assign Judge';
     } else {
         showToast("Judge assigned successfully!");
         loadAssignments(); // Reload everything to update state
@@ -1851,6 +1879,13 @@ function filterValuations() {
         const hasJudges = compAssignments.length > 0;
         const compStage = comp.stages ? `${comp.stages.name}` : 'Offstage Venue';
 
+        // Build valuation judge options with assigned indicators
+        const valAssignedJudgeIds = new Set(compAssignments.map(a => a.judge_id));
+        const compValJudgeOptions = availableJudges.map(j => {
+            const isAssigned = valAssignedJudgeIds.has(j.id);
+            return `<option value="${j.id}" ${isAssigned ? 'disabled style="color: #94A3B8;"' : ''}>${j.username}${isAssigned ? ' (Assigned)' : ''}</option>`;
+        }).join('');
+
         let judgeSectionHtml = '';
         if (!hasJudges) {
             judgeSectionHtml = `
@@ -1863,11 +1898,15 @@ function filterValuations() {
                         This offstage event has ended and is in valuation. <strong>Please assign a judge to valuate this competition and award marks.</strong>
                     </p>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                        <select id="val-judge-select-${comp.id}" class="control-input" style="flex: 1; min-width: 160px; min-height: 40px; background: white; font-weight: 600;">
-                            <option value="">-- Choose Judge to Valuate --</option>
-                            ${judgeOptions}
-                        </select>
-                        <button class="btn btn-primary" onclick="assignJudgeForValuation('${comp.id}', this)" style="min-height: 40px; white-space: nowrap; font-weight: 700; padding: 0.5rem 1.25rem;">
+                        <div class="judge-select-wrapper" style="flex: 1; min-width: 180px;">
+                            <i class="ph ph-scales judge-select-icon"></i>
+                            <select id="val-judge-select-${comp.id}" class="judge-assign-select" style="min-height: 42px; height: 42px;">
+                                <option value="">-- Choose Judge to Valuate --</option>
+                                ${compValJudgeOptions}
+                            </select>
+                            <i class="ph ph-caret-down judge-select-arrow"></i>
+                        </div>
+                        <button class="btn btn-primary" onclick="assignJudgeForValuation('${comp.id}', this)" style="min-height: 42px; height: 42px; white-space: nowrap; font-weight: 700; padding: 0 1.25rem;">
                             <i class="ph-bold ph-scales"></i> Assign Judge
                         </button>
                     </div>
@@ -1893,11 +1932,15 @@ function filterValuations() {
                         ${judgeTags}
                     </div>
                     <div style="display: flex; gap: 0.5rem; border-top: 1px dashed #86EFAC; padding-top: 0.75rem; align-items: center; flex-wrap: wrap;">
-                        <select id="val-judge-select-${comp.id}" class="control-input" style="flex: 1; min-height: 36px; font-size: 0.82rem; background: white;">
-                            <option value="">Assign Additional Judge...</option>
-                            ${judgeOptions}
-                        </select>
-                        <button class="btn btn-outline" onclick="assignJudgeForValuation('${comp.id}', this)" style="min-height: 36px; padding: 0.4rem 0.85rem; font-size: 0.82rem; white-space: nowrap; font-weight: 600;">
+                        <div class="judge-select-wrapper" style="flex: 1; min-width: 180px;">
+                            <i class="ph ph-scales judge-select-icon"></i>
+                            <select id="val-judge-select-${comp.id}" class="judge-assign-select" style="min-height: 38px; height: 38px; font-size: 0.85rem;">
+                                <option value="">Assign Additional Judge...</option>
+                                ${compValJudgeOptions}
+                            </select>
+                            <i class="ph ph-caret-down judge-select-arrow"></i>
+                        </div>
+                        <button class="btn btn-outline" onclick="assignJudgeForValuation('${comp.id}', this)" style="min-height: 38px; height: 38px; padding: 0 1rem; font-size: 0.85rem; white-space: nowrap; font-weight: 600;">
                             <i class="ph ph-plus"></i> Add
                         </button>
                     </div>

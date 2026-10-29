@@ -2455,6 +2455,11 @@ function detectTMStudentScheduleConflicts() {
 
                 if (schedA.date !== schedB.date) continue;
 
+                // Ignore competitions that have ended/completed on stage
+                const isAEnded = ['valuation', 'judgement_complete', 'published', 'completed'].includes(String(compA.status || '').toLowerCase());
+                const isBEnded = ['valuation', 'judgement_complete', 'published', 'completed'].includes(String(compB.status || '').toLowerCase());
+                if (isAEnded || isBEnded) continue;
+
                 const startA = timeStringToMinutes(schedA.time);
                 let endA = schedA.to_time ? timeStringToMinutes(schedA.to_time) : (startA + (parseInt(schedA.manual_time) || 30));
                 if (endA <= startA) endA = startA + 30;

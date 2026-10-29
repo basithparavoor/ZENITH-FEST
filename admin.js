@@ -11053,6 +11053,14 @@ async function undoLastCascadeDelay() {
 }
 window.undoLastCascadeDelay = undoLastCascadeDelay;
 
+
+function isCompetitionEnded(comp) {
+    if (!comp) return false;
+    const s = String(comp.status || '').toLowerCase();
+    return s === 'valuation' || s === 'judgement_complete' || s === 'published' || s === 'completed';
+}
+window.isCompetitionEnded = isCompetitionEnded;
+
 async function detectScheduleConflicts() {
     const enrollments = await fetchScheduleEnrollments();
     
@@ -11072,6 +11080,7 @@ async function detectScheduleConflicts() {
     const bufferWarnings = [];
     const stageCollisions = [];
     const compConflictMap = {};
+    const conflictHistory = [];
 
     for (let i = 0; i < scheduledCompIds.length; i++) {
         const idA = scheduledCompIds[i];
@@ -11082,6 +11091,8 @@ async function detectScheduleConflicts() {
         let endMinsA = schedA.to_time ? timeStringToMinutes(schedA.to_time) : (startMinsA + (parseInt(schedA.manual_time) || 30));
         if (endMinsA <= startMinsA) endMinsA = startMinsA + 30;
 
+        const isAEnded = isCompetitionEnded(compA);
+
         for (let j = i + 1; j < scheduledCompIds.length; j++) {
             const idB = scheduledCompIds[j];
             const compB = competitionsList.find(c => c.id == idB);
@@ -11089,6 +11100,10 @@ async function detectScheduleConflicts() {
 
             // Only check conflicts if on the SAME DATE
             if (schedA.date !== schedB.date) continue;
+
+            const isBEnded = isCompetitionEnded(compB);
+            const hasEndedComp = isAEnded || isBEnded;
+            const endedLabel = (isAEnded && isBEnded) ? 'Both Events Concluded' : (isAEnded ? compA.name : compB.name);
 
             const startMinsB = timeStringToMinutes(schedB.time);
             let endMinsB = schedB.to_time ? timeStringToMinutes(schedB.to_time) : (startMinsB + (parseInt(schedB.manual_time) || 30));
@@ -11100,20 +11115,28 @@ async function detectScheduleConflicts() {
             if (compA.stage_id && compB.stage_id && String(compA.stage_id) === String(compB.stage_id)) {
                 if (isTimeOverlapping) {
                     const stageName = stagesList.find(s => s.id == compA.stage_id)?.name || `Stage ${compA.stage_id}`;
-                    stageCollisions.push({
+                    const collisionItem = {
                         type: 'stage',
                         date: schedA.date,
                         stageName,
                         compA,
                         compB,
                         timeA: `${schedA.time} - ${schedA.to_time || minutesToTimeString(endMinsA)}`,
-                        timeB: `${schedB.time} - ${schedB.to_time || minutesToTimeString(endMinsB)}`
-                    });
+                        timeB: `${schedB.time} - ${schedB.to_time || minutesToTimeString(endMinsB)}`,
+                        endedComp: endedLabel,
+                        isResolved: hasEndedComp,
+                        desc: hasEndedComp ? `Stage Collision on ${stageName} (Resolved: ${endedLabel} ended)` : `Double booked on ${stageName}`
+                    };
 
-                    if (!compConflictMap[idA]) compConflictMap[idA] = [];
-                    if (!compConflictMap[idB]) compConflictMap[idB] = [];
-                    compConflictMap[idA].push({ type: 'stage', otherComp: compB, desc: `Double booked on ${stageName}` });
-                    compConflictMap[idB].push({ type: 'stage', otherComp: compA, desc: `Double booked on ${stageName}` });
+                    if (hasEndedComp) {
+                        conflictHistory.push(collisionItem);
+                    } else {
+                        stageCollisions.push(collisionItem);
+                        if (!compConflictMap[idA]) compConflictMap[idA] = [];
+                        if (!compConflictMap[idB]) compConflictMap[idB] = [];
+                        compConflictMap[idA].push({ type: 'stage', otherComp: compB, desc: `Double booked on ${stageName}` });
+                        compConflictMap[idB].push({ type: 'stage', otherComp: compA, desc: `Double booked on ${stageName}` });
+                    }
                 }
             }
 
@@ -11131,7 +11154,7 @@ async function detectScheduleConflicts() {
 
                     if (isTimeOverlapping) {
                         // Hard Clash
-                        hardClashes.push({
+                        const clashItem = {
                             type: 'hard',
                             date: schedA.date,
                             student,
@@ -11140,13 +11163,21 @@ async function detectScheduleConflicts() {
                             stageNameA,
                             stageNameB,
                             timeA: `${schedA.time} - ${schedA.to_time || minutesToTimeString(endMinsA)}`,
-                            timeB: `${schedB.time} - ${schedB.to_time || minutesToTimeString(endMinsB)}`
-                        });
+                            timeB: `${schedB.time} - ${schedB.to_time || minutesToTimeString(endMinsB)}`,
+                            endedComp: endedLabel,
+                            isResolved: hasEndedComp,
+                            desc: hasEndedComp ? `Student ${student.name} schedule overlap resolved: ${endedLabel} completed on stage` : `Student ${student.name} clashing with ${compB.name}`
+                        };
 
-                        if (!compConflictMap[idA]) compConflictMap[idA] = [];
-                        if (!compConflictMap[idB]) compConflictMap[idB] = [];
-                        compConflictMap[idA].push({ type: 'hard', student, otherComp: compB, desc: `Student ${student.name} clashing with ${compB.name}` });
-                        compConflictMap[idB].push({ type: 'hard', student, otherComp: compA, desc: `Student ${student.name} clashing with ${compA.name}` });
+                        if (hasEndedComp) {
+                            conflictHistory.push(clashItem);
+                        } else {
+                            hardClashes.push(clashItem);
+                            if (!compConflictMap[idA]) compConflictMap[idA] = [];
+                            if (!compConflictMap[idB]) compConflictMap[idB] = [];
+                            compConflictMap[idA].push({ type: 'hard', student, otherComp: compB, desc: `Student ${student.name} clashing with ${compB.name}` });
+                            compConflictMap[idB].push({ type: 'hard', student, otherComp: compA, desc: `Student ${student.name} clashing with ${compA.name}` });
+                        }
                     } else {
                         // Check Buffer (< 15 mins between events on different stages)
                         let gapMins = 0;
@@ -11157,7 +11188,7 @@ async function detectScheduleConflicts() {
                         }
 
                         if (gapMins < 15 && String(compA.stage_id) !== String(compB.stage_id)) {
-                            bufferWarnings.push({
+                            const bufferItem = {
                                 type: 'buffer',
                                 date: schedA.date,
                                 student,
@@ -11167,13 +11198,21 @@ async function detectScheduleConflicts() {
                                 stageNameA,
                                 stageNameB,
                                 timeA: `${schedA.time} - ${schedA.to_time || minutesToTimeString(endMinsA)}`,
-                                timeB: `${schedB.time} - ${schedB.to_time || minutesToTimeString(endMinsB)}`
-                            });
+                                timeB: `${schedB.time} - ${schedB.to_time || minutesToTimeString(endMinsB)}`,
+                                endedComp: endedLabel,
+                                isResolved: hasEndedComp,
+                                desc: hasEndedComp ? `Tight buffer resolved: ${endedLabel} completed on stage` : `Only ${gapMins}m buffer for ${student.name}`
+                            };
 
-                            if (!compConflictMap[idA]) compConflictMap[idA] = [];
-                            if (!compConflictMap[idB]) compConflictMap[idB] = [];
-                            compConflictMap[idA].push({ type: 'buffer', student, otherComp: compB, desc: `Only ${gapMins}m buffer for ${student.name}` });
-                            compConflictMap[idB].push({ type: 'buffer', student, otherComp: compA, desc: `Only ${gapMins}m buffer for ${student.name}` });
+                            if (hasEndedComp) {
+                                conflictHistory.push(bufferItem);
+                            } else {
+                                bufferWarnings.push(bufferItem);
+                                if (!compConflictMap[idA]) compConflictMap[idA] = [];
+                                if (!compConflictMap[idB]) compConflictMap[idB] = [];
+                                compConflictMap[idA].push({ type: 'buffer', student, otherComp: compB, desc: `Only ${gapMins}m buffer for ${student.name}` });
+                                compConflictMap[idB].push({ type: 'buffer', student, otherComp: compA, desc: `Only ${gapMins}m buffer for ${student.name}` });
+                            }
                         }
                     }
                 });
@@ -11182,7 +11221,7 @@ async function detectScheduleConflicts() {
     }
 
     const totalConflicts = hardClashes.length + bufferWarnings.length + stageCollisions.length;
-    scheduleConflictsReport = { hardClashes, bufferWarnings, stageCollisions, totalConflicts, compConflictMap };
+    scheduleConflictsReport = { hardClashes, bufferWarnings, stageCollisions, totalConflicts, compConflictMap, conflictHistory, historyCount: conflictHistory.length };
 
     // Update UI Elements
     const banner = document.getElementById('schedule-conflict-banner');
@@ -11375,8 +11414,34 @@ function filterScheduleTable() {
 // CONFLICT AUDIT MODAL FUNCTIONS
 // ==========================================
 
+let currentConflictAuditTab = 'active';
+
+function switchConflictAuditTab(tab) {
+    currentConflictAuditTab = tab;
+    const btnActive = document.getElementById('tab-active-conflicts');
+    const btnHistory = document.getElementById('tab-history-conflicts');
+    const metricsDeck = document.getElementById('conflict-metrics-deck');
+    const historyBanner = document.getElementById('conflict-history-banner');
+    const filterButtons = document.getElementById('conflict-filter-buttons');
+
+    if (btnActive) {
+        btnActive.className = (tab === 'active') ? 'btn btn-primary' : 'btn btn-outline';
+        btnActive.style.color = (tab === 'active') ? 'white' : 'var(--text-main)';
+    }
+    if (btnHistory) {
+        btnHistory.className = (tab === 'history') ? 'btn btn-primary' : 'btn btn-outline';
+        btnHistory.style.color = (tab === 'history') ? 'white' : 'var(--text-main)';
+    }
+
+    if (metricsDeck) metricsDeck.style.display = (tab === 'active') ? 'grid' : 'none';
+    if (filterButtons) filterButtons.style.display = (tab === 'active') ? 'flex' : 'none';
+    if (historyBanner) historyBanner.style.display = (tab === 'history') ? 'flex' : 'none';
+
+    filterAuditList(tab === 'active' ? currentAuditFilter : 'history');
+}
+window.switchConflictAuditTab = switchConflictAuditTab;
+
 async function openConflictAuditModal() {
-    // Show modal first or display loading if needed
     document.getElementById('conflictAuditModal').classList.add('show');
     
     // Detect fresh conflicts
@@ -11386,13 +11451,19 @@ async function openConflictAuditModal() {
     const bufferCount = document.getElementById('audit-buffer-count');
     const stageCount = document.getElementById('audit-stage-count');
     const totalCount = document.getElementById('audit-total-count');
+    const activeTabCount = document.getElementById('audit-active-tab-count');
+    const historyTabCount = document.getElementById('audit-history-tab-count');
+    const historyCountBadge = document.getElementById('audit-history-count-badge');
 
     if (hardCount) hardCount.innerText = scheduleConflictsReport.hardClashes.length;
     if (bufferCount) bufferCount.innerText = scheduleConflictsReport.bufferWarnings.length;
     if (stageCount) stageCount.innerText = scheduleConflictsReport.stageCollisions.length;
     if (totalCount) totalCount.innerText = scheduleConflictsReport.totalConflicts;
+    if (activeTabCount) activeTabCount.innerText = scheduleConflictsReport.totalConflicts;
+    if (historyTabCount) historyTabCount.innerText = (scheduleConflictsReport.conflictHistory || []).length;
+    if (historyCountBadge) historyCountBadge.innerText = (scheduleConflictsReport.conflictHistory || []).length;
 
-    filterAuditList('all');
+    switchConflictAuditTab(currentConflictAuditTab || 'active');
 }
 
 function filterAuditList(type) {
@@ -11412,6 +11483,55 @@ function filterAuditList(type) {
     const container = document.getElementById('conflict-audit-list');
     if (!container) return;
 
+    if (currentConflictAuditTab === 'history' || type === 'history') {
+        const historyItems = scheduleConflictsReport.conflictHistory || [];
+        if (historyItems.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: var(--text-muted); font-weight: 600;">
+                    <i class="fa-solid fa-clock-rotate-left" style="font-size: 2.5rem; margin-bottom: 0.75rem; display: block; color: #94A3B8;"></i>
+                    No previous or archived conflicts on record. Completed competitions will show here.
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = historyItems.map(item => {
+            const typeLabel = item.type === 'stage' ? 'STAGE OVERLAP' : (item.type === 'buffer' ? 'BUFFER GAP' : 'STUDENT CLASH');
+            return `
+                <div style="background: #F8FAFC; border: 1.5px solid #CBD5E1; border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="badge" style="background: #E2E8F0; color: #334155; font-weight: 800;"><i class="fa-solid fa-clock-rotate-left"></i> ${typeLabel} (RESOLVED)</span>
+                            <strong style="color: #1E293B; font-size: 0.95rem;">${item.type === 'stage' ? item.stageName : (item.student ? `${item.student.name} (${item.student.unique_id || 'ID'})` : 'Schedule Conflict')}</strong>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="badge" style="background: #DCFCE7; color: #166534; font-weight: 700; font-size: 0.72rem;"><i class="fa-solid fa-flag-checkered"></i> ${item.endedComp} Ended</span>
+                            <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);">${item.date}</span>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: white; padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid #E2E8F0;">
+                        <div>
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Event A</div>
+                            <strong style="color: var(--text-main); font-size: 0.9rem;">${item.compA.name}</strong>
+                            <div style="font-size: 0.8rem; color: #64748B; font-weight: 600;"><i class="fa-regular fa-clock"></i> ${item.timeA} ${item.stageNameA ? `(${item.stageNameA})` : ''}</div>
+                            <span class="badge" style="background: #F1F5F9; color: #475569; font-size: 0.68rem; margin-top: 4px; display: inline-block;">Status: ${item.compA.status ? item.compA.status.toUpperCase() : 'ENDED'}</span>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Event B</div>
+                            <strong style="color: var(--text-main); font-size: 0.9rem;">${item.compB.name}</strong>
+                            <div style="font-size: 0.8rem; color: #64748B; font-weight: 600;"><i class="fa-regular fa-clock"></i> ${item.timeB} ${item.stageNameB ? `(${item.stageNameB})` : ''}</div>
+                            <span class="badge" style="background: #F1F5F9; color: #475569; font-size: 0.68rem; margin-top: 4px; display: inline-block;">Status: ${item.compB.status ? item.compB.status.toUpperCase() : 'ENDED'}</span>
+                        </div>
+                    </div>
+                    <div style="font-size: 0.78rem; color: #64748B; font-style: italic;">
+                        <i class="fa-solid fa-circle-info" style="color: #94A3B8;"></i> ${item.desc}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        return;
+    }
+
     let items = [];
     if (type === 'all') {
         items = [...scheduleConflictsReport.hardClashes, ...scheduleConflictsReport.bufferWarnings, ...scheduleConflictsReport.stageCollisions];
@@ -11427,7 +11547,7 @@ function filterAuditList(type) {
         container.innerHTML = `
             <div style="text-align: center; padding: 3rem; color: var(--success); font-weight: 600;">
                 <i class="fa-solid fa-circle-check" style="font-size: 2.5rem; margin-bottom: 0.75rem; display: block;"></i>
-                No schedule conflicts found in this category!
+                No active schedule conflicts found in this category!
             </div>
         `;
         return;
@@ -11630,6 +11750,7 @@ async function exportConflictReportPDF() {
 
 // ==========================================
 // AUTO-SCHEDULE OPTIMIZER ENGINE (AI ENGINE)
+// MULTI-DAY, SEPARATE HOURS & BREAKS SUPPORT
 // ==========================================
 
 function optEscapeHtml(str) {
@@ -11642,120 +11763,252 @@ function optEscapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
-let optimizerBreaks = [
-    { id: 'break_lunch', name: 'Lunch Break', start: '13:00', end: '14:00' }
-];
+let optimizerDays = [];
 let optimizerSelectedStageIds = [];
 let optimizerSelectedCategoryIds = [];
+let optPreviewActiveDayId = 'ALL';
 
-function renderOptimizerBreaks() {
-    const container = document.getElementById('opt-breaks-container');
+function initOptimizerDays() {
+    const dates = Array.from(new Set(Object.values(masterSchedule || {}).map(s => s.date).filter(Boolean))).sort();
+    
+    let festDates = [];
+    try {
+        const sched = typeof getFestivalSchedule === 'function' ? getFestivalSchedule() : null;
+        if (sched && Array.isArray(sched.allowedDates) && sched.allowedDates.length > 0) {
+            festDates = [...sched.allowedDates];
+        } else if (sched && sched.startDate) {
+            festDates = [sched.startDate];
+            if (sched.endDate && sched.endDate !== sched.startDate) festDates.push(sched.endDate);
+        }
+    } catch(e) {}
+
+    const sourceDates = festDates.length > 0 ? festDates : (dates.length > 0 ? dates : [new Date().toISOString().split('T')[0]]);
+
+    optimizerDays = sourceDates.map((d, idx) => ({
+        id: 'day_' + (idx + 1) + '_' + Math.random().toString(36).substring(2, 7),
+        date: d,
+        label: `Day ${idx + 1}`,
+        startTime: '09:00',
+        endTime: '18:00',
+        breaks: [
+            { id: 'b_lunch_' + idx + '_' + Math.random().toString(36).substring(2, 7), name: 'Lunch Break', start: '13:00', end: '14:00' }
+        ]
+    }));
+
+    if (optimizerDays.length === 0) {
+        optimizerDays = [{
+            id: 'day_1_' + Math.random().toString(36).substring(2, 7),
+            date: new Date().toISOString().split('T')[0],
+            label: 'Day 1',
+            startTime: '09:00',
+            endTime: '18:00',
+            breaks: [
+                { id: 'b_lunch_' + Math.random().toString(36).substring(2, 7), name: 'Lunch Break', start: '13:00', end: '14:00' }
+            ]
+        }];
+    }
+}
+
+function renderOptimizerDaysDeck() {
+    const container = document.getElementById('opt-days-container');
     if (!container) return;
 
-    if (!optimizerBreaks || optimizerBreaks.length === 0) {
-        container.innerHTML = `
-            <div style="text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 0.75rem; background: white; border-radius: 8px; border: 1px dashed var(--border);">
-                No breaks configured. Click <strong>"+ Add Lunch (1:00 - 2:00 PM)"</strong> or <strong>"+ Add Custom Break"</strong> to reserve break times.
+    container.innerHTML = optimizerDays.map((d, dIdx) => {
+        const canDelete = optimizerDays.length > 1;
+        const totalDurationMins = Math.max(0, timeStringToMinutes(d.endTime) - timeStringToMinutes(d.startTime));
+        const durHours = (totalDurationMins / 60).toFixed(1).replace('.0', '');
+
+        const breaksHtml = (d.breaks && d.breaks.length > 0)
+            ? d.breaks.map(b => `
+                <div class="opt-break-row" style="display: flex; align-items: center; gap: 0.5rem; background: #FFFBEB; padding: 0.4rem 0.65rem; border-radius: 6px; border: 1px solid #FDE68A; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 0.35rem; flex: 1; min-width: 130px;">
+                        <i class="fa-solid fa-utensils" style="color: #D97706; font-size: 0.8rem;"></i>
+                        <input type="text" value="${optEscapeHtml(b.name)}" placeholder="Break Name" 
+                            style="width: 100%; border: 1px solid #FCD34D; border-radius: 5px; padding: 0.25rem 0.5rem; font-size: 0.78rem; font-weight: 700; color: #92400E; background: white;"
+                            onchange="updateDayBreakField('${d.id}', '${b.id}', 'name', this.value)">
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.3rem;">
+                        <span style="font-size: 0.7rem; font-weight: 700; color: #92400E;">FROM:</span>
+                        <input type="time" value="${b.start}"
+                            style="border: 1px solid #FCD34D; border-radius: 5px; padding: 0.25rem 0.4rem; font-size: 0.78rem; font-weight: 700; color: #92400E; background: white;"
+                            onchange="updateDayBreakField('${d.id}', '${b.id}', 'start', this.value)">
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.3rem;">
+                        <span style="font-size: 0.7rem; font-weight: 700; color: #92400E;">TO:</span>
+                        <input type="time" value="${b.end}"
+                            style="border: 1px solid #FCD34D; border-radius: 5px; padding: 0.25rem 0.4rem; font-size: 0.78rem; font-weight: 700; color: #92400E; background: white;"
+                            onchange="updateDayBreakField('${d.id}', '${b.id}', 'end', this.value)">
+                    </div>
+                    <button type="button" class="btn btn-outline" style="padding: 0.25rem 0.5rem; color: #DC2626; border-color: #FECACA; background: white; font-size: 0.72rem;" title="Remove Break" onclick="removeDayBreak('${d.id}', '${b.id}')">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            `).join('')
+            : `<div style="font-size: 0.75rem; color: var(--text-muted); font-style: italic; padding: 0.25rem 0.5rem;">No breaks added for this day. Click buttons on right to add lunch or custom intervals.</div>`;
+
+        return `
+            <div class="opt-day-card" data-day-id="${d.id}" style="background: white; border: 1.5px solid var(--border); border-radius: var(--radius-md); padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <!-- Day Header -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; border-bottom: 1px solid var(--border); padding-bottom: 0.6rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                        <span class="badge" style="background: #EEF2FF; color: var(--primary); font-size: 0.82rem; font-weight: 800; padding: 3px 9px; border-radius: 6px;">
+                            <i class="fa-regular fa-calendar"></i> ${d.label || `Day ${dIdx + 1}`}
+                        </span>
+                        <input type="date" value="${d.date}" 
+                            style="border: 1.5px solid var(--border); border-radius: 6px; padding: 0.35rem 0.65rem; font-size: 0.82rem; font-weight: 700; color: var(--text-main); background: #F8FAFC;"
+                            onchange="updateDayField('${d.id}', 'date', this.value)">
+                        <span style="font-size: 0.72rem; font-weight: 700; color: #059669; background: #D1FAE5; padding: 2px 7px; border-radius: 4px;">
+                            ${durHours} hrs operating window
+                        </span>
+                    </div>
+                    ${canDelete ? `
+                        <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.65rem; color: #DC2626; border-color: #FECACA; font-size: 0.75rem; font-weight: 700;" onclick="removeOptimizerDay('${d.id}')">
+                            <i class="fa-solid fa-trash-can"></i> Remove Day
+                        </button>
+                    ` : ''}
+                </div>
+
+                <!-- Operating Hours -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.85rem; margin-bottom: 0.85rem;">
+                    <div>
+                        <label style="font-size: 0.72rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.3rem; display: block;">
+                            <i class="fa-regular fa-clock" style="color: var(--primary);"></i> FROM TIME (DAY START)
+                        </label>
+                        <input type="time" value="${d.startTime}" 
+                            style="width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.85rem; font-weight: 700; color: var(--text-main);"
+                            onchange="updateDayField('${d.id}', 'startTime', this.value)">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.72rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.3rem; display: block;">
+                            <i class="fa-regular fa-clock" style="color: #DC2626;"></i> TO TIME (DAY END)
+                        </label>
+                        <input type="time" value="${d.endTime}" 
+                            style="width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.85rem; font-weight: 700; color: var(--text-main);"
+                            onchange="updateDayField('${d.id}', 'endTime', this.value)">
+                    </div>
+                </div>
+
+                <!-- Breaks for this Day -->
+                <div style="background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 8px; padding: 0.75rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.4rem;">
+                        <span style="font-size: 0.75rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">
+                            <i class="fa-solid fa-mug-saucer" style="color: #D97706;"></i> Breaks for ${d.label || `Day ${dIdx + 1}`}
+                        </span>
+                        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-outline" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; font-weight: 700; color: #D97706; border-color: #FCD34D; background: white;" onclick="addDayBreak('${d.id}', true)">
+                                <i class="fa-solid fa-utensils"></i> + Lunch
+                            </button>
+                            <button type="button" class="btn btn-outline" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; font-weight: 700; color: var(--primary); border-color: #C7D2FE; background: white;" onclick="addDayBreak('${d.id}', false)">
+                                <i class="fa-solid fa-plus"></i> + Custom Break
+                            </button>
+                        </div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                        ${breaksHtml}
+                    </div>
+                </div>
             </div>
         `;
+    }).join('');
+}
+
+function updateDayField(dayId, field, value) {
+    const d = optimizerDays.find(x => x.id === dayId);
+    if (d) {
+        d[field] = value;
+        renderOptimizerDaysDeck();
+        generateOptimizedSchedule();
+    }
+}
+
+function updateDayBreakField(dayId, breakId, field, value) {
+    const d = optimizerDays.find(x => x.id === dayId);
+    if (d && d.breaks) {
+        const b = d.breaks.find(x => x.id === breakId);
+        if (b) {
+            b[field] = value;
+            generateOptimizedSchedule();
+        }
+    }
+}
+
+function addOptimizerDay() {
+    const lastDay = optimizerDays[optimizerDays.length - 1];
+    let nextDateStr = new Date().toISOString().split('T')[0];
+    if (lastDay && lastDay.date) {
+        const dt = new Date(lastDay.date);
+        dt.setDate(dt.getDate() + 1);
+        nextDateStr = dt.toISOString().split('T')[0];
+    }
+    const newIdx = optimizerDays.length + 1;
+    optimizerDays.push({
+        id: 'day_' + newIdx + '_' + Math.random().toString(36).substring(2, 7),
+        date: nextDateStr,
+        label: `Day ${newIdx}`,
+        startTime: lastDay ? lastDay.startTime : '09:00',
+        endTime: lastDay ? lastDay.endTime : '18:00',
+        breaks: [
+            { id: 'b_lunch_' + Math.random().toString(36).substring(2, 7), name: 'Lunch Break', start: '13:00', end: '14:00' }
+        ]
+    });
+    renderOptimizerDaysDeck();
+    generateOptimizedSchedule();
+}
+window.addOptimizerDay = addOptimizerDay;
+
+function removeOptimizerDay(dayId) {
+    if (optimizerDays.length <= 1) {
+        alert("At least one festival day is required for scheduling.");
         return;
     }
-
-    container.innerHTML = optimizerBreaks.map(b => `
-        <div class="opt-break-row" data-id="${b.id}" style="display: flex; align-items: center; gap: 0.6rem; background: white; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 0.4rem; flex: 1; min-width: 140px;">
-                <i class="fa-solid fa-utensils" style="color: #D97706; font-size: 0.85rem;"></i>
-                <input type="text" class="opt-break-name" value="${optEscapeHtml(b.name)}" placeholder="Break Name (e.g. Lunch)" 
-                    style="width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.6rem; font-size: 0.82rem; font-weight: 700; color: var(--text-main);"
-                    onchange="updateOptimizerBreakField('${b.id}', 'name', this.value)">
-            </div>
-            <div style="display: flex; align-items: center; gap: 0.4rem;">
-                <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted);">FROM:</span>
-                <input type="time" class="opt-break-start" value="${b.start}"
-                    style="border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.5rem; font-size: 0.82rem; font-weight: 700; color: var(--text-main);"
-                    onchange="updateOptimizerBreakField('${b.id}', 'start', this.value)">
-            </div>
-            <div style="display: flex; align-items: center; gap: 0.4rem;">
-                <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted);">TO:</span>
-                <input type="time" class="opt-break-end" value="${b.end}"
-                    style="border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.5rem; font-size: 0.82rem; font-weight: 700; color: var(--text-main);"
-                    onchange="updateOptimizerBreakField('${b.id}', 'end', this.value)">
-            </div>
-            <button type="button" class="btn btn-outline" style="padding: 0.35rem 0.6rem; color: #DC2626; border-color: #FECACA; font-size: 0.75rem;" title="Remove Break" onclick="removeOptimizerBreak('${b.id}')">
-                <i class="fa-solid fa-trash-can"></i>
-            </button>
-        </div>
-    `).join('');
+    optimizerDays = optimizerDays.filter(d => d.id !== dayId);
+    optimizerDays.forEach((d, idx) => {
+        d.label = `Day ${idx + 1}`;
+    });
+    renderOptimizerDaysDeck();
+    generateOptimizedSchedule();
 }
+window.removeOptimizerDay = removeOptimizerDay;
 
-function updateOptimizerBreakField(id, field, value) {
-    const b = optimizerBreaks.find(x => x.id === id);
-    if (b) {
-        b[field] = value;
+function addDayBreak(dayId, isLunch = false) {
+    const d = optimizerDays.find(x => x.id === dayId);
+    if (!d) return;
+    if (!d.breaks) d.breaks = [];
+
+    if (isLunch) {
+        const hasLunch = d.breaks.some(b => b.name.toLowerCase().includes('lunch'));
+        if (hasLunch) {
+            if (typeof showToast === 'function') showToast("Lunch break is already present for this day. You can edit its timings directly.", "info");
+            return;
+        }
+        d.breaks.push({
+            id: 'b_' + Math.random().toString(36).substring(2, 7),
+            name: 'Lunch Break',
+            start: '13:00',
+            end: '14:00'
+        });
+    } else {
+        d.breaks.push({
+            id: 'b_' + Math.random().toString(36).substring(2, 7),
+            name: 'Interval / Tea Break',
+            start: '16:30',
+            end: '17:00'
+        });
+    }
+    renderOptimizerDaysDeck();
+    generateOptimizedSchedule();
+}
+window.addDayBreak = addDayBreak;
+
+function removeDayBreak(dayId, breakId) {
+    const d = optimizerDays.find(x => x.id === dayId);
+    if (d && d.breaks) {
+        d.breaks = d.breaks.filter(b => b.id !== breakId);
+        renderOptimizerDaysDeck();
+        generateOptimizedSchedule();
     }
 }
-
-function addOptimizerLunchBreak() {
-    const hasLunch = optimizerBreaks.some(b => b.name.toLowerCase().includes('lunch'));
-    if (hasLunch) {
-        if (typeof showToast === 'function') {
-            showToast("Lunch break is already in the list. You can edit its start and end times directly.", "info");
-        }
-        return;
-    }
-    optimizerBreaks.push({
-        id: 'break_' + Date.now(),
-        name: 'Lunch Break',
-        start: '13:00',
-        end: '14:00'
-    });
-    renderOptimizerBreaks();
-}
-
-function addOptimizerBreak() {
-    optimizerBreaks.push({
-        id: 'break_' + Date.now(),
-        name: 'Interval / Tea Break',
-        start: '16:30',
-        end: '17:00'
-    });
-    renderOptimizerBreaks();
-}
-
-function removeOptimizerBreak(id) {
-    optimizerBreaks = optimizerBreaks.filter(b => b.id !== id);
-    renderOptimizerBreaks();
-}
-
-function getOptimizerBreaks() {
-    const rows = document.querySelectorAll('.opt-break-row');
-    const result = [];
-    rows.forEach(row => {
-        const id = row.getAttribute('data-id');
-        const nameInput = row.querySelector('.opt-break-name');
-        const startInput = row.querySelector('.opt-break-start');
-        const endInput = row.querySelector('.opt-break-end');
-
-        const name = nameInput ? nameInput.value.trim() : 'Break';
-        const start = startInput ? startInput.value : '';
-        const end = endInput ? endInput.value : '';
-
-        if (start && end) {
-            const sM = timeStringToMinutes(start);
-            const eM = timeStringToMinutes(end);
-            if (eM > sM) {
-                result.push({ id, name, start, end, startMins: sM, endMins: eM });
-                const existing = optimizerBreaks.find(b => b.id === id);
-                if (existing) {
-                    existing.name = name;
-                    existing.start = start;
-                    existing.end = end;
-                }
-            }
-        }
-    });
-    return result;
-}
+window.removeDayBreak = removeDayBreak;
 
 function renderOptimizerStageSelector(effectiveStages = []) {
     const container = document.getElementById('opt-stages-container');
@@ -11763,7 +12016,6 @@ function renderOptimizerStageSelector(effectiveStages = []) {
 
     const stages = (effectiveStages && effectiveStages.length > 0) ? effectiveStages : stagesList;
 
-    // Display ONLY actual stages (venues). Offstage is a venue mode, not a stage!
     const stageItems = stages.map(s => ({
         id: s.id,
         name: s.name,
@@ -11813,6 +12065,7 @@ function onOptimizerStageToggle(stageId) {
         const badgeBg = isOffstage ? '#FEF3C7' : '#EEF2FF';
         pill.style.background = cb.checked ? badgeBg : 'white';
         pill.style.borderColor = cb.checked ? badgeColor : 'var(--border)';
+        generateOptimizedSchedule();
     }
 }
 
@@ -11832,6 +12085,7 @@ function selectAllOptimizerStages(selectAll = true) {
             pill.style.borderColor = selectAll ? badgeColor : 'var(--border)';
         }
     });
+    generateOptimizedSchedule();
 }
 
 function selectOnlyOptimizerStage(stageId) {
@@ -11850,7 +12104,6 @@ function selectOnlyOptimizerStage(stageId) {
             pill.style.borderColor = isTarget ? badgeColor : 'var(--border)';
         }
     });
-    // Immediately re-run optimizer for this single stage!
     generateOptimizedSchedule();
 }
 
@@ -11865,7 +12118,6 @@ function renderOptimizerCategorySelector(categories = []) {
 
     const cats = (categories && categories.length > 0) ? categories : categoriesList;
 
-    // Build category items from categoriesList
     const catItems = cats.map(c => {
         const compCount = (competitionsList || []).filter(comp => String(comp.category_id) === String(c.id)).length;
         return {
@@ -11876,7 +12128,6 @@ function renderOptimizerCategorySelector(categories = []) {
         };
     });
 
-    // Also check if there are competitions without a defined category
     const unassignedCount = (competitionsList || []).filter(comp => {
         if (!comp.category_id) return true;
         return !cats.some(c => String(c.id) === String(comp.category_id));
@@ -11937,6 +12188,7 @@ function onOptimizerCategoryToggle(categoryId) {
         const badgeBg = isGeneral ? '#FEF3C7' : '#ECFDF5';
         pill.style.background = cb.checked ? badgeBg : 'white';
         pill.style.borderColor = cb.checked ? badgeColor : 'var(--border)';
+        generateOptimizedSchedule();
     }
 }
 
@@ -11955,6 +12207,7 @@ function selectAllOptimizerCategories(selectAll = true) {
             pill.style.borderColor = selectAll ? badgeColor : 'var(--border)';
         }
     });
+    generateOptimizedSchedule();
 }
 
 function selectOnlyOptimizerCategory(categoryId) {
@@ -11972,7 +12225,6 @@ function selectOnlyOptimizerCategory(categoryId) {
             pill.style.borderColor = isTarget ? badgeColor : 'var(--border)';
         }
     });
-    // Immediately re-run optimizer for this single category!
     generateOptimizedSchedule();
 }
 
@@ -11993,16 +12245,12 @@ window.getOptimizerSelectedCategories = getOptimizerSelectedCategories;
 function packSwimlaneEvents(items) {
     if (!items || items.length === 0) return { packed: [], rowCount: 1 };
     
-    // Sort items by start time asc, then duration desc
     const sorted = [...items].sort((a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
-    
-    // Each row tracks its current end time
     const rowEnds = [];
     
     const packed = sorted.map(item => {
         let placedRow = -1;
         for (let r = 0; r < rowEnds.length; r++) {
-            // Buffer of 2 mins between blocks on same sub-row to prevent touching borders
             if (item.start >= rowEnds[r] + 2) {
                 placedRow = r;
                 rowEnds[r] = item.end;
@@ -12020,12 +12268,8 @@ function packSwimlaneEvents(items) {
 }
 
 async function openAutoSchedulerModal() {
-    const optDateInput = document.getElementById('opt-date');
-    if (optDateInput && !optDateInput.value) {
-        // Find earliest date from schedule or default to today
-        const dates = Object.values(masterSchedule).map(s => s.date).filter(Boolean).sort();
-        optDateInput.value = dates.length > 0 ? dates[0] : new Date().toISOString().split('T')[0];
-    }
+    initOptimizerDays();
+    renderOptimizerDaysDeck();
 
     pendingOptimizedSchedule = null;
     const previewContainer = document.getElementById('opt-preview-container');
@@ -12034,13 +12278,12 @@ async function openAutoSchedulerModal() {
     const statusIndicator = document.getElementById('opt-status-indicator');
 
     if (previewContainer) {
-        previewContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 3rem; font-size: 0.9rem; font-weight: 500;"><div class="spinner" style="display:inline-block; margin-bottom: 0.5rem;"></div><br>Analyzing constraints and generating clash-free timeline...</div>`;
+        previewContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 3rem; font-size: 0.9rem; font-weight: 500;"><div class="spinner" style="display:inline-block; margin-bottom: 0.5rem;"></div><br>Analyzing constraints and generating clash-free multi-day timeline...</div>`;
     }
     if (applyBtn) applyBtn.style.display = 'none';
     if (metricsBadge) metricsBadge.style.display = 'none';
-    if (statusIndicator) statusIndicator.innerText = 'Initializing optimizer...';
+    if (statusIndicator) statusIndicator.innerText = 'Initializing multi-day optimizer...';
 
-    // Ensure baseline data is loaded before rendering stages & categories
     if (competitionsList.length === 0) await loadCompetitions();
     if (stagesList.length === 0) await loadStagesAndTeams();
     if (categoriesList.length === 0) await loadCategories();
@@ -12058,48 +12301,64 @@ async function openAutoSchedulerModal() {
     window._optimizerEffectiveStages = effectiveStages;
     window._optimizerIsSimulated = isSimulatedStages;
 
-    // Render Stage Selector, Category Selector & Breaks UI
     renderOptimizerStageSelector(effectiveStages);
     renderOptimizerCategorySelector();
-    renderOptimizerBreaks();
 
     document.getElementById('autoSchedulerModal').classList.add('show');
 
-    // Automatically run the optimizer calculation
     setTimeout(() => {
         generateOptimizedSchedule();
     }, 150);
 }
+window.openAutoSchedulerModal = openAutoSchedulerModal;
 
 async function generateOptimizedSchedule() {
-    const targetDate = document.getElementById('opt-date')?.value;
-    const startTimeStr = document.getElementById('opt-start-time')?.value || '09:00';
-    const endTimeStr = document.getElementById('opt-end-time')?.value || '18:00';
     const bufferMins = parseInt(document.getElementById('opt-buffer-mins')?.value) || 15;
     const stageStrategy = document.getElementById('opt-stage-strategy')?.value || 'auto_balance';
-    const scope = document.getElementById('opt-scope')?.value || 'unscheduled_only';
-
-    if (!targetDate) {
-        alert("Please choose a target fest date.");
-        return;
-    }
-
-    const startMins = timeStringToMinutes(startTimeStr);
-    const endLimitMins = timeStringToMinutes(endTimeStr);
-
-    if (endLimitMins <= startMins) {
-        alert("End time must be after start time.");
-        return;
-    }
-
+    const scope = document.getElementById('opt-scope')?.value || 'pending_only';
     const statusIndicator = document.getElementById('opt-status-indicator');
-    if (statusIndicator) statusIndicator.innerText = 'Analyzing constraints, participant graph, and stage capacities...';
 
-    // Ensure baseline data is loaded
+    if (!optimizerDays || optimizerDays.length === 0) {
+        alert("Please configure at least one festival day.");
+        return;
+    }
+
+    // Validate Days
+    const validDays = [];
+    for (const d of optimizerDays) {
+        if (!d.date) {
+            alert("Each festival day must have a valid date.");
+            return;
+        }
+        const sM = timeStringToMinutes(d.startTime);
+        const eM = timeStringToMinutes(d.endTime);
+        if (eM <= sM) {
+            alert(`For ${d.label || d.date}, end time (${d.endTime}) must be after start time (${d.startTime}).`);
+            return;
+        }
+
+        const parsedBreaks = (d.breaks || []).map(b => ({
+            id: b.id,
+            name: b.name || 'Break',
+            start: b.start,
+            end: b.end,
+            startMins: timeStringToMinutes(b.start),
+            endMins: timeStringToMinutes(b.end)
+        })).filter(b => b.endMins > b.startMins);
+
+        validDays.push({
+            ...d,
+            startMins: sM,
+            endLimitMins: eM,
+            breaks: parsedBreaks
+        });
+    }
+
+    if (statusIndicator) statusIndicator.innerText = 'Analyzing constraints, pending competitions, and multi-day stage throughput...';
+
     if (competitionsList.length === 0) await loadCompetitions();
     if (stagesList.length === 0) await loadStagesAndTeams();
 
-    // Auto-synthesize virtual stages if festival has no physical stages created yet
     let effectiveStages = [...stagesList];
     let isSimulatedStages = false;
     if (effectiveStages.length === 0) {
@@ -12113,21 +12372,14 @@ async function generateOptimizedSchedule() {
     window._optimizerEffectiveStages = effectiveStages;
     window._optimizerIsSimulated = isSimulatedStages;
 
-    // Read configured breaks (Lunch, Tea, etc.)
-    const activeBreaks = getOptimizerBreaks();
-
-    // Read selected stages
     const selectedStageIds = getOptimizerSelectedStages();
     if (selectedStageIds.length === 0) {
-        alert("Please select at least one stage or venue to schedule.");
         if (statusIndicator) statusIndicator.innerText = 'No stages selected.';
         return;
     }
 
-    // Read selected categories
     const selectedCategoryIds = getOptimizerSelectedCategories();
     if (selectedCategoryIds.length === 0 && (categoriesList.length > 0 || competitionsList.some(c => c.category_id))) {
-        alert("Please select at least one category to schedule.");
         if (statusIndicator) statusIndicator.innerText = 'No categories selected.';
         return;
     }
@@ -12142,9 +12394,19 @@ async function generateOptimizedSchedule() {
         compStudentsMap[e.competition_id].push(e.participant_id);
     });
 
-    // 1. Filter Candidate Competitions based on Scope, Selected Categories and Selected Stages
+    // 1. Filter Candidate Competitions strictly based on Scope
     let candidates = [];
-    if (scope === 'unscheduled_only') {
+    if (scope === 'pending_only') {
+        // Pending Status Only
+        candidates = competitionsList.filter(c => String(c.status || '').toLowerCase() === 'pending');
+    } else if (scope === 'pending_unscheduled') {
+        // Pending Status & Unscheduled in masterSchedule
+        candidates = competitionsList.filter(c => {
+            const isPending = String(c.status || '').toLowerCase() === 'pending';
+            const s = masterSchedule[c.id];
+            return isPending && (!s || !s.date || !s.time);
+        });
+    } else if (scope === 'unscheduled_only') {
         candidates = competitionsList.filter(c => {
             const s = masterSchedule[c.id];
             return !s || !s.date || !s.time;
@@ -12153,7 +12415,7 @@ async function generateOptimizedSchedule() {
         candidates = [...competitionsList];
     }
 
-    // Filter strictly to selected categories (if categories are configured)
+    // Filter strictly to selected categories
     if (selectedCategoryIds.length > 0) {
         candidates = candidates.filter(comp => {
             const compCatId = comp.category_id ? String(comp.category_id) : '__unassigned__';
@@ -12167,15 +12429,11 @@ async function generateOptimizedSchedule() {
     // Filter strictly to selected stages
     candidates = candidates.filter(comp => {
         if (comp.stage_id) {
-            // Pre-assigned competition: only include if its pre-assigned stage is selected
             return selectedStageIds.includes(String(comp.stage_id));
         }
-        // Unassigned competition:
         if (comp.is_offstage) {
-            // Prioritize offstage venues if available among selected stages
             return targetStages.some(s => s.is_offstage) || targetStages.length > 0;
         } else {
-            // Prioritize onstage venues if available among selected stages
             return targetStages.some(s => !s.is_offstage) || targetStages.length > 0;
         }
     });
@@ -12186,14 +12444,14 @@ async function generateOptimizedSchedule() {
             previewContainer.innerHTML = `
                 <div style="text-align: center; color: var(--text-muted); padding: 3rem; font-weight: 600;">
                     <i class="fa-solid fa-circle-check" style="font-size: 2.2rem; color: #10B981; margin-bottom: 0.75rem; display: block;"></i>
-                    No candidate competitions found for the selected stage(s).<br>
+                    No candidate competitions found matching the selected scope "${scope.replace('_', ' ').toUpperCase()}".<br>
                     <span style="font-size: 0.82rem; font-weight: 500; color: var(--text-muted);">
-                        Either all events on this stage are already scheduled, or no unscheduled events are assigned to this stage.
+                        All competitions in this scope are already scheduled or no matching competitions exist.
                     </span>
                 </div>
             `;
         }
-        if (statusIndicator) statusIndicator.innerText = 'No candidate competitions for selected stage(s).';
+        if (statusIndicator) statusIndicator.innerText = 'No candidate competitions matching selected criteria.';
         const applyBtn = document.getElementById('btn-apply-optimized-schedule');
         if (applyBtn) applyBtn.style.display = 'none';
         return;
@@ -12216,10 +12474,8 @@ async function generateOptimizedSchedule() {
             }
         }
         
-        // Cap single event duration between 15 and 150 minutes
         c.calculatedDuration = Math.min(150, Math.max(15, duration));
 
-        // MRV Degree: Count how many enrolled students overlap with OTHER candidate competitions
         let sharedStudentsCount = 0;
         candidates.forEach(otherC => {
             if (otherC.id === c.id) return;
@@ -12231,42 +12487,45 @@ async function generateOptimizedSchedule() {
         c.constraintDegree = (sharedStudentsCount * 3) + enrolledCount;
     });
 
-    // Sort by constraint degree descending (hardest constraints first)
     candidates.sort((a, b) => b.constraintDegree - a.constraintDegree);
 
-    // 3. Initialize Stage Timelines for selected stages
-    const stageTimelines = {};
-    targetStages.forEach(s => {
-        stageTimelines[s.id] = [];
-    });
-
-    const studentTimelines = {}; // { studentId: [ { start, end } ] }
-
-    // Load existing slots on targetDate (load ALL students across whole fest to prevent clash!)
-    Object.entries(masterSchedule).forEach(([compId, sched]) => {
-        if (sched.date !== targetDate) return;
-        const comp = competitionsList.find(c => c.id == compId);
-        if (!comp) return;
-
-        const sStart = timeStringToMinutes(sched.time);
-        let sEnd = sched.to_time ? timeStringToMinutes(sched.to_time) : (sStart + (parseInt(sched.manual_time) || 30));
-        if (sEnd <= sStart) sEnd = sStart + 30;
-
-        if (scope === 'unscheduled_only') {
-            const stageKey = comp.stage_id || targetStages[0]?.id;
-            if (stageKey && stageTimelines[stageKey]) {
-                stageTimelines[stageKey].push({ compId, start: sStart, end: sEnd });
-            }
-        }
-
-        const sList = compStudentsMap[compId] || [];
-        sList.forEach(sId => {
-            if (!studentTimelines[sId]) studentTimelines[sId] = [];
-            studentTimelines[sId].push({ start: sStart, end: sEnd });
+    // 3. Initialize Stage & Student Timelines for EACH Festival Day
+    const dayTimelines = {};
+    validDays.forEach(day => {
+        dayTimelines[day.date] = {
+            stageTimelines: {},
+            studentTimelines: {}
+        };
+        targetStages.forEach(s => {
+            dayTimelines[day.date].stageTimelines[s.id] = [];
         });
     });
 
-    // 4. Constraint-Satisfaction Greedy Placement
+    // If not all_replace, pre-populate existing slots on each day
+    if (scope !== 'all_replace') {
+        Object.entries(masterSchedule).forEach(([compId, sched]) => {
+            if (!sched.date || !dayTimelines[sched.date]) return;
+            const comp = competitionsList.find(c => String(c.id) === String(compId));
+            if (!comp) return;
+
+            const sStart = timeStringToMinutes(sched.time);
+            let sEnd = sched.to_time ? timeStringToMinutes(sched.to_time) : (sStart + (parseInt(sched.manual_time) || 30));
+            if (sEnd <= sStart) sEnd = sStart + 30;
+
+            const stageKey = comp.stage_id || targetStages[0]?.id;
+            if (stageKey && dayTimelines[sched.date].stageTimelines[stageKey]) {
+                dayTimelines[sched.date].stageTimelines[stageKey].push({ compId, start: sStart, end: sEnd });
+            }
+
+            const sList = compStudentsMap[compId] || [];
+            sList.forEach(sId => {
+                if (!dayTimelines[sched.date].studentTimelines[sId]) dayTimelines[sched.date].studentTimelines[sId] = [];
+                dayTimelines[sched.date].studentTimelines[sId].push({ start: sStart, end: sEnd });
+            });
+        });
+    }
+
+    // 4. Multi-Day Constraint-Satisfaction Placement
     const proposedSchedule = {};
     let scheduledCount = 0;
     let unplacedList = [];
@@ -12282,7 +12541,6 @@ async function generateOptimizedSchedule() {
         } else if (comp.stage_id && targetStages.some(s => String(s.id) === String(comp.stage_id))) {
             eligibleStages = [comp.stage_id, ...targetStages.map(s => s.id).filter(id => String(id) !== String(comp.stage_id))];
         } else {
-            // If competition is offstage, prioritize offstage venues; if onstage, prioritize onstage venues
             if (comp.is_offstage) {
                 const offVenues = targetStages.filter(s => s.is_offstage).map(s => s.id);
                 const onVenues = targetStages.filter(s => !s.is_offstage).map(s => s.id);
@@ -12294,97 +12552,105 @@ async function generateOptimizedSchedule() {
             }
         }
 
-        let bestSlot = null;
+        let placedSlot = null;
 
-        // Try candidate stages
-        for (const stageKey of eligibleStages) {
-            let candidateStart = startMins;
+        // Iterate through configured days in order
+        for (const day of validDays) {
+            const dayT = dayTimelines[day.date];
+            const startMins = day.startMins;
+            const endLimitMins = day.endLimitMins;
+            const dayBreaks = day.breaks;
 
-            while (candidateStart + compDuration <= endLimitMins) {
-                const candidateEnd = candidateStart + compDuration;
+            for (const stageKey of eligibleStages) {
+                let candidateStart = startMins;
 
-                // Check ALL configured Breaks & Intervals (Lunch, Tea, etc.)
-                let clashedWithBreak = false;
-                for (const b of activeBreaks) {
-                    if (candidateStart < b.endMins && candidateEnd > b.startMins) {
-                        candidateStart = b.endMins;
-                        clashedWithBreak = true;
-                        break;
+                while (candidateStart + compDuration <= endLimitMins) {
+                    const candidateEnd = candidateStart + compDuration;
+
+                    // Check day-specific breaks
+                    let clashedWithBreak = false;
+                    for (const b of dayBreaks) {
+                        if (candidateStart < b.endMins && candidateEnd > b.startMins) {
+                            candidateStart = b.endMins;
+                            clashedWithBreak = true;
+                            break;
+                        }
                     }
-                }
-                if (clashedWithBreak) continue;
+                    if (clashedWithBreak) continue;
 
-                // Check Stage Occupancy
-                const stageOccupied = (stageTimelines[stageKey] || []).some(slot => 
-                    (candidateStart < slot.end + bufferMins) && (candidateEnd > slot.start)
-                );
-                if (stageOccupied) {
-                    candidateStart += 10;
-                    continue;
-                }
-
-                // Check Student Clash across all stages
-                let hasStudentClash = false;
-                for (const sId of compStudents) {
-                    const sSlots = studentTimelines[sId] || [];
-                    const clash = sSlots.some(slot => 
-                        (candidateStart < slot.end + bufferMins) && (candidateEnd > slot.start - bufferMins)
+                    // Check Stage Occupancy on THIS day
+                    const stageOccupied = (dayT.stageTimelines[stageKey] || []).some(slot => 
+                        (candidateStart < slot.end + bufferMins) && (candidateEnd > slot.start)
                     );
-                    if (clash) {
-                        hasStudentClash = true;
-                        break;
+                    if (stageOccupied) {
+                        candidateStart += 10;
+                        continue;
                     }
-                }
 
-                if (!hasStudentClash) {
-                    // Valid slot found for this stage
-                    if (!bestSlot || candidateStart < bestSlot.start) {
-                        bestSlot = {
+                    // Check Student Clashes across all stages on THIS day
+                    let hasStudentClash = false;
+                    for (const sId of compStudents) {
+                        const sSlots = dayT.studentTimelines[sId] || [];
+                        const clash = sSlots.some(slot => 
+                            (candidateStart < slot.end + bufferMins) && (candidateEnd > slot.start - bufferMins)
+                        );
+                        if (clash) {
+                            hasStudentClash = true;
+                            break;
+                        }
+                    }
+
+                    if (!hasStudentClash) {
+                        placedSlot = {
+                            date: day.date,
+                            dayLabel: day.label,
                             stageKey,
                             start: candidateStart,
                             end: candidateEnd
                         };
+                        break;
                     }
-                    break;
+
+                    candidateStart += 10;
                 }
 
-                candidateStart += 10;
+                if (placedSlot) break;
             }
 
-            // If we found a slot on the primary stage, prioritize it
-            if (bestSlot && bestSlot.stageKey === comp.stage_id) break;
+            if (placedSlot) {
+                // Placed on this day! Record and update this day's timelines
+                proposedSchedule[comp.id] = {
+                    date: placedSlot.date,
+                    time: minutesToTimeString(placedSlot.start),
+                    to_time: minutesToTimeString(placedSlot.end),
+                    manual_time: compDuration,
+                    status: 'draft',
+                    stage_id: placedSlot.stageKey,
+                    is_offstage: comp.is_offstage
+                };
+
+                if (dayT.stageTimelines[placedSlot.stageKey]) {
+                    dayT.stageTimelines[placedSlot.stageKey].push({ compId: comp.id, start: placedSlot.start, end: placedSlot.end });
+                }
+                compStudents.forEach(sId => {
+                    if (!dayT.studentTimelines[sId]) dayT.studentTimelines[sId] = [];
+                    dayT.studentTimelines[sId].push({ start: placedSlot.start, end: placedSlot.end });
+                });
+
+                scheduledCount++;
+                break; // Proceed to next competition
+            }
         }
 
-        if (bestSlot) {
-            proposedSchedule[comp.id] = {
-                date: targetDate,
-                time: minutesToTimeString(bestSlot.start),
-                to_time: minutesToTimeString(bestSlot.end),
-                manual_time: compDuration,
-                status: 'draft',
-                stage_id: bestSlot.stageKey,
-                is_offstage: comp.is_offstage
-            };
-
-            // Update timelines
-            if (stageTimelines[bestSlot.stageKey]) {
-                stageTimelines[bestSlot.stageKey].push({ compId: comp.id, start: bestSlot.start, end: bestSlot.end });
-            }
-            compStudents.forEach(sId => {
-                if (!studentTimelines[sId]) studentTimelines[sId] = [];
-                studentTimelines[sId].push({ start: bestSlot.start, end: bestSlot.end });
-            });
-
-            scheduledCount++;
-        } else {
+        if (!placedSlot) {
             unplacedList.push(comp);
         }
     });
 
     pendingOptimizedSchedule = proposedSchedule;
 
-    // 5. Render Visual Timeline Gantt Preview
-    renderOptimizationPreview(proposedSchedule, targetDate, startMins, endLimitMins, activeBreaks, unplacedList, targetStages, isSimulatedStages, compStudentsMap);
+    // 5. Render Visual Multi-Day Timeline Gantt Preview
+    renderOptimizationPreview(proposedSchedule, validDays, unplacedList, targetStages, isSimulatedStages, compStudentsMap);
 
     // Update Badges & Actions
     const metricsBadge = document.getElementById('opt-metrics-badge');
@@ -12393,94 +12659,68 @@ async function generateOptimizedSchedule() {
     const applyBtn = document.getElementById('btn-apply-optimized-schedule');
 
     if (metricsBadge) metricsBadge.style.display = 'flex';
-    if (badgeSuccess) badgeSuccess.innerText = `${scheduledCount} Events Scheduled`;
+    if (badgeSuccess) badgeSuccess.innerText = `${scheduledCount} Events Scheduled (${validDays.length} Days)`;
     if (badgeClash) {
         if (unplacedList.length === 0) {
             badgeClash.innerText = `0 Clashes • 100% Conflict Free`;
             badgeClash.style.background = '#D1FAE5';
             badgeClash.style.color = '#059669';
         } else {
-            badgeClash.innerText = `${unplacedList.length} Unplaced (Operating Hours Full)`;
+            badgeClash.innerText = `${unplacedList.length} Unplaced (Extend hours / Add day)`;
             badgeClash.style.background = '#FEF3C7';
             badgeClash.style.color = '#D97706';
         }
     }
     if (statusIndicator) {
         statusIndicator.innerText = unplacedList.length === 0 
-            ? `Optimization Complete! 100% Clash-Free Schedule Generated.` 
-            : `Scheduled ${scheduledCount} events. Extend operating hours to fit all ${unplacedList.length} remaining.`;
+            ? `Optimization Complete! 100% Clash-Free Schedule Generated across ${validDays.length} Festival Days.` 
+            : `Scheduled ${scheduledCount} events across ${validDays.length} days. ${unplacedList.length} unplaced due to stage capacity limits.`;
     }
     if (applyBtn) applyBtn.style.display = 'inline-flex';
 }
+window.generateOptimizedSchedule = generateOptimizedSchedule;
 
-function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540, endLimitMins = 1080, activeBreaks = [], unplacedList = [], targetStages = [], isSimulatedStages = false, compStudentsMap = {}) {
+function switchOptPreviewDay(dayId) {
+    optPreviewActiveDayId = dayId;
+    const btns = document.querySelectorAll('.opt-preview-day-tab');
+    btns.forEach(b => {
+        const id = b.getAttribute('data-day-id');
+        if (id === dayId) {
+            b.className = 'btn btn-primary opt-preview-day-tab';
+            b.style.color = 'white';
+        } else {
+            b.className = 'btn btn-outline opt-preview-day-tab';
+            b.style.color = 'var(--text-main)';
+        }
+    });
+
+    const daySections = document.querySelectorAll('.opt-preview-day-section');
+    daySections.forEach(sec => {
+        const secDayId = sec.getAttribute('data-day-id');
+        if (dayId === 'ALL' || secDayId === dayId) {
+            sec.style.display = 'block';
+        } else {
+            sec.style.display = 'none';
+        }
+    });
+}
+window.switchOptPreviewDay = switchOptPreviewDay;
+
+function renderOptimizationPreview(proposedSchedule, validDays = [], unplacedList = [], targetStages = [], isSimulatedStages = false, compStudentsMap = {}) {
     const container = document.getElementById('opt-preview-container');
     if (!container) return;
-
-    const startTimeStr = minutesToTimeString(startMins);
-    const endTimeStr = minutesToTimeString(endLimitMins);
 
     const compIds = Object.keys(proposedSchedule);
     if (compIds.length === 0 && unplacedList.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; color: var(--danger); padding: 3rem; font-weight: 600;">
                 <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
-                No events could be assigned within the time window. Try extending operating hours or adding more stages.
+                No events could be assigned within the configured festival days. Try extending operating hours or adding another festival day.
             </div>
         `;
         return;
     }
 
-    const totalDuration = endLimitMins - startMins;
-
-    // Build timeline hourly markers for Header & Lane Grid
-    let headerTimeMarkersHtml = '';
-    let laneGridLinesHtml = '';
-    const startHour = Math.floor(startMins / 60);
-    const endHour = Math.ceil(endLimitMins / 60);
-
-    for (let h = startHour; h <= endHour; h++) {
-        const markerMins = h * 60;
-        if (markerMins < startMins || markerMins > endLimitMins) continue;
-        const leftPercent = ((markerMins - startMins) / totalDuration) * 100;
-        const displayTime = `${h % 12 === 0 ? 12 : h % 12}:00 ${h >= 12 ? 'PM' : 'AM'}`;
-        
-        headerTimeMarkersHtml += `
-            <div style="position: absolute; left: ${leftPercent}%; top: 0; bottom: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 4px; pointer-events: none;">
-                <span style="font-size: 0.7rem; font-weight: 700; color: #475569; font-family: monospace; white-space: nowrap;">${displayTime}</span>
-                <div style="width: 1px; height: 6px; background: #CBD5E1; margin-top: 2px;"></div>
-            </div>
-        `;
-
-        laneGridLinesHtml += `
-            <div style="position: absolute; left: ${leftPercent}%; top: 0; bottom: 0; border-left: 1px dashed #E2E8F0; pointer-events: none; z-index: 1;"></div>
-        `;
-    }
-
-    // Breaks Badges in Header & Shading in Lanes
-    let headerBreaksBadgesHtml = '';
-    let laneBreakShadesHtml = '';
-    (activeBreaks || []).forEach(b => {
-        if (b.endMins > startMins && b.startMins < endLimitMins) {
-            const bLeft = Math.max(0, ((b.startMins - startMins) / totalDuration) * 100);
-            const bWidth = Math.min(100 - bLeft, ((b.endMins - b.startMins) / totalDuration) * 100);
-            const bName = (b.name || 'BREAK').toUpperCase();
-            const iconClass = bName.includes('LUNCH') ? 'fa-utensils' : (bName.includes('TEA') ? 'fa-mug-hot' : 'fa-clock');
-
-            headerBreaksBadgesHtml += `
-                <div style="position: absolute; left: ${bLeft}%; width: ${bWidth}%; top: 4px; bottom: 4px; background: #FEF3C7; border: 1.5px dashed #F59E0B; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; z-index: 5; overflow: hidden; padding: 0 4px;" title="${optEscapeHtml(b.name)} (${minutesToTimeString(b.startMins)} - ${minutesToTimeString(b.endMins)})">
-                    <i class="fa-solid ${iconClass}" style="font-size: 0.72rem; color: #D97706;"></i>
-                    <span style="font-size: 0.72rem; font-weight: 800; color: #92400E; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${optEscapeHtml(bName)}</span>
-                </div>
-            `;
-
-            laneBreakShadesHtml += `
-                <div style="position: absolute; left: ${bLeft}%; width: ${bWidth}%; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, rgba(245, 158, 11, 0.04), rgba(245, 158, 11, 0.04) 10px, rgba(245, 158, 11, 0.09) 10px, rgba(245, 158, 11, 0.09) 20px); border-left: 1.5px dashed rgba(245, 158, 11, 0.4); border-right: 1.5px dashed rgba(245, 158, 11, 0.4); z-index: 1; pointer-events: none;"></div>
-            `;
-        }
-    });
-
-    // Build stage swimlanes for selected stages (actual stages only)
     const activeStageList = (targetStages && targetStages.length > 0) ? targetStages : (window._optimizerEffectiveStages || stagesList);
     const stageTracks = activeStageList.map(s => ({
         id: s.id,
@@ -12489,152 +12729,225 @@ function renderOptimizationPreview(proposedSchedule, targetDate, startMins = 540
         is_simulated: s.is_simulated
     }));
 
-    let swimlanesHtml = '';
+    // Day Switcher Tabs if multiple days
+    let dayTabsHtml = '';
+    if (validDays.length > 1) {
+        dayTabsHtml = `
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; border-bottom: 2px solid var(--border); padding-bottom: 0.6rem;">
+                <button type="button" class="btn ${optPreviewActiveDayId === 'ALL' ? 'btn-primary' : 'btn-outline'} opt-preview-day-tab" data-day-id="ALL" onclick="switchOptPreviewDay('ALL')" style="font-size: 0.78rem; font-weight: 700; border-radius: 6px; padding: 0.35rem 0.75rem;">
+                    <i class="fa-solid fa-layer-group"></i> All Days Stacked (${validDays.length})
+                </button>
+                ${validDays.map(d => {
+                    const countOnDay = compIds.filter(id => proposedSchedule[id].date === d.date).length;
+                    const isSel = optPreviewActiveDayId === d.id;
+                    return `
+                        <button type="button" class="btn ${isSel ? 'btn-primary' : 'btn-outline'} opt-preview-day-tab" data-day-id="${d.id}" onclick="switchOptPreviewDay('${d.id}')" style="font-size: 0.78rem; font-weight: 700; border-radius: 6px; padding: 0.35rem 0.75rem;">
+                            <i class="fa-regular fa-calendar"></i> ${d.label || d.date} (${countOnDay} events)
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
 
-    stageTracks.forEach(track => {
-        // Collect items in this stage track
-        const trackItems = compIds
-            .map(id => {
-                const sched = proposedSchedule[id];
-                const comp = competitionsList.find(c => c.id == id);
-                return { 
-                    id, 
-                    sched, 
-                    comp,
-                    start: timeStringToMinutes(sched.time),
-                    end: timeStringToMinutes(sched.to_time)
-                };
-            })
-            .filter(item => {
-                if (!item.comp) return false;
-                return String(item.sched.stage_id) === String(track.id);
+    // Render Each Day's Visual Section
+    const daySectionsHtml = validDays.map(day => {
+        const startMins = day.startMins;
+        const endLimitMins = day.endLimitMins;
+        const totalDuration = endLimitMins - startMins;
+        const dayBreaks = day.breaks || [];
+
+        const dayCompIds = compIds.filter(id => proposedSchedule[id].date === day.date);
+
+        // Header time markers
+        let headerTimeMarkersHtml = '';
+        let laneGridLinesHtml = '';
+        const startHour = Math.floor(startMins / 60);
+        const endHour = Math.ceil(endLimitMins / 60);
+
+        for (let h = startHour; h <= endHour; h++) {
+            const markerMins = h * 60;
+            if (markerMins < startMins || markerMins > endLimitMins) continue;
+            const leftPercent = ((markerMins - startMins) / totalDuration) * 100;
+            const displayTime = `${h % 12 === 0 ? 12 : h % 12}:00 ${h >= 12 ? 'PM' : 'AM'}`;
+            
+            headerTimeMarkersHtml += `
+                <div style="position: absolute; left: ${leftPercent}%; top: 0; bottom: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 4px; pointer-events: none;">
+                    <span style="font-size: 0.7rem; font-weight: 700; color: #475569; font-family: monospace; white-space: nowrap;">${displayTime}</span>
+                    <div style="width: 1px; height: 6px; background: #CBD5E1; margin-top: 2px;"></div>
+                </div>
+            `;
+
+            laneGridLinesHtml += `
+                <div style="position: absolute; left: ${leftPercent}%; top: 0; bottom: 0; border-left: 1px dashed #E2E8F0; pointer-events: none; z-index: 1;"></div>
+            `;
+        }
+
+        // Breaks Badges in Header & Shading in Lanes
+        let headerBreaksBadgesHtml = '';
+        let laneBreakShadesHtml = '';
+        dayBreaks.forEach(b => {
+            if (b.endMins > startMins && b.startMins < endLimitMins) {
+                const bLeft = Math.max(0, ((b.startMins - startMins) / totalDuration) * 100);
+                const bWidth = Math.min(100 - bLeft, ((b.endMins - b.startMins) / totalDuration) * 100);
+                const bName = (b.name || 'BREAK').toUpperCase();
+                const iconClass = bName.includes('LUNCH') ? 'fa-utensils' : (bName.includes('TEA') ? 'fa-mug-hot' : 'fa-clock');
+
+                headerBreaksBadgesHtml += `
+                    <div style="position: absolute; left: ${bLeft}%; width: ${bWidth}%; top: 4px; bottom: 4px; background: #FEF3C7; border: 1.5px dashed #F59E0B; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; z-index: 5; overflow: hidden; padding: 0 4px;" title="${optEscapeHtml(b.name)} (${minutesToTimeString(b.startMins)} - ${minutesToTimeString(b.endMins)})">
+                        <i class="fa-solid ${iconClass}" style="font-size: 0.72rem; color: #D97706;"></i>
+                        <span style="font-size: 0.72rem; font-weight: 800; color: #92400E; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${optEscapeHtml(bName)}</span>
+                    </div>
+                `;
+
+                laneBreakShadesHtml += `
+                    <div style="position: absolute; left: ${bLeft}%; width: ${bWidth}%; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, rgba(245, 158, 11, 0.04), rgba(245, 158, 11, 0.04) 10px, rgba(245, 158, 11, 0.09) 10px, rgba(245, 158, 11, 0.09) 20px); border-left: 1.5px dashed rgba(245, 158, 11, 0.4); border-right: 1.5px dashed rgba(245, 158, 11, 0.4); z-index: 1; pointer-events: none;"></div>
+                `;
+            }
+        });
+
+        // Swimlanes for this Day
+        let swimlanesHtml = '';
+        stageTracks.forEach(track => {
+            const trackItems = dayCompIds
+                .map(id => {
+                    const sched = proposedSchedule[id];
+                    const comp = competitionsList.find(c => String(c.id) === String(id));
+                    return { 
+                        id, 
+                        sched, 
+                        comp,
+                        start: timeStringToMinutes(sched.time),
+                        end: timeStringToMinutes(sched.to_time)
+                    };
+                })
+                .filter(item => {
+                    if (!item.comp) return false;
+                    return String(item.sched.stage_id) === String(track.id);
+                });
+
+            const { packed, rowCount } = packSwimlaneEvents(trackItems);
+
+            const rowHeight = 36;
+            const rowGap = 6;
+            const lanePadding = 10;
+            const totalLaneHeight = Math.max(68, (rowCount * rowHeight) + ((rowCount - 1) * rowGap) + (lanePadding * 2));
+
+            let blocksHtml = '';
+            packed.forEach(item => {
+                const leftPct = Math.max(0, ((item.start - startMins) / totalDuration) * 100);
+                const rawWidthPct = ((item.end - item.start) / totalDuration) * 100;
+                const widthPct = Math.min(100 - leftPct, Math.max(rawWidthPct, 2.5));
+                const topPos = lanePadding + (item.rowIdx * (rowHeight + rowGap));
+
+                const bgGradient = track.isOffstage 
+                    ? 'linear-gradient(135deg, #D97706 0%, #F59E0B 100%)' 
+                    : 'linear-gradient(135deg, #4338CA 0%, #6366F1 100%)';
+                const shadowColor = track.isOffstage ? 'rgba(217, 119, 6, 0.3)' : 'rgba(79, 70, 229, 0.3)';
+                const categoryName = item.comp.categories?.name || 'General';
+                const studentCount = (compStudentsMap[item.id] || []).length;
+
+                blocksHtml += `
+                    <div style="position: absolute; left: ${leftPct}%; width: ${widthPct}%; top: ${topPos}px; height: ${rowHeight}px; background: ${bgGradient}; border-radius: 6px; color: white; padding: 3px 8px; overflow: hidden; box-shadow: 0 2px 5px ${shadowColor}; border: 1px solid rgba(255,255,255,0.25); cursor: pointer; z-index: 2; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; transition: transform 0.15s ease, box-shadow 0.15s ease;"
+                         title="${optEscapeHtml(item.comp.name)} (${optEscapeHtml(categoryName)})&#10;Time: ${item.sched.time} - ${item.sched.to_time} (${item.sched.manual_time}m)&#10;Students: ${studentCount} enrolled"
+                         onmouseover="this.style.transform='translateY(-2px) scale(1.02)'; this.style.zIndex='20'; this.style.boxShadow='0 6px 14px rgba(0,0,0,0.25)';"
+                         onmouseout="this.style.transform='none'; this.style.zIndex='2'; this.style.boxShadow='0 2px 5px ${shadowColor}';">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; overflow: hidden; line-height: 1.15;">
+                            <span style="font-weight: 700; font-size: 0.73rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${optEscapeHtml(item.comp.name)}</span>
+                            <span style="font-size: 0.62rem; opacity: 0.9; font-family: monospace; white-space: nowrap; flex-shrink: 0;">${item.sched.time}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px; font-size: 0.62rem; opacity: 0.9; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">
+                            <span style="background: rgba(255,255,255,0.22); padding: 1px 4px; border-radius: 3px; font-weight: 600;">${optEscapeHtml(categoryName)}</span>
+                            <span>${item.sched.manual_time}m</span>
+                            ${studentCount > 0 ? `<span>• ${studentCount} part.</span>` : ''}
+                        </div>
+                    </div>
+                `;
             });
 
-        // Dynamic multi-row packing: assigns non-overlapping rowIdx to every event
-        const { packed, rowCount } = packSwimlaneEvents(trackItems);
-
-        const rowHeight = 36;
-        const rowGap = 6;
-        const lanePadding = 10;
-        const totalLaneHeight = Math.max(68, (rowCount * rowHeight) + ((rowCount - 1) * rowGap) + (lanePadding * 2));
-
-        let blocksHtml = '';
-        packed.forEach(item => {
-            const leftPct = Math.max(0, ((item.start - startMins) / totalDuration) * 100);
-            const rawWidthPct = ((item.end - item.start) / totalDuration) * 100;
-            const widthPct = Math.min(100 - leftPct, Math.max(rawWidthPct, 2.5));
-            const topPos = lanePadding + (item.rowIdx * (rowHeight + rowGap));
-
-            const bgGradient = track.isOffstage 
-                ? 'linear-gradient(135deg, #D97706 0%, #F59E0B 100%)' 
-                : 'linear-gradient(135deg, #4338CA 0%, #6366F1 100%)';
-            const shadowColor = track.isOffstage ? 'rgba(217, 119, 6, 0.3)' : 'rgba(79, 70, 229, 0.3)';
-            const categoryName = item.comp.categories?.name || 'General';
-            const studentCount = (compStudentsMap[item.id] || []).length;
-
-            blocksHtml += `
-                <div style="position: absolute; left: ${leftPct}%; width: ${widthPct}%; top: ${topPos}px; height: ${rowHeight}px; background: ${bgGradient}; border-radius: 6px; color: white; padding: 3px 8px; overflow: hidden; box-shadow: 0 2px 5px ${shadowColor}; border: 1px solid rgba(255,255,255,0.25); cursor: pointer; z-index: 2; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; transition: transform 0.15s ease, box-shadow 0.15s ease;"
-                     title="${optEscapeHtml(item.comp.name)} (${optEscapeHtml(categoryName)})&#10;Time: ${item.sched.time} - ${item.sched.to_time} (${item.sched.manual_time}m)&#10;Students: ${studentCount} enrolled"
-                     onmouseover="this.style.transform='translateY(-2px) scale(1.02)'; this.style.zIndex='20'; this.style.boxShadow='0 6px 14px rgba(0,0,0,0.25)';"
-                     onmouseout="this.style.transform='none'; this.style.zIndex='2'; this.style.boxShadow='0 2px 5px ${shadowColor}';">
-                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; overflow: hidden; line-height: 1.15;">
-                        <span style="font-weight: 700; font-size: 0.73rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${optEscapeHtml(item.comp.name)}</span>
-                        <span style="font-size: 0.62rem; opacity: 0.9; font-family: monospace; white-space: nowrap; flex-shrink: 0;">${item.sched.time}</span>
+            swimlanesHtml += `
+                <div style="display: flex; border-bottom: 1px solid #E2E8F0; min-height: ${totalLaneHeight}px;">
+                    <div style="width: 170px; flex-shrink: 0; background: #F8FAFC; border-right: 1.5px solid #CBD5E1; padding: 0.75rem 0.85rem; display: flex; flex-direction: column; justify-content: center;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid ${track.isOffstage ? 'fa-layer-group' : 'fa-microphone-lines'}" style="color: ${track.isOffstage ? '#D97706' : '#4F46E5'}; font-size: 0.85rem;"></i>
+                            <strong style="font-size: 0.82rem; color: #1E293B; line-height: 1.2;">${optEscapeHtml(track.name)}</strong>
+                        </div>
+                        <span style="font-size: 0.65rem; color: #64748B; font-weight: 600; margin-top: 2px;">
+                            ${track.isOffstage ? 'Offstage Venue' : 'Stage Venue'} • ${trackItems.length} ${trackItems.length === 1 ? 'event' : 'events'}
+                        </span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 6px; font-size: 0.62rem; opacity: 0.9; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">
-                        <span style="background: rgba(255,255,255,0.22); padding: 1px 4px; border-radius: 3px; font-weight: 600;">${optEscapeHtml(categoryName)}</span>
-                        <span>${item.sched.manual_time}m</span>
-                        ${studentCount > 0 ? `<span>• ${studentCount} part.</span>` : ''}
+                    <div style="flex: 1; position: relative; background: #FAFAFA; overflow: hidden; min-height: ${totalLaneHeight}px;">
+                        ${laneGridLinesHtml}
+                        ${laneBreakShadesHtml}
+                        ${blocksHtml}
                     </div>
                 </div>
             `;
         });
 
-        const trackBadgeColor = track.isOffstage ? '#D97706' : '#4F46E5';
-        const trackBadgeBg = track.isOffstage ? '#FEF3C7' : '#EEF2FF';
+        const isVisible = (optPreviewActiveDayId === 'ALL' || optPreviewActiveDayId === day.id);
 
-        swimlanesHtml += `
-            <div style="display: flex; border-bottom: 1px solid var(--border); min-height: ${totalLaneHeight}px;">
-                <div style="width: 175px; min-width: 175px; padding: 0.75rem 1rem; background: var(--bg-main); border-right: 1px solid var(--border); display: flex; flex-direction: column; justify-content: center; gap: 0.25rem;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="${track.isOffstage ? 'fa-solid fa-layer-group' : 'fa-solid fa-microphone-stage'}" style="color: ${trackBadgeColor}; font-size: 0.95rem;"></i>
-                        <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-main); word-break: break-word;">${optEscapeHtml(track.name)}</span>
+        return `
+            <div class="opt-preview-day-section" data-day-id="${day.id}" style="display: ${isVisible ? 'block' : 'none'}; margin-bottom: 2rem;">
+                <!-- Day Banner -->
+                <div style="background: linear-gradient(135deg, #1E293B 0%, #334155 100%); color: white; padding: 0.65rem 1rem; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                        <span class="badge" style="background: var(--primary); color: white; font-weight: 800; font-size: 0.8rem; padding: 3px 8px;">${day.label || 'Day'}</span>
+                        <strong style="font-size: 0.95rem; letter-spacing: 0.02em;">📅 ${day.date}</strong>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
-                        <span style="font-size: 0.68rem; font-weight: 700; color: ${trackBadgeColor}; background: ${trackBadgeBg}; padding: 1px 6px; border-radius: 999px;">${trackItems.length} comp${trackItems.length === 1 ? '' : 's'}</span>
-                        <span style="font-size: 0.65rem; color: ${trackBadgeColor}; background: ${trackBadgeBg}; padding: 1px 5px; border-radius: 4px; font-weight: 700;">${track.isOffstage ? 'Offstage Venue' : 'Onstage Venue'}</span>
-                        ${track.is_simulated ? `<span style="font-size: 0.65rem; color: #4338CA; background: #E0E7FF; padding: 1px 5px; border-radius: 4px; font-weight: 600;">Auto-Created</span>` : ''}
-                        ${rowCount > 1 ? `<span style="font-size: 0.65rem; color: var(--text-muted); background: #F1F5F9; padding: 1px 5px; border-radius: 4px;">${rowCount} parallel tracks</span>` : ''}
+                    <div style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.78rem; opacity: 0.9;">
+                        <span><i class="fa-regular fa-clock"></i> ${day.startTime} - ${day.endTime}</span>
+                        <span>•</span>
+                        <span style="font-weight: 700; color: #34D399;">${dayCompIds.length} Events Placed</span>
+                        ${dayBreaks.length > 0 ? `<span>• ${dayBreaks.length} Break(s)</span>` : ''}
                     </div>
                 </div>
-                <div style="flex: 1; position: relative; min-height: ${totalLaneHeight}px; background: white;">
-                    ${laneGridLinesHtml}
-                    ${laneBreakShadesHtml}
-                    ${blocksHtml}
+
+                <!-- Day Gantt Container -->
+                <div style="border: 1px solid #CBD5E1; border-top: none; border-radius: 0 0 8px 8px; overflow: hidden; background: white;">
+                    <!-- Timeline Header -->
+                    <div style="display: flex; border-bottom: 1.5px solid #CBD5E1; background: #F1F5F9; height: 38px;">
+                        <div style="width: 170px; flex-shrink: 0; border-right: 1.5px solid #CBD5E1; padding: 0.6rem 0.85rem; font-size: 0.72rem; font-weight: 800; color: #475569; text-transform: uppercase;">
+                            VENUE / STAGE
+                        </div>
+                        <div style="flex: 1; position: relative; overflow: hidden;">
+                            ${headerBreaksBadgesHtml}
+                            ${headerTimeMarkersHtml}
+                        </div>
+                    </div>
+                    <!-- Swimlanes -->
+                    ${swimlanesHtml}
                 </div>
             </div>
         `;
-    });
+    }).join('');
 
+    // Unplaced warning deck if any
     let unplacedHtml = '';
     if (unplacedList.length > 0) {
         unplacedHtml = `
-            <div style="margin-top: 1.25rem; padding: 1rem 1.25rem; background: #FFFBEB; border: 1.5px solid #FDE68A; border-radius: var(--radius-lg);">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <div style="width: 28px; height: 28px; border-radius: 6px; background: #FEF3C7; color: #D97706; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                        </div>
-                        <div>
-                            <strong style="color: #92400E; font-size: 0.88rem;">${unplacedList.length} Events Could Not Fit Into Operating Hours (${startTimeStr} - ${endTimeStr})</strong>
-                            <p style="margin: 0; font-size: 0.78rem; color: #B45309;">Operating hours are saturated. Extend end time or add more stages to fit all remaining events.</p>
-                        </div>
-                    </div>
+            <div style="margin-top: 1.5rem; background: #FFFBEB; border: 1.5px solid #FDE68A; border-radius: 10px; padding: 1rem 1.25rem;">
+                <div style="display: flex; align-items: center; gap: 0.6rem; color: #92400E; font-weight: 700; margin-bottom: 0.5rem;">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.1rem; color: #D97706;"></i>
+                    <span>${unplacedList.length} Competition(s) could not fit within the configured hours/stages:</span>
                 </div>
-                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; max-height: 140px; overflow-y: auto; padding: 0.25rem 0;">
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem;">
                     ${unplacedList.map(c => `
-                        <span style="display: inline-flex; align-items: center; gap: 0.35rem; background: white; border: 1px solid #FCD34D; color: #78350F; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
-                            <i class="${c.is_offstage ? 'fa-solid fa-layer-group' : 'fa-solid fa-microphone-stage'}" style="font-size: 0.7rem; color: #D97706;"></i>
-                            <span>${optEscapeHtml(c.name)}</span>
-                            <span style="font-size: 0.65rem; color: #92400E; background: #FEF3C7; padding: 1px 4px; border-radius: 3px;">${optEscapeHtml(c.categories?.name || 'Gen')} • ${c.calculatedDuration || 30}m</span>
+                        <span style="background: white; border: 1px solid #FCD34D; color: #92400E; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                            ${optEscapeHtml(c.name)} (${c.calculatedDuration}m)
                         </span>
                     `).join('')}
                 </div>
-            </div>
-        `;
-    }
-
-    let simNoticeHtml = '';
-    if (isSimulatedStages) {
-        simNoticeHtml = `
-            <div style="margin-bottom: 0.85rem; padding: 0.65rem 0.95rem; background: #EFF6FF; border: 1.5px solid #BFDBFE; border-radius: 8px; font-size: 0.8rem; color: #1E40AF; display: flex; align-items: center; gap: 0.65rem;">
-                <i class="fa-solid fa-circle-info" style="font-size: 1.05rem; color: #3B82F6; flex-shrink: 0;"></i>
-                <span><strong>Zero Physical Stages Detected:</strong> The optimizer automatically allocated 3 virtual stages (Stage 1, Stage 2, Stage 3) to schedule all onstage competitions. Clicking <em>"Apply & Save to Master Schedule"</em> will auto-provision these stages into your festival.</span>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.75rem; color: #B45309;">
+                    💡 <strong>Tip:</strong> Click <strong>"+ Add Another Festival Day"</strong>, extend the <strong>To Time</strong> of your existing days, or select additional stages to auto-place remaining competitions!
+                </p>
             </div>
         `;
     }
 
     container.innerHTML = `
-        ${simNoticeHtml}
-        <div style="overflow-x: auto; border: 1.5px solid var(--border); border-radius: 10px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="min-width: 820px;">
-                <!-- Dedicated Sticky Time Header -->
-                <div style="display: flex; background: #F8FAFC; border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 10;">
-                    <div style="width: 175px; min-width: 175px; padding: 0.65rem 1rem; border-right: 1px solid var(--border); font-size: 0.72rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: space-between;">
-                        <span>Stage / Venue</span>
-                        <i class="fa-solid fa-layer-group" style="opacity: 0.4;"></i>
-                    </div>
-                    <div style="flex: 1; position: relative; height: 36px;">
-                        ${headerTimeMarkersHtml}
-                        ${headerBreaksBadgesHtml}
-                    </div>
-                </div>
-                <!-- Swimlanes Body -->
-                <div>
-                    ${swimlanesHtml}
-                </div>
-            </div>
-        </div>
+        ${dayTabsHtml}
+        ${daySectionsHtml}
         ${unplacedHtml}
     `;
 }
@@ -12647,12 +12960,11 @@ async function applyOptimizedSchedule() {
 
     const applyBtn = document.getElementById('btn-apply-optimized-schedule');
     if (applyBtn) {
-        applyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Applying & Saving...';
+        applyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Applying & Saving to Database...';
         applyBtn.disabled = true;
     }
 
     try {
-        // 0. Auto-provision simulated stages into database if needed
         const simStageIds = [...new Set(Object.values(pendingOptimizedSchedule).map(i => i.stage_id).filter(id => String(id).startsWith('sim_stage_')))];
         if (simStageIds.length > 0) {
             for (const simId of simStageIds) {
@@ -12678,7 +12990,6 @@ async function applyOptimizedSchedule() {
 
         const stageUpdates = [];
 
-        // 1. Merge pending into masterSchedule & check stage updates
         Object.keys(pendingOptimizedSchedule).forEach(id => {
             const item = pendingOptimizedSchedule[id];
             masterSchedule[id] = {
@@ -12689,23 +13000,21 @@ async function applyOptimizedSchedule() {
                 status: 'draft'
             };
 
-            const existingComp = competitionsList.find(c => c.id == id);
+            const existingComp = competitionsList.find(c => String(c.id) === String(id));
             if (existingComp && item.stage_id && String(existingComp.stage_id) !== String(item.stage_id)) {
                 stageUpdates.push(supabaseClient.from('competitions').update({ stage_id: item.stage_id }).eq('id', id));
             }
         });
 
-        // 2. Persist stage updates if any
         if (stageUpdates.length > 0) {
             await Promise.all(stageUpdates);
             await loadCompetitions();
         }
 
-        // 3. Save master_schedule in Supabase settings
         const { error } = window.festosSaveSetting ? await window.festosSaveSetting('master_schedule', masterSchedule) : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
         if (error) throw error;
 
-        showToast("Auto-Schedule successfully applied and persisted!", "success");
+        showToast("Auto-Schedule successfully applied and persisted across festival dates!", "success");
         document.getElementById('autoSchedulerModal').classList.remove('show');
         await loadSchedules();
     } catch(e) {
@@ -12717,7 +13026,7 @@ async function applyOptimizedSchedule() {
         }
     }
 }
-
+window.applyOptimizedSchedule = applyOptimizedSchedule;
 
 // NEW: Global Calculator Function
 window.updateScheduleTimeCalc = function() {
@@ -12785,7 +13094,13 @@ function openScheduleModal(editCompId = null) {
                 </select>
             </div>
             <div class="form-group">
-                <label>2. Competition</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <label style="margin: 0;">2. Competition</label>
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; margin: 0;">
+                        <input type="checkbox" id="modSchedOnlyPending" onchange="loadModSchedComps('${editCompId || ''}')" style="cursor: pointer; width: 14px; height: 14px; accent-color: var(--primary);">
+                        Pending Only
+                    </label>
+                </div>
                 <select id="modSchedComp" onchange="window.onScheduleCompChange()">
                     <option value="">-- SELECT COMPETITION --</option>
                 </select>
@@ -12842,12 +13157,14 @@ function openScheduleModal(editCompId = null) {
 function loadModSchedComps(keepCompId = null) {
     const catId = document.getElementById('modSchedCat')?.value;
     const compSelect = document.getElementById('modSchedComp');
+    const onlyPending = document.getElementById('modSchedOnlyPending')?.checked;
     if (!compSelect) return;
     
     compSelect.innerHTML = '<option value="">-- SELECT COMPETITION --</option>';
     
     let eligibleComps = (competitionsList || []).filter(c => {
         if (catId && String(c.category_id) !== String(catId)) return false;
+        if (onlyPending && String(c.status || '').toLowerCase() !== 'pending' && (!keepCompId || String(c.id) !== String(keepCompId))) return false;
         return !masterSchedule[c.id] || (keepCompId && String(c.id) === String(keepCompId));
     });
     
