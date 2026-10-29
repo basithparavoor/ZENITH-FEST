@@ -3,7 +3,7 @@ const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
 const supabaseClient = window.supabaseClient || (window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null);
 if (typeof window !== 'undefined') window.supabaseClient = supabaseClient;
 
-let html5QrcodeScanner = null;
+let html5QrCode = null;
 let currentPresentCount = 0; 
 let activeScanCompId = null; 
 let user = null;
@@ -589,21 +589,161 @@ function getButtonsForStatus(comp) {
     return `<div style="color: var(--primary); font-size: 0.95rem; font-weight: 700; width: 100%; text-align: center; background: var(--primary-light); padding: 1.25rem; border-radius: 16px; border: 1px dashed rgba(79, 70, 229, 0.3);">EVENT COMPLETED. WAITING FOR MANAGER.</div>`;
 }
 
+async function stopCameraTracks() {
+    if (html5QrCode) {
+        try {
+            if (html5QrCode.isScanning) {
+                await html5QrCode.stop();
+            }
+        } catch (e) {
+            console.warn("Error stopping scanner:", e);
+        }
+        try {
+            await html5QrCode.clear();
+        } catch (e) {}
+        html5QrCode = null;
+    }
+
+    // Forcibly stop any lingering video tracks on the page to prevent camera lock
+    try {
+        const videoEls = document.querySelectorAll('#global-reader video');
+        videoEls.forEach(v => {
+            if (v.srcObject && typeof v.srcObject.getTracks === 'function') {
+                v.srcObject.getTracks().forEach(track => track.stop());
+                v.srcObject = null;
+            }
+        });
+    } catch (e) {}
+}
+
 async function openScannerModal(compId, compName) {
     activeScanCompId = compId;
     isProcessingScan = false;
     document.getElementById('modal-comp-name').innerText = `Scanning: ${compName}`;
     document.getElementById('scanner-modal').style.display = 'flex';
 
-    // Removed qrbox to scan full-frame and boosted fps to 20 for instant reads
-    html5QrcodeScanner = new Html5QrcodeScanner("global-reader", { fps: 20 }, false);
-    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    await startQrScanner();
 }
 
-function closeScannerModal() {
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.clear().catch(e => console.error(e));
+async function startQrScanner() {
+    const readerEl = document.getElementById('global-reader');
+    if (!readerEl) return;
+    readerEl.innerHTML = `
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:300px; color:var(--text-muted);">
+            <i class="fa-solid fa-camera fa-spin" style="font-size:2rem; color:var(--primary); margin-bottom:0.75rem;"></i>
+            <span style="font-size:0.9rem; font-weight:600;">Starting Camera...</span>
+        </div>
+    `;
+
+    await stopCameraTracks();
+
+    try {
+        html5QrCode = new Html5Qrcode("global-reader", { 
+            experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+            verbose: false 
+        });
+
+        const scanConfig = {
+            fps: 20,
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                const qrboxSize = Math.max(180, Math.floor(minEdge * 0.75));
+                return { width: qrboxSize, height: qrboxSize };
+            }
+        };
+
+        // Try environment (back) camera first
+        await html5QrCode.start(
+            { facingMode: "environment" },
+            scanConfig,
+            onScanSuccess,
+            onScanFailure
+        );
+    } catch (err) {
+        console.warn("Direct back-camera failed, attempting general fallback:", err);
+        try {
+            // Fallback attempt: query available cameras directly
+            const devices = await Html5Qrcode.getCameras().catch(() => []);
+            if (devices && devices.length > 0) {
+                const backCam = devices.find(d => 
+                    (d.label || '').toLowerCase().includes('back') || 
+                    (d.label || '').toLowerCase().includes('rear') ||
+                    (d.label || '').toLowerCase().includes('environment')
+                );
+                const camId = backCam ? backCam.id : devices[0].id;
+                await html5QrCode.start(camId, { fps: 20 }, onScanSuccess, onScanFailure);
+                return;
+            }
+            throw err;
+        } catch (fallbackErr) {
+            console.error("Camera start failed entirely:", fallbackErr);
+            handleCameraError(fallbackErr);
+        }
     }
+}
+
+function handleCameraError(err) {
+    const readerEl = document.getElementById('global-reader');
+    if (!readerEl) return;
+
+    const errStr = (err ? (err.message || err.toString()) : '').toLowerCase();
+
+    if (errStr.includes('notreadableerror') || errStr.includes('could not start video source') || errStr.includes('hardware error')) {
+        readerEl.innerHTML = `
+            <div style="padding: 1.5rem 1rem; text-align: center; color: var(--text-main);">
+                <div style="font-size: 2.2rem; color: var(--danger); margin-bottom: 0.6rem;">
+                    <i class="fa-solid fa-camera-slash"></i>
+                </div>
+                <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.4rem; color: var(--danger);">Camera Hardware Unavailable</h3>
+                <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; text-align: left; background: var(--bg-main); padding: 0.75rem; border-radius: 10px; margin-bottom: 1rem; border: 1px solid var(--border);">
+                    <p style="margin: 0 0 0.35rem 0;"><strong>Common causes for this phone error:</strong></p>
+                    <p style="margin: 0 0 0.25rem 0;">🔋 <strong>Low Battery / Saver (3%):</strong> Android restricts camera access when battery drops below 5% to prevent sudden power shutdown.</p>
+                    <p style="margin: 0 0 0.25rem 0;">📱 <strong>Camera In Use:</strong> Another app (WhatsApp, native Camera, Instagram) or another tab has locked the camera.</p>
+                    <p style="margin: 0;">🔒 <strong>Stuck Sensor:</strong> The camera subsystem needs a quick refresh.</p>
+                </div>
+                <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                    <button class="btn btn-primary" style="max-width: 170px;" onclick="startQrScanner()">
+                        <i class="fa-solid fa-rotate-right"></i> Try Again
+                    </button>
+                    <button class="btn btn-outline" style="max-width: 120px;" onclick="closeScannerModal()">
+                        Close
+                    </button>
+                </div>
+            </div>
+        `;
+    } else if (errStr.includes('notallowederror') || errStr.includes('permission denied')) {
+        readerEl.innerHTML = `
+            <div style="padding: 1.5rem 1rem; text-align: center; color: var(--text-main);">
+                <div style="font-size: 2.2rem; color: var(--warning); margin-bottom: 0.6rem;">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.4rem;">Camera Permission Blocked</h3>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    Please tap the lock icon in your browser address bar and enable <strong>Camera</strong> permissions.
+                </p>
+                <button class="btn btn-primary" style="max-width: 180px; margin: 0 auto;" onclick="startQrScanner()">
+                    <i class="fa-solid fa-rotate-right"></i> Request Again
+                </button>
+            </div>
+        `;
+    } else {
+        readerEl.innerHTML = `
+            <div style="padding: 1.5rem 1rem; text-align: center; color: var(--text-main);">
+                <div style="font-size: 2.2rem; color: var(--danger); margin-bottom: 0.6rem;">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.4rem; color: var(--danger);">Camera Error</h3>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">${err ? (err.message || err) : 'Unknown camera error'}</p>
+                <button class="btn btn-primary" style="max-width: 180px; margin: 0 auto;" onclick="startQrScanner()">
+                    <i class="fa-solid fa-rotate-right"></i> Retry
+                </button>
+            </div>
+        `;
+    }
+}
+
+async function closeScannerModal() {
+    await stopCameraTracks();
     document.getElementById('scanner-modal').style.display = 'none';
     activeScanCompId = null;
     isProcessingScan = false;
@@ -651,8 +791,8 @@ async function getFreshNextCodeLetter(compId, currentRegId) {
 async function onScanSuccess(decodedText) {
     if (isProcessingScan || !activeScanCompId) return; 
     isProcessingScan = true;
-    if (html5QrcodeScanner) {
-        try { html5QrcodeScanner.pause(); } catch(e) {}
+    if (html5QrCode && html5QrCode.isScanning) {
+        try { html5QrCode.pause(true); } catch(e) {}
     }
 
     let qrId = decodedText.trim();
@@ -744,8 +884,8 @@ async function onScanSuccess(decodedText) {
 function resetScanner() {
     setTimeout(() => {
         isProcessingScan = false;
-        if (document.getElementById('scanner-modal').style.display === 'flex' && html5QrcodeScanner) {
-            try { html5QrcodeScanner.resume(); } catch(e) {}
+        if (document.getElementById('scanner-modal').style.display === 'flex' && html5QrCode) {
+            try { html5QrCode.resume(); } catch(e) {}
         }
     }, 1000); 
 }
