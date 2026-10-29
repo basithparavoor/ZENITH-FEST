@@ -29,6 +29,20 @@ let globalStages = [];
 let currentCropper = null;
 let systemSettings = {}; 
 let tmScheduleData = {};
+let globalJudgements = [];
+let processedTeamResults = {
+    participants: [],
+    competitions: [],
+    summary: {
+        totalPoints: 0,
+        goldCount: 0,
+        silverCount: 0,
+        bronzeCount: 0,
+        gradeCount: 0,
+        publishedCount: 0
+    }
+};
+let currentResultsView = 'participant';
 
 // Instantly restore cached team info so "LOADING TEAM..." never hangs on screen
 function restoreCachedTeamHeader() {
@@ -187,6 +201,11 @@ function switchTab(tabId) {
         }
     }
     if (tabId === 'schedule') { populateSchedCatFilter(); renderTMSchedule(); }
+    if (tabId === 'results') {
+        if (typeof window.renderTeamResults === 'function') {
+            window.renderTeamResults();
+        }
+    }
 
     const mainContent = document.querySelector('.main-content');
     if(mainContent) mainContent.scrollTop = 0;
@@ -246,6 +265,7 @@ function saveDashboardToCache() {
             students: globalStudents,
             competitions: globalComps,
             assignments: globalAssignments,
+            judgements: globalJudgements,
             stats: {
                 studentsCount: globalStudents.length,
                 eventsCount: new Set(globalAssignments.map(a => a.competition_id)).size,
@@ -297,6 +317,10 @@ function restoreDashboardFromCache() {
         if (Array.isArray(cache.assignments)) {
             globalAssignments = cache.assignments;
         }
+        if (Array.isArray(cache.judgements)) {
+            globalJudgements = cache.judgements;
+            try { computeTeamResults(); } catch(e) {}
+        }
 
         // Restore stats immediately (0ms)
         if (cache.stats) {
@@ -322,6 +346,7 @@ function restoreDashboardFromCache() {
         renderStudents();
         renderCatalog();
         renderLiveTracking();
+        try { populateSchedCatFilter(); } catch(e) {}
         populateBulkAssignCategoryDropdown();
         populateAssignOverviewCategoryDropdown();
         renderAssignOverview();
@@ -540,6 +565,13 @@ async function fetchAllData(forceFresh = false, isBackgroundSync = false) {
 
         globalAssignments = assignsRes?.data || [];
         const judgements = judgementsRes?.data || [];
+        globalJudgements = judgements;
+        try {
+            computeTeamResults();
+            populateResultsCategoryDropdown();
+        } catch(e) {
+            console.error('Error computing team results:', e);
+        }
 
         const catSet = new Set(globalComps.map(c => c.categories?.name || 'GENERAL'));
         const catSelect = document.getElementById('filter-catalog-cat');
@@ -626,9 +658,20 @@ async function fetchAllData(forceFresh = false, isBackgroundSync = false) {
         }
 
         updateDashboardStats(judgements);
+        try {
+            if (document.getElementById('results')?.classList.contains('active')) {
+                renderTeamResults();
+            }
+        } catch(e) {}
         renderStudents();
         renderCatalog();
         renderLiveTracking();
+        try {
+            populateSchedCatFilter();
+            if (document.getElementById('schedule')?.classList.contains('active')) {
+                renderTMSchedule();
+            }
+        } catch(e) {}
         populateBulkAssignCategoryDropdown();
         populateAssignOverviewCategoryDropdown();
         renderAssignOverview();
@@ -2400,33 +2443,112 @@ document.addEventListener('DOMContentLoaded', initDashboard);
 // TM SCHEDULE VIEWER
 // ==========================================
 
+// ==========================================
+// TM SCHEDULE VIEWER (WITH DATE, STATUS, LIVE PRIORITY)
+// ==========================================
+
+function getCompStatusRank(comp) {
+    const s = String(comp?.status || 'scheduled').toLowerCase();
+    // 1: Top priority - LIVE / ONGOING
+    if (s === 'ongoing' || s === 'live') return 1;
+    // 2: REGISTRATION / CALLING
+    if (s === 'registration' || s === 'calling') return 2;
+    // 3: Under valuation / evaluation
+    if (s === 'valuation') return 3;
+    if (s === 'judgement_complete') return 4;
+    // 5: Upcoming / Scheduled
+    if (s === 'scheduled' || s === 'pending') return 5;
+    // 6: Completed / Published
+    if (s === 'published' || s === 'completed') return 6;
+    return 5;
+}
+
+function getCompStatusBadge(comp) {
+    const s = String(comp?.status || 'scheduled').toLowerCase();
+    if (s === 'ongoing' || s === 'live') {
+        return `<span class="badge" style="background: #FEF3C7; color: #D97706; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 800;"><i class="fa-solid fa-satellite-dish fa-fade"></i> LIVE NOW</span>`;
+    }
+    if (s === 'registration' || s === 'calling') {
+        return `<span class="badge" style="background: #EFF6FF; color: #2563EB; border: 1px solid rgba(37, 99, 235, 0.35); font-weight: 800;"><i class="fa-solid fa-bullhorn fa-beat"></i> CALLING</span>`;
+    }
+    if (s === 'valuation') {
+        return `<span class="badge" style="background: #F3E8FF; color: #7E22CE; border: 1px solid rgba(126, 34, 206, 0.3); font-weight: 700;"><i class="fa-solid fa-clipboard-check"></i> EVALUATION</span>`;
+    }
+    if (s === 'judgement_complete') {
+        return `<span class="badge" style="background: #F3E8FF; color: #7E22CE; border: 1px solid rgba(126, 34, 206, 0.3); font-weight: 700;"><i class="fa-solid fa-check-double"></i> EVALUATED</span>`;
+    }
+    if (s === 'published' || s === 'completed') {
+        return `<span class="badge badge-success" style="font-weight: 700;"><i class="fa-solid fa-flag-checkered"></i> COMPLETED</span>`;
+    }
+    return `<span class="badge badge-gray" style="border: 1px solid var(--border); font-weight: 600;"><i class="fa-solid fa-clock"></i> UPCOMING</span>`;
+}
+
 function populateSchedCatFilter() {
-    const catFilter = document.getElementById('filter-schedule-cat');
-    const stageFilter = document.getElementById('filter-schedule-stage');
-    
-    if (catFilter && catFilter.options.length <= 1) {
-        const catSet = new Set();
-        globalComps.forEach(c => {
-            if (tmScheduleData[c.id] && tmScheduleData[c.id].status === 'published') {
-                catSet.add(JSON.stringify({ id: c.category_id, name: c.categories?.name || 'UNCATEGORIZED' }));
+    // 1. Populate Date Filter
+    const dateFilter = document.getElementById('filter-schedule-date');
+    if (dateFilter) {
+        const currentDateVal = dateFilter.value || 'all';
+        const dateSet = new Set();
+        (globalComps || []).forEach(c => {
+            const sched = tmScheduleData[c.id];
+            if (sched && sched.status === 'published' && sched.date) {
+                dateSet.add(sched.date);
             }
         });
-        Array.from(catSet).map(JSON.parse).forEach(cat => catFilter.innerHTML += `<option value="${cat.id}">${cat.name}</option>`);
+        const sortedDates = Array.from(dateSet).sort();
+        let dateOpts = '<option value="all">ALL DATES</option>';
+        sortedDates.forEach((d, idx) => {
+            dateOpts += `<option value="${d}">Day ${idx + 1} (${d})</option>`;
+        });
+        dateFilter.innerHTML = dateOpts;
+        if (Array.from(dateFilter.options).some(o => o.value === currentDateVal)) {
+            dateFilter.value = currentDateVal;
+        }
     }
 
-    if (stageFilter && stageFilter.options.length <= 1) {
+    // 2. Populate Category Filter
+    const catFilter = document.getElementById('filter-schedule-cat');
+    if (catFilter) {
+        const currentCatVal = catFilter.value || 'all';
+        const catMap = new Map();
+        (globalCategories || []).forEach(cat => catMap.set(String(cat.id), cat.name));
+        (globalComps || []).forEach(c => {
+            if (tmScheduleData[c.id] && tmScheduleData[c.id].status === 'published') {
+                const cid = String(c.category_id || c.categories?.id || '');
+                const cname = c.categories?.name || 'UNCATEGORIZED';
+                if (cid) catMap.set(cid, cname);
+            }
+        });
+        let catOpts = '<option value="all">ALL CATEGORIES</option>';
+        catMap.forEach((name, id) => {
+            catOpts += `<option value="${id}">${name}</option>`;
+        });
+        catFilter.innerHTML = catOpts;
+        if (Array.from(catFilter.options).some(o => o.value === currentCatVal)) {
+            catFilter.value = currentCatVal;
+        }
+    }
+
+    // 3. Populate Stage Filter
+    const stageFilter = document.getElementById('filter-schedule-stage');
+    if (stageFilter) {
+        const currentStageVal = stageFilter.value || 'all';
         const stageMap = new Map();
         (globalStages || []).forEach(stg => stageMap.set(String(stg.id), stg.name));
-        globalComps.forEach(c => {
+        (globalComps || []).forEach(c => {
             if (tmScheduleData[c.id] && tmScheduleData[c.id].status === 'published') {
                 if (c.stage_id && c.stages?.name) stageMap.set(String(c.stage_id), c.stages.name);
             }
         });
-        stageFilter.innerHTML = '<option value="all">ALL STAGES / VENUES</option>';
+        let stageOpts = '<option value="all">ALL STAGES / VENUES</option>';
         stageMap.forEach((name, id) => {
-            stageFilter.innerHTML += `<option value="${id}">${name}</option>`;
+            stageOpts += `<option value="${id}">${name}</option>`;
         });
-        stageFilter.innerHTML += '<option value="offstage">OFFSTAGE VENUES ONLY</option>';
+        stageOpts += '<option value="offstage">OFFSTAGE VENUES ONLY</option>';
+        stageFilter.innerHTML = stageOpts;
+        if (Array.from(stageFilter.options).some(o => o.value === currentStageVal)) {
+            stageFilter.value = currentStageVal;
+        }
     }
 }
 
@@ -2497,7 +2619,7 @@ function detectTMStudentScheduleConflicts() {
             if (titleElem) titleElem.innerText = `⚠️ ${conflicts.length} Schedule Conflict${conflicts.length > 1 ? 's' : ''} Detected in Your Team`;
             if (descElem) {
                 const studentNames = Array.from(new Set(conflicts.map(c => c.student.name))).join(', ');
-                descElem.innerText = `Students with overlapping event schedules: ${studentNames}. Contact admin if adjustments are needed.`;
+                descElem.innerText = `Students with overlapping event schedules: ${studentNames}. Contact stage coordinators if adjustments are needed.`;
             }
         } else {
             banner.style.display = 'none';
@@ -2508,20 +2630,49 @@ function detectTMStudentScheduleConflicts() {
 }
 
 function renderTMSchedule() {
-    const search = document.getElementById('search-schedule').value.toLowerCase();
-    const catFilter = document.getElementById('filter-schedule-cat').value;
-    const stageFilter = document.getElementById('filter-schedule-stage').value;
+    const search = (document.getElementById('search-schedule')?.value || '').toLowerCase().trim();
+    const dateFilter = document.getElementById('filter-schedule-date')?.value || 'all';
+    const catFilter = document.getElementById('filter-schedule-cat')?.value || 'all';
+    const statusFilter = document.getElementById('filter-schedule-status')?.value || 'all';
+    const stageFilter = document.getElementById('filter-schedule-stage')?.value || 'all';
+    const teamFilter = document.getElementById('filter-schedule-team')?.value || 'all';
+
     const tbody = document.getElementById('tm-schedule-tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
 
     const compConflictMap = detectTMStudentScheduleConflicts();
 
-    const scheduledComps = globalComps.filter(c => {
+    const scheduledComps = (globalComps || []).filter(c => {
         const sched = tmScheduleData[c.id];
         if (!sched || sched.status !== 'published') return false;
-        
-        const catName = c.categories?.name || 'UNCATEGORIZED';
-        if (catFilter !== 'all' && String(c.category_id) !== String(catFilter)) return false;
+
+        // 1. Date Filter
+        if (dateFilter !== 'all' && sched.date !== dateFilter) return false;
+
+        // 2. Category Filter
+        const compCatId = String(c.category_id || c.categories?.id || '');
+        if (catFilter !== 'all' && compCatId !== String(catFilter)) return false;
+
+        // 3. Status Filter
+        const s = String(c.status || 'scheduled').toLowerCase();
+        if (statusFilter !== 'all') {
+            if (statusFilter === 'ongoing') {
+                if (s !== 'ongoing' && s !== 'live') return false;
+            } else if (statusFilter === 'registration') {
+                if (s !== 'registration' && s !== 'calling') return false;
+            } else if (statusFilter === 'scheduled') {
+                if (s !== 'scheduled' && s !== 'pending') return false;
+            } else if (statusFilter === 'valuation') {
+                if (s !== 'valuation' && s !== 'judgement_complete') return false;
+            } else if (statusFilter === 'published') {
+                if (s !== 'published' && s !== 'completed') return false;
+            } else if (s !== statusFilter) {
+                return false;
+            }
+        }
+
+        // 4. Stage / Venue Filter
         if (stageFilter !== 'all') {
             if (stageFilter === 'offstage') {
                 if (!c.is_offstage) return false;
@@ -2529,43 +2680,120 @@ function renderTMSchedule() {
                 return false;
             }
         }
-        if (search && !c.name.toLowerCase().includes(search) && !catName.toLowerCase().includes(search)) return false;
-        
+
+        // 5. Team Enrolled Filter
+        const ourEnrolled = (globalAssignments || []).filter(a => a.competition_id === c.id);
+        if (teamFilter === 'my_team' && ourEnrolled.length === 0) {
+            return false;
+        }
+
+        // 6. Search Query
+        if (search) {
+            const catName = c.categories?.name || '';
+            const stageName = c.stages?.name || '';
+            const compName = c.name || '';
+            const dateStr = sched.date || '';
+            const enrolledNames = ourEnrolled.map(a => {
+                const st = (globalStudents || []).find(s => s.id === a.participant_id);
+                return st ? st.name : '';
+            }).join(' ');
+
+            const matches = compName.toLowerCase().includes(search) ||
+                            catName.toLowerCase().includes(search) ||
+                            stageName.toLowerCase().includes(search) ||
+                            dateStr.toLowerCase().includes(search) ||
+                            enrolledNames.toLowerCase().includes(search);
+            if (!matches) return false;
+        }
+
         return true;
     });
 
-    scheduledComps.sort((a,b) => {
-        const sA = tmScheduleData[a.id];
-        const sB = tmScheduleData[b.id];
-        if (sA.date !== sB.date) return (sA.date || '').localeCompare(sB.date || '');
-        return (sA.time || '').localeCompare(sB.time || '');
+    // CRITICAL REQUIREMENT: Make ONGOING / LIVE / REGISTRATION status events on TOP!
+    scheduledComps.sort((a, b) => {
+        const rankA = getCompStatusRank(a);
+        const rankB = getCompStatusRank(b);
+
+        if (rankA !== rankB) {
+            return rankA - rankB; // Lower rank number floats to the top (1 = Live, 2 = Calling, etc.)
+        }
+
+        // Within the same status priority tier, sort chronologically by Date, then Time
+        const sA = tmScheduleData[a.id] || {};
+        const sB = tmScheduleData[b.id] || {};
+
+        const dateA = sA.date || '';
+        const dateB = sB.date || '';
+        if (dateA !== dateB) {
+            return dateA.localeCompare(dateB);
+        }
+
+        const timeA = sA.time || '';
+        const timeB = sB.time || '';
+        if (timeA !== timeB) {
+            return timeA.localeCompare(timeB);
+        }
+
+        return (a.name || '').localeCompare(b.name || '');
     });
 
-    if(scheduledComps.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted); font-weight: 600;">NO PUBLISHED SCHEDULES FOUND MATCHING FILTERS.</td></tr>';
+    if (scheduledComps.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-weight: 600;">NO PUBLISHED SCHEDULES FOUND MATCHING CURRENT FILTERS.</td></tr>';
         return;
     }
 
     scheduledComps.forEach(comp => {
-        const sched = tmScheduleData[comp.id];
+        const sched = tmScheduleData[comp.id] || {};
         const catName = comp.categories?.name || 'UNCATEGORIZED';
         const venueInfo = (window.festosGetCompVenueStage || getCompVenueStage)(comp, globalStages);
-        
+        const statusBadge = getCompStatusBadge(comp);
+
+        const ourAssignments = (globalAssignments || []).filter(a => a.competition_id === comp.id);
+        const ourCount = ourAssignments.length;
+
+        let enrolledBadge = '';
+        if (ourCount > 0) {
+            enrolledBadge = `
+                <span class="badge badge-info" onclick="viewEnrolledDetails('${comp.id}')" style="cursor: pointer; font-weight: 700;" title="Click to view enrolled members">
+                    <i class="fa-solid fa-users"></i> ${ourCount} ENROLLED <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.7rem; margin-left: 3px;"></i>
+                </span>
+            `;
+        } else {
+            enrolledBadge = '<span class="badge badge-gray" style="opacity: 0.65;">NONE</span>';
+        }
+
         const clashes = compConflictMap[comp.id] || [];
         let clashBadge = '';
         if (clashes.length > 0) {
             const names = clashes.map(c => c.student.name).join(', ');
-            clashBadge = `<br><span class="badge" style="background:#FEE2E2; color:#DC2626; border:1px solid #FCA5A5; font-weight:700; margin-top:4px; display:inline-flex; align-items:center; gap:4px;" title="Clash for: ${names}"><i class="fa-solid fa-triangle-exclamation"></i> Student Overlap (${clashes.length})</span>`;
+            clashBadge = `<br><span class="badge" style="background:#FEE2E2; color:#DC2626; border:1px solid #FCA5A5; font-weight:700; margin-top:4px; display:inline-flex; align-items:center; gap:4px;" title="Clash for: ${names}"><i class="fa-solid fa-triangle-exclamation"></i> Overlap (${clashes.length})</span>`;
         }
 
+        const isLive = String(comp.status || '').toLowerCase() === 'ongoing' || String(comp.status || '').toLowerCase() === 'live';
+        const isCalling = String(comp.status || '').toLowerCase() === 'registration' || String(comp.status || '').toLowerCase() === 'calling';
+
+        let rowHighlight = '';
+        if (isLive) {
+            rowHighlight = 'background: rgba(254, 243, 199, 0.45); border-left: 4px solid #D97706;';
+        } else if (isCalling) {
+            rowHighlight = 'background: rgba(239, 246, 255, 0.5); border-left: 4px solid #2563EB;';
+        }
+
+        const timeDisplay = sched.time ? (sched.to_time ? `${sched.time} - ${sched.to_time}` : sched.time) : '--:--';
+
         tbody.innerHTML += `
-            <tr>
+            <tr style="${rowHighlight}">
+                <td data-label="STATUS">${statusBadge}</td>
                 <td data-label="DATE" style="font-weight: 700; color: var(--primary);">${sched.date || 'TBD'}</td>
-                <td data-label="FROM TIME" style="font-weight: 700;">${sched.time || '--:--'}</td>
-                <td data-label="TO TIME" style="font-weight: 700; color: var(--text-muted);">${sched.to_time || '-'}</td>
-                <td data-label="EVENT NAME" style="font-weight: 800; color: var(--text-main); font-size: 1.05rem;">${comp.name} ${clashBadge}</td>
-                <td data-label="VENUE / STAGE"><span style="font-weight: 700; color: var(--primary);"><i class="fa-solid fa-microphone-stage" style="margin-right: 5px;"></i> ${venueInfo.name}</span></td>
-                <td data-label="CATEGORY"><span class="badge badge-gray">${catName}</span></td>
+                <td data-label="TIMING" style="font-weight: 700; white-space: nowrap;">${timeDisplay}</td>
+                <td data-label="EVENT NAME">
+                    <span style="font-weight: 800; color: var(--text-main); font-size: 1.02rem;">${escapeHtml(comp.name)}</span>
+                    ${comp.is_group ? '<span class="badge" style="background:#E0E7FF; color:#4338CA; font-size:0.68rem; margin-left:6px; font-weight:800;">GROUP</span>' : ''}
+                    ${clashBadge}
+                </td>
+                <td data-label="VENUE / STAGE"><span style="font-weight: 700; color: var(--primary);"><i class="fa-solid fa-microphone-stage" style="margin-right: 5px;"></i> ${escapeHtml(venueInfo.name)}</span></td>
+                <td data-label="CATEGORY"><span class="badge badge-gray">${escapeHtml(catName)}</span></td>
+                <td data-label="OUR ENROLLED">${enrolledBadge}</td>
             </tr>
         `;
     });
@@ -2573,14 +2801,31 @@ function renderTMSchedule() {
 
 async function exportTMSchedulePDF() {
     showToast('Generating Schedule PDF...', 'success');
-    const search = document.getElementById('search-schedule')?.value.toLowerCase() || '';
+    const search = (document.getElementById('search-schedule')?.value || '').toLowerCase().trim();
+    const dateFilter = document.getElementById('filter-schedule-date')?.value || 'all';
     const catFilter = document.getElementById('filter-schedule-cat')?.value || 'all';
+    const statusFilter = document.getElementById('filter-schedule-status')?.value || 'all';
     const stageFilter = document.getElementById('filter-schedule-stage')?.value || 'all';
+    const teamFilter = document.getElementById('filter-schedule-team')?.value || 'all';
 
-    const scheduledComps = globalComps.filter(c => {
+    const scheduledComps = (globalComps || []).filter(c => {
         const sched = tmScheduleData[c.id];
         if (!sched || sched.status !== 'published') return false;
-        if (catFilter !== 'all' && String(c.category_id) !== String(catFilter)) return false;
+
+        if (dateFilter !== 'all' && sched.date !== dateFilter) return false;
+
+        const compCatId = String(c.category_id || c.categories?.id || '');
+        if (catFilter !== 'all' && compCatId !== String(catFilter)) return false;
+
+        const s = String(c.status || 'scheduled').toLowerCase();
+        if (statusFilter !== 'all') {
+            if (statusFilter === 'ongoing' && s !== 'ongoing' && s !== 'live') return false;
+            else if (statusFilter === 'registration' && s !== 'registration' && s !== 'calling') return false;
+            else if (statusFilter === 'scheduled' && s !== 'scheduled' && s !== 'pending') return false;
+            else if (statusFilter === 'valuation' && s !== 'valuation' && s !== 'judgement_complete') return false;
+            else if (statusFilter === 'published' && s !== 'published' && s !== 'completed') return false;
+        }
+
         if (stageFilter !== 'all') {
             if (stageFilter === 'offstage') {
                 if (!c.is_offstage) return false;
@@ -2588,13 +2833,27 @@ async function exportTMSchedulePDF() {
                 return false;
             }
         }
+
+        const ourEnrolled = (globalAssignments || []).filter(a => a.competition_id === c.id);
+        if (teamFilter === 'my_team' && ourEnrolled.length === 0) return false;
+
         if (search && !c.name.toLowerCase().includes(search)) return false;
+
         return true;
-    }).sort((a,b) => {
-        const sA = tmScheduleData[a.id];
-        const sB = tmScheduleData[b.id];
-        if (sA.date !== sB.date) return (sA.date || '').localeCompare(sB.date || '');
-        return (sA.time || '').localeCompare(sB.time || '');
+    }).sort((a, b) => {
+        const rankA = getCompStatusRank(a);
+        const rankB = getCompStatusRank(b);
+        if (rankA !== rankB) return rankA - rankB;
+
+        const sA = tmScheduleData[a.id] || {};
+        const sB = tmScheduleData[b.id] || {};
+        const dateA = sA.date || '';
+        const dateB = sB.date || '';
+        if (dateA !== dateB) return dateA.localeCompare(dateB);
+        const timeA = sA.time || '';
+        const timeB = sB.time || '';
+        if (timeA !== timeB) return timeA.localeCompare(timeB);
+        return (a.name || '').localeCompare(b.name || '');
     });
 
     if (scheduledComps.length === 0) {
@@ -2675,6 +2934,7 @@ async function exportTMSchedulePDF() {
                     <td style="padding: 8px 10px; width: 140px;">
                         <span style="font-weight: 800; color: #4F46E5; font-size: 11px;">${(venueInfo.name || "TBD").toUpperCase()}</span>
                     </td>
+                    <td style="padding: 8px 8px; text-align: center; width: 90px;">${getCompStatusBadge(c)}</td>
                     <td style="padding: 8px 8px; text-align: center; width: 85px;">${modeBadge}</td>
                     <td style="padding: 8px 10px; max-width: 220px;">${enrolledHtml}</td>
                 </tr>
@@ -2699,6 +2959,7 @@ async function exportTMSchedulePDF() {
                             <th style="padding: 7px 10px;">EVENT NAME</th>
                             <th style="padding: 7px 10px; width: 120px;">CATEGORY</th>
                             <th style="padding: 7px 10px; width: 140px;">VENUE / STAGE</th>
+                            <th style="padding: 7px 8px; width: 90px; text-align: center;">STATUS</th>
                             <th style="padding: 7px 8px; width: 85px; text-align: center;">MODE</th>
                             <th style="padding: 7px 10px;">TEAM ENROLLED</th>
                         </tr>
@@ -2777,14 +3038,31 @@ async function exportTMSchedulePDF() {
 }
 
 async function exportTMScheduleCSV() {
-    const search = document.getElementById('search-schedule')?.value.toLowerCase() || '';
+    const search = (document.getElementById('search-schedule')?.value || '').toLowerCase().trim();
+    const dateFilter = document.getElementById('filter-schedule-date')?.value || 'all';
     const catFilter = document.getElementById('filter-schedule-cat')?.value || 'all';
+    const statusFilter = document.getElementById('filter-schedule-status')?.value || 'all';
     const stageFilter = document.getElementById('filter-schedule-stage')?.value || 'all';
+    const teamFilter = document.getElementById('filter-schedule-team')?.value || 'all';
 
-    const scheduledComps = globalComps.filter(c => {
+    const scheduledComps = (globalComps || []).filter(c => {
         const sched = tmScheduleData[c.id];
         if (!sched || sched.status !== 'published') return false;
-        if (catFilter !== 'all' && String(c.category_id) !== String(catFilter)) return false;
+
+        if (dateFilter !== 'all' && sched.date !== dateFilter) return false;
+
+        const compCatId = String(c.category_id || c.categories?.id || '');
+        if (catFilter !== 'all' && compCatId !== String(catFilter)) return false;
+
+        const s = String(c.status || 'scheduled').toLowerCase();
+        if (statusFilter !== 'all') {
+            if (statusFilter === 'ongoing' && s !== 'ongoing' && s !== 'live') return false;
+            else if (statusFilter === 'registration' && s !== 'registration' && s !== 'calling') return false;
+            else if (statusFilter === 'scheduled' && s !== 'scheduled' && s !== 'pending') return false;
+            else if (statusFilter === 'valuation' && s !== 'valuation' && s !== 'judgement_complete') return false;
+            else if (statusFilter === 'published' && s !== 'published' && s !== 'completed') return false;
+        }
+
         if (stageFilter !== 'all') {
             if (stageFilter === 'offstage') {
                 if (!c.is_offstage) return false;
@@ -2792,13 +3070,27 @@ async function exportTMScheduleCSV() {
                 return false;
             }
         }
+
+        const ourEnrolled = (globalAssignments || []).filter(a => a.competition_id === c.id);
+        if (teamFilter === 'my_team' && ourEnrolled.length === 0) return false;
+
         if (search && !c.name.toLowerCase().includes(search)) return false;
+
         return true;
     }).sort((a, b) => {
-        const sA = tmScheduleData[a.id];
-        const sB = tmScheduleData[b.id];
-        if (sA.date !== sB.date) return (sA.date || '').localeCompare(sB.date || '');
-        return (sA.time || '').localeCompare(sB.time || '');
+        const rankA = getCompStatusRank(a);
+        const rankB = getCompStatusRank(b);
+        if (rankA !== rankB) return rankA - rankB;
+
+        const sA = tmScheduleData[a.id] || {};
+        const sB = tmScheduleData[b.id] || {};
+        const dateA = sA.date || '';
+        const dateB = sB.date || '';
+        if (dateA !== dateB) return dateA.localeCompare(dateB);
+        const timeA = sA.time || '';
+        const timeB = sB.time || '';
+        if (timeA !== timeB) return timeA.localeCompare(timeB);
+        return (a.name || '').localeCompare(b.name || '');
     });
 
     if (scheduledComps.length === 0) {
@@ -2833,6 +3125,7 @@ async function exportTMScheduleCSV() {
 
         return {
             'SL NO': slNo++,
+            'STATUS': (c.status || 'scheduled').toUpperCase(),
             'DATE': sched.date || '',
             'FROM TIME': sched.time || '',
             'TO TIME': sched.to_time || '-',
@@ -3176,6 +3469,9 @@ window.switchTab = function(tabId) {
     if(originalSwitchTab) originalSwitchTab(tabId);
     if(tabId === 'assignments') {
         if(typeof window.switchAssignView === 'function') window.switchAssignView('list');
+    }
+    if(tabId === 'results') {
+        if(typeof window.renderTeamResults === 'function') window.renderTeamResults();
     }
 };
 
@@ -3605,3 +3901,952 @@ window.openBulkBadgeModalTM = function() {
     }
 };
 }
+
+// =========================================================================
+// TEAM PARTICIPANT RESULTS ENGINE (STANDINGS, SCORECARDS, MEDALS & POINTS)
+// =========================================================================
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function computeTeamResults() {
+    const publishedComps = (globalComps || []).filter(c => c.status === 'published');
+    const myStudentIds = new Set((globalStudents || []).map(s => String(s.id)));
+    const myStudentMap = new Map();
+    (globalStudents || []).forEach(s => myStudentMap.set(String(s.id), s));
+
+    // Group judgements by compId and participantId
+    const compJudgementsMap = {};
+    (globalJudgements || []).forEach(j => {
+        if (!j.competition_id || !j.participant_id || j.awarded_mark == null) return;
+        const mark = parseFloat(j.awarded_mark);
+        if (isNaN(mark)) return;
+        const cId = String(j.competition_id);
+        const pId = String(j.participant_id);
+        if (!compJudgementsMap[cId]) compJudgementsMap[cId] = {};
+        if (!compJudgementsMap[cId][pId]) compJudgementsMap[cId][pId] = [];
+        compJudgementsMap[cId][pId].push(mark);
+    });
+
+    const thresholds = systemSettings.thresholds || { aplus: 90, a: 80, b: 70, c: 60 };
+    const posPoints = systemSettings.pos_points || { p1: 10, p2: 5, p3: 3 };
+
+    // Initialize student results tracker
+    const studentResultsMap = {};
+    (globalStudents || []).forEach(s => {
+        studentResultsMap[String(s.id)] = {
+            student: s,
+            results: [],
+            totalPoints: 0,
+            goldCount: 0,
+            silverCount: 0,
+            bronzeCount: 0,
+            gradeCount: 0
+        };
+    });
+
+    const compResultsList = [];
+    let summaryTotalPoints = 0;
+    let summaryGold = 0;
+    let summarySilver = 0;
+    let summaryBronze = 0;
+    let summaryGrades = 0;
+    const publishedCompetitionsWithTeam = [];
+
+    publishedComps.forEach(comp => {
+        const cId = String(comp.id);
+        // Find assignments from our team in this event
+        const ourEnrolledAssignments = (globalAssignments || []).filter(a => String(a.competition_id) === cId);
+        if (ourEnrolledAssignments.length === 0) return;
+
+        publishedCompetitionsWithTeam.push(comp);
+
+        // Calculate trimmed mean scores for all participants evaluated in this event
+        const marksForComp = compJudgementsMap[cId] || {};
+        const participantsArr = Object.entries(marksForComp).map(([pId, marks]) => {
+            let sorted = marks.slice().sort((a, b) => a - b);
+            if (sorted.length >= 3) {
+                sorted = sorted.slice(1, sorted.length - 1);
+            }
+            const avg = sorted.reduce((sum, v) => sum + v, 0) / sorted.length;
+            return {
+                participantId: pId,
+                avgMark: avg
+            };
+        }).sort((a, b) => b.avgMark - a.avgMark);
+
+        // Assign Olympic ranks with tie handling
+        let currentRank = 1;
+        let prevMark = -1;
+        const maxMark = comp.max_mark || 100;
+        const limit = comp.max_participants || 1;
+        const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
+        const gradePointsTable = systemSettings[`points_${sizeCat}`] || { aplus: 5, a: 3, b: 2, c: 1 };
+
+        const rankedEntriesMap = {};
+        participantsArr.forEach((entry, idx) => {
+            if (entry.avgMark !== prevMark) {
+                currentRank = idx + 1;
+            }
+            entry.rank = currentRank;
+            prevMark = entry.avgMark;
+
+            const percent = (entry.avgMark / maxMark) * 100;
+            let grade = '-';
+            let gradePts = 0;
+            if (percent >= 50) {
+                if (percent >= Number(thresholds.aplus || 90)) { grade = 'A+'; gradePts = Number(gradePointsTable.aplus || 0); }
+                else if (percent >= Number(thresholds.a || 80)) { grade = 'A'; gradePts = Number(gradePointsTable.a || 0); }
+                else if (percent >= Number(thresholds.b || 70)) { grade = 'B'; gradePts = Number(gradePointsTable.b || 0); }
+                else { grade = 'C'; gradePts = Number(gradePointsTable.c || 0); }
+            }
+
+            let posPts = 0;
+            if (currentRank <= 3) {
+                if (currentRank === 1) posPts = Number(posPoints.p1 || 0);
+                else if (currentRank === 2) posPts = Number(posPoints.p2 || 0);
+                else if (currentRank === 3) posPts = Number(posPoints.p3 || 0);
+            }
+
+            entry.percent = percent;
+            entry.grade = grade;
+            entry.gradePts = gradePts;
+            entry.posPts = posPts;
+            entry.totalPts = gradePts + posPts;
+
+            rankedEntriesMap[entry.participantId] = entry;
+        });
+
+        const isGroup = !!comp.is_group;
+        let teamEntryResult = null;
+        const teamParticipantsInEvent = [];
+
+        ourEnrolledAssignments.forEach(assign => {
+            const studentId = String(assign.participant_id);
+            const student = myStudentMap.get(studentId);
+            if (!student) return;
+
+            teamParticipantsInEvent.push({
+                student,
+                isLeader: !!assign.is_leader
+            });
+
+            if (rankedEntriesMap[studentId]) {
+                teamEntryResult = rankedEntriesMap[studentId];
+            }
+        });
+
+        // Group events fallback: if marks entered on leader or another team member
+        if (!teamEntryResult && isGroup) {
+            for (const assign of ourEnrolledAssignments) {
+                if (rankedEntriesMap[String(assign.participant_id)]) {
+                    teamEntryResult = rankedEntriesMap[String(assign.participant_id)];
+                    break;
+                }
+            }
+        }
+
+        // Add to competition results list
+        compResultsList.push({
+            competition: comp,
+            isGroup,
+            participants: teamParticipantsInEvent,
+            result: teamEntryResult,
+            points: teamEntryResult ? teamEntryResult.totalPts : 0
+        });
+
+        // Attach results to individual student scorecards
+        if (isGroup) {
+            if (teamEntryResult) {
+                summaryTotalPoints += teamEntryResult.totalPts;
+                if (teamEntryResult.rank === 1) summaryGold++;
+                else if (teamEntryResult.rank === 2) summarySilver++;
+                else if (teamEntryResult.rank === 3) summaryBronze++;
+                if (teamEntryResult.grade !== '-') summaryGrades++;
+
+                teamParticipantsInEvent.forEach(tp => {
+                    const sData = studentResultsMap[String(tp.student.id)];
+                    if (sData) {
+                        sData.results.push({
+                            competitionId: comp.id,
+                            competitionName: comp.name,
+                            categoryName: comp.categories?.name || 'GENERAL',
+                            stageName: comp.stages?.name || 'MAIN STAGE',
+                            isGroup: true,
+                            isLeader: tp.isLeader,
+                            mark: teamEntryResult.avgMark,
+                            maxMark: comp.max_mark || 100,
+                            percent: teamEntryResult.percent,
+                            rank: teamEntryResult.rank,
+                            grade: teamEntryResult.grade,
+                            gradePts: teamEntryResult.gradePts,
+                            posPts: teamEntryResult.posPts,
+                            totalPts: teamEntryResult.totalPts
+                        });
+                        sData.totalPoints += teamEntryResult.totalPts;
+                        if (teamEntryResult.rank === 1) sData.goldCount++;
+                        else if (teamEntryResult.rank === 2) sData.silverCount++;
+                        else if (teamEntryResult.rank === 3) sData.bronzeCount++;
+                        if (teamEntryResult.grade !== '-') sData.gradeCount++;
+                    }
+                });
+            } else {
+                teamParticipantsInEvent.forEach(tp => {
+                    const sData = studentResultsMap[String(tp.student.id)];
+                    if (sData) {
+                        sData.results.push({
+                            competitionId: comp.id,
+                            competitionName: comp.name,
+                            categoryName: comp.categories?.name || 'GENERAL',
+                            stageName: comp.stages?.name || 'MAIN STAGE',
+                            isGroup: true,
+                            isLeader: tp.isLeader,
+                            mark: null,
+                            maxMark: comp.max_mark || 100,
+                            percent: null,
+                            rank: null,
+                            grade: '-',
+                            gradePts: 0,
+                            posPts: 0,
+                            totalPts: 0
+                        });
+                    }
+                });
+            }
+        } else {
+            teamParticipantsInEvent.forEach(tp => {
+                const sData = studentResultsMap[String(tp.student.id)];
+                const studentRes = rankedEntriesMap[String(tp.student.id)];
+                if (sData) {
+                    if (studentRes) {
+                        summaryTotalPoints += studentRes.totalPts;
+                        if (studentRes.rank === 1) summaryGold++;
+                        else if (studentRes.rank === 2) summarySilver++;
+                        else if (studentRes.rank === 3) summaryBronze++;
+                        if (studentRes.grade !== '-') summaryGrades++;
+
+                        sData.results.push({
+                            competitionId: comp.id,
+                            competitionName: comp.name,
+                            categoryName: comp.categories?.name || 'GENERAL',
+                            stageName: comp.stages?.name || 'MAIN STAGE',
+                            isGroup: false,
+                            isLeader: false,
+                            mark: studentRes.avgMark,
+                            maxMark: comp.max_mark || 100,
+                            percent: studentRes.percent,
+                            rank: studentRes.rank,
+                            grade: studentRes.grade,
+                            gradePts: studentRes.gradePts,
+                            posPts: studentRes.posPts,
+                            totalPts: studentRes.totalPts
+                        });
+                        sData.totalPoints += studentRes.totalPts;
+                        if (studentRes.rank === 1) sData.goldCount++;
+                        else if (studentRes.rank === 2) sData.silverCount++;
+                        else if (studentRes.rank === 3) sData.bronzeCount++;
+                        if (studentRes.grade !== '-') sData.gradeCount++;
+                    } else {
+                        sData.results.push({
+                            competitionId: comp.id,
+                            competitionName: comp.name,
+                            categoryName: comp.categories?.name || 'GENERAL',
+                            stageName: comp.stages?.name || 'MAIN STAGE',
+                            isGroup: false,
+                            isLeader: false,
+                            mark: null,
+                            maxMark: comp.max_mark || 100,
+                            percent: null,
+                            rank: null,
+                            grade: '-',
+                            gradePts: 0,
+                            posPts: 0,
+                            totalPts: 0
+                        });
+                    }
+                }
+            });
+        }
+    });
+
+    processedTeamResults = {
+        participants: Object.values(studentResultsMap).filter(item => item.results.length > 0),
+        competitions: compResultsList,
+        summary: {
+            totalPoints: Math.round(summaryTotalPoints),
+            goldCount: summaryGold,
+            silverCount: summarySilver,
+            bronzeCount: summaryBronze,
+            gradeCount: summaryGrades,
+            publishedCount: publishedCompetitionsWithTeam.length
+        }
+    };
+}
+
+window.renderTeamResults = function() {
+    // 1. Update KPI Cards
+    const kpiPoints = document.getElementById('results-kpi-points');
+    const kpiP1 = document.getElementById('results-kpi-p1');
+    const kpiP2 = document.getElementById('results-kpi-p2');
+    const kpiP3 = document.getElementById('results-kpi-p3');
+    const kpiGrades = document.getElementById('results-kpi-grades');
+    const kpiEvents = document.getElementById('results-kpi-events');
+
+    if (kpiPoints) kpiPoints.innerText = processedTeamResults.summary.totalPoints;
+    if (kpiP1) kpiP1.innerText = processedTeamResults.summary.goldCount;
+    if (kpiP2) kpiP2.innerText = processedTeamResults.summary.silverCount;
+    if (kpiP3) kpiP3.innerText = processedTeamResults.summary.bronzeCount;
+    if (kpiGrades) kpiGrades.innerText = processedTeamResults.summary.gradeCount;
+    if (kpiEvents) kpiEvents.innerText = processedTeamResults.summary.publishedCount;
+
+    populateResultsCategoryDropdown();
+    filterAndRenderResults();
+};
+
+window.populateResultsCategoryDropdown = function() {
+    const catSelect = document.getElementById('filter-results-cat');
+    if (!catSelect) return;
+
+    const currentVal = catSelect.value || 'all';
+    const catNames = new Set();
+    (globalCategories || []).forEach(c => { if (c.name) catNames.add(c.name); });
+    (processedTeamResults.participants || []).forEach(p => {
+        if (p.student.categories?.name) catNames.add(p.student.categories.name);
+    });
+
+    let opts = '<option value="all">ALL CATEGORIES</option>';
+    catNames.forEach(cName => {
+        opts += `<option value="${escapeHtml(cName)}">${escapeHtml(cName)}</option>`;
+    });
+    catSelect.innerHTML = opts;
+    if (Array.from(catSelect.options).some(o => o.value === currentVal)) {
+        catSelect.value = currentVal;
+    }
+};
+
+window.switchResultsView = function(view) {
+    currentResultsView = view;
+    const btnPart = document.getElementById('btn-results-view-participant');
+    const btnEvent = document.getElementById('btn-results-view-event');
+    const viewPart = document.getElementById('results-view-participant');
+    const viewEvent = document.getElementById('results-view-event');
+
+    if (view === 'participant') {
+        if (btnPart) btnPart.className = 'btn btn-primary';
+        if (btnEvent) btnEvent.className = 'btn btn-outline';
+        if (viewPart) viewPart.style.display = 'block';
+        if (viewEvent) viewEvent.style.display = 'none';
+    } else {
+        if (btnPart) btnPart.className = 'btn btn-outline';
+        if (btnEvent) btnEvent.className = 'btn btn-primary';
+        if (viewPart) viewPart.style.display = 'none';
+        if (viewEvent) viewEvent.style.display = 'block';
+    }
+
+    filterAndRenderResults();
+};
+
+window.filterAndRenderResults = function() {
+    const search = (document.getElementById('search-results')?.value || '').toLowerCase().trim();
+    const catFilter = document.getElementById('filter-results-cat')?.value || 'all';
+    const standingFilter = document.getElementById('filter-results-standing')?.value || 'all';
+
+    const emptyEl = document.getElementById('results-empty-state');
+    const partContainer = document.getElementById('results-participants-container');
+    const eventTbody = document.getElementById('results-events-tbody');
+
+    if (currentResultsView === 'participant') {
+        // Filter participants
+        const filteredParticipants = (processedTeamResults.participants || []).filter(item => {
+            const s = item.student;
+            const sCatName = s.categories?.name || 'GENERAL';
+
+            // Category filter
+            if (catFilter !== 'all' && sCatName !== catFilter) {
+                // Also check if any result was in this category
+                const inCat = item.results.some(r => r.categoryName === catFilter);
+                if (!inCat) return false;
+            }
+
+            // Standing filter
+            if (standingFilter === 'winners') {
+                if (item.goldCount === 0 && item.silverCount === 0 && item.bronzeCount === 0) return false;
+            } else if (standingFilter === 'p1') {
+                if (item.goldCount === 0) return false;
+            } else if (standingFilter === 'p2') {
+                if (item.silverCount === 0) return false;
+            } else if (standingFilter === 'p3') {
+                if (item.bronzeCount === 0) return false;
+            } else if (standingFilter === 'graded') {
+                if (item.gradeCount === 0) return false;
+            }
+
+            // Search query
+            if (search) {
+                const nameMatch = (s.name || '').toLowerCase().includes(search);
+                const idMatch = (s.unique_id || '').toLowerCase().includes(search);
+                const eventMatch = item.results.some(r => (r.competitionName || '').toLowerCase().includes(search));
+                if (!nameMatch && !idMatch && !eventMatch) return false;
+            }
+
+            return true;
+        });
+
+        // Sort: highest points first
+        filteredParticipants.sort((a, b) => b.totalPoints - a.totalPoints);
+
+        if (filteredParticipants.length === 0) {
+            if (partContainer) partContainer.innerHTML = '';
+            if (emptyEl) {
+                emptyEl.style.display = 'block';
+                const emptyTitle = document.getElementById('results-empty-title');
+                const emptyDesc = document.getElementById('results-empty-desc');
+                if ((processedTeamResults.participants || []).length === 0) {
+                    if (emptyTitle) emptyTitle.innerText = 'NO PUBLISHED RESULTS YET';
+                    if (emptyDesc) emptyDesc.innerText = 'Official results and scorecards for your participants will appear here as soon as competition judgements are finalized and published.';
+                } else {
+                    if (emptyTitle) emptyTitle.innerText = 'NO MATCHING RESULTS FOUND';
+                    if (emptyDesc) emptyDesc.innerText = 'Try adjusting your search keywords, category filter, or standing filter.';
+                }
+            }
+            return;
+        }
+
+        if (emptyEl) emptyEl.style.display = 'none';
+
+        if (partContainer) {
+            partContainer.innerHTML = filteredParticipants.map(item => {
+                const s = item.student;
+                const catBadge = s.categories?.name || 'GENERAL';
+                const classBadge = s.class_name ? `<span class="badge" style="background: #F1F5F9; color: #475569; font-weight: 700;"><i class="fa-solid fa-graduation-cap" style="margin-right: 3px;"></i>${escapeHtml(s.class_name)}</span>` : '';
+
+                // Medals summary badges
+                let medalsHtml = '';
+                if (item.goldCount > 0) medalsHtml += `<span class="badge badge-gold" title="${item.goldCount} Gold Wins">🥇 ${item.goldCount}</span> `;
+                if (item.silverCount > 0) medalsHtml += `<span class="badge badge-silver" title="${item.silverCount} Silver Wins">🥈 ${item.silverCount}</span> `;
+                if (item.bronzeCount > 0) medalsHtml += `<span class="badge badge-bronze" title="${item.bronzeCount} Bronze Wins">🥉 ${item.bronzeCount}</span> `;
+                if (!medalsHtml) medalsHtml = '<span style="color: var(--text-muted); font-size: 0.8rem;">No Medals Yet</span>';
+
+                // Grades summary
+                const gradeCounts = {};
+                item.results.forEach(r => {
+                    if (r.grade && r.grade !== '-') {
+                        gradeCounts[r.grade] = (gradeCounts[r.grade] || 0) + 1;
+                    }
+                });
+                let gradesHtml = Object.entries(gradeCounts).map(([g, count]) => `<span class="badge badge-grade">${g}: ${count}</span>`).join(' ');
+
+                // Event rows
+                const eventRowsHtml = item.results.map(r => {
+                    let rankBadge = '';
+                    if (r.rank === 1) {
+                        rankBadge = '<span class="badge badge-gold"><i class="fa-solid fa-medal"></i> 1ST PLACE WINNER</span>';
+                    } else if (r.rank === 2) {
+                        rankBadge = '<span class="badge badge-silver"><i class="fa-solid fa-medal"></i> 2ND PLACE WINNER</span>';
+                    } else if (r.rank === 3) {
+                        rankBadge = '<span class="badge badge-bronze"><i class="fa-solid fa-medal"></i> 3RD PLACE WINNER</span>';
+                    } else if (r.rank) {
+                        rankBadge = `<span class="badge badge-rank">RANK #${r.rank}</span>`;
+                    } else {
+                        rankBadge = '<span class="badge badge-gray">PARTICIPATED</span>';
+                    }
+
+                    const gradeBadge = (r.grade && r.grade !== '-') 
+                        ? `<span class="badge badge-grade">GRADE ${r.grade}</span>` 
+                        : '';
+
+                    const groupBadge = r.isGroup 
+                        ? `<span class="badge" style="background: #E0E7FF; color: #4338CA; font-size: 0.68rem; font-weight: 800;"><i class="fa-solid fa-users"></i> GROUP${r.isLeader ? ' (LEADER)' : ''}</span>` 
+                        : '';
+
+                    const scoreText = r.mark !== null 
+                        ? `<span style="margin: 0 0.4rem;">•</span><span>Score: <strong>${r.mark.toFixed(2)}</strong> / ${r.maxMark}</span>` 
+                        : '';
+
+                    return `
+                        <div class="result-event-item">
+                            <div style="flex: 1; min-width: 200px;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                    <span style="font-weight: 800; font-size: 0.95rem; color: var(--text-main);">${escapeHtml(r.competitionName)}</span>
+                                    ${groupBadge}
+                                </div>
+                                <div style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600; margin-top: 0.2rem;">
+                                    <span><i class="fa-solid fa-layer-group" style="margin-right: 3px;"></i> ${escapeHtml(r.categoryName)}</span>
+                                    <span style="margin: 0 0.4rem;">•</span>
+                                    <span><i class="fa-solid fa-microphone-stage" style="margin-right: 3px;"></i> ${escapeHtml(r.stageName)}</span>
+                                    ${scoreText}
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
+                                ${rankBadge}
+                                ${gradeBadge}
+                                <span class="badge badge-points">+${r.totalPts} PTS</span>
+                                <button class="btn btn-outline" style="padding: 0.35rem 0.75rem; min-height: 32px; font-size: 0.75rem; border-radius: 8px;" onclick="openCompResultsModal('${r.competitionId}')" title="View Full Competition Results">
+                                    <i class="fa-solid fa-trophy"></i> Standings
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                const avatarLetter = (s.name || 'S').charAt(0).toUpperCase();
+
+                return `
+                    <div class="result-card">
+                        <div class="result-card-header">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.15rem; border: 2px solid var(--border); flex-shrink: 0;">
+                                    ${avatarLetter}
+                                </div>
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                        <h3 style="margin: 0; font-size: 1.12rem; font-weight: 800; color: var(--text-main);">${escapeHtml(s.name)}</h3>
+                                        <span class="badge badge-gray" style="font-family: monospace; font-weight: 700;">${escapeHtml(s.unique_id)}</span>
+                                        <span class="badge badge-info">${escapeHtml(catBadge)}</span>
+                                        ${classBadge}
+                                    </div>
+                                    <div style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                                        ${medalsHtml}
+                                        ${gradesHtml}
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <div style="text-align: right;">
+                                    <div style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Points Earned</div>
+                                    <div style="font-size: 1.4rem; font-weight: 800; color: #047857;">${item.totalPoints} <span style="font-size: 0.8rem; font-weight: 600;">PTS</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                            ${eventRowsHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    } else {
+        // Filter Competitions View
+        const filteredCompetitions = (processedTeamResults.competitions || []).filter(item => {
+            const comp = item.competition;
+            const catName = comp.categories?.name || 'GENERAL';
+
+            if (catFilter !== 'all' && catName !== catFilter) return false;
+
+            if (standingFilter === 'winners') {
+                if (!item.result || item.result.rank > 3) return false;
+            } else if (standingFilter === 'p1') {
+                if (!item.result || item.result.rank !== 1) return false;
+            } else if (standingFilter === 'p2') {
+                if (!item.result || item.result.rank !== 2) return false;
+            } else if (standingFilter === 'p3') {
+                if (!item.result || item.result.rank !== 3) return false;
+            } else if (standingFilter === 'graded') {
+                if (!item.result || item.result.grade === '-') return false;
+            }
+
+            if (search) {
+                const compNameMatch = (comp.name || '').toLowerCase().includes(search);
+                const partMatch = item.participants.some(p => 
+                    (p.student.name || '').toLowerCase().includes(search) || 
+                    (p.student.unique_id || '').toLowerCase().includes(search)
+                );
+                if (!compNameMatch && !partMatch) return false;
+            }
+
+            return true;
+        });
+
+        if (filteredCompetitions.length === 0) {
+            if (eventTbody) eventTbody.innerHTML = '';
+            if (emptyEl) {
+                emptyEl.style.display = 'block';
+                const emptyTitle = document.getElementById('results-empty-title');
+                const emptyDesc = document.getElementById('results-empty-desc');
+                if ((processedTeamResults.competitions || []).length === 0) {
+                    if (emptyTitle) emptyTitle.innerText = 'NO PUBLISHED RESULTS YET';
+                    if (emptyDesc) emptyDesc.innerText = 'No published competition results found for your team.';
+                } else {
+                    if (emptyTitle) emptyTitle.innerText = 'NO MATCHING EVENTS FOUND';
+                    if (emptyDesc) emptyDesc.innerText = 'Try adjusting your search keywords, category filter, or standing filter.';
+                }
+            }
+            return;
+        }
+
+        if (emptyEl) emptyEl.style.display = 'none';
+
+        if (eventTbody) {
+            eventTbody.innerHTML = filteredCompetitions.map(item => {
+                const comp = item.competition;
+                const catName = comp.categories?.name || 'GENERAL';
+                const stageName = comp.stages?.name || 'STAGE 1';
+
+                const partNames = item.participants.map(p => 
+                    `<span style="font-weight: 600;">${escapeHtml(p.student.name)}</span> <span style="font-family: monospace; color: var(--text-muted); font-size: 0.8rem;">(${escapeHtml(p.student.unique_id)})${p.isLeader ? ' ★' : ''}</span>`
+                ).join(', ');
+
+                let rankBadge = '';
+                if (item.result) {
+                    if (item.result.rank === 1) rankBadge = '<span class="badge badge-gold">🥇 1ST PLACE</span>';
+                    else if (item.result.rank === 2) rankBadge = '<span class="badge badge-silver">🥈 2ND PLACE</span>';
+                    else if (item.result.rank === 3) rankBadge = '<span class="badge badge-bronze">🥉 3RD PLACE</span>';
+                    else rankBadge = `<span class="badge badge-rank">RANK #${item.result.rank}</span>`;
+                } else {
+                    rankBadge = '<span class="badge badge-gray">PARTICIPATED</span>';
+                }
+
+                let gradePtsText = '';
+                if (item.result) {
+                    const g = (item.result.grade && item.result.grade !== '-') ? `<span class="badge badge-grade">${item.result.grade}</span>` : '';
+                    gradePtsText = `${g} <span class="badge badge-points">+${item.points} PTS</span>`;
+                } else {
+                    gradePtsText = '<span style="color: var(--text-muted); font-size: 0.85rem;">-</span>';
+                }
+
+                return `
+                    <tr>
+                        <td data-label="EVENT & CATEGORY">
+                            <div style="font-weight: 800; color: var(--text-main); font-size: 0.95rem;">${escapeHtml(comp.name)}</div>
+                            <span class="badge badge-gray" style="margin-top: 0.25rem;">${escapeHtml(catName)}</span>
+                        </td>
+                        <td data-label="STAGE">
+                            <span style="color: var(--text-muted); font-weight: 600;"><i class="fa-solid fa-microphone-stage" style="color: var(--primary); margin-right: 4px;"></i> ${escapeHtml(stageName)}</span>
+                        </td>
+                        <td data-label="TYPE">
+                            ${comp.is_group ? '<span class="badge" style="background:#E0E7FF; color:#4338CA; font-weight:700;"><i class="fa-solid fa-users"></i> GROUP</span>' : '<span class="badge badge-gray">SOLO</span>'}
+                        </td>
+                        <td data-label="OUR PARTICIPANTS">
+                            <div style="max-width: 280px; font-size: 0.88rem; line-height: 1.4;">${partNames}</div>
+                        </td>
+                        <td data-label="RESULT / RANK">${rankBadge}</td>
+                        <td data-label="GRADE & PTS">${gradePtsText}</td>
+                        <td data-label="ACTIONS">
+                            <button class="btn btn-outline" style="padding: 0.35rem 0.75rem; min-height: 32px; font-size: 0.75rem; border-radius: 8px;" onclick="openCompResultsModal('${comp.id}')">
+                                <i class="fa-solid fa-trophy"></i> Full Standings
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
+};
+
+window.openCompResultsModal = async function(compId) {
+    const comp = (globalComps || []).find(c => String(c.id) === String(compId));
+    if (!comp) {
+        showToast('Competition details not found', 'error');
+        return;
+    }
+
+    const titleEl = document.getElementById('modal-ev-res-title');
+    const catEl = document.getElementById('modal-ev-res-cat');
+    const metaEl = document.getElementById('modal-ev-res-meta');
+    const winnersEl = document.getElementById('modal-ev-res-winners');
+
+    if (titleEl) titleEl.innerText = comp.name;
+    if (catEl) catEl.innerText = comp.categories?.name || 'GENERAL';
+    if (metaEl) {
+        metaEl.innerHTML = `
+            <span><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${escapeHtml(comp.stages?.name || 'Stage 1')}</span>
+            <span><i class="fa-solid fa-star" style="color: #D97706;"></i> Max Marks: ${comp.max_mark || 100}</span>
+            <span><i class="fa-solid fa-users" style="color: #6366F1;"></i> ${comp.is_group ? 'Group Event' : 'Solo Event'}</span>
+        `;
+    }
+
+    if (winnersEl) {
+        winnersEl.innerHTML = `
+            <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.75rem; color: var(--primary); margin-bottom: 0.75rem;"></i>
+                <p style="font-weight: 600;">Loading verified standings...</p>
+            </div>
+        `;
+    }
+
+    const modal = document.getElementById('eventResultDetailModal');
+    if (modal) modal.classList.add('show');
+
+    try {
+        const { data: judgements, error } = await supabaseClient
+            .from('judgements')
+            .select('awarded_mark, participant_id, participants(id, name, unique_id, team_id, teams(name))')
+            .eq('competition_id', compId)
+            .not('awarded_mark', 'is', null)
+            .not('participant_id', 'is', null);
+
+        if (error) throw error;
+
+        if (!judgements || judgements.length === 0) {
+            if (winnersEl) {
+                winnersEl.innerHTML = '<p style="text-align:center; padding: 2.5rem; color: var(--text-muted); font-weight: 600;">No verified scores entered for this event yet.</p>';
+            }
+            return;
+        }
+
+        // Group by participant
+        const partScores = {};
+        judgements.forEach(j => {
+            const pId = j.participant_id;
+            if (!partScores[pId]) {
+                partScores[pId] = {
+                    participant: j.participants,
+                    marks: []
+                };
+            }
+            partScores[pId].marks.push(parseFloat(j.awarded_mark));
+        });
+
+        // Compute trimmed mean
+        const rankedArr = Object.values(partScores).map(item => {
+            let sorted = item.marks.slice().sort((a, b) => a - b);
+            if (sorted.length >= 3) {
+                sorted = sorted.slice(1, sorted.length - 1);
+            }
+            const avg = sorted.reduce((sum, v) => sum + v, 0) / sorted.length;
+            return {
+                participant: item.participant,
+                avgMark: avg
+            };
+        }).sort((a, b) => b.avgMark - a.avgMark);
+
+        // Assign positions
+        let currentRank = 1;
+        let prevScore = -1;
+        const maxMark = comp.max_mark || 100;
+
+        let standingsHtml = '';
+        rankedArr.forEach((entry, idx) => {
+            if (entry.avgMark !== prevScore) {
+                currentRank = idx + 1;
+            }
+            prevScore = entry.avgMark;
+            entry.rank = currentRank;
+
+            const isOurTeam = entry.participant?.team_id === myTeamId;
+            const percent = (entry.avgMark / maxMark) * 100;
+
+            let rankIcon = '';
+            if (currentRank === 1) rankIcon = '<span class="badge badge-gold" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">🥇 1ST PLACE</span>';
+            else if (currentRank === 2) rankIcon = '<span class="badge badge-silver" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">🥈 2ND PLACE</span>';
+            else if (currentRank === 3) rankIcon = '<span class="badge badge-bronze" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">🥉 3RD PLACE</span>';
+            else rankIcon = `<span class="badge badge-rank">RANK #${currentRank}</span>`;
+
+            const ourTeamBadge = isOurTeam 
+                ? '<span class="badge badge-success" style="font-weight: 800;"><i class="fa-solid fa-star"></i> YOUR TEAM</span>' 
+                : '';
+
+            const teamName = entry.participant?.teams?.name || 'Independent';
+
+            standingsHtml += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; background: ${isOurTeam ? 'var(--primary-light)' : 'var(--bg-main)'}; border-radius: var(--radius-md); border: 1px solid ${isOurTeam ? 'var(--primary-ring)' : 'var(--border)'}; flex-wrap: wrap; gap: 0.75rem;">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div style="font-size: 1.25rem;">${rankIcon}</div>
+                        <div>
+                            <div style="font-weight: 800; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                ${escapeHtml(entry.participant?.name || 'Contestant')}
+                                <span style="font-family: monospace; font-size: 0.82rem; color: var(--text-muted); font-weight: 700;">${escapeHtml(entry.participant?.unique_id || '')}</span>
+                                ${ourTeamBadge}
+                            </div>
+                            <div style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600; margin-top: 0.2rem;">
+                                ${escapeHtml(teamName)}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 1.1rem; font-weight: 800; color: var(--text-main);">${entry.avgMark.toFixed(2)} <span style="font-size: 0.75rem; color: var(--text-muted);">/ ${maxMark}</span></div>
+                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">${percent.toFixed(1)}%</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        if (winnersEl) winnersEl.innerHTML = standingsHtml;
+
+    } catch (err) {
+        console.error('Error fetching event standings:', err);
+        if (winnersEl) {
+            winnersEl.innerHTML = '<p style="text-align: center; color: var(--danger); font-weight: 600; padding: 2rem;">Could not load standings for this event.</p>';
+        }
+    }
+};
+
+window.closeCompResultsModal = function() {
+    const modal = document.getElementById('eventResultDetailModal');
+    if (modal) modal.classList.remove('show');
+};
+
+window.syncTeamResults = async function(forceFresh = true) {
+    showToast('Refreshing results...', 'info');
+    try {
+        const publishedCompIds = (globalComps || []).filter(c => c.status === 'published').map(c => c.id);
+        if (publishedCompIds.length > 0) {
+            const { data: judgements } = await supabaseClient
+                .from('judgements')
+                .select('participant_id, competition_id, awarded_mark')
+                .in('competition_id', publishedCompIds);
+            globalJudgements = judgements || [];
+        } else {
+            globalJudgements = [];
+        }
+        computeTeamResults();
+        renderTeamResults();
+        saveDashboardToCache();
+        showToast('Results synced successfully!', 'success');
+    } catch (e) {
+        console.error('Sync results error:', e);
+        showToast('Error syncing results: ' + e.message, 'error');
+    }
+};
+
+window.printTeamResultsReport = function() {
+    const teamName = document.getElementById('team-name-title')?.innerText || 'MY TEAM';
+    const mgrNames = document.getElementById('tm-manager-names')?.innerText || '';
+    const nowStr = new Date().toLocaleString();
+
+    let rowsHtml = '';
+    let counter = 1;
+
+    (processedTeamResults.participants || []).forEach(item => {
+        const s = item.student;
+        item.results.forEach(r => {
+            const rankText = r.rank === 1 ? '🥇 1st Place' : (r.rank === 2 ? '🥈 2nd Place' : (r.rank === 3 ? '🥉 3rd Place' : (r.rank ? `Rank #${r.rank}` : 'Participated')));
+            const gradeText = (r.grade && r.grade !== '-') ? r.grade : '-';
+            const scoreText = r.mark !== null ? `${r.mark.toFixed(2)} / ${r.maxMark}` : '-';
+            const role = r.isGroup ? (`Group${r.isLeader ? ' (Leader)' : ''}`) : 'Solo';
+
+            rowsHtml += `
+                <tr>
+                    <td style="text-align: center; font-weight: 700;">${counter++}</td>
+                    <td style="font-family: monospace; font-weight: 800;">${escapeHtml(s.unique_id)}</td>
+                    <td style="font-weight: 700;">${escapeHtml(s.name)}</td>
+                    <td>${escapeHtml(s.categories?.name || 'General')}</td>
+                    <td style="font-weight: 600;">${escapeHtml(r.competitionName)} (${role})</td>
+                    <td>${escapeHtml(r.stageName)}</td>
+                    <td style="text-align: center; font-weight: 600;">${scoreText}</td>
+                    <td style="text-align: center; font-weight: 800;">${rankText}</td>
+                    <td style="text-align: center; font-weight: 800;">${gradeText}</td>
+                    <td style="text-align: center; font-weight: 800; color: #047857;">+${r.totalPts}</td>
+                </tr>
+            `;
+        });
+    });
+
+    if (!rowsHtml) {
+        rowsHtml = '<tr><td colspan="10" style="text-align: center; padding: 2rem; color: #64748B;">No published results available yet.</td></tr>';
+    }
+
+    const printHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Team Results Report - ${escapeHtml(teamName)}</title>
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 2rem; color: #1E293B; background: #fff; }
+                .report-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #CBD5E1; padding-bottom: 1.25rem; margin-bottom: 1.5rem; }
+                .report-title h1 { margin: 0 0 0.25rem 0; font-size: 1.6rem; color: #0F172A; text-transform: uppercase; }
+                .report-title p { margin: 0; font-size: 0.9rem; color: #64748B; font-weight: 600; }
+                .stats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+                .stat-box { border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.75rem; text-align: center; background: #F8FAFC; }
+                .stat-box .num { font-size: 1.4rem; font-weight: 800; color: #0F172A; }
+                .stat-box .lbl { font-size: 0.7rem; font-weight: 700; color: #64748B; text-transform: uppercase; margin-top: 0.2rem; }
+                table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+                th { background: #0F172A; color: #fff; padding: 0.6rem 0.5rem; text-align: left; font-size: 0.78rem; letter-spacing: 0.05em; }
+                td { border-bottom: 1px solid #E2E8F0; padding: 0.55rem 0.5rem; }
+                tr:nth-child(even) td { background: #F8FAFC; }
+                .footer { margin-top: 3rem; display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; color: #64748B; }
+                .signature-line { border-top: 1px solid #94A3B8; width: 200px; text-align: center; padding-top: 0.5rem; }
+                @media print {
+                    body { margin: 1cm; }
+                    button { display: none !important; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="report-header">
+                <div class="report-title">
+                    <h1>${escapeHtml(teamName)} - OFFICIAL PARTICIPANT RESULTS</h1>
+                    <p>${escapeHtml(mgrNames)} | Generated on: ${nowStr}</p>
+                </div>
+                <div>
+                    <button onclick="window.print()" style="padding: 0.5rem 1.25rem; font-size: 0.9rem; background: #2563EB; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Print Sheet</button>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-box" style="background: #FEF3C7; border-color: #FDE68A;">
+                    <div class="num" style="color: #92400E;">${processedTeamResults.summary.totalPoints}</div>
+                    <div class="lbl" style="color: #B45309;">Total Points</div>
+                </div>
+                <div class="stat-box">
+                    <div class="num" style="color: #B45309;">${processedTeamResults.summary.goldCount}</div>
+                    <div class="lbl">🥇 1st (Gold)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="num" style="color: #475569;">${processedTeamResults.summary.silverCount}</div>
+                    <div class="lbl">🥈 2nd (Silver)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="num" style="color: #C2410C;">${processedTeamResults.summary.bronzeCount}</div>
+                    <div class="lbl">🥉 3rd (Bronze)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="num" style="color: #4F46E5;">${processedTeamResults.summary.gradeCount}</div>
+                    <div class="lbl">Grades Awarded</div>
+                </div>
+                <div class="stat-box">
+                    <div class="num" style="color: #059669;">${processedTeamResults.summary.publishedCount}</div>
+                    <div class="lbl">Events Published</div>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align: center;">#</th>
+                        <th>CHEST #</th>
+                        <th>PARTICIPANT NAME</th>
+                        <th>CATEGORY</th>
+                        <th>EVENT NAME & TYPE</th>
+                        <th>STAGE</th>
+                        <th style="text-align: center;">SCORE</th>
+                        <th style="text-align: center;">RANK</th>
+                        <th style="text-align: center;">GRADE</th>
+                        <th style="text-align: center;">POINTS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+
+            <div class="footer">
+                <div>FestOS Festival Management System</div>
+                <div class="signature-line">Team Manager Signature</div>
+                <div class="signature-line">Festival Convener Signature</div>
+            </div>
+        </body>
+        </html>
+    `;
+
+    const printWin = window.open('', '_blank');
+    if (printWin) {
+        printWin.document.write(printHtml);
+        printWin.document.close();
+        printWin.focus();
+        setTimeout(() => {
+            try { printWin.print(); } catch(e) {}
+        }, 500);
+    } else {
+        showToast('Please allow popups to open printable report.', 'error');
+    }
+};
+

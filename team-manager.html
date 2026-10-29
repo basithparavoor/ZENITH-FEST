@@ -326,6 +326,77 @@
             font-size: 0.65rem; font-weight: 800; letter-spacing: 0.05em; display: inline-flex; align-items: center;
         }
 
+        
+        /* --- RESULTS TAB CUSTOM STYLES --- */
+        .badge-gold { background: #FEF3C7; color: #B45309; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 800; }
+        .badge-silver { background: #F1F5F9; color: #475569; border: 1px solid rgba(148, 163, 184, 0.35); font-weight: 800; }
+        .badge-bronze { background: #FFEDD5; color: #C2410C; border: 1px solid rgba(249, 115, 22, 0.35); font-weight: 800; }
+        .badge-rank { background: var(--primary-light); color: var(--primary); border: 1px solid var(--primary-ring); font-weight: 700; }
+        .badge-grade { background: #EEF2FF; color: #4338CA; border: 1px solid rgba(99, 102, 241, 0.25); font-weight: 700; }
+        .badge-points { background: #ECFDF5; color: #047857; border: 1px solid rgba(16, 185, 129, 0.25); font-weight: 800; }
+
+        .result-card {
+            background: var(--bg-surface);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+        }
+        .result-card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: var(--border-hover);
+        }
+        .result-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1rem;
+        }
+        .result-event-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.9rem 1.15rem;
+            background: var(--bg-main);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            margin-bottom: 0.65rem;
+            transition: var(--transition);
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+        .result-event-item:hover {
+            border-color: var(--primary-ring);
+            background: var(--bg-surface);
+        }
+        .result-event-item:last-child {
+            margin-bottom: 0;
+        }
+
+        @media (max-width: 768px) {
+            .result-card {
+                padding: 1.15rem;
+            }
+            .result-card-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            .result-event-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .result-event-item > div:last-child {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+
         /* ========================================================================
            SEPARATE MOBILE UI (ADMIN-STYLE DRAWER & CARDS)
            ======================================================================== */
@@ -591,6 +662,7 @@
         <div class="nav-item" onclick="switchTab('schedule')" title="Event Schedule"><i class="fa-solid fa-calendar-days"></i> <span class="nav-label">SCHEDULE</span></div>
         <div class="nav-item" onclick="switchTab('competitions')" title="Live Tracking"><i class="fa-solid fa-satellite-dish"></i> <span class="nav-label">TRACKING</span></div>
         <div class="nav-item" onclick="switchTab('assignments')" title="Candidate Assignments"><i class="fa-solid fa-clipboard-check"></i> <span class="nav-label">ASSIGN</span></div>
+        <div class="nav-item" onclick="switchTab('results')" title="Participant Results"><i class="fa-solid fa-trophy"></i> <span class="nav-label">RESULTS</span></div>
         <div class="nav-item" onclick="switchTab('appeals')" title="Appeals Hub" style="border:none; background:transparent; width:100%; text-align:left;"><i class="fa-solid fa-scale-balanced"></i> <span class="nav-label">GRIEVANCES</span></div>
         <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
             <div class="nav-item" onclick="openScanModal()" title="Attendance QR Scanner"><i class="fa-solid fa-qrcode"></i> <span class="nav-label">SCAN PORTAL</span></div>
@@ -651,12 +723,12 @@
                     <h3 style="color: #4C1D95;">EVENTS ENROLLED</h3>
                     <div class="value" id="stat-total-events" style="color: #3B0764;">0</div>
                 </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%); border: none;">
+                <div class="stat-card" style="background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%); border: none; cursor: pointer;" onclick="switchTab('results')" title="View Participant Results">
                     <div class="icon" style="background: #059669; color: white;"><i class="fa-solid fa-check-double"></i></div>
                     <h3 style="color: #064E3B;">COMPLETED EVENTS</h3>
                     <div class="value" id="stat-completed-events" style="color: #022C22;">0</div>
                 </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border: none;">
+                <div class="stat-card" style="background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border: none; cursor: pointer;" onclick="switchTab('results')" title="View Participant Results">
                     <div class="icon" style="background: #D97706; color: white;"><i class="fa-solid fa-trophy"></i></div>
                     <h3 style="color: #92400E;">ESTIMATED TEAM POINTS</h3>
                     <div class="value" id="stat-total-points" style="color: #78350F;">0</div>
@@ -824,26 +896,57 @@
                 </div>
             </div>
             
-            <div class="controls-bar">
-                <div class="search-box">
+            <div class="controls-bar" style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+                <div class="search-box" style="flex: 2; min-width: 200px;">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="search-schedule" placeholder="SEARCH SCHEDULE..." onkeyup="renderTMSchedule()">
+                    <input type="text" id="search-schedule" placeholder="SEARCH EVENT, VENUE, STUDENT..." onkeyup="renderTMSchedule()">
                 </div>
-                <div class="filter-box">
-                    <select id="filter-schedule-cat" onchange="renderTMSchedule()">
+                <div class="filter-box" style="flex: 1; min-width: 130px;">
+                    <select id="filter-schedule-date" onchange="renderTMSchedule()" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.85rem; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 700;">
+                        <option value="all">ALL DATES</option>
+                    </select>
+                </div>
+                <div class="filter-box" style="flex: 1; min-width: 140px;">
+                    <select id="filter-schedule-cat" onchange="renderTMSchedule()" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.85rem; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 700;">
                         <option value="all">ALL CATEGORIES</option>
                     </select>
                 </div>
-                <div class="filter-box">
-                    <select id="filter-schedule-stage" onchange="renderTMSchedule()">
-                        <option value="all">ALL STAGES</option>
+                <div class="filter-box" style="flex: 1; min-width: 150px;">
+                    <select id="filter-schedule-status" onchange="renderTMSchedule()" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.85rem; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 700;">
+                        <option value="all">ALL STATUSES</option>
+                        <option value="ongoing">🔴 ONGOING / LIVE</option>
+                        <option value="registration">⚡ CALLING / REGISTRATION</option>
+                        <option value="scheduled">⏳ UPCOMING / SCHEDULED</option>
+                        <option value="valuation">📝 IN EVALUATION</option>
+                        <option value="published">✅ COMPLETED</option>
+                    </select>
+                </div>
+                <div class="filter-box" style="flex: 1; min-width: 140px;">
+                    <select id="filter-schedule-stage" onchange="renderTMSchedule()" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.85rem; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 700;">
+                        <option value="all">ALL STAGES / VENUES</option>
+                    </select>
+                </div>
+                <div class="filter-box" style="flex: 1; min-width: 150px;">
+                    <select id="filter-schedule-team" onchange="renderTMSchedule()" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.85rem; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 700;">
+                        <option value="all">ALL SCHEDULED EVENTS</option>
+                        <option value="my_team">👥 OUR ENROLLED EVENTS</option>
                     </select>
                 </div>
             </div>
 
             <div class="table-container">
                 <table>
-                    <thead><tr><th>DATE</th><th>FROM TIME</th><th>TO TIME</th><th>EVENT NAME</th><th>VENUE / STAGE</th><th>CATEGORY</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>STATUS</th>
+                            <th>DATE</th>
+                            <th>TIMING</th>
+                            <th>EVENT NAME</th>
+                            <th>VENUE / STAGE</th>
+                            <th>CATEGORY</th>
+                            <th>OUR ENROLLED</th>
+                        </tr>
+                    </thead>
                     <tbody id="tm-schedule-tbody"></tbody>
                 </table>
             </div>
@@ -930,9 +1033,148 @@
             </div>
         </div>
 
+
+        <!-- RESULTS -->
+        <div id="results" class="content-section">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h2 style="margin-bottom: 0.25rem;">PARTICIPANT RESULTS</h2>
+                    <p style="color: var(--text-muted); font-weight: 500;">OFFICIAL SCORES, RANKS, MEDALS & POINTS EARNED BY YOUR PARTICIPANTS.</p>
+                </div>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                    <button class="btn btn-outline" onclick="printTeamResultsReport()" title="Print Team Results Sheet"><i class="fa-solid fa-print"></i> PRINT REPORT</button>
+                    <button class="btn btn-outline" onclick="syncTeamResults(true)" title="Refresh Results"><i class="fa-solid fa-rotate-right"></i> REFRESH</button>
+                </div>
+            </div>
+
+            <!-- RESULTS KPI CARDS -->
+            <div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 2rem;">
+                <div class="stat-card" style="background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border: none;">
+                    <div class="icon" style="background: #D97706; color: white;"><i class="fa-solid fa-trophy"></i></div>
+                    <h3 style="color: #92400E;">TOTAL POINTS</h3>
+                    <div class="value" id="results-kpi-points" style="color: #78350F;">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 1px solid #FCD34D;">
+                    <div class="icon" style="background: #F59E0B; color: white;"><i class="fa-solid fa-medal"></i></div>
+                    <h3 style="color: #92400E;">1ST PLACE (GOLD)</h3>
+                    <div class="value" id="results-kpi-p1" style="color: #B45309;">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%); border: 1px solid #CBD5E1;">
+                    <div class="icon" style="background: #64748B; color: white;"><i class="fa-solid fa-medal"></i></div>
+                    <h3 style="color: #334155;">2ND PLACE (SILVER)</h3>
+                    <div class="value" id="results-kpi-p2" style="color: #475569;">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%); border: 1px solid #FDBA74;">
+                    <div class="icon" style="background: #EA580C; color: white;"><i class="fa-solid fa-medal"></i></div>
+                    <h3 style="color: #9A3412;">3RD PLACE (BRONZE)</h3>
+                    <div class="value" id="results-kpi-p3" style="color: #C2410C;">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%); border: 1px solid #C7D2FE;">
+                    <div class="icon" style="background: #4F46E5; color: white;"><i class="fa-solid fa-award"></i></div>
+                    <h3 style="color: #3730A3;">GRADES WON</h3>
+                    <div class="value" id="results-kpi-grades" style="color: #312E81;">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%); border: 1px solid #A7F3D0;">
+                    <div class="icon" style="background: #059669; color: white;"><i class="fa-solid fa-flag-checkered"></i></div>
+                    <h3 style="color: #065F46;">EVENTS PUBLISHED</h3>
+                    <div class="value" id="results-kpi-events" style="color: #064E3B;">0</div>
+                </div>
+            </div>
+
+            <!-- VIEW SWITCHER & CONTROLS -->
+            <div class="controls-bar" style="display: flex; gap: 0.75rem; background: transparent; padding: 0; box-shadow: none; border: none; margin-bottom: 1rem; overflow-x: auto; flex-wrap: nowrap;">
+                <button class="btn btn-primary" id="btn-results-view-participant" onclick="switchResultsView('participant')" style="border-radius: 50px; white-space: nowrap;"><i class="fa-solid fa-users"></i> BY PARTICIPANT</button>
+                <button class="btn btn-outline" id="btn-results-view-event" onclick="switchResultsView('event')" style="border-radius: 50px; white-space: nowrap;"><i class="fa-solid fa-calendar-check"></i> BY EVENT / COMPETITION</button>
+            </div>
+
+            <div class="controls-bar" style="background: var(--bg-surface); border: 1px solid var(--border); margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;">
+                <div class="search-box" style="flex: 2; min-width: 240px;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="search-results" placeholder="SEARCH PARTICIPANT, CHEST #, OR EVENT..." onkeyup="filterAndRenderResults()">
+                </div>
+                <div class="filter-box" style="flex: 1; min-width: 180px;">
+                    <select id="filter-results-cat" onchange="filterAndRenderResults()" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.85rem; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 700;">
+                        <option value="all">ALL CATEGORIES</option>
+                    </select>
+                </div>
+                <div class="filter-box" style="flex: 1; min-width: 180px;">
+                    <select id="filter-results-standing" onchange="filterAndRenderResults()" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.85rem; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 700;">
+                        <option value="all">ALL STANDINGS</option>
+                        <option value="winners">🏆 ALL WINNERS (1ST, 2ND, 3RD)</option>
+                        <option value="p1">🥇 1ST PLACE WINNERS</option>
+                        <option value="p2">🥈 2ND PLACE WINNERS</option>
+                        <option value="p3">🥉 3RD PLACE WINNERS</option>
+                        <option value="graded">🏅 GRADED (A+, A, B, C)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- VIEW 1: BY PARTICIPANT (SCORECARDS) -->
+            <div id="results-view-participant">
+                <div id="results-participants-container" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                    <!-- Rendered dynamically -->
+                </div>
+            </div>
+
+            <!-- VIEW 2: BY EVENT (COMPETITIONS) -->
+            <div id="results-view-event" style="display: none;">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>EVENT & CATEGORY</th>
+                                <th>STAGE</th>
+                                <th>TYPE</th>
+                                <th>OUR PARTICIPANTS</th>
+                                <th>RESULT / RANK</th>
+                                <th>GRADE & PTS</th>
+                                <th>ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-events-tbody">
+                            <!-- Rendered dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- EMPTY STATE -->
+            <div id="results-empty-state" style="display: none; text-align: center; padding: 4rem 1.5rem; background: var(--bg-surface); border-radius: var(--radius-xl); border: 2px dashed var(--border); margin-top: 1rem;">
+                <div style="width: 70px; height: 70px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1.25rem;">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem;" id="results-empty-title">NO PUBLISHED RESULTS YET</h3>
+                <p style="color: var(--text-muted); font-size: 0.92rem; max-width: 500px; margin: 0 auto 1.5rem; line-height: 1.5;" id="results-empty-desc">Official results and scorecards for your participants will be shown here as soon as competition judgements are finalized and published.</p>
+                <button class="btn btn-primary" onclick="switchTab('competitions')"><i class="fa-solid fa-satellite-dish"></i> CHECK LIVE TRACKING</button>
+            </div>
+        </div>
+
     </div>
 
     <!-- Modals -->
+    
+    <!-- Event Result Detail Modal -->
+    <div id="eventResultDetailModal" class="modal-overlay">
+        <div class="modal" style="max-width: 700px;">
+            <div class="modal-header">
+                <div>
+                    <span id="modal-ev-res-cat" class="badge badge-info" style="margin-bottom: 0.35rem;">CATEGORY</span>
+                    <h2 id="modal-ev-res-title" style="margin: 0;">EVENT STANDINGS</h2>
+                </div>
+                <button class="btn btn-outline" style="border: none; padding: 0.5rem; min-width: 40px; min-height: 40px; border-radius: 50%;" onclick="closeCompResultsModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="modal-ev-res-meta" style="margin-bottom: 1.25rem; display: flex; gap: 1rem; flex-wrap: wrap; color: var(--text-muted); font-size: 0.85rem; font-weight: 600;">
+                <!-- Meta items -->
+            </div>
+            <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-trophy" style="color: #D97706;"></i> OFFICIAL STANDINGS
+            </h3>
+            <div id="modal-ev-res-winners" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 450px; overflow-y: auto; padding-right: 0.25rem;">
+                <!-- Winners list -->
+            </div>
+        </div>
+    </div>
+
     <div id="enrollmentDetailsModal" class="modal-overlay">
         <div class="modal" style="max-width: 650px;">
             <div class="modal-header">

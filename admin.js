@@ -2560,7 +2560,7 @@ async function loadStagesAndTeams() {
     try {
         const [stagesRes, teamsRes, stageFlagsVal] = await Promise.all([
             festQuery(supabaseClient.from('stages').select(`*, users(username), competitions(count)`)).order('stage_no'),
-            festQuery(supabaseClient.from('teams').select('*, participants(count), users(username, password_hash)')).order('name'),
+            festQuery(supabaseClient.from('teams').select('*, participants(count), users(id, username, password_hash, role)')).order('name'),
             window.festosGetSetting ? window.festosGetSetting('stage_offstage_flags') : (supabaseClient.from('settings').select('value').eq('id', 'stage_offstage_flags').maybeSingle().then(r => r.data?.value))
         ]);
         
@@ -2612,11 +2612,38 @@ async function loadStagesAndTeams() {
         teamsList.forEach(t => {
             const memberCount = t.participants[0]?.count || 0;
             
-            // Check if there is a team manager account linked to this team
-            const mgrAccount = t.users && t.users.length > 0 ? t.users[0] : null;
-            const accountInfo = mgrAccount 
-                ? `<br><span style="display:inline-block; margin-top:6px; padding: 4px 8px; background: var(--primary-light); border-radius: 4px; font-size: 0.75rem; font-weight: 700; color: var(--primary);">PORTAL: ${mgrAccount.username} / ${mgrAccount.password_hash}</span>` 
-                : '';
+            // Check if there are team manager accounts linked to this team
+            const mgrAccounts = (t.users || []).filter(u => u && u.username);
+            let accountInfo = '';
+            if (mgrAccounts.length > 0) {
+                accountInfo = `
+                    <div style="margin-top: 8px;">
+                        <span style="font-size: 0.72rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+                            <i class="fa-solid fa-users-gear" style="color:#059669;"></i> Team Managers (${mgrAccounts.length}):
+                        </span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; align-items: center;">
+                            ${mgrAccounts.map(u => `
+                                <span style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 6px; font-size: 0.75rem; font-weight: 700; color: #059669;">
+                                    <i class="fa-solid fa-user-check"></i> <strong style="text-transform:none;">${escapeSheetHtml(u.username)}</strong> : <code style="color:#047857; text-transform:none;">${escapeSheetHtml(u.password_hash || '')}</code>
+                                    <button type="button" class="btn btn-outline" style="padding: 1px 5px; font-size: 0.7rem; border-color: #A7F3D0; color: #047857; background: white;" onclick="openUserModal('${u.id}')" title="Edit password for ${escapeSheetHtml(u.username)}"><i class="fa-solid fa-pen"></i></button>
+                                </span>
+                            `).join('')}
+                            <button type="button" class="btn btn-outline" style="padding: 3px 9px; font-size: 0.72rem; font-weight: 700; color: #059669; border-color: #A7F3D0; background: white; border-radius: 6px; cursor: pointer;" onclick="openAddManagerForTeam('${t.id}', '${escapeSheetHtml((t.name || '').replace(/'/g, "\\'"))}')" title="Add another manager login for this team">
+                                <i class="fa-solid fa-user-plus"></i> Add Manager
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                accountInfo = `
+                    <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span class="badge" style="background:#FEF3C7; color:#B45309; font-size:0.72rem; font-weight:700;"><i class="fa-solid fa-triangle-exclamation"></i> No Login Created</span>
+                        <button type="button" class="btn btn-outline" style="padding: 3px 9px; font-size: 0.72rem; font-weight: 700; color: #059669; border-color: #A7F3D0; background: white; border-radius: 6px; cursor: pointer;" onclick="openAddManagerForTeam('${t.id}', '${escapeSheetHtml((t.name || '').replace(/'/g, "\\'"))}')" title="Create manager login for this team">
+                            <i class="fa-solid fa-user-plus"></i> Create Manager Login
+                        </button>
+                    </div>
+                `;
+            }
 
             ttbody.innerHTML += `
                 <tr>
@@ -3982,6 +4009,7 @@ async function saveParticipant() {
 
 // --- USER MANAGEMENT ---
 let allUsersList = [];
+window.allUsersMap = {};
 
 async function loadUsers() {
     try {
@@ -4002,6 +4030,11 @@ async function loadUsers() {
         if (error) throw error;
         
         allUsersList = data || [];
+        window.allUsersMap = {};
+        allUsersList.forEach(u => {
+            window.allUsersMap[u.id] = u;
+        });
+
         filterUsersTable();
     } catch(e) { 
         showToast(e.message, 'error'); 
@@ -4031,26 +4064,29 @@ function filterUsersTable() {
     tbody.innerHTML = '';
 
     filtered.forEach(u => {
-        const roleDisplay = u.role.replace('_', ' ').toUpperCase();
+        // Enforce smart detection: If user has team_id or username ends in _mgr, their role is team_manager
+        const isTeamManager = u.role === 'team_manager' || !!u.team_id || (u.username && u.username.toLowerCase().endsWith('_mgr'));
+        const effectiveRole = isTeamManager ? 'team_manager' : u.role;
+        const roleDisplay = effectiveRole.replace('_', ' ').toUpperCase();
+
         let roleBadgeColor = 'var(--primary)';
         let roleBadgeBg = 'var(--primary-light)';
-        if (u.role === 'team_manager') {
+        if (effectiveRole === 'team_manager') {
             roleBadgeColor = '#059669';
             roleBadgeBg = '#ECFDF5';
-        } else if (u.role === 'stage_controller') {
+        } else if (effectiveRole === 'stage_controller') {
             roleBadgeColor = '#D97706';
             roleBadgeBg = '#FEF3C7';
-        } else if (u.role === 'judge') {
+        } else if (effectiveRole === 'judge') {
             roleBadgeColor = '#7C3AED';
             roleBadgeBg = '#F3E8FF';
-        } else if (u.role === 'admin') {
+        } else if (effectiveRole === 'admin') {
             roleBadgeColor = '#DC2626';
             roleBadgeBg = '#FEF2F2';
         }
 
         const teamName = u.teams?.name || ((teamsList || []).find(t => String(t.id) === String(u.team_id))?.name) || '';
         const teamTag = teamName ? `<br><span style="font-size: 0.75rem; color: #059669; font-weight: 800; letter-spacing: 0.05em;"><i class="fa-solid fa-users"></i> TEAM: ${teamName.toUpperCase()}</span>` : '';
-        const safeData = JSON.stringify(u).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
 
         tbody.innerHTML += `
             <tr>
@@ -4067,7 +4103,7 @@ function filterUsersTable() {
                     </div>
                 </td>
                 <td>
-                    <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openUserModal(${safeData})' title="Edit Account / Reset Password"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick="openUserModal('${u.id}')" title="Edit Account / Reset Password"><i class="fa-solid fa-pen"></i></button>
                     <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteUser('${u.id}', '${(u.username || '').replace(/'/g, "\\'")}')" title="Delete User"><i class="fa-solid fa-trash"></i></button>
                 </td>
             </tr>
@@ -4103,14 +4139,45 @@ function toggleUserTeamGroup() {
 }
 window.toggleUserTeamGroup = toggleUserTeamGroup;
 
-async function openUserModal(editData = null) {
-    const isEdit = !!editData;
+async function openUserModal(userIdOrData = null) {
+    let editData = null;
+    if (userIdOrData) {
+        if (typeof userIdOrData === 'object') {
+            editData = userIdOrData;
+        } else if (typeof userIdOrData === 'string') {
+            editData = (allUsersList || []).find(u => String(u.id) === String(userIdOrData)) || window.allUsersMap?.[userIdOrData];
+            if (!editData) {
+                try {
+                    const { data } = await supabaseClient
+                        .from('users')
+                        .select('id, name, username, role, password_hash, team_id, teams(id, name)')
+                        .eq('id', userIdOrData)
+                        .maybeSingle();
+                    if (data) editData = data;
+                } catch(e) {
+                    console.warn('Error fetching user for modal:', e);
+                }
+            }
+        }
+    }
+
+    const isEdit = !!(editData && editData.id);
     const uId = isEdit ? editData.id : '';
-    const uFullName = isEdit ? (editData.name || '') : '';
-    const uName = isEdit ? editData.username : '';
-    const uPass = isEdit ? editData.password_hash : '';
-    const uRole = isEdit ? editData.role : 'team_manager';
-    const uTeamId = isEdit ? (editData.team_id || editData.teams?.id || '') : '';
+    const uFullName = editData ? (editData.name || '') : '';
+    const uName = editData ? (editData.username || '') : '';
+    const uPass = editData ? (editData.password_hash || '') : '';
+
+    // Smart detection: If user has team_id or username ends in _mgr or is already team_manager, guarantee role is team_manager
+    const isTeamManager = editData 
+        ? (editData.role === 'team_manager' || !!editData.team_id || (editData.username && editData.username.toLowerCase().endsWith('_mgr'))) 
+        : false;
+
+    let uRole = 'team_manager';
+    if (editData && editData.role) {
+        uRole = isTeamManager ? 'team_manager' : editData.role;
+    }
+
+    const uTeamId = editData ? (editData.team_id || editData.teams?.id || '') : '';
 
     // Guarantee teamsList is loaded for the team manager picker
     if (!teamsList || teamsList.length === 0) {
@@ -4138,7 +4205,7 @@ async function openUserModal(editData = null) {
         </div>
         <div class="form-group">
             <label>Username <span style="color:var(--danger);">*</span></label>
-            <input type="text" id="newUsername" value="${uName}" placeholder="e.g. team_emerald" autocomplete="off" style="text-transform: none !important;">
+            <input type="text" id="newUsername" value="${uName}" placeholder="e.g. team_emerald or emerald_mgr2" autocomplete="off" style="text-transform: none !important;">
         </div>
         
         <div class="form-group">
@@ -4150,7 +4217,7 @@ async function openUserModal(editData = null) {
         <div class="form-group">
             <label>Role</label>
             <select id="newUserRole" onchange="toggleUserTeamGroup()">
-                <option value="team_manager" ${uRole === 'team_manager' ? 'selected' : ''}>Team Manager</option>
+                <option value="team_manager" ${uRole === 'team_manager' ? 'selected' : ''}>Team Manager (Squad Lead)</option>
                 <option value="judge" ${uRole === 'judge' ? 'selected' : ''}>Judge</option>
                 <option value="stage_controller" ${uRole === 'stage_controller' ? 'selected' : ''}>Stage Controller</option>
                 <option value="fest_manager" ${uRole === 'fest_manager' ? 'selected' : ''}>Fest Manager</option>
@@ -4165,7 +4232,7 @@ async function openUserModal(editData = null) {
                 <option value="">-- SELECT TEAM --</option>
                 ${teamOptions}
             </select>
-            <small style="color: var(--text-muted); display: block; margin-top: 4px;">Links this login to their team squad roster and participant submissions.</small>
+            <small style="color: var(--text-muted); display: block; margin-top: 4px;">You can assign multiple manager accounts to the same team so assistant managers and coordinators each have their own login.</small>
         </div>
     `, async () => {
         const id = document.getElementById('editUserId').value;
@@ -4180,7 +4247,7 @@ async function openUserModal(editData = null) {
         }
 
         if (role === 'team_manager' && !selectedTeamId && !uTeamId) {
-            return showToast('Please select an assigned team for this Team Manager.', 'error');
+            return showToast('Please select which team this Team Manager belongs to.', 'error');
         }
         
         setLoading('modalSaveBtn', true);
@@ -4205,16 +4272,37 @@ async function openUserModal(editData = null) {
         setLoading('modalSaveBtn', false);
         
         if (error) {
-            if (error.code === '23505') showToast('Username already taken.', 'error'); 
+            if (error.code === '23505') showToast('Username already taken. Please choose another username.', 'error'); 
             else showToast(error.message, 'error');
         } else { 
             showToast(id ? 'Account & password updated successfully!' : 'Account created successfully!');
             closeModal(); 
-            loadUsers(); 
+            await loadUsers(); 
+            if (typeof loadStagesAndTeams === 'function') {
+                loadStagesAndTeams();
+            }
         }
     });
 }
 window.openUserModal = openUserModal;
+
+
+function openAddManagerForTeam(teamId, teamName) {
+    const slug = (teamName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const existingCount = (allUsersList || []).filter(u => String(u.team_id) === String(teamId) && u.role === 'team_manager').length;
+    const suffix = existingCount > 0 ? `_mgr${existingCount + 1}` : '_mgr';
+    const suggestedUsername = slug + suffix;
+
+    openUserModal({
+        id: '',
+        name: `${teamName} Manager ${existingCount > 0 ? (existingCount + 1) : ''}`.trim(),
+        username: suggestedUsername,
+        password_hash: 'fest2026',
+        role: 'team_manager',
+        team_id: teamId
+    });
+}
+window.openAddManagerForTeam = openAddManagerForTeam;
 
 async function deleteCategory(id) {
     openConfirmModal("Delete Category?", "This might fail if competitions are linked to it.", async () => {
