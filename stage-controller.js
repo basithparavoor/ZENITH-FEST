@@ -42,7 +42,7 @@ async function initializeApp() {
     
     const welcomeMsg = document.getElementById('welcome-msg');
     if (welcomeMsg) {
-        welcomeMsg.innerText = `WELCOME, ${user.username}`;
+        welcomeMsg.innerText = `Welcome, ${user.username}`;
     }
     
     loadDashboard();
@@ -446,17 +446,17 @@ function filterCompetitions() {
 
 function toggleFilterDrawer() {
     const drawer = document.getElementById('filter-drawer');
+    const btn = document.getElementById('filter-toggle-btn');
     if (!drawer) return;
     const isHidden = window.getComputedStyle(drawer).display === 'none';
     if (isHidden) {
-        drawer.style.display = 'flex';
-        if (window.scrollY > 80) {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        drawer.style.display = 'block';
+        if (btn) btn.classList.add('active');
         const searchInput = document.getElementById('comp-search');
         if (searchInput) searchInput.focus();
     } else {
         drawer.style.display = 'none';
+        if (btn) btn.classList.remove('active');
     }
 }
 window.toggleFilterDrawer = toggleFilterDrawer;
