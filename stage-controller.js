@@ -332,17 +332,21 @@ async function loadCompetitions(stageId) {
         if (sched) {
             const timeObj = new Date(`${sched.date}T${sched.time}`);
             const timeStr = isNaN(timeObj) ? sched.time : timeObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            schedBadge = `<span style="display: inline-flex; align-items: center; gap: 0.4rem;"><i class="fa-regular fa-clock" style="color: var(--primary);"></i> Sched: <strong style="color: var(--text-main);">${sched.date} @ ${timeStr}</strong></span>`;
+            schedBadge = `<span style="display: inline-flex; align-items: center; gap: 0.3rem;"><i class="fa-regular fa-clock" style="color: var(--primary);"></i> Sched: <strong style="color: var(--text-main);">${sched.date} @ ${timeStr}</strong></span>`;
             if (sched.delay_offset_minutes || (sched.baseline_time && sched.baseline_time !== sched.time)) {
                 const offMins = Number(sched.delay_offset_minutes) || 0;
                 const sign = offMins > 0 ? `+${offMins}m` : `${offMins}m`;
-                schedBadge += ` <span class="badge" style="background:#FEF3C7; color:#B45309; border:1px solid #FDE68A; font-size:0.68rem; font-weight:800; padding:1px 6px; border-radius:4px; margin-left:4px;" title="Original schedule: ${sched.baseline_time || ''}"><i class="fa-solid fa-clock-rotate-left"></i> ${sign} (Orig: ${sched.baseline_time || 'Sched'})</span>`;
+                schedBadge += ` <span style="background:#FEF3C7; color:#B45309; border:1px solid #FDE68A; font-size:0.65rem; font-weight:800; padding:1px 5px; border-radius:4px; margin-left:2px;" title="Original schedule: ${sched.baseline_time || ''}"><i class="fa-solid fa-clock-rotate-left"></i> ${sign}</span>`;
             }
         }
 
         const stageBadge = comp.stages?.name 
-            ? `<span style="color: #6366F1; font-size: 0.72rem; font-weight: 800; background: #EEF2FF; padding: 0.3rem 0.65rem; border-radius: 6px;"><i class="fa-solid fa-location-dot"></i> ${comp.stages.name}</span>`
-            : `<span style="color: var(--text-muted); font-size: 0.72rem; font-weight: 700; background: var(--bg-main); padding: 0.3rem 0.65rem; border-radius: 6px;"><i class="fa-solid fa-location-dot"></i> Unassigned</span>`;
+            ? `<span style="color: #6366F1; font-size: 0.7rem; font-weight: 800; background: #EEF2FF; padding: 0.2rem 0.5rem; border-radius: 6px;"><i class="fa-solid fa-location-dot"></i> ${comp.stages.name}</span>`
+            : `<span style="color: var(--text-muted); font-size: 0.7rem; font-weight: 700; background: var(--bg-main); padding: 0.2rem 0.5rem; border-radius: 6px;"><i class="fa-solid fa-location-dot"></i> Unassigned</span>`;
+
+        const isDrawerOpen = window.expandedDrawers && window.expandedDrawers.has(comp.id);
+        const drawerDisplay = isDrawerOpen ? 'block' : 'none';
+        const chevronClass = isDrawerOpen ? 'toggle-chevron rotated' : 'toggle-chevron';
 
         const card = document.createElement('div');
         card.className = 'card comp-card';
@@ -353,28 +357,26 @@ async function loadCompetitions(stageId) {
         card.innerHTML = `
             <div class="card-header">
                 <div style="width: 100%;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; gap: 0.75rem; flex-wrap: wrap;">
-                        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center;">
-                            <span style="color: var(--primary); font-size: 0.75rem; font-weight: 800; background: var(--primary-light); padding: 0.35rem 0.75rem; border-radius: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 0.5rem;">
+                        <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
+                            <span style="color: var(--primary); font-size: 0.7rem; font-weight: 800; background: var(--primary-light); padding: 0.2rem 0.5rem; border-radius: 6px;">
                                 ${categoryName}
                             </span>
                             ${stageBadge}
                         </div>
-                        <span class="badge ${badgeClass}" style="white-space: nowrap;">${statusIcon} ${statusText}</span>
+                        <span class="badge ${badgeClass}" style="white-space: nowrap; font-size: 0.7rem; padding: 0.2rem 0.55rem;">${statusIcon} ${statusText}</span>
                     </div>
                     
-                    <h2 class="card-title" style="margin-top: 0.75rem;">${comp.name}</h2>
+                    <h2 class="card-title">${comp.name}</h2>
                     
-                    <div style="display: flex; flex-direction: column; gap: 0.5rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 600; margin-top: 0.5rem;">
+                    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.65rem 0.9rem; color: var(--text-muted); font-size: 0.78rem; font-weight: 600;">
                         ${schedBadge}
-                        <div style="display: flex; gap: 1.25rem;">
-                            <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
-                                <i class="fa-solid fa-users" style="color: var(--primary);"></i> Enrolled: <strong style="color: var(--text-main);">${enrolledCount}</strong>
-                            </span>
-                            <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
-                                <i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Judges: <strong style="color: var(--text-main);">${judgesStr}</strong>
-                            </span>
-                        </div>
+                        <span style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                            <i class="fa-solid fa-users" style="color: var(--primary);"></i> Enrolled: <strong style="color: var(--text-main);">${enrolledCount}</strong>
+                        </span>
+                        <span style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                            <i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Judges: <strong style="color: var(--text-main);">${judgesStr}</strong>
+                        </span>
                     </div>
                 </div>
             </div>
@@ -384,11 +386,18 @@ async function loadCompetitions(stageId) {
             </div>
 
             <div class="card-list-section" ${comp.status === 'pending' ? 'style="display:none;"' : ''}>
-                <h3 style="font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main);">
-                    <i class="fa-solid fa-clipboard-user" style="color: var(--primary);"></i> Participant Status
-                </h3>
-                <div class="participant-list" id="list-${comp.id}">
-                    <p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 600;">Loading participants...</p>
+                <button type="button" class="participant-toggle-btn" onclick="toggleParticipantSection('${comp.id}')">
+                    <div class="toggle-btn-left">
+                        <i class="fa-solid fa-clipboard-user"></i>
+                        <span>Participants</span>
+                        <span id="badge-count-${comp.id}" class="badge-count">Checking...</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-down ${chevronClass}" id="chevron-${comp.id}"></i>
+                </button>
+                <div id="drawer-${comp.id}" class="participant-drawer" style="display: ${drawerDisplay};">
+                    <div class="participant-scroll-box" id="list-${comp.id}">
+                        <p style="color: var(--text-muted); font-size: 0.8rem; font-weight: 500; margin: 0.25rem 0;">Loading participants...</p>
+                    </div>
                 </div>
             </div>
         `;
@@ -460,6 +469,25 @@ function toggleFilterDrawer() {
     }
 }
 window.toggleFilterDrawer = toggleFilterDrawer;
+
+window.expandedDrawers = window.expandedDrawers || new Set();
+
+function toggleParticipantSection(compId) {
+    const drawer = document.getElementById(`drawer-${compId}`);
+    const chevron = document.getElementById(`chevron-${compId}`);
+    if (!drawer) return;
+    const isHidden = drawer.style.display === 'none';
+    if (isHidden) {
+        drawer.style.display = 'block';
+        if (chevron) chevron.classList.add('rotated');
+        window.expandedDrawers.add(compId);
+    } else {
+        drawer.style.display = 'none';
+        if (chevron) chevron.classList.remove('rotated');
+        window.expandedDrawers.delete(compId);
+    }
+}
+window.toggleParticipantSection = toggleParticipantSection;
 
 function getButtonsForStatus(comp) {
     const safeName = comp.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -737,12 +765,16 @@ async function loadCheckedInList(compId) {
         .eq('competition_id', compId);
 
     if (error) {
-        listContainer.innerHTML = `<p style="color: var(--danger); font-size: 0.95rem; font-weight: 600;">Failed to load participants.</p>`;
+        listContainer.innerHTML = `<p style="color: var(--danger); font-size: 0.8rem; font-weight: 600; margin: 0.25rem 0;">Failed to load participants.</p>`;
+        const badgeCountEl = document.getElementById(`badge-count-${compId}`);
+        if (badgeCountEl) { badgeCountEl.innerText = 'Error'; }
         return;
     }
 
     if (!data || data.length === 0) {
-        listContainer.innerHTML = `<p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 500;">No participants are enrolled in this competition.</p>`;
+        listContainer.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem; font-weight: 500; margin: 0.25rem 0;">No participants enrolled.</p>`;
+        const badgeCountEl = document.getElementById(`badge-count-${compId}`);
+        if (badgeCountEl) { badgeCountEl.innerText = '0 Enrolled'; }
         return;
     }
 
@@ -761,55 +793,52 @@ async function loadCheckedInList(compId) {
     
     pending = pending.sort((a, b) => (a.participants?.name || '').localeCompare(b.participants?.name || ''));
 
+    // Update accordion badge count
+    const badgeCountEl = document.getElementById(`badge-count-${compId}`);
+    if (badgeCountEl) {
+        badgeCountEl.innerText = `${checkedIn.length} in • ${pending.length} abs`;
+    }
+
     let html = '';
 
     if (checkedIn.length > 0) {
         html += checkedIn.map(reg => {
             let displayName = reg.participants?.name || 'Participant';
             if (comp && comp.is_group && reg.is_leader) displayName += " & PARTY";
-            
-            // Extract team name with a fallback
             let teamName = reg.participants?.teams?.name || 'IND'; 
             
             return `
-            <div class="participant-item" style="border-left: 4px solid var(--success);">
-                <div>
-                    <span style="font-weight: 700; font-size: 1rem; color: var(--text-main); display: block;">${displayName}</span>
-                    <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-top: 0.15rem;">${teamName}</span>
-                    <span style="font-size: 0.8rem; font-weight: 700; color: var(--success); display: flex; align-items: center; gap: 0.3rem; margin-top: 0.25rem;">
-                        <i class="fa-solid fa-circle-check"></i> CHECKED IN
-                    </span>
+            <div class="participant-item-compact checked-in">
+                <div class="p-info">
+                    <span class="p-name">${displayName}</span>
+                    <span class="p-sub">${teamName}</span>
                 </div>
-                <span class="code-letter">${reg.code_letter}</span>
+                <span class="code-letter-compact">${reg.code_letter}</span>
             </div>
         `}).join('');
     } else {
-        html += `<p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 500; margin-bottom: 0.5rem;">No one has checked in yet.</p>`;
+        html += `<p style="color: var(--text-muted); font-size: 0.8rem; font-weight: 500; margin: 0.25rem 0;">No check-ins yet.</p>`;
     }
 
     if (pending.length > 0) {
         html += `
-            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border);">
-                <h4 style="font-size: 0.85rem; font-weight: 800; color: var(--warning); margin-bottom: 1rem; letter-spacing: 0.05em;">
-                    <i class="fa-solid fa-clock"></i> PENDING ARRIVAL (${pending.length})
-                </h4>
+            <div style="font-size: 0.72rem; font-weight: 800; color: var(--warning); margin: 0.4rem 0 0.2rem 0; letter-spacing: 0.04em;">
+                <i class="fa-solid fa-clock"></i> PENDING ARRIVAL (${pending.length})
             </div>
         `;
         
         html += pending.map(reg => {
             let displayName = reg.participants?.name || 'Participant';
             if (comp && comp.is_group && reg.is_leader) displayName += " & PARTY";
-
-            // Extract team name with a fallback
             let teamName = reg.participants?.teams?.name || 'IND';
 
             return `
-            <div class="participant-item" style="opacity: 0.75; background: var(--bg-main); border-left: 4px solid var(--warning);">
-                <div>
-                    <span style="font-weight: 600; font-size: 0.95rem; color: var(--text-main); display: block;">${displayName}</span>
-                    <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace; font-weight: 600; margin-top: 0.25rem; display: block;">${reg.participants?.unique_id || 'N/A'} • ${teamName}</span>
+            <div class="participant-item-compact absent">
+                <div class="p-info">
+                    <span class="p-name">${displayName}</span>
+                    <span class="p-sub">${reg.participants?.unique_id || 'N/A'} • ${teamName}</span>
                 </div>
-                <span style="font-size: 0.75rem; font-weight: 800; color: var(--warning); background: var(--warning-light); padding: 0.35rem 0.75rem; border-radius: 6px;">ABSENT</span>
+                <span class="p-status-pill">ABSENT</span>
             </div>
         `}).join('');
     }
