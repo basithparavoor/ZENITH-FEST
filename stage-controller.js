@@ -333,6 +333,11 @@ async function loadCompetitions(stageId) {
             const timeObj = new Date(`${sched.date}T${sched.time}`);
             const timeStr = isNaN(timeObj) ? sched.time : timeObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             schedBadge = `<span style="display: inline-flex; align-items: center; gap: 0.4rem;"><i class="fa-regular fa-clock" style="color: var(--primary);"></i> Sched: <strong style="color: var(--text-main);">${sched.date} @ ${timeStr}</strong></span>`;
+            if (sched.delay_offset_minutes || (sched.baseline_time && sched.baseline_time !== sched.time)) {
+                const offMins = Number(sched.delay_offset_minutes) || 0;
+                const sign = offMins > 0 ? `+${offMins}m` : `${offMins}m`;
+                schedBadge += ` <span class="badge" style="background:#FEF3C7; color:#B45309; border:1px solid #FDE68A; font-size:0.68rem; font-weight:800; padding:1px 6px; border-radius:4px; margin-left:4px;" title="Original schedule: ${sched.baseline_time || ''}"><i class="fa-solid fa-clock-rotate-left"></i> ${sign} (Orig: ${sched.baseline_time || 'Sched'})</span>`;
+            }
         }
 
         const stageBadge = comp.stages?.name 
@@ -396,6 +401,7 @@ async function loadCompetitions(stageId) {
     
     setTimeout(adjustLayoutPadding, 50); 
     filterCompetitions();
+    updateStageDelayStatusIndicator();
 }
 
 function filterCompetitions() {
@@ -428,9 +434,33 @@ function filterCompetitions() {
             card.style.display = 'none'; 
         }
     });
+
+    // Update active filter indicator dot on header icon button
+    const filterDot = document.getElementById('filter-badge-dot');
+    if (filterDot) {
+        const hasActiveFilter = !!textFilter || catFilter !== 'ALL' || statusFilter !== 'ALL';
+        filterDot.style.display = hasActiveFilter ? 'block' : 'none';
+    }
     
     adjustLayoutPadding();
 }
+
+function toggleFilterDrawer() {
+    const drawer = document.getElementById('filter-drawer');
+    if (!drawer) return;
+    const isHidden = window.getComputedStyle(drawer).display === 'none';
+    if (isHidden) {
+        drawer.style.display = 'flex';
+        if (window.scrollY > 80) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        const searchInput = document.getElementById('comp-search');
+        if (searchInput) searchInput.focus();
+    } else {
+        drawer.style.display = 'none';
+    }
+}
+window.toggleFilterDrawer = toggleFilterDrawer;
 
 function getButtonsForStatus(comp) {
     const safeName = comp.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -1090,3 +1120,251 @@ function logout() {
         window.location.href = 'index.html';
     });
 }
+
+
+// =========================================================================
+// ⚡ STAGE CONTROLLER ISOLATED DELAY & RECOVERY ENGINE
+// =========================================================================
+
+function timeStringToMinutes(timeStr) {
+    if (!timeStr) return 0;
+    const parts = timeStr.split(':').map(Number);
+    return (parts[0] || 0) * 60 + (parts[1] || 0);
+}
+
+function minutesToTimeString(mins) {
+    const h = Math.floor(mins / 60) % 24;
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function getActiveStageControllerStageId() {
+    const filterDropdown = document.getElementById('master-stage-filter');
+    if (filterDropdown && filterDropdown.value && filterDropdown.value !== 'ALL' && filterDropdown.value !== 'MY_STAGES' && filterDropdown.value !== 'UNASSIGNED') {
+        return filterDropdown.value;
+    }
+    if (user && user.stage_id) return user.stage_id;
+    if (window.allStagesList && window.allStagesList.length > 0) {
+        return window.allStagesList[0].id;
+    }
+    return null;
+}
+
+function updateStageDelayStatusIndicator() {
+    const indicator = document.getElementById('stage-delay-status-indicator');
+    if (!indicator) return;
+
+    const stageId = getActiveStageControllerStageId();
+    const today = new Date().toISOString().split('T')[0];
+    const sched = window.masterSchedule || {};
+
+    let isDelayed = false;
+    let maxOffset = 0;
+
+    Object.keys(sched).forEach(compId => {
+        const item = sched[compId];
+        if (!item || item.date !== today) return;
+        const comp = (window.allLoadedCompetitions || []).find(c => String(c.id) === String(compId));
+        if (!comp) return;
+
+        const match = stageId === 'offstage' ? !!comp.is_offstage : (stageId ? String(comp.stage_id) === String(stageId) : true);
+        if (match) {
+            if (item.delay_offset_minutes || (item.baseline_time && item.baseline_time !== item.time)) {
+                isDelayed = true;
+                const offset = Number(item.delay_offset_minutes) || 0;
+                if (Math.abs(offset) > Math.abs(maxOffset)) maxOffset = offset;
+            }
+        }
+    });
+
+    if (isDelayed) {
+        const sign = maxOffset > 0 ? `+${maxOffset}m` : `${maxOffset}m`;
+        indicator.innerHTML = `<span class="badge" style="background:#FEF3C7; color:#B45309; padding:0.35rem 0.75rem; border-radius:50px; font-weight:700; border:1px solid #FDE68A;"><i class="fa-solid fa-clock-rotate-left"></i> Stage Delayed (${sign})</span>`;
+    } else {
+        indicator.innerHTML = `<span class="badge" style="background:#D1FAE5; color:#059669; padding:0.35rem 0.75rem; border-radius:50px; font-weight:700;"><i class="fa-solid fa-circle-check"></i> Schedule: Normal</span>`;
+    }
+}
+
+function openStageControllerDelayModal() {
+    const modal = document.getElementById('stageDelayModal');
+    if (!modal) return;
+
+    const stageId = getActiveStageControllerStageId();
+    const stageObj = (window.allStagesList || []).find(s => String(s.id) === String(stageId));
+    const stageName = stageObj ? stageObj.name : (stageId === 'offstage' ? 'Offstage Venue' : 'Stage');
+
+    const titleEl = document.getElementById('sc-modal-stage-title');
+    if (titleEl) titleEl.innerText = `Active Venue: ${stageName}`;
+
+    const select = document.getElementById('sc-delay-from-comp');
+    if (select) {
+        select.innerHTML = '<option value="ALL">-- Entire Remaining Day Schedule --</option>';
+        const today = new Date().toISOString().split('T')[0];
+        const sched = window.masterSchedule || {};
+
+        const matchingComps = (window.allLoadedCompetitions || []).filter(c => {
+            const s = sched[c.id];
+            if (!s || s.date !== today) return false;
+            return stageId === 'offstage' ? !!c.is_offstage : String(c.stage_id) === String(stageId);
+        });
+
+        matchingComps.sort((a,b) => (sched[a.id]?.time || '').localeCompare(sched[b.id]?.time || ''));
+
+        matchingComps.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = `${sched[c.id]?.time || '--:--'} - ${c.name}`;
+            select.appendChild(opt);
+        });
+    }
+
+    setScDelayMinutes(20);
+    modal.style.display = 'flex';
+}
+window.openStageControllerDelayModal = openStageControllerDelayModal;
+
+function closeStageControllerDelayModal() {
+    const modal = document.getElementById('stageDelayModal');
+    if (modal) modal.style.display = 'none';
+}
+window.closeStageControllerDelayModal = closeStageControllerDelayModal;
+
+function setScDelayMinutes(mins) {
+    const input = document.getElementById('sc-delay-minutes-input');
+    if (input) input.value = mins;
+
+    const pills = document.querySelectorAll('.sc-pill');
+    pills.forEach(p => {
+        const text = p.innerText.trim();
+        const matchVal = mins > 0 ? `+${mins}` : `${mins}`;
+        if (text.startsWith(matchVal)) {
+            p.style.background = mins > 0 ? '#FEF3C7' : '#D1FAE5';
+            p.style.color = mins > 0 ? '#B45309' : '#047857';
+            p.style.borderColor = mins > 0 ? '#FDE68A' : '#A7F3D0';
+        } else {
+            p.style.background = 'white';
+            p.style.color = 'var(--text-main)';
+            p.style.borderColor = 'var(--border)';
+        }
+    });
+}
+window.setScDelayMinutes = setScDelayMinutes;
+
+async function applyStageControllerDelay() {
+    const stageId = getActiveStageControllerStageId();
+    if (!stageId) return showToast("No active stage identified.", "error");
+
+    const deltaMins = parseInt(document.getElementById('sc-delay-minutes-input')?.value) || 0;
+    if (deltaMins === 0) return showToast("Please specify a shift in minutes.", "warning");
+
+    const fromCompId = document.getElementById('sc-delay-from-comp')?.value;
+    const today = new Date().toISOString().split('T')[0];
+    const sched = window.masterSchedule || {};
+
+    let fromTime = null;
+    if (fromCompId && fromCompId !== 'ALL' && sched[fromCompId]) {
+        fromTime = sched[fromCompId].time;
+    }
+
+    let modifiedCount = 0;
+    (window.allLoadedCompetitions || []).forEach(comp => {
+        const item = sched[comp.id];
+        if (!item || item.date !== today) return;
+
+        const matchStage = stageId === 'offstage' ? !!comp.is_offstage : String(comp.stage_id) === String(stageId);
+        if (!matchStage) return;
+
+        if (fromTime && item.time < fromTime) return;
+
+        if (!item.baseline_time) item.baseline_time = item.time;
+        if (!item.baseline_to_time && item.to_time) item.baseline_to_time = item.to_time;
+
+        const curMins = timeStringToMinutes(item.time);
+        let nextMins = curMins + deltaMins;
+        if (nextMins >= 1440) nextMins = 1439;
+        if (nextMins < 0) nextMins = 0;
+        item.time = minutesToTimeString(nextMins);
+
+        if (item.to_time) {
+            const curToMins = timeStringToMinutes(item.to_time);
+            let nextToMins = curToMins + deltaMins;
+            if (nextToMins >= 1440) nextToMins = 1439;
+            if (nextToMins < 0) nextToMins = 0;
+            item.to_time = minutesToTimeString(nextToMins);
+        }
+
+        const prevOffset = parseInt(item.delay_offset_minutes) || 0;
+        item.delay_offset_minutes = prevOffset + deltaMins;
+        item.last_delay_applied_at = new Date().toISOString();
+        modifiedCount++;
+    });
+
+    if (modifiedCount === 0) {
+        return showToast("No scheduled competitions matched on this stage today.", "warning");
+    }
+
+    try {
+        const { error } = window.festosSaveSetting 
+            ? await window.festosSaveSetting('master_schedule', sched) 
+            : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: sched });
+        if (error) throw error;
+
+        const sign = deltaMins > 0 ? `+${deltaMins}m delay` : `${deltaMins}m catch-up`;
+        showToast(`Applied ${sign} across ${modifiedCount} event(s)!`, "success");
+
+        closeStageControllerDelayModal();
+        const currentFilter = document.getElementById('master-stage-filter');
+        const targetStage = currentFilter ? currentFilter.value : 'ALL';
+        await loadCompetitions(targetStage);
+        updateStageDelayStatusIndicator();
+    } catch(err) {
+        showToast("Error updating stage schedule: " + err.message, "error");
+    }
+}
+window.applyStageControllerDelay = applyStageControllerDelay;
+
+async function revertStageControllerSchedule() {
+    const stageId = getActiveStageControllerStageId();
+    if (!stageId) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const sched = window.masterSchedule || {};
+
+    let count = 0;
+    (window.allLoadedCompetitions || []).forEach(comp => {
+        const item = sched[comp.id];
+        if (!item || item.date !== today) return;
+
+        const matchStage = stageId === 'offstage' ? !!comp.is_offstage : String(comp.stage_id) === String(stageId);
+        if (!matchStage) return;
+
+        if (item.baseline_time) {
+            item.time = item.baseline_time;
+            if (item.baseline_to_time) item.to_time = item.baseline_to_time;
+            item.delay_offset_minutes = 0;
+            delete item.last_delay_applied_at;
+            count++;
+        }
+    });
+
+    if (count === 0) {
+        return showToast("Stage is already running on original baseline.", "info");
+    }
+
+    try {
+        const { error } = window.festosSaveSetting 
+            ? await window.festosSaveSetting('master_schedule', sched) 
+            : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: sched });
+        if (error) throw error;
+
+        showToast(`Reverted ${count} event(s) to original baseline!`, "success");
+        closeStageControllerDelayModal();
+        const currentFilter = document.getElementById('master-stage-filter');
+        const targetStage = currentFilter ? currentFilter.value : 'ALL';
+        await loadCompetitions(targetStage);
+        updateStageDelayStatusIndicator();
+    } catch(err) {
+        showToast("Error reverting stage schedule: " + err.message, "error");
+    }
+}
+window.revertStageControllerSchedule = revertStageControllerSchedule;
