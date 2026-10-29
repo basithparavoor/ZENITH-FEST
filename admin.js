@@ -14601,12 +14601,18 @@ let globalJudgesList = [];
 
 async function loadJudgesManagement() {
     try {
+        const fid = (typeof getActiveFestId === 'function') ? getActiveFestId() : null;
+        let assignQuery = supabaseClient.from('judgements').select('judge_id, competition_id, competitions(name, categories(name), stages(name))');
+        if (fid) {
+            assignQuery = assignQuery.or(`fest_id.eq.${fid},fest_id.is.null`);
+        }
+
         const [
             { data: judges, error: judgesErr },
             { data: assignments, error: assignErr }
         ] = await Promise.all([
             festQuery(supabaseClient.from('users').select('id, username')).eq('role', 'judge').order('username'),
-            festQuery(supabaseClient.from('judgements').select('judge_id, competition_id, competitions(name, categories(name), stages(name))'))
+            assignQuery
         ]);
         
         if (judgesErr) throw judgesErr;
@@ -14616,7 +14622,7 @@ async function loadJudgesManagement() {
         // 3. Group and deduplicate assignments per judge 
         // (Since judgements might have multiple rows per comp if marks are saved)
         globalJudgesList.forEach(judge => {
-            const judgeAssigns = assignments.filter(a => a.judge_id === judge.id);
+            const judgeAssigns = (assignments || []).filter(a => a.judge_id === judge.id);
             const uniqueCompsMap = new Map();
             
             judgeAssigns.forEach(a => {
@@ -14647,7 +14653,7 @@ function renderJudgesTable() {
     }
 
     filtered.forEach(judge => {
-        const assignCount = judge.assignments.length;
+        const assignCount = (judge.assignments || []).length;
         const countBadge = assignCount > 0 
             ? `<span class="badge badge-primary">${assignCount} Events</span>` 
             : `<span class="badge" style="background: var(--bg-main); color: var(--text-muted); border: 1px solid var(--border);">Unassigned</span>`;
@@ -14662,10 +14668,10 @@ function renderJudgesTable() {
                 <td>${countBadge}</td>
                 <td>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                        <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; border-color: var(--primary); color: var(--primary);" onclick="viewJudgeDetails('${judge.id}')" ${assignCount === 0 ? 'disabled' : ''} title="View Schedule">
+                        <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; border-color: var(--primary); color: var(--primary);" onclick="viewJudgeDetails('${judge.id}')" title="View Schedule">
                             <i class="fa-solid fa-calendar-days"></i>
                         </button>
-                        <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; color: var(--danger); border-color: var(--danger);" onclick="exportSpecificJudgePDF('${judge.id}')" ${assignCount === 0 ? 'disabled' : ''} title="Download Schedule PDF">
+                        <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; color: var(--danger); border-color: var(--danger);" onclick="exportSpecificJudgePDF('${judge.id}')" title="Download Schedule PDF">
                             <i class="fa-solid fa-file-pdf"></i>
                         </button>
                         <button class="btn btn-outline" style="padding: 0.4rem 0.75rem;" onclick="openAssignJudgeEvents('${judge.id}')" title="Assign Events">
@@ -14851,14 +14857,21 @@ async function saveJudgeAssignments() {
     
     try {
         // Remove old generic assignments for this judge (where no marks have been awarded yet)
-        await supabaseClient.from('judgements')
+        let delQuery = supabaseClient.from('judgements')
             .delete()
             .eq('judge_id', judgeId)
             .is('participant_id', null);
+        if (typeof festQuery === 'function') delQuery = festQuery(delQuery);
+        await delQuery;
         
-        // Insert new selected assignments
-        if(selectedCompIds.length > 0) {
-            const inserts = selectedCompIds.map(compId => ({ competition_id: compId, judge_id: judgeId }));
+        // Insert new selected assignments with active festival ID
+        if (selectedCompIds.length > 0) {
+            const fid = (typeof getActiveFestId === 'function') ? getActiveFestId() : null;
+            const inserts = selectedCompIds.map(compId => {
+                const row = { competition_id: compId, judge_id: judgeId };
+                if (fid) row.fest_id = fid;
+                return (typeof festPayload === 'function') ? festPayload(row) : row;
+            });
             await supabaseClient.from('judgements').insert(inserts);
         }
         
@@ -14878,6 +14891,12 @@ async function exportSpecificJudgePDF(judgeId) {
     const judge = globalJudgesList.find(j => j.id === judgeId);
     if (!judge) return;
     
+    if (!judge.assignments || judge.assignments.length === 0) {
+        showToast(`No events assigned to ${judge.username} yet. Please assign events first.`, 'warning');
+        openAssignJudgeEvents(judge.id);
+        return;
+    }
+
     showToast(`Generating Schedule PDF for ${judge.username}...`, 'success');
     const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
 
@@ -15139,8 +15158,19 @@ async function viewJudgeDetails(judgeId) {
 
         tbody.innerHTML = '';
 
-        if (judge.assignments.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">No events assigned to this judge.</td></tr>`;
+        if (!judge.assignments || judge.assignments.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2.5rem 1rem;">
+                        <i class="fa-solid fa-calendar-xmark" style="font-size: 2.2rem; color: #94A3B8; margin-bottom: 0.75rem; display: block;"></i>
+                        <div style="font-weight: 700; font-size: 1rem; color: var(--text-main); margin-bottom: 0.25rem;">No Events Assigned</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">This judge does not have any competitions assigned yet.</div>
+                        <button class="btn btn-primary" onclick="document.getElementById('judgeDetailsModal').classList.remove('show'); openAssignJudgeEvents('${judge.id}');">
+                            <i class="fa-solid fa-list-check"></i> Assign Events Now
+                        </button>
+                    </td>
+                </tr>
+            `;
             return;
         }
 

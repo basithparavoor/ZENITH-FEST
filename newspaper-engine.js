@@ -268,18 +268,65 @@
 
     // Gate Enforcer: Only show contents during festival dates set in Admin
     let countdownInterval = null;
+    let activeCountdownTarget = null;
+    let isValidatingDateAccess = false;
+
+    function resetCountdownDisplay() {
+        const elD = document.getElementById('np-cd-days');
+        const elH = document.getElementById('np-cd-hours');
+        const elM = document.getElementById('np-cd-mins');
+        const elS = document.getElementById('np-cd-secs');
+
+        if (elD) elD.innerText = '00';
+        if (elH) elH.innerText = '00';
+        if (elM) elM.innerText = '00';
+        if (elS) elS.innerText = '00';
+    }
 
     function startFestivalCountdown(targetIsoDate) {
-        if (countdownInterval) clearInterval(countdownInterval);
-        
+        if (!targetIsoDate) return;
+
+        const targetTime = new Date(targetIsoDate).getTime();
+        const now = Date.now();
+
+        // If target timestamp is invalid or already in the past, do not start countdown
+        if (isNaN(targetTime) || targetTime <= now) {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            activeCountdownTarget = null;
+            resetCountdownDisplay();
+            return;
+        }
+
+        // Avoid creating duplicate intervals if already actively counting down to this target
+        if (countdownInterval && activeCountdownTarget === targetIsoDate) {
+            return;
+        }
+
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+        activeCountdownTarget = targetIsoDate;
+
         function updateTimer() {
-            const now = new Date().getTime();
-            const target = new Date(targetIsoDate).getTime();
-            const diff = target - now;
+            const currentNow = Date.now();
+            const diff = targetTime - currentNow;
 
             if (diff <= 0) {
-                if (countdownInterval) clearInterval(countdownInterval);
-                validateFestivalDateAccess();
+                if (countdownInterval) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                }
+                activeCountdownTarget = null;
+                resetCountdownDisplay();
+
+                // Asynchronously re-evaluate gate status so the call stack has completely unwound
+                setTimeout(() => {
+                    validateFestivalDateAccess();
+                }, 100);
                 return;
             }
 
@@ -304,53 +351,56 @@
     }
 
     function validateFestivalDateAccess() {
-        const schedule = getFestivalSchedule();
-        const selectedDate = NP_STATE.currentDate || new Date().toISOString().split('T')[0];
-        const todayStr = new Date().toISOString().split('T')[0];
+        if (isValidatingDateAccess) return false;
+        isValidatingDateAccess = true;
 
-        // Check if festival dates are configured in Super Admin
-        const hasDatesSet = (schedule.allowedDates && schedule.allowedDates.length > 0) || schedule.startDate;
-        const openingDate = schedule.startDate || (schedule.allowedDates ? schedule.allowedDates[0] : null);
+        try {
+            const schedule = getFestivalSchedule();
+            const selectedDate = NP_STATE.currentDate || new Date().toISOString().split('T')[0];
+            const todayStr = new Date().toISOString().split('T')[0];
 
-        let isDateActive = true;
-        let isFutureDate = false;
+            // Check if festival dates are configured in Super Admin
+            const hasDatesSet = (schedule.allowedDates && schedule.allowedDates.length > 0) || Boolean(schedule.startDate);
+            const openingDate = schedule.startDate || (schedule.allowedDates ? schedule.allowedDates[0] : null);
 
-        if (hasDatesSet) {
-            if (schedule.allowedDates && schedule.allowedDates.length > 0) {
-                isDateActive = schedule.allowedDates.includes(selectedDate) || schedule.allowedDates.includes(todayStr);
-                if (todayStr < schedule.allowedDates[0]) isFutureDate = true;
-            } else if (schedule.startDate) {
-                isDateActive = (todayStr >= schedule.startDate && (schedule.endDate ? todayStr <= schedule.endDate : true));
-                if (todayStr < schedule.startDate) isFutureDate = true;
+            let isFutureDate = false;
+
+            if (hasDatesSet && openingDate) {
+                if (todayStr < openingDate) {
+                    isFutureDate = true;
+                }
             }
-        }
 
-        const lockScreen = document.getElementById('np-date-gated-lock');
-        const workspace = document.getElementById('np-main-studio-workspace');
-        const lockRangeSpan = document.getElementById('np-lock-date-range');
+            const lockScreen = document.getElementById('np-date-gated-lock');
+            const workspace = document.getElementById('np-main-studio-workspace');
+            const lockRangeSpan = document.getElementById('np-lock-date-range');
 
-        if (lockRangeSpan) lockRangeSpan.innerText = schedule.dateRangeLabel;
+            if (lockRangeSpan) lockRangeSpan.innerText = schedule.dateRangeLabel;
 
-        // If Super Admin set dates and today is before festival dates, do NOT show any contents inside tab!
-        const shouldLock = hasDatesSet && (isFutureDate || !isDateActive) && !adminBypassActive;
+            // If Super Admin set dates and today is strictly before festival opening, show premiere countdown lock
+            const shouldLock = hasDatesSet && isFutureDate && !adminBypassActive;
 
-        if (shouldLock) {
-            if (lockScreen) lockScreen.style.display = 'block';
-            if (workspace) workspace.style.display = 'none';
+            if (shouldLock) {
+                if (lockScreen) lockScreen.style.display = 'block';
+                if (workspace) workspace.style.display = 'none';
 
-            // Launch live countdown timer
-            if (openingDate) {
-                startFestivalCountdown(`${openingDate}T03:00:00`);
+                // Launch live countdown timer towards opening
+                if (openingDate) {
+                    startFestivalCountdown(`${openingDate}T03:00:00`);
+                }
+                return false;
+            } else {
+                if (lockScreen) lockScreen.style.display = 'none';
+                if (workspace) workspace.style.display = 'block';
+                if (countdownInterval) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                }
+                activeCountdownTarget = null;
+                return true;
             }
-            return false;
-        } else {
-            if (lockScreen) lockScreen.style.display = 'none';
-            if (workspace) workspace.style.display = 'block';
-            if (countdownInterval) {
-                clearInterval(countdownInterval);
-                countdownInterval = null;
-            }
-            return true;
+        } finally {
+            isValidatingDateAccess = false;
         }
     }
 
