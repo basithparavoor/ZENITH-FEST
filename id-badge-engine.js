@@ -793,7 +793,9 @@
             if (teamSelect.options.length <= 1) {
                 const client = window.supabaseClient || window.supabase;
                 if (client) {
-                    client.from('teams').select('id, name').order('name').then(({ data }) => {
+                    let tQ = client.from('teams').select('id, name').order('name');
+                    if (window.festosApplyFilter) tQ = window.festosApplyFilter(tQ);
+                    tQ.then(({ data }) => {
                         if (data && data.length > 0) {
                             teamSelect.innerHTML = '<option value="all">ALL TEAMS</option>';
                             data.forEach(t => {
@@ -831,7 +833,9 @@
             if (catSelect.options.length <= 1) {
                 const client = window.supabaseClient || window.supabase;
                 if (client) {
-                    client.from('categories').select('id, name').order('name').then(({ data }) => {
+                    let cQ = client.from('categories').select('id, name').order('name');
+                    if (window.festosApplyFilter) cQ = window.festosApplyFilter(cQ);
+                    cQ.then(({ data }) => {
                         if (data && data.length > 0) {
                             catSelect.innerHTML = '<option value="all">ALL CATEGORIES</option>';
                             data.forEach(c => {
@@ -930,7 +934,9 @@
             if (participants.length === 0 && (window.supabaseClient || window.supabase)) {
                 try {
                     const client = window.supabaseClient || window.supabase;
-                    const { data } = await client.from('participants').select('*, categories(name), teams(name)').in('id', ids);
+                    let pQ = client.from('participants').select('*, categories(name), teams(name)').in('id', ids);
+                    if (window.festosApplyFilter) pQ = window.festosApplyFilter(pQ);
+                    const { data } = await pQ;
                     if (data) participants = data;
                 } catch (e) {
                     console.warn('Direct ID fetch notice:', e);
@@ -947,7 +953,11 @@
             try {
                 const client = window.supabaseClient || window.supabase;
                 let q = client.from('participants').select('*, categories(name), teams(name)').order('name');
-                if (typeof festosWithFest === 'function') q = festosWithFest(q);
+                if (window.festosApplyFilter) {
+                    q = window.festosApplyFilter(q);
+                } else if (typeof festQuery === 'function') {
+                    q = festQuery(q);
+                }
                 const { data } = await q;
                 if (data && data.length > 0) participants = data;
             } catch (err) {

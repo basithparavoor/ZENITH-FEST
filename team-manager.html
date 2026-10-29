@@ -448,6 +448,59 @@
             .modal { border-radius: 24px 24px 0 0; border: none; padding: 2rem 1.5rem calc(2rem + env(safe-area-inset-bottom)) 1.5rem; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
             .modal-overlay.show .modal { transform: translateY(0); }
         }
+        .part-pill {
+            padding: 0.35rem 0.85rem;
+            border-radius: 9999px;
+            border: 1px solid var(--border);
+            background: var(--bg-surface, #ffffff);
+            color: var(--text-main);
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.05));
+            user-select: none;
+        }
+        .part-pill:hover {
+            border-color: var(--primary);
+            background: #F8FAFC;
+        }
+        .part-pill.active {
+            background: var(--primary) !important;
+            color: #ffffff !important;
+            border-color: var(--primary) !important;
+            box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+        }
+        .part-pill.active i {
+            color: #ffffff !important;
+        }
+        .part-pill .pill-badge {
+            padding: 2px 7px;
+            border-radius: 9999px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            background: #F1F5F9;
+            color: var(--text-main);
+        }
+        .part-pill.active .pill-badge {
+            background: rgba(255, 255, 255, 0.25) !important;
+            color: #ffffff !important;
+        }
+        .part-pill .pill-badge-danger {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+        .part-pill .pill-badge-success {
+            background: #DCFCE7;
+            color: #16A34A;
+        }
+        .part-pill .pill-badge-warning {
+            background: #FEF3C7;
+            color: #D97706;
+        }
     </style>
 </head>
 <body>
@@ -616,10 +669,40 @@
             <h2 style="margin-bottom: 0.25rem;">STUDENT DIRECTORY</h2>
             <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 500;">VIEW ALL STUDENTS ASSIGNED TO YOUR TEAM AND THEIR ACTIVE ENROLLMENTS.</p>
             
-            <div class="controls-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-                <div class="search-box" style="flex: 1; min-width: 250px;">
+            <!-- Quick Filter Pills for Students -->
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem;">
+                <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 2px;">FILTER:</span>
+                <button type="button" id="student-pill-all" class="part-pill active" onclick="setStudentPillFilter('all')">
+                    <i class="fa-solid fa-users"></i> ALL <span class="pill-badge" id="tm-count-all">0</span>
+                </button>
+                <button type="button" id="student-pill-enrolled" class="part-pill" onclick="setStudentPillFilter('enrolled')">
+                    <i class="fa-solid fa-circle-check" style="color: #10B981;"></i> ENROLLED <span class="pill-badge pill-badge-success" id="tm-count-enrolled">0</span>
+                </button>
+                <button type="button" id="student-pill-zero" class="part-pill" onclick="setStudentPillFilter('zero')">
+                    <i class="fa-solid fa-triangle-exclamation" style="color: #EF4444;"></i> ZERO ENROLLMENTS <span class="pill-badge pill-badge-danger" id="tm-count-zero">0</span>
+                </button>
+                <button type="button" id="student-pill-no-own-cat" class="part-pill" onclick="setStudentPillFilter('no_own_cat')">
+                    <i class="fa-solid fa-user-xmark" style="color: #F59E0B;"></i> MISSING OWN CATEGORY <span class="pill-badge pill-badge-warning" id="tm-count-no-own-cat">0</span>
+                </button>
+            </div>
+
+            <div class="controls-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                <div class="search-box" style="flex: 1.5; min-width: 200px;">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="text" id="search-students" placeholder="SEARCH BY NAME OR ID..." onkeyup="renderStudents()">
+                </div>
+                <div class="filter-box" style="flex: 1; min-width: 150px;">
+                    <select id="filter-student-enrollment" onchange="onStudentEnrollmentSelectChange()" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.85rem; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 700;">
+                        <option value="">ALL ENROLLMENTS</option>
+                        <option value="none">⚠️ 0 ENROLLMENTS</option>
+                        <option value="enrolled">✅ ENROLLED (≥ 1)</option>
+                    </select>
+                </div>
+                <div class="filter-box" style="flex: 1.2; min-width: 180px;">
+                    <select id="filter-student-missing-cat" onchange="renderStudents()" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.85rem; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 700;">
+                        <option value="">MISSING IN CATEGORY: NONE</option>
+                        <option value="own_category">⚠️ MISSING IN OWN CATEGORY</option>
+                    </select>
                 </div>
                 <div class="bulk-actions-wrapper" style="display: flex; gap: 0.75rem; flex-wrap: wrap; flex: 1; justify-content: flex-end;">
                     <button class="btn btn-primary" id="btn-add-member" onclick="openAddMemberModal()"><i class="fa-solid fa-user-plus"></i> ADD NEW MEMBER</button>

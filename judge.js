@@ -72,7 +72,7 @@ async function loadDashboard() {
         });
 
     } else {
-        const { data: assignments, error: assignError } = await supabaseClient
+        let assignQuery = supabaseClient
             .from('judgements')
             .select(`
                 competition_id, 
@@ -80,7 +80,11 @@ async function loadDashboard() {
             `)
             .eq('judge_id', user.id)
             .is('participant_id', null)
-            .in('competitions.status', ['registration', 'ongoing', 'valuation']); // NEW: Added valuation
+            .in('competitions.status', ['registration', 'ongoing', 'valuation']);
+        if (window.festosApplyFilter) {
+            assignQuery = window.festosApplyFilter(assignQuery);
+        }
+        const { data: assignments, error: assignError } = await assignQuery; // NEW: Added valuation
 
         if (assignError) return container.innerHTML = `<p style="color: #EF4444; text-align:center; font-weight: 600; padding: 2rem;">Failed to load assignments.</p>`;
         

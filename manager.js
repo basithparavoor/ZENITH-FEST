@@ -304,7 +304,8 @@ async function assignJudge(compId, btnElement) {
     btnElement.disabled = true;
     btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Assigning...';
 
-    const { error } = await window.db.from('judgements').insert([{ competition_id: compId, judge_id: judgeId }]);
+    const insertRecord = window.festosWithFest ? window.festosWithFest([{ competition_id: compId, judge_id: judgeId }]) : [{ competition_id: compId, judge_id: judgeId }];
+    const { error } = await window.db.from('judgements').insert(insertRecord);
 
     if (error) {
         showToast("Error: " + error.message, 'error');
@@ -358,57 +359,93 @@ function exportToCSV() {
     showToast("CSV Downloaded!");
 }
 
-// 2. Export Current View to PDF
-function exportToPDF() {
-    showToast("Generating PDF...");
-    const container = document.getElementById('pdf-export-container');
+// 2. Export Current View to PDF (Executive Standard)
+async function exportToPDF() {
+    showToast("Generating Manager Report PDF...");
+    const activeFid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : null;
     
-    // Build a clean, professional HTML table for the PDF
-    let htmlStr = `
-        ${typeof getPDFHeaderHTML === 'function' ? getPDFHeaderHTML('Manager Report') : '<h2 style="color: #4F46E5; margin-bottom: 5px;">Manager Report</h2>'}
-        <table style="width: 100%; border-collapse: collapse; text-align: left;">
-            <tr style="background-color: #F3F4F6; border-bottom: 2px solid #E5E7EB;">
-                <th style="padding: 12px; font-weight: bold;">Competition</th>
-                <th style="padding: 12px; font-weight: bold;">Category</th>
-                <th style="padding: 12px; font-weight: bold;">Judges</th>
-            </tr>
-    `;
+    const cards = Array.from(document.querySelectorAll('#comps-grid .card'));
+    if (cards.length === 0) return showToast("No competitions to export.", "error");
 
-    // Fetch the raw data currently visible on screen via grid
-    const cards = document.querySelectorAll('#comps-grid .card');
-    cards.forEach(card => {
-        const title = card.querySelector('.card-title').innerText;
-        const cat = card.querySelector('.card-meta').innerText;
-        let judges = card.querySelector('.assigned-judges span').innerText;
-        if(judges === 'No judges assigned yet') judges = '<span style="color:red">Unassigned</span>';
+    let tableRows = cards.map((card, index) => {
+        const title = card.querySelector('.card-title')?.innerText || 'Untitled';
+        const cat = card.querySelector('.card-meta')?.innerText || 'General';
+        let judges = card.querySelector('.assigned-judges span')?.innerText || 'Unassigned';
+        const isUnassigned = (judges === 'No judges assigned yet' || judges.toLowerCase().includes('unassigned'));
+        const judgeBadge = isUnassigned 
+            ? '<span style="background: #FEE2E2; color: #DC2626; font-size: 9.5px; font-weight: 700; padding: 2px 7px; border-radius: 4px;">Unassigned</span>'
+            : `<span style="color: #0F172A; font-weight: 600; font-size: 11px;">${judges}</span>`;
+        const bg = (index % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
 
-        htmlStr += `
-            <tr style="border-bottom: 1px solid #E5E7EB;">
-                <td style="padding: 12px; font-weight: 500;">${title}</td>
-                <td style="padding: 12px; color: #4B5563;">${cat}</td>
-                <td style="padding: 12px; color: #4B5563;">${judges}</td>
+        return `
+            <tr style="height: 30px; page-break-inside: avoid; break-inside: avoid;">
+                <td style="padding: 7px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 11px; font-weight: 600; color: #64748B; background: ${bg}; width: 35px;">${index + 1}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A; font-size: 11.5px; background: ${bg};">${title}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; background: ${bg}; width: 140px;">
+                    <span style="background: #EFF6FF; color: #2563EB; font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block;">${cat}</span>
+                </td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; background: ${bg}; width: 220px;">${judgeBadge}</td>
             </tr>
         `;
-    });
-    
-    htmlStr += `</table>`;
-    container.innerHTML = htmlStr;
-    container.style.display = 'block';
+    }).join('');
 
-    // Options for html2pdf
-    const opt = {
-        margin: 0.5,
-        filename: typeof getFestFileName === 'function' ? getFestFileName('Assignments_Report', 'pdf') : `Fest_Assignments_Report_${new Date().toISOString().split('T')[0]}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-    };
+    const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+        ? window.festosGetPDFHeaderHTML('STAGE & EVENT MANAGEMENT REPORT', activeFid, {
+            badge: `${cards.length} EVENTS MONITORED`,
+            subtitle: 'OFFICIAL MANAGER OVERSIGHT LEDGER'
+        })
+        : '<h2 style="color: #4F46E5; margin-bottom: 5px;">Manager Report</h2>';
 
-    html2pdf().set(opt).from(container).save().then(() => {
-        container.style.display = 'none';
-        container.innerHTML = '';
-        showToast("PDF Downloaded!");
-    });
+    const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+        ? window.festosGetPDFFooterHTML(null, null, 'Official Manager Operations')
+        : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
+
+    const contentHtml = `
+        <div style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+            ${headerHtml}
+            
+            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #CBD5E1;">
+                <thead>
+                    <tr style="background: #0F172A; color: white; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;">
+                        <th style="padding: 8px 6px; text-align: center; width: 35px;">#</th>
+                        <th style="padding: 8px 10px;">COMPETITION NAME</th>
+                        <th style="padding: 8px 10px; width: 140px;">CATEGORY</th>
+                        <th style="padding: 8px 10px; width: 220px;">ASSIGNED JUDGES</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size: 11px; color: #334155;">
+                    ${tableRows}
+                </tbody>
+            </table>
+
+            ${footerHtml}
+        </div>
+    `;
+
+    try {
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'portrait',
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Manager_Report', 'pdf') : 'Fest_Manager_Report.pdf',
+                width: 800
+            });
+            showToast("Manager Report PDF Downloaded!");
+        } else {
+            const opt = {
+                margin: 10,
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Assignments_Report', 'pdf') : `Fest_Assignments_Report_${new Date().toISOString().split('T')[0]}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            await html2pdf().set(opt).from(wrap).save();
+            showToast("PDF Downloaded!");
+        }
+    } catch(err) {
+        showToast("Error generating PDF: " + err.message, "error");
+    }
 }
 
 
@@ -707,10 +744,11 @@ async function bulkAssignJudges() {
     if (checkboxes.length === 0) return;
     
     openConfirmModal("Bulk Assign?", `Assign this judge to ${checkboxes.length} competitions?`, async () => {
-        const insertPayload = Array.from(checkboxes).map(cb => ({
+        let insertPayload = Array.from(checkboxes).map(cb => ({
             competition_id: cb.value,
             judge_id: judgeId
         }));
+        if (window.festosWithFest) insertPayload = window.festosWithFest(insertPayload);
 
         const { error } = await window.db.from('judgements').insert(insertPayload);
 
@@ -1387,19 +1425,15 @@ async function exportSpecificJudgePDF(judgeId) {
     const judge = globalJudgesList.find(j => j.id === judgeId);
     if (!judge) return;
     
-    showToast(`Generating PDF for ${judge.username}...`);
-    
-    const container = document.createElement('div');
-    container.style.padding = '40px';
-    container.style.fontFamily = 'Inter, sans-serif';
-    container.innerHTML = getManagerPDFHeaderHTML(`Judge Schedule: ${judge.username}`);
+    showToast(`Generating Schedule PDF for ${judge.username}...`, 'success');
+    const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
 
     const val = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : (await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle()).data?.value;
     const masterSchedule = val || {};
 
     let tableRows = '';
     if (judge.assignments.length === 0) {
-        tableRows = `<tr><td colspan="5" style="padding: 10px; text-align: center; color: #64748B;">No events currently assigned.</td></tr>`;
+        tableRows = `<tr><td colspan="5" style="padding: 24px; text-align: center; color: #64748B; font-weight: 600;">No events currently assigned.</td></tr>`;
     } else {
         const scheduledAssignments = judge.assignments.map(comp => {
             const sched = masterSchedule[comp.id] || { date: 'TBD', time: '--:--' };
@@ -1407,70 +1441,139 @@ async function exportSpecificJudgePDF(judgeId) {
         });
 
         scheduledAssignments.sort((a, b) => {
-            if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
-            return a.sched.time.localeCompare(b.sched.time);
+            if (a.sched.date !== b.sched.date) return (a.sched.date || '').localeCompare(b.sched.date || '');
+            return (a.sched.time || '').localeCompare(b.sched.time || '');
         });
 
         tableRows = scheduledAssignments.map((comp, i) => {
+            const bg = (i % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
             const timeStr = comp.sched.date !== 'TBD' 
-                ? `<span style="font-weight: 700;">${comp.sched.date}</span><br><span style="color: #64748B; font-size: 10px;">${comp.sched.time}</span>` 
-                : `<span style="color: #D97706; font-weight: 600;">Unscheduled</span>`;
+                ? `<span style="font-weight: 700; color: #0F172A;">${comp.sched.date}</span><br><span style="color: #64748B; font-size: 10px; font-weight: 600;">${comp.sched.time}</span>` 
+                : `<span style="background: #FEF3C7; color: #D97706; padding: 2px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700;">Unscheduled</span>`;
 
             return `
-            <tr style="border-bottom: 1px solid #E2E8F0;">
-                <td style="padding: 8px 10px; font-size: 11px;">${i + 1}</td>
-                <td style="padding: 8px 10px; font-size: 11px; color: #0F172A;">${timeStr}</td>
-                <td style="padding: 8px 10px; font-size: 11px; font-weight: 600; color: #0F172A;">${comp.name}</td>
-                <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.categories?.name || 'General'}</td>
-                <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.stages?.name || 'Unassigned'}</td>
+            <tr style="height: 32px; page-break-inside: avoid; break-inside: avoid;">
+                <td style="padding: 7px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 11px; font-weight: 600; color: #64748B; background: ${bg}; width: 35px;">${i + 1}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-size: 11px; background: ${bg}; width: 130px;">${timeStr}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A; font-size: 11.5px; background: ${bg};">${comp.name}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; background: ${bg}; width: 120px;">
+                    <span style="background: #EFF6FF; color: #2563EB; font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block;">${comp.categories?.name || 'General'}</span>
+                </td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #4F46E5; font-size: 11px; background: ${bg}; width: 130px;">${comp.stages?.name || 'Unassigned'}</td>
             </tr>
         `}).join('');
     }
 
-    container.innerHTML += `
-        <div style="margin-bottom: 25px;">
-            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
+    const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+        ? window.festosGetPDFHeaderHTML(`JUDGE DOSSIER: ${judge.username.toUpperCase()}`, activeFid, {
+            badge: 'OFFICIAL APPOINTMENT',
+            subtitle: `${judge.assignments.length} OFFICIATED ASSIGNMENTS &bull; JURY ROSTER`
+        })
+        : getManagerPDFHeaderHTML(`Judge Schedule: ${judge.username}`);
+
+    const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+        ? window.festosGetPDFFooterHTML(null, null, `Judge Appointee: ${judge.username}`)
+        : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
+
+    const contentHtml = `
+        <div style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+            ${headerHtml}
+
+            <!-- Judge Profile Banner -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; background: #F8FAFC; padding: 16px 20px; border-radius: 8px; border: 1px solid #CBD5E1;">
+                <div>
+                    <div style="font-size: 9.5px; color: #64748B; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">JUDGE PROFILE</div>
+                    <h2 style="font-size: 19px; color: #0F172A; margin: 2px 0 0 0; text-transform: uppercase; font-weight: 900;">${judge.username}</h2>
+                    <div style="font-size: 11px; color: #475569; margin-top: 3px; font-weight: 600;">ROLE: ACCREDITED FESTIVAL ADJUDICATOR</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 9.5px; color: #4F46E5; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">OFFICIATING COUNT</div>
+                    <div style="font-size: 22px; font-weight: 900; color: #4F46E5; margin-top: 2px;">${judge.assignments.length} <span style="font-size: 11px; color: #64748B; font-weight: 700;">EVENTS</span></div>
+                </div>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #CBD5E1;">
                 <thead>
-                    <tr style="background: #F8FAFC; text-align: left; font-size: 10px; color: #64748B; border-bottom: 1px solid #E2E8F0; text-transform: uppercase;">
-                        <th style="padding: 8px 10px; width: 40px;">#</th>
-                        <th style="padding: 8px 10px;">DATE & TIME</th>
+                    <tr style="background: #0F172A; color: white; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;">
+                        <th style="padding: 8px 6px; text-align: center; width: 35px;">#</th>
+                        <th style="padding: 8px 10px; width: 130px;">DATE & TIME</th>
                         <th style="padding: 8px 10px;">COMPETITION NAME</th>
-                        <th style="padding: 8px 10px;">CATEGORY</th>
-                        <th style="padding: 8px 10px;">STAGE</th>
+                        <th style="padding: 8px 10px; width: 120px;">CATEGORY</th>
+                        <th style="padding: 8px 10px; width: 130px;">STAGE / VENUE</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody style="font-size: 11px; color: #334155;">
                     ${tableRows}
                 </tbody>
             </table>
+
+            <!-- Judge Acceptance & Sign-off Block -->
+            <div style="margin-top: 40px; display: flex; justify-content: space-between; padding-top: 15px; border-top: 1px dashed #CBD5E1;">
+                <div style="text-align: center; width: 200px;">
+                    <div style="height: 35px;"></div>
+                    <div style="border-top: 1px solid #94A3B8; padding-top: 4px; font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase;">Judge Signature</div>
+                </div>
+                <div style="text-align: center; width: 200px;">
+                    <div style="height: 35px;"></div>
+                    <div style="border-top: 1px solid #94A3B8; padding-top: 4px; font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase;">Chief Controller</div>
+                </div>
+            </div>
+
+            ${footerHtml}
         </div>
     `;
 
-    const opt = { 
-        margin: 10, filename: typeof getFestFileName === 'function' ? getFestFileName(`Judge_Schedule_${judge.username}`, 'pdf') : `Judge_Schedule_${judge.username}.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
-        html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-    };
-    
-    document.getElementById('pdf-export-container').innerHTML = ''; // Clean buffer
-    html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+    try {
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'portrait',
+                filename: typeof getFestFileName === 'function' ? getFestFileName(`Judge_Schedule_${judge.username}`, 'pdf') : `Judge_Schedule_${judge.username}.pdf`,
+                width: 800
+            });
+            showToast('Judge Schedule PDF Exported!');
+        } else {
+            const opt = { 
+                margin: 10, 
+                filename: typeof getFestFileName === 'function' ? getFestFileName(`Judge_Schedule_${judge.username}`, 'pdf') : `Judge_Schedule_${judge.username}.pdf`, 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            await html2pdf().set(opt).from(wrap).save();
+            showToast('Judge Schedule PDF Exported!');
+        }
+    } catch(err) {
+        showToast('Error exporting PDF: ' + err.message, 'error');
+    }
 }
 
 async function exportJudgesPDF() {
     if (globalJudgesList.length === 0) return showToast('No judges found to export.', 'error');
-    showToast('Generating Judge Roster PDF...');
+    showToast('Generating Judge Roster PDF...', 'success');
     
+    const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
     const val = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : (await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle()).data?.value;
     const masterSchedule = val || {};
 
-    const container = document.createElement('div');
-    container.style.padding = '40px';
-    container.style.fontFamily = 'Inter, sans-serif';
-    container.innerHTML = getManagerPDFHeaderHTML('Master Judge Roster');
+    const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+        ? window.festosGetPDFHeaderHTML('MASTER JUDGE & ALLOCATION ROSTER', activeFid, {
+            badge: `${globalJudgesList.length} JUDGES REGISTERED`,
+            subtitle: 'OFFICIAL ACCREDITED JURY ROSTER'
+        })
+        : getManagerPDFHeaderHTML('Master Judge & Allocation Roster');
 
+    const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+        ? window.festosGetPDFFooterHTML(null, null, 'Official Master Jury Registry')
+        : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
+
+    let judgeBlocksHtml = '';
     globalJudgesList.forEach((judge, index) => {
         let tableRows = '';
+        
         if (judge.assignments.length === 0) {
-            tableRows = `<tr><td colspan="5" style="padding: 10px; text-align: center; color: #64748B;">No events currently assigned.</td></tr>`;
+            tableRows = `<tr><td colspan="5" style="padding: 14px; text-align: center; color: #64748B; font-weight: 600;">No events currently assigned to this judge.</td></tr>`;
         } else {
             const scheduledAssignments = judge.assignments.map(comp => {
                 const sched = masterSchedule[comp.id] || { date: 'TBD', time: '--:--' };
@@ -1478,43 +1581,48 @@ async function exportJudgesPDF() {
             });
 
             scheduledAssignments.sort((a, b) => {
-                if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
-                return a.sched.time.localeCompare(b.sched.time);
+                if (a.sched.date !== b.sched.date) return (a.sched.date || '').localeCompare(b.sched.date || '');
+                return (a.sched.time || '').localeCompare(b.sched.time || '');
             });
 
             tableRows = scheduledAssignments.map((comp, i) => {
+                const bg = (i % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
                 const timeStr = comp.sched.date !== 'TBD' 
-                    ? `<span style="font-weight: 700;">${comp.sched.date}</span><br><span style="color: #64748B; font-size: 10px;">${comp.sched.time}</span>` 
+                    ? `<span style="font-weight: 700; color: #0F172A;">${comp.sched.date}</span> &bull; <span style="color: #64748B; font-size: 10px;">${comp.sched.time}</span>` 
                     : `<span style="color: #D97706; font-weight: 600;">Unscheduled</span>`;
 
                 return `
-                <tr style="border-bottom: 1px solid #E2E8F0;">
-                    <td style="padding: 8px 10px; font-size: 11px;">${i + 1}</td>
-                    <td style="padding: 8px 10px; font-size: 11px; color: #0F172A;">${timeStr}</td>
-                    <td style="padding: 8px 10px; font-size: 11px; font-weight: 600; color: #0F172A;">${comp.name}</td>
-                    <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.categories?.name || 'General'}</td>
-                    <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.stages?.name || 'Unassigned'}</td>
+                <tr style="height: 28px; page-break-inside: avoid; break-inside: avoid;">
+                    <td style="padding: 6px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 10.5px; font-weight: 600; color: #64748B; background: ${bg}; width: 35px;">${i + 1}</td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-size: 10.5px; background: ${bg}; width: 140px;">${timeStr}</td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A; font-size: 11px; background: ${bg};">${comp.name}</td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; background: ${bg}; width: 110px;">
+                        <span style="background: #EFF6FF; color: #2563EB; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px; display: inline-block;">${comp.categories?.name || 'General'}</span>
+                    </td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600; color: #4F46E5; font-size: 10.5px; background: ${bg}; width: 120px;">${comp.stages?.name || 'Unassigned'}</td>
                 </tr>
             `}).join('');
         }
 
-        container.innerHTML += `
-            <div style="margin-bottom: 25px; page-break-inside: avoid;">
-                <div style="background: #1E293B; color: white; padding: 10px 12px; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; font-size: 13px; font-weight: 700; text-transform: uppercase;">JUDGE: ${judge.username}</h3>
-                    <span style="font-size: 10px; color: #94A3B8; font-weight: 600;">${judge.assignments.length} ASSIGNMENTS</span>
+        judgeBlocksHtml += `
+            <div class="pdf-avoid-break" style="margin-bottom: 22px; page-break-inside: avoid; break-inside: avoid; border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; background: white;">
+                <div style="background: #0F172A; color: white; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;">
+                        JUDGE: ${judge.username}
+                    </h3>
+                    <span style="font-size: 10px; color: #38BDF8; font-weight: 700;">${judge.assignments.length} ASSIGNMENTS</span>
                 </div>
-                <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; border-top: none;">
+                <table style="width: 100%; border-collapse: collapse; background: white;">
                     <thead>
-                        <tr style="background: #F8FAFC; text-align: left; font-size: 10px; color: #64748B; border-bottom: 1px solid #E2E8F0; text-transform: uppercase;">
-                            <th style="padding: 8px 10px; width: 40px;">#</th>
-                            <th style="padding: 8px 10px;">DATE & TIME</th>
-                            <th style="padding: 8px 10px;">COMPETITION NAME</th>
-                            <th style="padding: 8px 10px;">CATEGORY</th>
-                            <th style="padding: 8px 10px;">STAGE</th>
+                        <tr style="background: #F1F5F9; text-align: left; font-size: 10px; color: #475569; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #CBD5E1;">
+                            <th style="padding: 6px 8px; text-align: center; width: 35px;">#</th>
+                            <th style="padding: 6px 10px; width: 140px;">DATE & TIME</th>
+                            <th style="padding: 6px 10px;">COMPETITION NAME</th>
+                            <th style="padding: 6px 10px; width: 110px;">CATEGORY</th>
+                            <th style="padding: 6px 10px; width: 120px;">STAGE</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody style="font-size: 11px; color: #334155;">
                         ${tableRows}
                     </tbody>
                 </table>
@@ -1522,13 +1630,38 @@ async function exportJudgesPDF() {
         `;
     });
 
-    const opt = { 
-        margin: 10, filename: typeof getFestFileName === 'function' ? getFestFileName('Master_Judge_Roster', 'pdf') : `Fest_Master_Judge_Roster.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
-        html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-    };
-    
-    document.getElementById('pdf-export-container').innerHTML = ''; // Clean buffer
-    html2pdf().set(opt).from(container).save().then(() => showToast('Roster PDF Exported!'));
+    const contentHtml = `
+        <div style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+            ${headerHtml}
+            ${judgeBlocksHtml}
+            ${footerHtml}
+        </div>
+    `;
+
+    try {
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'portrait',
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Judge_Allocation_Roster', 'pdf') : 'Fest_Judge_Roster.pdf',
+                width: 800
+            });
+            showToast('Roster PDF Exported Successfully!');
+        } else {
+            const opt = { 
+                margin: 10, 
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Master_Judge_Roster', 'pdf') : `Fest_Master_Judge_Roster.pdf`, 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            await html2pdf().set(opt).from(wrap).save();
+            showToast('Roster PDF Exported!');
+        }
+    } catch(err) {
+        showToast('Error exporting PDF: ' + err.message, 'error');
+    }
 }
 
 // =========================================================================
@@ -1815,7 +1948,8 @@ async function assignJudgeForValuation(compId, btnElement) {
     const origHtml = btnElement.innerHTML;
     btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Assigning...';
 
-    const { error } = await window.db.from('judgements').insert([{ competition_id: compId, judge_id: judgeId }]);
+    const insertRecord = window.festosWithFest ? window.festosWithFest([{ competition_id: compId, judge_id: judgeId }]) : [{ competition_id: compId, judge_id: judgeId }];
+    const { error } = await window.db.from('judgements').insert(insertRecord);
 
     if (error) {
         showToast("Error assigning judge: " + error.message, 'error');

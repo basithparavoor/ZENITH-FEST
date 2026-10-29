@@ -1882,7 +1882,7 @@
                                     <i class="fa-regular fa-calendar" style="font-size: 0.85rem;"></i> ${item.sched.date || 'TBD'}
                                 </span>
                                 <span style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 0.35rem;">
-                                    <i class="fa-regular fa-clock" style="font-size: 0.8rem;"></i> ${item.sched.time || ''} ${item.sched.to_time ? '- ' + item.sched.to_time : ''}
+                                    <i class="fa-regular fa-clock" style="font-size: 0.8rem;"></i> ${item.sched.time || ''} ${item.sched.to_time ? '- ' + item.sched.to_time : ''} ${(item.sched.delay_offset_minutes || (item.sched.baseline_time && item.sched.baseline_time !== item.sched.time)) ? `<span class="badge" style="background:#FEF3C7; color:#B45309; border:1px solid #FDE68A; font-size:0.68rem; font-weight:800; padding:1px 6px; border-radius:4px; margin-left:4px;" title="Original: ${item.sched.baseline_time}"><i class="fa-solid fa-clock-rotate-left"></i> +${item.sched.delay_offset_minutes}m Delayed</span>` : ''}
                                 </span>
                             </div>
                         </td>
@@ -1897,7 +1897,7 @@
                         </td>
                         <td>
                             <span style="font-weight: 700; color: var(--primary); text-transform: uppercase; font-size: 0.88rem; display: flex; align-items: center; gap: 0.4rem;">
-                                <i class="fa-solid fa-microphone-stage"></i> ${item.comp.stages?.name || 'STAGE 1'}
+                                <i class="fa-solid fa-microphone-stage"></i> ${item.comp.stages?.name || 'TBD'}
                             </span>
                         </td>
                     </tr>
@@ -1912,7 +1912,7 @@
                         <div class="sched-card">
                             <div class="sched-card-header">
                                 <span class="sched-card-time-badge">
-                                    <i class="fa-regular fa-clock"></i> ${timeRange || 'TIME TBD'}
+                                    <i class="fa-regular fa-clock"></i> ${timeRange || 'TIME TBD'} ${(item.sched.delay_offset_minutes || (item.sched.baseline_time && item.sched.baseline_time !== item.sched.time)) ? `<span style="background:#FEF3C7; color:#B45309; border:1px solid #FDE68A; font-size:0.68rem; font-weight:800; padding:1px 5px; border-radius:4px; margin-left:4px;"><i class="fa-solid fa-clock-rotate-left"></i> +${item.sched.delay_offset_minutes}m</span>` : ''}
                                 </span>
                                 <span class="sched-card-date-badge">
                                     <i class="fa-regular fa-calendar"></i> ${item.sched.date || 'DATE TBD'}
@@ -1921,7 +1921,7 @@
                             <div class="sched-card-title">${item.comp.name}</div>
                             <div class="sched-card-tags">
                                 <span class="sched-pill stage">
-                                    <i class="fa-solid fa-microphone-stage"></i> ${item.comp.stages?.name || 'MAIN STAGE'}
+                                    <i class="fa-solid fa-microphone-stage"></i> ${item.comp.stages?.name || 'TBD'}
                                 </span>
                                 <span class="sched-pill cat">
                                     <i class="fa-solid fa-tag"></i> ${item.comp.categories?.name || 'GENERAL'}

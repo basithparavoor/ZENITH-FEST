@@ -1745,8 +1745,8 @@ function getFestFileName(baseName, ext = 'pdf', targetFestId = null) {
 }
 window.getFestFileName = getFestFileName;
 
-// Universal Branded PDF Header Generator
-function getPDFHeaderHTML(reportTitle, targetFestId = null) {
+// Universal Branded Executive PDF Header Generator
+function getPDFHeaderHTML(reportTitle, targetFestId = null, extraMeta = null) {
     const fid = targetFestId || 
                 (typeof getActiveFestId === 'function' ? getActiveFestId() : null) ||
                 (window.festosAuth && window.festosAuth.getCurrentFestId ? window.festosAuth.getCurrentFestId() : null) || 
@@ -1772,25 +1772,144 @@ function getPDFHeaderHTML(reportTitle, targetFestId = null) {
     const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
 
     if (showLogo) {
-        brandHtml += `<img src="${rawLogo}" alt="Logo" style="height: 60px; max-width: 250px; object-fit: contain; margin-bottom: 12px; border-radius: 8px;">`;
+        brandHtml = `<img src="${rawLogo}" alt="Logo" style="height: 46px; max-width: 140px; object-fit: contain; border-radius: 6px; display: block;">`;
     }
 
-    if (showName) {
-        brandHtml += `<h1 style="color: #4F46E5; margin-bottom: 5px; font-size: 26px; text-transform: uppercase; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif;">${festName}</h1>`;
-    } else if (validLogo && !showName) {
-        brandHtml += `<div style="height: 10px;"></div>`;
-    }
+    const titleText = (reportTitle || 'OFFICIAL REPORT').toUpperCase();
+    const badgeText = (extraMeta && extraMeta.badge) ? extraMeta.badge.toUpperCase() : 'OFFICIAL DOCUMENT';
+    const subText = (extraMeta && extraMeta.subtitle) ? extraMeta.subtitle : 'FestOS Certified &bull; Master Festival Architecture';
+    const nowStr = (extraMeta && extraMeta.timestamp) ? extraMeta.timestamp : new Date().toLocaleString();
 
     return `
-        <div style="text-align: center; margin-bottom: 30px; font-family: 'Plus Jakarta Sans', sans-serif;">
-            ${brandHtml}
-            <h2 style="color: #1E293B; font-size: 18px; margin-top:0; text-transform: uppercase; font-weight: 700;">${reportTitle}</h2>
-            <p style="color: #64748B; font-size: 12px; margin-top: 4px; font-weight: 600;">Generated on: ${new Date().toLocaleString()}</p>
+        <div class="festos-executive-pdf-header" style="width: 100%; margin-bottom: 22px; font-family: 'Plus Jakarta Sans', Inter, -apple-system, sans-serif; box-sizing: border-box;">
+            <div style="height: 4px; background: linear-gradient(90deg, #3B82F6 0%, #6366F1 50%, #8B5CF6 100%); border-radius: 2px; margin-bottom: 14px;"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #E2E8F0; padding-bottom: 14px;">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    ${brandHtml}
+                    <div>
+                        ${showName ? `<h1 style="color: #0F172A; margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.02em; text-transform: uppercase; line-height: 1.2;">${festName}</h1>` : ''}
+                        <div style="font-size: 10px; font-weight: 700; color: #4F46E5; letter-spacing: 0.05em; text-transform: uppercase; margin-top: 3px;">${subText}</div>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="display: inline-block; background: #0F172A; color: #FFFFFF; font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px;">
+                        ${badgeText}
+                    </div>
+                    <div style="color: #1E293B; font-size: 15px; font-weight: 800; letter-spacing: -0.01em; text-transform: uppercase; line-height: 1.2;">${titleText}</div>
+                    <div style="color: #64748B; font-size: 10px; font-weight: 600; margin-top: 3px;">DATE: ${nowStr}</div>
+                </div>
+            </div>
         </div>
     `;
 }
 window.getPDFHeaderHTML = getPDFHeaderHTML;
 window.festosGetPDFHeaderHTML = getPDFHeaderHTML;
+
+// Universal Executive PDF Footer Generator
+function getPDFFooterHTML(pageNumber = null, totalPages = null, note = '') {
+    const pageStr = (pageNumber && totalPages) ? `PAGE ${pageNumber} OF ${totalPages}` : '';
+    const noteStr = note ? ` &bull; ${note}` : '';
+    return `
+        <div class="festos-executive-pdf-footer" style="width: 100%; margin-top: 18px; padding-top: 10px; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; font-family: Inter, sans-serif; font-size: 9px; color: #94A3B8; font-weight: 600; letter-spacing: 0.03em; box-sizing: border-box;">
+            <div>FestOS Official Platform &bull; Digital Verification${noteStr}</div>
+            <div>${pageStr ? `${pageStr} &bull; ` : ''}${new Date().toLocaleDateString()}</div>
+        </div>
+    `;
+}
+window.getPDFFooterHTML = getPDFFooterHTML;
+window.festosGetPDFFooterHTML = getPDFFooterHTML;
+
+// Universal Robust PDF Export Engine with Sandbox Mounting & Font Synchronization
+async function festosRenderPDF(contentElementOrHtml, options = {}) {
+    if (typeof html2pdf === 'undefined') {
+        throw new Error('html2pdf library is not loaded');
+    }
+
+    const orientation = options.orientation || 'portrait';
+    const filename = options.filename || (typeof getFestFileName === 'function' ? getFestFileName('Report', 'pdf') : 'FestOS_Report.pdf');
+    const targetWidth = options.width || (orientation === 'landscape' ? 1120 : 800);
+    const margin = options.margin !== undefined ? options.margin : (orientation === 'landscape' ? [8, 10, 8, 10] : [10, 10, 10, 10]);
+
+    // Create Sandboxed Off-Screen Mount Container in the DOM
+    const sandbox = document.createElement('div');
+    sandbox.id = 'festos-pdf-sandbox-' + Date.now();
+    sandbox.style.cssText = `
+        position: fixed;
+        left: -9999px;
+        top: 0;
+        width: ${targetWidth}px;
+        background: #FFFFFF;
+        color: #0F172A;
+        font-family: 'Inter', -apple-system, sans-serif;
+        padding: 0;
+        margin: 0;
+        box-sizing: border-box;
+        z-index: -99999;
+        visibility: visible;
+    `;
+
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `
+        #${sandbox.id} * { box-sizing: border-box; }
+        #${sandbox.id} table { border-collapse: collapse; width: 100%; }
+        #${sandbox.id} tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+        #${sandbox.id} .pdf-avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; }
+        #${sandbox.id} .html2pdf__page-break { page-break-after: always !important; break-after: page !important; height: 0; margin: 0; padding: 0; }
+        #${sandbox.id} .pdf-page { page-break-inside: avoid !important; break-inside: avoid !important; width: 100%; }
+    `;
+    sandbox.appendChild(styleEl);
+
+    const innerWrapper = document.createElement('div');
+    innerWrapper.style.width = '100%';
+    innerWrapper.style.padding = options.padding || '0';
+
+    if (typeof contentElementOrHtml === 'string') {
+        innerWrapper.innerHTML = contentElementOrHtml;
+    } else if (contentElementOrHtml instanceof HTMLElement) {
+        innerWrapper.appendChild(contentElementOrHtml.cloneNode(true));
+    }
+    sandbox.appendChild(innerWrapper);
+    document.body.appendChild(sandbox);
+
+    try {
+        if (document.fonts && document.fonts.ready) {
+            try { await document.fonts.ready; } catch(e) {}
+        }
+        
+        const imgs = Array.from(sandbox.querySelectorAll('img'));
+        await Promise.all(imgs.map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(res => { img.onload = res; img.onerror = res; setTimeout(res, 2000); });
+        }));
+
+        const opt = {
+            margin: margin,
+            filename: filename,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: {
+                scale: options.scale || 2,
+                useCORS: true,
+                allowTaint: true,
+                letterRendering: true,
+                logging: false,
+                width: targetWidth
+            },
+            jsPDF: {
+                unit: 'mm',
+                format: 'a4',
+                orientation: orientation
+            },
+            pagebreak: { mode: ['css', 'legacy'] }
+        };
+
+        await html2pdf().set(opt).from(sandbox).save();
+    } finally {
+        if (sandbox && sandbox.parentNode) {
+            sandbox.parentNode.removeChild(sandbox);
+        }
+    }
+}
+window.festosRenderPDF = festosRenderPDF;
 
 // Universal CSV Export with Festival Header Metadata
 function festosExportCSV(filename, rows, reportTitle = 'Festival Data Export') {
@@ -1841,8 +1960,8 @@ function festosGetCompVenueStage(comp, stagesList = []) {
             name: 'TBD',
             isOffstage: false,
             isTbd: true,
-            displayText: 'Venue TBD',
-            htmlBadge: '<span style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600;"><i class="fa-regular fa-clock" style="margin-right: 4px;"></i> Venue TBD</span>'
+            displayText: 'TBD',
+            htmlBadge: '<span style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600;"><i class="fa-regular fa-clock" style="margin-right: 4px;"></i> TBD</span>'
         };
     }
 
@@ -1875,45 +1994,23 @@ function festosGetCompVenueStage(comp, stagesList = []) {
 
     const isOffstage = !!comp.is_offstage;
 
-    // Case A: A physical venue/stage is assigned
+    // Show ONLY pure stage name (no type tags like 'stage', 'offstage', etc.)
     if (stageName) {
-        if (isOffstage) {
-            return {
-                name: stageName,
-                isOffstage: true,
-                isTbd: false,
-                displayText: `${stageName} (Offstage)`,
-                htmlBadge: `<span style="font-weight: 700; color: var(--primary);"><i class="fa-solid fa-microphone-lines" style="margin-right: 4px;"></i> ${safe(stageName)}</span> <span class="badge" style="background:#FEF3C7; color:#D97706; font-size: 0.65rem; font-weight: 800; margin-left: 4px; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;"><i class="fa-solid fa-pen-nib"></i> OFFSTAGE</span>`
-            };
-        } else {
-            return {
-                name: stageName,
-                isOffstage: false,
-                isTbd: false,
-                displayText: stageName,
-                htmlBadge: `<span style="font-weight: 700; color: var(--primary);"><i class="fa-solid fa-microphone-stage" style="margin-right: 4px;"></i> ${safe(stageName)}</span>`
-            };
-        }
-    }
-
-    // Case B: Marked offstage with no specific physical stage selected
-    if (isOffstage) {
         return {
-            name: 'Offstage',
-            isOffstage: true,
+            name: stageName,
+            isOffstage: isOffstage,
             isTbd: false,
-            displayText: 'Offstage Venue',
-            htmlBadge: `<span class="badge" style="background:#FEF3C7; color:#D97706; font-size: 0.72rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-pen-nib"></i> OFFSTAGE VENUE</span>`
+            displayText: stageName,
+            htmlBadge: '<span style="font-weight: 700; color: var(--primary);"><i class="fa-solid fa-microphone-stage" style="margin-right: 4px;"></i> ' + safe(stageName) + '</span>'
         };
     }
 
-    // Case C: Unassigned venue
     return {
         name: 'TBD',
-        isOffstage: false,
+        isOffstage: isOffstage,
         isTbd: true,
-        displayText: 'Venue TBD',
-        htmlBadge: `<span style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600;"><i class="fa-regular fa-clock" style="margin-right: 4px;"></i> Venue TBD</span>`
+        displayText: 'TBD',
+        htmlBadge: '<span style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600;"><i class="fa-regular fa-clock" style="margin-right: 4px;"></i> TBD</span>'
     };
 }
 window.festosGetCompVenueStage = festosGetCompVenueStage;

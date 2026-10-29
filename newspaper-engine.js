@@ -638,12 +638,12 @@
             let starCandidate = null;
             try {
                 if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-                    const { data } = await supabaseClient
+                    let jQ = supabaseClient
                         .from('judgements')
                         .select('awarded_mark, participants(name, unique_id, photo_url), competitions(name)')
-                        .order('awarded_mark', { ascending: false })
-                        .limit(1)
-                        .maybeSingle();
+                        .order('awarded_mark', { ascending: false });
+                    if (window.festosApplyFilter) jQ = window.festosApplyFilter(jQ, fid);
+                    const { data } = await jQ.limit(1).maybeSingle();
                     if (data && data.participants) {
                         starCandidate = {
                             name: data.participants.name + (data.participants.unique_id ? ` • #${data.participants.unique_id}` : ''),

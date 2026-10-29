@@ -2160,9 +2160,15 @@ if (allCompIds.length > 0) {
                 });
 
                 // 7. Fetch the existing Award tracking table
-                const { data: savedAwards } = await supabaseClient
+                let awardsQuery = supabaseClient
                     .from('results')
                     .select('competition_id, participant_id, award_given');
+                if (allCompIds.length > 0) {
+                    awardsQuery = awardsQuery.in('competition_id', allCompIds);
+                } else if (window.festosApplyFilter) {
+                    awardsQuery = window.festosApplyFilter(awardsQuery);
+                }
+                const { data: savedAwards } = await awardsQuery;
                 
                 // 8. Calculate Results
                 calculateResults(globalJudgements.filter(j => j.awarded_mark !== null), savedAwards || []);
@@ -2551,12 +2557,14 @@ if (allCompIds.length > 0) {
                 if (existing) {
                     await supabaseClient.from('results').update({ award_given: isNowGiven }).eq('id', existing.id);
                 } else {
-                    await supabaseClient.from('results').insert({
+                    const resPayload = {
                         competition_id: compId,
                         participant_id: participantId,
                         position: resultObj.position,
                         award_given: isNowGiven
-                    });
+                    };
+                    const finalResPayload = window.festosWithFest ? window.festosWithFest(resPayload) : resPayload;
+                    await supabaseClient.from('results').insert(finalResPayload);
                 }
             } catch (e) {
                 alert("Failed to update award status: " + e.message);

@@ -2228,60 +2228,113 @@ if (!window._compSheetKeydownBound) {
     });
 }
 
-// Generates a Premium PDF Directory for Competitions
-// Generates a Premium PDF Directory for Competitions
+// Generates a Premium Executive PDF Directory for Competitions
 async function exportCompetitionsPDF() {
     showToast('Generating Competitions PDF...', 'success');
     try {
-        const container = document.createElement('div');
-        container.style.padding = '40px';
-        container.style.fontFamily = 'Inter, sans-serif';
-        container.innerHTML = getPDFHeaderHTML('Competitions Directory');
+        if (!filteredCompetitionsList || filteredCompetitionsList.length === 0) {
+            return showToast('No competitions to export.', 'error');
+        }
 
-        // Map over the filtered list to respect any current search criteria
+        const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
+        const totalComps = filteredCompetitionsList.length;
+        const totalSolo = filteredCompetitionsList.filter(c => !c.is_group).length;
+        const totalGroup = filteredCompetitionsList.filter(c => c.is_group).length;
+        const totalEnrolled = filteredCompetitionsList.reduce((sum, c) => sum + (c.participant_competitions?.[0]?.count || 0), 0);
+
         let tableRows = filteredCompetitionsList.map((comp, index) => {
-            // Extract the total enrolled participant count
             const studentCount = comp.participant_competitions?.[0]?.count || 0;
-            
+            const bg = (index % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
+            const catName = comp.categories?.name || 'GENERAL';
+            const stageName = comp.stages?.name || 'Unassigned';
+            const typeBadge = comp.is_group ? '<span style="background:#EEF2FF; color:#4F46E5; font-size:9px; font-weight:800; padding:2px 6px; border-radius:4px; margin-left:6px;">GROUP</span>' : '';
+
             return `
-            <tr>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${index + 1}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${comp.name}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${comp.categories?.name || 'N/A'}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${comp.stages?.name || 'Unassigned'}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${comp.max_mark || '0'}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700;">${studentCount}</td>
+            <tr style="page-break-inside: avoid; break-inside: avoid; height: 28px;">
+                <td style="padding: 6px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-weight: 600; color: #64748B; font-size: 11px; background: ${bg}; width: 35px;">${index + 1}</td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A; font-size: 11.5px; background: ${bg};">
+                    ${comp.name} ${typeBadge}
+                </td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; background: ${bg};">
+                    <span style="background: #EFF6FF; color: #2563EB; font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block;">${catName}</span>
+                </td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; color: #475569; font-size: 11px; font-weight: 600; background: ${bg};">${stageName}</td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; text-align: center; font-weight: 700; color: #0F172A; font-size: 11px; background: ${bg};">${comp.max_mark || '0'}</td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; text-align: center; font-weight: 800; color: #4F46E5; font-size: 11.5px; background: ${bg};">${studentCount}</td>
             </tr>
             `;
         }).join('');
 
-        container.innerHTML += `
-            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
-                <thead>
-                    <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;">
-                        <th style="padding: 10px;">#</th>
-                        <th style="padding: 10px;">COMPETITION</th>
-                        <th style="padding: 10px;">CATEGORY</th>
-                        <th style="padding: 10px;">STAGE</th>
-                        <th style="padding: 10px;">MAX MARKS</th>
-                        <th style="padding: 10px;">ENROLLED</th>
-                    </tr>
-                </thead>
-                <tbody style="font-size: 12px; color: #334155;">
-                    ${tableRows}
-                </tbody>
-            </table>
+        const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+            ? window.festosGetPDFHeaderHTML('COMPETITIONS DIRECTORY', activeFid, {
+                badge: 'OFFICIAL ROSTER',
+                subtitle: `${totalComps} TOTAL COMPETITIONS &bull; ${totalEnrolled} ENROLLED CONTESTANTS`
+            })
+            : getPDFHeaderHTML('Competitions Directory');
+
+        const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+            ? window.festosGetPDFFooterHTML(null, null, 'Official Competitions Registry')
+            : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
+
+        const contentHtml = `
+            <div style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+                ${headerHtml}
+                
+                <!-- Metrics Summary Bar -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <div style="flex: 1; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; text-align: center;">
+                        <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">Total Events</div>
+                        <div style="font-size: 16px; font-weight: 800; color: #0F172A; margin-top: 2px;">${totalComps}</div>
+                    </div>
+                    <div style="flex: 1; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; text-align: center;">
+                        <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">Solo vs Group</div>
+                        <div style="font-size: 13px; font-weight: 800; color: #4F46E5; margin-top: 4px;">${totalSolo} Solo | ${totalGroup} Group</div>
+                    </div>
+                    <div style="flex: 1; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; text-align: center;">
+                        <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">Total Enrolled</div>
+                        <div style="font-size: 16px; font-weight: 800; color: #059669; margin-top: 2px;">${totalEnrolled}</div>
+                    </div>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #CBD5E1;">
+                    <thead>
+                        <tr style="background: #0F172A; color: white; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;">
+                            <th style="padding: 8px 6px; text-align: center; width: 35px;">#</th>
+                            <th style="padding: 8px 10px;">COMPETITION NAME</th>
+                            <th style="padding: 8px 10px; width: 130px;">CATEGORY</th>
+                            <th style="padding: 8px 10px; width: 120px;">STAGE</th>
+                            <th style="padding: 8px 10px; width: 85px; text-align: center;">MAX MARKS</th>
+                            <th style="padding: 8px 10px; width: 85px; text-align: center;">ENROLLED</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 11px; color: #334155;">
+                        ${tableRows}
+                    </tbody>
+                </table>
+
+                ${footerHtml}
+            </div>
         `;
 
-        const opt = { 
-            margin: 10, 
-            filename: typeof getFestFileName === 'function' ? getFestFileName('Competitions', 'pdf') : `Fest_Competitions.pdf`, 
-            image: { type: 'jpeg', quality: 0.98 }, 
-            html2canvas: { scale: 2, useCORS: true }, 
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-        };
-        
-        html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'portrait',
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Competitions_Directory', 'pdf') : 'Fest_Competitions.pdf',
+                width: 800
+            });
+            showToast('Competitions PDF Exported Successfully!');
+        } else {
+            const opt = { 
+                margin: 10, 
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Competitions', 'pdf') : `Fest_Competitions.pdf`, 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            html2pdf().set(opt).from(wrap).save().then(() => showToast('PDF Exported!'));
+        }
     } catch (e) { showToast(e.message, 'error'); }
 }
 
@@ -2763,6 +2816,9 @@ async function loadParticipants() {
         const prereqs = [];
         if (categoriesList.length === 0) prereqs.push(loadCategories());
         if (teamsList.length === 0) prereqs.push(festQuery(supabaseClient.from('teams').select('*')).then(r => { teamsList = r.data || []; }));
+        if (competitionsList.length === 0) {
+            prereqs.push(festQuery(supabaseClient.from('competitions').select('id, name, category_id, is_group, categories(id, name, is_general)')).then(r => { competitionsList = r.data || []; }));
+        }
         if (prereqs.length > 0) await Promise.all(prereqs);
 
         let query = festQuery(supabaseClient.from('participants').select(`*, categories(name), teams(name)`)).order('name');
@@ -2784,6 +2840,52 @@ async function loadParticipants() {
             }
         });
 
+        // Batch load participant enrollments
+        let partComps = [];
+        try {
+            const pcRes = await festQuery(supabaseClient.from('participant_competitions').select('id, participant_id, competition_id, competitions(id, name, category_id, categories(id, name, is_general))'));
+            if (!pcRes.error && pcRes.data) {
+                partComps = pcRes.data;
+            } else {
+                throw pcRes.error || new Error('Fetch join failed');
+            }
+        } catch (err) {
+            try {
+                const pcFallback = await festQuery(supabaseClient.from('participant_competitions').select('id, participant_id, competition_id'));
+                if (!pcFallback.error && pcFallback.data) {
+                    partComps = pcFallback.data;
+                }
+            } catch (e2) {
+                console.warn('Could not fetch participant_competitions:', e2);
+            }
+        }
+
+        const enrollMap = new Map();
+        partComps.forEach(pc => {
+            const pid = String(pc.participant_id);
+            if (!enrollMap.has(pid)) enrollMap.set(pid, []);
+            
+            const compObj = pc.competitions || (competitionsList && competitionsList.find(c => String(c.id) === String(pc.competition_id)));
+            const compCatId = compObj?.category_id || compObj?.categories?.id || null;
+            const compCatName = compObj?.categories?.name || (categoriesList && categoriesList.find(c => String(c.id) === String(compCatId))?.name) || 'General';
+            const compName = compObj?.name || 'Program';
+            
+            enrollMap.get(pid).push({
+                id: pc.id,
+                competition_id: pc.competition_id,
+                competition_name: compName,
+                category_id: compCatId,
+                category_name: compCatName,
+                is_general: !!(compObj?.categories?.is_general)
+            });
+        });
+
+        participantsList.forEach(p => {
+            const ens = enrollMap.get(String(p.id)) || [];
+            p.enrollments = ens;
+            p.enrollment_count = ens.length;
+        });
+
         filteredParticipantsList = [...participantsList];
         window.participantsList = participantsList;
         window.filteredParticipantsList = filteredParticipantsList;
@@ -2793,6 +2895,25 @@ async function loadParticipants() {
         if(catFilter && catFilter.options.length <= 1) {
             catFilter.innerHTML = '<option value="">All Categories</option>';
             categoriesList.filter(c => !c.is_general).forEach(c => catFilter.innerHTML += `<option value="${c.name}">${c.name}</option>`);
+        }
+
+        // Populate Missing Category Program Filter
+        const missingCatFilter = document.getElementById('filterPartMissingCat');
+        if (missingCatFilter) {
+            const prevVal = missingCatFilter.value;
+            let optionsHtml = `
+                <option value="">Missing in Category: None</option>
+                <option value="own_category">⚠️ Missing in Own Category</option>
+            `;
+            if (categoriesList && categoriesList.length > 0) {
+                optionsHtml += `<optgroup label="No Programs in Specific Category:">`;
+                categoriesList.forEach(c => {
+                    optionsHtml += `<option value="${c.id}">No Programs in ${c.name}${c.is_general ? ' (General)' : ''}</option>`;
+                });
+                optionsHtml += `</optgroup>`;
+            }
+            missingCatFilter.innerHTML = optionsHtml;
+            if (prevVal) missingCatFilter.value = prevVal;
         }
 
         // Populate Team Filter
@@ -2817,11 +2938,88 @@ async function loadParticipants() {
         }
 
         initBulkTeamControls();
+        updatePartPillCounts();
 
         partCurrentPage = 1;
         renderParticipantsTable();
     } catch(e) { showToast(e.message, 'error'); }
 }
+
+function updatePartPillCounts() {
+    const list = window.participantsList || [];
+    const totalCount = list.length;
+    let enrolledCount = 0;
+    let zeroCount = 0;
+    let missingOwnCatCount = 0;
+
+    list.forEach(p => {
+        const count = (p.enrollments && p.enrollments.length) !== undefined ? p.enrollments.length : (p.enrollment_count || 0);
+        if (count > 0) enrolledCount++;
+        else zeroCount++;
+
+        const ownCatId = p.category_id || p.categories?.id;
+        const ownCatName = (p.categories?.name || '').toLowerCase();
+        const ens = p.enrollments || [];
+        const hasOwnCat = ens.some(e => 
+            (ownCatId && String(e.category_id) === String(ownCatId)) ||
+            (ownCatName && (e.category_name || '').toLowerCase() === ownCatName)
+        );
+        if (!hasOwnCat) missingOwnCatCount++;
+    });
+
+    const elTotal = document.getElementById('part-count-all');
+    const elEnrolled = document.getElementById('part-count-enrolled');
+    const elZero = document.getElementById('part-count-zero');
+    const elNoOwn = document.getElementById('part-count-no-own-cat');
+
+    if (elTotal) elTotal.innerText = totalCount;
+    if (elEnrolled) elEnrolled.innerText = enrolledCount;
+    if (elZero) elZero.innerText = zeroCount;
+    if (elNoOwn) elNoOwn.innerText = missingOwnCatCount;
+}
+window.updatePartPillCounts = updatePartPillCounts;
+
+function setPartPillFilter(type) {
+    const enrollSelect = document.getElementById('filterPartEnrollment');
+    const missingCatSelect = document.getElementById('filterPartMissingCat');
+
+    document.querySelectorAll('.part-pill').forEach(btn => btn.classList.remove('active'));
+
+    if (type === 'zero') {
+        if (enrollSelect) enrollSelect.value = 'none';
+        if (missingCatSelect) missingCatSelect.value = '';
+        document.getElementById('part-pill-zero')?.classList.add('active');
+    } else if (type === 'enrolled') {
+        if (enrollSelect) enrollSelect.value = 'enrolled';
+        if (missingCatSelect) missingCatSelect.value = '';
+        document.getElementById('part-pill-enrolled')?.classList.add('active');
+    } else if (type === 'no_own_cat') {
+        if (enrollSelect) enrollSelect.value = '';
+        if (missingCatSelect) missingCatSelect.value = 'own_category';
+        document.getElementById('part-pill-no-own-cat')?.classList.add('active');
+    } else {
+        if (enrollSelect) enrollSelect.value = '';
+        if (missingCatSelect) missingCatSelect.value = '';
+        document.getElementById('part-pill-all')?.classList.add('active');
+    }
+
+    filterParticipants(true);
+}
+window.setPartPillFilter = setPartPillFilter;
+
+function onPartEnrollmentSelectChange() {
+    const val = document.getElementById('filterPartEnrollment')?.value || '';
+    document.querySelectorAll('.part-pill').forEach(btn => btn.classList.remove('active'));
+    if (val === 'none') {
+        document.getElementById('part-pill-zero')?.classList.add('active');
+    } else if (val === 'enrolled') {
+        document.getElementById('part-pill-enrolled')?.classList.add('active');
+    } else {
+        document.getElementById('part-pill-all')?.classList.add('active');
+    }
+    filterParticipants(true);
+}
+window.onPartEnrollmentSelectChange = onPartEnrollmentSelectChange;
 
 function filterParticipants(resetPage = true) {
     const query = document.getElementById('searchPartInput')?.value?.toLowerCase() || '';
@@ -2829,6 +3027,8 @@ function filterParticipants(resetPage = true) {
     const teamFilter = document.getElementById('filterPartTeam') ? document.getElementById('filterPartTeam').value : "";
     const dobFilter = document.getElementById('filterPartDob') ? document.getElementById('filterPartDob').value : "";
     const classFilter = document.getElementById('filterPartClass') ? document.getElementById('filterPartClass').value : "";
+    const enrollFilter = document.getElementById('filterPartEnrollment') ? document.getElementById('filterPartEnrollment').value : "";
+    const missingCatFilter = document.getElementById('filterPartMissingCat') ? document.getElementById('filterPartMissingCat').value : "";
     
     filteredParticipantsList = participantsList.filter(p => {
         const matchName = p.name.toLowerCase().includes(query) || (p.unique_id && p.unique_id.toLowerCase().includes(query));
@@ -2841,8 +3041,45 @@ function filterParticipants(resetPage = true) {
         
         const matchDob = dobFilter === "" || p.dob === dobFilter;
         const matchClass = classFilter === "" || p.class_name === classFilter;
+
+        // Enrollment presence filter
+        const enrollCount = (p.enrollments && p.enrollments.length) !== undefined ? p.enrollments.length : (p.enrollment_count || 0);
+        let matchEnroll = true;
+        if (enrollFilter === 'none') {
+            matchEnroll = enrollCount === 0;
+        } else if (enrollFilter === 'enrolled') {
+            matchEnroll = enrollCount > 0;
+        }
+
+        // Missing Category Program filter
+        let matchMissingCat = true;
+        if (missingCatFilter) {
+            const ens = p.enrollments || [];
+            if (missingCatFilter === 'own_category') {
+                const ownCatId = p.category_id || p.categories?.id;
+                const ownCatName = (p.categories?.name || '').toLowerCase();
+                const hasOwnCatEnrollment = ens.some(e => 
+                    (ownCatId && String(e.category_id) === String(ownCatId)) ||
+                    (ownCatName && (e.category_name || '').toLowerCase() === ownCatName)
+                );
+                // Participant must NOT be enrolled in their own category
+                matchMissingCat = !hasOwnCatEnrollment;
+            } else {
+                // Specific category
+                const targetCat = categoriesList.find(c => String(c.id) === String(missingCatFilter) || String(c.name).toLowerCase() === String(missingCatFilter).toLowerCase());
+                const targetCatId = targetCat ? String(targetCat.id) : String(missingCatFilter);
+                const targetCatName = targetCat ? targetCat.name.toLowerCase() : '';
+
+                const hasTargetCatEnrollment = ens.some(e => 
+                    (e.category_id && String(e.category_id) === targetCatId) ||
+                    (targetCatName && (e.category_name || '').toLowerCase() === targetCatName)
+                );
+                // Participant must NOT be enrolled in this specific category
+                matchMissingCat = !hasTargetCatEnrollment;
+            }
+        }
         
-        return matchName && matchCat && matchTeam && matchDob && matchClass;
+        return matchName && matchCat && matchTeam && matchDob && matchClass && matchEnroll && matchMissingCat;
     });
     
     window.filteredParticipantsList = filteredParticipantsList;
@@ -2929,14 +3166,14 @@ function renderParticipantsTable() {
     tbody.innerHTML = '';
     
     const isClassActive = !!(window.currentClassSystem?.enabled && window.currentClassSystem.classes?.length > 0);
-    const colSpanTotal = isClassActive ? 8 : 7;
+    const colSpanTotal = isClassActive ? 9 : 8;
 
     const start = (partCurrentPage - 1) * partRowsPerPage;
     const end = start + partRowsPerPage;
     const pageData = filteredParticipantsList.slice(start, end);
 
     if (pageData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${colSpanTotal}" style="text-align: center; padding: 2rem; color: var(--text-muted);">No participants found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${colSpanTotal}" style="text-align: center; padding: 2rem; color: var(--text-muted);">No participants found matching current filters.</td></tr>`;
         renderPartPagination();
         return;
     }
@@ -2946,26 +3183,32 @@ function renderParticipantsTable() {
         const photoSrc = p.photo_url ? p.photo_url : 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%236B7280"%3ENO PHOTO%3C/text%3E%3C/svg%3E';        
         
         const classCellHtml = isClassActive ? `
-            <td>
+            <td data-label="Class">
                 ${p.class_name ? `<span class="badge" style="background:#EFF6FF; color:#1D4ED8; font-weight:700;"><i class="fa-solid fa-graduation-cap" style="margin-right:3px;"></i>${p.class_name}</span>` : '<span style="color:var(--text-muted); font-size:0.85rem;">-</span>'}
             </td>
         ` : '';
 
+        const enrollCount = (p.enrollments && p.enrollments.length) !== undefined ? p.enrollments.length : (p.enrollment_count || 0);
+        const enrollBadge = enrollCount > 0
+            ? `<button type="button" class="badge badge-primary" style="cursor: pointer; border: none; font-weight: 700; padding: 0.35rem 0.65rem; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; font-size: 0.8rem; box-shadow: 0 1px 2px rgba(79,70,229,0.15); transition: transform 0.15s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onclick="viewParticipantEnrollments('${p.id}')" title="Click to view all ${enrollCount} enrolled programs"><i class="fa-solid fa-list-check"></i> ${enrollCount} ${enrollCount === 1 ? 'Program' : 'Programs'}</button>`
+            : `<button type="button" class="badge" style="cursor: pointer; background: #FEE2E2; color: #DC2626; border: 1px solid #FECACA; font-weight: 700; padding: 0.35rem 0.65rem; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; font-size: 0.8rem;" onclick="viewParticipantEnrollments('${p.id}')" title="0 programs enrolled. Click to check status"><i class="fa-solid fa-circle-xmark"></i> 0 Enrolled</button>`;
+
         tbody.innerHTML += `
             <tr>
                 <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}" ${globalSelections['participants-tbody']?.has(p.id) ? 'checked' : ''} onchange="handleRowSelection('participants-tbody', this.value, this.checked)"></td>
-                <td style="font-family: monospace; font-weight: 600; color: var(--primary);">${p.unique_id}</td>
-                <td>
+                <td data-label="Unique ID" style="font-family: monospace; font-weight: 600; color: var(--primary);">${p.unique_id}</td>
+                <td data-label="Name">
                     <div style="display: flex; align-items: center; gap: 0.75rem;">
                         <img src="${photoSrc}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0;">
                         <span>${p.name}</span>
                     </div>
                 </td>
-                <td><span class="badge" style="background:#F1F5F9; color:#475569;">${p.teams?.name || 'UNASSIGNED'}</span></td>
-                <td>${p.categories?.name || 'N/A'}</td>
+                <td data-label="Team"><span class="badge" style="background:#F1F5F9; color:#475569;">${p.teams?.name || 'UNASSIGNED'}</span></td>
+                <td data-label="Category">${p.categories?.name || 'N/A'}</td>
                 ${classCellHtml}
-                <td style="font-weight: 600; color: var(--text-muted);">${p.dob || 'N/A'}</td>
-                <td>
+                <td data-label="DOB" style="font-weight: 600; color: var(--text-muted);">${p.dob || 'N/A'}</td>
+                <td data-label="Programs">${enrollBadge}</td>
+                <td data-label="Actions">
                     <div style="display: flex; gap: 0.5rem;">
                         <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" title="View Details" onclick='viewParticipantCard(${safeData})'><i class="fa-solid fa-eye"></i></button>
                         <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" title="Edit" onclick='openParticipantModal(${safeData})'><i class="fa-solid fa-pen"></i></button>
@@ -3019,54 +3262,111 @@ function changePartPage(direction) {
 
 // --- PARTICIPANT EXPORT FUNCTIONS ---
 
-// Generates a Premium PDF Directory for Participants
+// Generates a Premium Executive PDF Directory for Participants
 async function exportParticipantsPDF() {
     showToast('Generating Participants PDF...', 'success');
     try {
-        const container = document.createElement('div');
-        container.style.padding = '40px';
-        container.style.fontFamily = 'Inter, sans-serif';
-        container.innerHTML = getPDFHeaderHTML('Participants Directory');
+        if (!filteredParticipantsList || filteredParticipantsList.length === 0) {
+            return showToast('No participants to export.', 'error');
+        }
 
-        // Map over the filtered list to respect any active search criteria
-        let tableRows = filteredParticipantsList.map((p, index) => `
-            <tr>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${index + 1}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-family: monospace; font-weight: 600;">${p.unique_id}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${p.name}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${p.teams?.name || 'UNASSIGNED'}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${p.categories?.name || 'N/A'}</td>
-<td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${p.dob || 'N/A'}</td>
+        const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
+        const totalCount = filteredParticipantsList.length;
+        const totalTeams = [...new Set(filteredParticipantsList.map(p => p.teams?.name).filter(Boolean))].length;
+        const totalCategories = [...new Set(filteredParticipantsList.map(p => p.categories?.name).filter(Boolean))].length;
+
+        let tableRows = filteredParticipantsList.map((p, index) => {
+            const count = (p.enrollments && p.enrollments.length) !== undefined ? p.enrollments.length : (p.enrollment_count || 0);
+            const bg = (index % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
+            const catName = p.categories?.name || 'N/A';
+            const teamName = p.teams?.name || 'UNASSIGNED';
+
+            return `
+            <tr style="page-break-inside: avoid; break-inside: avoid; height: 28px;">
+                <td style="padding: 6px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-weight: 600; color: #64748B; font-size: 11px; background: ${bg}; width: 35px;">${index + 1}</td>
+                <td style="padding: 6px 8px; border-bottom: 1px solid #E2E8F0; font-family: monospace; font-weight: 700; color: #475569; font-size: 11px; background: ${bg}; text-align: center; width: 85px;">${p.unique_id}</td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A; font-size: 11.5px; background: ${bg};">${p.name}</td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600; color: #334155; font-size: 11px; background: ${bg};">${teamName}</td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; background: ${bg};">
+                    <span style="background: #EFF6FF; color: #2563EB; font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block;">${catName}</span>
+                </td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; color: #64748B; font-size: 11px; background: ${bg}; text-align: center;">${p.dob || 'N/A'}</td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 800; color: #4F46E5; font-size: 11.5px; text-align: center; background: ${bg};">${count}</td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
 
-        container.innerHTML += `
-            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
-                <thead>
-                    <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;">
-                        <th style="padding: 10px;">#</th>
-                        <th style="padding: 10px;">UNIQUE ID</th>
-                        <th style="padding: 10px;">NAME</th>
-                        <th style="padding: 10px;">TEAM</th>
-                        <th style="padding: 10px;">CATEGORY</th>
-                        <th style="padding: 10px;">DOB</th>
-                    </tr>
-                </thead>
-                <tbody style="font-size: 12px; color: #334155;">
-                    ${tableRows}
-                </tbody>
-            </table>
+        const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+            ? window.festosGetPDFHeaderHTML('PARTICIPANTS DIRECTORY', activeFid, {
+                badge: 'OFFICIAL ROSTER',
+                subtitle: `${totalCount} REGISTERED PARTICIPANTS &bull; ${totalTeams} TEAMS`
+            })
+            : getPDFHeaderHTML('Participants Directory');
+
+        const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+            ? window.festosGetPDFFooterHTML(null, null, 'Official Participant Registry')
+            : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
+
+        const contentHtml = `
+            <div style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+                ${headerHtml}
+                
+                <!-- Metrics Summary Strip -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <div style="flex: 1; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; text-align: center;">
+                        <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">Total Contestants</div>
+                        <div style="font-size: 16px; font-weight: 800; color: #0F172A; margin-top: 2px;">${totalCount}</div>
+                    </div>
+                    <div style="flex: 1; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; text-align: center;">
+                        <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">Affiliated Teams</div>
+                        <div style="font-size: 16px; font-weight: 800; color: #4F46E5; margin-top: 2px;">${totalTeams}</div>
+                    </div>
+                    <div style="flex: 1; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; text-align: center;">
+                        <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">Age Categories</div>
+                        <div style="font-size: 16px; font-weight: 800; color: #059669; margin-top: 2px;">${totalCategories}</div>
+                    </div>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #CBD5E1;">
+                    <thead>
+                        <tr style="background: #0F172A; color: white; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;">
+                            <th style="padding: 8px 6px; text-align: center; width: 35px;">#</th>
+                            <th style="padding: 8px 8px; text-align: center; width: 85px;">UNIQUE ID</th>
+                            <th style="padding: 8px 10px;">PARTICIPANT NAME</th>
+                            <th style="padding: 8px 10px; width: 140px;">TEAM</th>
+                            <th style="padding: 8px 10px; width: 120px;">CATEGORY</th>
+                            <th style="padding: 8px 10px; width: 95px; text-align: center;">DOB</th>
+                            <th style="padding: 8px 10px; width: 80px; text-align: center;">EVENTS</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 11px; color: #334155;">
+                        ${tableRows}
+                    </tbody>
+                </table>
+
+                ${footerHtml}
+            </div>
         `;
 
-        const opt = { 
-            margin: 10, 
-            filename: typeof getFestFileName === 'function' ? getFestFileName('Participants', 'pdf') : `Fest_Participants.pdf`, 
-            image: { type: 'jpeg', quality: 0.98 }, 
-            html2canvas: { scale: 2, useCORS: true }, 
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-        };
-        
-        html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'portrait',
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Participants_Directory', 'pdf') : 'Fest_Participants.pdf',
+                width: 800
+            });
+            showToast('Participants PDF Exported Successfully!');
+        } else {
+            const opt = { 
+                margin: 10, 
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Participants', 'pdf') : `Fest_Participants.pdf`, 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            html2pdf().set(opt).from(wrap).save().then(() => showToast('PDF Exported!'));
+        }
     } catch (e) { showToast(e.message, 'error'); }
 }
 
@@ -3075,13 +3375,19 @@ async function exportParticipantsCSV() {
     try {
         if(filteredParticipantsList.length === 0) return showToast("No participants to export.", "error");
 
-        const flatData = filteredParticipantsList.map(p => ({
-            "UNIQUE ID": p.unique_id || 'N/A',
-            "NAME": p.name || 'N/A',
-            "TEAM": p.teams?.name || 'UNASSIGNED',
-            "CATEGORY": p.categories?.name || 'N/A',
-            "DOB": p.dob || 'N/A'
-        }));
+        const flatData = filteredParticipantsList.map(p => {
+            const count = (p.enrollments && p.enrollments.length) !== undefined ? p.enrollments.length : (p.enrollment_count || 0);
+            const progList = (p.enrollments || []).map(e => e.competition_name).filter(Boolean).join('; ');
+            return {
+                "UNIQUE ID": p.unique_id || 'N/A',
+                "NAME": p.name || 'N/A',
+                "TEAM": p.teams?.name || 'UNASSIGNED',
+                "CATEGORY": p.categories?.name || 'N/A',
+                "DOB": p.dob || 'N/A',
+                "PROGRAMS ENROLLED": count,
+                "PROGRAM NAMES": progList || 'None'
+            };
+        });
 
         const csvFileName = typeof getFestFileName === 'function' ? getFestFileName('Participants_Data', 'csv') : 'Fest_Participants_Data.csv';
 
@@ -3103,7 +3409,8 @@ async function exportParticipantsCSV() {
 function viewParticipantCard(p) {
     const teamName = p.teams ? p.teams.name : 'UNASSIGNED';
     const catName = p.categories ? p.categories.name : 'GENERAL';
-const photoSrc = p.photo_url ? p.photo_url : 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%236B7280"%3ENO PHOTO%3C/text%3E%3C/svg%3E';    
+    const enrollCount = (p.enrollments && p.enrollments.length) !== undefined ? p.enrollments.length : (p.enrollment_count || 0);
+    const photoSrc = p.photo_url ? p.photo_url : 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%236B7280"%3ENO PHOTO%3C/text%3E%3C/svg%3E';    
     document.getElementById('listModalTitle').innerText = 'Participant Identity';
     
     // Reset wrapper styling to allow flexible component layout
@@ -3234,6 +3541,7 @@ const photoSrc = p.photo_url ? p.photo_url : 'data:image/svg+xml;charset=UTF-8,%
                                     <div class="pid-meta-item"><i class="fa-solid fa-users" style="color: var(--primary); width: 16px;"></i> ${teamName}</div>
                                     <div class="pid-meta-item"><i class="fa-solid fa-layer-group" style="color: var(--primary); width: 16px;"></i> ${catName}</div>
                                     ${p.class_name ? `<div class="pid-meta-item"><i class="fa-solid fa-graduation-cap" style="color: var(--primary); width: 16px;"></i> ${p.class_name}</div>` : ''}
+                                    <div class="pid-meta-item"><i class="fa-solid fa-list-check" style="color: var(--primary); width: 16px;"></i> ${enrollCount} ${enrollCount === 1 ? 'Program' : 'Programs'} Enrolled</div>
                                 </div>
                             </div>
                         </div>
@@ -3259,7 +3567,7 @@ const photoSrc = p.photo_url ? p.photo_url : 'data:image/svg+xml;charset=UTF-8,%
                                 </div>
 
                                 <button class="pid-btn" onclick="viewParticipantEnrollments('${p.id}')">
-                                    <i class="fa-solid fa-clipboard-list"></i> VIEW ENROLLMENTS
+                                    <i class="fa-solid fa-clipboard-list"></i> VIEW ENROLLMENTS (${enrollCount})
                                 </button>
                             </div>
                         </div>
@@ -3288,46 +3596,74 @@ const photoSrc = p.photo_url ? p.photo_url : 'data:image/svg+xml;charset=UTF-8,%
         }
     }, 50);
 }
-// NEW FUNCTION: specifically joins competitions and categories to the participant
+
+// Function to view all enrolled competitions for a participant
 async function viewParticipantEnrollments(participantId) {
-    document.getElementById('listModalTable').parentElement.style.cssText = "max-height: 300px; overflow-y: auto; border: 1px solid var(--border); background: white; box-shadow: var(--shadow-sm);";
+    const container = document.getElementById('listModalTable').parentElement;
+    container.style.cssText = "max-height: 380px; overflow-y: auto; border: 1px solid var(--border); background: white; box-shadow: var(--shadow-sm); border-radius: 8px;";
+    
+    const p = (window.participantsList || []).find(x => String(x.id) === String(participantId));
+    const titleEl = document.getElementById('listModalTitle');
+    if (titleEl) {
+        titleEl.innerHTML = p 
+            ? `<div style="display:flex; align-items:center; gap:8px;"><i class="fa-solid fa-clipboard-list" style="color:var(--primary);"></i> <span>${p.name}</span> <span class="badge" style="background:var(--primary-light); color:var(--primary); font-family:monospace; font-size:0.8rem;">${p.unique_id}</span></div>`
+            : `Enrolled Programs`;
+    }
+
+    const tbody = document.getElementById('listModalTable');
+    tbody.innerHTML = `<tr><th style="padding:10px 14px; width:50px;">#</th><th style="padding:10px 14px;">PROGRAM / COMPETITION</th><th style="padding:10px 14px;">CATEGORY</th></tr>`; 
+
+    // If preloaded on participant object and has items
+    if (p && p.enrollments && p.enrollments.length > 0) {
+        p.enrollments.forEach((item, idx) => {
+            tbody.innerHTML += `
+                <tr>
+                    <td style="padding:10px 14px; font-weight:600; color:var(--text-muted);">${idx + 1}</td>
+                    <td style="padding:10px 14px; font-weight: 700; color:var(--text-main);">${item.competition_name}</td>
+                    <td style="padding:10px 14px;"><span class="badge badge-primary" style="font-size:0.75rem;">${item.category_name || 'General'}</span></td>
+                </tr>
+            `;
+        });
+        document.getElementById('listModal').classList.add('show');
+        return;
+    }
+
+    // Fallback or 0-count fetch check
+    tbody.innerHTML += `<tr><td colspan="3" style="text-align:center; padding:1.5rem; color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Checking enrollments...</td></tr>`;
+    document.getElementById('listModal').classList.add('show');
+
     try {
-        const { data, error } = await supabaseClient
+        const { data, error } = await festQuery(supabaseClient
             .from('participant_competitions')
             .select(`
                 competitions(
                     name, 
                     categories(name)
                 )
-            `)
+            `))
             .eq('participant_id', participantId);
             
         if (error) throw error;
         
-        const tbody = document.getElementById('listModalTable');
-        // Added Category column header
-        tbody.innerHTML = `<tr><th>COMPETITION</th><th>CATEGORY</th></tr>`; 
+        tbody.innerHTML = `<tr><th style="padding:10px 14px; width:50px;">#</th><th style="padding:10px 14px;">PROGRAM / COMPETITION</th><th style="padding:10px 14px;">CATEGORY</th></tr>`; 
         
         if (!data || data.length === 0) {
-            tbody.innerHTML += `<tr><td colspan="2" style="color:var(--text-muted); text-align:center;">No enrollments found.</td></tr>`;
+            tbody.innerHTML += `<tr><td colspan="3" style="color:var(--text-muted); text-align:center; padding: 2rem;"><i class="fa-solid fa-circle-exclamation" style="font-size: 1.5rem; color: #EF4444; display: block; margin-bottom: 0.5rem;"></i>No programs enrolled for this participant.</td></tr>`;
         } else {
-            data.forEach(item => {
+            data.forEach((item, idx) => {
                 const compName = item.competitions?.name || 'Unknown Competition';
                 const catName = item.competitions?.categories?.name || 'General';
-                
                 tbody.innerHTML += `
                     <tr>
-                        <td style="font-weight: 600;">${compName}</td>
-                        <td><span class="badge" style="background:var(--primary-light); color:var(--primary); font-size:0.7rem;">${catName}</span></td>
+                        <td style="padding:10px 14px; font-weight:600; color:var(--text-muted);">${idx + 1}</td>
+                        <td style="padding:10px 14px; font-weight: 700;">${compName}</td>
+                        <td style="padding:10px 14px;"><span class="badge badge-primary" style="font-size:0.75rem;">${catName}</span></td>
                     </tr>
                 `;
             });
         }
-        
-        document.getElementById('listModalTitle').innerText = `Enrolled Competitions`;
-        document.getElementById('listModal').classList.add('show');
     } catch (e) { 
-        showToast(e.message, 'error'); 
+        tbody.innerHTML = `<tr><td colspan="3" style="color:var(--danger); text-align:center; padding: 1.5rem;">${e.message}</td></tr>`;
     }
 }
 
@@ -3816,15 +4152,42 @@ async function deleteUser(id, username) {
 // --- CSV BULK UPLOAD EXPORT (PapaParse) ---
 async function downloadCSV(tableName) {
     try {
-        const { data, error } = await supabaseClient.from(tableName).select('*');
+        let query = supabaseClient.from(tableName).select('*');
+        if (typeof festQuery === 'function') {
+            query = festQuery(query);
+        } else if (window.festosApplyFilter) {
+            query = window.festosApplyFilter(query);
+        }
+
+        if (tableName === 'users') {
+            query = query.neq('role', 'master_admin').neq('role', 'super_admin');
+        }
+
+        const { data, error } = await query;
         if (error) throw error;
         
+        let exportRows = data || [];
+
+        if (tableName === 'users') {
+            // Resolve team names and sanitize sensitive credentials for this festival only
+            exportRows = exportRows.map(u => {
+                const teamObj = (teamsList || []).find(t => String(t.id) === String(u.team_id));
+                return {
+                    "FULL NAME": u.name || '',
+                    "USERNAME": u.username || '',
+                    "ROLE": u.role || '',
+                    "TEAM": teamObj?.name || 'Unassigned',
+                    "FEST ID": u.fest_id || (typeof getActiveFestId === 'function' ? getActiveFestId() : '')
+                };
+            });
+        }
+
         const csvFileName = typeof getFestFileName === 'function' ? getFestFileName(`${tableName}_export`, 'csv') : `${tableName}_export.csv`;
 
         if (typeof festosExportCSV === 'function') {
-            festosExportCSV(csvFileName, data, `Database Export - ${tableName.toUpperCase()}`);
+            festosExportCSV(csvFileName, exportRows, `Database Export - ${tableName.toUpperCase()}`);
         } else {
-            const blob = new Blob([Papa.unparse(data)], { type: 'text/csv;charset=utf-8;' });
+            const blob = new Blob([Papa.unparse(exportRows)], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a"); 
             link.href = URL.createObjectURL(blob); 
             link.setAttribute("download", csvFileName);
@@ -3873,8 +4236,10 @@ async function handleBulkUpload(tableName, fileInputId) {
                 return row;
             });
             
+            const finalCleanData = (typeof festPayload === 'function') ? festPayload(cleanData) : (window.festosWithFest ? window.festosWithFest(cleanData) : cleanData);
+
             try {
-                const { error } = await supabaseClient.from(tableName).insert(cleanData);
+                const { error } = await supabaseClient.from(tableName).insert(finalCleanData);
                 if(error) throw error;
                 showToast(`Success! Imported ${cleanData.length} records.`); 
                 switchTab(tableName); 
@@ -4389,9 +4754,9 @@ async function loadAssignments() {
         const tbody = document.getElementById('assignments-tbody');
         if (!tbody) return; // Active view uses #assign-overview-tbody or #assign-workspace-tbody
         
-        const { data, error } = await supabaseClient
+        const { data, error } = await festQuery(supabaseClient
             .from('participant_competitions')
-            .select(`id, participants(name, teams(name), categories(name)), competitions(name)`);
+            .select(`id, participants(name, teams(name), categories(name)), competitions(name)`));
             
         if(error) throw error;
         
@@ -4425,11 +4790,11 @@ async function loadAssignments() {
 async function openAssignModal() {
     // FORCE data load if lists are empty
     if (participantsList.length === 0) {
-        const { data } = await supabaseClient.from('participants').select('*').order('name');
+        const { data } = await festQuery(supabaseClient.from('participants').select('*')).order('name');
         participantsList = data || [];
     }
     if (competitionsList.length === 0) {
-        const { data } = await supabaseClient.from('competitions').select('*').order('name');
+        const { data } = await festQuery(supabaseClient.from('competitions').select('*')).order('name');
         competitionsList = data || [];
     }
 
@@ -5040,24 +5405,26 @@ async function exportAssignmentsCSV() {
     } catch (e) { showToast(e.message, 'error'); }
 }
 
-// Generate a Branded Premium PDF Document
+// Generate a Branded Premium Executive PDF Document for Assignments
 async function exportAssignmentsPDF() {
     showToast('Generating Premium PDF...', 'success');
     try {
-        // Updated query to fetch both student category and competition category
         const { data, error } = await festQuery(supabaseClient
             .from('participant_competitions')
             .select(`participants(name, unique_id, teams(name), categories(name)), competitions(name, categories(name))`))
             .order('competition_id');
             
         if(error) throw error;
+        if (!data || data.length === 0) return showToast('No assignments to export.', 'error');
+
+        const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
 
         // Group data by Competition and its Category for a clean layout
         const grouped = {};
-        (data || []).forEach(row => {
+        data.forEach(row => {
             const compName = row.competitions?.name || 'Unknown Competition';
             const compCat = row.competitions?.categories?.name || 'General Category';
-            const key = `${compName}_${compCat}`; // Composite key to keep them distinct
+            const key = `${compName}_${compCat}`;
             
             if(!grouped[key]) {
                 grouped[key] = {
@@ -5066,46 +5433,61 @@ async function exportAssignmentsPDF() {
                     students: []
                 };
             }
-            grouped[key].students.push(row.participants);
+            if (row.participants) {
+                grouped[key].students.push(row.participants);
+            }
         });
 
-        const container = document.createElement('div');
-        container.style.padding = '40px';
-        container.style.fontFamily = 'Inter, sans-serif';
-        container.innerHTML = getPDFHeaderHTML('Master Assignment Ledger');
+        const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+            ? window.festosGetPDFHeaderHTML('MASTER ASSIGNMENT LEDGER', activeFid, {
+                badge: 'OFFICIAL AUDIT',
+                subtitle: `${Object.keys(grouped).length} COMPETITIONS &bull; ${data.length} TOTAL ALLOCATIONS`
+            })
+            : getPDFHeaderHTML('Master Assignment Ledger');
 
+        const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+            ? window.festosGetPDFFooterHTML(null, null, 'Official Assignment Ledger')
+            : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
+
+        let sectionsHtml = '';
         for (const key in grouped) {
             const compData = grouped[key];
             
-            // Added Student Category to the rows
-            let tableRows = compData.students.map((s, index) => `
-                <tr>
-                    <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${index + 1}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-family: monospace;">${s?.unique_id || 'N/A'}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${s?.name || 'UNKNOWN'}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${s?.teams?.name || 'INDEPENDENT'}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${s?.categories?.name || 'N/A'}</td>
+            let tableRows = compData.students.map((s, index) => {
+                const bg = (index % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
+                return `
+                <tr style="height: 27px; page-break-inside: avoid; break-inside: avoid;">
+                    <td style="padding: 6px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 10.5px; font-weight: 600; color: #64748B; background: ${bg}; width: 35px;">${index + 1}</td>
+                    <td style="padding: 6px 8px; border-bottom: 1px solid #E2E8F0; font-family: monospace; font-weight: 700; color: #475569; font-size: 10.5px; background: ${bg}; text-align: center; width: 90px;">${s?.unique_id || 'N/A'}</td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A; font-size: 11.5px; background: ${bg};">${s?.name || 'UNKNOWN'}</td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600; color: #334155; font-size: 11px; background: ${bg}; width: 140px;">${s?.teams?.name || 'INDEPENDENT'}</td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; background: ${bg}; width: 130px;">
+                        <span style="background: #EFF6FF; color: #2563EB; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px; display: inline-block;">${s?.categories?.name || 'N/A'}</span>
+                    </td>
                 </tr>
-            `).join('');
+                `;
+            }).join('');
 
-            // Added Competition Category to Header & Student Category to Table Head
-            container.innerHTML += `
-                <div style="margin-bottom: 30px; page-break-inside: avoid;">
-                    <h3 style="background: #1E293B; color: white; padding: 12px; border-radius: 8px 8px 0 0; margin: 0; font-size: 14px; text-transform: uppercase;">
-                        ${compData.name} <span style="font-size: 11px; color: #94A3B8; margin-left: 8px; font-weight: 600;">(${compData.category})</span>
-                        <span style="float:right; font-weight: normal; font-size: 12px;">${compData.students.length} ENROLLED</span>
-                    </h3>
-                    <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; border-top: none;">
+            sectionsHtml += `
+                <div class="pdf-avoid-break" style="margin-bottom: 24px; page-break-inside: avoid; break-inside: avoid; border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; background: white;">
+                    <div style="background: #0F172A; color: white; padding: 9px 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-weight: 800; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.03em;">${compData.name}</span>
+                            <span style="background: rgba(255,255,255,0.15); color: #E2E8F0; font-size: 9.5px; padding: 2px 8px; border-radius: 4px; margin-left: 8px; font-weight: 700;">${compData.category}</span>
+                        </div>
+                        <span style="font-weight: 700; font-size: 10.5px; color: #38BDF8; letter-spacing: 0.03em;">${compData.students.length} ENROLLED</span>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; background: white;">
                         <thead>
-                            <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;">
-                                <th style="padding: 10px;">#</th>
-                                <th style="padding: 10px;">ID</th>
-                                <th style="padding: 10px;">NAME</th>
-                                <th style="padding: 10px;">TEAM</th>
-                                <th style="padding: 10px;">STUDENT CATEGORY</th>
+                            <tr style="background: #F1F5F9; text-align: left; font-size: 10px; color: #475569; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #CBD5E1;">
+                                <th style="padding: 7px 6px; text-align: center; width: 35px;">#</th>
+                                <th style="padding: 7px 8px; text-align: center; width: 90px;">UNIQUE ID</th>
+                                <th style="padding: 7px 10px;">PARTICIPANT NAME</th>
+                                <th style="padding: 7px 10px; width: 140px;">TEAM</th>
+                                <th style="padding: 7px 10px; width: 130px;">CATEGORY</th>
                             </tr>
                         </thead>
-                        <tbody style="font-size: 12px; color: #334155;">
+                        <tbody style="font-size: 11px; color: #334155;">
                             ${tableRows}
                         </tbody>
                     </table>
@@ -5113,15 +5495,33 @@ async function exportAssignmentsPDF() {
             `;
         }
 
-        const opt = { 
-            margin: 10, 
-            filename: typeof getFestFileName === 'function' ? getFestFileName('Assignments_Ledger', 'pdf') : `Fest_Assignments_Ledger.pdf`, 
-            image: { type: 'jpeg', quality: 0.98 }, 
-            html2canvas: { scale: 2, useCORS: true }, 
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-        };
-        
-        html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+        const contentHtml = `
+            <div style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+                ${headerHtml}
+                ${sectionsHtml}
+                ${footerHtml}
+            </div>
+        `;
+
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'portrait',
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Assignments_Ledger', 'pdf') : 'Fest_Assignments_Ledger.pdf',
+                width: 800
+            });
+            showToast('Assignments PDF Exported Successfully!');
+        } else {
+            const opt = { 
+                margin: 10, 
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Assignments_Ledger', 'pdf') : `Fest_Assignments_Ledger.pdf`, 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            html2pdf().set(opt).from(wrap).save().then(() => showToast('PDF Exported!'));
+        }
     } catch (e) { showToast(e.message, 'error'); }
 }
 // ============================================================================
@@ -5282,7 +5682,7 @@ async function generateSingleCard(participantId) {
         const template = await fetchBestTemplate('id_card');
         if (!template) return showToast("No ID Card template found! Create one in the Studio first.", "error");
         
-        const { data: p, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').eq('id', participantId).single();
+        const { data: p, error } = await festQuery(supabaseClient.from('participants').select('*, categories(name), teams(name)')).eq('id', participantId).single();
         if (error || !p) return showToast("Could not fetch participant data.", 'error');
         
         const cardCanvas = await generateParticipantIDCanvas(p, template);
@@ -5313,7 +5713,7 @@ async function bulkPrintSelected() {
         const template = await fetchBestTemplate('id_card');
         if (!template) throw new Error("No ID Card template found! Create one in the Studio first.");
 
-        const { data: participants, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').in('id', ids).order('name');
+        const { data: participants, error } = await festQuery(supabaseClient.from('participants').select('*, categories(name), teams(name)')).in('id', ids).order('name');
         if (error) throw error;
         
         let pdf = null;
@@ -5354,7 +5754,7 @@ async function generateBulkCards() {
         const template = await fetchBestTemplate('id_card');
         if (!template) throw new Error("No ID Card template found! Create one in the Studio first.");
 
-        const { data: participants, error } = await supabaseClient.from('participants').select('*, categories(name), teams(name)').order('name');
+        const { data: participants, error } = await festQuery(supabaseClient.from('participants').select('*, categories(name), teams(name)')).order('name');
         if (error) throw error;
         if (!participants || !participants.length) throw new Error("No participants found.");
 
@@ -7934,86 +8334,215 @@ function viewTeamPointDetails(teamId) {
     document.getElementById('listModal').classList.add('show');
 }
 
-// PDF Generation for Team
-function bulkExportTeamPointsPDF() {
+// PDF Generation for Team Championship Ledger
+async function bulkExportTeamPointsPDF() {
     const ids = getSelectedIds('team-points-tbody');
     let targetList = ids.length > 0 ? teamPointsList.filter(t => ids.includes(t.team.id)) : teamPointsList;
     
     if (targetList.length === 0) return showToast("No teams to export", "error");
     
-    showToast("Generating Team Reports PDF...", "success");
-    const container = document.createElement('div');
-    container.style.fontFamily = 'Inter, sans-serif';
-    container.style.width = '100%';
-    container.style.background = 'white';
+    showToast("Generating Team Championship PDF...", "success");
+    const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
 
+    let fullHtml = '';
     targetList.forEach((t, index) => {
-       let trs = t.breakdown.length > 0 ? t.breakdown.map((b, i) => `
-            <tr style="border-bottom: 1px solid #E2E8F0;">
-                <td style="padding: 12px; font-size: 12px;">${i+1}</td>
-                <td style="padding: 12px; font-size: 12px;">
-                    <strong style="font-weight: 700; color: #0F172A;">${b.participantName.toUpperCase()}</strong><br>
-                    <span style="font-size: 9px; color: #64748B; font-weight: 600;">${b.type.toUpperCase()}</span>
+        const isLastPage = (index === targetList.length - 1);
+        let trs = t.breakdown.length > 0 ? t.breakdown.map((b, i) => {
+            const bg = (i % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
+            return `
+            <tr style="height: 28px; page-break-inside: avoid; break-inside: avoid;">
+                <td style="padding: 7px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 11px; font-weight: 600; color: #64748B; background: ${bg}; width: 35px;">${i+1}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; background: ${bg};">
+                    <strong style="font-weight: 700; color: #0F172A; font-size: 11.5px;">${b.participantName.toUpperCase()}</strong>
+                    <span style="font-size: 9px; color: #64748B; font-weight: 600; margin-left: 6px;">[${b.type.toUpperCase()}]</span>
                 </td>
-                <td style="padding: 12px; font-size: 12px; font-weight: 600;">${b.compName.toUpperCase()}</td>
-                <td style="padding: 12px; font-size: 12px;">${b.compCat.toUpperCase()}</td>
-                <td style="padding: 12px; font-size: 12px; text-align: center;">${b.mark} / ${b.maxMark}</td>
-                <td style="padding: 12px; font-size: 14px; text-align: right; font-weight: 800; color: #4F46E5;">${b.totalPts}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #4F46E5; font-size: 11.5px; background: ${bg};">${b.compName.toUpperCase()}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-size: 10.5px; color: #475569; background: ${bg};">${b.compCat.toUpperCase()}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-size: 11px; font-weight: 600; text-align: center; background: ${bg};">${b.mark} / ${b.maxMark}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-size: 12px; text-align: right; font-weight: 800; color: #4F46E5; background: ${bg};">${b.totalPts}</td>
             </tr>
-        `).join('') : `<tr><td colspan="6" style="padding: 20px; text-align: center; color: #64748B; font-weight: 600;">No programs evaluated yet.</td></tr>`;
+            `;
+        }).join('') : `<tr><td colspan="6" style="padding: 24px; text-align: center; color: #64748B; font-weight: 600;">No programs evaluated yet.</td></tr>`;
 
-        container.innerHTML += `
-            <div style="padding: 40px; ${index < targetList.length - 1 ? 'page-break-after: always;' : ''}">
-                <div style="padding-bottom: 20px; border-bottom: 2px solid #E2E8F0; margin-bottom: 30px;">
-                    ${getPDFHeaderHTML('Team Championship Ledger')}
-                </div>
+        const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+            ? window.festosGetPDFHeaderHTML('TEAM CHAMPIONSHIP LEDGER', activeFid, {
+                badge: `TEAM ${index + 1} OF ${targetList.length}`,
+                subtitle: `OFFICIAL CHAMPIONSHIP AUDIT &bull; ${t.participantCount} STUDENTS`
+            })
+            : getPDFHeaderHTML('Team Championship Ledger');
+
+        const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+            ? window.festosGetPDFFooterHTML(index + 1, targetList.length, `Team: ${t.team.name}`)
+            : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
+
+        fullHtml += `
+            <div class="pdf-page" style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+                ${headerHtml}
                 
-                <div style="display: flex; justify-content: space-between; margin-bottom: 30px; background: #EEF2FF; padding: 20px; border-radius: 12px; border: 1px solid rgba(79, 70, 229, 0.2);">
+                <!-- Team Banner Card -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; background: #EEF2FF; padding: 16px 20px; border-radius: 8px; border: 1px solid rgba(79, 70, 229, 0.25);">
                     <div>
-                        <p style="font-size: 10px; color: #4F46E5; font-weight: 800; margin-bottom: 4px;">TEAM DESIGNATION</p>
-                        <h2 style="font-size: 24px; font-weight: 800; color: #0F172A; margin: 0; text-transform: uppercase;">${t.team.name}</h2>
-                        <p style="font-size: 12px; color: #64748B; margin-top: 6px; font-weight: 600;">TOTAL ENROLLED: ${t.participantCount} STUDENTS</p>
+                        <div style="font-size: 9.5px; color: #4F46E5; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">TEAM DESIGNATION</div>
+                        <h2 style="font-size: 20px; font-weight: 900; color: #0F172A; margin: 2px 0 0 0; text-transform: uppercase;">${t.team.name}</h2>
+                        <div style="font-size: 11px; color: #64748B; margin-top: 4px; font-weight: 600;">TOTAL ENROLLED: ${t.participantCount} STUDENTS</div>
                     </div>
                     <div style="text-align: right;">
-                        <p style="font-size: 10px; color: #4F46E5; font-weight: 800; margin-bottom: 4px;">TEAM MANAGER</p>
-                        <h2 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0; text-transform: uppercase;">${t.team.manager_name || 'NOT ASSIGNED'}</h2>
+                        <div style="font-size: 9.5px; color: #4F46E5; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">CHAMPIONSHIP SCORE</div>
+                        <div style="font-size: 24px; font-weight: 900; color: #4F46E5; line-height: 1.1; margin-top: 2px;">${t.totalPoints} <span style="font-size: 12px; font-weight: 700; color: #64748B;">PTS</span></div>
+                        <div style="font-size: 10.5px; color: #475569; margin-top: 2px; font-weight: 600;">MANAGER: ${(t.team.manager_name || 'UNASSIGNED').toUpperCase()}</div>
                     </div>
                 </div>
 
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #CBD5E1;">
                     <thead>
-                        <tr style="background: #1E293B; color: white; text-align: left;">
-                            <th style="padding: 12px; font-size: 11px;">#</th>
-                            <th style="padding: 12px; font-size: 11px;">CONTESTANT / GROUP</th>
-                            <th style="padding: 12px; font-size: 11px;">PROGRAM EVALUATED</th>
-                            <th style="padding: 12px; font-size: 11px;">CATEGORY</th>
-                            <th style="padding: 12px; font-size: 11px; text-align: center;">FINAL MARKS</th>
-                            <th style="padding: 12px; font-size: 11px; text-align: right;">POINTS</th>
+                        <tr style="background: #0F172A; color: white; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;">
+                            <th style="padding: 8px 6px; text-align: center; width: 35px;">#</th>
+                            <th style="padding: 8px 10px;">CONTESTANT / GROUP</th>
+                            <th style="padding: 8px 10px;">PROGRAM EVALUATED</th>
+                            <th style="padding: 8px 10px; width: 110px;">CATEGORY</th>
+                            <th style="padding: 8px 10px; width: 95px; text-align: center;">AWARDED</th>
+                            <th style="padding: 8px 10px; width: 75px; text-align: right;">POINTS</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody style="font-size: 11px; color: #334155;">
                         ${trs}
                     </tbody>
                     <tfoot>
                         <tr style="background: #F1F5F9; border-top: 2px solid #CBD5E1;">
-                            <td colspan="5" style="padding: 16px; text-align: right; font-weight: 800; font-size: 14px; color: #0F172A;">TOTAL CHAMPIONSHIP POINTS:</td>
-                            <td style="padding: 16px; text-align: right; font-weight: 900; font-size: 20px; color: #4F46E5;">${t.totalPoints}</td>
+                            <td colspan="5" style="padding: 12px 14px; text-align: right; font-weight: 800; font-size: 12px; color: #0F172A; text-transform: uppercase;">TOTAL CHAMPIONSHIP POINTS:</td>
+                            <td style="padding: 12px 14px; text-align: right; font-weight: 900; font-size: 16px; color: #4F46E5;">${t.totalPoints}</td>
                         </tr>
                     </tfoot>
                 </table>
+
+                ${footerHtml}
             </div>
+            ${isLastPage ? '' : '<div class="html2pdf__page-break"></div>'}
         `;
     });
 
-    const opt = { 
-        margin: 0, 
-        filename: typeof getFestFileName === 'function' ? getFestFileName('Team_Championship_Ledger', 'pdf') : `FestOS_Team_Ledger.pdf`, 
-        image: { type: 'jpeg', quality: 0.98 }, 
-        html2canvas: { scale: 2, useCORS: true }, 
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-    };
+    if (typeof window.festosRenderPDF === 'function') {
+        await window.festosRenderPDF(fullHtml, {
+            orientation: 'portrait',
+            filename: typeof getFestFileName === 'function' ? getFestFileName('Team_Championship_Ledger', 'pdf') : 'Team_Championship_Ledger.pdf',
+            width: 800
+        });
+        showToast('Team Championship PDF Exported Successfully!');
+    } else {
+        const opt = { 
+            margin: 10, 
+            filename: typeof getFestFileName === 'function' ? getFestFileName('Team_Championship_Ledger', 'pdf') : `FestOS_Team_Ledger.pdf`, 
+            image: { type: 'jpeg', quality: 0.98 }, 
+            html2canvas: { scale: 2, useCORS: true }, 
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+        };
+        const wrap = document.createElement('div');
+        wrap.innerHTML = fullHtml;
+        html2pdf().set(opt).from(wrap).save().then(() => showToast('PDF Exported Successfully!'));
+    }
+}
+
+// Bulk PDF Report Generator (One Page Per Participant)
+async function bulkExportPointsPDF() {
+    const ids = getSelectedIds('points-tbody');
+    let targetList = ids.length > 0 ? pointsDataList.filter(p => ids.includes(p.id)) : filteredPointsList;
     
-    html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported Successfully!'));
+    if (targetList.length === 0) return showToast("No participants to export", "error");
+    
+    showToast("Generating Multi-Page Participant Points PDF...", "success");
+    const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
+
+    let fullHtml = '';
+    targetList.forEach((p, index) => {
+        const isLastPage = (index === targetList.length - 1);
+        let trs = p.breakdown.length > 0 ? p.breakdown.map((b, i) => {
+            const bg = (i % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
+            return `
+            <tr style="height: 28px; page-break-inside: avoid; break-inside: avoid;">
+                <td style="padding: 7px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 11px; font-weight: 600; color: #64748B; background: ${bg}; width: 35px;">${i+1}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A; font-size: 11.5px; background: ${bg};">${b.compName}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-size: 10.5px; color: #475569; background: ${bg}; width: 130px;">${b.compCat}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-size: 11px; font-weight: 600; text-align: center; background: ${bg}; width: 100px;">${b.mark} / ${b.maxMark}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-size: 12px; text-align: right; font-weight: 800; color: #4F46E5; background: ${bg}; width: 90px;">${b.totalPts}</td>
+            </tr>
+            `;
+        }).join('') : `<tr><td colspan="5" style="padding: 24px; text-align: center; color: #64748B; font-weight: 600;">No programs evaluated yet.</td></tr>`;
+
+        const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+            ? window.festosGetPDFHeaderHTML('PARTICIPANT POINT LEDGER', activeFid, {
+                badge: `ENTRY ${index + 1} OF ${targetList.length}`,
+                subtitle: `OFFICIAL EVALUATION AUDIT &bull; ID: ${p.unique_id}`
+            })
+            : getPDFHeaderHTML('Participant Point Ledger');
+
+        const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+            ? window.festosGetPDFFooterHTML(index + 1, targetList.length, `Contestant: ${p.name}`)
+            : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
+
+        fullHtml += `
+            <div class="pdf-page" style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+                ${headerHtml}
+                
+                <!-- Participant Profile Card -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; background: #F8FAFC; padding: 16px 20px; border-radius: 8px; border: 1px solid #CBD5E1;">
+                    <div>
+                        <div style="font-size: 9.5px; color: #64748B; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">PARTICIPANT PROFILE</div>
+                        <h2 style="font-size: 19px; color: #0F172A; margin: 2px 0 0 0; text-transform: uppercase; font-weight: 900;">${p.name}</h2>
+                        <div style="font-family: monospace; font-size: 11px; color: #475569; margin-top: 3px; font-weight: 700;">ID: ${p.unique_id}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 9.5px; color: #64748B; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">TEAM AFFILIATION</div>
+                        <h2 style="font-size: 15px; color: #0F172A; margin: 2px 0 0 0; text-transform: uppercase; font-weight: 800;">${p.teams?.name || 'INDEPENDENT'}</h2>
+                        <div style="font-size: 10.5px; color: #64748B; margin-top: 3px; font-weight: 600;">BATCH: ${p.batch_no || '1'}</div>
+                    </div>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #CBD5E1;">
+                    <thead>
+                        <tr style="background: #0F172A; color: white; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;">
+                            <th style="padding: 8px 6px; text-align: center; width: 35px;">#</th>
+                            <th style="padding: 8px 10px;">PROGRAM (COMPETITION)</th>
+                            <th style="padding: 8px 10px; width: 130px;">CATEGORY</th>
+                            <th style="padding: 8px 10px; width: 100px; text-align: center;">AWARDED MARKS</th>
+                            <th style="padding: 8px 10px; width: 90px; text-align: right;">POINTS EARNED</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 11px; color: #334155;">
+                        ${trs}
+                    </tbody>
+                    <tfoot>
+                        <tr style="background: #F1F5F9; border-top: 2px solid #CBD5E1;">
+                            <td colspan="4" style="padding: 12px 14px; text-align: right; font-weight: 800; font-size: 12px; color: #0F172A; text-transform: uppercase;">TOTAL AGGREGATED POINTS:</td>
+                            <td style="padding: 12px 14px; text-align: right; font-weight: 900; font-size: 16px; color: #4F46E5;">${p.totalPoints}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                ${footerHtml}
+            </div>
+            ${isLastPage ? '' : '<div class="html2pdf__page-break"></div>'}
+        `;
+    });
+
+    if (typeof window.festosRenderPDF === 'function') {
+        await window.festosRenderPDF(fullHtml, {
+            orientation: 'portrait',
+            filename: typeof getFestFileName === 'function' ? getFestFileName('Participant_Point_Ledger', 'pdf') : 'Participant_Point_Ledger.pdf',
+            width: 800
+        });
+        showToast('Participant Points PDF Exported Successfully!');
+    } else {
+        const opt = { 
+            margin: 10, 
+            filename: typeof getFestFileName === 'function' ? getFestFileName('Participant_Point_Ledger', 'pdf') : `Fest_Participant_Points_Report.pdf`, 
+            image: { type: 'jpeg', quality: 0.98 }, 
+            html2canvas: { scale: 2, useCORS: true }, 
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+        };
+        const wrap = document.createElement('div');
+        wrap.innerHTML = fullHtml;
+        html2pdf().set(opt).from(wrap).save().then(() => showToast('PDF Exported Successfully!'));
+    }
 }
 
 function populateDropdownSafe(id, list) {
@@ -8148,86 +8677,7 @@ function viewParticipantPointDetails(pId) {
     document.getElementById('listModal').classList.add('show');
 }
 
-// Bulk PDF Report Generator (One Page Per Participant)
-async function bulkExportPointsPDF() {
-    const ids = getSelectedIds('points-tbody');
-    let targetList = ids.length > 0 ? pointsDataList.filter(p => ids.includes(p.id)) : filteredPointsList;
-    
-    if (targetList.length === 0) return showToast("No participants to export", "error");
-    
-    showToast("Generating Multi-Page PDF...", "success");
-    const container = document.createElement('div');
-    container.style.fontFamily = 'Inter, sans-serif';
-    container.style.width = '100%';
-    container.style.background = 'white';
 
-    targetList.forEach((p, index) => {
-       let trs = p.breakdown.length > 0 ? p.breakdown.map((b, i) => `
-            <tr style="border-bottom: 1px solid #E2E8F0;">
-                <td style="padding: 12px; font-size: 12px;">${i+1}</td>
-                <td style="padding: 12px; font-size: 12px; font-weight: 600;">${b.compName}</td>
-                <td style="padding: 12px; font-size: 12px;">${b.compCat}</td>
-                <!-- CHANGE THE NEXT TWO LINES 👇 -->
-                <td style="padding: 12px; font-size: 12px; text-align: center;">${b.mark} / ${b.maxMark}</td>
-                <td style="padding: 12px; font-size: 12px; text-align: right; font-weight: 700; color: #4F46E5;">${b.totalPts}</td>
-            </tr>
-        `).join('') : `<tr><td colspan="5" style="padding: 20px; text-align: center; color: #64748B;">No programs evaluated yet.</td></tr>`;
-
-        // The "page-break-after: always" ensures each participant gets their own clean page
-        container.innerHTML += `
-            <div style="padding: 40px; ${index < targetList.length - 1 ? 'page-break-after: always;' : ''}">
-                <div style="padding-bottom: 20px; border-bottom: 2px solid #E2E8F0; margin-bottom: 30px;">
-                    ${getPDFHeaderHTML('Participant Point Ledger')}
-                </div>
-                
-                <div style="display: flex; justify-content: space-between; margin-bottom: 30px; background: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0;">
-                    <div>
-                        <p style="font-size: 10px; color: #64748B; font-weight: 700; margin-bottom: 4px;">PARTICIPANT NAME</p>
-                        <h2 style="font-size: 18px; color: #0F172A; margin: 0; text-transform: uppercase;">${p.name}</h2>
-                        <p style="font-family: monospace; font-size: 12px; color: #64748B; margin-top: 4px;">${p.unique_id}</p>
-                    </div>
-                    <div style="text-align: right;">
-                        <p style="font-size: 10px; color: #64748B; font-weight: 700; margin-bottom: 4px;">TEAM AFFILIATION</p>
-                        <h2 style="font-size: 16px; color: #0F172A; margin: 0; text-transform: uppercase;">${p.teams?.name || 'INDEPENDENT'}</h2>
-                        <p style="font-size: 12px; color: #64748B; margin-top: 4px;">BATCH ${p.batch_no || '1'}</p>
-                    </div>
-                </div>
-            
-
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
-                    <thead>
-                        <tr style="background: #1E293B; color: white; text-align: left;">
-                            <th style="padding: 12px; font-size: 11px;">#</th>
-                            <th style="padding: 12px; font-size: 11px;">PROGRAM (COMPETITION)</th>
-                            <th style="padding: 12px; font-size: 11px;">CATEGORY</th>
-                            <th style="padding: 12px; font-size: 11px; text-align: center;">AWARDED MARKS</th>
-                            <th style="padding: 12px; font-size: 11px; text-align: right;">POINTS EARNED</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${trs}
-                    </tbody>
-                    <tfoot>
-                        <tr style="background: #F1F5F9; border-top: 2px solid #CBD5E1;">
-                            <td colspan="4" style="padding: 16px; text-align: right; font-weight: 800; font-size: 14px; color: #0F172A;">TOTAL AGGREGATED POINTS:</td>
-                            <td style="padding: 16px; text-align: right; font-weight: 900; font-size: 16px; color: #4F46E5;">${p.totalPoints}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        `;
-    });
-
-    const opt = { 
-        margin: 0, 
-        filename: typeof getFestFileName === 'function' ? getFestFileName('Participant_Point_Ledger', 'pdf') : `Fest_Participant_Points_Report.pdf`, 
-        image: { type: 'jpeg', quality: 0.98 }, 
-        html2canvas: { scale: 2, useCORS: true }, 
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-    };
-    
-    html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported Successfully!'));
-}
 
 async function handleElementUpload(event) {
     const file = event.target.files[0];
@@ -8536,13 +8986,29 @@ async function executeZipExport() {
     const zip = new JSZip();
     const dbFolder = zip.folder("database");
     const storageFolder = zip.folder("storage");
+    const activeFid = (typeof getActiveFestId === 'function') ? getActiveFestId() : (localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
 
     try {
-        // A. Export Database Tables
+        // A. Export Database Tables strictly scoped to this festival
         for (const table of MASTER_TABLES) {
-            const { data, error } = await supabaseClient.from(table).select('*');
-            if (error) console.error(`Error fetching ${table}:`, error);
-            dbFolder.file(`${table}.json`, JSON.stringify(data || [], null, 2));
+            let tableData = [];
+            if (table === 'settings') {
+                const { data, error } = await supabaseClient.from('settings').select('*');
+                if (!error && Array.isArray(data)) {
+                    tableData = data.filter(s => s.id && (s.id.includes(activeFid) || ['system_branding', 'point_system', 'master_schedule', 'class_system'].includes(s.id)));
+                }
+            } else {
+                let q = supabaseClient.from(table).select('*');
+                if (typeof festQuery === 'function') {
+                    q = festQuery(q, activeFid);
+                } else if (window.festosApplyFilter) {
+                    q = window.festosApplyFilter(q, activeFid);
+                }
+                const { data, error } = await q;
+                if (error) console.error(`Error fetching ${table}:`, error);
+                tableData = data || [];
+            }
+            dbFolder.file(`${table}.json`, JSON.stringify(tableData, null, 2));
         }
 
         // B. Export Storage Buckets (Images/Fonts)
@@ -8566,13 +9032,15 @@ async function executeZipExport() {
         zip.file("festos_manifest.json", JSON.stringify({
             exported_at: new Date().toISOString(),
             exported_by: user.username,
+            fest_id: activeFid,
             version: "2.0",
             includes_media: true
         }, null, 2));
 
         // D. Download the ZIP
         const content = await zip.generateAsync({ type: "blob" });
-        saveAs(content, `FestOS_FullBackup_${new Date().toISOString().split('T')[0]}.zip`);
+        const zipFileName = typeof getFestFileName === 'function' ? getFestFileName('FullBackup', 'zip') : `FestOS_FullBackup_${new Date().toISOString().split('T')[0]}.zip`;
+        saveAs(content, zipFileName);
         showToast("Complete System Export successful!", "success");
 
     } catch (err) {
@@ -8664,12 +9132,23 @@ async function deleteAppeal(ticketId) {
 }
 
 async function executeFactoryReset() {
-    openConfirmModal("Total Factory Reset?", "FINAL WARNING: This will permanently delete ALL tables, settings, photos, templates, and fonts. Proceed?", async () => {
-        showToast("Initiating Total Factory Reset...", "warning");
+    openConfirmModal("Festival Factory Reset?", "FINAL WARNING: This will permanently delete ALL tables, settings, photos, templates, and fonts FOR THIS FESTIVAL ONLY. Proceed?", async () => {
+        showToast("Initiating Festival Factory Reset...", "warning");
         try {
+            const activeFid = (typeof getActiveFestId === 'function') ? getActiveFestId() : (localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
             const reverseOrder = [...MASTER_TABLES].reverse();
             for (const table of reverseOrder) {
-                await supabaseClient.from(table).delete().not('id', 'is', null);
+                if (table === 'settings') {
+                    await supabaseClient.from('settings').delete().ilike('id', `%${activeFid}%`);
+                } else {
+                    let delQ = supabaseClient.from(table).delete();
+                    if (typeof festQuery === 'function') {
+                        delQ = festQuery(delQ, activeFid);
+                    } else if (window.festosApplyFilter) {
+                        delQ = window.festosApplyFilter(delQ, activeFid);
+                    }
+                    await delQ;
+                }
             }
             for (const bucket of STORAGE_BUCKETS) {
                 const { data: files } = await supabaseClient.storage.from(bucket).list();
@@ -9125,45 +9604,26 @@ async function viewCompetitionLog(compId) {
 
 async function downloadCompLogPDF() {
     if(!currentLogData) return showToast("No data to export", "error");
-    showToast("Generating Premium Report...", "success");
+    showToast("Generating Competition Master Log PDF...", "success");
 
     const { comp, enrollments, judgements, compResults } = currentLogData;
     const totalEnrolled = enrollments.length;
     const totalPresent = enrollments.filter(e => e.is_present).length;
-    
-    const container = document.createElement('div');
-    container.style.padding = '40px';
-    container.style.fontFamily = 'Inter, sans-serif';
-    
-    // Header
-    container.innerHTML = `
-        ${getPDFHeaderHTML('Competition Master Log')}
-        
-        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 20px; border-radius: 12px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <h3 style="font-size: 16px; color: #0F172A; margin: 0; margin-bottom: 4px; text-transform: uppercase; font-weight: 800;">${comp.name}</h3>
-                <p style="font-size: 11px; color: #64748B; margin: 0; text-transform: uppercase; font-weight: 600;">CATEGORY: ${comp.categories?.name || 'GENERAL'} | STAGE: ${comp.stages?.name || 'TBD'}</p>
-            </div>
-            <div style="text-align: right;">
-                <p style="font-size: 11px; font-weight: 700; color: #0F172A; margin: 0; text-transform: uppercase;">ENROLLED: ${totalEnrolled}</p>
-                <p style="font-size: 11px; font-weight: 700; color: #10B981; margin: 0; margin-top: 4px; text-transform: uppercase;">CHECKED-IN: ${totalPresent}</p>
-            </div>
-        </div>
-    `;
+    const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
 
-    // Sort enrollments alphabetically for the PDF
     const sortedEnrollments = [...enrollments].sort((a, b) => a.participants.name.localeCompare(b.participants.name));
 
-    // Table Data
     let tableRows = sortedEnrollments.map((e, index) => {
         const p = e.participants;
         const status = e.is_present ? 'REGISTERED' : 'PENDING';
-        const statusColor = e.is_present ? '#10B981' : '#F59E0B';
+        const statusBg = e.is_present ? '#ECFDF5' : '#FFFBEB';
+        const statusColor = e.is_present ? '#059669' : '#D97706';
+        const bg = (index % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
         
         const pJudgements = judgements.filter(j => j.participant_id === e.participant_id);
         let judgeText = pJudgements.length > 0 
-            ? pJudgements.map(j => `${j.users?.username || 'Admin'}: ${j.awarded_mark}`).join(' | ') 
-            : 'Awaiting Marks';
+            ? pJudgements.map(j => `${j.users?.username || 'Admin'}: <strong>${j.awarded_mark}</strong>`).join(' &bull; ') 
+            : '<span style="color:#94A3B8;">Awaiting Marks</span>';
 
         const res = compResults[e.participant_id];
         const fMark = res ? res.mark : '-';
@@ -9171,63 +9631,133 @@ async function downloadCompLogPDF() {
         const fPoints = res ? res.points : '-';
 
         return `
-            <tr>
-                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0;">${index + 1}</td>
-                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0;">
-                    <span style="font-weight: 700; color: #0F172A;">${p.name.toUpperCase()}</span><br>
-                    <span style="font-size: 10px; color: #64748B; font-family: monospace; font-weight: 600;">${p.unique_id}</span>
+            <tr style="height: 30px; page-break-inside: avoid; break-inside: avoid;">
+                <td style="padding: 6px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-weight: 600; color: #64748B; font-size: 11px; background: ${bg}; width: 35px;">${index + 1}</td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; background: ${bg};">
+                    <span style="font-weight: 700; color: #0F172A; font-size: 11.5px;">${p.name.toUpperCase()}</span>
+                    <span style="font-size: 9.5px; color: #64748B; font-family: monospace; font-weight: 600; margin-left: 6px;">[${p.unique_id}]</span>
                 </td>
-                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600; color: #475569;">${(p.teams?.name || 'IND').toUpperCase()}</td>
-                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 800; color: #4F46E5;">${e.code_letter || '-'}</td>
-                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; color: ${statusColor}; font-weight: 800;">${status}</td>
-                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; font-size: 11px; font-weight: 600; color: #475569;">${judgeText.toUpperCase()}</td>
-                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 800; color: #0F172A;">${fMark}</td>
-                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 800; color: #0F172A;">${fGrade}</td>
-                <td style="padding: 12px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 800; color: #4F46E5;">${fPoints}</td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600; color: #475569; font-size: 11px; background: ${bg}; width: 130px;">${(p.teams?.name || 'IND').toUpperCase()}</td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 800; color: #4F46E5; text-align: center; font-size: 11px; background: ${bg}; width: 60px;">${e.code_letter || '-'}</td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; text-align: center; background: ${bg}; width: 100px;">
+                    <span style="background: ${statusBg}; color: ${statusColor}; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 4px; display: inline-block;">${status}</span>
+                </td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-size: 10px; color: #334155; background: ${bg};">${judgeText}</td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 800; color: #0F172A; text-align: center; font-size: 11.5px; background: ${bg}; width: 75px;">${fMark}</td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 800; color: #0F172A; text-align: center; font-size: 11.5px; background: ${bg}; width: 60px;">${fGrade}</td>
+                <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 900; color: #4F46E5; text-align: center; font-size: 12px; background: ${bg}; width: 60px;">${fPoints}</td>
             </tr>
         `;
     }).join('');
 
     if (enrollments.length === 0) {
-        tableRows = `<tr><td colspan="9" style="padding: 20px; text-align: center; color: #64748B; font-weight: 600;">No participants found.</td></tr>`;
+        tableRows = `<tr><td colspan="9" style="padding: 24px; text-align: center; color: #64748B; font-weight: 600;">No participants found.</td></tr>`;
     }
 
-    container.innerHTML += `
-        <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
-            <thead>
-                <tr style="background: #F1F5F9; text-align: left; font-size: 11px; color: #64748B; text-transform: uppercase;">
-                    <th style="padding: 12px 10px;">#</th>
-                    <th style="padding: 12px 10px;">PARTICIPANT</th>
-                    <th style="padding: 12px 10px;">TEAM</th>
-                    <th style="padding: 12px 10px;">CODE</th>
-                    <th style="padding: 12px 10px;">STATUS</th>
-                    <th style="padding: 12px 10px;">JUDGES</th>
-                    <th style="padding: 12px 10px;">FINAL MARK</th>
-                    <th style="padding: 12px 10px;">GRADE</th>
-                    <th style="padding: 12px 10px;">PTS</th>
-                </tr>
-            </thead>
-            <tbody style="font-size: 12px; color: #334155;">
-                ${tableRows}
-            </tbody>
-        </table>
+    const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+        ? window.festosGetPDFHeaderHTML('COMPETITION MASTER LOG', activeFid, {
+            badge: 'OFFICIAL LOG',
+            subtitle: `${comp.name.toUpperCase()} &bull; MAX MARKS: ${comp.max_mark || 100}`
+        })
+        : getPDFHeaderHTML('Competition Master Log');
+
+    const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+        ? window.festosGetPDFFooterHTML(null, null, `Event Log: ${comp.name}`)
+        : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
+
+    const contentHtml = `
+        <div style="padding: 20px 24px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+            ${headerHtml}
+            
+            <!-- Event Metrics Box -->
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 style="font-size: 15px; color: #0F172A; margin: 0; text-transform: uppercase; font-weight: 800;">${comp.name}</h3>
+                    <p style="font-size: 10px; color: #64748B; margin: 3px 0 0 0; text-transform: uppercase; font-weight: 600;">
+                        CATEGORY: ${comp.categories?.name || 'GENERAL'} &bull; VENUE/STAGE: ${comp.stages?.name || 'TBD'} &bull; MAX MARKS: ${comp.max_mark || '0'}
+                    </p>
+                </div>
+                <div style="display: flex; gap: 14px;">
+                    <div style="text-align: right;">
+                        <span style="font-size: 9.5px; font-weight: 700; color: #64748B; text-transform: uppercase;">ENROLLED</span>
+                        <div style="font-size: 14px; font-weight: 800; color: #0F172A;">${totalEnrolled}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 9.5px; font-weight: 700; color: #059669; text-transform: uppercase;">CHECKED-IN</span>
+                        <div style="font-size: 14px; font-weight: 800; color: #059669;">${totalPresent}</div>
+                    </div>
+                </div>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #CBD5E1;">
+                <thead>
+                    <tr style="background: #0F172A; color: white; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;">
+                        <th style="padding: 8px 6px; text-align: center; width: 35px;">#</th>
+                        <th style="padding: 8px 10px;">PARTICIPANT</th>
+                        <th style="padding: 8px 10px; width: 130px;">TEAM</th>
+                        <th style="padding: 8px 10px; width: 60px; text-align: center;">CODE</th>
+                        <th style="padding: 8px 10px; width: 100px; text-align: center;">STATUS</th>
+                        <th style="padding: 8px 10px;">JUDGE EVALUATIONS</th>
+                        <th style="padding: 8px 10px; width: 75px; text-align: center;">FINAL</th>
+                        <th style="padding: 8px 10px; width: 60px; text-align: center;">GRADE</th>
+                        <th style="padding: 8px 10px; width: 60px; text-align: center;">PTS</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size: 11px; color: #334155;">
+                    ${tableRows}
+                </tbody>
+            </table>
+
+            <!-- Official Sign-off Strip -->
+            <div style="margin-top: 35px; display: flex; justify-content: space-between; padding-top: 15px; border-top: 1px dashed #CBD5E1;">
+                <div style="text-align: center; width: 180px;">
+                    <div style="height: 30px;"></div>
+                    <div style="border-top: 1px solid #94A3B8; padding-top: 4px; font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase;">Chief Evaluator</div>
+                </div>
+                <div style="text-align: center; width: 180px;">
+                    <div style="height: 30px;"></div>
+                    <div style="border-top: 1px solid #94A3B8; padding-top: 4px; font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase;">Stage Controller</div>
+                </div>
+                <div style="text-align: center; width: 180px;">
+                    <div style="height: 30px;"></div>
+                    <div style="border-top: 1px solid #94A3B8; padding-top: 4px; font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase;">Festival Director</div>
+                </div>
+            </div>
+
+            ${footerHtml}
+        </div>
     `;
 
-    // Download PDF Config (Using Landscape for wider table)
-    const opt = { 
-        margin: 10, 
-        filename: typeof getFestFileName === 'function' ? getFestFileName('Log_' + comp.name, 'pdf') : `Fest_Log_${comp.name.replace(/[^a-z0-9]/gi, '_')}.pdf`, 
-        image: { type: 'jpeg', quality: 0.98 }, 
-        html2canvas: { scale: 2, useCORS: true }, 
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } 
-    };
-    
-    html2pdf().set(opt).from(container).save().then(() => {
+    try {
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'landscape',
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Log_' + comp.name, 'pdf') : `Fest_Log_${comp.name.replace(/[^a-z0-9]/gi, '_')}.pdf`,
+                width: 1120
+            });
+        } else {
+            const opt = { 
+                margin: 10, 
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Log_' + comp.name, 'pdf') : `Fest_Log_${comp.name.replace(/[^a-z0-9]/gi, '_')}.pdf`, 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } 
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            await html2pdf().set(opt).from(wrap).save();
+        }
+
         const btn = document.getElementById('btn-download-log');
-        const origText = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-check"></i> Downloaded!';
-        setTimeout(() => btn.innerHTML = origText, 2000);
-    });
+        if (btn) {
+            const origText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Downloaded!';
+            setTimeout(() => btn.innerHTML = origText, 2000);
+        }
+        showToast('Competition Log PDF Exported!');
+    } catch(err) {
+        showToast('Error exporting PDF: ' + err.message, 'error');
+    }
 }
 
 // Dynamic Branded PDF Header Generator
@@ -9937,6 +10467,472 @@ function minutesToTimeString(mins) {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+// =========================================================================
+// ⚡ STAGE CASCADE DELAY & RECOVERY ENGINE (STAGE ISOLATION & ROLLBACK)
+// =========================================================================
+
+window.scheduleDelayUndoStack = window.scheduleDelayUndoStack || [];
+
+function openCascadeDelayModal(preselectedStageId = null, preselectedDate = null) {
+    const modal = document.getElementById('cascadeDelayModal');
+    if (!modal) return;
+
+    // 1. Populate Stage Select
+    const stageSelect = document.getElementById('cascadeStageSelect');
+    if (stageSelect) {
+        stageSelect.innerHTML = '';
+        (stagesList || []).forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = `🎭 ${s.name} ${s.stage_no ? `(Stage #${s.stage_no})` : ''}`;
+            stageSelect.appendChild(opt);
+        });
+        const offOpt = document.createElement('option');
+        offOpt.value = 'offstage';
+        offOpt.textContent = '📝 Offstage Venue';
+        stageSelect.appendChild(offOpt);
+
+        if (preselectedStageId) {
+            stageSelect.value = preselectedStageId;
+        } else {
+            const tableStageFilter = document.getElementById('filterSchedStage')?.value;
+            if (tableStageFilter && tableStageFilter !== '') {
+                stageSelect.value = tableStageFilter;
+            }
+        }
+    }
+
+    // 2. Populate Date Select
+    const dateSelect = document.getElementById('cascadeDateSelect');
+    if (dateSelect) {
+        dateSelect.innerHTML = '';
+        const allDates = Array.from(new Set(Object.values(masterSchedule || {}).map(s => s.date).filter(Boolean))).sort();
+        if (allDates.length === 0) {
+            allDates.push(new Date().toISOString().split('T')[0]);
+        }
+        allDates.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d;
+            opt.textContent = `📅 ${d}`;
+            dateSelect.appendChild(opt);
+        });
+
+        if (preselectedDate && allDates.includes(preselectedDate)) {
+            dateSelect.value = preselectedDate;
+        } else {
+            const tableDateFilter = document.getElementById('filterSchedDate')?.value;
+            if (tableDateFilter && allDates.includes(tableDateFilter)) {
+                dateSelect.value = tableDateFilter;
+            }
+        }
+    }
+
+    // 3. Populate From Event and update Preview
+    setCascadeMinutes(20);
+    onCascadeStageOrDateChange();
+
+    // 4. Update Undo button visibility
+    const undoBtn = document.getElementById('btnUndoCascadeDelay');
+    if (undoBtn) {
+        undoBtn.style.display = (window.scheduleDelayUndoStack && window.scheduleDelayUndoStack.length > 0) ? 'inline-block' : 'none';
+    }
+
+    modal.classList.add('show');
+}
+window.openCascadeDelayModal = openCascadeDelayModal;
+
+function closeCascadeDelayModal() {
+    const modal = document.getElementById('cascadeDelayModal');
+    if (modal) modal.classList.remove('show');
+}
+window.closeCascadeDelayModal = closeCascadeDelayModal;
+
+function setCascadeMinutes(mins) {
+    const input = document.getElementById('cascadeMinutesInput');
+    if (input) input.value = mins;
+
+    const pills = document.querySelectorAll('.cascade-pill-btn');
+    pills.forEach(p => {
+        const text = p.innerText.trim();
+        const matchVal = (mins > 0 ? `+${mins}` : `${mins}`);
+        if (text.startsWith(matchVal)) {
+            p.style.background = mins > 0 ? '#FEF3C7' : '#D1FAE5';
+            p.style.color = mins > 0 ? '#B45309' : '#047857';
+            p.style.borderColor = mins > 0 ? '#FDE68A' : '#A7F3D0';
+        } else {
+            p.style.background = 'white';
+            p.style.color = 'var(--text-main)';
+            p.style.borderColor = 'var(--border)';
+        }
+    });
+
+    updateCascadePreview();
+}
+window.setCascadeMinutes = setCascadeMinutes;
+
+function onCascadeStageOrDateChange() {
+    const stageId = document.getElementById('cascadeStageSelect')?.value;
+    const dateVal = document.getElementById('cascadeDateSelect')?.value;
+    const fromCompSelect = document.getElementById('cascadeFromCompSelect');
+
+    if (fromCompSelect) {
+        fromCompSelect.innerHTML = '<option value="ALL">-- Entire Day Schedule (All Events Today) --</option>';
+
+        const matching = Object.keys(masterSchedule || {}).map(compId => {
+            const comp = (competitionsList || []).find(c => String(c.id) === String(compId));
+            const sched = masterSchedule[compId];
+            return { compId, comp, sched };
+        }).filter(item => {
+            if (!item.comp || !item.sched || item.sched.date !== dateVal) return false;
+            if (stageId === 'offstage') return !!item.comp.is_offstage;
+            return String(item.comp.stage_id) === String(stageId);
+        });
+
+        matching.sort((a,b) => (a.sched.time || '').localeCompare(b.sched.time || ''));
+
+        matching.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.compId;
+            opt.textContent = `${item.sched.time || '--:--'} - ${item.comp.name}`;
+            fromCompSelect.appendChild(opt);
+        });
+    }
+
+    updateCascadePreview();
+}
+window.onCascadeStageOrDateChange = onCascadeStageOrDateChange;
+
+function updateCascadePreview() {
+    const stageId = document.getElementById('cascadeStageSelect')?.value;
+    const dateVal = document.getElementById('cascadeDateSelect')?.value;
+    const fromCompId = document.getElementById('cascadeFromCompSelect')?.value;
+    const deltaMins = parseInt(document.getElementById('cascadeMinutesInput')?.value) || 0;
+    const dayEndCap = document.getElementById('cascadeDayEndCap')?.checked !== false;
+
+    const tbody = document.getElementById('cascadePreviewTbody');
+    const countEl = document.getElementById('cascadeAffectedCount');
+    const stageStatusLabel = document.getElementById('cascadeStageStatusLabel');
+
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    let matching = Object.keys(masterSchedule || {}).map(compId => {
+        const comp = (competitionsList || []).find(c => String(c.id) === String(compId));
+        const sched = masterSchedule[compId];
+        return { compId, comp, sched };
+    }).filter(item => {
+        if (!item.comp || !item.sched || item.sched.date !== dateVal) return false;
+        if (stageId === 'offstage') return !!item.comp.is_offstage;
+        return String(item.comp.stage_id) === String(stageId);
+    });
+
+    matching.sort((a,b) => (a.sched.time || '').localeCompare(b.sched.time || ''));
+
+    let fromTime = null;
+    if (fromCompId && fromCompId !== 'ALL' && masterSchedule[fromCompId]) {
+        fromTime = masterSchedule[fromCompId].time;
+    }
+
+    let affectedCount = 0;
+    matching.forEach(item => {
+        const isAffected = !fromTime || (item.sched.time >= fromTime);
+        if (isAffected) affectedCount++;
+
+        const baselineStart = item.sched.baseline_time || item.sched.time;
+        const currentStart = item.sched.time;
+
+        let newStart = currentStart;
+        let shiftStr = '<span style="color:var(--text-muted); font-size: 0.8rem;">Unchanged</span>';
+
+        if (isAffected && deltaMins !== 0) {
+            const curMins = timeStringToMinutes(currentStart);
+            let nextMins = curMins + deltaMins;
+            if (dayEndCap && nextMins >= 1440) nextMins = 1439;
+            if (nextMins < 0) nextMins = 0;
+            newStart = minutesToTimeString(nextMins);
+
+            const sign = deltaMins > 0 ? `+${deltaMins}m` : `${deltaMins}m`;
+            const color = deltaMins > 0 ? '#B45309' : '#047857';
+            const bg = deltaMins > 0 ? '#FEF3C7' : '#D1FAE5';
+            shiftStr = `<span class="badge" style="background:${bg}; color:${color}; font-weight:800; padding:2px 8px; border-radius:6px;">${sign}</span>`;
+        }
+
+        const rowBg = isAffected ? (deltaMins !== 0 ? 'background: rgba(254, 243, 199, 0.25);' : '') : 'opacity: 0.55;';
+        tbody.innerHTML += `
+            <tr style="border-bottom: 1px solid var(--border); ${rowBg}">
+                <td style="padding: 0.65rem 1rem; font-weight: 700; color: var(--text-main);">${escapeSheetHtml(item.comp.name)}</td>
+                <td style="padding: 0.65rem 1rem; color: var(--text-muted); font-weight: 500;">${baselineStart || '-'}</td>
+                <td style="padding: 0.65rem 1rem; font-weight: 600;">${currentStart || '-'}</td>
+                <td style="padding: 0.65rem 1rem; font-weight: 700; color: ${isAffected && deltaMins !== 0 ? 'var(--primary)' : 'inherit'};">${newStart}</td>
+                <td style="padding: 0.65rem 1rem;">${shiftStr}</td>
+            </tr>
+        `;
+    });
+
+    if (matching.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--text-muted); font-weight: 500;">No competitions scheduled on this stage for the selected date.</td></tr>`;
+    }
+
+    if (countEl) countEl.innerText = affectedCount;
+
+    const currentlyDelayed = matching.some(m => m.sched.baseline_time && m.sched.baseline_time !== m.sched.time);
+    if (stageStatusLabel) {
+        if (currentlyDelayed) {
+            stageStatusLabel.className = 'badge';
+            stageStatusLabel.style.background = '#FEE2E2';
+            stageStatusLabel.style.color = '#DC2626';
+            stageStatusLabel.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Stage Currently Delayed';
+        } else {
+            stageStatusLabel.className = 'badge';
+            stageStatusLabel.style.background = '#D1FAE5';
+            stageStatusLabel.style.color = '#059669';
+            stageStatusLabel.innerHTML = '<i class="fa-solid fa-circle-check"></i> On Baseline Schedule';
+        }
+    }
+}
+window.updateCascadePreview = updateCascadePreview;
+
+async function applyCascadeDelayFromModal() {
+    const stageId = document.getElementById('cascadeStageSelect')?.value;
+    const dateVal = document.getElementById('cascadeDateSelect')?.value;
+    const fromCompId = document.getElementById('cascadeFromCompSelect')?.value;
+    const deltaMins = parseInt(document.getElementById('cascadeMinutesInput')?.value) || 0;
+    const dayEndCap = document.getElementById('cascadeDayEndCap')?.checked !== false;
+    const reason = document.getElementById('cascadeReasonInput')?.value?.trim() || '';
+
+    if (!stageId || !dateVal) {
+        return showToast("Please select a target stage and date.", "error");
+    }
+    if (deltaMins === 0) {
+        return showToast("Shift amount must not be 0 minutes.", "warning");
+    }
+
+    // Save snapshot to Undo Stack
+    window.scheduleDelayUndoStack.push({
+        timestamp: Date.now(),
+        previousSchedule: JSON.parse(JSON.stringify(masterSchedule)),
+        stageId,
+        dateVal,
+        deltaMins,
+        reason
+    });
+
+    let fromTime = null;
+    if (fromCompId && fromCompId !== 'ALL' && masterSchedule[fromCompId]) {
+        fromTime = masterSchedule[fromCompId].time;
+    }
+
+    let modifiedCount = 0;
+    Object.keys(masterSchedule).forEach(compId => {
+        const comp = (competitionsList || []).find(c => String(c.id) === String(compId));
+        const sched = masterSchedule[compId];
+        if (!comp || !sched || sched.date !== dateVal) return;
+
+        // Stage filter (Enforces strict Stage Isolation)
+        const matchStage = stageId === 'offstage' ? !!comp.is_offstage : String(comp.stage_id) === String(stageId);
+        if (!matchStage) return;
+
+        // Sequence filter (From Event onward)
+        if (fromTime && sched.time < fromTime) return;
+
+        // 1. Ensure Baseline is recorded
+        if (!sched.baseline_time) sched.baseline_time = sched.time;
+        if (!sched.baseline_to_time && sched.to_time) sched.baseline_to_time = sched.to_time;
+
+        // 2. Compute new start time
+        const curStartMins = timeStringToMinutes(sched.time);
+        let newStartMins = curStartMins + deltaMins;
+        if (dayEndCap && newStartMins >= 1440) newStartMins = 1439;
+        if (newStartMins < 0) newStartMins = 0;
+        sched.time = minutesToTimeString(newStartMins);
+
+        // 3. Compute new to_time if present
+        if (sched.to_time) {
+            const curToMins = timeStringToMinutes(sched.to_time);
+            let newToMins = curToMins + deltaMins;
+            if (dayEndCap && newToMins >= 1440) newToMins = 1439;
+            if (newToMins < 0) newToMins = 0;
+            sched.to_time = minutesToTimeString(newToMins);
+        }
+
+        // 4. Update cumulative offset
+        const prevOffset = parseInt(sched.delay_offset_minutes) || 0;
+        sched.delay_offset_minutes = prevOffset + deltaMins;
+        sched.last_delay_applied_at = new Date().toISOString();
+        if (reason) sched.delay_reason = reason;
+
+        modifiedCount++;
+    });
+
+    if (modifiedCount === 0) {
+        return showToast("No scheduled competitions matched the stage and criteria.", "warning");
+    }
+
+    try {
+        const { error } = window.festosSaveSetting 
+            ? await window.festosSaveSetting('master_schedule', masterSchedule) 
+            : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+        if (error) throw error;
+
+        const sign = deltaMins > 0 ? `+${deltaMins}m delay` : `${deltaMins}m catch-up`;
+        showToast(`Applied ${sign} across ${modifiedCount} event(s) on selected stage!`, "success");
+
+        closeCascadeDelayModal();
+        await detectScheduleConflicts();
+        filterScheduleTable();
+        if (window.schedCurrentViewMode === 'sheet' && typeof initScheduleSheet === 'function') {
+            initScheduleSheet();
+        }
+    } catch(err) {
+        showToast("Failed to save cascade schedule: " + err.message, "error");
+    }
+}
+window.applyCascadeDelayFromModal = applyCascadeDelayFromModal;
+
+async function revertActiveStageToBaseline() {
+    const stageId = document.getElementById('cascadeStageSelect')?.value;
+    const dateVal = document.getElementById('cascadeDateSelect')?.value;
+
+    if (!stageId || !dateVal) return;
+
+    openConfirmModal(
+        "Revert Stage Schedule to Baseline?",
+        `Are you sure you want to restore all events on this stage on <strong>${dateVal}</strong> back to their original scheduled times? All participant passes, judge call clocks, and stage displays will revert immediately.`,
+        async () => {
+            await revertStageSchedule(stageId, dateVal);
+            updateCascadePreview();
+        }
+    );
+}
+window.revertActiveStageToBaseline = revertActiveStageToBaseline;
+
+async function revertStageSchedule(stageId, targetDate) {
+    let revertedCount = 0;
+
+    window.scheduleDelayUndoStack.push({
+        timestamp: Date.now(),
+        previousSchedule: JSON.parse(JSON.stringify(masterSchedule)),
+        action: 'revert_stage',
+        stageId,
+        targetDate
+    });
+
+    Object.keys(masterSchedule).forEach(compId => {
+        const comp = (competitionsList || []).find(c => String(c.id) === String(compId));
+        const sched = masterSchedule[compId];
+        if (!comp || !sched) return;
+
+        if (targetDate && sched.date !== targetDate) return;
+
+        const matchStage = stageId === 'offstage' ? !!comp.is_offstage : String(comp.stage_id) === String(stageId);
+        if (!matchStage) return;
+
+        if (sched.baseline_time) {
+            sched.time = sched.baseline_time;
+            if (sched.baseline_to_time) {
+                sched.to_time = sched.baseline_to_time;
+            }
+            sched.delay_offset_minutes = 0;
+            delete sched.last_delay_applied_at;
+            delete sched.delay_reason;
+            revertedCount++;
+        }
+    });
+
+    try {
+        const { error } = window.festosSaveSetting 
+            ? await window.festosSaveSetting('master_schedule', masterSchedule) 
+            : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+        if (error) throw error;
+
+        showToast(`Reverted ${revertedCount} event(s) to original baseline schedule!`, "success");
+
+        await detectScheduleConflicts();
+        filterScheduleTable();
+        if (window.schedCurrentViewMode === 'sheet' && typeof initScheduleSheet === 'function') {
+            initScheduleSheet();
+        }
+    } catch(err) {
+        showToast("Failed to revert stage schedule: " + err.message, "error");
+    }
+}
+window.revertStageSchedule = revertStageSchedule;
+
+async function revertSingleCompSchedule(compId) {
+    const sched = masterSchedule[compId];
+    if (!sched || !sched.baseline_time) return;
+
+    openConfirmModal(
+        "Revert Event Schedule?",
+        `Restore this competition to its original baseline time (<strong>${sched.baseline_time}</strong>)?`,
+        async () => {
+            window.scheduleDelayUndoStack.push({
+                timestamp: Date.now(),
+                previousSchedule: JSON.parse(JSON.stringify(masterSchedule)),
+                action: 'revert_single',
+                compId
+            });
+
+            sched.time = sched.baseline_time;
+            if (sched.baseline_to_time) sched.to_time = sched.baseline_to_time;
+            sched.delay_offset_minutes = 0;
+            delete sched.last_delay_applied_at;
+            delete sched.delay_reason;
+
+            try {
+                const { error } = window.festosSaveSetting 
+                    ? await window.festosSaveSetting('master_schedule', masterSchedule) 
+                    : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+                if (error) throw error;
+
+                showToast(`Reverted to baseline time (${sched.time})!`, "success");
+
+                await detectScheduleConflicts();
+                filterScheduleTable();
+                if (window.schedCurrentViewMode === 'sheet' && typeof initScheduleSheet === 'function') {
+                    initScheduleSheet();
+                }
+            } catch(err) {
+                showToast("Failed to revert: " + err.message, "error");
+            }
+        }
+    );
+}
+window.revertSingleCompSchedule = revertSingleCompSchedule;
+
+async function undoLastCascadeDelay() {
+    if (!window.scheduleDelayUndoStack || window.scheduleDelayUndoStack.length === 0) {
+        return showToast("No cascade operations to undo.", "info");
+    }
+
+    const lastSnapshot = window.scheduleDelayUndoStack.pop();
+    masterSchedule = lastSnapshot.previousSchedule;
+
+    try {
+        const { error } = window.festosSaveSetting 
+            ? await window.festosSaveSetting('master_schedule', masterSchedule) 
+            : await supabaseClient.from('settings').upsert({ id: 'master_schedule', value: masterSchedule });
+        if (error) throw error;
+
+        showToast("Restored schedule prior to last operation!", "success");
+
+        const undoBtn = document.getElementById('btnUndoCascadeDelay');
+        if (undoBtn) {
+            undoBtn.style.display = window.scheduleDelayUndoStack.length > 0 ? 'inline-block' : 'none';
+        }
+
+        updateCascadePreview();
+        await detectScheduleConflicts();
+        filterScheduleTable();
+        if (window.schedCurrentViewMode === 'sheet' && typeof initScheduleSheet === 'function') {
+            initScheduleSheet();
+        }
+    } catch(err) {
+        showToast("Failed to undo: " + err.message, "error");
+    }
+}
+window.undoLastCascadeDelay = undoLastCascadeDelay;
+
 async function detectScheduleConflicts() {
     const enrollments = await fetchScheduleEnrollments();
     
@@ -10172,13 +11168,11 @@ function filterScheduleTable() {
         const compStageId = item.comp.stage_id; 
         
         let compStageName = 'TBD';
-        if (item.comp.is_offstage) {
-            compStageName = '📝 Offstage';
-        } else if (item.comp.stages?.name) {
+        if (item.comp.stages?.name) {
             compStageName = item.comp.stages.name;
         } else if (item.comp.stage_id) {
             const stg = (stagesList || []).find(s => String(s.id) === String(item.comp.stage_id));
-            compStageName = stg ? stg.name : `Stage #${item.comp.stage_id}`;
+            if (stg && stg.name) compStageName = stg.name;
         }
         
         const matchSearch = item.comp.name.toLowerCase().includes(search);
@@ -10221,17 +11215,28 @@ function filterScheduleTable() {
             ? `<button class="btn btn-outline" style="padding:0.4rem 0.75rem; color:var(--warning); border-color:var(--warning);" onclick="toggleScheduleStatus('${item.compId}', 'draft')" title="Unpublish"><i class="fa-solid fa-eye-slash"></i></button>`
             : `<button class="btn btn-success" style="padding:0.4rem 0.75rem;" onclick="toggleScheduleStatus('${item.compId}', 'published')" title="Publish Live"><i class="fa-solid fa-upload"></i></button>`;
 
+        const isDelayed = item.sched.baseline_time && (item.sched.baseline_time !== item.sched.time || Number(item.sched.delay_offset_minutes || 0) !== 0);
+        const delayOffsetMins = Number(item.sched.delay_offset_minutes) || (item.sched.baseline_time ? (timeStringToMinutes(item.sched.time) - timeStringToMinutes(item.sched.baseline_time)) : 0);
+        const delaySign = delayOffsetMins > 0 ? `+${delayOffsetMins}m` : `${delayOffsetMins}m`;
+        const delayBadge = isDelayed
+            ? `<div style="margin-top: 3px;"><span class="badge" style="background:#FEF3C7; color:#B45309; border:1px solid #FDE68A; font-size:0.68rem; font-weight:800; padding:1px 6px; border-radius:4px;" title="Original: ${item.sched.baseline_time}"><i class="fa-solid fa-clock-rotate-left"></i> ${delaySign}</span> <small style="text-decoration:line-through; color:var(--text-muted); font-size:0.75rem;">${item.sched.baseline_time}</small></div>`
+            : '';
+        const revertBtn = isDelayed
+            ? `<button class="btn btn-outline" style="padding:0.4rem 0.75rem; color:#D97706; border-color:#FDE68A; background:#FFFBEB;" onclick="revertSingleCompSchedule('${item.compId}')" title="Revert to baseline time (${item.sched.baseline_time})"><i class="fa-solid fa-rotate-left"></i></button>`
+            : '';
+
         tbody.innerHTML += `
             <tr>
                 <td style="font-weight: 700;">${escapeSheetHtml(item.comp.name)}</td>
                 <td>${escapeSheetHtml(compCatName)}</td>
-                <td>${escapeSheetHtml(compStageName)}</td>
+                <td><span style="font-weight: 700; color: var(--primary);"><i class="fa-solid fa-microphone-stage" style="margin-right: 5px; opacity: 0.85;"></i> ${escapeSheetHtml(compStageName)}</span></td>
                 <td style="font-weight: 700; color: var(--primary);">${item.sched.date}</td>
-                <td style="font-weight: 700;">${item.sched.time}</td>
+                <td style="font-weight: 700;">${item.sched.time} ${delayBadge}</td>
                 <td style="font-weight: 700;">${item.sched.to_time || '-'}</td>
                 <td>${badge}</td>
                 <td>
                     <div style="display: flex; gap: 0.5rem;">
+                        ${revertBtn}
                         ${actionBtn}
                         <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick="openScheduleModal('${item.compId}')" title="Edit"><i class="fa-solid fa-pen"></i></button>
                         <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteSchedule('${item.compId}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
@@ -10395,10 +11400,7 @@ function filterAuditList(type) {
 async function exportConflictReportPDF() {
     showToast('Generating Schedule Conflict Audit PDF...', 'success');
     try {
-        const container = document.createElement('div');
-        container.style.padding = '40px';
-        container.style.fontFamily = 'Inter, sans-serif';
-        container.innerHTML = getPDFHeaderHTML('Schedule Conflict & Overlap Audit Report');
+        const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
 
         const allIssues = [
             ...scheduleConflictsReport.hardClashes.map(c => ['HARD CLASH', c.date, c.student?.name || 'N/A', `${c.compA?.name} (${c.timeA})`, `${c.compB?.name} (${c.timeB})`, 'Overlapping Time']),
@@ -10406,45 +11408,101 @@ async function exportConflictReportPDF() {
             ...scheduleConflictsReport.stageCollisions.map(c => ['STAGE COLLISION', c.date, c.stageName, `${c.compA?.name} (${c.timeA})`, `${c.compB?.name} (${c.timeB})`, 'Same Stage Overlap'])
         ];
 
-        let rowsHtml = allIssues.map(r => `
-            <tr>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: ${r[0] === 'HARD CLASH' ? '#DC2626' : (r[0] === 'TIGHT BUFFER' ? '#D97706' : '#7C3AED')};">${r[0]}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${r[1]}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${r[2]}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${r[3]}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${r[4]}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${r[5]}</td>
+        let rowsHtml = allIssues.map((r, index) => {
+            const bg = (index % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
+            let pillBg = '#FEE2E2';
+            let pillColor = '#DC2626';
+            if (r[0] === 'TIGHT BUFFER') { pillBg = '#FEF3C7'; pillColor = '#D97706'; }
+            else if (r[0] === 'STAGE COLLISION') { pillBg = '#F3E8FF'; pillColor = '#7C3AED'; }
+
+            return `
+            <tr style="height: 28px; page-break-inside: avoid; break-inside: avoid;">
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; background: ${bg}; text-align: center;">
+                    <span style="background: ${pillBg}; color: ${pillColor}; font-weight: 800; font-size: 9px; padding: 2px 7px; border-radius: 4px; display: inline-block;">${r[0]}</span>
+                </td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A; font-size: 11px; background: ${bg}; white-space: nowrap;">${r[1]}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600; color: #334155; font-size: 11px; background: ${bg};">${r[2]}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; color: #475569; font-size: 11px; background: ${bg};">${r[3]}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; color: #475569; font-size: 11px; background: ${bg};">${r[4]}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A; font-size: 10.5px; background: ${bg};">${r[5]}</td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
 
         if (allIssues.length === 0) {
-            rowsHtml = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: #059669; font-weight: 700;">No schedule conflicts found! Festival schedule is 100% optimal.</td></tr>`;
+            rowsHtml = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: #059669; font-weight: 700; font-size: 12px;">No schedule conflicts detected. Festival schedule is 100% optimal!</td></tr>`;
         }
 
-        container.innerHTML += `
-            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; font-size: 0.85rem;">
-                <thead>
-                    <tr style="background: #F8FAFC;">
-                        <th style="padding: 10px; border-bottom: 2px solid #CBD5E1; text-align: left;">TYPE</th>
-                        <th style="padding: 10px; border-bottom: 2px solid #CBD5E1; text-align: left;">DATE</th>
-                        <th style="padding: 10px; border-bottom: 2px solid #CBD5E1; text-align: left;">STUDENT / STAGE</th>
-                        <th style="padding: 10px; border-bottom: 2px solid #CBD5E1; text-align: left;">EVENT 1</th>
-                        <th style="padding: 10px; border-bottom: 2px solid #CBD5E1; text-align: left;">EVENT 2</th>
-                        <th style="padding: 10px; border-bottom: 2px solid #CBD5E1; text-align: left;">DETAILS</th>
-                    </tr>
-                </thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
+        const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+            ? window.festosGetPDFHeaderHTML('SCHEDULE CONFLICT & OVERLAP AUDIT', activeFid, {
+                badge: allIssues.length > 0 ? `${allIssues.length} ISSUES FOUND` : '100% RESOLVED',
+                subtitle: 'AI TIMETABLE INTEGRITY & COLLISION REPORT'
+            })
+            : getPDFHeaderHTML('Schedule Conflict Audit');
+
+        const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+            ? window.festosGetPDFFooterHTML(null, null, 'Schedule Optimization Audit')
+            : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
+
+        const contentHtml = `
+            <div style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+                ${headerHtml}
+
+                <!-- Summary Strip -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <div style="flex: 1; background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 8px; padding: 8px 12px; text-align: center;">
+                        <div style="font-size: 9px; font-weight: 700; color: #991B1B; text-transform: uppercase;">Hard Clashes</div>
+                        <div style="font-size: 16px; font-weight: 800; color: #DC2626; margin-top: 2px;">${scheduleConflictsReport.hardClashes.length}</div>
+                    </div>
+                    <div style="flex: 1; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 8px 12px; text-align: center;">
+                        <div style="font-size: 9px; font-weight: 700; color: #92400E; text-transform: uppercase;">Tight Buffers (&lt;15m)</div>
+                        <div style="font-size: 16px; font-weight: 800; color: #D97706; margin-top: 2px;">${scheduleConflictsReport.bufferWarnings.length}</div>
+                    </div>
+                    <div style="flex: 1; background: #F5F3FF; border: 1px solid #DDD6FE; border-radius: 8px; padding: 8px 12px; text-align: center;">
+                        <div style="font-size: 9px; font-weight: 700; color: #5B21B6; text-transform: uppercase;">Stage Collisions</div>
+                        <div style="font-size: 16px; font-weight: 800; color: #7C3AED; margin-top: 2px;">${scheduleConflictsReport.stageCollisions.length}</div>
+                    </div>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #CBD5E1;">
+                    <thead>
+                        <tr style="background: #0F172A; color: white; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;">
+                            <th style="padding: 8px 10px; width: 130px; text-align: center;">SEVERITY TYPE</th>
+                            <th style="padding: 8px 10px; width: 100px;">DATE</th>
+                            <th style="padding: 8px 10px; width: 150px;">STUDENT / STAGE</th>
+                            <th style="padding: 8px 10px;">EVENT A</th>
+                            <th style="padding: 8px 10px;">EVENT B</th>
+                            <th style="padding: 8px 10px; width: 130px;">DETAILS</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 11px; color: #334155;">
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+
+                ${footerHtml}
+            </div>
         `;
 
-        const opt = {
-            margin: 10,
-            filename: typeof getFestFileName === 'function' ? getFestFileName('Schedule_Conflict_Audit', 'pdf') : `Schedule_Conflict_Audit_${new Date().toISOString().split('T')[0]}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-        };
-        await html2pdf().set(opt).from(container).save();
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'landscape',
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Schedule_Conflict_Audit', 'pdf') : 'Schedule_Conflict_Audit.pdf',
+                width: 1120
+            });
+            showToast('Conflict Audit PDF Exported Successfully!');
+        } else {
+            const opt = {
+                margin: 10,
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Schedule_Conflict_Audit', 'pdf') : `Schedule_Conflict_Audit_${new Date().toISOString().split('T')[0]}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            await html2pdf().set(opt).from(wrap).save();
+        }
     } catch(e) {
         showToast("PDF Export failed: " + e.message, "error");
     }
@@ -12361,11 +13419,6 @@ window.deleteSchedSheetRow = deleteSchedSheetRow;
 async function exportSchedulePDF() {
     showToast('Generating Schedule PDF...', 'success');
     try {
-        const container = document.createElement('div');
-        container.style.padding = '40px';
-        container.style.fontFamily = 'Inter, sans-serif';
-        container.innerHTML = getPDFHeaderHTML('Master Event Schedule');
-
         // 1. Get current filter values
         const search = document.getElementById('searchSchedInput')?.value?.toLowerCase() || '';
         const dateVal = document.getElementById('filterSchedDate')?.value || '';
@@ -12400,67 +13453,160 @@ async function exportSchedulePDF() {
             return (a.sched.time || '').localeCompare(b.sched.time || '');
         });
 
-        // 4. Generate Rows
-        let tableRows = scheduledItems.map((item) => {
-            let compStageName = 'TBD';
-            if (item.comp.is_offstage) {
-                compStageName = 'Offstage';
-            } else if (item.comp.stages?.name) {
-                compStageName = item.comp.stages.name;
-            } else if (item.comp.stage_id) {
-                const stg = (stagesList || []).find(s => String(s.id) === String(item.comp.stage_id));
-                compStageName = stg ? stg.name : `Stage #${item.comp.stage_id}`;
-            }
-
-            return `
-            <tr>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.sched.date}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700;">${item.sched.time}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700;">${item.sched.to_time || '-'}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600;">${item.comp.name}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${item.comp.categories?.name || 'GEN'}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${compStageName}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #4F46E5;">${item.comp.status.toUpperCase().replace('_', ' ')}</td>
-            </tr>
-            `;
-        }).join('');
-
         if (scheduledItems.length === 0) {
-            tableRows = `<tr><td colspan="7" style="padding: 20px; text-align: center; color: #64748B;">No scheduled events match your current filters.</td></tr>`;
+            return showToast("No scheduled events match your current filters.", "error");
         }
 
-        container.innerHTML += `
-            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
-                <thead>
-                    <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;">
-                        <th style="padding: 10px;">DATE</th>
-                        <th style="padding: 10px;">FROM TIME</th>
-                        <th style="padding: 10px;">TO TIME</th>
-                        <th style="padding: 10px;">COMPETITION</th>
-                        <th style="padding: 10px;">CATEGORY</th>
-                        <th style="padding: 10px;">STAGE</th>
-                        <th style="padding: 10px;">EVENT STATUS</th>
-                    </tr>
-                </thead>
-                <tbody style="font-size: 12px; color: #334155;">
-                    ${tableRows}
-                </tbody>
-            </table>
+        // Summary metrics
+        const distinctDates = [...new Set(scheduledItems.map(i => i.sched.date).filter(Boolean))].sort();
+        const distinctStages = [...new Set(scheduledItems.map(i => {
+            if (i.comp.stages?.name) return i.comp.stages.name;
+            if (i.comp.stage_id) {
+                const s = (stagesList || []).find(stg => String(stg.id) === String(i.comp.stage_id));
+                if (s && s.name) return s.name;
+            }
+            return null;
+        }).filter(Boolean))];
+        const soloCount = scheduledItems.filter(i => !i.comp.is_group).length;
+        const groupCount = scheduledItems.filter(i => i.comp.is_group).length;
+
+        // Group by Date
+        const dateGroups = {};
+        scheduledItems.forEach(item => {
+            const d = item.sched.date || 'Date TBD';
+            if (!dateGroups[d]) dateGroups[d] = [];
+            dateGroups[d].push(item);
+        });
+
+        const container = document.createElement('div');
+        container.style.padding = '24px 30px';
+        container.style.fontFamily = "'Plus Jakarta Sans', Inter, -apple-system, sans-serif";
+        container.style.color = '#0F172A';
+        container.style.background = '#FFFFFF';
+
+        const pdfHeader = typeof getPDFHeaderHTML === 'function' 
+            ? getPDFHeaderHTML('MASTER EVENT SCHEDULE & TIMETABLE') 
+            : '<h1 style="color:#4F46E5; text-align:center; font-weight:800; font-size:22px; margin-bottom:4px;">MASTER EVENT SCHEDULE</h1>';
+
+        container.innerHTML = pdfHeader + `
+            <!-- KPI Metrics Strip -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 22px;">
+                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; text-align: center;">
+                    <div style="font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px;">Scheduled Events</div>
+                    <div style="font-size: 20px; font-weight: 800; color: #0F172A; margin-top: 2px;">${scheduledItems.length}</div>
+                </div>
+                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; text-align: center;">
+                    <div style="font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px;">Festival Days</div>
+                    <div style="font-size: 20px; font-weight: 800; color: #4F46E5; margin-top: 2px;">${distinctDates.length} Day${distinctDates.length > 1 ? 's' : ''}</div>
+                </div>
+                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; text-align: center;">
+                    <div style="font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px;">Active Stages</div>
+                    <div style="font-size: 20px; font-weight: 800; color: #059669; margin-top: 2px;">${distinctStages.length}</div>
+                </div>
+                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; text-align: center;">
+                    <div style="font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px;">Event Formats</div>
+                    <div style="font-size: 13px; font-weight: 800; color: #0F172A; margin-top: 5px;">${soloCount} Solo <span style="color:#CBD5E1;">|</span> ${groupCount} Group</div>
+                </div>
+            </div>
         `;
 
-        const opt = { 
-            margin: 10, 
-            filename: typeof getFestFileName === 'function' ? getFestFileName('Master_Schedule', 'pdf') : `Fest_Master_Schedule.pdf`, 
-            image: { type: 'jpeg', quality: 0.98 }, 
-            html2canvas: { scale: 2, useCORS: true }, 
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-        };
-        html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+        let globalIndex = 1;
+        Object.keys(dateGroups).forEach(d => {
+            const itemsForDate = dateGroups[d];
+            let dayRows = itemsForDate.map(item => {
+                let compStageName = 'TBD';
+                if (item.comp.stages?.name) {
+                    compStageName = item.comp.stages.name;
+                } else if (item.comp.stage_id) {
+                    const stg = (stagesList || []).find(s => String(s.id) === String(item.comp.stage_id));
+                    if (stg && stg.name) compStageName = stg.name;
+                }
+
+                const timeRange = (item.sched.time || '') + (item.sched.to_time ? ' &ndash; ' + item.sched.to_time : '');
+                const catName = item.comp.categories?.name || 'General';
+                const formatBadge = item.comp.is_group 
+                    ? '<span style="background: #FDF2F8; color: #9D174D; font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 4px; margin-left: 6px;">GROUP</span>'
+                    : '<span style="background: #F0FDF4; color: #166534; font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 4px; margin-left: 6px;">SOLO</span>';
+
+                const statusLabel = (item.comp.status || 'pending').toUpperCase().replace(/_/g, ' ');
+
+                return `
+                    <tr style="border-bottom: 1px solid #E2E8F0; page-break-inside: avoid;">
+                        <td style="padding: 9px 8px; text-align: center; font-weight: 700; color: #64748B; font-size: 11px;">${globalIndex++}</td>
+                        <td style="padding: 9px 10px; font-weight: 800; color: #0F172A; font-size: 11.5px; white-space: nowrap;">${timeRange}</td>
+                        <td style="padding: 9px 10px;">
+                            <span style="font-weight: 800; color: #0F172A; font-size: 12px; text-transform: uppercase;">${item.comp.name}</span>
+                            ${formatBadge}
+                        </td>
+                        <td style="padding: 9px 10px; font-weight: 700; color: #475569; font-size: 11px;">${catName.toUpperCase()}</td>
+                        <td style="padding: 9px 10px;">
+                            <span style="font-weight: 800; color: #4F46E5; font-size: 11.5px;">${compStageName.toUpperCase()}</span>
+                        </td>
+                        <td style="padding: 9px 10px; text-align: center; font-weight: 800; font-size: 10px; color: #475569;">
+                            ${statusLabel}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            container.innerHTML += `
+                <div style="margin-bottom: 24px; page-break-inside: avoid;">
+                    <div style="background: linear-gradient(135deg, #1E293B 0%, #334155 100%); color: white; padding: 8px 14px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 800; font-size: 12px; letter-spacing: 0.5px; text-transform: uppercase;">
+                            📅 ${d}
+                        </span>
+                        <span style="font-size: 10.5px; font-weight: 700; color: #94A3B8; background: rgba(255,255,255,0.12); padding: 2px 8px; border-radius: 4px;">
+                            ${itemsForDate.length} EVENT${itemsForDate.length > 1 ? 'S' : ''}
+                        </span>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; border-top: none;">
+                        <thead>
+                            <tr style="background: #F1F5F9; text-align: left; font-size: 10px; color: #475569; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #CBD5E1;">
+                                <th style="padding: 8px; width: 35px; text-align: center;">#</th>
+                                <th style="padding: 8px 10px; width: 140px;">TIME WINDOW</th>
+                                <th style="padding: 8px 10px;">COMPETITION</th>
+                                <th style="padding: 8px 10px; width: 130px;">CATEGORY</th>
+                                <th style="padding: 8px 10px; width: 170px;">VENUE / STAGE</th>
+                                <th style="padding: 8px 10px; width: 130px; text-align: center;">STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody style="font-size: 11px; color: #1E293B;">
+                            ${dayRows}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        });
+
+        container.innerHTML += `
+            <div style="margin-top: 25px; padding-top: 12px; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748B;">
+                <span>Official Festival Timetable &bull; FestOS Verified</span>
+                <span>Generated on: ${new Date().toLocaleString()}</span>
+            </div>
+        `;
+
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(container.innerHTML, {
+                orientation: 'landscape',
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Master_Schedule', 'pdf') : 'Fest_Master_Schedule.pdf',
+                width: 1120
+            });
+            showToast('Schedule PDF Exported Successfully!');
+        } else {
+            const opt = { 
+                margin: [8, 10, 8, 10], 
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Master_Schedule', 'pdf') : 'Fest_Master_Schedule.pdf', 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+            html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+        }
     } catch (e) { showToast(e.message, 'error'); }
 }
 
 async function exportScheduleCSV() {
-    // 1. Get current filter values
     const search = document.getElementById('searchSchedInput')?.value?.toLowerCase() || '';
     const dateVal = document.getElementById('filterSchedDate')?.value || '';
     const catId = document.getElementById('filterSchedCat')?.value || '';
@@ -12468,60 +13614,79 @@ async function exportScheduleCSV() {
     const statusVal = document.getElementById('filterSchedStatus')?.value || '';
     const compStatusVal = document.getElementById('filterSchedCompStatus') ? document.getElementById('filterSchedCompStatus').value : ""; 
 
-    let dataToExport = [];
-    
-    // 2. Map and filter items
-    Object.keys(masterSchedule).forEach(compId => {
+    let matchedCompIds = Object.keys(masterSchedule).filter(compId => {
+        const comp = (competitionsList || []).find(c => c.id == compId);
+        if (!comp) return false;
+        const sched = masterSchedule[compId];
+        if (!sched) return false;
+
+        const matchSearch = comp.name.toLowerCase().includes(search);
+        const matchDate = dateVal === "" || sched.date === dateVal;
+        const matchCat = catId === "" || comp.category_id == catId;
+        const matchStage = stageId === "" || (stageId === 'offstage' ? comp.is_offstage : comp.stage_id == stageId); 
+        const matchStatus = statusVal === "" || sched.status === statusVal;
+        const matchCompStatus = compStatusVal === "" || comp.status === compStatusVal; 
+
+        return matchSearch && matchDate && matchCat && matchStage && matchStatus && matchCompStatus;
+    }).sort((a,b) => {
+        const sA = masterSchedule[a];
+        const sB = masterSchedule[b];
+        if (sA.date !== sB.date) return (sA.date || '').localeCompare(sB.date || '');
+        return (sA.time || '').localeCompare(sB.time || '');
+    });
+
+    if (matchedCompIds.length === 0) return showToast("No scheduled events match your filters.", "error");
+
+    let slNo = 1;
+    const dataToExport = matchedCompIds.map(compId => {
         const comp = competitionsList.find(c => c.id == compId);
-        if(comp) {
-            const sched = masterSchedule[compId];
-            const compCatId = comp.category_id;
-            const compStageId = comp.stage_id; 
+        const sched = masterSchedule[compId];
 
-            let compStageName = 'TBD';
-            if (comp.is_offstage) {
-                compStageName = 'Offstage';
-            } else if (comp.stages?.name) {
-                compStageName = comp.stages.name;
-            } else if (comp.stage_id) {
-                const stg = (stagesList || []).find(s => String(s.id) === String(comp.stage_id));
-                compStageName = stg ? stg.name : `Stage #${comp.stage_id}`;
-            }
-
-            const matchSearch = comp.name.toLowerCase().includes(search);
-            const matchDate = dateVal === "" || sched.date === dateVal;
-            const matchCat = catId === "" || compCatId == catId;
-            const matchStage = stageId === "" || (stageId === 'offstage' ? comp.is_offstage : compStageId == stageId); 
-            const matchStatus = statusVal === "" || sched.status === statusVal;
-            const matchCompStatus = compStatusVal === "" || comp.status === compStatusVal; 
-
-            if (matchSearch && matchDate && matchCat && matchStage && matchStatus && matchCompStatus) {
-                dataToExport.push({
-                    "DATE": sched.date,
-                    "TIME (FROM)": sched.time,
-                    "TIME (TO)": sched.to_time || '-',
-                    "COMPETITION": comp.name,
-                    "CATEGORY": comp.categories?.name || 'General',
-                    "STAGE": compStageName,
-                    "STATUS": sched.status.toUpperCase()
-                });
-            }
+        let compStageName = 'TBD';
+        if (comp.stages?.name) {
+            compStageName = comp.stages.name;
+        } else if (comp.stage_id) {
+            const stg = (stagesList || []).find(s => String(s.id) === String(comp.stage_id));
+            if (stg && stg.name) compStageName = stg.name;
         }
+
+        let durationMins = '';
+        if (sched.time && sched.to_time) {
+            const startM = timeStringToMinutes(sched.time);
+            const endM = timeStringToMinutes(sched.to_time);
+            if (endM > startM) durationMins = endM - startM;
+        }
+        if (!durationMins && sched.manual_time) durationMins = sched.manual_time;
+
+        return {
+            "SL NO": slNo++,
+            "DATE": sched.date || '',
+            "FROM TIME": sched.time || '',
+            "TO TIME": sched.to_time || '-',
+            "DURATION (MINS)": durationMins || '-',
+            "COMPETITION NAME": comp.name,
+            "CATEGORY": comp.categories?.name || 'General',
+            "VENUE / STAGE": compStageName,
+            "EVENT MODE": comp.is_offstage ? "Offstage" : "Onstage",
+            "PARTICIPATION TYPE": comp.is_group ? "Group" : "Solo",
+            "MAX PARTICIPANTS": comp.max_participants || (comp.is_group ? "Unlimited" : "1"),
+            "PUBLISH STATUS": (sched.status || 'draft').toUpperCase(),
+            "EVENT STATUS": (comp.status || 'pending').toUpperCase().replace(/_/g, ' ')
+        };
     });
+
+    const csvFileName = typeof getFestFileName === 'function' ? getFestFileName('Master_Schedule', 'csv') : 'Fest_Master_Schedule.csv';
     
-    if (dataToExport.length === 0) return showToast("No scheduled events match your filters.", "error");
-
-    dataToExport.sort((a,b) => {
-        if (a.DATE !== b.DATE) return (a.DATE || '').localeCompare(b.DATE || '');
-        return (a["TIME (FROM)"] || '').localeCompare(b["TIME (FROM)"] || '');
-    });
-
-    const csvFileName = typeof getFestFileName === 'function' ? getFestFileName('Master_Schedule', 'csv') : 'Fest_Schedule.csv';
-    const blob = new Blob([Papa.unparse(dataToExport)], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a"); 
-    link.href = URL.createObjectURL(blob); 
-    link.setAttribute("download", csvFileName);
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    if (typeof festosExportCSV === 'function') {
+        festosExportCSV(csvFileName, dataToExport, 'Master Event Schedule Register');
+    } else {
+        const blob = new Blob([Papa.unparse(dataToExport)], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a"); 
+        link.href = URL.createObjectURL(blob); 
+        link.setAttribute("download", csvFileName);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+    showToast('Schedule CSV exported successfully!');
 }
 
 // ==========================================
@@ -13322,6 +14487,7 @@ async function exportVacancyPDF() {
     showToast('Generating Vacancy Audit PDF...', 'success');
 
     try {
+        const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
         const catId = document.getElementById('vacancyCategoryFilter')?.value || '';
         const search = (document.getElementById('vacancySearchInput')?.value || '').toLowerCase();
 
@@ -13338,47 +14504,55 @@ async function exportVacancyPDF() {
             grouped[item.categoryName].push(item);
         });
 
-        const container = document.createElement('div');
-        container.style.padding = '35px';
-        container.style.fontFamily = 'Inter, sans-serif';
-        container.innerHTML = getPDFHeaderHTML('Under-Enrolled Competitions & Vacancy Audit');
+        const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+            ? window.festosGetPDFHeaderHTML('COMPETITIONS VACANCY & CAPACITY AUDIT', activeFid, {
+                badge: `${filtered.length} UNDER-ENROLLED EVENTS`,
+                subtitle: 'QUOTA AUDIT & OPEN TEAM SLOTS'
+            })
+            : getPDFHeaderHTML('Under-Enrolled Competitions & Vacancy Audit');
 
+        const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+            ? window.festosGetPDFFooterHTML(null, null, 'Official Vacancy Audit')
+            : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
+
+        let sectionsHtml = '';
         for (const catName in grouped) {
             const comps = grouped[catName];
 
             let tableRows = comps.map((item, idx) => {
+                const bg = (idx % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
                 const teamsListStr = item.teamVacancies
-                    .map(tv => `${tv.teamName} (${tv.enrolled}/${tv.max})`)
-                    .join(', ');
+                    .map(tv => `<span style="background: #F1F5F9; color: #334155; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; margin: 2px;">${tv.teamName}: <strong>${tv.enrolled}/${tv.max}</strong></span>`)
+                    .join(' ');
 
                 return `
-                    <tr style="border-bottom: 1px solid #E2E8F0;">
-                        <td style="padding: 9px 10px; font-size: 11px;">${idx + 1}</td>
-                        <td style="padding: 9px 10px; font-size: 11px; font-weight: 700; color: #0F172A;">${item.name}</td>
-                        <td style="padding: 9px 10px; font-size: 11px; text-align: center;">${item.maxPerTeam}</td>
-                        <td style="padding: 9px 10px; font-size: 11px; font-weight: 800; color: #E11D48; text-align: center;">${item.enrolledTotal} / ${item.totalCapacity}</td>
-                        <td style="padding: 9px 10px; font-size: 10px; color: #475569; line-height: 1.4;">${teamsListStr}</td>
+                    <tr style="height: 32px; page-break-inside: avoid; break-inside: avoid;">
+                        <td style="padding: 7px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 11px; font-weight: 600; color: #64748B; background: ${bg}; width: 35px;">${idx + 1}</td>
+                        <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-size: 11.5px; font-weight: 700; color: #0F172A; background: ${bg}; width: 220px;">${item.name}</td>
+                        <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-size: 11px; text-align: center; font-weight: 700; color: #475569; background: ${bg}; width: 90px;">${item.maxPerTeam}</td>
+                        <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-size: 11.5px; font-weight: 800; color: #E11D48; text-align: center; background: ${bg}; width: 95px;">${item.enrolledTotal} / ${item.totalCapacity}</td>
+                        <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-size: 10px; background: ${bg}; line-height: 1.5;">${teamsListStr}</td>
                     </tr>
                 `;
             }).join('');
 
-            container.innerHTML += `
-                <div style="margin-bottom: 25px; page-break-inside: avoid;">
-                    <div style="background: #1E293B; color: white; padding: 8px 12px; border-radius: 6px 6px 0 0; font-size: 12px; font-weight: 800; display: flex; justify-content: space-between; align-items: center;">
+            sectionsHtml += `
+                <div class="pdf-avoid-break" style="margin-bottom: 24px; page-break-inside: avoid; break-inside: avoid; border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; background: white;">
+                    <div style="background: #0F172A; color: white; padding: 8px 14px; font-size: 11.5px; font-weight: 800; display: flex; justify-content: space-between; align-items: center;">
                         <span>CATEGORY: ${catName.toUpperCase()}</span>
-                        <span style="font-size: 10px; color: #94A3B8;">${comps.length} UNDER-ENROLLED EVENT(S)</span>
+                        <span style="font-size: 10px; color: #38BDF8; font-weight: 700;">${comps.length} UNDER-ENROLLED EVENT(S)</span>
                     </div>
-                    <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; border-top: none;">
+                    <table style="width: 100%; border-collapse: collapse; background: white;">
                         <thead>
-                            <tr style="background: #F8FAFC; text-align: left; font-size: 10px; color: #64748B; border-bottom: 1px solid #E2E8F0;">
-                                <th style="padding: 8px 10px; width: 30px;">#</th>
-                                <th style="padding: 8px 10px; width: 220px;">COMPETITION</th>
-                                <th style="padding: 8px 10px; text-align: center; width: 90px;">QUOTA/TEAM</th>
-                                <th style="padding: 8px 10px; text-align: center; width: 90px;">ENROLLED</th>
-                                <th style="padding: 8px 10px;">TEAMS WITH OPEN SLOTS (FILLED/MAX)</th>
+                            <tr style="background: #F1F5F9; text-align: left; font-size: 10px; color: #475569; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #CBD5E1;">
+                                <th style="padding: 8px 6px; text-align: center; width: 35px;">#</th>
+                                <th style="padding: 8px 10px; width: 220px;">COMPETITION NAME</th>
+                                <th style="padding: 8px 10px; text-align: center; width: 90px;">QUOTA / TEAM</th>
+                                <th style="padding: 8px 10px; text-align: center; width: 95px;">ENROLLED / CAP</th>
+                                <th style="padding: 8px 10px;">TEAMS WITH OPEN VACANCIES (FILLED/MAX)</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody style="font-size: 11px; color: #334155;">
                             ${tableRows}
                         </tbody>
                     </table>
@@ -13386,16 +14560,35 @@ async function exportVacancyPDF() {
             `;
         }
 
-        const opt = {
-            margin: [10, 10, 10, 10],
-            filename: typeof getFestFileName === 'function' ? getFestFileName('Vacancy_Audit', 'pdf') : `Fest_Vacancy_Audit_${new Date().toISOString().split('T')[0]}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-            pagebreak: { mode: ['css', 'legacy'] }
-        };
+        const contentHtml = `
+            <div style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+                ${headerHtml}
+                ${sectionsHtml}
+                ${footerHtml}
+            </div>
+        `;
 
-        html2pdf().set(opt).from(container).save().then(() => showToast('Vacancy PDF Exported!'));
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'landscape',
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Vacancy_Audit', 'pdf') : 'Fest_Vacancy_Audit.pdf',
+                width: 1120
+            });
+            showToast('Vacancy PDF Exported Successfully!');
+        } else {
+            const opt = {
+                margin: [10, 10, 10, 10],
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Vacancy_Audit', 'pdf') : `Fest_Vacancy_Audit_${new Date().toISOString().split('T')[0]}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                pagebreak: { mode: ['css', 'legacy'] }
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            await html2pdf().set(opt).from(wrap).save();
+            showToast('Vacancy PDF Exported!');
+        }
     } catch (e) {
         showToast(e.message, 'error');
     }
@@ -13685,78 +14878,129 @@ async function exportSpecificJudgePDF(judgeId) {
     const judge = globalJudgesList.find(j => j.id === judgeId);
     if (!judge) return;
     
-    showToast(`Generating PDF for ${judge.username}...`, 'success');
-    
-    const container = document.createElement('div');
-    container.style.padding = '40px';
-    container.style.fontFamily = 'Inter, sans-serif';
-    container.innerHTML = getPDFHeaderHTML(`Judge Schedule: ${judge.username}`);
+    showToast(`Generating Schedule PDF for ${judge.username}...`, 'success');
+    const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
 
     // Fetch Master Schedule dynamically to get live timing data
-    const val = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : (await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle()).data?.value;
+    const val = window.festosGetSetting ? await window.festosGetSetting('master_schedule', activeFid) : (await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle()).data?.value;
     const masterSchedule = val || {};
 
     let tableRows = '';
-    
     if (judge.assignments.length === 0) {
-        tableRows = `<tr><td colspan="5" style="padding: 10px; text-align: center; color: #64748B;">No events currently assigned.</td></tr>`;
+        tableRows = `<tr><td colspan="5" style="padding: 24px; text-align: center; color: #64748B; font-weight: 600;">No events currently assigned.</td></tr>`;
     } else {
-        // Merge assignments with schedule data
         const scheduledAssignments = judge.assignments.map(comp => {
             const sched = masterSchedule[comp.id] || { date: 'TBD', time: '--:--' };
             return { ...comp, sched };
         });
 
-        // Sort chronologically by Date, then Time
         scheduledAssignments.sort((a, b) => {
-            if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
-            return a.sched.time.localeCompare(b.sched.time);
+            if (a.sched.date !== b.sched.date) return (a.sched.date || '').localeCompare(b.sched.date || '');
+            return (a.sched.time || '').localeCompare(b.sched.time || '');
         });
 
         tableRows = scheduledAssignments.map((comp, i) => {
+            const bg = (i % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
             const timeStr = comp.sched.date !== 'TBD' 
-                ? `<span style="font-weight: 700;">${comp.sched.date}</span><br><span style="color: #64748B; font-size: 10px;">${comp.sched.time}</span>` 
-                : `<span style="color: #D97706; font-weight: 600;">Unscheduled</span>`;
+                ? `<span style="font-weight: 700; color: #0F172A;">${comp.sched.date}</span><br><span style="color: #64748B; font-size: 10px; font-weight: 600;">${comp.sched.time}</span>` 
+                : `<span style="background: #FEF3C7; color: #D97706; padding: 2px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700;">Unscheduled</span>`;
 
             return `
-            <tr style="border-bottom: 1px solid #E2E8F0;">
-                <td style="padding: 8px 10px; font-size: 11px;">${i + 1}</td>
-                <td style="padding: 8px 10px; font-size: 11px; color: #0F172A;">${timeStr}</td>
-                <td style="padding: 8px 10px; font-size: 11px; font-weight: 600; color: #0F172A;">${comp.name}</td>
-                <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.categories?.name || 'General'}</td>
-                <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.stages?.name || 'Unassigned'}</td>
+            <tr style="height: 32px; page-break-inside: avoid; break-inside: avoid;">
+                <td style="padding: 7px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 11px; font-weight: 600; color: #64748B; background: ${bg}; width: 35px;">${i + 1}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-size: 11px; background: ${bg}; width: 130px;">${timeStr}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A; font-size: 11.5px; background: ${bg};">${comp.name}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; background: ${bg}; width: 120px;">
+                    <span style="background: #EFF6FF; color: #2563EB; font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block;">${comp.categories?.name || 'General'}</span>
+                </td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #4F46E5; font-size: 11px; background: ${bg}; width: 130px;">${comp.stages?.name || 'Unassigned'}</td>
             </tr>
         `}).join('');
     }
 
-    container.innerHTML += `
-        <div style="margin-bottom: 25px;">
-            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
+    const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+        ? window.festosGetPDFHeaderHTML(`JUDGE DOSSIER: ${judge.username.toUpperCase()}`, activeFid, {
+            badge: 'OFFICIAL APPOINTMENT',
+            subtitle: `${judge.assignments.length} OFFICIATED ASSIGNMENTS &bull; JURY ROSTER`
+        })
+        : getPDFHeaderHTML(`Judge Schedule: ${judge.username}`);
+
+    const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+        ? window.festosGetPDFFooterHTML(null, null, `Judge Appointee: ${judge.username}`)
+        : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
+
+    const contentHtml = `
+        <div style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+            ${headerHtml}
+
+            <!-- Judge Profile Banner -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; background: #F8FAFC; padding: 16px 20px; border-radius: 8px; border: 1px solid #CBD5E1;">
+                <div>
+                    <div style="font-size: 9.5px; color: #64748B; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">JUDGE PROFILE</div>
+                    <h2 style="font-size: 19px; color: #0F172A; margin: 2px 0 0 0; text-transform: uppercase; font-weight: 900;">${judge.username}</h2>
+                    <div style="font-size: 11px; color: #475569; margin-top: 3px; font-weight: 600;">ROLE: ACCREDITED FESTIVAL ADJUDICATOR</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 9.5px; color: #4F46E5; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">OFFICIATING COUNT</div>
+                    <div style="font-size: 22px; font-weight: 900; color: #4F46E5; margin-top: 2px;">${judge.assignments.length} <span style="font-size: 11px; color: #64748B; font-weight: 700;">EVENTS</span></div>
+                </div>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #CBD5E1;">
                 <thead>
-                    <tr style="background: #F8FAFC; text-align: left; font-size: 10px; color: #64748B; border-bottom: 1px solid #E2E8F0; text-transform: uppercase;">
-                        <th style="padding: 8px 10px; width: 40px;">#</th>
-                        <th style="padding: 8px 10px;">DATE & TIME</th>
+                    <tr style="background: #0F172A; color: white; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;">
+                        <th style="padding: 8px 6px; text-align: center; width: 35px;">#</th>
+                        <th style="padding: 8px 10px; width: 130px;">DATE & TIME</th>
                         <th style="padding: 8px 10px;">COMPETITION NAME</th>
-                        <th style="padding: 8px 10px;">CATEGORY</th>
-                        <th style="padding: 8px 10px;">STAGE</th>
+                        <th style="padding: 8px 10px; width: 120px;">CATEGORY</th>
+                        <th style="padding: 8px 10px; width: 130px;">STAGE / VENUE</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody style="font-size: 11px; color: #334155;">
                     ${tableRows}
                 </tbody>
             </table>
+
+            <!-- Judge Acceptance & Sign-off Block -->
+            <div style="margin-top: 40px; display: flex; justify-content: space-between; padding-top: 15px; border-top: 1px dashed #CBD5E1;">
+                <div style="text-align: center; width: 200px;">
+                    <div style="height: 35px;"></div>
+                    <div style="border-top: 1px solid #94A3B8; padding-top: 4px; font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase;">Judge Signature</div>
+                </div>
+                <div style="text-align: center; width: 200px;">
+                    <div style="height: 35px;"></div>
+                    <div style="border-top: 1px solid #94A3B8; padding-top: 4px; font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase;">Chief Controller</div>
+                </div>
+            </div>
+
+            ${footerHtml}
         </div>
     `;
 
-    const opt = { 
-        margin: 10, 
-        filename: typeof getFestFileName === 'function' ? getFestFileName(`Judge_Schedule_${judge.username}`, 'pdf') : `Judge_Schedule_${judge.username}.pdf`, 
-        image: { type: 'jpeg', quality: 0.98 }, 
-        html2canvas: { scale: 2, useCORS: true }, 
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-    };
-    
-    html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+    try {
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'portrait',
+                filename: typeof getFestFileName === 'function' ? getFestFileName(`Judge_Schedule_${judge.username}`, 'pdf') : `Judge_Schedule_${judge.username}.pdf`,
+                width: 800
+            });
+            showToast('Judge Schedule PDF Exported!');
+        } else {
+            const opt = { 
+                margin: 10, 
+                filename: typeof getFestFileName === 'function' ? getFestFileName(`Judge_Schedule_${judge.username}`, 'pdf') : `Judge_Schedule_${judge.username}.pdf`, 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            await html2pdf().set(opt).from(wrap).save();
+            showToast('Judge Schedule PDF Exported!');
+        }
+    } catch(err) {
+        showToast('Error exporting PDF: ' + err.message, 'error');
+    }
 }
 
 // --- PREMIUM PDF EXPORT (ALL JUDGES) ---
@@ -13764,68 +15008,76 @@ async function exportJudgesPDF() {
     if (globalJudgesList.length === 0) return showToast('No judges found to export.', 'error');
     showToast('Generating Judge Roster PDF...', 'success');
     
-    // Fetch Master Schedule dynamically to get live timing data
-    const val = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : (await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle()).data?.value;
+    const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
+    const val = window.festosGetSetting ? await window.festosGetSetting('master_schedule', activeFid) : (await supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle()).data?.value;
     const masterSchedule = val || {};
 
-    const container = document.createElement('div');
-    container.style.padding = '40px';
-    container.style.fontFamily = 'Inter, sans-serif';
-    container.innerHTML = getPDFHeaderHTML('Master Judge & Allocation Roster');
+    const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+        ? window.festosGetPDFHeaderHTML('MASTER JUDGE & ALLOCATION ROSTER', activeFid, {
+            badge: `${globalJudgesList.length} JUDGES REGISTERED`,
+            subtitle: 'OFFICIAL ACCREDITED JURY ROSTER'
+        })
+        : getPDFHeaderHTML('Master Judge & Allocation Roster');
 
+    const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+        ? window.festosGetPDFFooterHTML(null, null, 'Official Master Jury Registry')
+        : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
+
+    let judgeBlocksHtml = '';
     globalJudgesList.forEach((judge, index) => {
         let tableRows = '';
         
         if (judge.assignments.length === 0) {
-            tableRows = `<tr><td colspan="5" style="padding: 10px; text-align: center; color: #64748B;">No events currently assigned to this judge.</td></tr>`;
+            tableRows = `<tr><td colspan="5" style="padding: 14px; text-align: center; color: #64748B; font-weight: 600;">No events currently assigned to this judge.</td></tr>`;
         } else {
-            // Merge assignments with schedule data
             const scheduledAssignments = judge.assignments.map(comp => {
                 const sched = masterSchedule[comp.id] || { date: 'TBD', time: '--:--' };
                 return { ...comp, sched };
             });
 
-            // Sort chronologically by Date, then Time
             scheduledAssignments.sort((a, b) => {
-                if (a.sched.date !== b.sched.date) return a.sched.date.localeCompare(b.sched.date);
-                return a.sched.time.localeCompare(b.sched.time);
+                if (a.sched.date !== b.sched.date) return (a.sched.date || '').localeCompare(b.sched.date || '');
+                return (a.sched.time || '').localeCompare(b.sched.time || '');
             });
 
             tableRows = scheduledAssignments.map((comp, i) => {
+                const bg = (i % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
                 const timeStr = comp.sched.date !== 'TBD' 
-                    ? `<span style="font-weight: 700;">${comp.sched.date}</span><br><span style="color: #64748B; font-size: 10px;">${comp.sched.time}</span>` 
+                    ? `<span style="font-weight: 700; color: #0F172A;">${comp.sched.date}</span> &bull; <span style="color: #64748B; font-size: 10px;">${comp.sched.time}</span>` 
                     : `<span style="color: #D97706; font-weight: 600;">Unscheduled</span>`;
 
                 return `
-                <tr style="border-bottom: 1px solid #E2E8F0;">
-                    <td style="padding: 8px 10px; font-size: 11px;">${i + 1}</td>
-                    <td style="padding: 8px 10px; font-size: 11px; color: #0F172A;">${timeStr}</td>
-                    <td style="padding: 8px 10px; font-size: 11px; font-weight: 600; color: #0F172A;">${comp.name}</td>
-                    <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.categories?.name || 'General'}</td>
-                    <td style="padding: 8px 10px; font-size: 11px; color: #475569;">${comp.stages?.name || 'Unassigned'}</td>
+                <tr style="height: 28px; page-break-inside: avoid; break-inside: avoid;">
+                    <td style="padding: 6px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 10.5px; font-weight: 600; color: #64748B; background: ${bg}; width: 35px;">${i + 1}</td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-size: 10.5px; background: ${bg}; width: 140px;">${timeStr}</td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A; font-size: 11px; background: ${bg};">${comp.name}</td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; background: ${bg}; width: 110px;">
+                        <span style="background: #EFF6FF; color: #2563EB; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px; display: inline-block;">${comp.categories?.name || 'General'}</span>
+                    </td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 600; color: #4F46E5; font-size: 10.5px; background: ${bg}; width: 120px;">${comp.stages?.name || 'Unassigned'}</td>
                 </tr>
             `}).join('');
         }
 
-        container.innerHTML += `
-            <div style="margin-bottom: 25px; page-break-inside: avoid;">
-                <div style="background: #1E293B; color: white; padding: 10px 12px; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; font-size: 13px; font-weight: 700; text-transform: uppercase;">
+        judgeBlocksHtml += `
+            <div class="pdf-avoid-break" style="margin-bottom: 22px; page-break-inside: avoid; break-inside: avoid; border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; background: white;">
+                <div style="background: #0F172A; color: white; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;">
                         JUDGE: ${judge.username}
                     </h3>
-                    <span style="font-size: 10px; color: #94A3B8; font-weight: 600;">${judge.assignments.length} ASSIGNMENTS</span>
+                    <span style="font-size: 10px; color: #38BDF8; font-weight: 700;">${judge.assignments.length} ASSIGNMENTS</span>
                 </div>
-                <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; border-top: none;">
+                <table style="width: 100%; border-collapse: collapse; background: white;">
                     <thead>
-                        <tr style="background: #F8FAFC; text-align: left; font-size: 10px; color: #64748B; border-bottom: 1px solid #E2E8F0; text-transform: uppercase;">
-                            <th style="padding: 8px 10px; width: 40px;">#</th>
-                            <th style="padding: 8px 10px;">DATE & TIME</th>
-                            <th style="padding: 8px 10px;">COMPETITION NAME</th>
-                            <th style="padding: 8px 10px;">CATEGORY</th>
-                            <th style="padding: 8px 10px;">STAGE</th>
+                        <tr style="background: #F1F5F9; text-align: left; font-size: 10px; color: #475569; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #CBD5E1;">
+                            <th style="padding: 6px 8px; text-align: center; width: 35px;">#</th>
+                            <th style="padding: 6px 10px; width: 140px;">DATE & TIME</th>
+                            <th style="padding: 6px 10px;">COMPETITION NAME</th>
+                            <th style="padding: 6px 10px; width: 110px;">CATEGORY</th>
+                            <th style="padding: 6px 10px; width: 120px;">STAGE</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody style="font-size: 11px; color: #334155;">
                         ${tableRows}
                     </tbody>
                 </table>
@@ -13833,15 +15085,38 @@ async function exportJudgesPDF() {
         `;
     });
 
-    const opt = { 
-        margin: 10, 
-        filename: typeof getFestFileName === 'function' ? getFestFileName('Judge_Allocation_Roster', 'pdf') : `Fest_Judge_Roster.pdf`, 
-        image: { type: 'jpeg', quality: 0.98 }, 
-        html2canvas: { scale: 2, useCORS: true }, 
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-    };
-    
-    html2pdf().set(opt).from(container).save().then(() => showToast('Roster PDF Exported!'));
+    const contentHtml = `
+        <div style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+            ${headerHtml}
+            ${judgeBlocksHtml}
+            ${footerHtml}
+        </div>
+    `;
+
+    try {
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'portrait',
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Judge_Allocation_Roster', 'pdf') : 'Fest_Judge_Roster.pdf',
+                width: 800
+            });
+            showToast('Roster PDF Exported Successfully!');
+        } else {
+            const opt = { 
+                margin: 10, 
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Judge_Allocation_Roster', 'pdf') : `Fest_Judge_Roster.pdf`, 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            await html2pdf().set(opt).from(wrap).save();
+            showToast('Roster PDF Exported!');
+        }
+    } catch(err) {
+        showToast('Error exporting PDF: ' + err.message, 'error');
+    }
 }
 
 function filterJudgesTable() {

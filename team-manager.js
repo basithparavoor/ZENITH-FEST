@@ -548,6 +548,34 @@ async function fetchAllData(forceFresh = false, isBackgroundSync = false) {
             catSet.forEach(cat => catSelect.innerHTML += `<option value="${cat}">${cat}</option>`);
         }
 
+        const studentMissingCatSelect = document.getElementById('filter-student-missing-cat');
+        if (studentMissingCatSelect) {
+            const curVal = studentMissingCatSelect.value;
+            let catOptions = `
+                <option value="">MISSING IN CATEGORY: NONE</option>
+                <option value="own_category">⚠️ MISSING IN OWN CATEGORY</option>
+            `;
+            const uniqueCats = [];
+            const seenCatIds = new Set();
+            globalComps.forEach(c => {
+                const cid = c.category_id || c.categories?.id;
+                const cname = c.categories?.name || 'GENERAL';
+                if (cid && !seenCatIds.has(String(cid))) {
+                    seenCatIds.add(String(cid));
+                    uniqueCats.push({ id: cid, name: cname, is_general: !!(c.categories?.is_general) });
+                }
+            });
+            if (uniqueCats.length > 0) {
+                catOptions += `<optgroup label="No Events in Specific Category:">`;
+                uniqueCats.forEach(c => {
+                    catOptions += `<option value="${c.id}">NO EVENTS IN ${c.name.toUpperCase()}${c.is_general ? ' (GENERAL)' : ''}</option>`;
+                });
+                catOptions += `</optgroup>`;
+            }
+            studentMissingCatSelect.innerHTML = catOptions;
+            if (curVal) studentMissingCatSelect.value = curVal;
+        }
+
         // Enforce Deadline & Update UI
         if (systemSettings.lock_date) {
             const deadline = new Date(systemSettings.lock_date);
@@ -693,20 +721,134 @@ async function updateDashboardStats(prefetchedJudgements = null) {
 }
 
 // ---------------- STUDENT DIRECTORY ----------------
+function updateStudentPillCounts() {
+    const students = globalStudents || [];
+    let enrolledCount = 0;
+    let zeroCount = 0;
+    let missingOwnCatCount = 0;
+
+    students.forEach(student => {
+        const myAssigns = (globalAssignments || []).filter(a => String(a.participant_id) === String(student.id));
+        const count = myAssigns.length;
+        if (count > 0) enrolledCount++;
+        else zeroCount++;
+
+        const studentCatId = student.category_id || student.categories?.id;
+        const studentCatName = (student.categories?.name || '').toLowerCase();
+        const assignedCompIds = new Set(myAssigns.map(a => String(a.competition_id)));
+        const assignedComps = (globalComps || []).filter(c => assignedCompIds.has(String(c.id)));
+
+        const hasOwnCat = assignedComps.some(c => 
+            (studentCatId && String(c.category_id) === String(studentCatId)) ||
+            (studentCatName && (c.categories?.name || '').toLowerCase() === studentCatName)
+        );
+        if (!hasOwnCat) missingOwnCatCount++;
+    });
+
+    const elTotal = document.getElementById('tm-count-all');
+    const elEnrolled = document.getElementById('tm-count-enrolled');
+    const elZero = document.getElementById('tm-count-zero');
+    const elNoOwn = document.getElementById('tm-count-no-own-cat');
+
+    if (elTotal) elTotal.innerText = students.length;
+    if (elEnrolled) elEnrolled.innerText = enrolledCount;
+    if (elZero) elZero.innerText = zeroCount;
+    if (elNoOwn) elNoOwn.innerText = missingOwnCatCount;
+}
+
+function setStudentPillFilter(type) {
+    const enrollSelect = document.getElementById('filter-student-enrollment');
+    const missingCatSelect = document.getElementById('filter-student-missing-cat');
+
+    document.querySelectorAll('#my-team .part-pill').forEach(btn => btn.classList.remove('active'));
+
+    if (type === 'zero') {
+        if (enrollSelect) enrollSelect.value = 'none';
+        if (missingCatSelect) missingCatSelect.value = '';
+        document.getElementById('student-pill-zero')?.classList.add('active');
+    } else if (type === 'enrolled') {
+        if (enrollSelect) enrollSelect.value = 'enrolled';
+        if (missingCatSelect) missingCatSelect.value = '';
+        document.getElementById('student-pill-enrolled')?.classList.add('active');
+    } else if (type === 'no_own_cat') {
+        if (enrollSelect) enrollSelect.value = '';
+        if (missingCatSelect) missingCatSelect.value = 'own_category';
+        document.getElementById('student-pill-no-own-cat')?.classList.add('active');
+    } else {
+        if (enrollSelect) enrollSelect.value = '';
+        if (missingCatSelect) missingCatSelect.value = '';
+        document.getElementById('student-pill-all')?.classList.add('active');
+    }
+
+    renderStudents();
+}
+window.setStudentPillFilter = setStudentPillFilter;
+
+function onStudentEnrollmentSelectChange() {
+    const val = document.getElementById('filter-student-enrollment')?.value || '';
+    document.querySelectorAll('#my-team .part-pill').forEach(btn => btn.classList.remove('active'));
+    if (val === 'none') {
+        document.getElementById('student-pill-zero')?.classList.add('active');
+    } else if (val === 'enrolled') {
+        document.getElementById('student-pill-enrolled')?.classList.add('active');
+    } else {
+        document.getElementById('student-pill-all')?.classList.add('active');
+    }
+    renderStudents();
+}
+window.onStudentEnrollmentSelectChange = onStudentEnrollmentSelectChange;
+
 function renderStudents() {
-    const search = document.getElementById('search-students').value.toLowerCase();
+    const search = document.getElementById('search-students')?.value?.toLowerCase() || '';
+    const enrollFilter = document.getElementById('filter-student-enrollment')?.value || '';
+    const missingCatFilter = document.getElementById('filter-student-missing-cat')?.value || '';
     const tbody = document.getElementById('students-tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
 
-    globalStudents.forEach(student => {
+    updateStudentPillCounts();
+
+    let matchedCount = 0;
+    (globalStudents || []).forEach(student => {
         if (search && !student.name.toLowerCase().includes(search) && !student.unique_id.toLowerCase().includes(search)) return;
 
-        const enrollCount = globalAssignments.filter(a => a.participant_id === student.id).length;
+        const myAssignments = (globalAssignments || []).filter(a => String(a.participant_id) === String(student.id));
+        const enrollCount = myAssignments.length;
+
+        // Enrollment Presence Filter
+        if (enrollFilter === 'none' && enrollCount > 0) return;
+        if (enrollFilter === 'enrolled' && enrollCount === 0) return;
+
+        // Missing Category Program Filter
+        if (missingCatFilter) {
+            const assignedCompIds = new Set(myAssignments.map(a => String(a.competition_id)));
+            const assignedComps = (globalComps || []).filter(c => assignedCompIds.has(String(c.id)));
+
+            if (missingCatFilter === 'own_category') {
+                const studentCatId = student.category_id || student.categories?.id;
+                const studentCatName = (student.categories?.name || '').toLowerCase();
+                const hasOwnCat = assignedComps.some(c => 
+                    (studentCatId && String(c.category_id) === String(studentCatId)) ||
+                    (studentCatName && (c.categories?.name || '').toLowerCase() === studentCatName)
+                );
+                // Exclude if they DO have enrollment in own category
+                if (hasOwnCat) return;
+            } else {
+                // Specific category
+                const hasSpecificCat = assignedComps.some(c => 
+                    String(c.category_id) === String(missingCatFilter) ||
+                    (c.categories?.name || '').toLowerCase() === String(missingCatFilter).toLowerCase()
+                );
+                // Exclude if they DO have enrollment in this category
+                if (hasSpecificCat) return;
+            }
+        }
+
+        matchedCount++;
         const badgeClass = enrollCount > 0 ? 'badge-info' : 'badge-warning';
-        
         const photoSrc = student.photo_url ? student.photo_url : 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%236B7280"%3EPHOTO%3C/text%3E%3C/svg%3E';
 
-      tbody.innerHTML += `
+        tbody.innerHTML += `
             <tr>
                 <td data-label="STUDENT NAME" style="display: flex; align-items: center; gap: 0.85rem; justify-content: flex-start; text-align: left;">
                     <img src="${photoSrc}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--border); box-shadow: var(--shadow-sm); flex-shrink: 0;">
@@ -719,11 +861,15 @@ function renderStudents() {
                 <td data-label="CATEGORY"><span class="badge badge-gray">${student.categories?.name || 'GENERAL'}</span></td>
                 <td data-label="DOB" style="font-weight: 800; color: var(--text-muted);">${student.dob || 'N/A'}</td>
                 <td data-label="EVENTS ENROLLED">
-                    <span class="badge ${badgeClass}" onclick="viewStudentEvents('${student.id}')">${enrollCount} EVENTS <i class="fa-solid fa-arrow-up-right-from-square" style="margin-left: 4px;"></i></span>
+                    <span class="badge ${badgeClass}" onclick="viewStudentEvents('${student.id}')" title="Click to view enrolled events">${enrollCount} ${enrollCount === 1 ? 'EVENT' : 'EVENTS'} <i class="fa-solid fa-arrow-up-right-from-square" style="margin-left: 4px;"></i></span>
                 </td>
             </tr>
         `;
     });
+
+    if (matchedCount === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2.5rem; color: var(--text-muted); font-weight: 600;"><i class="fa-solid fa-user-slash" style="font-size: 1.75rem; color: #CBD5E1; display: block; margin-bottom: 0.5rem;"></i>No students found matching current filters.</td></tr>`;
+    }
 }
 
 function viewStudentEvents(studentId) {
@@ -1200,7 +1346,7 @@ function renderCatalog() {
             <tr>
                 <td data-label="EVENT NAME" style="font-weight: 700; color: var(--text-main);"></td>
                 <td data-label="CATEGORY"><span class="badge badge-gray">${catName}</span></td>
-                <td data-label="VENUE / STAGE">${stageName}</td>
+                <td data-label="VENUE / STAGE"><span style="font-weight: 700; color: var(--primary);"><i class="fa-solid fa-microphone-stage" style="margin-right: 5px;"></i> ${venueInfo.name}</span></td>
                 <td data-label="TYPE & LIMIT">${typeBadge}</td>
             </tr>
         `;
@@ -1211,9 +1357,9 @@ function renderCatalog() {
 async function exportCatalogPDF() {
     showToast('Generating Catalog PDF...', 'success');
     
-    const search = document.getElementById('search-catalog').value.toLowerCase();
-    const typeFilter = document.getElementById('filter-catalog-type').value;
-    const catFilter = document.getElementById('filter-catalog-cat').value;
+    const search = (document.getElementById('search-catalog')?.value || '').toLowerCase();
+    const typeFilter = document.getElementById('filter-catalog-type')?.value || 'all';
+    const catFilter = document.getElementById('filter-catalog-cat')?.value || 'all';
     
     const filteredComps = globalComps.filter(comp => {
         const catName = comp.categories?.name || 'UNCATEGORIZED';
@@ -1224,38 +1370,116 @@ async function exportCatalogPDF() {
         return true;
     });
 
-    const container = document.createElement('div');
-    container.style.padding = '40px';
-    container.style.fontFamily = 'Inter, sans-serif';
-    container.innerHTML = getPDFHeaderHTML(`Event Catalog`);
+    const activeFid = (window.festosAuth && window.festosAuth.getCurrentFestId)
+        ? window.festosAuth.getCurrentFestId()
+        : (JSON.parse(localStorage.getItem('festUser') || '{}').fest_id || localStorage.getItem('festos_active_fest_id') || null);
+
+    const soloCount = filteredComps.filter(c => !c.is_group).length;
+    const groupCount = filteredComps.filter(c => c.is_group).length;
+    const distinctCats = [...new Set(filteredComps.map(c => c.categories?.name || 'General'))];
+
+    const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+        ? window.festosGetPDFHeaderHTML('OFFICIAL EVENT & COMPETITION CATALOG', activeFid, {
+            badge: `${filteredComps.length} EVENTS`,
+            subtitle: 'OFFICIAL FESTIVAL COMPETITIONS REPOSITORY'
+        })
+        : getPDFHeaderHTML('Event Catalog');
+
+    const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+        ? window.festosGetPDFFooterHTML(null, null, 'Official Event Catalog')
+        : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
 
     let tableRows = filteredComps.map((c, i) => {
+        const bg = (i % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
         const venueInfo = (window.festosGetCompVenueStage || getCompVenueStage)(c, globalStages);
-        const stageName = venueInfo.displayText;
-        const typeBadge = c.is_group ? `GROUP (MAX ${c.max_participants})` : `SOLO (MAX ${c.max_participants})`;
+        const stageName = venueInfo.name || "TBD";
+        const typeBadge = c.is_group 
+            ? `<span style="background: #FDF2F8; color: #9D174D; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: inline-block;">GROUP (MAX ${c.max_participants})</span>` 
+            : `<span style="background: #F0FDF4; color: #166534; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: inline-block;">SOLO (MAX ${c.max_participants})</span>`;
+        
         return `
-        <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${i + 1}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A;">${c.name.toUpperCase()}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${(c.categories?.name || 'GENERAL').toUpperCase()}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #4F46E5;">${stageName}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${typeBadge}</td>
+        <tr style="height: 32px; page-break-inside: avoid; break-inside: avoid;">
+            <td style="padding: 7px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 11px; font-weight: 600; color: #64748B; background: ${bg}; width: 35px;">${i + 1}</td>
+            <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A; font-size: 11.5px; background: ${bg};">${c.name.toUpperCase()}</td>
+            <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; background: ${bg}; width: 130px;">
+                <span style="background: #EFF6FF; color: #2563EB; font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block;">${(c.categories?.name || 'GENERAL').toUpperCase()}</span>
+            </td>
+            <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #4F46E5; font-size: 11px; background: ${bg}; width: 130px;">${stageName}</td>
+            <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; background: ${bg}; width: 140px;">${typeBadge}</td>
         </tr>
     `}).join('');
 
-    container.innerHTML += `
-        <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
-            <thead>
-                <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;">
-                    <th style="padding: 10px;">#</th><th style="padding: 10px;">EVENT NAME</th><th style="padding: 10px;">CATEGORY</th><th style="padding: 10px;">VENUE / STAGE</th><th style="padding: 10px;">TYPE & LIMIT</th>
-                </tr>
-            </thead>
-            <tbody style="font-size: 12px; color: #334155;">${tableRows}</tbody>
-        </table>
+    if (filteredComps.length === 0) {
+        tableRows = `<tr><td colspan="5" style="padding: 24px; text-align: center; color: #64748B; font-weight: 600;">No competitions matched the selected criteria.</td></tr>`;
+    }
+
+    const contentHtml = `
+        <div style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+            ${headerHtml}
+
+            <!-- KPI Summary Bar -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
+                <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px; text-align: center;">
+                    <div style="font-size: 9.5px; color: #64748B; font-weight: 700; text-transform: uppercase;">Total Events</div>
+                    <div style="font-size: 18px; font-weight: 900; color: #0F172A; margin-top: 2px;">${filteredComps.length}</div>
+                </div>
+                <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px; text-align: center;">
+                    <div style="font-size: 9.5px; color: #64748B; font-weight: 700; text-transform: uppercase;">Solo Competitions</div>
+                    <div style="font-size: 18px; font-weight: 900; color: #059669; margin-top: 2px;">${soloCount}</div>
+                </div>
+                <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px; text-align: center;">
+                    <div style="font-size: 9.5px; color: #64748B; font-weight: 700; text-transform: uppercase;">Group Competitions</div>
+                    <div style="font-size: 18px; font-weight: 900; color: #7C3AED; margin-top: 2px;">${groupCount}</div>
+                </div>
+                <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px; text-align: center;">
+                    <div style="font-size: 9.5px; color: #64748B; font-weight: 700; text-transform: uppercase;">Categories Covered</div>
+                    <div style="font-size: 18px; font-weight: 900; color: #2563EB; margin-top: 2px;">${distinctCats.length}</div>
+                </div>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #CBD5E1;">
+                <thead>
+                    <tr style="background: #0F172A; color: white; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;">
+                        <th style="padding: 8px 6px; text-align: center; width: 35px;">#</th>
+                        <th style="padding: 8px 10px;">EVENT NAME</th>
+                        <th style="padding: 8px 10px; width: 130px;">CATEGORY</th>
+                        <th style="padding: 8px 10px; width: 130px;">VENUE / STAGE</th>
+                        <th style="padding: 8px 10px; width: 140px;">TYPE & CAPACITY</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size: 11px; color: #334155;">
+                    ${tableRows}
+                </tbody>
+            </table>
+
+            ${footerHtml}
+        </div>
     `;
 
-    const opt = { margin: 10, filename: typeof getFestFileName === 'function' ? getFestFileName('Event_Catalog', 'pdf') : 'Event_Catalog.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-    html2pdf().set(opt).from(container).save().then(() => showToast('PDF Exported!'));
+    try {
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'portrait',
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Event_Catalog', 'pdf') : 'Fest_Event_Catalog.pdf',
+                width: 800
+            });
+            showToast('Catalog PDF Exported!');
+        } else {
+            const opt = { 
+                margin: 10, 
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Event_Catalog', 'pdf') : 'Event_Catalog.pdf', 
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            await html2pdf().set(opt).from(wrap).save();
+            showToast('PDF Exported!');
+        }
+    } catch (e) {
+        showToast('Error exporting PDF: ' + e.message, 'error');
+    }
 }
 
 function viewCatalogEnrollments(compId) {
@@ -1685,71 +1909,122 @@ function closeScanModal() {
 async function exportTeamParticipantListPDF() {
     showToast('Generating Participant List PDF...', 'success');
     try {
-        const teamName = document.getElementById('team-name-title').innerText || 'MY TEAM';
+        const teamName = document.getElementById('team-name-title')?.innerText || 'MY TEAM';
+        const activeFid = (window.festosAuth && window.festosAuth.getCurrentFestId)
+            ? window.festosAuth.getCurrentFestId()
+            : (JSON.parse(localStorage.getItem('festUser') || '{}').fest_id || localStorage.getItem('festos_active_fest_id') || null);
 
-        const container = document.createElement('div');
-        container.style.padding = '40px';
-        container.style.fontFamily = 'Inter, sans-serif';
-        container.innerHTML = getPDFHeaderHTML(`${teamName} - Participant Directory`);
+        const totalEnrolledEvents = globalStudents.reduce((acc, p) => {
+            return acc + (globalAssignments || []).filter(a => a.participant_id === p.id).length;
+        }, 0);
+        const avgPerStudent = globalStudents.length > 0 ? (totalEnrolledEvents / globalStudents.length).toFixed(1) : '0';
+
+        const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+            ? window.festosGetPDFHeaderHTML(`${teamName.toUpperCase()} &bull; PARTICIPANTS ROSTER`, activeFid, {
+                badge: `${globalStudents.length} CONTESTANTS`,
+                subtitle: 'OFFICIAL TEAM SQUAD DIRECTORY'
+            })
+            : getPDFHeaderHTML(`${teamName} - Participant Directory`);
+
+        const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+            ? window.festosGetPDFFooterHTML(null, null, `${teamName} Official Participant Directory`)
+            : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
 
         let tableRows = globalStudents.map((p, index) => {
-            const enrollCount = globalAssignments.filter(a => a.participant_id === p.id).length;
+            const bg = (index % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
+            const enrollCount = (globalAssignments || []).filter(a => a.participant_id === p.id).length;
+            const countPill = enrollCount > 0 
+                ? `<span style="background: #EFF6FF; color: #2563EB; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px; display: inline-block;">${enrollCount} Event${enrollCount > 1 ? 's' : ''}</span>`
+                : `<span style="background: #F1F5F9; color: #94A3B8; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; display: inline-block;">None</span>`;
+
             return `
-            <tr>
-                <td style="padding: 12px; border-bottom: 1px solid #E2E8F0;">${index + 1}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #E2E8F0; font-family: monospace; font-weight: 600;">${p.unique_id}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #E2E8F0; font-weight: 700;">${p.name}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #E2E8F0;">${p.dob || 'N/A'}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #E2E8F0; text-align: center; font-weight: 700;">${enrollCount}</td>
+            <tr style="height: 32px; page-break-inside: avoid; break-inside: avoid;">
+                <td style="padding: 7px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 11px; font-weight: 600; color: #64748B; background: ${bg}; width: 35px;">${index + 1}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-family: monospace; font-size: 11px; font-weight: 700; color: #4F46E5; background: ${bg}; width: 110px;">${p.unique_id}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A; font-size: 11.5px; background: ${bg};">${p.name.toUpperCase()}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-size: 11px; color: #475569; background: ${bg}; width: 110px;">${p.dob || 'N/A'}</td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; text-align: center; background: ${bg}; width: 120px;">${countPill}</td>
             </tr>
         `}).join('');
 
         if (globalStudents.length === 0) {
-            tableRows = '<tr><td colspan="5" style="text-align: center; padding: 30px; color: #64748B;">No students found in this team.</td></tr>';
+            tableRows = '<tr><td colspan="5" style="text-align: center; padding: 30px; color: #64748B; font-weight: 600;">No students found in this team roster.</td></tr>';
         }
 
-        container.innerHTML += `
-            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; border-radius: 8px; overflow: hidden;">
-                <thead>
-                    <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B; text-transform: uppercase;">
-                        <th style="padding: 12px;">#</th>
-                        <th style="padding: 12px;">UNIQUE ID</th>
-                        <th style="padding: 12px;">NAME</th>
-                        <th style="padding: 12px;">DOB</th>
-                        <th style="padding: 12px; text-align: center;">EVENTS ENROLLED</th>
-                    </tr>
-                </thead>
-                <tbody style="font-size: 12px; color: #334155; text-transform: uppercase;">
-                    ${tableRows}
-                </tbody>
-            </table>
+        const contentHtml = `
+            <div style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+                ${headerHtml}
+
+                <!-- Team KPI Bar -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;">
+                    <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px; text-align: center;">
+                        <div style="font-size: 9.5px; color: #64748B; font-weight: 700; text-transform: uppercase;">Total Contestants</div>
+                        <div style="font-size: 19px; font-weight: 900; color: #0F172A; margin-top: 2px;">${globalStudents.length}</div>
+                    </div>
+                    <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px; text-align: center;">
+                        <div style="font-size: 9.5px; color: #64748B; font-weight: 700; text-transform: uppercase;">Total Event Seats</div>
+                        <div style="font-size: 19px; font-weight: 900; color: #2563EB; margin-top: 2px;">${totalEnrolledEvents}</div>
+                    </div>
+                    <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px; text-align: center;">
+                        <div style="font-size: 9.5px; color: #64748B; font-weight: 700; text-transform: uppercase;">Avg Events / Contestant</div>
+                        <div style="font-size: 19px; font-weight: 900; color: #059669; margin-top: 2px;">${avgPerStudent}</div>
+                    </div>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #CBD5E1;">
+                    <thead>
+                        <tr style="background: #0F172A; color: white; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;">
+                            <th style="padding: 8px 6px; text-align: center; width: 35px;">#</th>
+                            <th style="padding: 8px 10px; width: 110px;">CONTESTANT ID</th>
+                            <th style="padding: 8px 10px;">STUDENT NAME</th>
+                            <th style="padding: 8px 10px; width: 110px;">DATE OF BIRTH</th>
+                            <th style="padding: 8px 10px; width: 120px; text-align: center;">PARTICIPATIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 11px; color: #334155;">
+                        ${tableRows}
+                    </tbody>
+                </table>
+
+                ${footerHtml}
+            </div>
         `;
 
-        const opt = {
-            margin: 10,
-            filename: typeof getFestFileName === 'function' ? getFestFileName(`${teamName}_Participants`, 'pdf') : `${teamName}_Participants.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        html2pdf().set(opt).from(container).save().then(() => showToast('Participant PDF Downloaded!'));
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'portrait',
+                filename: typeof getFestFileName === 'function' ? getFestFileName(`${teamName}_Participants`, 'pdf') : `${teamName}_Participants.pdf`,
+                width: 800
+            });
+            showToast('Participant PDF Downloaded!');
+        } else {
+            const opt = {
+                margin: 10,
+                filename: typeof getFestFileName === 'function' ? getFestFileName(`${teamName}_Participants`, 'pdf') : `${teamName}_Participants.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            await html2pdf().set(opt).from(wrap).save();
+            showToast('Participant PDF Downloaded!');
+        }
     } catch (e) { showToast(e.message, 'error'); }
 }
 
 async function exportTeamProgramListPDF() {
     showToast('Generating Program List PDF...', 'success');
     try {
-        const teamName = document.getElementById('team-name-title').innerText || 'MY TEAM';
+        const teamName = document.getElementById('team-name-title')?.innerText || 'MY TEAM';
+        const activeFid = (window.festosAuth && window.festosAuth.getCurrentFestId)
+            ? window.festosAuth.getCurrentFestId()
+            : (JSON.parse(localStorage.getItem('festUser') || '{}').fest_id || localStorage.getItem('festos_active_fest_id') || null);
 
-        const container = document.createElement('div');
-        container.style.padding = '40px';
-        container.style.fontFamily = 'Inter, sans-serif';
-        container.innerHTML = getPDFHeaderHTML(`${teamName} - Master Program List`);
         let compsMap = {};
-        globalAssignments.forEach(a => {
-            const student = globalStudents.find(s => s.id === a.participant_id);
-            const comp = globalComps.find(c => c.id === a.competition_id);
+        (globalAssignments || []).forEach(a => {
+            const student = (globalStudents || []).find(s => s.id === a.participant_id);
+            const comp = (globalComps || []).find(c => c.id === a.competition_id);
             if (student && comp) {
                 if (!compsMap[comp.id]) {
                     compsMap[comp.id] = {
@@ -1772,26 +2047,55 @@ async function exportTeamProgramListPDF() {
             return a.compName.localeCompare(b.compName);
         });
 
+        const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+            ? window.festosGetPDFHeaderHTML(`${teamName.toUpperCase()} &bull; PROGRAM ALLOCATION MATRIX`, activeFid, {
+                badge: `${sortedComps.length} CONTESTS ENTERED`,
+                subtitle: 'OFFICIAL TEAM COMPETITION ASSIGNMENTS'
+            })
+            : getPDFHeaderHTML(`${teamName} - Master Program List`);
+
+        const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+            ? window.festosGetPDFFooterHTML(null, null, `${teamName} Master Program List`)
+            : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
+
+        let eventCardsHtml = '';
         if (sortedComps.length === 0) {
-            container.innerHTML += '<p style="text-align: center; color: #64748B; padding: 2rem;">No enrollments found for this team.</p>';
+            eventCardsHtml = '<div style="text-align: center; color: #64748B; padding: 40px; font-weight: 600;">No enrollments found for this team.</div>';
         } else {
             sortedComps.forEach(c => {
-                let pRows = c.participants.sort((a,b) => a.name.localeCompare(b.name)).map((p, i) => `
-                    <tr>
-                        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; width: 40px;">${i + 1}</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-family: monospace; font-weight: 600;">${p.id}</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700;">${p.name} ${p.is_leader ? '<span style="color: #10B981; font-size:10px; font-weight:800; background: #ECFDF5; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">LEADER</span>' : ''}</td>
+                let pRows = c.participants.sort((a, b) => a.name.localeCompare(b.name)).map((p, i) => {
+                    const bg = (i % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
+                    const leaderPill = p.is_leader 
+                        ? '<span style="color: #059669; font-size: 9.5px; font-weight: 800; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 1px 6px; border-radius: 4px; margin-left: 8px;">TEAM LEADER</span>' 
+                        : '';
+                    return `
+                    <tr style="height: 28px; page-break-inside: avoid; break-inside: avoid;">
+                        <td style="padding: 6px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 10.5px; font-weight: 600; color: #64748B; background: ${bg}; width: 35px;">${i + 1}</td>
+                        <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-family: monospace; font-size: 11px; font-weight: 700; color: #4F46E5; background: ${bg}; width: 120px;">${p.id}</td>
+                        <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A; font-size: 11px; background: ${bg};">${p.name.toUpperCase()} ${leaderPill}</td>
                     </tr>
-                `).join('');
+                `}).join('');
 
-                container.innerHTML += `
-                    <div style="margin-bottom: 25px; page-break-inside: avoid;">
-                        <div style="background: #1E293B; color: white; padding: 12px; border-radius: 8px 8px 0 0;">
-                            <h3 style="margin: 0; font-size: 15px; text-transform: uppercase;">${c.compName}</h3>
-                            <p style="margin: 4px 0 0 0; font-size: 11px; color: #CBD5E1; text-transform: uppercase; font-weight: 600;">CATEGORY: ${c.category} | STAGE: ${c.stage}</p>
+                eventCardsHtml += `
+                    <div class="pdf-avoid-break" style="margin-bottom: 18px; page-break-inside: avoid; break-inside: avoid; border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; background: white;">
+                        <div style="background: #0F172A; color: white; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h3 style="margin: 0; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;">${c.compName}</h3>
+                                <div style="margin-top: 2px; font-size: 9.5px; color: #94A3B8; font-weight: 600;">CATEGORY: ${c.category.toUpperCase()} &bull; STAGE: ${c.stage.toUpperCase()}</div>
+                            </div>
+                            <span style="font-size: 10px; color: #38BDF8; font-weight: 800; background: rgba(56, 189, 248, 0.15); padding: 3px 8px; border-radius: 4px;">
+                                ${c.participants.length} CONTESTANT${c.participants.length > 1 ? 'S' : ''}
+                            </span>
                         </div>
-                        <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; border-top: none;">
-                            <tbody style="font-size: 12px; color: #334155; text-transform: uppercase;">
+                        <table style="width: 100%; border-collapse: collapse; background: white;">
+                            <thead>
+                                <tr style="background: #F1F5F9; text-align: left; font-size: 9.5px; color: #475569; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #CBD5E1;">
+                                    <th style="padding: 6px 8px; text-align: center; width: 35px;">#</th>
+                                    <th style="padding: 6px 10px; width: 120px;">CONTESTANT ID</th>
+                                    <th style="padding: 6px 10px;">STUDENT NAME</th>
+                                </tr>
+                            </thead>
+                            <tbody style="font-size: 11px; color: #334155;">
                                 ${pRows}
                             </tbody>
                         </table>
@@ -1800,15 +2104,34 @@ async function exportTeamProgramListPDF() {
             });
         }
 
-        const opt = {
-            margin: 10,
-            filename: typeof getFestFileName === 'function' ? getFestFileName(`${teamName}_Program_List`, 'pdf') : `${teamName}_Program_List.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-        };
+        const contentHtml = `
+            <div style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+                ${headerHtml}
+                ${eventCardsHtml}
+                ${footerHtml}
+            </div>
+        `;
 
-        html2pdf().set(opt).from(container).save().then(() => showToast('Program List PDF Downloaded!'));
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'portrait',
+                filename: typeof getFestFileName === 'function' ? getFestFileName(`${teamName}_Program_List`, 'pdf') : `${teamName}_Program_List.pdf`,
+                width: 800
+            });
+            showToast('Program List PDF Downloaded!');
+        } else {
+            const opt = {
+                margin: 10,
+                filename: typeof getFestFileName === 'function' ? getFestFileName(`${teamName}_Program_List`, 'pdf') : `${teamName}_Program_List.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            await html2pdf().set(opt).from(wrap).save();
+            showToast('Program List PDF Downloaded!');
+        }
     } catch (e) { showToast(e.message, 'error'); }
 }
 
@@ -2056,7 +2379,8 @@ function openAppealModal() {
 
         setLoading('modalSaveBtn', true);
         try {
-            const { error } = await supabaseClient.from('appeals').insert([payload]);
+            const finalPayload = window.festosWithFest ? window.festosWithFest(payload) : payload;
+            const { error } = await supabaseClient.from('appeals').insert([finalPayload]);
             if (error) throw error;
             showToast("Ticket submitted to Master Admin.", "success");
             closeModal();
@@ -2235,7 +2559,7 @@ function renderTMSchedule() {
                 <td data-label="FROM TIME" style="font-weight: 700;">${sched.time || '--:--'}</td>
                 <td data-label="TO TIME" style="font-weight: 700; color: var(--text-muted);">${sched.to_time || '-'}</td>
                 <td data-label="EVENT NAME" style="font-weight: 800; color: var(--text-main); font-size: 1.05rem;">${comp.name} ${clashBadge}</td>
-                <td data-label="VENUE / STAGE">${venueInfo.htmlBadge}</td>
+                <td data-label="VENUE / STAGE"><span style="font-weight: 700; color: var(--primary);"><i class="fa-solid fa-microphone-stage" style="margin-right: 5px;"></i> ${venueInfo.name}</span></td>
                 <td data-label="CATEGORY"><span class="badge badge-gray">${catName}</span></td>
             </tr>
         `;
@@ -2272,8 +2596,11 @@ async function exportTMSchedulePDF() {
         return showToast('No scheduled events match your current filters.', 'error');
     }
 
-    const teamTitle = document.getElementById('team-name-title')?.innerText || 'Team';
+    const teamTitle = document.getElementById('team-name-title')?.innerText || 'MY TEAM';
     const mgrNames = document.getElementById('tm-manager-names')?.innerText || '';
+    const activeFid = (window.festosAuth && window.festosAuth.getCurrentFestId)
+        ? window.festosAuth.getCurrentFestId()
+        : (JSON.parse(localStorage.getItem('festUser') || '{}').fest_id || localStorage.getItem('festos_active_fest_id') || null);
 
     // Summary metrics
     const distinctDates = [...new Set(scheduledComps.map(c => tmScheduleData[c.id]?.date).filter(Boolean))].sort();
@@ -2289,49 +2616,18 @@ async function exportTMSchedulePDF() {
         dateGroups[d].push(c);
     });
 
-    const container = document.createElement('div');
-    container.style.padding = '24px 30px';
-    container.style.fontFamily = "'Plus Jakarta Sans', Inter, -apple-system, sans-serif";
-    container.style.color = '#0F172A';
-    container.style.background = '#FFFFFF';
+    const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+        ? window.festosGetPDFHeaderHTML('OFFICIAL EVENT SCHEDULE & TIMETABLE', activeFid, {
+            badge: `${scheduledComps.length} SCHEDULED EVENTS`,
+            subtitle: `${teamTitle.toUpperCase()} &bull; MASTER TIMETABLE`
+        })
+        : getPDFHeaderHTML(`OFFICIAL EVENT SCHEDULE & TIMETABLE`);
 
-    const pdfHeader = typeof getPDFHeaderHTML === 'function' 
-        ? getPDFHeaderHTML(`OFFICIAL EVENT SCHEDULE & TIMETABLE`) 
-        : `<h1 style="color:#4F46E5; text-align:center; font-weight:800; font-size:22px; margin-bottom:4px;">EVENT SCHEDULE</h1>`;
+    const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+        ? window.festosGetPDFFooterHTML(null, null, `${teamTitle} Official Timetable`)
+        : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
 
-    container.innerHTML = `
-        ${pdfHeader}
-        
-        <!-- Team Sub-Banner -->
-        <div style="background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 10px; padding: 12px 18px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-            <div>
-                <span style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px;">TEAM ROSTER SCHEDULE</span>
-                <div style="font-size: 17px; font-weight: 800; color: #1E293B;">${teamTitle}</div>
-            </div>
-            ${mgrNames ? `<div style="font-size: 11px; font-weight: 700; color: #475569; background: #FFFFFF; padding: 6px 12px; border-radius: 6px; border: 1px solid #E2E8F0;">${mgrNames}</div>` : ''}
-        </div>
-
-        <!-- KPI Metrics Grid -->
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 22px;">
-            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
-                <div style="font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase;">Scheduled Events</div>
-                <div style="font-size: 18px; font-weight: 800; color: #0F172A; margin-top: 2px;">${scheduledComps.length}</div>
-            </div>
-            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
-                <div style="font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase;">Festival Days</div>
-                <div style="font-size: 18px; font-weight: 800; color: #4F46E5; margin-top: 2px;">${distinctDates.length} Day${distinctDates.length > 1 ? 's' : ''}</div>
-            </div>
-            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
-                <div style="font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase;">Active Venues</div>
-                <div style="font-size: 18px; font-weight: 800; color: #059669; margin-top: 2px;">${distinctVenues.length}</div>
-            </div>
-            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
-                <div style="font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase;">Format Split</div>
-                <div style="font-size: 13px; font-weight: 800; color: #0F172A; margin-top: 4px;">${soloCount} Solo <span style="color:#CBD5E1;">|</span> ${groupCount} Group</div>
-            </div>
-        </div>
-    `;
-
+    let dayBlocksHtml = '';
     let globalIndex = 1;
     Object.keys(dateGroups).forEach(d => {
         const compsForDate = dateGroups[d];
@@ -2361,45 +2657,45 @@ async function exportTMSchedulePDF() {
                 : `<span style="background: #F0FDF4; color: #166534; font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 4px; margin-left: 6px;">SOLO</span>`;
 
             return `
-                <tr style="border-bottom: 1px solid #E2E8F0; page-break-inside: avoid;">
-                    <td style="padding: 9px 8px; text-align: center; font-weight: 700; color: #64748B; font-size: 11px;">${globalIndex++}</td>
-                    <td style="padding: 9px 10px; font-weight: 800; color: #0F172A; font-size: 11.5px; white-space: nowrap;">
+                <tr style="border-bottom: 1px solid #E2E8F0; page-break-inside: avoid; break-inside: avoid;">
+                    <td style="padding: 8px 8px; text-align: center; font-weight: 700; color: #64748B; font-size: 11px; width: 35px;">${globalIndex++}</td>
+                    <td style="padding: 8px 10px; font-weight: 800; color: #0F172A; font-size: 11px; white-space: nowrap; width: 130px;">
                         ${timeRange}
                     </td>
-                    <td style="padding: 9px 10px;">
-                        <span style="font-weight: 800; color: #0F172A; font-size: 12px; text-transform: uppercase;">${c.name}</span>
+                    <td style="padding: 8px 10px;">
+                        <span style="font-weight: 800; color: #0F172A; font-size: 11.5px; text-transform: uppercase;">${c.name}</span>
                         ${formatBadge}
                     </td>
-                    <td style="padding: 9px 10px; font-weight: 700; color: #475569; font-size: 11px;">${(c.categories?.name || 'GENERAL').toUpperCase()}</td>
-                    <td style="padding: 9px 10px;">
-                        <span style="font-weight: 800; color: #4F46E5; font-size: 11.5px;">${venueInfo.displayText.toUpperCase()}</span>
+                    <td style="padding: 8px 10px; font-weight: 700; color: #475569; font-size: 11px; width: 120px;">${(c.categories?.name || 'GENERAL').toUpperCase()}</td>
+                    <td style="padding: 8px 10px; width: 140px;">
+                        <span style="font-weight: 800; color: #4F46E5; font-size: 11px;">${(venueInfo.name || "TBD").toUpperCase()}</span>
                     </td>
-                    <td style="padding: 9px 8px; text-align: center;">${modeBadge}</td>
-                    <td style="padding: 9px 10px; max-width: 220px;">${enrolledHtml}</td>
+                    <td style="padding: 8px 8px; text-align: center; width: 85px;">${modeBadge}</td>
+                    <td style="padding: 8px 10px; max-width: 220px;">${enrolledHtml}</td>
                 </tr>
             `;
         }).join('');
 
-        container.innerHTML += `
-            <div style="margin-bottom: 24px; page-break-inside: avoid;">
-                <div style="background: linear-gradient(135deg, #1E293B 0%, #334155 100%); color: white; padding: 8px 14px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center;">
+        dayBlocksHtml += `
+            <div class="pdf-avoid-break" style="margin-bottom: 22px; page-break-inside: avoid; break-inside: avoid; border: 1px solid #CBD5E1; border-radius: 6px; overflow: hidden; background: white;">
+                <div style="background: #0F172A; color: white; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-weight: 800; font-size: 12px; letter-spacing: 0.5px; text-transform: uppercase;">
                         📅 ${d}
                     </span>
-                    <span style="font-size: 10.5px; font-weight: 700; color: #94A3B8; background: rgba(255,255,255,0.12); padding: 2px 8px; border-radius: 4px;">
+                    <span style="font-size: 10px; font-weight: 700; color: #38BDF8; background: rgba(56, 189, 248, 0.15); padding: 2px 8px; border-radius: 4px;">
                         ${compsForDate.length} EVENT${compsForDate.length > 1 ? 'S' : ''}
                     </span>
                 </div>
-                <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0; border-top: none;">
+                <table style="width: 100%; border-collapse: collapse; background: white;">
                     <thead>
-                        <tr style="background: #F1F5F9; text-align: left; font-size: 10px; color: #475569; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #CBD5E1;">
-                            <th style="padding: 8px; width: 35px; text-align: center;">#</th>
-                            <th style="padding: 8px 10px; width: 140px;">TIME WINDOW</th>
-                            <th style="padding: 8px 10px;">EVENT NAME</th>
-                            <th style="padding: 8px 10px; width: 120px;">CATEGORY</th>
-                            <th style="padding: 8px 10px; width: 150px;">VENUE / STAGE</th>
-                            <th style="padding: 8px 8px; width: 85px; text-align: center;">MODE</th>
-                            <th style="padding: 8px 10px;">TEAM ENROLLED</th>
+                        <tr style="background: #F1F5F9; text-align: left; font-size: 10px; color: #475569; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #CBD5E1;">
+                            <th style="padding: 7px 8px; width: 35px; text-align: center;">#</th>
+                            <th style="padding: 7px 10px; width: 130px;">TIME WINDOW</th>
+                            <th style="padding: 7px 10px;">EVENT NAME</th>
+                            <th style="padding: 7px 10px; width: 120px;">CATEGORY</th>
+                            <th style="padding: 7px 10px; width: 140px;">VENUE / STAGE</th>
+                            <th style="padding: 7px 8px; width: 85px; text-align: center;">MODE</th>
+                            <th style="padding: 7px 10px;">TEAM ENROLLED</th>
                         </tr>
                     </thead>
                     <tbody style="font-size: 11px; color: #1E293B;">
@@ -2410,23 +2706,69 @@ async function exportTMSchedulePDF() {
         `;
     });
 
-    container.innerHTML += `
-        <div style="margin-top: 25px; padding-top: 12px; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748B;">
-            <span>Official Festival Timetable &bull; FestOS Verified</span>
-            <span>Generated on: ${new Date().toLocaleString()}</span>
+    const contentHtml = `
+        <div style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+            ${headerHtml}
+
+            <!-- Team Sub-Banner -->
+            <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <span style="font-size: 9.5px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px;">TEAM ROSTER SCHEDULE</span>
+                    <div style="font-size: 16px; font-weight: 800; color: #1E293B;">${teamTitle}</div>
+                </div>
+                ${mgrNames ? `<div style="font-size: 11px; font-weight: 700; color: #475569; background: #FFFFFF; padding: 5px 10px; border-radius: 5px; border: 1px solid #CBD5E1;">${mgrNames}</div>` : ''}
+            </div>
+
+            <!-- KPI Metrics Grid -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
+                <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px; text-align: center;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #64748B; text-transform: uppercase;">Scheduled Events</div>
+                    <div style="font-size: 18px; font-weight: 900; color: #0F172A; margin-top: 2px;">${scheduledComps.length}</div>
+                </div>
+                <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px; text-align: center;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #64748B; text-transform: uppercase;">Festival Days</div>
+                    <div style="font-size: 18px; font-weight: 900; color: #4F46E5; margin-top: 2px;">${distinctDates.length} Day${distinctDates.length > 1 ? 's' : ''}</div>
+                </div>
+                <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px; text-align: center;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #64748B; text-transform: uppercase;">Active Venues</div>
+                    <div style="font-size: 18px; font-weight: 900; color: #059669; margin-top: 2px;">${distinctVenues.length}</div>
+                </div>
+                <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px; text-align: center;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #64748B; text-transform: uppercase;">Format Split</div>
+                    <div style="font-size: 13px; font-weight: 900; color: #0F172A; margin-top: 4px;">${soloCount} Solo <span style="color:#CBD5E1;">|</span> ${groupCount} Group</div>
+                </div>
+            </div>
+
+            ${dayBlocksHtml}
+            ${footerHtml}
         </div>
     `;
 
-    const opt = {
-        margin: [8, 10, 8, 10],
-        filename: typeof getFestFileName === 'function' ? getFestFileName(`${teamTitle}_Schedule`, 'pdf') : `${teamTitle}_Schedule.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-    };
-
-    html2pdf().set(opt).from(container).save().then(() => showToast('Schedule PDF Exported!'));
+    try {
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'landscape',
+                filename: typeof getFestFileName === 'function' ? getFestFileName(`${teamTitle}_Schedule`, 'pdf') : `${teamTitle}_Schedule.pdf`,
+                width: 1120
+            });
+            showToast('Schedule PDF Exported!');
+        } else {
+            const opt = {
+                margin: [8, 10, 8, 10],
+                filename: typeof getFestFileName === 'function' ? getFestFileName(`${teamTitle}_Schedule`, 'pdf') : `${teamTitle}_Schedule.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            await html2pdf().set(opt).from(wrap).save();
+            showToast('Schedule PDF Exported!');
+        }
+    } catch (e) {
+        showToast('Error exporting PDF: ' + e.message, 'error');
+    }
 }
 
 async function exportTMScheduleCSV() {
@@ -2492,7 +2834,7 @@ async function exportTMScheduleCSV() {
             'DURATION (MINS)': durationMins || '-',
             'COMPETITION NAME': c.name,
             'CATEGORY': catName,
-            'VENUE / STAGE': venueInfo.displayText,
+            'VENUE / STAGE': (venueInfo.name || 'TBD'),
             'EVENT MODE': c.is_offstage ? 'Offstage' : 'Onstage',
             'PARTICIPATION TYPE': c.is_group ? 'Group' : 'Solo',
             'MY TEAM ENROLLED COUNT': enrolledParticipants.length,
@@ -2642,8 +2984,8 @@ window.executeRouteToAssignment = function(mode) {
 async function exportTMVacancyPDF() {
     showToast('Generating Vacancy PDF...', 'success');
     
-    const search = document.getElementById('vacancySearchInput').value.toLowerCase();
-    const catFilter = document.getElementById('vacancyCategoryFilter').value;
+    const search = (document.getElementById('vacancySearchInput')?.value || '').toLowerCase();
+    const catFilter = document.getElementById('vacancyCategoryFilter')?.value || '';
     
     const filtered = tmVacancyData.filter(v => {
         const matchName = v.name.toLowerCase().includes(search);
@@ -2651,34 +2993,112 @@ async function exportTMVacancyPDF() {
         return matchName && matchCat;
     });
 
-    const container = document.createElement('div');
-    container.style.padding = '40px';
-    container.style.fontFamily = 'Inter, sans-serif';
-    container.innerHTML = getPDFHeaderHTML(`My Team Vacancy Audit`);
+    const teamTitle = document.getElementById('team-name-title')?.innerText || 'MY TEAM';
+    const activeFid = (window.festosAuth && window.festosAuth.getCurrentFestId)
+        ? window.festosAuth.getCurrentFestId()
+        : (JSON.parse(localStorage.getItem('festUser') || '{}').fest_id || localStorage.getItem('festos_active_fest_id') || null);
 
-    let tableRows = filtered.map((v, i) => `
-        <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${i + 1}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A;">${v.name.toUpperCase()}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${v.categoryName.toUpperCase()}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; text-align: center; font-weight: 800; color: #4F46E5;">${v.enrolled} / ${v.limit}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; text-align: center; font-weight: 800; color: #EF4444;">${v.balance} OPEN</td>
+    const totalOpenSlots = filtered.reduce((acc, v) => acc + (v.balance || 0), 0);
+    const totalFilledSlots = filtered.reduce((acc, v) => acc + (v.enrolled || 0), 0);
+
+    const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+        ? window.festosGetPDFHeaderHTML('TEAM VACANCY & QUOTA AUDIT', activeFid, {
+            badge: `${filtered.length} EVENTS WITH VACANCY`,
+            subtitle: `${teamTitle.toUpperCase()} &bull; OPEN REGISTRATION SLOTS`
+        })
+        : getPDFHeaderHTML(`My Team Vacancy Audit`);
+
+    const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+        ? window.festosGetPDFFooterHTML(null, null, `${teamTitle} Vacancy Audit`)
+        : '<div style="margin-top:20px; font-size:10px; color:#64748B;">FestOS Verified Document</div>';
+
+    let tableRows = filtered.map((v, i) => {
+        const bg = (i % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
+        return `
+        <tr style="height: 32px; page-break-inside: avoid; break-inside: avoid;">
+            <td style="padding: 7px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 11px; font-weight: 600; color: #64748B; background: ${bg}; width: 35px;">${i + 1}</td>
+            <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A; font-size: 11.5px; background: ${bg};">${v.name.toUpperCase()}</td>
+            <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; background: ${bg}; width: 130px;">
+                <span style="background: #EFF6FF; color: #2563EB; font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block;">${v.categoryName.toUpperCase()}</span>
+            </td>
+            <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; text-align: center; background: ${bg}; width: 120px;">
+                <span style="font-weight: 800; color: #0F172A; font-size: 11px;">${v.enrolled} / ${v.limit}</span>
+            </td>
+            <td style="padding: 7px 10px; border-bottom: 1px solid #E2E8F0; text-align: center; background: ${bg}; width: 130px;">
+                <span style="background: #FEE2E2; color: #DC2626; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px; display: inline-block; border: 1px solid #FECACA;">
+                    ${v.balance} OPEN SLOT${v.balance > 1 ? 'S' : ''}
+                </span>
+            </td>
         </tr>
-    `).join('');
+    `}).join('');
 
-    container.innerHTML += `
-        <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #E2E8F0;">
-            <thead>
-                <tr style="background: #F8FAFC; text-align: left; font-size: 11px; color: #64748B;">
-                    <th style="padding: 10px;">#</th><th style="padding: 10px;">COMPETITION</th><th style="padding: 10px;">CATEGORY</th><th style="padding: 10px; text-align: center;">ENROLLED / TOTAL</th><th style="padding: 10px; text-align: center;">BALANCE (VACANCY)</th>
-                </tr>
-            </thead>
-            <tbody style="font-size: 12px; color: #334155;">${tableRows}</tbody>
-        </table>
+    if (filtered.length === 0) {
+        tableRows = `<tr><td colspan="5" style="padding: 24px; text-align: center; color: #64748B; font-weight: 600;">No vacancies found matching the current criteria. All quotas are filled!</td></tr>`;
+    }
+
+    const contentHtml = `
+        <div style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif;">
+            ${headerHtml}
+
+            <!-- KPI Metric Bar -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;">
+                <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px; text-align: center;">
+                    <div style="font-size: 9.5px; color: #64748B; font-weight: 700; text-transform: uppercase;">Under-Enrolled Events</div>
+                    <div style="font-size: 19px; font-weight: 900; color: #DC2626; margin-top: 2px;">${filtered.length}</div>
+                </div>
+                <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px; text-align: center;">
+                    <div style="font-size: 9.5px; color: #64748B; font-weight: 700; text-transform: uppercase;">Total Open Slots Available</div>
+                    <div style="font-size: 19px; font-weight: 900; color: #D97706; margin-top: 2px;">${totalOpenSlots}</div>
+                </div>
+                <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px; text-align: center;">
+                    <div style="font-size: 9.5px; color: #64748B; font-weight: 700; text-transform: uppercase;">Enrolled Contestants in Scope</div>
+                    <div style="font-size: 19px; font-weight: 900; color: #059669; margin-top: 2px;">${totalFilledSlots}</div>
+                </div>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #CBD5E1;">
+                <thead>
+                    <tr style="background: #0F172A; color: white; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;">
+                        <th style="padding: 8px 6px; text-align: center; width: 35px;">#</th>
+                        <th style="padding: 8px 10px;">COMPETITION NAME</th>
+                        <th style="padding: 8px 10px; width: 130px;">CATEGORY</th>
+                        <th style="padding: 8px 10px; width: 120px; text-align: center;">ENROLLED / LIMIT</th>
+                        <th style="padding: 8px 10px; width: 130px; text-align: center;">VACANCY BALANCE</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size: 11px; color: #334155;">
+                    ${tableRows}
+                </tbody>
+            </table>
+
+            ${footerHtml}
+        </div>
     `;
 
-    const opt = { margin: 10, filename: typeof getFestFileName === 'function' ? getFestFileName('Team_Vacancy_Audit', 'pdf') : 'Team_Vacancy_Audit.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-    html2pdf().set(opt).from(container).save().then(() => showToast('Vacancy PDF Exported!'));
+    try {
+        if (typeof window.festosRenderPDF === 'function') {
+            await window.festosRenderPDF(contentHtml, {
+                orientation: 'portrait',
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Team_Vacancy_Audit', 'pdf') : 'Fest_Team_Vacancy_Audit.pdf',
+                width: 800
+            });
+            showToast('Vacancy PDF Exported Successfully!');
+        } else {
+            const opt = { 
+                margin: 10, 
+                filename: typeof getFestFileName === 'function' ? getFestFileName('Team_Vacancy_Audit', 'pdf') : 'Team_Vacancy_Audit.pdf', 
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            };
+            const wrap = document.createElement('div');
+            wrap.innerHTML = contentHtml;
+            await html2pdf().set(opt).from(wrap).save();
+            showToast('Vacancy PDF Exported!');
+        }
+    } catch (e) {
+        showToast('Error exporting PDF: ' + e.message, 'error');
+    }
 }
 
 // ==========================================
