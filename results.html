@@ -628,6 +628,71 @@
             box-shadow: 0 4px 12px var(--primary-glow);
         }
 
+        /* Schedule Status Badges */
+        .sched-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.28rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .status-badge-live {
+            background: #FEE2E2;
+            color: #DC2626;
+            border: 1px solid #FCA5A5;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+        }
+        .status-badge-calling {
+            background: #EFF6FF;
+            color: #1D4ED8;
+            border: 1px solid #BFDBFE;
+        }
+        .status-badge-upcoming {
+            background: #F1F5F9;
+            color: #475569;
+            border: 1px solid #E2E8F0;
+        }
+        .status-badge-eval {
+            background: #FEF3C7;
+            color: #B45309;
+            border: 1px solid #FDE68A;
+        }
+        .status-badge-completed {
+            background: #ECFDF5;
+            color: #059669;
+            border: 1px solid #A7F3D0;
+        }
+
+        .sched-live-pulse {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #EF4444;
+            display: inline-block;
+            box-shadow: 0 0 0 rgba(239, 68, 68, 0.6);
+            animation: schedPulse 1.5s infinite;
+        }
+        @keyframes schedPulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .sched-card.is-live-card {
+            border-left-color: #EF4444 !important;
+            background: linear-gradient(135deg, #FFFFFF, rgba(239, 68, 68, 0.03));
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.08);
+        }
+        .sched-card.is-completed-card {
+            border-left-color: #10B981 !important;
+            opacity: 0.95;
+        }
+
         /* Mobile Schedule Cards */
         .mobile-schedule-cards {
             display: none;
@@ -1211,6 +1276,12 @@
                     <input type="text" id="sched-search-input" placeholder="Search events, venues, stages..." oninput="filterPublicSchedule()">
                 </div>
                 <div class="sched-filter-group">
+                    <select id="sched-status-filter" onchange="filterPublicSchedule()">
+                        <option value="">All Statuses</option>
+                        <option value="live">🔴 Live Now</option>
+                        <option value="upcoming">⏳ Upcoming</option>
+                        <option value="completed">✅ Completed</option>
+                    </select>
                     <select id="sched-stage-filter" onchange="filterPublicSchedule()">
                         <option value="">All Stages / Venues</option>
                     </select>
@@ -1232,12 +1303,13 @@
                         <tr>
                             <th>DATE & TIMING</th>
                             <th>COMPETITION</th>
+                            <th>STATUS</th>
                             <th>CATEGORY</th>
                             <th>STAGE / VENUE</th>
                         </tr>
                     </thead>
                     <tbody id="public-schedule-tbody">
-                        <tr><td colspan="4" style="text-align:center; padding: 2.5rem; color: var(--text-muted);"><span class="loading-pulse"></span> Loading schedule...</td></tr>
+                        <tr><td colspan="5" style="text-align:center; padding: 2.5rem; color: var(--text-muted);"><span class="loading-pulse"></span> Loading schedule...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -2123,6 +2195,69 @@
         window.allPublicScheduledItems = [];
         window.activeScheduleDateFilter = '';
 
+        // Helper: Resolve competition operational status for public display
+        function getCompStatusMeta(comp) {
+            const s = (comp?.status || 'pending').toLowerCase();
+            if (s === 'ongoing') {
+                return {
+                    key: 'live',
+                    label: 'LIVE ON STAGE',
+                    shortLabel: 'LIVE',
+                    badgeClass: 'status-badge-live',
+                    icon: '<span class="sched-live-pulse"></span>',
+                    priority: 1
+                };
+            }
+            if (s === 'registration') {
+                return {
+                    key: 'live',
+                    label: 'STAGE CALLING',
+                    shortLabel: 'CALLING',
+                    badgeClass: 'status-badge-calling',
+                    icon: '<span class="sched-live-pulse" style="background:#3B82F6;"></span>',
+                    priority: 1
+                };
+            }
+            if (s === 'pending' || !s) {
+                return {
+                    key: 'upcoming',
+                    label: 'UPCOMING',
+                    shortLabel: 'UPCOMING',
+                    badgeClass: 'status-badge-upcoming',
+                    icon: '<i class="fa-regular fa-clock"></i>',
+                    priority: 2
+                };
+            }
+            if (s === 'valuation' || s === 'judgement_complete') {
+                return {
+                    key: 'evaluating',
+                    label: 'EVALUATING',
+                    shortLabel: 'EVALUATING',
+                    badgeClass: 'status-badge-eval',
+                    icon: '<i class="fa-solid fa-hourglass-half"></i>',
+                    priority: 3
+                };
+            }
+            if (s === 'published' || s === 'completed') {
+                return {
+                    key: 'completed',
+                    label: 'COMPLETED',
+                    shortLabel: 'COMPLETED',
+                    badgeClass: 'status-badge-completed',
+                    icon: '<i class="fa-solid fa-circle-check"></i>',
+                    priority: 4
+                };
+            }
+            return {
+                key: 'upcoming',
+                label: 'UPCOMING',
+                shortLabel: 'UPCOMING',
+                badgeClass: 'status-badge-upcoming',
+                icon: '<i class="fa-regular fa-clock"></i>',
+                priority: 2
+            };
+        }
+
         async function loadPublicSchedule() {
             const tbody = document.getElementById('public-schedule-tbody');
             const mobileCards = document.getElementById('public-schedule-mobile-cards');
@@ -2132,7 +2267,7 @@
                 const schedVal = window.festosGetSetting ? await window.festosGetSetting('master_schedule', targetFestId) : null;
                 const masterSchedule = schedVal || {};
                 
-                let compsQuery = supabaseClient.from('competitions').select('id, name, is_group, categories(id, name), stages(id, name)');
+                let compsQuery = supabaseClient.from('competitions').select('id, name, is_group, status, categories(id, name), stages(id, name)');
                 if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery, targetFestId);
                 const { data: comps } = await compsQuery;
                 
@@ -2141,7 +2276,13 @@
                     return { comp, sched: masterSchedule[compId] };
                 }).filter(item => item.comp && item.sched.status === 'published');
                 
+                // Sort Priority: LIVE events first, then upcoming (by date/time), then evaluating, then completed
                 scheduledItems.sort((a,b) => {
+                    const metaA = getCompStatusMeta(a.comp);
+                    const metaB = getCompStatusMeta(b.comp);
+                    if (metaA.priority !== metaB.priority) {
+                        return metaA.priority - metaB.priority;
+                    }
                     if (a.sched.date !== b.sched.date) return (a.sched.date || '').localeCompare(b.sched.date || '');
                     return (a.sched.time || '').localeCompare(b.sched.time || '');
                 });
@@ -2164,7 +2305,24 @@
                     `;
                 }
 
-                // 2. Populate Stage Filter Dropdown
+                // 2. Populate Status Filter Dropdown
+                const liveCount = scheduledItems.filter(i => getCompStatusMeta(i.comp).key === 'live').length;
+                const upcomingCount = scheduledItems.filter(i => getCompStatusMeta(i.comp).key === 'upcoming').length;
+                const completedCount = scheduledItems.filter(i => ['completed', 'evaluating'].includes(getCompStatusMeta(i.comp).key)).length;
+
+                const statusSelect = document.getElementById('sched-status-filter');
+                if (statusSelect) {
+                    const currStatus = statusSelect.value;
+                    statusSelect.innerHTML = `
+                        <option value="">All Statuses (${scheduledItems.length})</option>
+                        <option value="live">🔴 Live Now (${liveCount})</option>
+                        <option value="upcoming">⏳ Upcoming (${upcomingCount})</option>
+                        <option value="completed">✅ Completed (${completedCount})</option>
+                    `;
+                    statusSelect.value = currStatus;
+                }
+
+                // 3. Populate Stage Filter Dropdown
                 const distinctStages = [...new Set(scheduledItems.map(i => i.comp.stages?.name).filter(Boolean))].sort();
                 const stageSelect = document.getElementById('sched-stage-filter');
                 if (stageSelect) {
@@ -2173,7 +2331,7 @@
                     stageSelect.value = currVal;
                 }
 
-                // 3. Populate Category Filter Dropdown
+                // 4. Populate Category Filter Dropdown
                 const distinctCats = [...new Set(scheduledItems.map(i => i.comp.categories?.name).filter(Boolean))].sort();
                 const catSelect = document.getElementById('sched-cat-filter');
                 if (catSelect) {
@@ -2186,7 +2344,7 @@
 
             } catch (err) {
                 console.error(err);
-                if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #EF4444; padding: 2rem; text-transform: uppercase;">Failed to load schedule.</td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #EF4444; padding: 2rem; text-transform: uppercase;">Failed to load schedule.</td></tr>`;
                 if (mobileCards) mobileCards.innerHTML = `<div style="text-align:center; color:#EF4444; padding:2rem; font-weight:700;">Failed to load schedule.</div>`;
             }
         }
@@ -2203,6 +2361,7 @@
             const query = (document.getElementById('sched-search-input')?.value || '').toLowerCase().trim();
             const stage = document.getElementById('sched-stage-filter')?.value || '';
             const cat = document.getElementById('sched-cat-filter')?.value || '';
+            const status = document.getElementById('sched-status-filter')?.value || '';
             const date = window.activeScheduleDateFilter || '';
 
             const filtered = (window.allPublicScheduledItems || []).filter(item => {
@@ -2210,13 +2369,23 @@
                 const stageName = (item.comp.stages?.name || '').toLowerCase();
                 const catName = (item.comp.categories?.name || '').toLowerCase();
                 const itemDate = item.sched.date || '';
+                const meta = getCompStatusMeta(item.comp);
 
                 const matchesQuery = !query || compName.includes(query) || stageName.includes(query) || catName.includes(query);
                 const matchesStage = !stage || (item.comp.stages?.name === stage);
                 const matchesCat = !cat || (item.comp.categories?.name === cat);
                 const matchesDate = !date || (itemDate === date);
 
-                return matchesQuery && matchesStage && matchesCat && matchesDate;
+                let matchesStatus = true;
+                if (status === 'live') {
+                    matchesStatus = meta.key === 'live';
+                } else if (status === 'upcoming') {
+                    matchesStatus = meta.key === 'upcoming';
+                } else if (status === 'completed') {
+                    matchesStatus = meta.key === 'completed' || meta.key === 'evaluating';
+                }
+
+                return matchesQuery && matchesStage && matchesCat && matchesDate && matchesStatus;
             });
 
             renderPublicSchedule(filtered);
@@ -2231,18 +2400,20 @@
                     <div style="text-align: center; padding: 3rem 1.5rem; color: var(--text-muted);">
                         <i class="fa-regular fa-calendar-xmark" style="font-size: 2.5rem; margin-bottom: 0.75rem; color: var(--text-dim); display: block;"></i>
                         <p style="font-weight: 700; font-size: 1rem; color: var(--text-main); margin-bottom: 0.25rem;">No scheduled events found</p>
-                        <p style="font-size: 0.85rem;">Try adjusting your date, stage filter, or search keywords.</p>
-                        <button class="btn btn-outline" style="margin-top: 1rem; padding: 0.4rem 1.25rem; border-radius: 50px; font-size: 0.82rem; width: auto;" onclick="document.getElementById('sched-search-input').value=''; document.getElementById('sched-stage-filter').value=''; document.getElementById('sched-cat-filter').value=''; setScheduleDateFilter('', document.querySelectorAll('.sched-date-chip')[0]);">Reset All Filters</button>
+                        <p style="font-size: 0.85rem;">Try adjusting your date, stage filter, status, or search keywords.</p>
+                        <button class="btn btn-outline" style="margin-top: 1rem; padding: 0.4rem 1.25rem; border-radius: 50px; font-size: 0.82rem; width: auto;" onclick="document.getElementById('sched-search-input').value=''; document.getElementById('sched-stage-filter').value=''; document.getElementById('sched-cat-filter').value=''; if(document.getElementById('sched-status-filter')) document.getElementById('sched-status-filter').value=''; setScheduleDateFilter('', document.querySelectorAll('.sched-date-chip')[0]);">Reset All Filters</button>
                     </div>
                 `;
-                if (tbody) tbody.innerHTML = `<tr><td colspan="4">${emptyMsg}</td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="5">${emptyMsg}</td></tr>`;
                 if (mobileCards) mobileCards.innerHTML = emptyMsg;
                 return;
             }
 
             // Render Desktop Table Rows
             if (tbody) {
-                tbody.innerHTML = items.map(item => `
+                tbody.innerHTML = items.map(item => {
+                    const meta = getCompStatusMeta(item.comp);
+                    return `
                     <tr>
                         <td>
                             <div style="display: flex; flex-direction: column; gap: 0.2rem;">
@@ -2259,6 +2430,11 @@
                             ${item.comp.is_group ? '<span style="margin-left: 6px; background:#FDF2F8; color:#BE185D; border:1px solid #FBCFE8; padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.68rem; font-weight: 700;">GROUP</span>' : ''}
                         </td>
                         <td>
+                            <span class="sched-status-badge ${meta.badgeClass}">
+                                ${meta.icon} ${meta.label}
+                            </span>
+                        </td>
+                        <td>
                             <span class="badge" style="background: var(--bg-light); padding: 0.35rem 0.65rem; border-radius: 6px; border: 1px solid var(--surface-border); font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
                                 ${item.comp.categories?.name || 'GENERAL'}
                             </span>
@@ -2269,24 +2445,35 @@
                             </span>
                         </td>
                     </tr>
-                `).join('');
+                    `;
+                }).join('');
             }
 
             // Render Mobile Cards
             if (mobileCards) {
                 mobileCards.innerHTML = items.map(item => {
+                    const meta = getCompStatusMeta(item.comp);
                     const timeRange = (item.sched.time ? item.sched.time : '') + (item.sched.to_time ? ' - ' + item.sched.to_time : '');
+                    const cardClass = meta.key === 'live' ? 'is-live-card' : (meta.key === 'completed' ? 'is-completed-card' : '');
                     return `
-                        <div class="sched-card">
+                        <div class="sched-card ${cardClass}">
                             <div class="sched-card-header">
-                                <span class="sched-card-time-badge">
-                                    <i class="fa-regular fa-clock"></i> ${timeRange || 'TIME TBD'} ${(item.sched.delay_offset_minutes || (item.sched.baseline_time && item.sched.baseline_time !== item.sched.time)) ? `<span style="background:#FEF3C7; color:#B45309; border:1px solid #FDE68A; font-size:0.68rem; font-weight:800; padding:1px 5px; border-radius:4px; margin-left:4px;"><i class="fa-solid fa-clock-rotate-left"></i> +${item.sched.delay_offset_minutes}m</span>` : ''}
-                                </span>
+                                <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
+                                    <span class="sched-status-badge ${meta.badgeClass}">
+                                        ${meta.icon} ${meta.label}
+                                    </span>
+                                    ${item.comp.is_group ? '<span class="sched-pill" style="background:#FDF2F8; color:#BE185D; border-color:#FBCFE8; padding:0.2rem 0.45rem; font-size:0.68rem;"><i class="fa-solid fa-users"></i> GROUP</span>' : ''}
+                                </div>
                                 <span class="sched-card-date-badge">
                                     <i class="fa-regular fa-calendar"></i> ${item.sched.date || 'DATE TBD'}
                                 </span>
                             </div>
                             <div class="sched-card-title">${item.comp.name}</div>
+                            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top: -0.1rem;">
+                                <span class="sched-card-time-badge">
+                                    <i class="fa-regular fa-clock"></i> ${timeRange || 'TIME TBD'} ${(item.sched.delay_offset_minutes || (item.sched.baseline_time && item.sched.baseline_time !== item.sched.time)) ? `<span style="background:#FEF3C7; color:#B45309; border:1px solid #FDE68A; font-size:0.68rem; font-weight:800; padding:1px 5px; border-radius:4px; margin-left:4px;"><i class="fa-solid fa-clock-rotate-left"></i> +${item.sched.delay_offset_minutes}m</span>` : ''}
+                                </span>
+                            </div>
                             <div class="sched-card-tags">
                                 <span class="sched-pill stage">
                                     <i class="fa-solid fa-microphone-stage"></i> ${item.comp.stages?.name || 'TBD'}
@@ -2294,7 +2481,6 @@
                                 <span class="sched-pill cat">
                                     <i class="fa-solid fa-tag"></i> ${item.comp.categories?.name || 'GENERAL'}
                                 </span>
-                                ${item.comp.is_group ? '<span class="sched-pill" style="background:#FDF2F8; color:#BE185D; border-color:#FBCFE8;"><i class="fa-solid fa-users"></i> GROUP</span>' : ''}
                             </div>
                         </div>
                     `;

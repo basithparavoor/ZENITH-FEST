@@ -3981,49 +3981,104 @@ async function saveParticipant() {
 
 
 // --- USER MANAGEMENT ---
+let allUsersList = [];
+
 async function loadUsers() {
     try {
+        if (!teamsList || teamsList.length === 0) {
+            const { data: tData } = await festQuery(supabaseClient.from('teams').select('id, name')).order('name');
+            teamsList = tData || [];
+            window.teamsList = teamsList;
+        }
+
         let userQuery = supabaseClient
             .from('users')
-            .select('id, name, username, role, password_hash, teams(name)')
+            .select('id, name, username, role, password_hash, team_id, teams(id, name)')
             .neq('role', 'master_admin')
             .neq('role', 'super_admin');
             
         const { data, error } = await festQuery(userQuery).order('role');
             
-        if(error) throw error;
+        if (error) throw error;
         
-        const tbody = document.getElementById('users-tbody');
-        tbody.innerHTML = '';
-        
-        (data || []).forEach(u => {
-            const roleDisplay = u.role.replace('_', ' ').toUpperCase();
-            const teamTag = u.teams?.name ? `<br><span style="font-size: 0.75rem; color: var(--primary); font-weight: 800; letter-spacing: 0.05em;">TEAM: ${u.teams.name.toUpperCase()}</span>` : '';
-            const safeData = JSON.stringify(u).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
-
-            tbody.innerHTML += `
-                <tr>
-                    <td style="font-weight: 600;">${u.name || '-'}</td>
-                    <td>
-                        <strong style="font-size:1.05rem; text-transform: none !important;">${u.username}</strong>
-                        ${teamTag}
-                    </td> 
-                    <td><span class="badge badge-primary">${roleDisplay}</span></td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                           <input type="password" id="pwd-${u.id}" value="${u.password_hash || ''}" readonly style="border: none; background: transparent; width: 120px; font-weight: 600; color: var(--text-muted); outline: none; pointer-events: none; text-transform: none !important;">
-                            <button class="btn btn-outline" style="padding:0.2rem 0.5rem; font-size:0.75rem;" onclick="togglePassword('${u.id}')" title="Reveal Password"><i class="fa-solid fa-eye" id="eye-${u.id}"></i></button>
-                        </div>
-                    </td>
-                    <td>
-                        <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openUserModal(${safeData})' title="Edit User"><i class="fa-solid fa-pen"></i></button>
-                        <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteUser('${u.id}', '${u.username.replace(/'/g, "\\'")}')" title="Delete User"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>
-            `;
-        });
-    } catch(e) { showToast(e.message, 'error'); }
+        allUsersList = data || [];
+        filterUsersTable();
+    } catch(e) { 
+        showToast(e.message, 'error'); 
+    }
 }
+window.loadUsers = loadUsers;
+
+function filterUsersTable() {
+    const tbody = document.getElementById('users-tbody');
+    if (!tbody) return;
+
+    const search = (document.getElementById('searchUserInput')?.value || '').toLowerCase().trim();
+    const roleFilter = document.getElementById('filterUserRole')?.value || '';
+
+    const filtered = (allUsersList || []).filter(u => {
+        if (roleFilter && u.role !== roleFilter) return false;
+        if (search) {
+            const matchName = (u.name || '').toLowerCase().includes(search);
+            const matchUser = (u.username || '').toLowerCase().includes(search);
+            const matchTeam = (u.teams?.name || '').toLowerCase().includes(search);
+            const matchRole = (u.role || '').toLowerCase().includes(search);
+            if (!matchName && !matchUser && !matchTeam && !matchRole) return false;
+        }
+        return true;
+    });
+
+    tbody.innerHTML = '';
+
+    filtered.forEach(u => {
+        const roleDisplay = u.role.replace('_', ' ').toUpperCase();
+        let roleBadgeColor = 'var(--primary)';
+        let roleBadgeBg = 'var(--primary-light)';
+        if (u.role === 'team_manager') {
+            roleBadgeColor = '#059669';
+            roleBadgeBg = '#ECFDF5';
+        } else if (u.role === 'stage_controller') {
+            roleBadgeColor = '#D97706';
+            roleBadgeBg = '#FEF3C7';
+        } else if (u.role === 'judge') {
+            roleBadgeColor = '#7C3AED';
+            roleBadgeBg = '#F3E8FF';
+        } else if (u.role === 'admin') {
+            roleBadgeColor = '#DC2626';
+            roleBadgeBg = '#FEF2F2';
+        }
+
+        const teamName = u.teams?.name || ((teamsList || []).find(t => String(t.id) === String(u.team_id))?.name) || '';
+        const teamTag = teamName ? `<br><span style="font-size: 0.75rem; color: #059669; font-weight: 800; letter-spacing: 0.05em;"><i class="fa-solid fa-users"></i> TEAM: ${teamName.toUpperCase()}</span>` : '';
+        const safeData = JSON.stringify(u).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+
+        tbody.innerHTML += `
+            <tr>
+                <td style="font-weight: 600;">${u.name || '-'}</td>
+                <td>
+                    <strong style="font-size:1.05rem; text-transform: none !important;">${u.username}</strong>
+                    ${teamTag}
+                </td> 
+                <td><span class="badge" style="background:${roleBadgeBg}; color:${roleBadgeColor}; font-weight:700;">${roleDisplay}</span></td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                       <input type="password" id="pwd-${u.id}" value="${u.password_hash || ''}" readonly style="border: none; background: transparent; width: 120px; font-weight: 600; color: var(--text-muted); outline: none; pointer-events: none; text-transform: none !important;">
+                        <button class="btn btn-outline" style="padding:0.2rem 0.5rem; font-size:0.75rem;" onclick="togglePassword('${u.id}')" title="Reveal Password"><i class="fa-solid fa-eye" id="eye-${u.id}"></i></button>
+                    </div>
+                </td>
+                <td>
+                    <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openUserModal(${safeData})' title="Edit Account / Reset Password"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteUser('${u.id}', '${(u.username || '').replace(/'/g, "\\'")}')" title="Delete User"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    });
+
+    if (tbody.innerHTML === '') {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">No user accounts found matching filters.</td></tr>`;
+    }
+}
+window.filterUsersTable = filterUsersTable;
 
 function togglePassword(id) {
     const pwdInput = document.getElementById(`pwd-${id}`);
@@ -4037,29 +4092,65 @@ function togglePassword(id) {
         eyeIcon.classList.replace("fa-eye-slash", "fa-eye");
     }
 }
+window.togglePassword = togglePassword;
 
-function openUserModal(editData = null) {
+function toggleUserTeamGroup() {
+    const roleSelect = document.getElementById('newUserRole');
+    const teamGroup = document.getElementById('userTeamGroup');
+    if (roleSelect && teamGroup) {
+        teamGroup.style.display = (roleSelect.value === 'team_manager') ? 'block' : 'none';
+    }
+}
+window.toggleUserTeamGroup = toggleUserTeamGroup;
+
+async function openUserModal(editData = null) {
     const isEdit = !!editData;
     const uId = isEdit ? editData.id : '';
-    const uFullName = isEdit ? editData.name || '' : '';
+    const uFullName = isEdit ? (editData.name || '') : '';
     const uName = isEdit ? editData.username : '';
     const uPass = isEdit ? editData.password_hash : '';
-    const uRole = isEdit ? editData.role : 'judge';
+    const uRole = isEdit ? editData.role : 'team_manager';
+    const uTeamId = isEdit ? (editData.team_id || editData.teams?.id || '') : '';
 
-    openModal(isEdit ? 'Edit Staff Account' : 'Create Staff Account', `
+    // Guarantee teamsList is loaded for the team manager picker
+    if (!teamsList || teamsList.length === 0) {
+        try {
+            const { data: tData } = await festQuery(supabaseClient.from('teams').select('id, name')).order('name');
+            teamsList = tData || [];
+            window.teamsList = teamsList;
+        } catch(e) {
+            console.warn('Could not load teamsList:', e);
+        }
+    }
+
+    const teamOptions = (teamsList || []).map(t => `
+        <option value="${t.id}" ${String(t.id) === String(uTeamId) ? 'selected' : ''}>
+            ${escapeSheetHtml(t.name)}
+        </option>
+    `).join('');
+
+    openModal(isEdit ? 'Edit User Account & Password' : 'Create User Account', `
         <input type="hidden" id="editUserId" value="${uId}">
         
-        <div class="form-group"><label>Full Name</label><input type="text" id="newFullName" value="${uFullName}" placeholder="e.g. John Doe" autocomplete="off" style="text-transform: none !important;"></div>
-        <div class="form-group"><label>Username</label><input type="text" id="newUsername" value="${uName}" autocomplete="off" style="text-transform: none !important;"></div>
+        <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="newFullName" value="${uFullName}" placeholder="e.g. Emerald Team Manager / John Doe" autocomplete="off" style="text-transform: none !important;">
+        </div>
+        <div class="form-group">
+            <label>Username <span style="color:var(--danger);">*</span></label>
+            <input type="text" id="newUsername" value="${uName}" placeholder="e.g. team_emerald" autocomplete="off" style="text-transform: none !important;">
+        </div>
         
         <div class="form-group">
-            <label>Password</label>
-            <input type="text" id="newPassword" value="${uPass}" autocomplete="off" style="text-transform: none !important;">
+            <label>Password <span style="color:var(--danger);">*</span></label>
+            <input type="text" id="newPassword" value="${uPass}" placeholder="Enter new password" autocomplete="off" style="text-transform: none !important; font-weight: 700; color: var(--primary);">
+            <small style="color: var(--text-muted); display: block; margin-top: 4px;">Update this field to change the user's login password.</small>
         </div>
         
         <div class="form-group">
             <label>Role</label>
-            <select id="newUserRole">
+            <select id="newUserRole" onchange="toggleUserTeamGroup()">
+                <option value="team_manager" ${uRole === 'team_manager' ? 'selected' : ''}>Team Manager</option>
                 <option value="judge" ${uRole === 'judge' ? 'selected' : ''}>Judge</option>
                 <option value="stage_controller" ${uRole === 'stage_controller' ? 'selected' : ''}>Stage Controller</option>
                 <option value="fest_manager" ${uRole === 'fest_manager' ? 'selected' : ''}>Fest Manager</option>
@@ -4067,18 +4158,46 @@ function openUserModal(editData = null) {
                 <option value="admin" ${uRole === 'admin' ? 'selected' : ''}>Admin</option>
             </select>
         </div>
+
+        <div class="form-group" id="userTeamGroup" style="display: ${uRole === 'team_manager' ? 'block' : 'none'};">
+            <label>Assigned Team <span style="color:var(--danger);">*</span></label>
+            <select id="newUserTeam">
+                <option value="">-- SELECT TEAM --</option>
+                ${teamOptions}
+            </select>
+            <small style="color: var(--text-muted); display: block; margin-top: 4px;">Links this login to their team squad roster and participant submissions.</small>
+        </div>
     `, async () => {
         const id = document.getElementById('editUserId').value;
         const name = document.getElementById('newFullName').value.trim();
         const username = document.getElementById('newUsername').value.trim();
         const password_hash = document.getElementById('newPassword').value.trim();
         const role = document.getElementById('newUserRole').value;
+        const selectedTeamId = document.getElementById('newUserTeam')?.value || null;
         
-        if (!username || !password_hash || !name) return showToast('Name, Username, and Password are required.', 'error');
+        if (!username || !password_hash) {
+            return showToast('Username and Password are required.', 'error');
+        }
+
+        if (role === 'team_manager' && !selectedTeamId && !uTeamId) {
+            return showToast('Please select an assigned team for this Team Manager.', 'error');
+        }
         
         setLoading('modalSaveBtn', true);
         
-        const payload = { name, username, password_hash, role };
+        const payload = { 
+            name: name || username, 
+            username, 
+            password_hash, 
+            role 
+        };
+
+        if (role === 'team_manager') {
+            payload.team_id = selectedTeamId || uTeamId;
+        } else {
+            payload.team_id = null;
+        }
+
         if (id) payload.id = id;
         
         const { error } = await supabaseClient.from('users').upsert([festPayload(payload)]);
@@ -4089,12 +4208,13 @@ function openUserModal(editData = null) {
             if (error.code === '23505') showToast('Username already taken.', 'error'); 
             else showToast(error.message, 'error');
         } else { 
-            showToast(id ? 'Account updated successfully!' : 'Account created successfully!');
+            showToast(id ? 'Account & password updated successfully!' : 'Account created successfully!');
             closeModal(); 
             loadUsers(); 
         }
     });
 }
+window.openUserModal = openUserModal;
 
 async function deleteCategory(id) {
     openConfirmModal("Delete Category?", "This might fail if competitions are linked to it.", async () => {
