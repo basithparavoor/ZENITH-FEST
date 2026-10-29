@@ -15148,7 +15148,7 @@ async function viewJudgeDetails(judgeId) {
 
     document.getElementById('jd-modal-title').innerText = `Schedule: ${judge.username}`;
     const tbody = document.getElementById('jd-modal-tbody');
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Loading schedule...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" class="jd-empty-state" style="text-align:center; padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Loading schedule...</td></tr>`;
     document.getElementById('judgeDetailsModal').classList.add('show');
 
     try {
@@ -15161,7 +15161,7 @@ async function viewJudgeDetails(judgeId) {
         if (!judge.assignments || judge.assignments.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2.5rem 1rem;">
+                    <td colspan="4" class="jd-empty-state" style="text-align: center; color: var(--text-muted); padding: 2.5rem 1rem;">
                         <i class="fa-solid fa-calendar-xmark" style="font-size: 2.2rem; color: #94A3B8; margin-bottom: 0.75rem; display: block;"></i>
                         <div style="font-weight: 700; font-size: 1rem; color: var(--text-main); margin-bottom: 0.25rem;">No Events Assigned</div>
                         <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">This judge does not have any competitions assigned yet.</div>
@@ -15187,21 +15187,44 @@ async function viewJudgeDetails(judgeId) {
         });
 
         scheduledAssignments.forEach(comp => {
-            const timeStr = comp.sched.date !== 'TBD' 
-                ? `<span style="color: var(--primary); font-weight: 700;">${comp.sched.date}</span><br><span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">${comp.sched.time}</span>` 
-                : `<span style="color: var(--warning); font-weight: 600; font-size: 0.8rem;">Unscheduled</span>`;
+            const isSched = comp.sched.date !== 'TBD';
+            const timeBadge = isSched 
+                ? `<span class="jd-time-badge scheduled"><i class="fa-regular fa-clock"></i> ${comp.sched.date} &bull; ${comp.sched.time}</span>` 
+                : `<span class="jd-time-badge unscheduled"><i class="fa-solid fa-clock-rotate-left"></i> Unscheduled</span>`;
             
+            const catName = comp.categories?.name || 'General';
+            const stageName = comp.stages?.name || 'Unassigned';
+
             tbody.innerHTML += `
                 <tr>
-                    <td style="white-space: nowrap;">${timeStr}</td>
-                    <td style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">${comp.name}</td>
-                    <td><span class="badge" style="background: var(--bg-main); border: 1px solid var(--border); color: var(--text-muted);">${comp.categories?.name || 'General'}</span></td>
-                    <td><span style="font-weight: 500;"><i class="fa-solid fa-microphone-stage" style="color: var(--primary); margin-right: 4px;"></i> ${comp.stages?.name || 'Unassigned'}</span></td>
+                    <td>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; width: 100%;">
+                            <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main); line-height: 1.35; text-align: left;">
+                                ${comp.name}
+                            </div>
+                            <div style="flex-shrink: 0;" class="jd-mobile-badge-container">
+                                ${timeBadge}
+                            </div>
+                        </div>
+                        <div class="jd-meta-mobile-only">
+                            <span class="jd-pill jd-pill-cat"><i class="fa-solid fa-layer-group"></i> ${catName}</span>
+                            <span class="jd-pill jd-pill-stage"><i class="fa-solid fa-microphone-stage"></i> ${stageName}</span>
+                        </div>
+                    </td>
+                    <td class="jd-col-desktop-cat">
+                        <span class="jd-pill jd-pill-cat"><i class="fa-solid fa-layer-group"></i> ${catName}</span>
+                    </td>
+                    <td class="jd-col-desktop-stage">
+                        <span class="jd-pill jd-pill-stage"><i class="fa-solid fa-microphone-stage"></i> ${stageName}</span>
+                    </td>
+                    <td class="jd-col-desktop-time" style="text-align: right;">
+                        ${timeBadge}
+                    </td>
                 </tr>
             `;
         });
     } catch (error) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--danger); padding: 2rem;">Error loading schedule synchronization.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="jd-empty-state" style="text-align: center; color: var(--danger); padding: 2rem;">Error loading schedule synchronization.</td></tr>`;
     }
 }
 

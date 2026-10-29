@@ -1772,7 +1772,7 @@ function getPDFHeaderHTML(reportTitle, targetFestId = null, extraMeta = null) {
     const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
 
     if (showLogo) {
-        brandHtml = `<img src="${rawLogo}" alt="Logo" style="height: 46px; max-width: 140px; object-fit: contain; border-radius: 6px; display: block;">`;
+        brandHtml = `<img src="${rawLogo}" alt="Logo" crossorigin="anonymous" style="height: 46px; max-width: 140px; object-fit: contain; border-radius: 6px; display: block;">`;
     }
 
     const titleText = (reportTitle || 'OFFICIAL REPORT').toUpperCase();
@@ -1827,87 +1827,89 @@ async function festosRenderPDF(contentElementOrHtml, options = {}) {
 
     const orientation = options.orientation || 'portrait';
     const filename = options.filename || (typeof getFestFileName === 'function' ? getFestFileName('Report', 'pdf') : 'FestOS_Report.pdf');
-    const targetWidth = options.width || (orientation === 'landscape' ? 1120 : 800);
     const margin = options.margin !== undefined ? options.margin : (orientation === 'landscape' ? [8, 10, 8, 10] : [10, 10, 10, 10]);
 
-    // Create Sandboxed Off-Screen Mount Container in the DOM
-    const sandbox = document.createElement('div');
-    sandbox.id = 'festos-pdf-sandbox-' + Date.now();
-    sandbox.style.cssText = `
-        position: fixed;
-        left: -9999px;
-        top: 0;
-        width: ${targetWidth}px;
+    // Create a clean DOM container without off-screen negative coordinates
+    // html2pdf automatically wraps this element inside its own temporary html2pdf__overlay at (0,0) with opacity: 0
+    const container = document.createElement('div');
+    container.className = 'festos-pdf-render-root';
+    container.style.cssText = `
+        display: block;
+        position: relative;
+        width: 100%;
+        margin: 0;
+        padding: 0;
         background: #FFFFFF;
         color: #0F172A;
-        font-family: 'Inter', -apple-system, sans-serif;
-        padding: 0;
-        margin: 0;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         box-sizing: border-box;
-        z-index: -99999;
-        visibility: visible;
     `;
 
     const styleEl = document.createElement('style');
     styleEl.textContent = `
-        #${sandbox.id} * { box-sizing: border-box; }
-        #${sandbox.id} table { border-collapse: collapse; width: 100%; }
-        #${sandbox.id} tr { page-break-inside: avoid !important; break-inside: avoid !important; }
-        #${sandbox.id} .pdf-avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; }
-        #${sandbox.id} .html2pdf__page-break { page-break-after: always !important; break-after: page !important; height: 0; margin: 0; padding: 0; }
-        #${sandbox.id} .pdf-page { page-break-inside: avoid !important; break-inside: avoid !important; width: 100%; }
+        .festos-pdf-render-root * { box-sizing: border-box; }
+        .festos-pdf-render-root table { border-collapse: collapse; width: 100%; }
+        .festos-pdf-render-root tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+        .festos-pdf-render-root .pdf-avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; }
+        .festos-pdf-render-root .html2pdf__page-break { page-break-after: always !important; break-after: page !important; height: 0; margin: 0; padding: 0; }
+        .festos-pdf-render-root .pdf-page { page-break-inside: avoid !important; break-inside: avoid !important; width: 100%; box-sizing: border-box; }
     `;
-    sandbox.appendChild(styleEl);
+    container.appendChild(styleEl);
 
-    const innerWrapper = document.createElement('div');
-    innerWrapper.style.width = '100%';
-    innerWrapper.style.padding = options.padding || '0';
+    const bodyDiv = document.createElement('div');
+    bodyDiv.style.width = '100%';
+    bodyDiv.style.boxSizing = 'border-box';
+    bodyDiv.style.padding = options.padding || '0';
 
     if (typeof contentElementOrHtml === 'string') {
-        innerWrapper.innerHTML = contentElementOrHtml;
+        bodyDiv.innerHTML = contentElementOrHtml;
     } else if (contentElementOrHtml instanceof HTMLElement) {
-        innerWrapper.appendChild(contentElementOrHtml.cloneNode(true));
+        bodyDiv.appendChild(contentElementOrHtml.cloneNode(true));
     }
-    sandbox.appendChild(innerWrapper);
-    document.body.appendChild(sandbox);
+    container.appendChild(bodyDiv);
 
-    try {
-        if (document.fonts && document.fonts.ready) {
-            try { await document.fonts.ready; } catch(e) {}
-        }
-        
-        const imgs = Array.from(sandbox.querySelectorAll('img'));
+    // Tag all images inside the container with anonymous CORS
+    const imgs = Array.from(container.querySelectorAll('img'));
+    imgs.forEach(img => {
+        img.crossOrigin = 'anonymous';
+    });
+
+    if (document.fonts && document.fonts.ready) {
+        try { await document.fonts.ready; } catch(e) {}
+    }
+
+    if (imgs.length > 0) {
         await Promise.all(imgs.map(img => {
             if (img.complete) return Promise.resolve();
-            return new Promise(res => { img.onload = res; img.onerror = res; setTimeout(res, 2000); });
+            return new Promise(res => {
+                img.onload = res;
+                img.onerror = res;
+                setTimeout(res, 1200);
+            });
         }));
-
-        const opt = {
-            margin: margin,
-            filename: filename,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: {
-                scale: options.scale || 2,
-                useCORS: true,
-                allowTaint: true,
-                letterRendering: true,
-                logging: false,
-                width: targetWidth
-            },
-            jsPDF: {
-                unit: 'mm',
-                format: 'a4',
-                orientation: orientation
-            },
-            pagebreak: { mode: ['css', 'legacy'] }
-        };
-
-        await html2pdf().set(opt).from(sandbox).save();
-    } finally {
-        if (sandbox && sandbox.parentNode) {
-            sandbox.parentNode.removeChild(sandbox);
-        }
     }
+
+    const opt = {
+        margin: margin,
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+            scale: options.scale || 2,
+            useCORS: true,
+            letterRendering: true,
+            logging: false,
+            scrollY: 0,
+            scrollX: 0
+        },
+        jsPDF: {
+            unit: 'mm',
+            format: 'a4',
+            orientation: orientation
+        },
+        pagebreak: { mode: ['css', 'legacy'] }
+    };
+
+    await html2pdf().set(opt).from(container).save();
 }
 window.festosRenderPDF = festosRenderPDF;
 
