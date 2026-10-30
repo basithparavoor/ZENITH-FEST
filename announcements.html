@@ -1851,15 +1851,15 @@
         if (!user || (user.role !== 'announcer' && user.role !== 'master_admin' && user.role !== 'admin' && user.role !== 'super_admin')) {
             if (user && user.role === 'stage_controller') {
                 window.location.replace('stage-controller.html');
-                return;
+            } else {
+                window.location.href = 'index.html'; 
             }
-            window.location.href = 'index.html'; 
         } else {
             initializePortal();
         }
 
         // --- INJECT ADMIN HUB RETURN BUTTON ---
-        if (user.role === 'master_admin' || user.role === 'admin' || user.role === 'super_admin') {
+        if (user && (user.role === 'master_admin' || user.role === 'admin' || user.role === 'super_admin')) {
             document.addEventListener("DOMContentLoaded", () => {
                 const headerRight = document.querySelector('.header > div:last-child');
                 

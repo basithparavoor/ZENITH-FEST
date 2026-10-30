@@ -69,6 +69,15 @@ async function initializeApp() {
     loadDashboard(); 
 }
 
+// Helper to detect offstage competition accurately
+function isCompOffstage(comp) {
+    if (!comp) return false;
+    if (comp.is_offstage) return true;
+    if (comp.stages?.name && comp.stages.name.toUpperCase().includes('OFFSTAGE')) return true;
+    if (comp.stage_id && window.stageOffstageFlags && window.stageOffstageFlags[comp.stage_id]) return true;
+    return false;
+}
+
 // 2. Load Assigned Competitions (Global Grading Fix)
 async function loadDashboard() {
     const container = document.getElementById('competitions-container');
@@ -81,7 +90,7 @@ async function loadDashboard() {
         
         let compQuery = supabaseClient
             .from('competitions')
-            .select('*, categories(name)')
+            .select('*, categories(name), stages(id, name)')
             .in('status', ['registration', 'ongoing', 'valuation']);
             
         if (window.festosApplyFilter) {
@@ -117,7 +126,7 @@ async function loadDashboard() {
             .from('judgements')
             .select(`
                 competition_id, 
-                competitions!inner(id, name, max_mark, status, is_offstage, categories(name))
+                competitions!inner(id, name, max_mark, status, is_offstage, stage_id, categories(name), stages(id, name))
             `)
             .eq('judge_id', user.id)
             .is('participant_id', null)
@@ -152,10 +161,12 @@ async function loadDashboard() {
         }
     }
 
+    const isAdmin = (user.role === 'master_admin' || user.role === 'admin');
+
     // Dynamic sorting putting "Ready" events at the top
     globalJudgeComps.sort((a, b) => {
-        const aReady = a.is_offstage ? a.status === 'valuation' : a.status === 'ongoing';
-        const bReady = b.is_offstage ? b.status === 'valuation' : b.status === 'ongoing';
+        const aReady = a.status === 'valuation' || (!isCompOffstage(a) && a.status === 'ongoing') || (isAdmin && a.status === 'ongoing');
+        const bReady = b.status === 'valuation' || (!isCompOffstage(b) && b.status === 'ongoing') || (isAdmin && b.status === 'ongoing');
         
         if (aReady && !bReady) return -1;
         if (!aReady && bReady) return 1;
@@ -222,18 +233,41 @@ function renderDashboard(data) {
     }
 
     data.forEach(comp => {
-        // --- STRICT EVALUATION LOCK LOGIC ---
-        const isReady = comp.is_offstage ? (comp.status === 'valuation') : (comp.status === 'ongoing');
+        const offstage = isCompOffstage(comp);
+        const isValuation = (comp.status === 'valuation');
+        const isOngoing = (comp.status === 'ongoing');
+        const isAdmin = (user.role === 'master_admin' || user.role === 'admin');
+
+        // Evaluation readiness:
+        // - Any competition in 'valuation' is ALWAYS ready to evaluate (for judges & master admin)
+        // - Onstage ongoing competitions are ready to evaluate live
+        // - Admins / Master Admin can evaluate any ongoing competition (onstage or offstage)
+        const isReady = isValuation || (!offstage && isOngoing) || (isAdmin && isOngoing);
         
         let statusText = 'Starts Soon';
-        if (isReady) {
-            statusText = 'Ready to Evaluate';
-        } else if (comp.is_offstage && comp.status === 'ongoing') {
-            statusText = 'Event Ongoing';
+        let badgeColor = '#D97706';
+        let badgeBg = 'var(--warning-light)';
+
+        if (isValuation) {
+            statusText = 'In Valuation';
+            badgeColor = '#B45309';
+            badgeBg = '#FEF3C7';
+        } else if (isOngoing) {
+            if (!offstage) {
+                statusText = 'Live / Ongoing';
+                badgeColor = 'var(--success)';
+                badgeBg = 'var(--success-light)';
+            } else {
+                statusText = isAdmin ? 'Event Ongoing (Admin Access)' : 'Event Ongoing';
+                badgeColor = isAdmin ? 'var(--primary)' : '#4F46E5';
+                badgeBg = isAdmin ? 'var(--primary-light)' : '#EEF2FF';
+            }
+        } else if (comp.status === 'registration') {
+            statusText = 'In Registration';
+            badgeColor = '#64748B';
+            badgeBg = '#F1F5F9';
         }
 
-        const badgeColor = isReady ? 'var(--success)' : '#D97706';
-        const badgeBg = isReady ? 'var(--success-light)' : 'var(--warning-light)';
         const btnState = isReady ? '' : 'disabled';
         const btnText = isReady ? 'Evaluate Now' : 'Waiting...';
         const categoryName = comp.categories?.name || 'UNCATEGORIZED';
@@ -253,6 +287,7 @@ function renderDashboard(data) {
                     <h3 style="margin-bottom: 0.25rem; font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; color: var(--text-main); line-height: 1.3;">${comp.name}</h3>
                     <p style="color: var(--text-muted); font-size: 0.82rem; font-weight: 600;">
                         MAX SCORE: <span style="color: var(--text-main); font-weight: 800;">${comp.max_mark}</span>
+                        ${comp.stages?.name ? ` &bull; <span style="color: var(--text-muted); font-weight: 700;"><i class="fa-solid fa-microphone-lines" style="font-size: 0.75rem;"></i> ${comp.stages.name}</span>` : ''}
                     </p>
                 </div>
                 <button class="btn ${isReady ? 'btn-primary' : 'btn-outline'}" ${btnState} onclick="openEvaluation('${comp.id}')" style="margin-top: 0.75rem; width: 100%; min-height: 44px; font-size: 0.85rem; border-radius: 12px;">
