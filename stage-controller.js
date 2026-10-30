@@ -381,6 +381,24 @@ async function loadCompetitions(stageId) {
                 </div>
             </div>
             
+            ${(() => {
+                if (sched && sched.date && (sched.to_time || sched.time) && (comp.status === 'ongoing' || comp.status === 'registration')) {
+                    const startM = timeStringToMinutes(sched.time);
+                    let endM = sched.to_time ? timeStringToMinutes(sched.to_time) : (startM + (parseInt(sched.manual_time) || 30));
+                    if (endM <= startM) endM = startM + 30;
+                    const endH = Math.floor(endM / 60);
+                    const endMin = endM % 60;
+                    const endDateTime = new Date(`${sched.date}T${String(endH).padStart(2, '0')}:${String(endMin).padStart(2, '0')}:00`);
+                    if (!isNaN(endDateTime.getTime()) && Date.now() > endDateTime.getTime()) {
+                        return `
+                            <div style="background: #FEF3C7; border: 1px solid #FCD34D; color: #92400E; padding: 6px 12px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                                <span><i class="fa-solid fa-clock-rotate-left"></i> Scheduled slot ended (${sched.to_time || minutesToTimeString(endM)}). Complete or End Event when stage is finished.</span>
+                            </div>
+                        `;
+                    }
+                }
+                return '';
+            })()}
             <div id="controls-${comp.id}">
                 ${getButtonsForStatus(comp)}
             </div>
@@ -412,6 +430,20 @@ async function loadCompetitions(stageId) {
     filterCompetitions();
 }
 
+function switchToActiveFilter() {
+    const statusDropdown = document.getElementById('status-filter');
+    if (statusDropdown) statusDropdown.value = 'ACTIVE';
+    filterCompetitions();
+}
+window.switchToActiveFilter = switchToActiveFilter;
+
+function switchToCompletedFilter() {
+    const statusDropdown = document.getElementById('status-filter');
+    if (statusDropdown) statusDropdown.value = 'judgement_complete';
+    filterCompetitions();
+}
+window.switchToCompletedFilter = switchToCompletedFilter;
+
 function filterCompetitions() {
     const searchInput = document.getElementById('comp-search');
     const categoryDropdown = document.getElementById('category-filter');
@@ -421,23 +453,44 @@ function filterCompetitions() {
     
     const textFilter = (searchInput.value || '').trim().toLowerCase();
     const catFilter = categoryDropdown ? categoryDropdown.value : 'ALL';
-    const statusFilter = statusDropdown ? statusDropdown.value : 'ALL';
+    const statusFilter = statusDropdown ? statusDropdown.value : 'ACTIVE';
     
     const cards = document.querySelectorAll('.comp-card');
+    let visibleCount = 0;
+    let totalCompleted = 0;
     
     cards.forEach(card => {
         const compName = card.getAttribute('data-comp-name') || '';
         const compCat = card.getAttribute('data-category') || '';
         const compStatus = card.getAttribute('data-status') || '';
         
+        if (compStatus === 'judgement_complete') {
+            totalCompleted++;
+        }
+
         const matchesText = !textFilter || compName.includes(textFilter);
         const matchesCategory = (catFilter === 'ALL' || compCat === catFilter);
         
-        // Ensure 'valuation' is treated correctly under the filter logic
-        const matchesStatus = (statusFilter === 'ALL' || compStatus === statusFilter || (statusFilter === 'pending' && compStatus === 'valuation'));
+        // Status Filter Logic:
+        // 'ACTIVE': Auto-hide completed events (judgement_complete) so only ongoing, reg, pending, valuation appear
+        // 'ALL': Show everything
+        // 'judgement_complete': Show only completed events awaiting manager
+        // 'pending': Matches pending or valuation
+        // Specific status: Exact match
+        let matchesStatus = false;
+        if (statusFilter === 'ACTIVE') {
+            matchesStatus = (compStatus !== 'judgement_complete');
+        } else if (statusFilter === 'ALL') {
+            matchesStatus = true;
+        } else if (statusFilter === 'pending') {
+            matchesStatus = (compStatus === 'pending' || compStatus === 'valuation');
+        } else {
+            matchesStatus = (compStatus === statusFilter);
+        }
         
         if (matchesText && matchesCategory && matchesStatus) {
             card.style.display = 'block'; 
+            visibleCount++;
         } else {
             card.style.display = 'none'; 
         }
@@ -446,8 +499,61 @@ function filterCompetitions() {
     // Update active filter indicator dot on header icon button
     const filterDot = document.getElementById('filter-badge-dot');
     if (filterDot) {
-        const hasActiveFilter = !!textFilter || catFilter !== 'ALL' || statusFilter !== 'ALL';
+        const hasActiveFilter = !!textFilter || catFilter !== 'ALL' || statusFilter !== 'ACTIVE';
         filterDot.style.display = hasActiveFilter ? 'block' : 'none';
+    }
+
+    // Notice banner handling
+    const noticeBar = document.getElementById('completed-notice-bar');
+    const noticeText = document.getElementById('completed-notice-text');
+    const returnBar = document.getElementById('active-return-bar');
+
+    if (noticeBar && noticeText) {
+        if (statusFilter === 'ACTIVE' && totalCompleted > 0) {
+            noticeText.innerText = `${totalCompleted} event${totalCompleted > 1 ? 's' : ''} completed & sent to Manager`;
+            noticeBar.style.display = 'flex';
+        } else {
+            noticeBar.style.display = 'none';
+        }
+    }
+
+    if (returnBar) {
+        returnBar.style.display = (statusFilter === 'judgement_complete') ? 'flex' : 'none';
+    }
+
+    // Empty state container handling
+    let emptyEl = document.getElementById('stage-empty-placeholder');
+    if (visibleCount === 0 && cards.length > 0) {
+        if (!emptyEl) {
+            emptyEl = document.createElement('div');
+            emptyEl.id = 'stage-empty-placeholder';
+            const cont = document.getElementById('competitions-container');
+            if (cont) cont.appendChild(emptyEl);
+        }
+        if (emptyEl) {
+            emptyEl.style.display = 'block';
+            if (statusFilter === 'ACTIVE' && totalCompleted > 0) {
+                emptyEl.innerHTML = `
+                    <div style="text-align: center; padding: 3rem 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 2px dashed var(--border); margin-top: 1rem;">
+                        <i class="fa-solid fa-flag-checkered" style="font-size: 2.5rem; color: #7C3AED; margin-bottom: 0.75rem;"></i>
+                        <h3 style="color: var(--text-main); font-size: 1.1rem; font-weight: 700; margin-bottom: 0.35rem;">All Active Events Concluded</h3>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 420px; margin: 0 auto 1.25rem;">Events on this stage have finished judging and are waiting for Manager to publish.</p>
+                        <button type="button" class="btn btn-primary" onclick="switchToCompletedFilter()" style="background: #7C3AED; border-color: #7C3AED;">
+                            <i class="fa-solid fa-clock-rotate-left"></i> View Completed Events (${totalCompleted})
+                        </button>
+                    </div>
+                `;
+            } else {
+                emptyEl.innerHTML = `
+                    <div style="text-align: center; padding: 3rem 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 2px dashed var(--border); margin-top: 1rem;">
+                        <i class="fa-solid fa-magnifying-glass" style="font-size: 2.5rem; color: #CBD5E1; margin-bottom: 0.75rem;"></i>
+                        <p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 600;">No competitions match your current filter.</p>
+                    </div>
+                `;
+            }
+        }
+    } else if (emptyEl) {
+        emptyEl.style.display = 'none';
     }
     
     adjustLayoutPadding();
@@ -586,7 +692,16 @@ function getButtonsForStatus(comp) {
         `;
     }
     
-    return `<div style="color: var(--primary); font-size: 0.95rem; font-weight: 700; width: 100%; text-align: center; background: var(--primary-light); padding: 1.25rem; border-radius: 16px; border: 1px dashed rgba(79, 70, 229, 0.3);">EVENT COMPLETED. WAITING FOR MANAGER.</div>`;
+    return `
+        <div style="color: var(--primary); font-size: 0.95rem; font-weight: 700; width: 100%; text-align: center; background: var(--primary-light); padding: 1.25rem; border-radius: 16px; border: 1px dashed rgba(79, 70, 229, 0.3);">
+            <div style="margin-bottom: 0.35rem;"><i class="fa-solid fa-flag-checkered" style="margin-right: 6px;"></i> EVENT COMPLETED. WAITING FOR MANAGER.</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; margin-bottom: 0.75rem;">Judging marks recorded. Results are in manager queue for publishing.</div>
+            <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                <button class="btn btn-outline" style="font-size: 0.8rem; padding: 0.35rem 0.85rem;" onclick="revertCompletedComp('${comp.id}', this)"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT TO ONGOING</button>
+                <button class="btn btn-outline" style="font-size: 0.8rem; padding: 0.35rem 0.85rem;" onclick="backToRegistration('${comp.id}', this)"><i class="fa-solid fa-qrcode"></i> REOPEN REGISTRATION</button>
+            </div>
+        </div>
+    `;
 }
 
 async function stopCameraTracks() {
@@ -1127,6 +1242,14 @@ async function cancelRegistration(compId, btn) {
         }
     });
 }
+
+
+async function revertCompletedComp(compId, btn) {
+    openConfirmModal("Reopen Event?", "Reopen this event to Ongoing (Live)? Stage controllers and judges can continue evaluating.", () => {
+        executeStateChange(compId, 'ongoing', btn, 'Reopening');
+    });
+}
+window.revertCompletedComp = revertCompletedComp;
 
 async function backToRegistration(compId, btn) {
     openConfirmModal("Revert to Registration?", "⚠️ Re-open the scanner? This will ERASE any submitted marks!", () => {

@@ -702,15 +702,38 @@ body, input, button, select, .toast, .card-title {
                         <option value="ALL">All Categories</option>
                     </select>
                     <select id="status-filter" onchange="filterCompetitions()">
-                        <option value="ALL">All Statuses</option>
+                        <option value="ACTIVE" selected>Active &amp; Upcoming Events</option>
+                        <option value="ALL">All Statuses (Including Completed)</option>
                         <option value="ongoing">Ongoing</option>
                         <option value="registration">Registration</option>
                         <option value="pending">Awaiting</option>
                         <option value="valuation">In Valuation</option>
-                        <option value="judgement_complete">Awaiting Results</option>
+                        <option value="judgement_complete">Completed (Awaiting Results)</option>
                     </select>
                 </div>
             </div>
+        </div>
+
+        <!-- Completed Events Banner (when in Active view and completed events exist) -->
+        <div id="completed-notice-bar" style="display: none; background: #F5F3FF; border: 1.5px solid #DDD6FE; border-radius: 12px; padding: 0.65rem 1rem; margin-bottom: 1rem; align-items: center; justify-content: space-between; gap: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; color: #6D28D9; font-size: 0.85rem; font-weight: 700;">
+                <i class="fa-solid fa-circle-check" style="color: #7C3AED; font-size: 1.05rem;"></i>
+                <span id="completed-notice-text">1 event completed &amp; sent to Manager</span>
+            </div>
+            <button type="button" class="btn btn-outline" style="color: #7C3AED; border-color: #DDD6FE; padding: 0.35rem 0.8rem; font-size: 0.78rem; background: white; font-weight: 700; border-radius: 8px;" onclick="switchToCompletedFilter()">
+                <i class="fa-solid fa-clock-rotate-left"></i> View Completed
+            </button>
+        </div>
+
+        <!-- Return to Active Events Banner (when viewing Completed filter) -->
+        <div id="active-return-bar" style="display: none; background: #ECFDF5; border: 1.5px solid #A7F3D0; border-radius: 12px; padding: 0.65rem 1rem; margin-bottom: 1rem; align-items: center; justify-content: space-between; gap: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; color: #065F46; font-size: 0.85rem; font-weight: 700;">
+                <i class="fa-solid fa-flag-checkered" style="color: #059669; font-size: 1.05rem;"></i>
+                <span>Viewing Completed Events (Awaiting Manager Publishing)</span>
+            </div>
+            <button type="button" class="btn btn-outline" style="color: #065F46; border-color: #A7F3D0; padding: 0.35rem 0.8rem; font-size: 0.78rem; background: white; font-weight: 700; border-radius: 8px;" onclick="switchToActiveFilter()">
+                <i class="fa-solid fa-arrow-left"></i> Back to Active Events
+            </button>
         </div>
 
         <main id="competitions-container">

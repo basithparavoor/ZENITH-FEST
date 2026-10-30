@@ -108,6 +108,43 @@ function populateStageFilter() {
     });
 }
 
+// --- SCHEDULE TIME UTILITIES ---
+function timeStringToMinutes(timeStr) {
+    if (!timeStr) return null;
+    const parts = timeStr.trim().split(':');
+    if (parts.length < 2) return null;
+    const hours = parseInt(parts[0], 10);
+    const mins = parseInt(parts[1], 10);
+    if (isNaN(hours) || isNaN(mins)) return null;
+    return hours * 60 + mins;
+}
+
+function isCompScheduledTimeEnded(comp) {
+    if (!comp || !comp.schedule) return false;
+    const sched = comp.schedule;
+    if (!sched.date) return false;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (sched.date < todayStr) return true;
+    if (sched.date > todayStr) return false;
+
+    const now = new Date();
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+
+    let endMinutes = null;
+    if (sched.to_time) {
+        endMinutes = timeStringToMinutes(sched.to_time);
+    } else if (sched.time) {
+        const startMins = timeStringToMinutes(sched.time);
+        if (startMins !== null) {
+            const duration = parseInt(comp.duration || 60, 10);
+            endMinutes = startMins + duration;
+        }
+    }
+
+    return endMinutes !== null && currentMins >= endMinutes;
+}
+
 function filterCompetitions() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     const catFilter = document.getElementById('categoryFilter').value;
@@ -127,8 +164,15 @@ function filterCompetitions() {
         
         let statusMatch = true;
         if (statusFilter === 'unassigned') statusMatch = !isAssigned;
-        if (statusFilter === 'assigned') statusMatch = isAssigned;
-        if (statusFilter === 'valuation') statusMatch = (comp.status === 'valuation');
+        else if (statusFilter === 'assigned') statusMatch = isAssigned;
+        else if (statusFilter === 'valuation') statusMatch = (comp.status === 'valuation');
+        else if (statusFilter === 'judgement_complete') statusMatch = (comp.status === 'judgement_complete');
+        else if (statusFilter === 'ongoing') statusMatch = (comp.status === 'ongoing');
+        else if (statusFilter === 'registration') statusMatch = (comp.status === 'registration');
+        else if (statusFilter === 'pending') statusMatch = (comp.status === 'pending');
+        else if (statusFilter === 'action_needed') {
+            statusMatch = (comp.status === 'judgement_complete') || isCompScheduledTimeEnded(comp);
+        }
 
         return compNameMatch && catMatch && stageMatch && statusMatch;
     });
@@ -158,7 +202,7 @@ async function loadAssignments() {
         // 1. Fetch Competitions, grabbing the stage_no alongside the name
         let compsQuery = supabaseClient.from('competitions')
             .select('*, categories(name), stages(name, stage_no)') 
-            .in('status', ['pending', 'registration', 'ongoing', 'valuation']);
+            .in('status', ['pending', 'registration', 'ongoing', 'valuation', 'judgement_complete']);
         if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery);
         const { data: comps } = await compsQuery;
             
@@ -232,13 +276,30 @@ function renderGrid(competitions) {
         selectAllCheckbox.checked = false; 
     }
 
-    let judgeOptions = availableJudges.map(j => `<option value="${j.id}">${j.username}</option>`).join('');
-
     competitions.forEach(comp => {
         const compAssignments = allAssignments.filter(a => a.competition_id === comp.id);
-        const badgeClass = comp.status === 'pending' ? 'badge-pending' : comp.status === 'valuation' ? 'badge-valuation' : 'badge-ongoing';
-        const badgeLabel = comp.status === 'valuation' ? 'IN VALUATION' : comp.status;
         
+        // Refined status badge
+        let badgeClass = 'badge-pending';
+        let badgeLabel = comp.status ? comp.status.toUpperCase() : 'PENDING';
+        let badgeStyle = '';
+
+        if (comp.status === 'judgement_complete') {
+            badgeClass = '';
+            badgeLabel = 'Awaiting Manager';
+            badgeStyle = 'background: #EDE9FE; color: #6D28D9; border: 1.5px solid #C4B5FD; font-weight: 800;';
+        } else if (comp.status === 'valuation') {
+            badgeClass = 'badge-valuation';
+            badgeLabel = 'IN VALUATION';
+        } else if (comp.status === 'ongoing') {
+            badgeClass = 'badge-ongoing';
+            badgeLabel = 'LIVE / ONGOING';
+        } else if (comp.status === 'registration') {
+            badgeClass = '';
+            badgeLabel = 'REGISTRATION';
+            badgeStyle = 'background: #E0F2FE; color: #0284C7; border: 1.5px solid #BAE6FD; font-weight: 700;';
+        }
+
         // Build the interactive tags for assigned judges
         let assignedJudgesHTML = `<span style="color: var(--text-muted);">No judges assigned yet</span>`;
         
@@ -262,7 +323,86 @@ function renderGrid(competitions) {
         if (comp.schedule) {
             const timeObj = new Date(`${comp.schedule.date}T${comp.schedule.time}`);
             const timeStr = isNaN(timeObj) ? comp.schedule.time : timeObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            schedBadge = `<div class="card-meta" style="color: var(--primary); font-weight: 700; margin-bottom: 1rem;"><i class="ph ph-clock"></i> ${comp.schedule.date} @ ${timeStr}</div>`;
+            const toStr = comp.schedule.to_time ? ` - ${comp.schedule.to_time}` : '';
+            schedBadge = `<div class="card-meta" style="color: var(--primary); font-weight: 700; margin-bottom: 0.65rem;"><i class="ph ph-clock"></i> ${comp.schedule.date} @ ${timeStr}${toStr}</div>`;
+        }
+
+        // Time Ended / Overdue Check
+        const timeEnded = isCompScheduledTimeEnded(comp);
+        let noticeBanner = '';
+        if (comp.status === 'judgement_complete') {
+            noticeBanner = `
+                <div style="background: #F5F3FF; border: 1.5px solid #DDD6FE; border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #6D28D9; font-size: 0.82rem; font-weight: 700;">
+                        <i class="ph-fill ph-check-circle" style="font-size: 1.15rem; color: #7C3AED;"></i>
+                        <span>Event Finished &bull; Waiting for Manager</span>
+                    </div>
+                    <span style="font-size: 0.72rem; color: #7C3AED; background: #EDE9FE; padding: 2px 7px; border-radius: 4px; font-weight: 800;">ACTION REQUIRED</span>
+                </div>
+            `;
+        } else if (timeEnded) {
+            noticeBanner = `
+                <div style="background: #FFFBEB; border: 1.5px solid #FDE68A; border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #B45309; font-size: 0.82rem; font-weight: 700;">
+                        <i class="ph-fill ph-clock-countdown" style="font-size: 1.15rem; color: #D97706;"></i>
+                        <span>Scheduled Time Elapsed</span>
+                    </div>
+                    <span style="font-size: 0.72rem; color: #B45309; background: #FEF3C7; padding: 2px 7px; border-radius: 4px; font-weight: 800;">OVERDUE</span>
+                </div>
+            `;
+        }
+
+        // Manager Action Buttons according to status
+        let actionButtonsHTML = '';
+        if (comp.status === 'judgement_complete') {
+            actionButtonsHTML = `
+                <button class="btn btn-sm btn-success" style="flex: 1; padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="switchTab('publish')">
+                    <i class="ph-bold ph-megaphone"></i> Review &amp; Publish
+                </button>
+                <button class="btn btn-sm btn-outline" style="color: #7E22CE; border-color: #D8B4FE; padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="openManagerRedoModal('${comp.id}')">
+                    <i class="ph-bold ph-arrow-counter-clockwise"></i> Redo / Revert
+                </button>
+            `;
+        } else if (comp.status === 'ongoing') {
+            actionButtonsHTML = `
+                <button class="btn btn-sm btn-danger" style="flex: 1; padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="managerEndCompetition('${comp.id}', this)">
+                    <i class="ph-bold ph-stop-circle"></i> End Competition
+                </button>
+                <button class="btn btn-sm btn-outline" style="color: #7E22CE; border-color: #D8B4FE; padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="openManagerRedoModal('${comp.id}')">
+                    <i class="ph-bold ph-arrow-counter-clockwise"></i> Redo
+                </button>
+            `;
+        } else if (comp.status === 'registration') {
+            actionButtonsHTML = `
+                <button class="btn btn-sm btn-primary" style="flex: 1; padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="managerStartCompetition('${comp.id}', 'ongoing', this)">
+                    <i class="ph-bold ph-play"></i> Start Live Now
+                </button>
+                <button class="btn btn-sm btn-danger" style="padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="managerEndCompetition('${comp.id}', this)">
+                    <i class="ph-bold ph-stop-circle"></i> End
+                </button>
+                <button class="btn btn-sm btn-outline" style="color: #7E22CE; border-color: #D8B4FE; padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="openManagerRedoModal('${comp.id}')">
+                    <i class="ph-bold ph-arrow-counter-clockwise"></i> Redo
+                </button>
+            `;
+        } else if (comp.status === 'valuation') {
+            actionButtonsHTML = `
+                <button class="btn btn-sm btn-warning" style="flex: 1; padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="switchTab('valuation')">
+                    <i class="ph-bold ph-pencil-simple-line"></i> Open Valuation
+                </button>
+                <button class="btn btn-sm btn-outline" style="color: #7E22CE; border-color: #D8B4FE; padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="openManagerRedoModal('${comp.id}')">
+                    <i class="ph-bold ph-arrow-counter-clockwise"></i> Redo
+                </button>
+            `;
+        } else {
+            // Pending
+            actionButtonsHTML = `
+                <button class="btn btn-sm btn-outline" style="flex: 1; color: var(--primary); border-color: var(--primary); padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="managerStartCompetition('${comp.id}', 'ongoing', this)">
+                    <i class="ph-bold ph-play"></i> Force Start
+                </button>
+                <button class="btn btn-sm btn-outline" style="padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="managerStartCompetition('${comp.id}', 'registration', this)">
+                    <i class="ph-bold ph-broadcast"></i> Call Reg
+                </button>
+            `;
         }
 
         // Build options with assigned indicators
@@ -273,36 +413,44 @@ function renderGrid(competitions) {
         }).join('');
 
         grid.innerHTML += `
-            <div class="card">
-                <div class="card-header">
-                    <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
-                        <input type="checkbox" class="comp-checkbox" value="${comp.id}" onchange="toggleBulkActions()" style="width: 18px; height: 18px; cursor: pointer; margin-top: 3px;">
-                        <div class="card-title">${comp.name}</div>
+            <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div class="card-header">
+                        <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+                            <input type="checkbox" class="comp-checkbox" value="${comp.id}" onchange="toggleBulkActions()" style="width: 18px; height: 18px; cursor: pointer; margin-top: 3px;">
+                            <div class="card-title">${comp.name}</div>
+                        </div>
+                        <span class="badge ${badgeClass}" style="${badgeStyle}">${badgeLabel}</span>
                     </div>
-                    <span class="badge ${badgeClass}">${badgeLabel}</span>
-                </div>
-                
-                <div class="card-meta" style="margin-bottom: 0.25rem;"><i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}</div>
-                <div class="card-meta" style="margin-bottom: ${schedBadge ? '0.25rem' : '1rem'};"><i class="ph ph-microphone-stage"></i> ${compStage}</div>
-                ${schedBadge}
-                
-                <div class="assigned-judges">
-                    <strong>Assigned Judges:</strong><br>
-                    ${assignedJudgesHTML}
-                </div>
-                
-                <div class="judge-assign-box">
-                    <div class="judge-select-wrapper">
-                        <i class="ph ph-scales judge-select-icon"></i>
-                        <select id="judge-select-${comp.id}" class="judge-assign-select" onchange="onJudgeSelectChange(this)">
-                            <option value="">Select a Judge to Assign...</option>
-                            ${compJudgeOptions}
-                        </select>
-                        <i class="ph ph-caret-down judge-select-arrow"></i>
+                    
+                    <div class="card-meta" style="margin-bottom: 0.25rem;"><i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}</div>
+                    <div class="card-meta" style="margin-bottom: 0.35rem;"><i class="ph ph-microphone-stage"></i> ${compStage}</div>
+                    ${schedBadge}
+                    ${noticeBanner}
+                    
+                    <div class="assigned-judges" style="margin-bottom: 1rem;">
+                        <strong>Assigned Judges:</strong><br>
+                        ${assignedJudgesHTML}
                     </div>
-                    <button class="judge-assign-btn" onclick="assignJudge('${comp.id}', this)">
-                        <i class="ph-bold ph-user-plus"></i> Assign Judge
-                    </button>
+                    
+                    <div class="judge-assign-box">
+                        <div class="judge-select-wrapper">
+                            <i class="ph ph-scales judge-select-icon"></i>
+                            <select id="judge-select-${comp.id}" class="judge-assign-select" onchange="onJudgeSelectChange(this)">
+                                <option value="">Select a Judge to Assign...</option>
+                                ${compJudgeOptions}
+                            </select>
+                            <i class="ph ph-caret-down judge-select-arrow"></i>
+                        </div>
+                        <button class="judge-assign-btn" onclick="assignJudge('${comp.id}', this)">
+                            <i class="ph-bold ph-user-plus"></i> Assign Judge
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Manager Event Controls -->
+                <div style="margin-top: 1rem; padding-top: 0.85rem; border-top: 1px dashed var(--border); display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    ${actionButtonsHTML}
                 </div>
             </div>
         `;
@@ -1086,15 +1234,26 @@ async function openStatsModal() {
                 if(comp.status === 'ongoing') badgeStyle = "background: #DBEAFE; color: #1D4ED8; border: 1px solid rgba(29, 78, 216, 0.2);";
                 if(comp.status === 'pending') badgeStyle = "background: var(--warning-light); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.2);";
 
+                const canEnd = comp.status === 'ongoing' || comp.status === 'registration';
                 listContainer.innerHTML += `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--bg-main); border-radius: var(--radius-md); border: 1px solid var(--border); transition: var(--transition);">
-                        <div>
-                            <div style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">${comp.name}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1rem; background: var(--bg-main); border-radius: var(--radius-md); border: 1px solid var(--border); transition: var(--transition); gap: 0.75rem;">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 700; color: var(--text-main); font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${comp.name}</div>
                             <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; display: flex; align-items: center; gap: 0.25rem;">
                                 <i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}
                             </div>
                         </div>
-                        <span class="badge" style="${badgeStyle} text-transform: uppercase; font-size: 0.7rem;">${comp.status.replace('_', ' ')}</span>
+                        <div style="display: flex; align-items: center; gap: 0.45rem; flex-shrink: 0;">
+                            <span class="badge" style="${badgeStyle} text-transform: uppercase; font-size: 0.7rem;">${comp.status.replace('_', ' ')}</span>
+                            <button class="btn btn-outline" style="padding: 0.25rem 0.55rem; font-size: 0.75rem; color: #7E22CE; border-color: #D8B4FE;" onclick="closeStatsModal(); openManagerRedoModal('${comp.id}')" title="Redo / Revert">
+                                <i class="ph-bold ph-arrow-counter-clockwise"></i> Redo
+                            </button>
+                            ${canEnd ? `
+                                <button class="btn btn-danger" style="padding: 0.25rem 0.55rem; font-size: 0.75rem;" onclick="managerEndCompetition('${comp.id}', this)" title="End Event">
+                                    <i class="ph-bold ph-stop-circle"></i> End
+                                </button>
+                            ` : ''}
+                        </div>
                     </div>
                 `;
             });
@@ -1103,6 +1262,154 @@ async function openStatsModal() {
         console.error("Error loading system stats:", err);
         listContainer.innerHTML = `<p style="color: var(--danger); text-align: center; font-weight: 600;">Failed to load data. Check console for details.</p>`;
     }
+}
+
+
+// ==========================================
+// MANAGER DIRECT EVENT CONTROLS (END / REDO / START)
+// ==========================================
+
+async function managerEndCompetition(compId, btnElement) {
+    const comp = allCompetitions.find(c => c.id === compId);
+    const compName = comp ? comp.name : 'this competition';
+    const isOffstage = comp && (comp.type === 'offstage' || (comp.stages && comp.stages.name && comp.stages.name.toLowerCase().includes('offstage')));
+    const targetStatus = isOffstage ? 'valuation' : 'judgement_complete';
+    const targetLabel = isOffstage ? 'In Valuation (Offstage)' : 'Completed (Awaiting Manager)';
+
+    openConfirmModal(
+        "End Competition?",
+        `End "${compName}" now? Status will be updated to ${targetLabel}.`,
+        async () => {
+            if (btnElement) {
+                btnElement.disabled = true;
+                btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Ending...';
+            }
+            try {
+                const { error } = await window.db.from('competitions')
+                    .update({ status: targetStatus })
+                    .eq('id', compId);
+
+                if (error) throw error;
+                showToast(`"${compName}" marked as ${targetLabel}!`, 'success');
+                loadAssignments();
+            } catch (err) {
+                console.error("Error ending competition:", err);
+                showToast("Failed to end competition: " + err.message, 'error');
+                if (btnElement) {
+                    btnElement.disabled = false;
+                    btnElement.innerHTML = '<i class="ph-bold ph-stop-circle"></i> End Competition';
+                }
+            }
+        }
+    );
+}
+
+function openManagerRedoModal(compId) {
+    const comp = allCompetitions.find(c => c.id === compId);
+    document.getElementById('redoModalCompId').value = compId;
+
+    if (comp) {
+        document.getElementById('redoModalCompTitle').innerText = `Redo: ${comp.name}`;
+        const stageName = comp.stages ? `Stage ${comp.stages.stage_no || ''} - ${comp.stages.name}` : 'Unstaged';
+        const catName = comp.categories?.name || 'Uncategorized';
+        document.getElementById('redoModalCompInfo').innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong style="color: var(--text-main); font-size: 0.95rem;">${comp.name}</strong>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+                        <i class="ph ph-folders"></i> ${catName} &bull; <i class="ph ph-microphone-stage"></i> ${stageName}
+                    </div>
+                </div>
+                <span class="badge" style="font-size: 0.72rem; text-transform: uppercase;">${comp.status}</span>
+            </div>
+        `;
+    } else {
+        document.getElementById('redoModalCompTitle').innerText = 'Redo Competition';
+        document.getElementById('redoModalCompInfo').innerHTML = '';
+    }
+
+    // Default to ongoing radio and unchecked marks erase
+    const defaultRadio = document.querySelector('input[name="redoTargetStatus"][value="ongoing"]');
+    if (defaultRadio) defaultRadio.checked = true;
+    const clearMarksCb = document.getElementById('redoClearMarks');
+    if (clearMarksCb) clearMarksCb.checked = false;
+
+    document.getElementById('managerRedoModal').classList.add('active');
+}
+
+function closeManagerRedoModal() {
+    document.getElementById('managerRedoModal').classList.remove('active');
+}
+
+async function executeManagerRedo() {
+    const compId = document.getElementById('redoModalCompId').value;
+    if (!compId) return;
+
+    const selectedRadio = document.querySelector('input[name="redoTargetStatus"]:checked');
+    const targetStatus = selectedRadio ? selectedRadio.value : 'ongoing';
+    const clearMarks = document.getElementById('redoClearMarks').checked;
+    const btn = document.getElementById('btnConfirmManagerRedo');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Applying...';
+
+    try {
+        if (clearMarks) {
+            await window.db.from('judgements')
+                .delete()
+                .eq('competition_id', compId)
+                .not('participant_id', 'is', null);
+        }
+
+        const { error } = await window.db.from('competitions')
+            .update({ status: targetStatus })
+            .eq('id', compId);
+
+        if (error) throw error;
+
+        closeManagerRedoModal();
+        showToast(`Competition successfully reverted to ${targetStatus}!`, 'success');
+        loadAssignments();
+        if (typeof loadPublishableComps === 'function') loadPublishableComps();
+    } catch (err) {
+        console.error("Error executing redo:", err);
+        showToast("Error updating competition: " + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ph-bold ph-arrow-counter-clockwise"></i> Apply &amp; Revert Status';
+    }
+}
+
+async function managerStartCompetition(compId, targetStatus, btnElement) {
+    const comp = allCompetitions.find(c => c.id === compId);
+    const compName = comp ? comp.name : 'this competition';
+    const label = targetStatus === 'ongoing' ? 'Live Event' : 'Calling / Registration';
+
+    openConfirmModal(
+        `Start ${label}?`,
+        `Move "${compName}" directly to ${label}?`,
+        async () => {
+            if (btnElement) {
+                btnElement.disabled = true;
+                btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Starting...';
+            }
+            try {
+                const { error } = await window.db.from('competitions')
+                    .update({ status: targetStatus })
+                    .eq('id', compId);
+
+                if (error) throw error;
+                showToast(`"${compName}" is now ${targetStatus}!`, 'success');
+                loadAssignments();
+            } catch (err) {
+                console.error("Error starting competition:", err);
+                showToast("Failed to update status: " + err.message, 'error');
+                if (btnElement) {
+                    btnElement.disabled = false;
+                }
+            }
+        }
+    );
 }
 
 function closeStatsModal() {
