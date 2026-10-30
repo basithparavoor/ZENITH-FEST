@@ -161,19 +161,13 @@ async function loadDashboard() {
         }
     }
 
-    const isAdmin = (user.role === 'master_admin' || user.role === 'admin');
-
-    // Dynamic sorting putting "Ready" events at the top
+    // Dynamic sorting: In Valuation first, then Ongoing, then Registration, then alphabetical
     globalJudgeComps.sort((a, b) => {
-        const aReady = a.status === 'valuation' || (!isCompOffstage(a) && a.status === 'ongoing') || (isAdmin && a.status === 'ongoing');
-        const bReady = b.status === 'valuation' || (!isCompOffstage(b) && b.status === 'ongoing') || (isAdmin && b.status === 'ongoing');
-        
-        if (aReady && !bReady) return -1;
-        if (!aReady && bReady) return 1;
-        
-        if (a.id < b.id) return -1;
-        if (a.id > b.id) return 1;
-        return 0;
+        const statusPriority = { 'valuation': 1, 'ongoing': 2, 'registration': 3, 'pending': 4 };
+        const aPri = statusPriority[a.status] || 5;
+        const bPri = statusPriority[b.status] || 5;
+        if (aPri !== bPri) return aPri - bPri;
+        return (a.name || '').localeCompare(b.name || '');
     });
 
     // Populate Category Dropdown Dynamically
@@ -236,13 +230,14 @@ function renderDashboard(data) {
         const offstage = isCompOffstage(comp);
         const isValuation = (comp.status === 'valuation');
         const isOngoing = (comp.status === 'ongoing');
-        const isAdmin = (user.role === 'master_admin' || user.role === 'admin');
+        const isReg = (comp.status === 'registration');
+        const isAdmin = (user.role === 'master_admin' || user.role === 'admin' || user.role === 'super_admin');
 
         // Evaluation readiness:
         // - Any competition in 'valuation' is ALWAYS ready to evaluate (for judges & master admin)
         // - Onstage ongoing competitions are ready to evaluate live
-        // - Admins / Master Admin can evaluate any ongoing competition (onstage or offstage)
-        const isReady = isValuation || (!offstage && isOngoing) || (isAdmin && isOngoing);
+        // - Master Admin / Admin has full direct override access to evaluate ANY competition
+        const isReady = isValuation || (!offstage && isOngoing) || isAdmin;
         
         let statusText = 'Starts Soon';
         let badgeColor = '#D97706';
@@ -262,10 +257,14 @@ function renderDashboard(data) {
                 badgeColor = isAdmin ? 'var(--primary)' : '#4F46E5';
                 badgeBg = isAdmin ? 'var(--primary-light)' : '#EEF2FF';
             }
-        } else if (comp.status === 'registration') {
-            statusText = 'In Registration';
-            badgeColor = '#64748B';
-            badgeBg = '#F1F5F9';
+        } else if (isReg) {
+            statusText = isAdmin ? 'In Registration (Admin Override)' : 'In Registration';
+            badgeColor = isAdmin ? 'var(--primary)' : '#64748B';
+            badgeBg = isAdmin ? 'var(--primary-light)' : '#F1F5F9';
+        } else if (isAdmin) {
+            statusText = 'Scheduled (Admin Access)';
+            badgeColor = '#4F46E5';
+            badgeBg = '#EEF2FF';
         }
 
         const btnState = isReady ? '' : 'disabled';
