@@ -1849,6 +1849,10 @@
      // --- AUTH CHECK ---
         const user = JSON.parse(localStorage.getItem('festUser'));
         if (!user || (user.role !== 'announcer' && user.role !== 'master_admin' && user.role !== 'admin' && user.role !== 'super_admin')) {
+            if (user && user.role === 'stage_controller') {
+                window.location.replace('stage-controller.html');
+                return;
+            }
             window.location.href = 'index.html'; 
         } else {
             initializePortal();

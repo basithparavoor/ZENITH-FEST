@@ -28,6 +28,10 @@ function showToast(message, type = 'success') {
 async function initializeApp() {
     user = JSON.parse(localStorage.getItem('festUser'));
     if (!user || (user.role !== 'stage_controller' && user.role !== 'master_admin' && user.role !== 'admin')) {
+        if (user && user.role === 'announcer') {
+            window.location.replace('announcements.html');
+            return;
+        }
         window.location.href = 'index.html';
         return;
     }
@@ -715,11 +719,7 @@ function getButtonsForStatus(comp) {
     return `
         <div style="color: var(--primary); font-size: 0.95rem; font-weight: 700; width: 100%; text-align: center; background: var(--primary-light); padding: 1.25rem; border-radius: 16px; border: 1px dashed rgba(79, 70, 229, 0.3);">
             <div style="margin-bottom: 0.35rem;"><i class="fa-solid fa-flag-checkered" style="margin-right: 6px;"></i> EVENT COMPLETED. WAITING FOR MANAGER.</div>
-            <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; margin-bottom: 0.75rem;">Judging marks recorded. Results are in manager queue for publishing.</div>
-            <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
-                <button class="btn btn-outline" style="font-size: 0.8rem; padding: 0.35rem 0.85rem;" onclick="revertCompletedComp('${comp.id}', this)"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT TO ONGOING</button>
-                <button class="btn btn-outline" style="font-size: 0.8rem; padding: 0.35rem 0.85rem;" onclick="backToRegistration('${comp.id}', this)"><i class="fa-solid fa-qrcode"></i> REOPEN REGISTRATION</button>
-            </div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Judging marks recorded. Results are in manager queue for publishing.</div>
         </div>
     `;
 }

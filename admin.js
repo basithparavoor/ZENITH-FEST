@@ -2704,10 +2704,9 @@ function deleteTeam(id, name) {
 
 async function openStageModal(editData = null) {
     try {
-        if (availableControllers.length === 0) {
-            const { data } = await festQuery(supabaseClient.from('users').select('*')).eq('role', 'stage_controller');
-            availableControllers = data || [];
-        }
+        // Freshly query only users with role 'stage_controller' (never announcers)
+        const { data } = await festQuery(supabaseClient.from('users').select('*')).eq('role', 'stage_controller');
+        availableControllers = data || [];
         
         const isEdit = !!editData;
         const sId = isEdit ? editData.id : '';
@@ -4060,7 +4059,7 @@ function generateUserCredentialShareText(user) {
         'judge': 'Official Competition Judge',
         'stage_controller': 'Stage Controller / Venue Lead',
         'fest_manager': 'Festival Manager',
-        'announcer': 'Stage Announcer',
+        'announcer': 'Festival Announcer (Announcements Portal)',
         'admin': 'Administrator'
     };
     const isTeamMgr = user.role === 'team_manager' || !!user.team_id || (user.username && user.username.toLowerCase().endsWith('_mgr'));
@@ -4246,6 +4245,9 @@ function filterUsersTable() {
         } else if (effectiveRole === 'judge') {
             roleBadgeColor = '#7C3AED';
             roleBadgeBg = '#F3E8FF';
+        } else if (effectiveRole === 'announcer') {
+            roleBadgeColor = '#2563EB';
+            roleBadgeBg = '#EFF6FF';
         } else if (effectiveRole === 'admin') {
             roleBadgeColor = '#DC2626';
             roleBadgeBg = '#FEF2F2';

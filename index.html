@@ -10,7 +10,7 @@
     try {
       var p = new URLSearchParams(window.location.search);
       if (p.get("switch") === "true" || p.get("logout") === "true") return;
-      var routes = { super_admin: "superadmin.html", master_admin: "admin.html", admin: "admin.html", fest_manager: "manager.html", team_manager: "team-manager.html", stage_controller: "stage-controller.html", judge: "judge.html", announcer: "announcements.html" };
+      var routes = { super_admin: "superadmin.html", master_admin: "admin.html", admin: "admin.html", fest_manager: "manager.html", team_manager: "team-manager.html", stage_controller: "stage-controller.html", judge: "judge.html", announcer: "announcements.html", stage_announcer: "announcements.html" };
       var sa = localStorage.getItem("festSuperAdmin");
       if (sa) {
         var pSa = JSON.parse(sa);
@@ -22,8 +22,9 @@
       var u = localStorage.getItem("festUser");
       if (u) {
         var user = JSON.parse(u);
-        if (user && user.role && routes[user.role]) {
-          window.location.replace(routes[user.role]);
+        var r = String(user && user.role || '').trim().toLowerCase();
+        if (r && routes[r]) {
+          window.location.replace(routes[r]);
           return;
         }
       }

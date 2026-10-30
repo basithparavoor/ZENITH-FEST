@@ -26,7 +26,8 @@ const ROLE_ROUTES = {
     'team_manager': 'team-manager.html', 
     'stage_controller': 'stage-controller.html',
     'judge': 'judge.html',
-    'announcer': 'announcements.html'
+    'announcer': 'announcements.html',
+    'stage_announcer': 'announcements.html'
 };
 
 // Initialize & Check Persistent Session
@@ -56,7 +57,8 @@ const ROLE_ROUTES = {
             const user = JSON.parse(userStr);
             if (user && user.role) {
                 // If remembered OR simply closed app without logging out, auto-redirect!
-                const targetRoute = ROLE_ROUTES[user.role] || 'admin.html';
+                const userRole = String(user.role || '').trim().toLowerCase();
+                const targetRoute = ROLE_ROUTES[userRole] || 'admin.html';
                 window.location.replace(targetRoute);
                 return;
             }
@@ -87,7 +89,8 @@ function checkExistingSession() {
 
     const activeUser = festosAuth ? festosAuth.getUser() : JSON.parse(localStorage.getItem('festUser') || 'null');
     if (activeUser && activeUser.role) {
-        const targetRoute = ROLE_ROUTES[activeUser.role] || 'admin.html';
+        const userRole = String(activeUser.role || '').trim().toLowerCase();
+        const targetRoute = ROLE_ROUTES[userRole] || 'admin.html';
         window.location.replace(targetRoute);
     }
 }
@@ -277,7 +280,8 @@ if (loginForm) {
                 }
             }
 
-            const targetPage = ROLE_ROUTES[data.role];
+            const userRole = String(data.role || '').trim().toLowerCase();
+            const targetPage = ROLE_ROUTES[userRole];
 
             if (targetPage) {
                 submitBtn.textContent = 'Success!';
