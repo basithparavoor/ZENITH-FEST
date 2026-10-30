@@ -1334,6 +1334,9 @@ function openManagerRedoModal(compId) {
     const clearMarksCb = document.getElementById('redoClearMarks');
     if (clearMarksCb) clearMarksCb.checked = false;
 
+    const modalBody = document.querySelector('#managerRedoModal .redo-modal-body');
+    if (modalBody) modalBody.scrollTop = 0;
+
     document.getElementById('managerRedoModal').classList.add('active');
 }
 
