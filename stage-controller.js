@@ -98,11 +98,13 @@ async function loadDashboard() {
 
     const filterContainer = document.getElementById('master-filter-container');
     const filterDropdown = document.getElementById('master-stage-filter');
+    const selectBox = document.querySelector('.stage-select-box');
     const prevSelectedStage = filterDropdown ? filterDropdown.value : null;
 
     if (user.role === 'master_admin' || user.role === 'admin' || user.role === 'super_admin') {
         document.getElementById('stage-name').innerText = "Admin Override (All Venues)";
         if (filterContainer) filterContainer.style.display = 'block';
+        if (selectBox) selectBox.style.display = 'block';
         
         let filterHtml = '<option value="ALL">-- ALL STAGES (MASTER VIEW) --</option>';
         if (stages && stages.length > 0) {
@@ -122,43 +124,50 @@ async function loadDashboard() {
         return;
     }
 
-    // Role is stage_controller: find any stages assigned to this controller
+    // Role is stage_controller: strictly show ONLY stages assigned to this controller
     const myStages = (stages || []).filter(s => s.controller_id === user.id);
+
+    if (myStages.length === 0) {
+        if (filterContainer) filterContainer.style.display = 'none';
+        container.innerHTML = `
+            <div style="text-align: center; padding: 4rem 1.5rem; background: var(--bg-surface); border-radius: var(--radius-xl); border: 2px dashed var(--border); margin: 2rem auto; max-width: 520px;">
+                <i class="fa-solid fa-microphone-slash" style="font-size: 3rem; color: #CBD5E1; margin-bottom: 1rem;"></i>
+                <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem;">No Stage Assigned</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.25rem;">You are not currently assigned to manage any stage. Please contact the festival administrator to assign you to a stage in Admin Hub.</p>
+                <span style="font-size: 0.8rem; font-weight: 700; color: var(--primary); background: #EEF2FF; padding: 0.35rem 0.85rem; border-radius: 999px;"><i class="fa-solid fa-user-check" style="margin-right: 4px;"></i> User: ${user.username || user.name || 'Stage Controller'}</span>
+            </div>
+        `;
+        adjustLayoutPadding();
+        return;
+    }
 
     if (filterContainer) filterContainer.style.display = 'block';
 
-    let filterHtml = '';
-    if (myStages.length > 1) {
-        filterHtml += `<option value="MY_STAGES">-- ALL MY ASSIGNED STAGES (${myStages.length}) --</option>`;
-    }
-    
-    if (myStages.length > 0) {
-        myStages.forEach(s => {
-            filterHtml += `<option value="${s.id}">${s.name}</option>`;
-        });
-        filterHtml += '<option disabled>──────────</option>';
+    if (myStages.length === 1) {
+        // Exactly 1 assigned stage: lock strictly to that stage
+        if (selectBox) selectBox.style.display = 'none';
+        const stgNameEl = document.getElementById('stage-name');
+        if (stgNameEl) stgNameEl.innerHTML = `<i class="fa-solid fa-microphone-lines" style="margin-right: 6px;"></i> ${myStages[0].name}`;
+        if (filterDropdown) {
+            filterDropdown.innerHTML = `<option value="${myStages[0].id}">${myStages[0].name}</option>`;
+            filterDropdown.value = myStages[0].id;
+        }
+        loadCompetitions(myStages[0].id);
+        return;
     }
 
-    filterHtml += '<option value="ALL">-- ALL FESTIVAL STAGES --</option>';
-    
-    // List any other stages
-    const otherStages = (stages || []).filter(s => !myStages.some(ms => ms.id === s.id));
-    otherStages.forEach(s => {
+    // Multiple stages assigned to this controller: show dropdown with ONLY their assigned stages
+    if (selectBox) selectBox.style.display = 'block';
+    let filterHtml = `<option value="MY_STAGES">-- ALL MY ASSIGNED STAGES (${myStages.length}) --</option>`;
+    myStages.forEach(s => {
         filterHtml += `<option value="${s.id}">${s.name}</option>`;
     });
-    filterHtml += '<option value="UNASSIGNED">-- UNASSIGNED VENUES / STAGES --</option>';
 
     if (filterDropdown) filterDropdown.innerHTML = filterHtml;
 
-    let targetStage = 'ALL';
-    if (prevSelectedStage && (prevSelectedStage === 'ALL' || prevSelectedStage === 'MY_STAGES' || prevSelectedStage === 'UNASSIGNED' || (stages && stages.some(s => s.id === prevSelectedStage)))) {
+    let targetStage = 'MY_STAGES';
+    if (prevSelectedStage && (prevSelectedStage === 'MY_STAGES' || myStages.some(s => s.id === prevSelectedStage))) {
         targetStage = prevSelectedStage;
-    } else if (myStages.length === 1) {
-        targetStage = myStages[0].id;
-    } else if (myStages.length > 1) {
-        targetStage = 'MY_STAGES';
-    } else if (stages && stages.length > 0) {
-        targetStage = stages[0].id;
     }
 
     if (filterDropdown) filterDropdown.value = targetStage;
@@ -174,18 +183,36 @@ function adjustLayoutPadding() {
 window.addEventListener('resize', adjustLayoutPadding);
 
 async function loadCompetitions(stageId) {
+    const isAdmin = (user.role === 'master_admin' || user.role === 'admin' || user.role === 'super_admin');
+    const myStages = (window.allStagesList || []).filter(s => s.controller_id === user.id);
+    const myStageIds = myStages.map(s => s.id);
+
+    // Strict Stage Isolation: If stage controller is assigned to stage(s), enforce isolation
+    if (!isAdmin) {
+        if (myStageIds.length === 0) {
+            return;
+        }
+        if (myStageIds.length === 1) {
+            stageId = myStageIds[0];
+        } else {
+            if (stageId !== 'MY_STAGES' && !myStageIds.includes(stageId)) {
+                stageId = 'MY_STAGES';
+            }
+        }
+    }
+
     // Update stage name display to match active dropdown selection
     const filterDropdown = document.getElementById('master-stage-filter');
     if (filterDropdown && window.allStagesList) {
         const selectedStage = window.allStagesList.find(s => s.id === stageId);
         if (selectedStage) {
-            document.getElementById('stage-name').innerText = selectedStage.name;
+            document.getElementById('stage-name').innerHTML = `<i class="fa-solid fa-microphone-lines" style="margin-right: 6px;"></i> ${selectedStage.name}`;
         } else if (stageId === 'ALL') {
             document.getElementById('stage-name').innerText = "All Festival Stages";
         } else if (stageId === 'UNASSIGNED') {
             document.getElementById('stage-name').innerText = "Unassigned Venues / Stages";
         } else if (stageId === 'MY_STAGES') {
-            document.getElementById('stage-name').innerText = "My Assigned Stages";
+            document.getElementById('stage-name').innerHTML = `<i class="fa-solid fa-layer-group" style="margin-right: 6px;"></i> My Assigned Stages (${myStages.length})`;
         }
     }
 
@@ -196,15 +223,17 @@ async function loadCompetitions(stageId) {
         query = window.festosApplyFilter(query);
     }
 
-    if (stageId === 'UNASSIGNED') {
+    if (isAdmin && stageId === 'UNASSIGNED') {
         query = query.is('stage_id', null);
     } else if (stageId === 'MY_STAGES') {
-        const myStageIds = (window.allStagesList || []).filter(s => s.controller_id === user.id).map(s => s.id);
+        query = query.in('stage_id', myStageIds);
+    } else if (stageId && stageId !== 'ALL') {
+        query = query.eq('stage_id', stageId);
+    } else if (!isAdmin) {
+        // Enforce stage isolation fallback
         if (myStageIds.length > 0) {
             query = query.in('stage_id', myStageIds);
         }
-    } else if (stageId && stageId !== 'ALL') {
-        query = query.eq('stage_id', stageId);
     }
     
     const [compsRes, stageFlagsVal, pointVal] = await Promise.all([
