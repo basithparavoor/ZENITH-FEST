@@ -48,6 +48,26 @@ async function initializeApp() {
     loadDashboard();
 }
 
+// --- TIME PARSING UTILITIES ---
+function timeStringToMinutes(timeStr) {
+    if (!timeStr) return 0;
+    const parts = timeStr.trim().split(':');
+    if (parts.length < 2) return 0;
+    const hours = parseInt(parts[0], 10);
+    const mins = parseInt(parts[1], 10);
+    if (isNaN(hours) || isNaN(mins)) return 0;
+    return hours * 60 + mins;
+}
+window.timeStringToMinutes = timeStringToMinutes;
+
+function minutesToTimeString(minutes) {
+    if (minutes === null || minutes === undefined || isNaN(minutes)) return '';
+    const h = Math.floor(minutes / 60) % 24;
+    const m = minutes % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+window.minutesToTimeString = minutesToTimeString;
+
 function checkIsCompOffstage(comp) {
     if (!comp) return false;
     if (comp.is_offstage) return true;
