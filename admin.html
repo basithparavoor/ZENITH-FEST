@@ -3371,7 +3371,8 @@ canvas {
         <div id="users" class="content-section">
             <div class="action-bar">
                 <button class="btn btn-primary" onclick="openUserModal()"><i class="fa-solid fa-user-plus"></i> Create Account</button>
-                <div class="bulk-actions">
+                <div class="bulk-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="btn btn-outline" onclick="copyAllFilteredUsersCredentials()"><i class="fa-solid fa-copy"></i> Copy Filtered Credentials</button>
                     <button class="btn btn-outline" onclick="downloadCSV('users')"><i class="fa-solid fa-file-export"></i> Export Users</button>
                 </div>
             </div>
@@ -7212,7 +7213,7 @@ function toggleCustomGridFields() {
 <script src="id-badge-engine.js"></script>
 <script src="preset-templates-engine.js"></script>
 <script src="ai-template-generator.js"></script>
-<script src="admin.js?v=3.6.0"></script>
+<script src="admin.js?v=3.6.2"></script>
     <script src="newspaper-engine.js"></script>
     <script src="custom-pickers.js"></script>
 

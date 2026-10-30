@@ -2625,6 +2625,8 @@ async function loadStagesAndTeams() {
                             ${mgrAccounts.map(u => `
                                 <span style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 6px; font-size: 0.75rem; font-weight: 700; color: #059669;">
                                     <i class="fa-solid fa-user-check"></i> <strong style="text-transform:none;">${escapeSheetHtml(u.username)}</strong> : <code style="color:#047857; text-transform:none;">${escapeSheetHtml(u.password_hash || '')}</code>
+                                    <button type="button" class="btn btn-outline" style="padding: 1px 5px; font-size: 0.7rem; border-color: #A7F3D0; color: #4F46E5; background: white;" onclick="copyUserCredentials('${u.id}')" title="Copy Credentials & Link for ${escapeSheetHtml(u.username)}"><i class="fa-solid fa-copy"></i></button>
+                                    <button type="button" class="btn btn-outline" style="padding: 1px 5px; font-size: 0.7rem; border-color: #A7F3D0; color: #059669; background: white;" onclick="shareUserCredentialsWhatsApp('${u.id}')" title="Share Credentials via WhatsApp"><i class="fa-brands fa-whatsapp"></i></button>
                                     <button type="button" class="btn btn-outline" style="padding: 1px 5px; font-size: 0.7rem; border-color: #A7F3D0; color: #047857; background: white;" onclick="openUserModal('${u.id}')" title="Edit password for ${escapeSheetHtml(u.username)}"><i class="fa-solid fa-pen"></i></button>
                                 </span>
                             `).join('')}
@@ -4011,6 +4013,171 @@ async function saveParticipant() {
 let allUsersList = [];
 window.allUsersMap = {};
 
+// Universal Clipboard Copy Helper
+async function copyToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        return await navigator.clipboard.writeText(text);
+    } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        if (!successful) throw new Error('Failed to copy to clipboard');
+        return true;
+    }
+}
+window.copyToClipboard = copyToClipboard;
+
+// Generate rich, formatted credentials message
+function generateUserCredentialShareText(user) {
+    if (!user) return '';
+
+    // 1. Resolve Festival Name
+    let festName = 'Festival';
+    if (typeof festosBranding !== 'undefined' && festosBranding.getDetails) {
+        const b = festosBranding.getDetails();
+        if (b && b.name) festName = b.name;
+    }
+    if ((festName === 'Festival' || festName === 'FestOS') && typeof getActiveFestivalInfo === 'function') {
+        const fi = getActiveFestivalInfo();
+        if (fi && fi.name) festName = fi.name;
+    }
+    if ((festName === 'Festival' || festName === 'FestOS') && typeof window.availableFests !== 'undefined') {
+        const curFid = (typeof getActiveFestId === 'function') ? getActiveFestId() : '';
+        const fObj = (window.availableFests || []).find(f => f.id === curFid);
+        if (fObj && fObj.name) festName = fObj.name;
+    }
+
+    // 2. Resolve Role Display
+    const roleMap = {
+        'team_manager': 'Team Manager (Squad Lead)',
+        'judge': 'Official Competition Judge',
+        'stage_controller': 'Stage Controller / Venue Lead',
+        'fest_manager': 'Festival Manager',
+        'announcer': 'Stage Announcer',
+        'admin': 'Administrator'
+    };
+    const isTeamMgr = user.role === 'team_manager' || !!user.team_id || (user.username && user.username.toLowerCase().endsWith('_mgr'));
+    const roleKey = isTeamMgr ? 'team_manager' : user.role;
+    const roleDisplay = roleMap[roleKey] || (user.role || '').toUpperCase();
+
+    // 3. Resolve Team Info (if applicable)
+    let teamInfo = '';
+    const teamName = user.teams?.name || ((teamsList || []).find(t => String(t.id) === String(user.team_id))?.name) || '';
+    if (teamName) {
+        teamInfo = `\n🎪 *Team / Squad:* ${teamName}`;
+    }
+
+    // 4. Resolve Public Portal Link
+    let loginUrl = '';
+    if (typeof festosDomains !== 'undefined' && festosDomains.resolveCurrentFest) {
+        const fMeta = festosDomains.resolveCurrentFest();
+        if (fMeta && fMeta.domain) {
+            loginUrl = `https://${fMeta.domain}/index.html`;
+        }
+    }
+    if (!loginUrl) {
+        loginUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/index.html');
+    }
+
+    const recipientName = user.name || user.username;
+
+    return `✨ *${festName.toUpperCase()} — PORTAL LOGIN CREDENTIALS* ✨
+
+Dear ${recipientName},
+
+Here are your official login credentials to access the festival operating system:
+
+👤 *Role:* ${roleDisplay}${teamInfo}
+🔑 *Username:* ${user.username}
+🔒 *Password:* ${user.password_hash || '(not set)'}
+
+🌐 *Login Portal:*
+${loginUrl}
+
+📱 *Quick Instructions:*
+1. Open the portal link above.
+2. Sign in with your Username and Password.
+3. Access your live schedule, participant submissions, and event notifications.
+
+_Please keep these credentials confidential._`;
+}
+window.generateUserCredentialShareText = generateUserCredentialShareText;
+
+// Copy Single User Credentials to Clipboard
+async function copyUserCredentials(userId) {
+    let user = window.allUsersMap?.[userId] || (allUsersList || []).find(u => String(u.id) === String(userId));
+    if (!user) {
+        try {
+            const { data } = await supabaseClient.from('users').select('id, name, username, role, password_hash, team_id, teams(id, name)').eq('id', userId).maybeSingle();
+            if (data) user = data;
+        } catch(e) {}
+    }
+
+    if (!user) {
+        return showToast('User account not found.', 'error');
+    }
+
+    const message = generateUserCredentialShareText(user);
+    try {
+        await copyToClipboard(message);
+        showToast(`Credentials for @${user.username} copied to clipboard!`, 'success');
+    } catch(err) {
+        showToast('Failed to copy: ' + err.message, 'error');
+    }
+}
+window.copyUserCredentials = copyUserCredentials;
+
+// Share Single User Credentials via WhatsApp
+function shareUserCredentialsWhatsApp(userId) {
+    let user = window.allUsersMap?.[userId] || (allUsersList || []).find(u => String(u.id) === String(userId));
+    if (!user) {
+        return showToast('User account not found.', 'error');
+    }
+
+    const message = generateUserCredentialShareText(user);
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank');
+}
+window.shareUserCredentialsWhatsApp = shareUserCredentialsWhatsApp;
+
+// Copy All Filtered Users Credentials in Bulk
+async function copyAllFilteredUsersCredentials() {
+    const search = (document.getElementById('searchUserInput')?.value || '').toLowerCase().trim();
+    const roleFilter = document.getElementById('filterUserRole')?.value || '';
+
+    const filtered = (allUsersList || []).filter(u => {
+        if (roleFilter && u.role !== roleFilter) return false;
+        if (search) {
+            const matchName = (u.name || '').toLowerCase().includes(search);
+            const matchUser = (u.username || '').toLowerCase().includes(search);
+            const matchTeam = (u.teams?.name || '').toLowerCase().includes(search);
+            const matchRole = (u.role || '').toLowerCase().includes(search);
+            if (!matchName && !matchUser && !matchTeam && !matchRole) return false;
+        }
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        return showToast('No users found to copy.', 'warning');
+    }
+
+    const compiledText = filtered.map(u => generateUserCredentialShareText(u)).join('\n\n========================================\n\n');
+    try {
+        await copyToClipboard(compiledText);
+        showToast(`Copied credentials for ${filtered.length} user(s) to clipboard!`, 'success');
+    } catch(err) {
+        showToast('Failed to copy: ' + err.message, 'error');
+    }
+}
+window.copyAllFilteredUsersCredentials = copyAllFilteredUsersCredentials;
+
 async function loadUsers() {
     try {
         if (!teamsList || teamsList.length === 0) {
@@ -4064,7 +4231,6 @@ function filterUsersTable() {
     tbody.innerHTML = '';
 
     filtered.forEach(u => {
-        // Enforce smart detection: If user has team_id or username ends in _mgr, their role is team_manager
         const isTeamManager = u.role === 'team_manager' || !!u.team_id || (u.username && u.username.toLowerCase().endsWith('_mgr'));
         const effectiveRole = isTeamManager ? 'team_manager' : u.role;
         const roleDisplay = effectiveRole.replace('_', ' ').toUpperCase();
@@ -4098,13 +4264,17 @@ function filterUsersTable() {
                 <td><span class="badge" style="background:${roleBadgeBg}; color:${roleBadgeColor}; font-weight:700;">${roleDisplay}</span></td>
                 <td>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                       <input type="password" id="pwd-${u.id}" value="${u.password_hash || ''}" readonly style="border: none; background: transparent; width: 120px; font-weight: 600; color: var(--text-muted); outline: none; pointer-events: none; text-transform: none !important;">
+                       <input type="password" id="pwd-${u.id}" value="${u.password_hash || ''}" readonly style="border: none; background: transparent; width: 110px; font-weight: 600; color: var(--text-muted); outline: none; pointer-events: none; text-transform: none !important;">
                         <button class="btn btn-outline" style="padding:0.2rem 0.5rem; font-size:0.75rem;" onclick="togglePassword('${u.id}')" title="Reveal Password"><i class="fa-solid fa-eye" id="eye-${u.id}"></i></button>
                     </div>
                 </td>
                 <td>
-                    <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick="openUserModal('${u.id}')" title="Edit Account / Reset Password"><i class="fa-solid fa-pen"></i></button>
-                    <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteUser('${u.id}', '${(u.username || '').replace(/'/g, "\\'")}')" title="Delete User"><i class="fa-solid fa-trash"></i></button>
+                    <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+                        <button class="btn btn-outline" style="padding:0.38rem 0.65rem; color:#4F46E5; border-color:#C7D2FE; background:#EEF2FF;" onclick="copyUserCredentials('${u.id}')" title="Copy Credentials & Portal Link"><i class="fa-solid fa-copy"></i></button>
+                        <button class="btn btn-outline" style="padding:0.38rem 0.65rem; color:#059669; border-color:#A7F3D0; background:#ECFDF5;" onclick="shareUserCredentialsWhatsApp('${u.id}')" title="Share Credentials via WhatsApp"><i class="fa-brands fa-whatsapp"></i></button>
+                        <button class="btn btn-outline" style="padding:0.38rem 0.65rem;" onclick="openUserModal('${u.id}')" title="Edit Account / Reset Password"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn btn-danger" style="padding:0.38rem 0.65rem;" onclick="deleteUser('${u.id}', '${(u.username || '').replace(/'/g, "\\'")}')" title="Delete User"><i class="fa-solid fa-trash"></i></button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -4167,7 +4337,6 @@ async function openUserModal(userIdOrData = null) {
     const uName = editData ? (editData.username || '') : '';
     const uPass = editData ? (editData.password_hash || '') : '';
 
-    // Smart detection: If user has team_id or username ends in _mgr or is already team_manager, guarantee role is team_manager
     const isTeamManager = editData 
         ? (editData.role === 'team_manager' || !!editData.team_id || (editData.username && editData.username.toLowerCase().endsWith('_mgr'))) 
         : false;
@@ -4179,7 +4348,6 @@ async function openUserModal(userIdOrData = null) {
 
     const uTeamId = editData ? (editData.team_id || editData.teams?.id || '') : '';
 
-    // Guarantee teamsList is loaded for the team manager picker
     if (!teamsList || teamsList.length === 0) {
         try {
             const { data: tData } = await festQuery(supabaseClient.from('teams').select('id, name')).order('name');
@@ -4196,6 +4364,16 @@ async function openUserModal(userIdOrData = null) {
         </option>
     `).join('');
 
+    const shareBarHtml = isEdit ? `
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; padding: 0.75rem 1rem; background: var(--bg-main); border-radius: var(--radius-md); border: 1px solid var(--border); align-items: center; justify-content: space-between; flex-wrap: wrap;">
+            <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);"><i class="fa-solid fa-share-nodes" style="color: var(--primary);"></i> Share Credentials:</span>
+            <div style="display: flex; gap: 0.5rem;">
+                <button type="button" class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.78rem; font-weight: 700; color: #4F46E5; border-color: #C7D2FE; background: white;" onclick="copyUserCredentials('${uId}')"><i class="fa-solid fa-copy"></i> Copy Message</button>
+                <button type="button" class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.78rem; font-weight: 700; color: #059669; border-color: #A7F3D0; background: white;" onclick="shareUserCredentialsWhatsApp('${uId}')"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+            </div>
+        </div>
+    ` : '';
+
     openModal(isEdit ? 'Edit User Account & Password' : 'Create User Account', `
         <input type="hidden" id="editUserId" value="${uId}">
         
@@ -4210,7 +4388,7 @@ async function openUserModal(userIdOrData = null) {
         
         <div class="form-group">
             <label>Password <span style="color:var(--danger);">*</span></label>
-            <input type="text" id="newPassword" value="${uPass}" placeholder="Enter new password" autocomplete="off" style="text-transform: none !important; font-weight: 700; color: var(--primary);">
+            <input type="text" id="newPassword" value="${uPass}" placeholder="Enter password" autocomplete="off" style="text-transform: none !important; font-weight: 700; color: var(--primary);">
             <small style="color: var(--text-muted); display: block; margin-top: 4px;">Update this field to change the user's login password.</small>
         </div>
         
@@ -4234,6 +4412,8 @@ async function openUserModal(userIdOrData = null) {
             </select>
             <small style="color: var(--text-muted); display: block; margin-top: 4px;">You can assign multiple manager accounts to the same team so assistant managers and coordinators each have their own login.</small>
         </div>
+
+        ${shareBarHtml}
     `, async () => {
         const id = document.getElementById('editUserId').value;
         const name = document.getElementById('newFullName').value.trim();
@@ -4286,7 +4466,6 @@ async function openUserModal(userIdOrData = null) {
 }
 window.openUserModal = openUserModal;
 
-
 function openAddManagerForTeam(teamId, teamName) {
     const slug = (teamName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const existingCount = (allUsersList || []).filter(u => String(u.team_id) === String(teamId) && u.role === 'team_manager').length;
@@ -4303,7 +4482,6 @@ function openAddManagerForTeam(teamId, teamName) {
     });
 }
 window.openAddManagerForTeam = openAddManagerForTeam;
-
 async function deleteCategory(id) {
     openConfirmModal("Delete Category?", "This might fail if competitions are linked to it.", async () => {
         try {
