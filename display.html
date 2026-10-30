@@ -669,8 +669,21 @@
                 if (window.festosApplyFilter) enrollQuery = window.festosApplyFilter(enrollQuery);
                 const { data: allCompEnrollments } = await enrollQuery;
 
-                globalPublishedComps = (allComps || []).filter(c => c.status === 'published');
-                globalActiveEvents = (allComps || []).filter(c => ['ongoing', 'registration', 'valuation', 'pending'].includes(c.status));
+                globalPublishedComps = (allComps || []).filter(c => String(c.status || '').toLowerCase().trim() === 'published');
+                
+                // Helper to strictly identify completed competitions (no need to view in active display)
+                const isCompCompleted = (c) => {
+                    if (!c) return true;
+                    const s = String(c.status || '').toLowerCase().trim();
+                    return s === 'completed' || s === 'judgement_complete' || s === 'published' || s === 'judged' || s === 'closed' || s === 'finished';
+                };
+
+                // Active events: strictly active, uncompleted competitions (ongoing, registration, valuation, pending)
+                globalActiveEvents = (allComps || []).filter(c => {
+                    if (isCompCompleted(c)) return false;
+                    const s = String(c.status || 'pending').toLowerCase().trim();
+                    return ['ongoing', 'registration', 'valuation', 'pending'].includes(s);
+                });
                 
                 if (globalPublishedComps.length > lastPublishedCount && lastPublishedCount !== 0 && !isPreviewMode) fireConfetti();
                 lastPublishedCount = globalPublishedComps.length;
@@ -780,7 +793,145 @@
             const container = document.getElementById('slide-container');
             container.innerHTML = '';
 
-            // 1. HORIZONTAL LANDSCAPE RESULTS SLIDE
+            const isCompCompleted = (c) => {
+                if (!c) return true;
+                const s = String(c.status || '').toLowerCase().trim();
+                return s === 'completed' || s === 'judgement_complete' || s === 'published' || s === 'judged' || s === 'closed' || s === 'finished';
+            };
+
+            // Status Priority: ongoing (1), registration (2), valuation (3), pending (4)
+            const getCompPriority = (status) => {
+                const s = String(status || '').toLowerCase().trim();
+                if (s === 'ongoing') return 1;       // 🔴 LIVE ON STAGE (Top Preference)
+                if (s === 'registration') return 2;  // 🔵 CALLING NOW (Next Preference)
+                if (s === 'valuation') return 3;     // 🟡 IN VALUATION
+                if (s === 'pending') return 4;       // UPCOMING
+                return 5;
+            };
+
+            // 1. BUILD EVENT SCHEDULE SLIDES (Strictly uncompleted events, ordered by priority & schedule time)
+            let scheduleSlides = [];
+            const activeComps = (globalActiveEvents || []).filter(c => !isCompCompleted(c));
+
+            if (activeComps.length > 0) {
+                let upcoming = [...activeComps].sort((a, b) => {
+                    const pA = getCompPriority(a.status);
+                    const pB = getCompPriority(b.status);
+                    if (pA !== pB) return pA - pB;
+
+                    // Chronological sort by schedule date & time
+                    const schedA = scheduleData[a.id];
+                    const schedB = scheduleData[b.id];
+                    const dateA = (schedA && schedA.date) ? schedA.date : (a.date || '9999-99-99');
+                    const dateB = (schedB && schedB.date) ? schedB.date : (b.date || '9999-99-99');
+                    if (dateA !== dateB) return dateA.localeCompare(dateB);
+
+                    const timeA = (schedA && schedA.time) ? schedA.time : '99:99';
+                    const timeB = (schedB && schedB.time) ? schedB.time : '99:99';
+                    if (timeA !== timeB) return timeA.localeCompare(timeB);
+
+                    const stageA = a.stages?.name || '';
+                    const stageB = b.stages?.name || '';
+                    if (stageA !== stageB) return stageA.localeCompare(stageB);
+
+                    return (a.name || '').localeCompare(b.name || '');
+                });
+
+                const SCH_CHUNK = 4;
+                for (let i = 0; i < upcoming.length; i += SCH_CHUNK) {
+                    const chunk = upcoming.slice(i, i + SCH_CHUNK);
+                    const pageInfo = upcoming.length > SCH_CHUNK ? `<span class="page-indicator">(PAGE ${Math.floor(i / SCH_CHUNK) + 1})</span>` : '';
+                    const slideId = `slide-schedule-${i}`;
+
+                    let schHtml = `<div class="slide" id="${slideId}" data-qr-type="live">
+                        <h2 class="slide-title theme-font">EVENT RADAR & STAGE TIMELINE ${pageInfo}</h2>
+                        <div class="leaderboard">`;
+
+                    chunk.forEach(comp => {
+                        let cStatus = String(comp.status || 'pending').toLowerCase().trim();
+                        let bText = "UPCOMING"; let col = "#9CA3AF"; let bBg = "rgba(255,255,255,0.06)";
+
+                        if (cStatus === 'ongoing') { bText = "🔴 LIVE ON STAGE"; col = "#10B981"; bBg = "rgba(16,185,129,0.18)"; }
+                        else if (cStatus === 'registration') { bText = "🔵 CALLING NOW"; col = "#3B82F6"; bBg = "rgba(59,130,246,0.18)"; }
+                        else if (cStatus === 'valuation') { bText = "🟡 IN VALUATION"; col = "#F59E0B"; bBg = "rgba(245,158,11,0.18)"; }
+
+                        let rawDate = scheduleData[comp.id]?.date || comp.date || comp.scheduled_date || '';
+                        let formattedDate = '';
+                        if (rawDate) {
+                            try {
+                                const dObj = new Date(rawDate + (rawDate.includes('T') ? '' : 'T00:00:00'));
+                                if (!isNaN(dObj.getTime())) {
+                                    formattedDate = dObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+                                } else {
+                                    formattedDate = String(rawDate).toUpperCase();
+                                }
+                            } catch(e) {
+                                formattedDate = String(rawDate).toUpperCase();
+                            }
+                        }
+                        let sDateBadge = formattedDate ? `<span style="background:rgba(255,255,255,0.08); padding:2px 8px; border-radius:6px; font-weight:700;"><i class="fa-regular fa-calendar-days"></i> ${formattedDate}</span> &nbsp;|&nbsp; ` : '';
+
+                        let sTime = scheduleData[comp.id]?.time || '--:--';
+                        let sToTime = scheduleData[comp.id]?.to_time ? `<span style="font-size:1.2rem; color:var(--text-muted);">- ${scheduleData[comp.id].to_time}</span>` : '';
+                        let sDelayBadge = (scheduleData[comp.id]?.delay_offset_minutes || (scheduleData[comp.id]?.baseline_time && scheduleData[comp.id]?.baseline_time !== scheduleData[comp.id]?.time))
+                            ? ` <span style="background:rgba(245,158,11,0.25); border:1px solid #F59E0B; color:#FBBF24; font-size:0.85rem; padding:2px 8px; border-radius:6px; font-weight:800; letter-spacing:0.03em;"><i class="fa-solid fa-clock-rotate-left"></i> +${scheduleData[comp.id].delay_offset_minutes}M DELAY</span>`
+                            : '';
+
+                        schHtml += `
+                            <div class="sch-card" style="border-left: 8px solid ${col};">
+                                <div style="flex:1;">
+                                    <div style="font-size: 1.05rem; color: ${col}; font-weight: 800; margin-bottom:0.35rem; letter-spacing: 0.05em;">${sDateBadge}<i class="fa-regular fa-clock"></i> ${sTime} ${sToTime}${sDelayBadge} &nbsp;|&nbsp; <i class="fa-solid fa-microphone-stage"></i> ${comp.stages?.name || 'GLOBAL VENUE'}</div>
+                                    <div class="theme-font" style="font-size: 2.2rem; font-weight: 800; line-height: 1.1; text-shadow: 0 2px 10px rgba(0,0,0,0.5); color: #FFFFFF;">${comp.name}</div>
+                                </div>
+                                <div style="background: ${bBg}; padding: 0.9rem 1.8rem; border-radius: 14px; font-size: 1.15rem; font-weight: 800; color: ${col}; text-align: center; border: 1px solid ${col}; box-shadow: 0 0 15px rgba(0,0,0,0.3);">
+                                    ${bText}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    schHtml += `</div></div>`;
+                    scheduleSlides.push({ id: slideId, html: schHtml });
+                }
+            }
+
+            // 2. BUILD TEAM LEADERBOARD SLIDES
+            let standingsSlides = [];
+            const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score);
+            if (sortedTeams.length > 0) {
+                const CHUNK = 5; 
+                for (let i = 0; i < sortedTeams.length; i += CHUNK) {
+                    const chunk = sortedTeams.slice(i, i + CHUNK);
+                    const pageInfo = sortedTeams.length > CHUNK ? `<span class="page-indicator">(PAGE ${Math.floor(i/CHUNK)+1})</span>` : '';
+                    const slideId = `slide-standings-${i}`;
+                    
+                    let lbHtml = `<div class="slide" id="${slideId}" data-qr-type="standings">
+                        <h2 class="slide-title theme-font">CHAMPIONSHIP STANDINGS ${pageInfo}</h2>
+                        <div class="leaderboard">`;
+                    
+                    chunk.forEach((team, idx) => {
+                        const rank = i + idx + 1;
+                        let cardClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+                        let medalMarkup = '';
+                        if (rank === 1) medalMarkup = '<div class="lb-medal lb-gold-medal"><span>1</span></div>';
+                        else if (rank === 2) medalMarkup = '<div class="lb-medal lb-silver-medal"><span>2</span></div>';
+                        else if (rank === 3) medalMarkup = '<div class="lb-medal lb-bronze-medal"><span>3</span></div>';
+                        else medalMarkup = `<div class="lb-medal lb-plain-medal"><span>${rank}</span></div>`;
+                        
+                        lbHtml += `
+                            <div class="lb-row ${cardClass}">
+                                <div class="lb-rank">${medalMarkup}</div>
+                                <div class="lb-team theme-font">${team.name}</div>
+                                <div class="lb-score">${team.score} <span>PTS</span></div>
+                            </div>
+                        `;
+                    });
+                    lbHtml += `</div></div>`;
+                    standingsSlides.push({ id: slideId, html: lbHtml });
+                }
+            }
+
+            // 3. BUILD PODIUM RESULTS SLIDE
+            let podiumSlide = null;
             if (globalPublishedComps.length > 0 && latestCompResults && latestCompResults.length > 0) {
                 const comp = globalPublishedComps[0];
                 const getPos = (r) => latestCompResults.find(p => p.rank === r) || { name: '-', team: '-', is_group: false, members: [] };
@@ -895,91 +1046,28 @@
                         </div>
                     </div>
                 `;
-                container.insertAdjacentHTML('beforeend', podiumHtml);
-                activeSlides.push('slide-podium');
+                podiumSlide = { id: 'slide-podium', html: podiumHtml };
             }
 
-            // 2. PAGINATED TEAM LEADERBOARD SLIDES
-            const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score);
-            if (sortedTeams.length > 0) {
-                const CHUNK = 5; 
-                for (let i = 0; i < sortedTeams.length; i += CHUNK) {
-                    const chunk = sortedTeams.slice(i, i + CHUNK);
-                    const pageInfo = sortedTeams.length > CHUNK ? `<span class="page-indicator">(PAGE ${Math.floor(i/CHUNK)+1})</span>` : '';
-                    
-                    let lbHtml = `<div class="slide" id="slide-standings-${i}" data-qr-type="standings">
-                        <h2 class="slide-title theme-font">CHAMPIONSHIP STANDINGS ${pageInfo}</h2>
-                        <div class="leaderboard">`;
-                    
-                    chunk.forEach((team, idx) => {
-                        const rank = i + idx + 1;
-                        let cardClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
-                        let medalMarkup = '';
-                        if (rank === 1) medalMarkup = '<div class="lb-medal lb-gold-medal"><span>1</span></div>';
-                        else if (rank === 2) medalMarkup = '<div class="lb-medal lb-silver-medal"><span>2</span></div>';
-                        else if (rank === 3) medalMarkup = '<div class="lb-medal lb-bronze-medal"><span>3</span></div>';
-                        else medalMarkup = `<div class="lb-medal lb-plain-medal"><span>${rank}</span></div>`;
-                        
-                        lbHtml += `
-                            <div class="lb-row ${cardClass}">
-                                <div class="lb-rank">${medalMarkup}</div>
-                                <div class="lb-team theme-font">${team.name}</div>
-                                <div class="lb-score">${team.score} <span>PTS</span></div>
-                            </div>
-                        `;
-                    });
-                    lbHtml += `</div></div>`;
-                    container.insertAdjacentHTML('beforeend', lbHtml);
-                    activeSlides.push(`slide-standings-${i}`);
-                }
-            }
-
-            // 3. PAGINATED EVENT SCHEDULE SLIDES
-            if (globalActiveEvents.length > 0) {
-                let upcoming = [...globalActiveEvents].sort((a,b) => {
-                    const getW = s => s === 'ongoing' ? 1 : (s === 'valuation' ? 2 : (s === 'registration' ? 3 : 4));
-                    return getW(a.status) - getW(b.status);
+            // --- ASSEMBLE PLAYLIST GIVING TOP PREFERENCE TO ONGOING & REGISTRATION ---
+            // 1. Live schedule slides come FIRST so active and calling events get maximum visibility!
+            if (scheduleSlides.length > 0) {
+                scheduleSlides.forEach(s => {
+                    container.insertAdjacentHTML('beforeend', s.html);
+                    activeSlides.push(s.id);
                 });
+            }
 
-                const SCH_CHUNK = 4; 
-                for (let i = 0; i < upcoming.length; i += SCH_CHUNK) {
-                    const chunk = upcoming.slice(i, i + SCH_CHUNK);
-                    const pageInfo = upcoming.length > SCH_CHUNK ? `<span class="page-indicator">(PAGE ${Math.floor(i/SCH_CHUNK)+1})</span>` : '';
-                    
-                    let schHtml = `<div class="slide" id="slide-schedule-${i}" data-qr-type="live">
-                        <h2 class="slide-title theme-font">EVENT RADAR & STAGE TIMELINE ${pageInfo}</h2>
-                        <div class="leaderboard">`;
-                    
-                    chunk.forEach(comp => {
-                        let cStatus = comp.status || 'pending';
-                        let bText = "UPCOMING"; let col = "#9CA3AF"; let bBg = "rgba(255,255,255,0.06)";
-                        
-                        if(cStatus === 'ongoing') { bText = "🔴 LIVE ON STAGE"; col = "#10B981"; bBg = "rgba(16,185,129,0.18)"; }
-                        else if(cStatus === 'registration') { bText = "🔵 CALLING NOW"; col = "#3B82F6"; bBg = "rgba(59,130,246,0.18)"; }
-                        else if(cStatus === 'valuation') { bText = "🟡 IN VALUATION"; col = "#F59E0B"; bBg = "rgba(245,158,11,0.18)"; }
+            // 2. Championship standings slides
+            standingsSlides.forEach(s => {
+                container.insertAdjacentHTML('beforeend', s.html);
+                activeSlides.push(s.id);
+            });
 
-                        let sTime = scheduleData[comp.id]?.time || '--:--';
-                        let sToTime = scheduleData[comp.id]?.to_time ? `<span style="font-size:1.2rem; color:var(--text-muted);">- ${scheduleData[comp.id].to_time}</span>` : '';
-                        let sDelayBadge = (scheduleData[comp.id]?.delay_offset_minutes || (scheduleData[comp.id]?.baseline_time && scheduleData[comp.id]?.baseline_time !== scheduleData[comp.id]?.time))
-                            ? ` <span style="background:rgba(245,158,11,0.25); border:1px solid #F59E0B; color:#FBBF24; font-size:0.85rem; padding:2px 8px; border-radius:6px; font-weight:800; letter-spacing:0.03em;"><i class="fa-solid fa-clock-rotate-left"></i> +${scheduleData[comp.id].delay_offset_minutes}M DELAY</span>`
-                            : '';
-
-                        schHtml += `
-                            <div class="sch-card" style="border-left: 8px solid ${col};">
-                                <div style="flex:1;">
-                                    <div style="font-size: 1.05rem; color: ${col}; font-weight: 800; margin-bottom:0.35rem; letter-spacing: 0.05em;"><i class="fa-regular fa-clock"></i> ${sTime} ${sToTime}${sDelayBadge} &nbsp;|&nbsp; <i class="fa-solid fa-microphone-stage"></i> ${comp.stages?.name || 'GLOBAL VENUE'}</div>
-                                    <div class="theme-font" style="font-size: 2.2rem; font-weight: 800; line-height: 1.1; text-shadow: 0 2px 10px rgba(0,0,0,0.5); color: #FFFFFF;">${comp.name}</div>
-                                </div>
-                                <div style="background: ${bBg}; padding: 0.9rem 1.8rem; border-radius: 14px; font-size: 1.15rem; font-weight: 800; color: ${col}; text-align: center; border: 1px solid ${col}; box-shadow: 0 0 15px rgba(0,0,0,0.3);">
-                                    ${bText}
-                                </div>
-                            </div>
-                        `;
-                    });
-                    schHtml += `</div></div>`;
-                    container.insertAdjacentHTML('beforeend', schHtml);
-                    activeSlides.push(`slide-schedule-${i}`);
-                }
+            // 3. Results Podium (if available)
+            if (podiumSlide) {
+                container.insertAdjacentHTML('beforeend', podiumSlide.html);
+                activeSlides.push(podiumSlide.id);
             }
 
             // 4. CUSTOM SLIDES
@@ -1023,10 +1111,28 @@
             const track = document.getElementById('live-ticker-track');
             let tickerHtml = '';
             
-            activeEvents.filter(c => c.status === 'ongoing').forEach(c => { tickerHtml += `<div class="ticker-item"><span class="t-badge t-live">LIVE ON STAGE</span> ${c.name} (${c.stages?.name || 'MAIN STAGE'})</div>`; });
-            activeEvents.filter(c => c.status === 'valuation').forEach(c => { tickerHtml += `<div class="ticker-item"><span class="t-badge t-val">IN VALUATION</span> ${c.name}</div>`; });
-            if(publishedComps.length > 0) { tickerHtml += `<div class="ticker-item"><span class="t-badge" style="background:var(--primary); color:white;">LATEST RESULT</span> ${publishedComps[0].name}</div>`; }
-            activeEvents.filter(c => c.status === 'registration').forEach(c => { tickerHtml += `<div class="ticker-item"><span class="t-badge t-reg">CALLING NOW</span> ${c.name}</div>`; });
+            const isCompCompleted = (c) => {
+                if (!c) return true;
+                const s = String(c.status || '').toLowerCase().trim();
+                return s === 'completed' || s === 'judgement_complete' || s === 'published' || s === 'judged' || s === 'closed' || s === 'finished';
+            };
+
+            const uncompletedEvents = (activeEvents || []).filter(c => !isCompCompleted(c));
+            
+            // Priority 1: LIVE ON STAGE (ongoing)
+            uncompletedEvents.filter(c => String(c.status || '').toLowerCase().trim() === 'ongoing').forEach(c => { 
+                tickerHtml += `<div class="ticker-item"><span class="t-badge t-live">LIVE ON STAGE</span> ${c.name} (${c.stages?.name || 'MAIN STAGE'})</div>`; 
+            });
+
+            // Priority 2: CALLING NOW (registration)
+            uncompletedEvents.filter(c => String(c.status || '').toLowerCase().trim() === 'registration').forEach(c => { 
+                tickerHtml += `<div class="ticker-item"><span class="t-badge t-reg">CALLING NOW</span> ${c.name}</div>`; 
+            });
+
+            // Priority 3: IN VALUATION (valuation)
+            uncompletedEvents.filter(c => String(c.status || '').toLowerCase().trim() === 'valuation').forEach(c => { 
+                tickerHtml += `<div class="ticker-item"><span class="t-badge t-val">IN VALUATION</span> ${c.name}</div>`; 
+            });
             
             if(tickerHtml === '') tickerHtml = '<div class="ticker-item">WELCOME TO ZENITH FEST BROADCAST • LIVE NETWORK SYNCED</div>';
             track.innerHTML = tickerHtml + tickerHtml;
@@ -1170,7 +1276,9 @@
                         pinnedBadge.style.display = 'flex';
                         pinnedBadge.querySelector('span').innerText = `PINNED: ${displaySettings.pinned_slide.replace('slide-','').toUpperCase()}`;
                     }
-                    const targetEl = document.getElementById(displaySettings.pinned_slide);
+                    const targetEl = document.getElementById(displaySettings.pinned_slide) || 
+                                     (displaySettings.pinned_slide === 'slide-schedule' ? document.querySelector('[id^="slide-schedule"]') : null) ||
+                                     (displaySettings.pinned_slide === 'slide-leaderboard' ? document.querySelector('[id^="slide-standings"]') : null);
                     if (targetEl && !targetEl.classList.contains('active')) {
                         document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
                         targetEl.classList.add('active');
@@ -1207,7 +1315,9 @@
                         rotateSlides();
                     }
                     else if (action.type === 'pin') {
-                        const targetEl = document.getElementById(action.target_slide);
+                        const targetEl = document.getElementById(action.target_slide) ||
+                                         (action.target_slide === 'slide-schedule' ? document.querySelector('[id^="slide-schedule"]') : null) ||
+                                         (action.target_slide === 'slide-leaderboard' ? document.querySelector('[id^="slide-standings"]') : null);
                         if (targetEl) {
                             document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
                             targetEl.classList.add('active');

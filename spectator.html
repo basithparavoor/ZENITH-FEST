@@ -990,6 +990,15 @@
                 return;
             }
 
+            const getSpectatorPriority = (s) => {
+                const st = String(s || '').toLowerCase().trim();
+                if (st === 'ongoing') return 1;       // LIVE ON STAGE
+                if (st === 'registration') return 2;  // CALLING NOW
+                if (st === 'valuation') return 3;     // IN VALUATION
+                return 4;
+            };
+            comps.sort((a, b) => getSpectatorPriority(a.status) - getSpectatorPriority(b.status));
+
             comps.forEach(c => {
                 let badge = '<span class="live-tag">UPCOMING</span>';
                 if (c.status === 'ongoing') badge = '<span class="live-tag" style="background:#ECFDF5; color:#047857;"><div class="live-dot"></div> LIVE ON STAGE</span>';
