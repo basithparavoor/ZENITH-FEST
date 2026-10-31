@@ -2048,6 +2048,8 @@
         let rawRegData = [];
         let rawOngoingData = [];
         let allTeams = [];
+        let totalFestivalComps = 0;
+        let currentResultsSubView = 'comps';
         let publishedComps = [];
         let computedResults = {}; // { compId: [ { position, participant, award_given, ... } ] }
 
@@ -2214,6 +2216,17 @@ async function fetchData() {
 
                 const masterSchedule = schedRes?.data?.value || {};
                 const activeComps = activeRes?.data || [];
+                if (!totalFestivalComps) {
+                    try {
+                        let totalCntQuery = supabaseClient.from('competitions').select('id', { count: 'exact', head: true });
+                        if (window.festosApplyFilter) totalCntQuery = window.festosApplyFilter(totalCntQuery);
+                        const { count: cCount } = await totalCntQuery;
+                        if (cCount) totalFestivalComps = cCount;
+                    } catch(e) {}
+                }
+                if (!totalFestivalComps) {
+                    totalFestivalComps = (activeComps?.length || 0) + (publishedComps?.length || 0);
+                }
                 window.allFestivalCompetitions = [...(activeComps || []), ...(publishedComps || [])];
                 if (typeof populateTTSCompDropdown === 'function') populateTTSCompDropdown();
                 publishedComps = pubRes?.data || [];
@@ -2467,6 +2480,16 @@ if (allCompIds.length > 0) {
                 return;
             }
             
+            // Update Team Standings Badge
+            const declaredCount = (publishedComps || []).length;
+            const badgeCountEl = document.getElementById('results-team-badge-count');
+            if (badgeCountEl) {
+                badgeCountEl.innerText = `After ${declaredCount}`;
+            }
+            if (typeof currentResultsSubView !== 'undefined' && currentResultsSubView === 'teams') {
+                if (typeof renderTeamStandings === 'function') renderTeamStandings();
+            }
+
             container.innerHTML = visibleData.map(comp => {
                 const resultsList = computedResults[comp.id] || [];
                 let tableHtml = '';
@@ -2540,6 +2563,302 @@ if (allCompIds.length > 0) {
                     </button>
                 </div>`;
             }).join('');
+        }
+
+        
+        // --- TEAM RESULTS & CHAMPIONSHIP STANDINGS ENGINE ---
+        function calculateTeamStandings() {
+            const scores = {};
+            (allTeams || []).forEach(t => {
+                scores[t.id] = {
+                    id: t.id,
+                    name: t.name,
+                    short_code: t.short_code || (t.name ? t.name.substring(0, 3).toUpperCase() : 'TM'),
+                    color: t.color || '#4F46E5',
+                    logo: t.logo || '',
+                    score: 0,
+                    gold: 0,
+                    silver: 0,
+                    bronze: 0,
+                    total_awards: 0
+                };
+            });
+
+            // Accumulate points from all published competitions
+            const publishedList = (publishedComps || []);
+            publishedList.forEach(comp => {
+                const list = computedResults[comp.id] || [];
+                list.forEach(r => {
+                    const tId = r.participant?.team_id;
+                    if (tId && scores[tId]) {
+                        const pts = parseFloat(r.points) || 0;
+                        scores[tId].score += pts;
+                        if (r.position === 1) scores[tId].gold++;
+                        else if (r.position === 2) scores[tId].silver++;
+                        else if (r.position === 3) scores[tId].bronze++;
+                        if (r.position <= 3) scores[tId].total_awards++;
+                    }
+                });
+            });
+
+            return Object.values(scores).sort((a, b) => {
+                if (b.score !== a.score) return b.score - a.score;
+                if (b.gold !== a.gold) return b.gold - a.gold;
+                if (b.silver !== a.silver) return b.silver - a.silver;
+                return b.bronze - a.bronze;
+            });
+        }
+
+        function switchResultsSubView(mode) {
+            currentResultsSubView = mode;
+            const compsBtn = document.getElementById('btn-results-mode-comps');
+            const teamsBtn = document.getElementById('btn-results-mode-teams');
+            const compsContainer = document.getElementById('results-container');
+            const teamsContainer = document.getElementById('results-team-standings-container');
+
+            if (mode === 'teams') {
+                if (compsBtn) { compsBtn.style.background = 'transparent'; compsBtn.style.color = '#4F46E5'; }
+                if (teamsBtn) { teamsBtn.style.background = '#4F46E5'; teamsBtn.style.color = '#FFFFFF'; }
+                if (compsContainer) compsContainer.style.display = 'none';
+                if (teamsContainer) {
+                    teamsContainer.style.display = 'block';
+                    renderTeamStandings();
+                }
+            } else {
+                if (compsBtn) { compsBtn.style.background = '#4F46E5'; compsBtn.style.color = '#FFFFFF'; }
+                if (teamsBtn) { teamsBtn.style.background = 'transparent'; teamsBtn.style.color = '#4F46E5'; }
+                if (compsContainer) compsContainer.style.display = 'grid';
+                if (teamsContainer) teamsContainer.style.display = 'none';
+            }
+        }
+
+        function renderTeamStandings() {
+            const container = document.getElementById('results-team-standings-container');
+            if (!container) return;
+
+            const sortedTeams = calculateTeamStandings();
+            const declaredCount = (publishedComps || []).length;
+            const totalCount = totalFestivalComps > 0 ? totalFestivalComps : (declaredCount || 0);
+
+            // Update mode toggle badge
+            const badgeCountEl = document.getElementById('results-team-badge-count');
+            if (badgeCountEl) {
+                badgeCountEl.innerText = `After ${declaredCount}`;
+            }
+
+            if (sortedTeams.length === 0) {
+                container.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding: 3rem; background: var(--bg-surface); border-radius: var(--radius-xl); border: 1px dashed var(--border); font-weight: 500;">
+                    <i class="fa-solid fa-trophy" style="font-size: 3rem; color: #CBD5E1; margin-bottom: 1rem; display: block;"></i>
+                    No published team results available yet. Publish competition results to view team standings.
+                </div>`;
+                return;
+            }
+
+            // Top 3 Podium
+            const t1 = sortedTeams[0] || null;
+            const t2 = sortedTeams[1] || null;
+            const t3 = sortedTeams[2] || null;
+
+            const renderPodiumCard = (team, rank, medal, borderColor, bgGradient, badgeColor, textColor) => {
+                if (!team) return '';
+                return `
+                <div style="flex: 1; min-width: 260px; background: ${bgGradient}; border: 2px solid ${borderColor}; border-radius: 16px; padding: 1.25rem; box-shadow: 0 4px 12px rgba(0,0,0,0.04); position: relative; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                            <span style="font-size: 0.78rem; font-weight: 800; background: ${badgeColor}; color: ${textColor}; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.04em;">
+                                ${medal} Rank #${rank}
+                            </span>
+                            <button type="button" class="btn-row-speak" onclick="announceSingleTeam('${team.id}', event)" title="Announce ${team.name} Standings" style="width: 28px; height: 28px; border-radius: 6px; background: white; border: 1px solid #CBD5E1; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: #4F46E5;">
+                                <i class="fa-solid fa-volume-high" style="font-size: 0.75rem;"></i>
+                            </button>
+                        </div>
+                        <h4 style="font-size: 1.25rem; font-weight: 900; color: #0F172A; margin: 0 0 0.35rem 0; word-break: break-word;">
+                            ${team.name}
+                        </h4>
+                        <div style="font-size: 0.78rem; color: #64748B; font-weight: 600; display: flex; gap: 0.65rem; margin-bottom: 1rem;">
+                            <span>🥇 ${team.gold} Gold</span>
+                            <span>🥈 ${team.silver} Silver</span>
+                            <span>🥉 ${team.bronze} Bronze</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 0.75rem;">
+                        <span style="font-size: 0.75rem; font-weight: 800; color: #64748B; text-transform: uppercase;">Total Score</span>
+                        <span style="font-size: 1.65rem; font-weight: 900; color: #0F172A; line-height: 1;">${team.score.toFixed(1).replace(/\.0$/, '')} <small style="font-size: 0.82rem; font-weight: 700; color: #64748B;">PTS</small></span>
+                    </div>
+                </div>`;
+            };
+
+            const podiumHtml = (t1 || t2 || t3) ? `
+                <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                    ${renderPodiumCard(t1, 1, '🥇', '#EAB308', 'linear-gradient(135deg, #FEFCE8 0%, #FFFFFF 100%)', '#FEF08A', '#854D0E')}
+                    ${renderPodiumCard(t2, 2, '🥈', '#94A3B8', 'linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%)', '#E2E8F0', '#334155')}
+                    ${renderPodiumCard(t3, 3, '🥉', '#F97316', 'linear-gradient(135deg, #FFF7ED 0%, #FFFFFF 100%)', '#FFEDD5', '#9A3412')}
+                </div>
+            ` : '';
+
+            // Table rows for all teams
+            const tableRowsHtml = sortedTeams.map((team, idx) => {
+                const rank = idx + 1;
+                const isPodium = rank <= 3;
+                const rankBadgeClass = rank === 1 ? 'pos-1' : (rank === 2 ? 'pos-2' : (rank === 3 ? 'pos-3' : 'pos-0'));
+                return `
+                <tr style="border-bottom: 1px solid var(--border); transition: background 0.15s;">
+                    <td style="padding: 0.85rem 1rem; width: 60px; text-align: center;">
+                        <span class="${rankBadgeClass}" style="font-weight: 800; font-size: 0.88rem;">#${rank}</span>
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 32px; height: 32px; border-radius: 8px; background: #EEF2FF; color: #4F46E5; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.75rem; border: 1px solid #C7D2FE; flex-shrink: 0;">
+                                ${team.short_code}
+                            </div>
+                            <div style="min-width: 0;">
+                                <strong style="font-size: 0.95rem; font-weight: 800; color: #0F172A; display: block; word-break: break-word;">${team.name}</strong>
+                                <small style="font-size: 0.75rem; color: #64748B; font-weight: 600;">${team.total_awards} Total Podium Finishes</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="padding: 0.85rem 1rem; text-align: center; font-weight: 700; color: #854D0E;">${team.gold}</td>
+                    <td style="padding: 0.85rem 1rem; text-align: center; font-weight: 700; color: #475569;">${team.silver}</td>
+                    <td style="padding: 0.85rem 1rem; text-align: center; font-weight: 700; color: #9A3412;">${team.bronze}</td>
+                    <td style="padding: 0.85rem 1.25rem; text-align: right;">
+                        <span style="font-size: 1.15rem; font-weight: 900; color: var(--primary);">${team.score.toFixed(1).replace(/\.0$/, '')}</span>
+                        <span style="font-size: 0.72rem; font-weight: 700; background: #EEF2FF; color: #4F46E5; padding: 2px 7px; border-radius: 6px; margin-left: 4px; border: 1px solid #C7D2FE;">PTS</span>
+                    </td>
+                    <td style="padding: 0.85rem 1rem; text-align: center; width: 60px;">
+                        <button type="button" class="btn-row-speak" onclick="announceSingleTeam('${team.id}', event)" title="Announce ${team.name}" style="width: 32px; height: 32px; border-radius: 7px; background: white; border: 1.5px solid #CBD5E1; color: #4F46E5; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;">
+                            <i class="fa-solid fa-volume-high" style="font-size: 0.8rem;"></i>
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            container.innerHTML = `
+                <div style="background: var(--bg-surface); border: 1.5px solid var(--border); border-radius: 18px; padding: 1.5rem; box-shadow: var(--shadow-sm); width: 100%; box-sizing: border-box; overflow: hidden;">
+                    <!-- Leaderboard Header Card -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-bottom: 1.5px solid var(--border); padding-bottom: 1.25rem; margin-bottom: 1.5rem;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
+                                <h3 style="font-size: 1.25rem; font-weight: 900; color: #0F172A; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                                    <i class="fa-solid fa-trophy" style="color: #EAB308;"></i> Championship Team Standings
+                                </h3>
+                                <span style="background: #EEF2FF; color: #4F46E5; font-weight: 800; font-size: 0.8rem; padding: 0.3rem 0.85rem; border-radius: 9999px; border: 1.5px solid #C7D2FE; display: inline-flex; align-items: center; gap: 6px;">
+                                    <i class="fa-solid fa-flag-checkered"></i> After ${declaredCount}${totalCount > 0 ? ` of ${totalCount}` : ''} Competitions Declared
+                                </span>
+                            </div>
+                            <p style="color: #64748B; font-size: 0.84rem; margin: 0.35rem 0 0 0; font-weight: 500;">
+                                Official points tally and standings calculated across all ${declaredCount} published events.
+                            </p>
+                        </div>
+                        <div>
+                            <button type="button" class="btn-announce-card" onclick="announceTeamStandings(event)" style="padding: 0.55rem 1.15rem; font-size: 0.85rem; font-weight: 800; background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%); color: #FFFFFF; border: none; box-shadow: 0 4px 12px rgba(79,70,229,0.25);">
+                                <i class="fa-solid fa-bullhorn"></i> Announce Standings Live
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Top Podium -->
+                    ${podiumHtml}
+
+                    <!-- Full Table -->
+                    <div style="border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; background: white;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+                            <thead>
+                                <tr style="background: #F8FAFC; border-bottom: 1.5px solid var(--border); font-size: 0.75rem; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em;">
+                                    <th style="padding: 0.85rem 1rem; text-align: center;">Rank</th>
+                                    <th style="padding: 0.85rem 1rem;">Team Name</th>
+                                    <th style="padding: 0.85rem 1rem; text-align: center;">🥇 1st</th>
+                                    <th style="padding: 0.85rem 1rem; text-align: center;">🥈 2nd</th>
+                                    <th style="padding: 0.85rem 1rem; text-align: center;">🥉 3rd</th>
+                                    <th style="padding: 0.85rem 1.25rem; text-align: right;">Total Points</th>
+                                    <th style="padding: 0.85rem 1rem; text-align: center;">Announce</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+        }
+
+        async function announceTeamStandings(event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+            await ensureAudioUnlocked();
+            const sortedTeams = calculateTeamStandings();
+            if (sortedTeams.length === 0) {
+                alert("No published team standings available yet.");
+                return;
+            }
+            const declaredCount = (publishedComps || []).length;
+            const festName = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFest) 
+                ? (festosAuth.getCurrentFest()?.name || 'FestOS Arena') 
+                : 'FestOS Arena';
+
+            let script = `Attention please! ${festName} Official Championship Team Standings after ${declaredCount} competitions declared. `;
+            if (sortedTeams[0]) {
+                script += `In First Place, leading the festival, is Team ${sortedTeams[0].name} with ${sortedTeams[0].score.toFixed(1).replace(/\.0$/, '')} points! `;
+            }
+            if (sortedTeams[1]) {
+                script += `In Second Place, Team ${sortedTeams[1].name} with ${sortedTeams[1].score.toFixed(1).replace(/\.0$/, '')} points. `;
+            }
+            if (sortedTeams[2]) {
+                script += `In Third Place, Team ${sortedTeams[2].name} with ${sortedTeams[2].score.toFixed(1).replace(/\.0$/, '')} points. `;
+            }
+            if (sortedTeams.length > 3) {
+                script += `Followed by ${sortedTeams.slice(3, 5).map(t => `${t.name} with ${t.score.toFixed(1).replace(/\.0$/, '')} points`).join(', ')}. `;
+            }
+            script += `Heartiest congratulations to all competing teams!`;
+
+            if (typeof showToast === 'function') {
+                const modelBadge = activeHumanModel ? ` [${activeHumanModel.name}]` : '';
+                showToast(`🎙️ Announcing Team Standings${modelBadge}`, "info");
+            }
+
+            // Sync studio editor
+            const textarea = document.getElementById('tts-text-input');
+            if (textarea) {
+                textarea.value = script;
+                if (typeof updateScriptCounters === 'function') updateScriptCounters();
+            }
+
+            await triggerAIAnnouncement(script);
+        }
+
+        async function announceSingleTeam(teamId, event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+            await ensureAudioUnlocked();
+            const sortedTeams = calculateTeamStandings();
+            const team = sortedTeams.find(t => String(t.id) === String(teamId));
+            if (!team) return;
+            const rank = sortedTeams.findIndex(t => String(t.id) === String(teamId)) + 1;
+            const declaredCount = (publishedComps || []).length;
+            const festName = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFest) 
+                ? (festosAuth.getCurrentFest()?.name || 'FestOS Arena') 
+                : 'FestOS Arena';
+
+            const rankWords = { 1: 'First Place', 2: 'Second Place', 3: 'Third Place' };
+            const rankStr = rankWords[rank] || `Position ${rank}`;
+
+            const script = `${festName} Team Update: Team ${team.name} is currently in ${rankStr} with ${team.score.toFixed(1).replace(/\.0$/, '')} points, after ${declaredCount} competitions declared. Congratulations!`;
+
+            if (typeof showToast === 'function') {
+                showToast(`🎙️ Announcing #${rank} ${team.name}`, "info");
+            }
+
+            // Sync studio editor
+            const textarea = document.getElementById('tts-text-input');
+            if (textarea) {
+                textarea.value = script;
+                if (typeof updateScriptCounters === 'function') updateScriptCounters();
+            }
+
+            await triggerAIAnnouncement(script);
         }
 
         function switchTab(tabId) {
