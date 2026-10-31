@@ -2458,13 +2458,18 @@ if (allCompIds.length > 0) {
 
                 return `
                 <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">${comp.name}</div>
-                        <div style="display:flex; gap:0.5rem; align-items:center;">
-                            <button type="button" class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'results', event)" title="Direct Broadcast Results & Winners"><i class="fa-solid fa-bullhorn"></i> Direct Announce</button><button type="button" class="btn-studio-link" onclick="openCompInStudio('${comp.id}', 'results', event)" title="Open & Edit in Studio"><i class="fa-solid fa-sliders"></i></button>
-                            <span class="badge badge-results">PUBLISHED</span>
-                        </div>
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.65rem;">
+                        <div class="card-title" style="font-size: 1.15rem; font-weight: 800; color: #0F172A; line-height: 1.35; flex: 1; min-width: 0;">${comp.name}</div>
+                        <span class="badge badge-results" style="flex-shrink: 0; font-size: 0.72rem; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 6px;">PUBLISHED</span>
                     </div>
+                    <div class="card-announcer-strip" style="display: flex; gap: 0.45rem; align-items: center; margin-bottom: 0.85rem; padding: 0.4rem 0.5rem; background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 10px;">
+                        <button type="button" class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'results', event)" title="Direct Broadcast Results & Winners" style="flex: 1; justify-content: center; height: 34px;">
+                            <i class="fa-solid fa-bullhorn"></i> Direct Announce Results
+                        </button>
+                        <button type="button" class="btn-studio-link" onclick="openCompInStudio('${comp.id}', 'results', event)" title="Open & Edit in Studio" style="height: 34px; width: 34px;">
+                            <i class="fa-solid fa-sliders"></i>
+                        </button>
+                    </div></div>
                     <div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div>
                     <div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${stageDisplay}</div>
                     ${schedBadge}
@@ -2628,13 +2633,18 @@ if (allCompIds.length > 0) {
 
                 return `
                     <div class="card">
-                        <div class="card-header" style="margin-bottom:0.5rem;">
-                            <div class="card-title">${comp.name}</div>
-                            <div style="display:flex; gap:0.5rem; align-items:center;">
-                                <button type="button" class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'awards', event)" title="Direct Broadcast Awards Ceremony"><i class="fa-solid fa-trophy"></i> Direct Announce</button><button type="button" class="btn-studio-link" onclick="openCompInStudio('${comp.id}', 'awards', event)" title="Open & Edit in Studio"><i class="fa-solid fa-sliders"></i></button>
-                                <span class="badge badge-awards"><i class="fa-solid fa-trophy"></i> AWARDS</span>
-                            </div>
+                        <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.65rem;">
+                            <div class="card-title" style="font-size: 1.15rem; font-weight: 800; color: #0F172A; line-height: 1.35; flex: 1; min-width: 0;">${comp.name}</div>
+                            <span class="badge badge-awards" style="flex-shrink: 0; font-size: 0.72rem; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 6px;"><i class="fa-solid fa-trophy"></i> AWARDS</span>
                         </div>
+                        <div class="card-announcer-strip" style="display: flex; gap: 0.45rem; align-items: center; margin-bottom: 0.85rem; padding: 0.4rem 0.5rem; background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 10px;">
+                            <button type="button" class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'awards', event)" title="Direct Broadcast Awards Ceremony" style="flex: 1; justify-content: center; height: 34px;">
+                                <i class="fa-solid fa-trophy"></i> Direct Announce Awards
+                            </button>
+                            <button type="button" class="btn-studio-link" onclick="openCompInStudio('${comp.id}', 'awards', event)" title="Open & Edit in Studio" style="height: 34px; width: 34px;">
+                                <i class="fa-solid fa-sliders"></i>
+                            </button>
+                        </div>div>
                         <div class="metric" style="margin-bottom: 1rem;"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div>
                         <div class="data-list" style="margin-top:0;">
                             ${rows}
