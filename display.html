@@ -804,13 +804,30 @@
                 const set_data = pointVal ? { value: pointVal } : (await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle()).data;
                 if (set_data && set_data.value) systemSettings = set_data.value;
 
-                // Handle Display Settings & Custom Slides
-                const dispVal = window.festosGetSetting ? await window.festosGetSetting('display_settings') : null;
-                const displayData = dispVal ? { value: dispVal } : (await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle()).data;
-                let customSlidesArray = [];
+                // Handle Display Settings & Custom Slides (Preserve Pin & Avoid Stale Cache)
+                const currentPinnedSlide = displaySettings.pinned_slide || null;
+                const effectiveFestId = festId || (new URLSearchParams(window.location.search).get('fest') || null);
+                let dispVal = null;
+                if (effectiveFestId && typeof supabaseClient !== 'undefined') {
+                    const { data: fData } = await supabaseClient.from('settings').select('value').eq('id', `display_settings_${effectiveFestId}`).maybeSingle();
+                    if (fData && fData.value) dispVal = fData.value;
+                }
+                if (!dispVal && typeof supabaseClient !== 'undefined') {
+                    const { data: gData } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+                    if (gData && gData.value) dispVal = gData.value;
+                }
+                if (!dispVal && window.festosGetSetting) {
+                    dispVal = await window.festosGetSetting('display_settings', effectiveFestId, { fresh: true });
+                }
 
-                if (displayData && displayData.value) {
-                    displaySettings = displayData.value;
+                let customSlidesArray = [];
+                if (dispVal) {
+                    displaySettings = { ...displaySettings, ...dispVal };
+                    // If local screen has an active pin, never release it unless remote explicitly changed or unpinned it
+                    if (currentPinnedSlide && (dispVal.pinned_slide === undefined || dispVal.pinned_slide === null) && dispVal.live_action?.type !== 'unpin') {
+                        displaySettings.pinned_slide = currentPinnedSlide;
+                    }
+
                     document.documentElement.style.setProperty('--slide-duration', `${displaySettings.slide_duration || 12}s`);
                     
                     const bgStyle = displaySettings.bg_style || 'cyber_aurora';
@@ -1628,16 +1645,24 @@
         // --- FAST POLLING & REAL-TIME REMOTE ACTION ENGINE ---
         async function pollLiveTriggers() {
             try {
-                const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
-                if (!data || !data.value) return;
+                const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : (new URLSearchParams(window.location.search).get('fest') || null);
+                let newSettings = null;
+                if (effectiveFestId && typeof supabaseClient !== 'undefined') {
+                    const { data: fData } = await supabaseClient.from('settings').select('value').eq('id', `display_settings_${effectiveFestId}`).maybeSingle();
+                    if (fData && fData.value) newSettings = fData.value;
+                }
+                if (!newSettings && typeof supabaseClient !== 'undefined') {
+                    const { data: gData } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+                    if (gData && gData.value) newSettings = gData.value;
+                }
+                if (!newSettings) return;
                 
-                const newSettings = data.value;
                 const requiresPlaylistRebuild = JSON.stringify(displaySettings.custom_slides) !== JSON.stringify(newSettings.custom_slides);
                 const currentPin = displaySettings.pinned_slide || null;
                 const newPin = newSettings.pinned_slide || null;
                 const pinChanged = currentPin !== newPin;
 
-                displaySettings = newSettings;
+                displaySettings = { ...displaySettings, ...newSettings };
                 
                 // 1. Theme Color & Transitions
                 document.documentElement.style.setProperty('--primary', displaySettings.primary_color || '#3B82F6');
@@ -2263,6 +2288,11 @@
                 if (val) applyDisplayBranding(val);
             } catch(e) {}
         })();
+
+        // Support URL-based mode/pin (e.g. ?mode=schedule, ?mode=leaderboard, ?pin=slide-schedule)
+        const initParams = new URLSearchParams(window.location.search);
+        const urlPin = initParams.get('pin') || (initParams.get('mode') === 'schedule' ? 'slide-schedule' : initParams.get('mode') === 'leaderboard' ? 'slide-leaderboard' : initParams.get('mode') === 'results' ? 'slide-results-all' : null);
+        if (urlPin) displaySettings.pinned_slide = urlPin;
 
         // Initialize display and scaling
         autoScaleDisplay();

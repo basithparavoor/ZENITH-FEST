@@ -7258,25 +7258,44 @@ canvas {
                 <textarea id="album-desc-input" rows="3" placeholder="Provide background details, VIP dignitaries, and memorable highlights for this photo album..." style="width: 100%; resize: vertical;"></textarea>
             </div>
             <div class="form-group">
-                <label>Cover Photo Image URL or Upload</label>
+                <label>Cover Photo (Google Drive Link or Upload)</label>
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-                    <input type="text" id="album-cover-url" placeholder="https://... or upload below" style="flex: 1; text-transform: none !important;">
+                    <input type="text" id="album-cover-url" placeholder="Paste Google Drive link or web image URL (https://...)" style="flex: 1; text-transform: none !important;" oninput="handleCoverUrlInput(this.value)">
                     <button class="btn btn-outline" type="button" style="width: auto; padding: 0.5rem 1rem;" onclick="document.getElementById('upload-album-cover').click()"><i class="fa-solid fa-upload"></i></button>
                     <input type="file" id="upload-album-cover" accept="image/*" style="display: none;" onchange="handleAlbumCoverUpload(this)">
                 </div>
                 <img id="album-cover-preview" src="" style="width: 100%; height: 160px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); display: none;">
             </div>
             <div class="form-group">
-                <label>Upload Multiple Photos Inside Album</label>
-                <div style="border: 2px dashed var(--border); border-radius: 8px; padding: 1.5rem; text-align: center; cursor: pointer; background: var(--bg-surface); transition: border-color 0.2s;" onclick="document.getElementById('upload-album-multi-files').click()">
-                    <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2rem; color: var(--primary); margin-bottom: 0.4rem; display: block;"></i>
-                    <strong style="font-size: 0.92rem;">Click or Drag & Drop Multiple Photos</strong>
-                    <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0.2rem 0 0 0;">Select 5, 10, 20+ JPG, PNG, WEBP files. Images are automatically optimized.</p>
+                <label style="display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fa-brands fa-google-drive" style="color: #4285F4;"></i> Google Drive Photos (Recommended - Unlimited & Fast)</span>
+                    <span style="font-size: 0.72rem; color: #10B981; font-weight: 700; background: rgba(16, 185, 129, 0.1); padding: 2px 6px; border-radius: 4px;">Zero Storage Bloat</span>
+                </label>
+                <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem; margin-bottom: 0.75rem;">
+                    <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0 0 0.5rem 0; line-height: 1.45;">
+                        Paste Google Drive sharing links below (paste 1 or multiple links, one per line or separated by commas). Automatically converted into direct high-speed CDN images with direct downloading.
+                        <br><span style="color: var(--primary); font-weight: 600;"><i class="fa-solid fa-circle-info"></i> Make sure the Google Drive files are set to <em>"Anyone with the link can view"</em>.</span>
+                    </p>
+                    <textarea id="admin-drive-links-input" rows="2" placeholder="Paste Google Drive link(s) here...
+https://drive.google.com/file/d/.../view
+https://drive.google.com/file/d/.../view" style="width: 100%; font-size: 0.8rem; font-family: monospace; resize: vertical; margin-bottom: 0.5rem; text-transform: none !important; border-radius: 6px; padding: 0.6rem;"></textarea>
+                    <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                        <button type="button" class="btn btn-primary" style="width: auto; padding: 0.38rem 0.95rem; font-size: 0.8rem; background: #2563EB;" onclick="adminImportGoogleDriveLinks('admin-drive-links-input')">
+                            <i class="fa-brands fa-google-drive"></i> Import Drive Photos
+                        </button>
+                    </div>
+                </div>
+
+                <label>Or Upload Multiple Photos from Device</label>
+                <div style="border: 2px dashed var(--border); border-radius: 8px; padding: 1.25rem; text-align: center; cursor: pointer; background: var(--bg-surface); transition: border-color 0.2s;" onclick="document.getElementById('upload-album-multi-files').click()">
+                    <i class="fa-solid fa-cloud-arrow-up" style="font-size: 1.8rem; color: var(--primary); margin-bottom: 0.35rem; display: block;"></i>
+                    <strong style="font-size: 0.88rem;">Click or Drag & Drop Multiple Photos</strong>
+                    <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0.15rem 0 0 0;">Select JPG, PNG, WEBP files. Optimized automatically.</p>
                     <input type="file" id="upload-album-multi-files" multiple accept="image/*" style="display: none;" onchange="handleAdminMultiPhotosUpload(this)">
                 </div>
                 
                 <div style="display: flex; gap: 0.5rem; margin-top: 0.6rem;">
-                    <input type="text" id="admin-album-url-add" placeholder="Or add photo via web image URL (https://...)" style="flex: 1; font-size: 0.82rem; text-transform: none !important;">
+                    <input type="text" id="admin-album-url-add" placeholder="Or add single image URL or Google Drive link (https://...)" style="flex: 1; font-size: 0.82rem; text-transform: none !important;">
                     <button type="button" class="btn btn-outline" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.8rem;" onclick="adminAddPhotoByUrl()"><i class="fa-solid fa-plus"></i> Add URL</button>
                 </div>
 
@@ -7309,8 +7328,11 @@ canvas {
                 <div id="admin-view-album-meta" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; display: flex; gap: 0.85rem; font-weight: 600;"></div>
             </div>
             <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                <button class="btn btn-primary" style="width: auto; padding: 0.42rem 0.95rem; font-size: 0.82rem;" onclick="document.getElementById('admin-quick-add-files').click()">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload Photos
+                <button class="btn btn-primary" style="width: auto; padding: 0.42rem 0.95rem; font-size: 0.82rem; background: #2563EB;" onclick="openAdminDriveQuickModal()">
+                    <i class="fa-brands fa-google-drive"></i> Add from Google Drive
+                </button>
+                <button class="btn btn-outline" style="width: auto; padding: 0.42rem 0.85rem; font-size: 0.82rem;" onclick="document.getElementById('admin-quick-add-files').click()">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload Files
                 </button>
                 <button class="btn btn-outline" style="width: auto; padding: 0.42rem 0.85rem; font-size: 0.82rem;" onclick="openEditAlbumModal(currentAdminViewingAlbumId)">
                     <i class="fa-solid fa-pen-to-square"></i> Edit Details
@@ -7331,6 +7353,36 @@ canvas {
         </div>
 
         <input type="file" id="admin-quick-add-files" multiple accept="image/*" style="display: none;" onchange="handleAdminQuickAddPhotos(this)">
+    </div>
+</div>
+
+<!-- Admin Google Drive Quick Add Modal -->
+<div id="adminDriveQuickModal" class="modal-overlay" style="z-index: 2200;">
+    <div class="modal" style="max-width: 580px;">
+        <div class="modal-header">
+            <h2 style="font-size: 1.2rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-brands fa-google-drive" style="color: #4285F4;"></i> Add Photos from Google Drive
+            </h2>
+            <button class="modal-close" onclick="closeAdminDriveQuickModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div style="margin-bottom: 1.25rem;">
+            <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 0.75rem;">
+                Paste one or multiple Google Drive photo sharing links below. Photos will be instantly added to this album and visible on all devices with direct download support.
+                <br><strong style="color: var(--text-main);">Tip:</strong> Ensure Drive file access is set to <em>"Anyone with the link can view"</em>.
+            </p>
+            <div class="form-group">
+                <label>Google Drive Links (Paste one or multiple links)</label>
+                <textarea id="admin-quick-drive-textarea" rows="5" placeholder="https://drive.google.com/file/d/1ABC.../view?usp=sharing
+https://drive.google.com/file/d/1DEF.../view?usp=sharing
+https://drive.google.com/file/d/1GHI.../view?usp=sharing" style="width: 100%; font-size: 0.82rem; font-family: monospace; resize: vertical; text-transform: none !important; padding: 0.65rem; border-radius: 6px;"></textarea>
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; padding-top: 0.75rem; border-top: 1px solid var(--border);">
+            <button class="btn btn-outline" style="width: auto;" onclick="closeAdminDriveQuickModal()">Cancel</button>
+            <button class="btn btn-primary" style="width: auto; background: #2563EB;" onclick="adminQuickImportDriveToAlbum()">
+                <i class="fa-brands fa-google-drive"></i> Import & Save Photos
+            </button>
+        </div>
     </div>
 </div>
 

@@ -11138,8 +11138,15 @@ async function sendDisplayLiveAction(type, extraPayload = {}) {
         showToast(`Action: ${type.toUpperCase()}`, 'info');
 
         // 3. Persist to DB for live projector synchronization
-        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
-        const currentSettings = data?.value || {};
+        const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+        let currentSettings = {};
+        if (window.festosGetSetting) {
+            try { currentSettings = (await window.festosGetSetting('display_settings', festId, { fresh: true })) || {}; } catch(e) {}
+        }
+        if (!currentSettings || Object.keys(currentSettings).length === 0) {
+            const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+            currentSettings = data?.value || {};
+        }
 
         const updatedSettings = {
             ...currentSettings,
@@ -11149,7 +11156,14 @@ async function sendDisplayLiveAction(type, extraPayload = {}) {
             pinned_slide: displayState.pinned_slide
         };
 
+        if (window.festosSaveSetting) {
+            await window.festosSaveSetting('display_settings', updatedSettings, festId);
+            await window.festosSaveSetting('display_settings', updatedSettings, null);
+        }
         await supabaseClient.from('settings').upsert({ id: 'display_settings', value: updatedSettings });
+        if (festId) {
+            await supabaseClient.from('settings').upsert({ id: `display_settings_${festId}`, value: updatedSettings });
+        }
     } catch(e) {
         showToast(`Remote action failed: ${e.message}`, 'error');
     }
@@ -11202,9 +11216,14 @@ function clearDisplayFlashAlert() {
 async function saveDisplaySettings(silent = false) {
     if(!silent) setLoading('display-control .btn-primary', true);
     
-    // Fetch current state to preserve live action
-    const existingVal = window.festosGetSetting ? await window.festosGetSetting('display_settings') : null;
+    const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+    let existingVal = window.festosGetSetting ? await window.festosGetSetting('display_settings', festId, { fresh: true }) : null;
+    if (!existingVal) {
+        const { data } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
+        existingVal = data?.value || {};
+    }
     const existing = existingVal || {};
+    const activePin = displayState.pinned_slide !== undefined ? displayState.pinned_slide : (existing.pinned_slide || null);
 
     const payload = {
         ...existing,
@@ -11223,14 +11242,20 @@ async function saveDisplaySettings(silent = false) {
         custom_slides: globalCustomSlides,
         is_paused: displayState.is_paused,
         blackout: displayState.blackout,
-        pinned_slide: displayState.pinned_slide
+        pinned_slide: activePin
     };
     
     try {
-        const { error } = window.festosSaveSetting ? await window.festosSaveSetting('display_settings', payload) : await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
-        if (error) throw error;
+        if (window.festosSaveSetting) {
+            await window.festosSaveSetting('display_settings', payload, festId);
+            await window.festosSaveSetting('display_settings', payload, null);
+        }
+        await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
+        if (festId) {
+            await supabaseClient.from('settings').upsert({ id: `display_settings_${festId}`, value: payload });
+        }
         
-        if(!silent) showToast("Display Engine Settings Saved & Synced!", "success");
+        if(!silent) showToast("Display Engine Settings Saved and Synced!", "success");
         
         // Broadcast instant update to iframe without reloading
         const iframe = document.getElementById('display-preview-frame');
@@ -17472,6 +17497,137 @@ window.handleAlbumCoverUpload = function(inputEl) {
     reader.readAsDataURL(inputEl.files[0]);
 };
 
+// --- GOOGLE DRIVE & CLOUD PHOTO ENGINE ---
+window.parseGoogleDriveUrl = function(url) {
+    if (!url || typeof url !== 'string') return null;
+    const trimmed = url.trim();
+    const m = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+              trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
+              trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (m && m[1]) {
+        const fileId = m[1];
+        return {
+            id: fileId,
+            displayUrl: `https://lh3.googleusercontent.com/d/${fileId}=w1600`,
+            downloadUrl: `https://drive.google.com/uc?export=download&id=${fileId}`
+        };
+    }
+    return null;
+};
+
+window.extractAllPhotoUrlsFromText = function(text) {
+    if (!text || typeof text !== 'string') return [];
+    const rawItems = text.split(/[\r\n,\s]+/).map(s => s.trim()).filter(s => s.length > 0);
+    const results = [];
+    rawItems.forEach(item => {
+        const gdrive = window.parseGoogleDriveUrl(item);
+        if (gdrive) {
+            results.push({
+                url: gdrive.displayUrl,
+                downloadUrl: gdrive.downloadUrl,
+                caption: ''
+            });
+        } else if (item.startsWith('http://') || item.startsWith('https://') || item.startsWith('data:image')) {
+            results.push({
+                url: item,
+                downloadUrl: item,
+                caption: ''
+            });
+        }
+    });
+    return results;
+};
+
+window.handleCoverUrlInput = function(val) {
+    if (!val) return;
+    const gdrive = window.parseGoogleDriveUrl(val);
+    const preview = document.getElementById('album-cover-preview');
+    if (gdrive) {
+        document.getElementById('album-cover-url').value = gdrive.displayUrl;
+        if (preview) {
+            preview.src = gdrive.displayUrl;
+            preview.style.display = 'block';
+        }
+        showToast('Converted Google Drive cover link to direct CDN image!', 'success');
+        return;
+    }
+    if (val.startsWith('http://') || val.startsWith('https://') || val.startsWith('data:image')) {
+        if (preview) {
+            preview.src = val;
+            preview.style.display = 'block';
+        }
+    }
+};
+
+window.adminImportGoogleDriveLinks = function(textareaId = 'admin-drive-links-input') {
+    const input = document.getElementById(textareaId);
+    if (!input || !input.value.trim()) return alert('Please paste one or more Google Drive links.');
+    const extracted = window.extractAllPhotoUrlsFromText(input.value);
+    if (extracted.length === 0) {
+        return alert('No valid Google Drive links or image URLs found. Please check your links.');
+    }
+    
+    extracted.forEach((item, idx) => {
+        adminPendingAlbumPhotos.push({
+            id: 'ph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+            url: item.url,
+            caption: '',
+            isCover: adminPendingAlbumPhotos.length === 0
+        });
+    });
+
+    input.value = '';
+    renderAdminPhotosPreviewStrip();
+    showToast(`Successfully imported ${extracted.length} photo(s) from Google Drive!`, 'success');
+};
+
+window.openAdminDriveQuickModal = function() {
+    const modal = document.getElementById('adminDriveQuickModal');
+    if (modal) {
+        const area = document.getElementById('admin-quick-drive-textarea');
+        if (area) area.value = '';
+        modal.classList.add('show');
+    }
+};
+
+window.closeAdminDriveQuickModal = function() {
+    const modal = document.getElementById('adminDriveQuickModal');
+    if (modal) modal.classList.remove('show');
+};
+
+window.adminQuickImportDriveToAlbum = async function() {
+    if (!currentAdminViewingAlbumId) return;
+    const album = (websiteConfig.gallery || []).find(a => a.id === currentAdminViewingAlbumId);
+    if (!album) return;
+
+    const input = document.getElementById('admin-quick-drive-textarea');
+    if (!input || !input.value.trim()) return alert('Please paste one or more Google Drive links.');
+    const extracted = window.extractAllPhotoUrlsFromText(input.value);
+    if (extracted.length === 0) return alert('No valid Google Drive links found. Please check your links.');
+
+    let photos = normalizeAdminAlbumPhotos(album);
+    extracted.forEach(item => {
+        photos.push({
+            id: 'ph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+            url: item.url,
+            caption: ''
+        });
+    });
+
+    album.photos = photos;
+    album.count = photos.length;
+    if (!album.cover_url && photos.length > 0) {
+        album.cover_url = photos[0].url;
+    }
+
+    await executeWebsiteSave(null);
+    input.value = '';
+    closeAdminDriveQuickModal();
+    openAdminAlbumPhotosModal(currentAdminViewingAlbumId);
+    renderGalleryBuilder();
+    showToast(`Added ${extracted.length} Google Drive photo(s) to ${album.title}!`, 'success');
+};
+
 window.adminCompressImage = function(fileOrBlob, maxDim = 1280, quality = 0.78) {
     return new Promise((resolve) => {
         try {
@@ -17516,7 +17672,7 @@ window.handleAdminMultiPhotosUpload = async function(inputEl) {
 
     for (const f of files) {
         try {
-            const compressed = await adminCompressImage(f, 1600, 0.82);
+            const compressed = await adminCompressImage(f, 1280, 0.78);
             if (compressed) {
                 adminPendingAlbumPhotos.push({
                     id: 'ph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
@@ -17540,20 +17696,25 @@ window.handleAdminMultiPhotosUpload = async function(inputEl) {
 
 window.adminAddPhotoByUrl = function() {
     const input = document.getElementById('admin-album-url-add');
-    const url = input ? input.value.trim() : '';
-    if (!url) return;
-    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('data:image')) {
-        return alert('Please enter a valid image URL (https://...)');
+    const rawUrl = input ? input.value.trim() : '';
+    if (!rawUrl) return;
+    if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://') && !rawUrl.startsWith('data:image')) {
+        return alert('Please enter a valid image URL (https://...) or Google Drive link');
     }
+
+    // Check Google Drive conversion
+    const gdrive = window.parseGoogleDriveUrl(rawUrl);
+    const finalUrl = gdrive ? gdrive.displayUrl : rawUrl;
+
     adminPendingAlbumPhotos.push({
         id: 'ph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-        url: url,
+        url: finalUrl,
         caption: '',
         isCover: adminPendingAlbumPhotos.length === 0
     });
     input.value = '';
     renderAdminPhotosPreviewStrip();
-    showToast('Photo URL added!', 'success');
+    showToast(gdrive ? 'Google Drive photo added!' : 'Photo URL added!', 'success');
 };
 
 window.renderAdminPhotosPreviewStrip = function() {
@@ -17764,7 +17925,7 @@ window.handleAdminQuickAddPhotos = async function(inputEl) {
     let photos = normalizeAdminAlbumPhotos(album);
     for (const f of files) {
         try {
-            const compressed = await adminCompressImage(f, 1600, 0.82);
+            const compressed = await adminCompressImage(f, 1280, 0.78);
             if (compressed) {
                 photos.push({
                     id: 'ph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
