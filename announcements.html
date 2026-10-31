@@ -3252,7 +3252,7 @@ if (allCompIds.length > 0) {
                 name: 'MC Farhan (Chief Arena Emcee)',
                 gender: 'male',
                 lang: 'en',
-                pitch: 0.92,
+                pitch: 0.78,
                 rate: 1.02,
                 role: 'Chief Arena Emcee',
                 tag: 'Official Arena Voice',
@@ -3278,7 +3278,7 @@ if (allCompIds.length > 0) {
                 name: 'Vikram Rathore (High-Energy Arena Caller)',
                 gender: 'male',
                 lang: 'hi',
-                pitch: 1.05,
+                pitch: 0.82,
                 rate: 1.18,
                 role: 'Live Stage Caller',
                 tag: 'Urgent & Punchy',
@@ -3304,7 +3304,7 @@ if (allCompIds.length > 0) {
                 name: 'Prof. K. Shankaran (Senior Stage Adjudicator)',
                 gender: 'male',
                 lang: 'en',
-                pitch: 0.85,
+                pitch: 0.68,
                 rate: 0.92,
                 role: 'Senior Adjudicator',
                 tag: 'Authoritative Baritone',
@@ -4547,13 +4547,17 @@ if (allCompIds.length > 0) {
         }
 
         function selectAndUseVoiceModel(id) {
+            const targetVal = 'human_' + id;
+            try { localStorage.setItem('festos_selected_voice', targetVal); } catch(e) {}
             const voiceSelect = document.getElementById('tts-voice-select');
             if (voiceSelect) {
-                voiceSelect.value = 'human_' + id;
-                onVoiceEngineChange(voiceSelect.value);
+                voiceSelect.value = targetVal;
             }
+            onVoiceEngineChange(targetVal);
             closeModal('manageVoiceModelsModal');
-            if (typeof showToast === 'function') showToast("Voice Model activated on Announcer deck!", "success");
+            const targetModel = festivalVoiceModels.find(m => m.id === id);
+            const mName = targetModel ? targetModel.name : id;
+            if (typeof showToast === 'function') showToast("🎙️ Activated Voice Model: " + mName, "success");
         }
 
         async function deleteVoiceModel(id) {
@@ -4589,6 +4593,9 @@ if (allCompIds.length > 0) {
 
         // --- F. VOICE SELECTION & PRESETS ---
         function onVoiceEngineChange(val) {
+            if (val) {
+                try { localStorage.setItem('festos_selected_voice', String(val)); } catch(e) {}
+            }
             const strVal = String(val || '');
             if (strVal.startsWith('human_')) {
                 const id = strVal.replace('human_', '');
@@ -4676,6 +4683,24 @@ if (allCompIds.length > 0) {
         }
 
         // --- G. SMART VOICE MATCHER & SYNTHESIS ---
+        // Female voice indicators across Android, iOS, Windows, macOS, Samsung, Chrome
+        const TTS_FEMALE_KEYWORDS = [
+            'female', '#female', 'woman', 'girl', 'zira', 'jenny', 'samantha',
+            'karen', 'victoria', 'fiona', 'veena', 'sangeeta', 'priya', 'moira',
+            'tessa', 'helena', 'catherine', 'hazel', 'susan', 'sfg', 'end', 'ene',
+            'voice 1', 'voice 3', 'voice i', 'voice iii', 'female_1', 'female_2'
+        ];
+
+        // Male voice indicators across Android, Google TTS, iOS, Windows, macOS, Samsung
+        const TTS_MALE_KEYWORDS = [
+            'male', '#male', 'man', 'boy', 'guy', 'david', 'mark', 'george',
+            'daniel', 'rishi', 'alex', 'fred', 'oliver', 'thomas', 'cosmo',
+            'aaron', 'arthur', 'gordon', 'tom', 'nicky', 'sean', 'ravi',
+            'iom', 'iol', 'tpd', 'cxx', 'enc', 'rjs', 'fis',
+            'voice 2', 'voice 4', 'voice ii', 'voice iv', 'male_1', 'male_2',
+            'm01', 'm02', 'm03', 'm04'
+        ];
+
         function findBestMatchingVoice(targetLang = 'en', targetGender = 'male') {
             if (!ttsVoices || ttsVoices.length === 0) {
                 if ('speechSynthesis' in window) ttsVoices = window.speechSynthesis.getVoices() || [];
@@ -4690,25 +4715,41 @@ if (allCompIds.length > 0) {
             if (langMatches.length === 0) {
                 langMatches = ttsVoices.filter(v => (v.lang || '').toLowerCase().startsWith('en'));
             }
-            if (langMatches.length === 0) langMatches = ttsVoices;
+            if (langMatches.length === 0) langMatches = [...ttsVoices];
 
-            // Female voice indicators across OSes
-            const femaleKeywords = ['zira', 'jenny', 'samantha', 'karen', 'victoria', 'fiona', 'veena', 'sangeeta', 'priya', 'moira', 'tessa', 'helena', 'catherine', 'hazel', 'susan', 'female', 'woman', 'girl'];
-            // Male voice indicators
-            const maleKeywords = ['david', 'mark', 'george', 'guy', 'daniel', 'rishi', 'alex', 'fred', 'oliver', 'thomas', 'cosmo', 'male', 'man', 'boy'];
-
-            if (gender === 'female') {
-                const femaleMatch = langMatches.find(v => {
+            if (gender === 'male') {
+                // 1. Check for explicit male keyword match in preferred language
+                let maleMatch = langMatches.find(v => {
                     const name = (v.name || '').toLowerCase();
-                    return femaleKeywords.some(k => name.includes(k));
-                });
-                if (femaleMatch) return femaleMatch;
-            } else if (gender === 'male') {
-                const maleMatch = langMatches.find(v => {
-                    const name = (v.name || '').toLowerCase();
-                    return maleKeywords.some(k => name.includes(k));
+                    return TTS_MALE_KEYWORDS.some(k => name.includes(k));
                 });
                 if (maleMatch) return maleMatch;
+
+                // 2. Reject known female voices and pick a neutral/unisex voice in langMatches
+                let nonFemaleMatch = langMatches.find(v => {
+                    const name = (v.name || '').toLowerCase();
+                    return !TTS_FEMALE_KEYWORDS.some(k => name.includes(k));
+                });
+                if (nonFemaleMatch) return nonFemaleMatch;
+
+                // 3. Search across all languages for any male voice
+                let globalMale = ttsVoices.find(v => {
+                    const name = (v.name || '').toLowerCase();
+                    return TTS_MALE_KEYWORDS.some(k => name.includes(k));
+                });
+                if (globalMale) return globalMale;
+            } else if (gender === 'female') {
+                let femaleMatch = langMatches.find(v => {
+                    const name = (v.name || '').toLowerCase();
+                    return TTS_FEMALE_KEYWORDS.some(k => name.includes(k));
+                });
+                if (femaleMatch) return femaleMatch;
+
+                let nonMaleMatch = langMatches.find(v => {
+                    const name = (v.name || '').toLowerCase();
+                    return !TTS_MALE_KEYWORDS.some(k => name.includes(k));
+                });
+                if (nonMaleMatch) return nonMaleMatch;
             }
 
             return langMatches[0] || ttsVoices[0] || null;
@@ -4816,8 +4857,11 @@ if (allCompIds.length > 0) {
                 }
             }
 
-            // Selection restoration
-            if (previousVal && select.querySelector(`option[value="${previousVal}"]`)) {
+            // Selection restoration: prioritize saved user choice from localStorage
+            const savedVoiceVal = localStorage.getItem('festos_selected_voice') || '';
+            if (savedVoiceVal && select.querySelector(`option[value="${savedVoiceVal}"]`)) {
+                select.value = savedVoiceVal;
+            } else if (previousVal && select.querySelector(`option[value="${previousVal}"]`)) {
                 select.value = previousVal;
             } else if (festivalVoiceModels.length > 0) {
                 select.value = 'human_' + festivalVoiceModels[0].id;
@@ -5327,7 +5371,23 @@ if (allCompIds.length > 0) {
                     scriptLang = l === 'ml' ? 'ml-IN' : l === 'hi' ? 'hi-IN' : l === 'ar' ? 'ar-SA' : l === 'ta' ? 'ta-IN' : l === 'kn' ? 'kn-IN' : 'en-US';
                 }
 
+                // Ensure activeHumanModel is up-to-date from selection
+                if (!activeHumanModel && selVal.startsWith('human_')) {
+                    const mId = selVal.replace('human_', '');
+                    activeHumanModel = festivalVoiceModels.find(m => m.id === mId) || festivalVoiceModels[0] || null;
+                }
+                if (!activeHumanModel && festivalVoiceModels.length > 0) {
+                    activeHumanModel = festivalVoiceModels[0];
+                }
+
                 const targetGender = (activeHumanModel?.gender || 'male').toLowerCase();
+                let effectivePitch = pitch;
+                let effectiveRate = rate;
+
+                if (activeHumanModel) {
+                    if (activeHumanModel.pitch) effectivePitch = parseFloat(activeHumanModel.pitch);
+                    if (activeHumanModel.rate) effectiveRate = parseFloat(activeHumanModel.rate);
+                }
 
                 const executeSpeechCycle = () => {
                     return new Promise((innerResolve) => {
@@ -5343,12 +5403,6 @@ if (allCompIds.length > 0) {
                             statusLabel.style.color = '#4F46E5';
                         }
 
-                        const utterance = new SpeechSynthesisUtterance(textToSpeak);
-                        utterance.lang = scriptLang;
-                        utterance.rate = Math.max(0.75, Math.min(1.35, rate));
-                        utterance.pitch = Math.max(0.75, Math.min(1.3, pitch));
-                        utterance.volume = Math.max(0.2, Math.min(1.0, volume));
-
                         // Find best matching voice
                         if (!ttsVoices || ttsVoices.length === 0) {
                             ttsVoices = window.speechSynthesis.getVoices() || [];
@@ -5361,6 +5415,41 @@ if (allCompIds.length > 0) {
                         if (!assignedVoice) {
                             assignedVoice = findBestMatchingVoice(scriptLang.split('-')[0], targetGender);
                         }
+
+                        const vName = (assignedVoice ? assignedVoice.name : '').toLowerCase();
+                        const isConfirmedMale = TTS_MALE_KEYWORDS.some(k => vName.includes(k));
+                        const isConfirmedFemale = TTS_FEMALE_KEYWORDS.some(k => vName.includes(k));
+
+                        // MOBILE PITCH ACOUSTIC CALIBRATION:
+                        // On mobile phones (Android / iOS), default voices are almost always female.
+                        // When a male voice model is active, if the voice engine is female or neutral,
+                        // pitch-shift down to authentic masculine baritone (0.48 - 0.70) with rich cadence!
+                        let calibratedPitch = effectivePitch;
+                        let calibratedRate = effectiveRate;
+
+                        if (targetGender === 'male') {
+                            if (isConfirmedMale) {
+                                calibratedPitch = Math.max(0.60, Math.min(0.92, effectivePitch * 0.90));
+                                calibratedRate = Math.max(0.85, Math.min(1.15, effectiveRate));
+                            } else {
+                                // Shift female/unisex phone engine to deep masculine baritone
+                                calibratedPitch = Math.max(0.48, Math.min(0.70, effectivePitch * 0.68));
+                                calibratedRate = Math.max(0.85, Math.min(1.05, effectiveRate * 0.94));
+                            }
+                        } else if (targetGender === 'female') {
+                            if (isConfirmedMale) {
+                                calibratedPitch = Math.max(1.15, Math.min(1.60, effectivePitch * 1.30));
+                            } else {
+                                calibratedPitch = Math.max(1.00, Math.min(1.40, effectivePitch * 1.05));
+                            }
+                        }
+
+                        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+                        utterance.lang = scriptLang;
+                        utterance.rate = Math.max(0.70, Math.min(1.35, calibratedRate));
+                        utterance.pitch = Math.max(0.45, Math.min(1.60, calibratedPitch));
+                        utterance.volume = Math.max(0.2, Math.min(1.0, volume));
+
                         if (assignedVoice) {
                             utterance.voice = assignedVoice;
                         }
@@ -5489,6 +5578,17 @@ if (allCompIds.length > 0) {
                 btn = window.event.currentTarget;
             }
 
+            // Ensure active voice model is synced from saved preference or memory
+            const savedVoicePref = localStorage.getItem('festos_selected_voice') || '';
+            if (savedVoicePref.startsWith('human_')) {
+                const targetModelId = savedVoicePref.replace('human_', '');
+                const found = festivalVoiceModels.find(m => m.id === targetModelId);
+                if (found) activeHumanModel = found;
+            }
+            if (!activeHumanModel && festivalVoiceModels.length > 0) {
+                activeHumanModel = festivalVoiceModels[0];
+            }
+
             // Find competition data across all arrays
             const allComps = [
                 ...(window.allFestivalCompetitions || []),
@@ -5537,7 +5637,8 @@ if (allCompIds.length > 0) {
             }
 
             if (typeof showToast === 'function') {
-                showToast(`🎙️ Direct Announcing: ${comp.name}`, "info");
+                const modelBadge = activeHumanModel ? ` [${activeHumanModel.name}]` : '';
+                showToast(`🎙️ Announcing${modelBadge}: ${comp.name}`, "info");
             }
 
             // Sync studio editor in background
