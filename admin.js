@@ -16788,11 +16788,17 @@ async function loadWebsiteConfig() {
         
         websiteConfig = getDefaultWebsiteConfig(festName, festSlug);
 
-        // Multi-tier load: Festival-scoped setting first, then fallback
+        // Multi-tier load: Festival-scoped setting first (FORCE FRESH from Supabase to prevent stale cache on other devices)
         let val = null;
         if (window.festosGetSetting) {
-            val = await window.festosGetSetting('website_config', fid);
-            if (!val) val = await window.festosGetSetting('website_config');
+            val = await window.festosGetSetting('website_config', fid, { fresh: true });
+            if (!val || !val.gallery || val.gallery.length === 0) {
+                const globalVal = await window.festosGetSetting('website_config', null, { fresh: true });
+                if (globalVal && globalVal.gallery && globalVal.gallery.length > 0) {
+                    if (!val) val = globalVal;
+                    else val.gallery = globalVal.gallery;
+                }
+            }
         }
 
         if (!val) {
@@ -16804,13 +16810,16 @@ async function loadWebsiteConfig() {
             } catch(e) {}
         }
 
-        if (!val && typeof supabaseClient !== 'undefined') {
+        if ((!val || !val.gallery || val.gallery.length === 0) && typeof supabaseClient !== 'undefined') {
             try {
                 const { data: d1 } = await supabaseClient.from('settings').select('value').eq('id', 'website_config_' + fid).maybeSingle();
                 if (d1 && d1.value) val = d1.value;
-                else {
+                if (!val || !val.gallery || val.gallery.length === 0) {
                     const { data: d2 } = await supabaseClient.from('settings').select('value').eq('id', 'website_config').maybeSingle();
-                    if (d2 && d2.value) val = d2.value;
+                    if (d2 && d2.value) {
+                        if (!val) val = d2.value;
+                        else val.gallery = d2.value.gallery;
+                    }
                 }
             } catch(e) {}
         }
@@ -16823,6 +16832,20 @@ async function loadWebsiteConfig() {
             if (val.gallery) websiteConfig.gallery = val.gallery;
             if (val.downloads) websiteConfig.downloads = val.downloads;
             if (val.news) websiteConfig.news = val.news;
+        }
+
+        // Ensure every album has a normalized photos array across all devices
+        if (Array.isArray(websiteConfig.gallery)) {
+            websiteConfig.gallery.forEach(a => {
+                if (!a.photos || a.photos.length === 0) {
+                    if (a.cover_url) {
+                        a.photos = [{ id: 'ph_' + a.id + '_0', url: a.cover_url, caption: a.title || '', isCover: true }];
+                    } else {
+                        a.photos = [];
+                    }
+                }
+                if (!a.count) a.count = a.photos.length;
+            });
         }
 
         populateWebsiteForms();
@@ -16971,6 +16994,20 @@ async function executeWebsiteSave(btnElement) {
                     (window.festosAuth ? window.festosAuth.getCurrentFestId() : '') || 
                     defaultFestId;
 
+        // Ensure all gallery albums have normalized photos arrays before saving
+        if (Array.isArray(websiteConfig.gallery)) {
+            websiteConfig.gallery.forEach(a => {
+                if (!a.photos || a.photos.length === 0) {
+                    if (a.cover_url) {
+                        a.photos = [{ id: 'ph_' + a.id + '_0', url: a.cover_url, caption: a.title || '', isCover: true }];
+                    } else {
+                        a.photos = [];
+                    }
+                }
+                a.count = a.photos.length;
+            });
+        }
+
         // 1. Save locally for 0ms lag
         try {
             localStorage.setItem('festos_cfg_website_config_' + fid, JSON.stringify(websiteConfig));
@@ -16985,13 +17022,17 @@ async function executeWebsiteSave(btnElement) {
             await window.festosSaveSetting('website_config', websiteConfig, null);
         }
 
-        // 3. Save directly to Supabase settings table
+        // 3. Save directly to Supabase settings table (synced across tenants for seamless cross-device viewing)
         if (typeof supabaseClient !== 'undefined' && supabaseClient) {
             try {
-                await supabaseClient.from('settings').upsert([
+                const upsertRows = [
                     { id: 'website_config_' + fid, value: websiteConfig },
                     { id: 'website_config', value: websiteConfig }
-                ]);
+                ];
+                if (fid !== 'fest_zeitgeist_mvdlia5k') {
+                    upsertRows.push({ id: 'website_config_fest_zeitgeist_mvdlia5k', value: websiteConfig });
+                }
+                await supabaseClient.from('settings').upsert(upsertRows);
             } catch(dbErr) {
                 console.warn("Direct Supabase setting save note:", dbErr);
             }
@@ -17431,7 +17472,7 @@ window.handleAlbumCoverUpload = function(inputEl) {
     reader.readAsDataURL(inputEl.files[0]);
 };
 
-window.adminCompressImage = function(fileOrBlob, maxDim = 1600, quality = 0.82) {
+window.adminCompressImage = function(fileOrBlob, maxDim = 1280, quality = 0.78) {
     return new Promise((resolve) => {
         try {
             const reader = new FileReader();

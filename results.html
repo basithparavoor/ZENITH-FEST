@@ -2261,8 +2261,26 @@
             if (cfg.pages) websiteConfig.pages = { ...websiteConfig.pages, ...cfg.pages };
             if (cfg.visibility) websiteConfig.visibility = { ...websiteConfig.visibility, ...cfg.visibility };
             if (cfg.downloads) websiteConfig.downloads = cfg.downloads;
-            if (cfg.gallery) websiteConfig.gallery = cfg.gallery;
+            if (Array.isArray(cfg.gallery)) {
+                if (cfg.gallery.length > 0 || !websiteConfig.gallery || websiteConfig.gallery.length === 0) {
+                    websiteConfig.gallery = cfg.gallery;
+                }
+            }
             if (cfg.news) websiteConfig.news = cfg.news;
+
+            // Ensure every album has a normalized photos array across all devices
+            if (Array.isArray(websiteConfig.gallery)) {
+                websiteConfig.gallery.forEach(a => {
+                    if (!a.photos || a.photos.length === 0) {
+                        if (a.cover_url) {
+                            a.photos = [{ id: 'ph_' + a.id + '_0', url: a.cover_url, caption: a.title || '', isCover: true }];
+                        } else {
+                            a.photos = [];
+                        }
+                    }
+                    if (!a.count) a.count = a.photos.length;
+                });
+            }
 
             // Cache locally for 0ms boot next visit
             try {
@@ -2365,6 +2383,23 @@
         window.addEventListener('message', (event) => {
             if (event.data && event.data.type === 'FESTOS_CONFIG_SYNC') {
                 applyWebsiteCustomizerConfig(event.data.config);
+            }
+        });
+
+        // Cross-device and real-time synchronization listeners
+        window.addEventListener('festos:settingupdated', (e) => {
+            if (e.detail && (e.detail.key === 'website_config' || (e.detail.festKey && e.detail.festKey.startsWith('website_config')))) {
+                if (e.detail.value) {
+                    applyWebsiteCustomizerConfig(e.detail.value);
+                }
+            }
+        });
+        window.addEventListener('storage', (e) => {
+            if (e.key && e.key.includes('website_config') && e.newValue) {
+                try {
+                    const parsed = JSON.parse(e.newValue);
+                    if (parsed) applyWebsiteCustomizerConfig(parsed);
+                } catch(err) {}
             }
         });
 
@@ -2836,6 +2871,10 @@
                     try { await window.festosHostFestReady; } catch (e) {}
                 }
 
+                // 0. Extract explicit festival parameter from URL first
+                const urlParams = new URLSearchParams(window.location.search);
+                const queryFestParam = urlParams.get('fest') || urlParams.get('fest_id') || urlParams.get('slug') || urlParams.get('domain');
+
                 let resolvedFest = null;
                 if (window.festosDomains && typeof window.festosDomains.resolveCurrentFest === 'function') {
                     try {
@@ -2843,10 +2882,20 @@
                     } catch (e) {}
                 }
 
-                // Primary source of truth for the active festival on this domain
-                let festId = resolvedFest?.id || (window.festosAuth ? window.festosAuth.getCurrentFestId() : null);
+                // Match explicit query parameter with festival list if present
+                if (queryFestParam && window.festosDomains && typeof window.festosDomains.findFest === 'function') {
+                    const matchedByQuery = window.festosDomains.findFest(queryFestParam);
+                    if (matchedByQuery) resolvedFest = matchedByQuery;
+                }
+
+                // Primary source of truth for active festival: URL query > domain resolution > logged-in admin > cached festival
+                let festId = (resolvedFest && resolvedFest.id) ? resolvedFest.id : (queryFestParam || (window.festosAuth ? window.festosAuth.getCurrentFestId() : null));
+                if (!festId) {
+                    try { festId = localStorage.getItem('festos_last_fest_id') || localStorage.getItem('festos_active_fest_id'); } catch(e) {}
+                }
                 if (festId) {
                     window.activeFestId = festId;
+                    try { localStorage.setItem('festos_last_fest_id', festId); } catch(e) {}
                 }
 
                 // If resolved from domain/subdomain, immediately hydrate festival state & branding
@@ -2967,7 +3016,7 @@
                         supabaseClient.from('fests').select('*').eq('id', festId).maybeSingle() : 
                         Promise.resolve({ data: resolvedFest || null }),
                     window.festosGetSetting ? window.festosGetSetting('system_branding', festId) : null,
-                    window.festosGetSetting ? window.festosGetSetting('website_config', festId) : null,
+                    window.festosGetSetting ? window.festosGetSetting('website_config', festId, { fresh: true }) : null,
                     window.festosGetSetting ? window.festosGetSetting('point_system', festId) : null,
                     window.festosGetSetting ? window.festosGetSetting('participant_classes', festId) : null,
                     compsCntQuery,
@@ -3028,7 +3077,20 @@
                     document.documentElement.style.setProperty('--primary-glow', fData.theme_color + '25');
                 }
 
-                // 5. Apply Fresh Website Customizer Config
+                // 5. Apply Fresh Website Customizer Config with Cross-Device Fallback
+                if ((!webCfgVal || !webCfgVal.gallery || webCfgVal.gallery.length === 0) && typeof supabaseClient !== 'undefined') {
+                    try {
+                        const { data: gData } = await supabaseClient.from('settings').select('value').eq('id', 'website_config').maybeSingle();
+                        if (gData && gData.value) {
+                            if (!webCfgVal) {
+                                webCfgVal = gData.value;
+                            } else if (gData.value.gallery && gData.value.gallery.length > 0) {
+                                webCfgVal.gallery = gData.value.gallery;
+                            }
+                        }
+                    } catch(gErr) {}
+                }
+
                 if (webCfgVal) {
                     applyWebsiteCustomizerConfig(webCfgVal);
                 } else {
@@ -3145,7 +3207,6 @@
                 renderCompetitionsGrid();
 
                 // 11. URL Routing
-                const urlParams = new URLSearchParams(window.location.search);
                 const viewContext = urlParams.get('view') || urlParams.get('tab') || 'home';
                 const targetCompId = urlParams.get('comp') || null;
                 const targetAlbumId = urlParams.get('album') || null;
