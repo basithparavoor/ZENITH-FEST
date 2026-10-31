@@ -9181,11 +9181,14 @@ async function loadParticipantPoints() {
         filterPointsTable(true);
         renderTeamPointsTable();
         
-        // Auto-refresh the special ledger if a special tab is currently active
+        // Auto-refresh the special or onstage ledger if a special tab is currently active
         const starBtn = document.getElementById('btn-view-star');
         const penBtn = document.getElementById('btn-view-pen');
+        const onstageBtn = document.getElementById('btn-view-onstage');
         if (starBtn && starBtn.classList.contains('btn-primary')) renderSpecialLedger('star');
         if (penBtn && penBtn.classList.contains('btn-primary')) renderSpecialLedger('pen');
+        if (onstageBtn && onstageBtn.classList.contains('btn-primary')) loadOnstageParticipantsLedger(true);
+        else loadOnstageParticipantsLedger(); // Preload onstage registrations counter
 
     } catch (e) { showToast(e.message, 'error'); }
 }
@@ -9198,6 +9201,14 @@ function switchPointsView(view) {
     document.getElementById('btn-view-star').className = 'btn btn-outline';
     document.getElementById('btn-view-pen').className = 'btn btn-outline';
     
+    const onstageBtn = document.getElementById('btn-view-onstage');
+    if (onstageBtn) {
+        onstageBtn.className = 'btn btn-outline';
+        onstageBtn.style.color = '#059669';
+        onstageBtn.style.borderColor = '#6EE7B7';
+        onstageBtn.style.background = 'transparent';
+    }
+
     // Re-apply special colors to outline state for star/pen
     document.getElementById('btn-view-star').style.color = '#D97706';
     document.getElementById('btn-view-star').style.borderColor = '#D97706';
@@ -9211,6 +9222,8 @@ function switchPointsView(view) {
     document.getElementById('ind-points-container').style.display = 'none';
     document.getElementById('team-points-container').style.display = 'none';
     document.getElementById('special-points-container').style.display = 'none';
+    const onstageCont = document.getElementById('onstage-points-container');
+    if (onstageCont) onstageCont.style.display = 'none';
     document.getElementById('ind-filters').style.display = 'none';
     
     // Manage Export Button Visibility
@@ -9220,15 +9233,33 @@ function switchPointsView(view) {
         document.getElementById('btn-view-ind').className = 'btn btn-primary';
         document.getElementById('ind-points-container').style.display = 'block';
         document.getElementById('ind-filters').style.display = 'flex';
-        exportBtn.style.display = 'inline-flex';
-        exportBtn.setAttribute('onclick', 'bulkExportPointsPDF()');
+        if (exportBtn) {
+            exportBtn.style.display = 'inline-flex';
+            exportBtn.setAttribute('onclick', 'bulkExportPointsPDF()');
+        }
         
     } else if (view === 'team') {
         document.getElementById('btn-view-team').className = 'btn btn-primary';
         document.getElementById('team-points-container').style.display = 'block';
-        exportBtn.style.display = 'inline-flex';
-        exportBtn.setAttribute('onclick', 'bulkExportTeamPointsPDF()');
+        if (exportBtn) {
+            exportBtn.style.display = 'inline-flex';
+            exportBtn.setAttribute('onclick', 'bulkExportTeamPointsPDF()');
+        }
         
+    } else if (view === 'onstage') {
+        if (onstageBtn) {
+            onstageBtn.className = 'btn';
+            onstageBtn.style.background = '#059669';
+            onstageBtn.style.borderColor = '#059669';
+            onstageBtn.style.color = 'white';
+        }
+        if (onstageCont) onstageCont.style.display = 'block';
+        if (exportBtn) {
+            exportBtn.style.display = 'inline-flex';
+            exportBtn.setAttribute('onclick', 'exportOnstageParticipantsPDF()');
+        }
+        loadOnstageParticipantsLedger();
+
     } else if (view === 'star') {
         const btn = document.getElementById('btn-view-star');
         btn.className = 'btn'; 
@@ -9236,7 +9267,7 @@ function switchPointsView(view) {
         btn.style.color = 'white';
         
         document.getElementById('special-points-container').style.display = 'block';
-        exportBtn.style.display = 'none'; // No checkboxes in this view
+        if (exportBtn) exportBtn.style.display = 'none'; // No checkboxes in this view
         renderSpecialLedger('star');
         
     } else if (view === 'pen') {
@@ -9246,10 +9277,410 @@ function switchPointsView(view) {
         btn.style.color = 'white';
 
         document.getElementById('special-points-container').style.display = 'block';
-        exportBtn.style.display = 'none'; // No checkboxes in this view
+        if (exportBtn) exportBtn.style.display = 'none'; // No checkboxes in this view
         renderSpecialLedger('pen');
     }
 }
+
+// =========================================================================
+// ONSTAGE COMPETITIONS PARTICIPANT REGISTRATION LEDGER
+// =========================================================================
+let onstageParticipantsData = [];
+let filteredOnstageParticipants = [];
+let onstagePage = 1;
+let onstageRowsPerPage = 20;
+
+async function loadOnstageParticipantsLedger(forceRefresh = false) {
+    const tbody = document.getElementById('onstage-points-tbody');
+    
+    if (onstageParticipantsData.length > 0 && !forceRefresh) {
+        renderOnstageParticipantsTable();
+        return;
+    }
+
+    if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2.5rem; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size: 1.5rem; color: #059669; margin-bottom: 0.5rem; display: block;"></i> Loading Onstage Competitions & Registered Participants...</td></tr>';
+    }
+
+    try {
+        const [compsRes, partsRes, teamsRes, catsRes, pcRes] = await Promise.all([
+            festQuery(supabaseClient.from('competitions').select('id, name, is_offstage, stage_id, category_id, stages(id, name, is_offstage), categories(id, name)')),
+            festQuery(supabaseClient.from('participants').select('id, name, unique_id, class_name, dob, team_id, category_id, teams(id, name), categories(id, name)')),
+            festQuery(supabaseClient.from('teams').select('id, name').order('name')),
+            festQuery(supabaseClient.from('categories').select('id, name').order('name')),
+            festQuery(supabaseClient.from('participant_competitions').select('id, participant_id, competition_id'))
+        ]);
+
+        const comps = compsRes.data || [];
+        const participants = partsRes.data || [];
+        const teams = teamsRes.data || [];
+        const cats = catsRes.data || [];
+        const regList = pcRes.data || [];
+
+        // Build mapping of ONSTAGE competitions (competitions not flagged as offstage)
+        const onstageCompMap = {};
+        comps.forEach(c => {
+            const isOffstage = !!c.is_offstage || (c.stages && !!c.stages.is_offstage);
+            if (!isOffstage) {
+                onstageCompMap[String(c.id)] = {
+                    id: c.id,
+                    name: c.name || 'Untitled Competition',
+                    categoryName: c.categories?.name || 'General',
+                    stageName: c.stages?.name || 'Main Stage'
+                };
+            }
+        });
+
+        // Participant lookup mapping
+        const pMap = {};
+        participants.forEach(p => {
+            pMap[String(p.id)] = p;
+        });
+
+        // Group by student: Exactly ONE record per student, with count of onstage registrations
+        const studentMap = {};
+        let totalEntriesCount = 0;
+
+        regList.forEach(reg => {
+            const cId = String(reg.competition_id);
+            const pId = String(reg.participant_id);
+            const comp = onstageCompMap[cId];
+            const p = pMap[pId];
+
+            if (comp && p) {
+                totalEntriesCount++;
+                if (!studentMap[pId]) {
+                    studentMap[pId] = {
+                        id: p.id,
+                        name: p.name || 'Unknown Student',
+                        unique_id: p.unique_id || 'N/A',
+                        teamName: p.teams?.name || 'INDEPENDENT',
+                        categoryName: p.categories?.name || 'General',
+                        className: p.class_name || '',
+                        registeredCount: 0,
+                        competitions: []
+                    };
+                }
+                studentMap[pId].registeredCount += 1;
+                const alreadyAdded = studentMap[pId].competitions.some(ev => String(ev.id) === String(comp.id));
+                studentMap[pId].competitions.push({
+                    id: comp.id,
+                    name: comp.name,
+                    category: comp.categoryName,
+                    stage: comp.stageName,
+                    isDuplicate: alreadyAdded
+                });
+            }
+        });
+
+        onstageParticipantsData = Object.values(studentMap);
+        // Default sort: highest registered count first
+        onstageParticipantsData.sort((a, b) => b.registeredCount - a.registeredCount || a.name.localeCompare(b.name));
+
+        // Populate dropdowns for onstage filters
+        const teamFilterEl = document.getElementById('filterOnstageTeam');
+        if (teamFilterEl && teamFilterEl.options.length <= 1) {
+            teams.forEach(t => teamFilterEl.innerHTML += '<option value="' + t.name + '">' + t.name + '</option>');
+        }
+        const catFilterEl = document.getElementById('filterOnstageCategory');
+        if (catFilterEl && catFilterEl.options.length <= 1) {
+            cats.forEach(c => catFilterEl.innerHTML += '<option value="' + c.name + '">' + c.name + '</option>');
+        }
+
+        // Update stats summary banner and quick action button
+        const uCountEl = document.getElementById('onstage-unique-count');
+        const tCountEl = document.getElementById('onstage-total-entries');
+        const subEl = document.getElementById('onstage-stats-subtitle');
+        const quickBtn = document.getElementById('btn-quick-onstage');
+
+        if (uCountEl) uCountEl.innerText = onstageParticipantsData.length;
+        if (tCountEl) tCountEl.innerText = totalEntriesCount;
+        if (subEl) subEl.innerHTML = onstageParticipantsData.length + ' unique participants enrolled across ' + Object.keys(onstageCompMap).length + ' onstage competitions.';
+        if (quickBtn) quickBtn.innerHTML = '<i class="fa-solid fa-microphone-lines"></i> Onstage Participants (' + onstageParticipantsData.length + ')';
+
+        onstagePage = 1;
+        filterOnstageParticipantsTable();
+
+    } catch (err) {
+        console.error('Error loading onstage participants:', err);
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load onstage participants: ' + err.message + '</td></tr>';
+        }
+        showToast('Error loading onstage participants: ' + err.message, 'error');
+    }
+}
+
+function filterOnstageParticipantsTable() {
+    const query = (document.getElementById('searchOnstageInput')?.value || '').toLowerCase().trim();
+    const teamFilter = document.getElementById('filterOnstageTeam')?.value || '';
+    const catFilter = document.getElementById('filterOnstageCategory')?.value || '';
+    const sortVal = document.getElementById('filterOnstageSort')?.value || 'reg_desc';
+
+    filteredOnstageParticipants = onstageParticipantsData.filter(p => {
+        const matchName = p.name.toLowerCase().includes(query) || (p.unique_id && p.unique_id.toLowerCase().includes(query));
+        const matchTeam = !teamFilter || p.teamName === teamFilter;
+        const matchCat = !catFilter || p.categoryName === catFilter;
+        return matchName && matchTeam && matchCat;
+    });
+
+    if (sortVal === 'reg_desc') {
+        filteredOnstageParticipants.sort((a, b) => b.registeredCount - a.registeredCount || a.name.localeCompare(b.name));
+    } else if (sortVal === 'reg_asc') {
+        filteredOnstageParticipants.sort((a, b) => a.registeredCount - b.registeredCount || a.name.localeCompare(b.name));
+    } else if (sortVal === 'name_asc') {
+        filteredOnstageParticipants.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    onstagePage = 1;
+    renderOnstageParticipantsTable();
+}
+
+function renderOnstageParticipantsTable() {
+    const tbody = document.getElementById('onstage-points-tbody');
+    const paginationEl = document.getElementById('onstage-pagination');
+    if (!tbody) return;
+
+    if (filteredOnstageParticipants.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2.5rem; color: var(--text-muted); font-size: 0.95rem;">No onstage registered participants found matching your criteria.</td></tr>';
+        if (paginationEl) paginationEl.innerHTML = '';
+        return;
+    }
+
+    const start = (onstagePage - 1) * onstageRowsPerPage;
+    const end = start + onstageRowsPerPage;
+    const pageData = filteredOnstageParticipants.slice(start, end);
+
+    let html = '';
+    pageData.forEach((p, idx) => {
+        const slNo = start + idx + 1;
+        const compTags = p.competitions.slice(0, 3).map(c => 
+            '<span class="badge" style="background: #F1F5F9; color: #334155; font-size: 0.72rem; padding: 2px 8px; border-radius: 4px; margin: 2px 2px 2px 0; display: inline-block; border: 1px solid #E2E8F0;" title="' + c.name + ' (' + c.category + ')">' + c.name + '</span>'
+        ).join('');
+        const extraCount = p.competitions.length > 3 ? '<span class="badge" style="background: #EEF2FF; color: #4F46E5; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; display: inline-block;">+' + (p.competitions.length - 3) + ' more</span>' : '';
+
+        const badgeColor = p.registeredCount >= 3 ? '#059669' : (p.registeredCount === 2 ? '#2563EB' : '#4B5563');
+        const badgeBg = p.registeredCount >= 3 ? '#ECFDF5' : (p.registeredCount === 2 ? '#EFF6FF' : '#F3F4F6');
+        const badgeBorder = p.registeredCount >= 3 ? '#A7F3D0' : (p.registeredCount === 2 ? '#BFDBFE' : '#E5E7EB');
+
+        html += '<tr>' +
+            '<td style="text-align: center; font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">' + slNo + '</td>' +
+            '<td><strong style="font-size: 1.05rem; color: var(--text-main); font-weight: 700;">' + p.name + '</strong>' +
+                (p.className ? '<div style="font-size: 0.75rem; color: var(--text-muted);"><i class="fa-solid fa-graduation-cap"></i> ' + p.className + '</div>' : '') +
+            '</td>' +
+            '<td><span style="font-family: monospace; font-weight: 700; color: #4F46E5; background: #EEF2FF; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem;">' + p.unique_id + '</span></td>' +
+            '<td><span class="badge" style="background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border); font-weight: 600;">' + p.teamName + '</span></td>' +
+            '<td><span class="badge" style="background: #F8FAFC; color: #475569; border: 1px solid #CBD5E1; font-weight: 600; font-size: 0.78rem;">' + p.categoryName + '</span></td>' +
+            '<td style="text-align: center;">' +
+                '<span style="display: inline-flex; align-items: center; gap: 5px; font-weight: 800; font-size: 0.95rem; color: ' + badgeColor + '; background: ' + badgeBg + '; border: 1px solid ' + badgeBorder + '; padding: 4px 12px; border-radius: 50px;">' +
+                    '<i class="fa-solid fa-repeat" style="font-size: 0.8rem;"></i> ' + p.registeredCount + (p.registeredCount === 1 ? ' Time' : ' Times') +
+                '</span>' +
+            '</td>' +
+            '<td style="max-width: 280px;"><div>' + compTags + extraCount + '</div></td>' +
+            '<td style="text-align: center;">' +
+                '<button class="btn btn-outline" style="padding: 0.35rem 0.7rem; font-size: 0.8rem; border-radius: 6px;" title="View Registered Onstage Competitions" onclick="viewOnstageParticipantDetails(\'' + p.id + '\')">' +
+                    '<i class="fa-solid fa-list-check"></i> View Events (' + p.registeredCount + ')' +
+                '</button>' +
+            '</td>' +
+        '</tr>';
+    });
+
+    tbody.innerHTML = html;
+
+    const totalPages = Math.ceil(filteredOnstageParticipants.length / onstageRowsPerPage) || 1;
+    const startNum = ((onstagePage - 1) * onstageRowsPerPage) + 1;
+    const endNum = Math.min(onstagePage * onstageRowsPerPage, filteredOnstageParticipants.length);
+
+    if (paginationEl) {
+        paginationEl.innerHTML = 
+            '<div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 0.75rem;">' +
+                'Showing ' + startNum + ' to ' + endNum + ' of ' + filteredOnstageParticipants.length + ' onstage participants' +
+                '<select onchange="onstageRowsPerPage = parseInt(this.value); onstagePage = 1; renderOnstageParticipantsTable();" style="padding: 0.25rem 0.5rem; border-radius: 4px; border: 1px solid var(--border); outline: none; background: white; font-weight: 600;">' +
+                    '<option value="10"' + (onstageRowsPerPage === 10 ? ' selected' : '') + '>10 per page</option>' +
+                    '<option value="20"' + (onstageRowsPerPage === 20 ? ' selected' : '') + '>20 per page</option>' +
+                    '<option value="50"' + (onstageRowsPerPage === 50 ? ' selected' : '') + '>50 per page</option>' +
+                    '<option value="100"' + (onstageRowsPerPage === 100 ? ' selected' : '') + '>100 per page</option>' +
+                '</select>' +
+            '</div>' +
+            '<div style="display: flex; gap: 0.5rem;">' +
+                '<button class="btn btn-outline" style="padding: 0.4rem 0.8rem;" onclick="onstagePage--; renderOnstageParticipantsTable();"' + (onstagePage === 1 ? ' disabled' : '') + '>Previous</button>' +
+                '<span style="display: flex; align-items: center; padding: 0 0.75rem; font-weight: 600; font-size: 0.9rem; color: #059669;">Page ' + onstagePage + ' of ' + totalPages + '</span>' +
+                '<button class="btn btn-outline" style="padding: 0.4rem 0.8rem;" onclick="onstagePage++; renderOnstageParticipantsTable();"' + (onstagePage === totalPages ? ' disabled' : '') + '>Next</button>' +
+            '</div>';
+    }
+}
+
+function viewOnstageParticipantDetails(pId) {
+    const p = onstageParticipantsData.find(x => String(x.id) === String(pId));
+    if (!p) return;
+
+    let trs = p.competitions.map((c, i) => 
+        '<tr>' +
+            '<td style="text-align: center; font-weight: 600; color: var(--text-muted); width: 40px;">' + (i + 1) + '</td>' +
+            '<td style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">' +
+                c.name +
+                (c.isDuplicate ? '<span class="badge" style="background:#FEF3C7; color:#D97706; font-size:0.65rem; margin-left: 6px;">Multi-entry</span>' : '') +
+            '</td>' +
+            '<td><span class="badge" style="background: var(--bg-main); font-weight: 600;">' + c.category + '</span></td>' +
+            '<td><span class="badge" style="background: #EEF2FF; color: #4F46E5; font-weight: 700;"><i class="fa-solid fa-microphone-lines"></i> ' + c.stage + '</span></td>' +
+        '</tr>'
+    ).join('');
+
+    const modalTitle = document.getElementById('listModalTitle');
+    const modalTable = document.getElementById('listModalTable');
+    if (!modalTitle || !modalTable) return;
+
+    modalTitle.innerText = 'Onstage Registrations Breakdown';
+
+    modalTable.innerHTML = 
+        '<tbody>' +
+            '<tr>' +
+                '<td colspan="4" style="padding: 0; border: none; padding-bottom: 1rem;">' +
+                    '<div style="background: linear-gradient(135deg, #ECFDF5 0%, #F0FDF4 100%); border: 1px solid #A7F3D0; padding: 1.25rem; border-radius: 10px; display: flex; justify-content: space-between; align-items: center;">' +
+                        '<div>' +
+                            '<div style="font-size: 1.3rem; font-weight: 900; line-height: 1.2; color: #065F46;">' + p.name + '</div>' +
+                            '<div style="font-family: monospace; color: #047857; font-size: 0.9rem; font-weight: 600; margin-top: 0.25rem;">' +
+                                p.unique_id + ' &bull; ' + p.teamName.toUpperCase() + ' &bull; ' + p.categoryName +
+                            '</div>' +
+                        '</div>' +
+                        '<div style="text-align: right;">' +
+                            '<div style="font-size: 0.75rem; font-weight: 800; color: #047857; text-transform: uppercase;">ONSTAGE EVENTS</div>' +
+                            '<div style="font-size: 1.8rem; font-weight: 900; color: #059669; line-height: 1;">' + p.registeredCount + '</div>' +
+                            '<div style="font-size: 0.7rem; font-weight: 700; color: #065F46;">' + (p.registeredCount === 1 ? 'REGISTRATION' : 'REGISTRATIONS') + '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</td>' +
+            '</tr>' +
+            '<tr style="background: var(--bg-main); font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">' +
+                '<th style="padding: 0.75rem 0.5rem; text-align: center;">#</th>' +
+                '<th style="padding: 0.75rem 1rem;">Competition Name</th>' +
+                '<th style="padding: 0.75rem 1rem;">Category</th>' +
+                '<th style="padding: 0.75rem 1rem;">Venue / Stage</th>' +
+            '</tr>' +
+            trs +
+        '</tbody>';
+
+    document.getElementById('listModal').classList.add('show');
+}
+
+async function exportOnstageParticipantsPDF() {
+    const list = (filteredOnstageParticipants && filteredOnstageParticipants.length > 0) 
+        ? filteredOnstageParticipants 
+        : onstageParticipantsData;
+
+    if (list.length === 0) {
+        return showToast('No onstage participants to export!', 'error');
+    }
+
+    showToast('Generating Onstage Participants Ledger PDF...', 'success');
+
+    const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
+    const totalRegistrations = list.reduce((sum, p) => sum + p.registeredCount, 0);
+
+    const rowsPerPage = 20;
+    const totalPages = Math.ceil(list.length / rowsPerPage) || 1;
+    let fullHtml = '';
+
+    for (let page = 0; page < totalPages; page++) {
+        const pageRows = list.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
+        const isLastPage = (page === totalPages - 1);
+
+        const rowsHtml = pageRows.map((p, idx) => {
+            const slNo = (page * rowsPerPage) + idx + 1;
+            const bg = (idx % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
+            const compListStr = p.competitions.map(c => c.name).join(', ');
+
+            return '<tr style="height: 28px; page-break-inside: avoid; break-inside: avoid;">' +
+                '<td style="padding: 6px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 11px; font-weight: 600; color: #64748B; background: ' + bg + '; width: 35px;">' + slNo + '</td>' +
+                '<td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; background: ' + bg + ';">' +
+                    '<strong style="font-weight: 800; color: #0F172A; font-size: 11.5px;">' + p.name.toUpperCase() + '</strong>' +
+                    '<div style="font-family: monospace; font-size: 9.5px; color: #4F46E5; font-weight: 700;">' + p.unique_id + '</div>' +
+                '</td>' +
+                '<td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-size: 11px; font-weight: 600; color: #334155; background: ' + bg + ';">' + p.teamName.toUpperCase() + '</td>' +
+                '<td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-size: 10.5px; color: #475569; background: ' + bg + ';">' + p.categoryName.toUpperCase() + '</td>' +
+                '<td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-size: 12px; text-align: center; font-weight: 800; color: #059669; background: ' + bg + '; width: 90px;">' +
+                    p.registeredCount + (p.registeredCount === 1 ? ' Time' : ' Times') +
+                '</td>' +
+                '<td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-size: 10px; color: #475569; background: ' + bg + ';">' +
+                    compListStr +
+                '</td>' +
+            '</tr>';
+        }).join('');
+
+        const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+            ? window.festosGetPDFHeaderHTML('ONSTAGE PARTICIPANTS REGISTERED LEDGER', activeFid, {
+                badge: 'PAGE ' + (page + 1) + ' OF ' + totalPages,
+                subtitle: 'OFFICIAL AUDIT &bull; ' + list.length + ' UNIQUE STUDENTS &bull; ' + totalRegistrations + ' TOTAL ENTRIES'
+            })
+            : '<div style="text-align: center; margin-bottom: 15px;">' +
+                '<h1 style="margin: 0; font-size: 18px; color: #059669;">ONSTAGE PARTICIPANTS REGISTERED LEDGER</h1>' +
+                '<p style="margin: 4px 0 0; font-size: 11px; color: #64748B;">Total Unique Students: ' + list.length + ' | Total Onstage Entries: ' + totalRegistrations + '</p>' +
+              '</div>';
+
+        const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+            ? window.festosGetPDFFooterHTML(page + 1, totalPages, 'Onstage Participant Registration Ledger')
+            : '<div style="margin-top:20px; font-size:10px; color:#64748B; text-align:center;">FestOS Verified Document</div>';
+
+        fullHtml += '<div class="pdf-page" style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: \'Inter\', sans-serif;">' +
+            headerHtml +
+            (page === 0 ? 
+            '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; background: #ECFDF5; padding: 12px 18px; border-radius: 8px; border: 1px solid #A7F3D0;">' +
+                '<div>' +
+                    '<div style="font-size: 9px; color: #065F46; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">AUDIT SUMMARY</div>' +
+                    '<div style="font-size: 14px; font-weight: 900; color: #065F46; margin-top: 2px;">ONSTAGE PARTICIPANTS REGISTERED LEDGER</div>' +
+                    '<div style="font-size: 10.5px; color: #047857; margin-top: 2px;">De-duplicated student roster with total count of onstage competition registrations</div>' +
+                '</div>' +
+                '<div style="display: flex; gap: 20px; text-align: right;">' +
+                    '<div>' +
+                        '<div style="font-size: 9px; color: #065F46; font-weight: 800; text-transform: uppercase;">UNIQUE STUDENTS</div>' +
+                        '<div style="font-size: 20px; font-weight: 900; color: #059669; line-height: 1.1;">' + list.length + '</div>' +
+                    '</div>' +
+                    '<div>' +
+                        '<div style="font-size: 9px; color: #065F46; font-weight: 800; text-transform: uppercase;">TOTAL REGISTRATIONS</div>' +
+                        '<div style="font-size: 20px; font-weight: 900; color: #059669; line-height: 1.1;">' + totalRegistrations + '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' : '') +
+            '<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #CBD5E1;">' +
+                '<thead>' +
+                    '<tr style="background: #065F46; color: white; text-align: left; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em;">' +
+                        '<th style="padding: 8px 6px; text-align: center; width: 35px;">#</th>' +
+                        '<th style="padding: 8px 10px; width: 170px;">STUDENT NAME & ID</th>' +
+                        '<th style="padding: 8px 10px; width: 130px;">TEAM</th>' +
+                        '<th style="padding: 8px 10px; width: 100px;">CATEGORY</th>' +
+                        '<th style="padding: 8px 10px; width: 90px; text-align: center;">TIMES REG.</th>' +
+                        '<th style="padding: 8px 10px;">ONSTAGE COMPETITIONS</th>' +
+                    '</tr>' +
+                '</thead>' +
+                '<tbody style="font-size: 10.5px; color: #334155;">' +
+                    rowsHtml +
+                '</tbody>' +
+            '</table>' +
+            footerHtml +
+        '</div>' +
+        (isLastPage ? '' : '<div class="html2pdf__page-break"></div>');
+    }
+
+    if (typeof window.festosRenderPDF === 'function') {
+        await window.festosRenderPDF(fullHtml, {
+            orientation: 'landscape',
+            filename: typeof getFestFileName === 'function' ? getFestFileName('Onstage_Participants_Ledger', 'pdf') : 'Onstage_Participants_Ledger.pdf',
+            width: 1100
+        });
+        showToast('Onstage Participants PDF Exported Successfully!');
+    } else {
+        const opt = { 
+            margin: 10, 
+            filename: typeof getFestFileName === 'function' ? getFestFileName('Onstage_Participants_Ledger', 'pdf') : 'Fest_Onstage_Participants_Ledger.pdf', 
+            image: { type: 'jpeg', quality: 0.98 }, 
+            html2canvas: { scale: 2, useCORS: true }, 
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } 
+        };
+        const wrap = document.createElement('div');
+        wrap.innerHTML = fullHtml;
+        html2pdf().set(opt).from(wrap).save().then(() => showToast('PDF Exported Successfully!'));
+    }
+}
+
 
 // SPECIAL AWARD LEDGER RENDERER
 function renderSpecialLedger(type) {
