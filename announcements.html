@@ -2073,6 +2073,8 @@ async function fetchData() {
 
                 const masterSchedule = schedRes?.data?.value || {};
                 const activeComps = activeRes?.data || [];
+                window.allFestivalCompetitions = [...(activeComps || []), ...(publishedComps || [])];
+                if (typeof populateTTSCompDropdown === 'function') populateTTSCompDropdown();
                 publishedComps = pubRes?.data || [];
                 
                 // 4. Fetch Judgements to determine Judges
@@ -5630,6 +5632,379 @@ if (allCompIds.length > 0) {
                 toggleAnnouncerSidebar();
             }
         });
+    
+
+        // --- M. COMPETITION TARGET DROPDOWN & SMART TEMPLATES ---
+        function populateTTSCompDropdown() {
+            const compSelect = document.getElementById('tts-comp-target');
+            if (!compSelect) return;
+
+            const currentVal = compSelect.value;
+            compSelect.innerHTML = '<option value="">-- Select Competition / Stage Target --</option>';
+
+            const comps = window.allFestivalCompetitions || [];
+            if (comps.length === 0) return;
+
+            const ongoingComps = comps.filter(c => c.status === 'ongoing');
+            const callingComps = comps.filter(c => c.status === 'registration' || c.status === 'pending');
+            const publishedCompsList = comps.filter(c => c.status === 'published');
+
+            if (ongoingComps.length > 0) {
+                const grp = document.createElement('optgroup');
+                grp.label = "🔴 LIVE ONGOING COMPETITIONS";
+                ongoingComps.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    const stageName = (c.stages && c.stages.name) ? c.stages.name : (c.stage_no ? `Stage ${c.stage_no}` : 'Main Stage');
+                    opt.innerText = `[ONGOING] ${c.name} • ${stageName}`;
+                    grp.appendChild(opt);
+                });
+                compSelect.appendChild(grp);
+            }
+
+            if (callingComps.length > 0) {
+                const grp = document.createElement('optgroup');
+                grp.label = "🟡 UPCOMING & STAGE CALLS";
+                callingComps.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    const stageName = (c.stages && c.stages.name) ? c.stages.name : (c.stage_no ? `Stage ${c.stage_no}` : 'Main Stage');
+                    opt.innerText = `${c.name} • ${stageName}`;
+                    grp.appendChild(opt);
+                });
+                compSelect.appendChild(grp);
+            }
+
+            if (publishedCompsList.length > 0) {
+                const grp = document.createElement('optgroup');
+                grp.label = "🟢 PUBLISHED RESULTS";
+                publishedCompsList.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.innerText = `[RESULTS] ${c.name}`;
+                    grp.appendChild(opt);
+                });
+                compSelect.appendChild(grp);
+            }
+
+            if (currentVal) compSelect.value = currentVal;
+        }
+
+        function onTemplateTypeChange(val) {
+            loadAnnouncementTemplate();
+        }
+
+        function loadAnnouncementTemplate() {
+            const templateType = document.getElementById('tts-template-type')?.value || 'call_en';
+            const compSelect = document.getElementById('tts-comp-target');
+            const compId = compSelect ? compSelect.value : '';
+
+            let comp = null;
+            if (compId && window.allFestivalCompetitions) {
+                comp = window.allFestivalCompetitions.find(c => c.id === compId || c.id === String(compId));
+            }
+
+            const compName = comp ? comp.name : "Competition";
+            const stageName = comp && comp.stages && comp.stages.name ? comp.stages.name : (comp && comp.stage_no ? `Stage ${comp.stage_no}` : "Main Stage");
+            const catName = comp && comp.categories && comp.categories.name ? comp.categories.name : "General Category";
+            const festName = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFest) ? (festosAuth.getCurrentFest()?.name || 'FestOS Arena') : 'FestOS Arena';
+
+            // Find top winners if published
+            let winner1 = "Chest #101";
+            let winner2 = "Chest #104";
+            let winner3 = "Chest #109";
+            if (comp && comp.participant_competitions && comp.participant_competitions.length > 0) {
+                const pcs = comp.participant_competitions;
+                if (pcs[0] && pcs[0].participants) winner1 = pcs[0].participants.name || `Chest #${pcs[0].code_letter || '101'}`;
+                if (pcs[1] && pcs[1].participants) winner2 = pcs[1].participants.name || `Chest #${pcs[1].code_letter || '102'}`;
+                if (pcs[2] && pcs[2].participants) winner3 = pcs[2].participants.name || `Chest #${pcs[2].code_letter || '103'}`;
+            }
+
+            const templateLibrary = {
+                'call_en': `Attention please: Contestants for ${compName} on ${stageName}, please report to the stage coordinator immediately. The competition is commencing now.`,
+                'call_ml': `ശ്രദ്ധിക്കുക: ${stageName}-ൽ നടക്കുന്ന ${compName} മത്സരത്തിലെ എല്ലാ മത്സരാർത്ഥികളും ഉടൻ തന്നെ സ്റ്റേജ് കോർഡിനേറ്റർക്ക് മുന്നിൽ റിപ്പോർട്ട് ചെയ്യേണ്ടതാണ്.`,
+                'call_hi': `कृपया ध्यान दें: ${stageName} पर ${compName} प्रतियोगिता के सभी प्रतिभागी तुरंत मंच समन्वयक के पास रिपोर्ट करें।`,
+                'call_ar': `يرجى الانتباه: على جميع المتسابقين في ${compName} على ${stageName} التوجه فوراً إلى منسق المسرح.`,
+                'call_ta': `அனைவரின் கவனத்திற்கும்: ${stageName}-ல் நடைபெறும் ${compName} போட்டியாளர்கள் உடனடியாக மேடைப் பொறுப்பாளரிடம் செல்லவும்.`,
+                'call_kn': `ದಯವಿಟ್ಟು ಗಮನಿಸಿ: ${stageName} ದಲ್ಲಿ ನಡೆಯುವ ${compName} ಸ್ಪರ್ಧೆಯ ಸ್ಪರ್ಧಿಗಳು ತಕ್ಷಣ ವೇದಿಕೆ ಸಂಯೋಜಕರ ಬಳಿ ಹಾಜರಾಗಿ.`,
+                'call_ur': `توجہ فرمائیں: ${stageName} پر منعقد ہونے والے مقابلے ${compName} کے تمام شرکاء فوری طور پر اسٹیج کوآرڈینیٹر سے رابطہ کریں۔`,
+                'results_en': `${festName} Official Results: The adjudication results for ${compName} have been finalized. First Place: ${winner1}. Second Place: ${winner2}. Third Place: ${winner3}. Heartiest congratulations to all winners!`,
+                'warn_en': `Final Call: Exactly 5 minutes remaining for ${compName} on ${stageName}. All remaining contestants must assemble backstage immediately.`,
+                'emergency_en': `FestOS Arena Advisory: All stage coordinators and volunteer marshals for ${stageName} please report to the Central Control Desk immediately.`
+            };
+
+            const selectedText = templateLibrary[templateType] || templateLibrary['call_en'];
+            const textarea = document.getElementById('tts-text-input');
+            if (textarea) {
+                textarea.value = selectedText;
+                textarea.focus();
+                updateScriptCounters();
+            }
+
+            if (typeof showToast === 'function') {
+                showToast(`Loaded template for ${compName}`, "info");
+            }
+        }
+
+        // --- N. STAGE DROPS & INSTANT SOUNDBITES ---
+        async function playStageDrop(type) {
+            stopAISpeech();
+
+            const drops = {
+                'silence': {
+                    chime: 'chime',
+                    text: "Ladies and gentlemen, silence please in the arena. The stage performance is about to begin.",
+                    label: 'STAGE DROP: SILENCE'
+                },
+                'parking': {
+                    chime: 'urgent',
+                    text: "Security Advisory: A vehicle parked near the main entrance is obstructing emergency access. The owner is requested to relocate it immediately.",
+                    label: 'STAGE DROP: PARKING'
+                },
+                'lost': {
+                    chime: 'bell',
+                    text: "Attention arena visitors: An unattended item has been deposited at the central festival helpdesk. The rightful owner may claim it with verification.",
+                    label: 'STAGE DROP: LOST & FOUND'
+                },
+                'warning': {
+                    chime: 'buzzer',
+                    text: "Final 2-minute warning! All scheduled contestants for the current stage must take their positions backstage immediately.",
+                    label: 'STAGE DROP: 2-MIN WARNING'
+                },
+                'applause': {
+                    chime: 'none',
+                    isApplauseSFX: true,
+                    label: 'STAGE DROP: APPLAUSE & CHEER'
+                }
+            };
+
+            const drop = drops[type];
+            if (!drop) return;
+
+            const wave = document.getElementById('tts-wave');
+            const statusLabel = document.getElementById('tts-status-label');
+            if (wave) wave.classList.add('speaking');
+            if (statusLabel) {
+                statusLabel.innerText = drop.label;
+                statusLabel.style.color = '#DC2626';
+            }
+            ttsIsSpeaking = true;
+
+            // Handle Applause Synthesizer
+            if (drop.isApplauseSFX) {
+                try {
+                    const ctx = getStudioAudioContext();
+                    if (ctx) {
+                        const duration = 3.5;
+                        const bufferSize = ctx.sampleRate * duration;
+                        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                        const output = buffer.getChannelData(0);
+                        for (let i = 0; i < bufferSize; i++) {
+                            output[i] = (Math.random() * 2 - 1) * 0.45;
+                        }
+
+                        const whiteNoise = ctx.createBufferSource();
+                        whiteNoise.buffer = buffer;
+
+                        const filter = ctx.createBiquadFilter();
+                        filter.type = 'bandpass';
+                        filter.frequency.setValueAtTime(950, ctx.currentTime);
+                        filter.Q.setValueAtTime(0.8, ctx.currentTime);
+
+                        const gain = ctx.createGain();
+                        gain.gain.setValueAtTime(0.01, ctx.currentTime);
+                        gain.gain.linearRampToValueAtTime(0.85, ctx.currentTime + 0.6);
+                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+
+                        whiteNoise.connect(filter);
+                        filter.connect(gain);
+                        gain.connect(ctx.destination);
+
+                        whiteNoise.start(0);
+                        logBroadcast("[Stage Drop] Audience Applause & Cheering");
+                        setTimeout(() => {
+                            ttsIsSpeaking = false;
+                            if (wave) wave.classList.remove('speaking');
+                            if (statusLabel) {
+                                statusLabel.innerText = 'IDLE';
+                                statusLabel.style.color = 'var(--text-muted)';
+                            }
+                        }, duration * 1000);
+                        return;
+                    }
+                } catch(e) {}
+            }
+
+            // Play Chime
+            await playChimeAudio(drop.chime || 'chime');
+
+            // Speak Utterance
+            speakSyntheticUtterance(drop.text, {
+                lang: 'en',
+                gender: 'male',
+                pitch: 1.0,
+                rate: 1.05
+            });
+
+            logBroadcast(`[Stage Drop] ${drop.text}`);
+        }
+
+        // --- O. AI SCRIPT ENHANCERS ---
+        function enhanceScriptAI(mode) {
+            const textarea = document.getElementById('tts-text-input');
+            let text = (textarea ? textarea.value : '').trim();
+
+            if (!text) {
+                // If empty, load sensible starter
+                loadAnnouncementTemplate();
+                text = (textarea ? textarea.value : '').trim();
+            }
+
+            let enhanced = text;
+
+            switch(mode) {
+                case 'urgent':
+                    if (!enhanced.toLowerCase().includes('urgent') && !enhanced.toLowerCase().includes('attention')) {
+                        enhanced = `🚨 Urgent Arena Broadcast: Attention all participants! ${enhanced} Please report IMMEDIATELY without delay.`;
+                    } else {
+                        enhanced = `🚨 Urgent Final Call: ${enhanced} Strict adherence to stage timing is required immediately.`;
+                    }
+                    break;
+                case 'winners':
+                    enhanced = `✨ FestOS Gala Announcement: Ladies and gentlemen, it is our distinct honour to declare the official winners! ${enhanced} Heartiest congratulations to all contestants on an outstanding demonstration of talent!`;
+                    break;
+                case 'formal':
+                    enhanced = `🏛️ Official Stage Adjudication Directorate Communiqué: ${enhanced} All coordinators and participant leaders are instructed to ensure strict compliance.`;
+                    break;
+                case 'concise':
+                    // Strip conversational fluff
+                    enhanced = enhanced
+                        .replace(/we would like to (?:kindly )?request that /gi, '')
+                        .replace(/it is (?:hereby )?notified that /gi, '')
+                        .replace(/ladies and gentlemen/gi, 'Attention')
+                        .replace(/\s{2,}/g, ' ')
+                        .trim();
+                    break;
+                case 'phonetic':
+                    // Add strategic breath commas for speech synthesis cadencing
+                    enhanced = enhanced
+                        .replace(/(\d+)/g, ', $1, ')
+                        .replace(/Stage (\d+)/gi, 'Stage, $1, ')
+                        .replace(/\s{2,}/g, ' ')
+                        .replace(/, ,/g, ',')
+                        .trim();
+                    break;
+            }
+
+            if (textarea) {
+                textarea.value = enhanced;
+                updateScriptCounters();
+                textarea.focus();
+            }
+
+            if (typeof showToast === 'function') {
+                showToast(`Enhanced script with AI (${mode.toUpperCase()})`, "success");
+            }
+        }
+
+        // --- P. SCRIPT CLEAR & TOKENS ---
+        function clearAnnouncementScript() {
+            const textarea = document.getElementById('tts-text-input');
+            if (textarea) {
+                textarea.value = '';
+                updateScriptCounters();
+                textarea.focus();
+            }
+            const compSelect = document.getElementById('tts-comp-target');
+            if (compSelect) compSelect.value = '';
+
+            if (typeof showToast === 'function') {
+                showToast("Announcement script cleared", "info");
+            }
+        }
+        window.clearScriptEditor = clearAnnouncementScript;
+
+        // Enhanced Token Resolver (supports both {token} and [TOKEN])
+        function resolveScriptTokens(text) {
+            if (!text) return '';
+            let resolved = text;
+            const festName = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFest) ? (festosAuth.getCurrentFest()?.name || 'FestOS Arena') : 'FestOS Arena';
+
+            const compSelect = document.getElementById('tts-comp-target');
+            const compId = compSelect ? compSelect.value : '';
+            let comp = null;
+            if (compId && window.allFestivalCompetitions) {
+                comp = window.allFestivalCompetitions.find(c => c.id === compId || c.id === String(compId));
+            }
+
+            const compName = comp ? comp.name : "Competition";
+            const stageName = comp && comp.stages && comp.stages.name ? comp.stages.name : (comp && comp.stage_no ? `Stage ${comp.stage_no}` : "Main Stage");
+            const catName = comp && comp.categories && comp.categories.name ? comp.categories.name : "General Category";
+
+            let w1 = "Chest #101", w2 = "Chest #102", w3 = "Chest #103";
+            if (comp && comp.participant_competitions && comp.participant_competitions.length > 0) {
+                const pcs = comp.participant_competitions;
+                if (pcs[0] && pcs[0].participants) w1 = pcs[0].participants.name || `Chest #${pcs[0].code_letter || '101'}`;
+                if (pcs[1] && pcs[1].participants) w2 = pcs[1].participants.name || `Chest #${pcs[1].code_letter || '102'}`;
+                if (pcs[2] && pcs[2].participants) w3 = pcs[2].participants.name || `Chest #${pcs[2].code_letter || '103'}`;
+            }
+
+            const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // Braces syntax: {competition}, {category}, {stage}, {winner_1}, etc.
+            resolved = resolved.replace(/\{competition\}/gi, compName);
+            resolved = resolved.replace(/\{category\}/gi, catName);
+            resolved = resolved.replace(/\{stage\}/gi, stageName);
+            resolved = resolved.replace(/\{winner_1\}/gi, w1);
+            resolved = resolved.replace(/\{winner_2\}/gi, w2);
+            resolved = resolved.replace(/\{winner_3\}/gi, w3);
+            resolved = resolved.replace(/\{time\}/gi, nowStr);
+            resolved = resolved.replace(/\{fest_name\}/gi, festName);
+            resolved = resolved.replace(/\{chest_no\}/gi, "101");
+
+            // Brackets syntax: [FEST_NAME], [STAGE], [EVENT], [CHEST_NO]
+            resolved = resolved.replace(/\[FEST_NAME\]/gi, festName);
+            resolved = resolved.replace(/\[STAGE\]/gi, stageName);
+            resolved = resolved.replace(/\[EVENT\]/gi, compName);
+            resolved = resolved.replace(/\[CHEST_NO\]/gi, "101");
+
+            return resolved;
+        }
+
+        // --- Q. QUEUE ASYNC REPAIRS ---
+        async function playQueueItem(index) {
+            if (!ttsQueue[index]) return;
+            const item = ttsQueue[index];
+            ttsQueue.splice(index, 1);
+            renderBroadcastQueue();
+            await triggerAIAnnouncement(item.text);
+        }
+
+        async function playNextInQueue() {
+            if (ttsQueue.length === 0) {
+                alert("Queue is empty. Add announcements to the playlist first.");
+                return;
+            }
+            await playQueueItem(0);
+        }
+
+        // --- R. PRESET ACTIVE STYLING HIGHLIGHT ---
+        const originalApplyVoicePreset = applyVoicePreset;
+        applyVoicePreset = function(type) {
+            // Highlight clicked button
+            document.querySelectorAll('.studio-preset-chip').forEach(b => {
+                b.style.background = '#FFFFFF';
+                b.style.color = '#334155';
+                b.style.borderColor = '#CBD5E1';
+            });
+            if (window.event && window.event.currentTarget) {
+                window.event.currentTarget.style.background = '#4F46E5';
+                window.event.currentTarget.style.color = '#FFFFFF';
+                window.event.currentTarget.style.borderColor = '#4F46E5';
+            }
+            originalApplyVoicePreset(type);
+        };
+
     </script>
 
     <!-- ========================================================= -->
