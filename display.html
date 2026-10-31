@@ -1120,15 +1120,13 @@
 
                         let catName = getCompCategoryName(comp);
                         let catHeaderBadge = catName ? ` &nbsp;|&nbsp; <span style="background:rgba(255,255,255,0.12); padding:2px 10px; border-radius:6px; font-weight:700; color:#FFFFFF; text-transform:uppercase;"><i class="fa-solid fa-layer-group"></i> ${catName}</span>` : '';
-                        let catNameTag = catName ? `<span style="font-size: 1rem; font-family: sans-serif; font-weight: 700; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #93C5FD; padding: 2px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 0.35rem;"><i class="fa-solid fa-layer-group" style="font-size: 0.8rem;"></i> ${catName}</span>` : '';
-
+                        
                         schHtml += `
                             <div class="sch-card" style="border-left: 8px solid ${col};">
                                 <div style="flex:1;">
                                     <div style="font-size: 1.05rem; color: ${col}; font-weight: 800; margin-bottom:0.35rem; letter-spacing: 0.05em;">${sDateBadge}<i class="fa-regular fa-clock"></i> ${sTime} ${sToTime}${sDelayBadge} &nbsp;|&nbsp; <i class="fa-solid fa-microphone-stage"></i> ${comp.stages?.name || 'GLOBAL VENUE'}${catHeaderBadge}</div>
-                                    <div class="theme-font" style="font-size: 2.2rem; font-weight: 800; line-height: 1.1; text-shadow: 0 2px 10px rgba(0,0,0,0.5); color: #FFFFFF; display: flex; align-items: center; gap: 0.85rem; flex-wrap: wrap;">
+                                    <div class="theme-font" style="font-size: 2.2rem; font-weight: 800; line-height: 1.1; text-shadow: 0 2px 10px rgba(0,0,0,0.5); color: #FFFFFF;">
                                         <span>${comp.name}</span>
-                                        ${catNameTag}
                                     </div>
                                 </div>
                                 <div style="background: ${bBg}; padding: 0.9rem 1.8rem; border-radius: 14px; font-size: 1.15rem; font-weight: 800; color: ${col}; text-align: center; border: 1px solid ${col}; box-shadow: 0 0 15px rgba(0,0,0,0.3);">
