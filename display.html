@@ -1836,6 +1836,22 @@
                 updateDynamicQR(activeId);
             }
 
+            // 7. Instant Global Ticker Marquee Sync
+            if (typeof displaySettings.global_ticker === 'string') {
+                const track = document.getElementById('live-ticker-track');
+                if (track) {
+                    if (displaySettings.global_ticker.trim() !== '') {
+                        const html = `<div class="ticker-item"><span class="t-badge" style="background:var(--primary); color:white;">ANNOUNCEMENT</span> ${displaySettings.global_ticker}</div>`;
+                        if (track.dataset.lastTicker !== html) {
+                            track.dataset.lastTicker = html;
+                            track.innerHTML = html + html + html + html;
+                        }
+                    } else {
+                        updateLiveTicker(globalActiveEvents, globalPublishedComps);
+                    }
+                }
+            }
+
             if (requiresPlaylistRebuild) {
                 if (Object.keys(lastScheduleData).length > 0) {
                     buildPlaylist(lastScheduleData, lastCustomSlidesArray);

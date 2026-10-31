@@ -10914,6 +10914,28 @@ async function loadDisplaySettings() {
 }
 
 let dispThemeDebounceTimer = null;
+let dispSyncPillTimer = null;
+
+function showAutoSyncIndicator(status = 'syncing') {
+    const pill = document.getElementById('disp-autosync-pill');
+    if (!pill) return;
+    clearTimeout(dispSyncPillTimer);
+    if (status === 'syncing') {
+        pill.style.color = '#F59E0B';
+        pill.style.background = 'rgba(245, 158, 11, 0.15)';
+        pill.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+        pill.innerHTML = '<span style="width: 7px; height: 7px; background: #F59E0B; border-radius: 50%; box-shadow: 0 0 6px #F59E0B;"></span> APPLYING...';
+    } else if (status === 'applied') {
+        pill.style.color = '#10B981';
+        pill.style.background = 'rgba(16, 185, 129, 0.12)';
+        pill.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+        pill.innerHTML = '<span style="width: 7px; height: 7px; background: #10B981; border-radius: 50%; box-shadow: 0 0 6px #10B981;"></span> DIRECT APPLIED LIVE';
+        dispSyncPillTimer = setTimeout(() => {
+            pill.innerHTML = '<span style="width: 7px; height: 7px; background: #10B981; border-radius: 50%; box-shadow: 0 0 6px #10B981;"></span> AUTO-APPLY LIVE';
+        }, 2200);
+    }
+}
+window.showAutoSyncIndicator = showAutoSyncIndicator;
 
 // --- INSTANT 0-MS THEME & MOTION GRAPHICS BROADCASTER ---
 function broadcastInstantThemeUpdate() {
@@ -10926,6 +10948,9 @@ function broadcastInstantThemeUpdate() {
     const showQr = document.getElementById('disp-show-qr')?.checked !== false;
     const qrPreset = document.getElementById('disp-qr-preset')?.value || 'scoreboard';
     const qrUrl = document.getElementById('disp-qr-url')?.value || '';
+    const qrTitle = document.getElementById('disp-qr-title')?.value || 'SCAN FOR LIVE DATA';
+    const qrSubtitle = document.getElementById('disp-qr-subtitle')?.value || 'POINT YOUR CAMERA';
+    const globalTicker = document.getElementById('disp-global-ticker')?.value || '';
 
     const settings = {
         bg_style: bgStyle,
@@ -10936,7 +10961,10 @@ function broadcastInstantThemeUpdate() {
         show_milestones: showMilestones,
         show_qr: showQr,
         qr_preset: qrPreset,
-        qr_url: qrUrl
+        qr_url: qrUrl,
+        qr_title: qrTitle,
+        qr_subtitle: qrSubtitle,
+        global_ticker: globalTicker
     };
 
     // 1. Instant local postMessage to preview iframe (0ms latency)
@@ -10948,11 +10976,15 @@ function broadcastInstantThemeUpdate() {
     // 2. Update active chip highlight
     updateActiveThemeChipUI(bgStyle);
 
-    // 3. Debounced silent save to Supabase DB (350ms)
+    // 3. Visual indicator of live auto-apply
+    showAutoSyncIndicator('syncing');
+
+    // 4. Debounced auto-save to Supabase DB & Realtime WebSocket broadcast (250ms)
     clearTimeout(dispThemeDebounceTimer);
-    dispThemeDebounceTimer = setTimeout(() => {
-        saveDisplaySettings(true);
-    }, 350);
+    dispThemeDebounceTimer = setTimeout(async () => {
+        await saveDisplaySettings(true);
+        showAutoSyncIndicator('applied');
+    }, 250);
 }
 
 function updateActiveThemeChipUI(activeKey) {
@@ -11209,11 +11241,11 @@ function toggleDisplayBlackout() {
     sendDisplayLiveAction('blackout', { blackout: newBlackout });
 }
 
-function setPinnedDisplaySlide() {
+function setPinnedDisplaySlide(targetSlideId = null) {
     const select = document.getElementById('disp-pin-slide-select');
-    const slideId = select?.value;
+    const slideId = targetSlideId || select?.value;
     if (!slideId) {
-        showToast("Please choose a slide from the dropdown to pin.", "warning");
+        clearPinnedDisplaySlide();
         return;
     }
     sendDisplayLiveAction('pin', { target_slide: slideId });
@@ -11224,6 +11256,17 @@ function clearPinnedDisplaySlide() {
     if (select) select.value = '';
     sendDisplayLiveAction('unpin');
 }
+
+function handlePinDropdownChange() {
+    const select = document.getElementById('disp-pin-slide-select');
+    const slideId = select?.value;
+    if (slideId) {
+        setPinnedDisplaySlide(slideId);
+    } else {
+        clearPinnedDisplaySlide();
+    }
+}
+window.handlePinDropdownChange = handlePinDropdownChange;
 
 function sendDisplayFlashAlert() {
     const msg = document.getElementById('disp-flash-message')?.value?.trim();

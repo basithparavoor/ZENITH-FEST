@@ -2487,11 +2487,15 @@
                 if (targetAlbumId) {
                     setTimeout(() => { if (typeof openAlbumViewerModal === 'function') openAlbumViewerModal(targetAlbumId); }, 350);
                 }
-            } else if (tab === 'results') {
+            } else if (tab === 'results' || targetCompId) {
                 switchMainTab('results', null, updateUrl);
                 if (targetCompId) {
                     switchResultsTab('individual', document.getElementById('subtab-btn-individual'), updateUrl);
-                    setTimeout(() => { openResultModal(targetCompId); }, 300);
+                    setTimeout(() => { 
+                        openResultModal(targetCompId); 
+                        const tile = document.getElementById(`comp-tile-${targetCompId}`);
+                        if (tile) tile.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
                 } else if (subtab === 'individual') {
                     switchResultsTab('individual', document.getElementById('subtab-btn-individual'), updateUrl);
                 } else {
@@ -3739,7 +3743,7 @@
                 const isGroupBadge = comp.is_group ? `<span class="badge" style="background:#EFF6FF; color:#2563EB; font-size:0.68rem; font-weight:700; padding:0.2rem 0.5rem; border-radius:4px; margin-left:0.4rem;">GROUP</span>` : '';
 
                 container.innerHTML += `
-                    <div class="comp-tile" style="animation-delay: ${count * 0.03}s">
+                    <div class="comp-tile" id="comp-tile-${comp.id}" style="animation-delay: ${count * 0.03}s">
                         <div>
                             <div class="tile-header">
                                 <span class="tile-category">${catName} ${isGroupBadge}</span>
@@ -3932,9 +3936,9 @@
         function closeTeamModal() { document.getElementById('team-preview-modal').classList.remove('active'); }
 
         function openResultModal(compId) {
-            activeCompId = compId; 
-            const comp = publishedCompetitions.find(c => c.id === compId);
+            const comp = publishedCompetitions.find(c => String(c.id) === String(compId));
             if (!comp) return;
+            activeCompId = comp.id;
 
             document.getElementById('modal-cat-name').innerText = comp.categories?.name || 'EVENT';
             document.getElementById('modal-comp-name').innerText = comp.name;
@@ -3942,8 +3946,8 @@
             const winnersList = document.getElementById('modal-winners-list');
             winnersList.innerHTML = '';
             
-            const results = competitionResults[compId] || [];
-            const squadData = competitionParticipantsMap[compId] || [];
+            const results = competitionResults[comp.id] || competitionResults[compId] || [];
+            const squadData = competitionParticipantsMap[comp.id] || competitionParticipantsMap[compId] || [];
 
             if(results.length === 0) {
                 winnersList.innerHTML = `<p style="color: var(--text-muted); font-weight: 600; padding: 2rem 0; text-align: center; text-transform: uppercase;">RESULTS ARE STILL BEING CALCULATED.</p>`;

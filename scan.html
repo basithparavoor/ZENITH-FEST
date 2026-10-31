@@ -484,6 +484,77 @@
             gap: 0.6rem;
             transition: var(--transition);
         }
+        .sheet-comp-card.is-published {
+            cursor: pointer;
+            border-color: rgba(139, 92, 246, 0.45);
+            background: linear-gradient(135deg, var(--bg-surface-elevated) 0%, rgba(139, 92, 246, 0.12) 100%);
+            position: relative;
+            user-select: none;
+            transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                        border-color 0.2s ease, 
+                        box-shadow 0.2s ease, 
+                        background 0.2s ease;
+        }
+        .sheet-comp-card.is-published:hover {
+            border-color: #8B5CF6;
+            background: linear-gradient(135deg, rgba(31, 41, 55, 0.98) 0%, rgba(139, 92, 246, 0.22) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px -4px rgba(139, 92, 246, 0.35);
+        }
+        .sheet-comp-card.is-published:active {
+            transform: scale(0.98);
+        }
+        .sheet-comp-card.is-published:focus-visible {
+            outline: 2px solid #8B5CF6;
+            outline-offset: 2px;
+        }
+        .result-link-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: var(--radius-full);
+            background: rgba(139, 92, 246, 0.2);
+            color: #DDD6FE;
+            border: 1px solid rgba(139, 92, 246, 0.4);
+            font-size: 0.68rem;
+            font-weight: 700;
+            transition: var(--transition);
+        }
+        .sheet-comp-card.is-published:hover .result-link-pill {
+            background: #8B5CF6;
+            color: #FFFFFF;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+        }
+        .sheet-comp-published-action {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.74rem;
+            font-weight: 700;
+            color: #A78BFA;
+            margin-top: 0.2rem;
+            padding-top: 0.5rem;
+            border-top: 1px dashed rgba(139, 92, 246, 0.3);
+        }
+        .sheet-comp-published-action .view-link-text {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: #DDD6FE;
+            background: rgba(139, 92, 246, 0.25);
+            padding: 0.2rem 0.6rem;
+            border-radius: var(--radius-full);
+            border: 1px solid rgba(139, 92, 246, 0.4);
+            font-size: 0.72rem;
+            transition: var(--transition);
+        }
+        .sheet-comp-card.is-published:hover .sheet-comp-published-action .view-link-text {
+            background: #8B5CF6;
+            color: #FFFFFF;
+            border-color: #8B5CF6;
+            transform: translateX(2px);
+        }
         .sheet-comp-header {
             display: flex; 
             justify-content: space-between; 
@@ -1358,10 +1429,11 @@
                     let stIcon = '<i class="fa-solid fa-clock"></i>';
                     let stText = 'UPCOMING';
 
+                    const isPublished = comp.status === 'published';
                     if (comp.status === 'registration') { stClass = 'st-registration'; stIcon = '<i class="fa-solid fa-bullhorn"></i>'; stText = 'CALLING'; }
                     else if (comp.status === 'ongoing') { stClass = 'st-ongoing'; stIcon = '<i class="fa-solid fa-bolt"></i>'; stText = 'LIVE ON STAGE'; }
                     else if (comp.status === 'valuation') { stClass = 'st-valuation'; stIcon = '<i class="fa-solid fa-gavel"></i>'; stText = 'VALUATION'; }
-                    else if (comp.status === 'published') { stClass = 'st-published'; stIcon = '<i class="fa-solid fa-circle-check"></i>'; stText = 'DECLARED'; }
+                    else if (isPublished) { stClass = 'st-published'; stIcon = '<i class="fa-solid fa-circle-check"></i>'; stText = 'DECLARED'; }
 
                     const catName = comp.categories?.name || 'General';
                     const stageName = comp.stages?.name || 'Unassigned Stage';
@@ -1386,14 +1458,20 @@
                         }
                     }
 
+                    const safeCompName = (comp.name || '').replace(/"/g, '&quot;');
+
                     return `
-                        <div class="sheet-comp-card">
+                        <div class="sheet-comp-card ${isPublished ? 'is-published' : ''}"
+                             ${isPublished ? `onclick="navigateToResult('${comp.id}')" role="button" tabindex="0" title="Click to view published result for ${safeCompName}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigateToResult('${comp.id}');}"` : ''}>
                             <div class="sheet-comp-header">
                                 <div>
                                     <strong class="sheet-comp-name">${comp.name}</strong>
                                     ${pc.is_leader ? '<span style="color: #FBBF24; font-size: 0.68rem; font-weight: 800; display: block; margin-top: 2px;"><i class="fa-solid fa-star"></i> SQUAD LEADER</span>' : ''}
                                 </div>
-                                <span class="status-badge ${stClass}">${stIcon} ${stText}</span>
+                                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                    <span class="status-badge ${stClass}">${stIcon} ${stText}</span>
+                                    ${isPublished ? `<span class="result-link-pill" title="View Result"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>` : ''}
+                                </div>
                             </div>
 
                             <div style="display: flex; gap: 0.75rem; font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">
@@ -1402,6 +1480,13 @@
                             </div>
 
                             ${squadHtml}
+
+                            ${isPublished ? `
+                                <div class="sheet-comp-published-action">
+                                    <span><i class="fa-solid fa-trophy" style="margin-right: 4px;"></i> Results Declared</span>
+                                    <span class="view-link-text">View Result <i class="fa-solid fa-chevron-right" style="font-size: 0.65rem;"></i></span>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 }).join('');
@@ -1426,6 +1511,30 @@
             if (statusIcon) statusIcon.className = "fa-solid fa-crosshairs";
             if (statusText) statusText.innerText = "Align QR in frame";
         }
+
+        function navigateToResult(compId) {
+            if (!compId) return;
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const fest = urlParams.get('fest') || urlParams.get('fest_id') || urlParams.get('slug') || 
+                             (window.festosAuth && typeof window.festosAuth.getCurrentFestId === 'function' ? window.festosAuth.getCurrentFestId() : null) || 
+                             window.activeFestId || 
+                             localStorage.getItem('festos_last_fest_id') || 
+                             localStorage.getItem('festos_active_fest_id') || '';
+
+                const targetParams = new URLSearchParams();
+                if (fest) targetParams.set('fest', fest);
+                targetParams.set('tab', 'results');
+                targetParams.set('subtab', 'individual');
+                targetParams.set('comp', compId);
+
+                window.location.href = `results.html?${targetParams.toString()}`;
+            } catch (err) {
+                console.error("Navigation error:", err);
+                window.location.href = `results.html?tab=results&subtab=individual&comp=${encodeURIComponent(compId)}`;
+            }
+        }
+        window.navigateToResult = navigateToResult;
 
         function resumeScanning() {
             document.getElementById('profile-sheet').classList.remove('open');

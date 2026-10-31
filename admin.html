@@ -5931,7 +5931,7 @@ canvas {
                     <i class="fa-solid fa-thumbtack"></i> Pin / Force Specific Slide
                 </div>
                 <div class="disp-pin-controls">
-                    <select id="disp-pin-slide-select" style="flex: 1; min-width: 140px; background: #0F172A; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 0.55rem 0.6rem; font-size: 0.85rem;">
+                    <select id="disp-pin-slide-select" onchange="handlePinDropdownChange()" style="flex: 1; min-width: 140px; background: #0F172A; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 0.55rem 0.6rem; font-size: 0.85rem;">
                         <option value="">-- Choose Slide to Lock --</option>
                         <option value="slide-leaderboard">🏆 Overall Team Leaderboard</option>
                         <option value="slide-schedule">📅 Live Upcoming Schedule</option>
@@ -5955,7 +5955,7 @@ canvas {
                     <span style="font-size: 0.75rem; color: #94A3B8; font-weight: normal;">Takes over screens</span>
                 </div>
                 <div class="disp-flash-controls">
-                    <input type="text" id="disp-flash-message" placeholder="e.g. Calling Chest #A-104 to Stage 2..." style="flex: 1; min-width: 160px; background: #0F172A; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 0.55rem 0.6rem; font-size: 0.85rem;">
+                    <input type="text" id="disp-flash-message" placeholder="e.g. Calling Chest #A-104 to Stage 2..." onkeydown="if(event.key === 'Enter') sendDisplayFlashAlert()" style="flex: 1; min-width: 160px; background: #0F172A; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 0.55rem 0.6rem; font-size: 0.85rem;">
                     <div class="disp-flash-actions">
                         <select id="disp-flash-duration" style="width: 80px; background: #0F172A; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 0.55rem 0.4rem; font-size: 0.85rem;">
                             <option value="10">10s</option>
@@ -5982,9 +5982,14 @@ canvas {
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.5rem;">
                     <div>
                         <h3 style="margin: 0; font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-palette" style="color: var(--primary);"></i> Theme & Motion Graphics</h3>
-                        <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">Ambient backgrounds, typography, and live physics (Instant Sync)</p>
+                        <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">Ambient backgrounds, typography, and live physics (Direct Auto-Apply)</p>
                     </div>
-                    <button class="btn btn-primary" onclick="saveDisplaySettings()" style="padding: 0.45rem 0.9rem; font-size: 0.85rem;"><i class="fa-solid fa-cloud-arrow-up"></i> Save & Sync</button>
+                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                        <span id="disp-autosync-pill" style="font-size: 0.76rem; font-weight: 700; color: #10B981; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); padding: 0.35rem 0.75rem; border-radius: 9999px; display: inline-flex; align-items: center; gap: 0.4rem; transition: all 0.3s ease;">
+                            <span style="width: 7px; height: 7px; background: #10B981; border-radius: 50%; box-shadow: 0 0 6px #10B981;"></span> AUTO-APPLY LIVE
+                        </span>
+                        <button class="btn btn-outline" onclick="saveDisplaySettings()" style="padding: 0.42rem 0.85rem; font-size: 0.82rem;" title="Force instant re-sync to database and all screens"><i class="fa-solid fa-cloud-arrow-up"></i> Force Sync</button>
+                    </div>
                 </div>
                 
                 <div class="grid-2" style="gap: 1rem; margin-bottom: 1rem;">
