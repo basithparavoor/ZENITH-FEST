@@ -11012,6 +11012,13 @@ function updateDisplayRemoteStatusUI() {
             if (displayState.pinned_slide === 'slide-schedule') label = 'SCHEDULES ONLY';
             else if (displayState.pinned_slide === 'slide-leaderboard') label = 'LEADERBOARD ONLY';
             else if (displayState.pinned_slide === 'slide-results-all' || displayState.pinned_slide === 'slide-results') label = 'RESULTS ONLY';
+            else if (displayState.pinned_slide.startsWith('slide-results-')) {
+                const cId = displayState.pinned_slide.replace('slide-results-', '');
+                const c = (competitionsList || []).find(x => String(x.id) === String(cId));
+                const catName = c ? (c.categories?.name || (categoriesList && categoriesList.find(cat => String(cat.id) === String(c.category_id))?.name) || '') : '';
+                const catSuffix = catName ? ` (${catName.toUpperCase()})` : '';
+                label = c ? `RESULT: ${c.name.toUpperCase()}${catSuffix}` : 'RESULT PODIUM';
+            }
             badge.innerHTML = `<span style="width:8px; height:8px; background:#3B82F6; border-radius:50%; box-shadow:0 0 8px #3B82F6;"></span><span>PINNED: ${label}</span>`;
         } else if (displayState.is_paused) {
             badge.style.background = 'rgba(245, 158, 11, 0.2)';
@@ -11052,9 +11059,11 @@ async function populateDisplayPinSlideDropdown() {
         group.appendChild(allResultsOpt);
 
         published.forEach(c => {
+            const catName = c.categories?.name || (categoriesList && categoriesList.find(cat => String(cat.id) === String(c.category_id))?.name) || '';
+            const catSuffix = catName ? ` (${catName})` : '';
             const opt = document.createElement('option');
             opt.value = `slide-results-${c.id}`;
-            opt.innerText = `Result: ${c.name}`;
+            opt.innerText = `Result: ${c.name}${catSuffix}`;
             group.appendChild(opt);
         });
         select.appendChild(group);

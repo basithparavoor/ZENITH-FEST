@@ -508,6 +508,13 @@
                    pinId === 'slide-results';
         }
 
+        function getCompCategoryName(c) {
+            if (!c) return '';
+            if (c.categories && c.categories.name) return c.categories.name;
+            const found = (globalAllComps || []).find(x => String(x.id) === String(c.id));
+            return found?.categories?.name || '';
+        }
+
         // --- EVENT RADAR RELEVANCE & TIME FILTER HELPERS ---
         // Helper: Check if a status represents a completed competition
         function isCompCompleted(c) {
@@ -918,9 +925,12 @@
                 return `<div class="v-members-strip">${p.members.map(m => `<span class="v-member-tag ${m.is_leader ? 'leader' : ''}">${m.is_leader ? '<i class="fa-solid fa-star"></i> ' : ''}${m.name}</span>`).join('')}</div>`;
             };
             
+            const catName = getCompCategoryName(comp);
+            const catBadge = catName ? ` <span style="font-size:0.55em; vertical-align:middle; background:rgba(255,255,255,0.12); color:#E2E8F0; padding:4px 14px; border-radius:8px; font-weight:700; text-transform:uppercase; border:1px solid rgba(255,255,255,0.2); letter-spacing:0.04em;"><i class="fa-solid fa-layer-group"></i> ${catName}</span>` : '';
+
             return `
                 <div class="slide" id="${slideId}" data-slide-alias="slide-results-${comp.id}" data-qr-type="results" data-qr-comp="${comp.id}">
-                    <h2 class="slide-title theme-font">OFFICIAL RESULTS: <span style="color:var(--gold);">${comp.name}</span></h2>                        
+                    <h2 class="slide-title theme-font">OFFICIAL RESULTS: <span style="color:var(--gold);">${comp.name}</span>${catBadge}</h2>                        
                     <div class="results-layout">
                         <div class="v-podium-stack">
                             
@@ -1108,11 +1118,18 @@
                             ? ` <span style="background:rgba(245,158,11,0.25); border:1px solid #F59E0B; color:#FBBF24; font-size:0.85rem; padding:2px 8px; border-radius:6px; font-weight:800; letter-spacing:0.03em;"><i class="fa-solid fa-clock-rotate-left"></i> +${scheduleData[comp.id].delay_offset_minutes}M DELAY</span>`
                             : '';
 
+                        let catName = getCompCategoryName(comp);
+                        let catHeaderBadge = catName ? ` &nbsp;|&nbsp; <span style="background:rgba(255,255,255,0.12); padding:2px 10px; border-radius:6px; font-weight:700; color:#FFFFFF; text-transform:uppercase;"><i class="fa-solid fa-layer-group"></i> ${catName}</span>` : '';
+                        let catNameTag = catName ? `<span style="font-size: 1rem; font-family: sans-serif; font-weight: 700; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #93C5FD; padding: 2px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 0.35rem;"><i class="fa-solid fa-layer-group" style="font-size: 0.8rem;"></i> ${catName}</span>` : '';
+
                         schHtml += `
                             <div class="sch-card" style="border-left: 8px solid ${col};">
                                 <div style="flex:1;">
-                                    <div style="font-size: 1.05rem; color: ${col}; font-weight: 800; margin-bottom:0.35rem; letter-spacing: 0.05em;">${sDateBadge}<i class="fa-regular fa-clock"></i> ${sTime} ${sToTime}${sDelayBadge} &nbsp;|&nbsp; <i class="fa-solid fa-microphone-stage"></i> ${comp.stages?.name || 'GLOBAL VENUE'}</div>
-                                    <div class="theme-font" style="font-size: 2.2rem; font-weight: 800; line-height: 1.1; text-shadow: 0 2px 10px rgba(0,0,0,0.5); color: #FFFFFF;">${comp.name}</div>
+                                    <div style="font-size: 1.05rem; color: ${col}; font-weight: 800; margin-bottom:0.35rem; letter-spacing: 0.05em;">${sDateBadge}<i class="fa-regular fa-clock"></i> ${sTime} ${sToTime}${sDelayBadge} &nbsp;|&nbsp; <i class="fa-solid fa-microphone-stage"></i> ${comp.stages?.name || 'GLOBAL VENUE'}${catHeaderBadge}</div>
+                                    <div class="theme-font" style="font-size: 2.2rem; font-weight: 800; line-height: 1.1; text-shadow: 0 2px 10px rgba(0,0,0,0.5); color: #FFFFFF; display: flex; align-items: center; gap: 0.85rem; flex-wrap: wrap;">
+                                        <span>${comp.name}</span>
+                                        ${catNameTag}
+                                    </div>
                                 </div>
                                 <div style="background: ${bBg}; padding: 0.9rem 1.8rem; border-radius: 14px; font-size: 1.15rem; font-weight: 800; color: ${col}; text-align: center; border: 1px solid ${col}; box-shadow: 0 0 15px rgba(0,0,0,0.3);">
                                     ${bText}
@@ -1257,9 +1274,11 @@
                         container.insertAdjacentHTML('beforeend', pHtml);
                         activeSlides.push(pinnedTarget);
                     } else if (compObj) {
+                        const catName = getCompCategoryName(compObj);
+                        const catBadge = catName ? ` <span style="font-size:0.55em; vertical-align:middle; background:rgba(255,255,255,0.12); color:#E2E8F0; padding:4px 14px; border-radius:8px; font-weight:700; text-transform:uppercase; border:1px solid rgba(255,255,255,0.2); letter-spacing:0.04em;"><i class="fa-solid fa-layer-group"></i> ${catName}</span>` : '';
                         const emptyHtml = `
                             <div class="slide active" id="${pinnedTarget}" data-qr-type="results" data-qr-comp="${compObj.id}">
-                                <h2 class="slide-title theme-font">OFFICIAL RESULTS: <span style="color:var(--gold);">${compObj.name}</span></h2>
+                                <h2 class="slide-title theme-font">OFFICIAL RESULTS: <span style="color:var(--gold);">${compObj.name}</span>${catBadge}</h2>
                                 <div style="text-align:center; padding: 5rem 2rem;">
                                     <i class="fa-solid fa-award" style="font-size: 5rem; color: var(--gold); margin-bottom: 1.5rem; opacity: 0.85;"></i>
                                     <h3 class="theme-font" style="font-size: 2.8rem; color: #FFFFFF;">RESULTS BEING COMPILED</h3>
@@ -1369,22 +1388,26 @@
             
             // Priority 1: LIVE ON STAGE (ongoing - ALWAYS SHOW)
             (activeEvents || []).filter(c => String(c.status || '').toLowerCase().trim() === 'ongoing').forEach(c => { 
-                tickerHtml += `<div class="ticker-item"><span class="t-badge t-live">LIVE ON STAGE</span> ${c.name} (${c.stages?.name || 'MAIN STAGE'})</div>`; 
+                const catStr = getCompCategoryName(c) ? ` [${getCompCategoryName(c).toUpperCase()}]` : '';
+                tickerHtml += `<div class="ticker-item"><span class="t-badge t-live">LIVE ON STAGE</span> ${c.name}${catStr} (${c.stages?.name || 'MAIN STAGE'})</div>`; 
             });
 
             // Priority 2: CALLING NOW (registration - ALWAYS SHOW)
             (activeEvents || []).filter(c => String(c.status || '').toLowerCase().trim() === 'registration').forEach(c => { 
-                tickerHtml += `<div class="ticker-item"><span class="t-badge t-reg">CALLING NOW</span> ${c.name}</div>`; 
+                const catStr = getCompCategoryName(c) ? ` [${getCompCategoryName(c).toUpperCase()}]` : '';
+                tickerHtml += `<div class="ticker-item"><span class="t-badge t-reg">CALLING NOW</span> ${c.name}${catStr}</div>`; 
             });
 
             // Priority 3: IN VALUATION (valuation - ALWAYS SHOW for onstage, not offstage)
             (activeEvents || []).filter(c => String(c.status || '').toLowerCase().trim() === 'valuation' && !isCompOffstage(c)).forEach(c => { 
-                tickerHtml += `<div class="ticker-item"><span class="t-badge t-val">IN VALUATION</span> ${c.name}</div>`; 
+                const catStr = getCompCategoryName(c) ? ` [${getCompCategoryName(c).toUpperCase()}]` : '';
+                tickerHtml += `<div class="ticker-item"><span class="t-badge t-val">IN VALUATION</span> ${c.name}${catStr}</div>`; 
             });
 
             // Priority 4: JUST CONCLUDED (Only visible within 10 minutes of program ending)
             (activeEvents || []).filter(c => isCompletedWithin10Mins(c)).forEach(c => { 
-                tickerHtml += `<div class="ticker-item"><span class="t-badge" style="background:#8B5CF6; color:white;">JUST CONCLUDED</span> ${c.name}</div>`; 
+                const catStr = getCompCategoryName(c) ? ` [${getCompCategoryName(c).toUpperCase()}]` : '';
+                tickerHtml += `<div class="ticker-item"><span class="t-badge" style="background:#8B5CF6; color:white;">JUST CONCLUDED</span> ${c.name}${catStr}</div>`; 
             });
             
             if(tickerHtml === '') tickerHtml = '<div class="ticker-item">WELCOME TO ZENITH FEST BROADCAST • LIVE NETWORK SYNCED</div>';
@@ -1711,9 +1734,11 @@
                 if (comp) {
                     const container = document.getElementById('slide-container');
                     if (container) {
+                        const catName = getCompCategoryName(comp);
+                        const catBadge = catName ? ` <span style="font-size:0.55em; vertical-align:middle; background:rgba(255,255,255,0.12); color:#E2E8F0; padding:4px 14px; border-radius:8px; font-weight:700; text-transform:uppercase; border:1px solid rgba(255,255,255,0.2); letter-spacing:0.04em;"><i class="fa-solid fa-layer-group"></i> ${catName}</span>` : '';
                         const emptyHtml = `
                             <div class="slide" id="${slideId}" data-qr-type="results" data-qr-comp="${comp.id}">
-                                <h2 class="slide-title theme-font">OFFICIAL RESULTS: <span style="color:var(--gold);">${comp.name}</span></h2>
+                                <h2 class="slide-title theme-font">OFFICIAL RESULTS: <span style="color:var(--gold);">${comp.name}</span>${catBadge}</h2>
                                 <div style="text-align:center; padding: 5rem 2rem;">
                                     <i class="fa-solid fa-award" style="font-size: 5rem; color: var(--gold); margin-bottom: 1.5rem; opacity: 0.85;"></i>
                                     <h3 class="theme-font" style="font-size: 2.8rem; color: #FFFFFF;">RESULTS BEING COMPILED</h3>
@@ -1814,7 +1839,9 @@
                     const cId = slideId.replace('slide-results-', '');
                     const c = (globalAllComps || []).find(x => String(x.id) === String(cId)) || 
                               (globalPublishedComps || []).find(x => String(x.id) === String(cId));
-                    label = c ? `RESULT: ${c.name.toUpperCase()}` : 'OFFICIAL RESULT';
+                    const catName = getCompCategoryName(c);
+                    const catSuffix = catName ? ` (${catName.toUpperCase()})` : '';
+                    label = c ? `RESULT: ${c.name.toUpperCase()}${catSuffix}` : 'OFFICIAL RESULT';
                 } else if (slideId.startsWith('slide-custom-')) {
                     const title = targetEl.querySelector('.cs-title')?.innerText;
                     label = title ? title.toUpperCase() : 'CUSTOM SLIDE';

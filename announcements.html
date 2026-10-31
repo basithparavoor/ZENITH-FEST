@@ -3114,7 +3114,7 @@ if (allCompIds.length > 0) {
         // 🎙️ FESTIVAL HUMAN VOICE MODELS & STUDIO AUDIO ENGINE PRO (FULL FUNCTIONALITY)
         // ========================================================================
 
-        // PRE-INSTALLED HIGH-QUALITY FESTIVAL AI VOICE MODELS
+        // COMPREHENSIVE PRE-INSTALLED FESTIVAL AI VOICE MODELS (ACROSS FESTIVAL DOMAINS)
         const DEFAULT_FESTIVAL_VOICE_MODELS = [
             {
                 id: 'built_in_farhan',
@@ -3193,11 +3193,105 @@ if (allCompIds.length > 0) {
                 isDefault: true,
                 created_at: '2026-01-01T00:00:00Z',
                 description: 'Acoustic clarity and ceremonial presence for multi-lingual international gatherings and stadium announcements.'
+            },
+            {
+                id: 'built_in_kabir',
+                name: 'RJ Kabir (Campus Radio & Youth Emcee)',
+                gender: 'male',
+                lang: 'en',
+                pitch: 1.08,
+                rate: 1.12,
+                role: 'Campus Radio Host',
+                tag: 'Vibrant & Youthful',
+                isDefault: true,
+                created_at: '2026-01-01T00:00:00Z',
+                description: 'Vibrant, upbeat, dynamic campus radio tone suited for lively competitions, stage intervals, and crowd energy.'
+            },
+            {
+                id: 'built_in_meera',
+                name: 'Meera Nambiar (Classical & Dance Stage Anchor)',
+                gender: 'female',
+                lang: 'ml',
+                pitch: 1.20,
+                rate: 0.95,
+                role: 'Classical Dance Anchor',
+                tag: 'Graceful & Melodic',
+                isDefault: true,
+                created_at: '2026-01-01T00:00:00Z',
+                description: 'Graceful and articulate cadence tailored for Bharatanatyam, Mohiniyattam, and classical stage presentations.'
+            },
+            {
+                id: 'built_in_rakesh',
+                name: 'Coach Rakesh Verma (Arena Sports & Track Marshal)',
+                gender: 'male',
+                lang: 'hi',
+                pitch: 0.88,
+                rate: 1.22,
+                role: 'Sports & Track Marshal',
+                tag: 'Booming & Command',
+                isDefault: true,
+                created_at: '2026-01-01T00:00:00Z',
+                description: 'Commanding, stadium-filling baritone designed for athletic track announcements and sports meet calls.'
+            },
+            {
+                id: 'built_in_zeeshan',
+                name: 'Dr. Zeeshan Rizvi (Urdu Adab & Literary Gala Emcee)',
+                gender: 'male',
+                lang: 'ur',
+                pitch: 0.86,
+                rate: 0.90,
+                role: 'Literary Gala Emcee',
+                tag: 'Poetic Eloquence',
+                isDefault: true,
+                created_at: '2026-01-01T00:00:00Z',
+                description: 'Eloquent, cultured cadence for literary events, bait-baazi, debates, and poetry recitals.'
+            },
+            {
+                id: 'built_in_priya',
+                name: 'Priya Sundaram (Tamil Kalai Vizha Presenter)',
+                gender: 'female',
+                lang: 'ta',
+                pitch: 1.14,
+                rate: 1.02,
+                role: 'Tamil Arts Host',
+                tag: 'Traditional Resonance',
+                isDefault: true,
+                created_at: '2026-01-01T00:00:00Z',
+                description: 'Articulate, traditional South arts presentation voice for regional performing arts and speech contests.'
+            },
+            {
+                id: 'built_in_arjun',
+                name: 'Arjun Hegde (Theatre & Drama Stage Caller)',
+                gender: 'male',
+                lang: 'kn',
+                pitch: 0.98,
+                rate: 1.08,
+                role: 'Drama Stage Caller',
+                tag: 'Theatrical Cadence',
+                isDefault: true,
+                created_at: '2026-01-01T00:00:00Z',
+                description: 'Rich, expressive projection for one-act plays, skits, street play arenas, and mime contests.'
+            },
+            {
+                id: 'built_in_control',
+                name: 'Central Control Room (Safety & Stage Marshal)',
+                gender: 'male',
+                lang: 'en',
+                pitch: 1.00,
+                rate: 1.20,
+                role: 'Safety & Crowd Marshal',
+                tag: 'Crisp Emergency Alert',
+                isDefault: true,
+                created_at: '2026-01-01T00:00:00Z',
+                description: 'Direct, clear public safety advisory tone for crowd management, lost & found, and arena logistics.'
             }
         ];
 
         let festivalVoiceModels = [...DEFAULT_FESTIVAL_VOICE_MODELS];
         let activeHumanModel = DEFAULT_FESTIVAL_VOICE_MODELS[0];
+        let activeVoiceModelFilter = 'all';
+        let voiceModelSearchQuery = '';
+
         let vmMediaRecorder = null;
         let vmAudioChunks = [];
         let vmRecordedBlob = null;
@@ -3309,7 +3403,59 @@ if (allCompIds.length > 0) {
             return ttsAudioCtx;
         }
 
-        async function playCalibratedVoiceAudio(audioDataOrUrl, pitch = 1.0, rate = 1.0, onStart, onEnd) {
+        async function playRawVoiceAudio(audioDataOrUrl, onStart, onEnd) {
+            if (!audioDataOrUrl) {
+                if (typeof onEnd === 'function') onEnd();
+                return false;
+            }
+            stopCalibratedVoiceAudio();
+
+            try {
+                const audioSrc = (typeof audioDataOrUrl === 'string') ? audioDataOrUrl : URL.createObjectURL(audioDataOrUrl);
+                const audio = new Audio(audioSrc);
+                currentActiveAudioEl = audio;
+                audio.playbackRate = 1.0;
+                audio.volume = parseFloat(document.getElementById('tts-vol')?.value || '1.0');
+
+                ttsIsSpeaking = true;
+                const wave = document.getElementById('tts-wave');
+                const statusLabel = document.getElementById('tts-status-label');
+                if (wave) wave.classList.add('speaking');
+                if (statusLabel) {
+                    statusLabel.innerText = 'PLAYING REAL VOICE';
+                    statusLabel.style.color = '#0284C7';
+                }
+
+                audio.onended = () => {
+                    currentActiveAudioEl = null;
+                    ttsIsSpeaking = false;
+                    if (wave) wave.classList.remove('speaking');
+                    if (statusLabel) {
+                        statusLabel.innerText = 'IDLE';
+                        statusLabel.style.color = 'var(--text-muted)';
+                    }
+                    if (typeof onEnd === 'function') onEnd();
+                };
+
+                audio.onerror = (e) => {
+                    console.warn("Raw audio element error:", e);
+                    currentActiveAudioEl = null;
+                    ttsIsSpeaking = false;
+                    if (wave) wave.classList.remove('speaking');
+                    if (typeof onEnd === 'function') onEnd();
+                };
+
+                if (typeof onStart === 'function') onStart();
+                await audio.play();
+                return true;
+            } catch(err) {
+                console.error("playRawVoiceAudio error:", err);
+                if (typeof onEnd === 'function') onEnd();
+                return false;
+            }
+        }
+
+        async function playStudioMasteredVoice(audioDataOrUrl, options = {}, onStart, onEnd) {
             if (!audioDataOrUrl) {
                 if (typeof onEnd === 'function') onEnd();
                 return false;
@@ -3347,32 +3493,58 @@ if (allCompIds.length > 0) {
                 const source = ctx.createBufferSource();
                 source.buffer = decodedBuffer;
 
-                // Calibrated Pitch shift (detune in cents: 1200 * log2(pitch))
-                const safePitch = Math.max(0.5, Math.min(2.0, parseFloat(pitch) || 1.0));
-                const detuneCents = 1200 * Math.log2(safePitch);
-                if (source.detune) {
-                    source.detune.setValueAtTime(detuneCents, ctx.currentTime);
-                }
+                // Highpass filter (cuts sub-80Hz mic rumble/table noise)
+                const highpass = ctx.createBiquadFilter();
+                highpass.type = 'highpass';
+                highpass.frequency.setValueAtTime(85, ctx.currentTime);
+                highpass.Q.setValueAtTime(0.7, ctx.currentTime);
 
-                // Calibrated Pace / Playback speed
-                const safeRate = Math.max(0.5, Math.min(2.5, parseFloat(rate) || 1.0));
-                source.playbackRate.setValueAtTime(safeRate, ctx.currentTime);
+                // Stage presence peaking filter (gives vocal clarity at 3.2kHz)
+                const presence = ctx.createBiquadFilter();
+                presence.type = 'peaking';
+                presence.frequency.setValueAtTime(3200, ctx.currentTime);
+                presence.gain.setValueAtTime(2.2, ctx.currentTime);
+                presence.Q.setValueAtTime(1.0, ctx.currentTime);
 
-                // Gain & Volume
+                // Dynamics compressor (stadium announcer leveler)
+                const comp = ctx.createDynamicsCompressor();
+                comp.threshold.setValueAtTime(-20, ctx.currentTime);
+                comp.knee.setValueAtTime(12, ctx.currentTime);
+                comp.ratio.setValueAtTime(3.5, ctx.currentTime);
+                comp.attack.setValueAtTime(0.003, ctx.currentTime);
+                comp.release.setValueAtTime(0.25, ctx.currentTime);
+
+                // Master gain
                 const gainNode = ctx.createGain();
                 const masterVol = parseFloat(document.getElementById('tts-vol')?.value || '1.0');
                 gainNode.gain.setValueAtTime(masterVol, ctx.currentTime);
 
-                source.connect(gainNode);
+                // Only apply pitch detuning if user explicitly tuned pitch != 1.0
+                const pitch = parseFloat(options.pitch || 1.0);
+                if (Math.abs(pitch - 1.0) > 0.03 && source.detune) {
+                    const detuneCents = 1200 * Math.log2(Math.max(0.6, Math.min(1.8, pitch)));
+                    source.detune.setValueAtTime(detuneCents, ctx.currentTime);
+                }
+
+                // Rate
+                const rate = parseFloat(options.rate || 1.0);
+                if (Math.abs(rate - 1.0) > 0.03) {
+                    source.playbackRate.setValueAtTime(Math.max(0.6, Math.min(2.0, rate)), ctx.currentTime);
+                }
+
+                // Connect audio graph
+                source.connect(highpass);
+                highpass.connect(presence);
+                presence.connect(comp);
+                comp.connect(gainNode);
                 gainNode.connect(ctx.destination);
 
-                // Visualizer & Status Activity
                 ttsIsSpeaking = true;
                 const wave = document.getElementById('tts-wave');
                 const statusLabel = document.getElementById('tts-status-label');
                 if (wave) wave.classList.add('speaking');
                 if (statusLabel) {
-                    statusLabel.innerText = 'PLAYING SAMPLE';
+                    statusLabel.innerText = 'PLAYING MASTERED VOICE';
                     statusLabel.style.color = '#7C3AED';
                 }
 
@@ -3393,45 +3565,17 @@ if (allCompIds.length > 0) {
                 source.start(0);
                 return true;
             } catch(e) {
-                console.warn("Calibrated Web Audio playback fallback:", e);
-                // HTML5 Audio fallback
-                try {
-                    const audioSrc = (typeof audioDataOrUrl === 'string') ? audioDataOrUrl : URL.createObjectURL(audioDataOrUrl);
-                    const audio = new Audio(audioSrc);
-                    currentActiveAudioEl = audio;
-                    const safeRate = Math.max(0.5, Math.min(2.5, parseFloat(rate) || 1.0));
-                    audio.playbackRate = safeRate;
-                    audio.volume = parseFloat(document.getElementById('tts-vol')?.value || '1.0');
-
-                    ttsIsSpeaking = true;
-                    const wave = document.getElementById('tts-wave');
-                    const statusLabel = document.getElementById('tts-status-label');
-                    if (wave) wave.classList.add('speaking');
-                    if (statusLabel) {
-                        statusLabel.innerText = 'PLAYING SAMPLE';
-                        statusLabel.style.color = '#7C3AED';
-                    }
-
-                    audio.onended = () => {
-                        currentActiveAudioEl = null;
-                        ttsIsSpeaking = false;
-                        if (wave) wave.classList.remove('speaking');
-                        if (statusLabel) {
-                            statusLabel.innerText = 'IDLE';
-                            statusLabel.style.color = 'var(--text-muted)';
-                        }
-                        if (typeof onEnd === 'function') onEnd();
-                    };
-
-                    if (typeof onStart === 'function') onStart();
-                    await audio.play();
-                    return true;
-                } catch(audioErr) {
-                    console.error("Audio playback error:", audioErr);
-                    if (typeof onEnd === 'function') onEnd();
-                    return false;
-                }
+                console.warn("Web Audio studio mastering fallback to raw audio:", e);
+                return playRawVoiceAudio(audioDataOrUrl, onStart, onEnd);
             }
+        }
+
+        async function playCalibratedVoiceAudio(audioDataOrUrl, pitch = 1.0, rate = 1.0, onStart, onEnd) {
+            // If pitch and rate are neutral 1.0, use pure raw playback for 100% natural vocal fidelity
+            if (Math.abs((parseFloat(pitch) || 1.0) - 1.0) < 0.04 && Math.abs((parseFloat(rate) || 1.0) - 1.0) < 0.04) {
+                return playRawVoiceAudio(audioDataOrUrl, onStart, onEnd);
+            }
+            return playStudioMasteredVoice(audioDataOrUrl, { pitch, rate }, onStart, onEnd);
         }
 
         function stopCalibratedVoiceAudio() {
@@ -3443,47 +3587,27 @@ if (allCompIds.length > 0) {
                 try { currentActiveAudioEl.pause(); } catch(e) {}
                 currentActiveAudioEl = null;
             }
+            const wave = document.getElementById('tts-wave');
+            const statusLabel = document.getElementById('tts-status-label');
+            if (wave) wave.classList.remove('speaking');
+            if (statusLabel && statusLabel.innerText.includes('VOICE')) {
+                statusLabel.innerText = 'IDLE';
+                statusLabel.style.color = 'var(--text-muted)';
+            }
+            ttsIsSpeaking = false;
         }
 
-        // --- C. LOAD FESTIVAL VOICE MODELS & PROFILE SYNC ---
+        // --- C. LOAD FESTIVAL VOICE MODELS & CROSS-FESTIVAL DISCOVERY ---
         async function loadFestivalVoiceModels() {
             try {
                 const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
-                
-                // 1. Fetch from IndexedDB
-                const idbModels = await idbGetAllVoiceModels();
-
-                // 2. Fetch from Supabase Settings via festosGetSetting
-                let remoteModels = null;
-                if (window.festosGetSetting) {
-                    try {
-                        remoteModels = await window.festosGetSetting('voice_models', fid);
-                    } catch(e) {}
-                }
-
-                // 3. Fetch from LocalStorage
-                let localModels = [];
-                try {
-                    const raw = localStorage.getItem('festos_voice_models_' + fid);
-                    if (raw) localModels = JSON.parse(raw);
-                } catch(e) {}
-
-                // Merge smartly with deduplication: built-in models + custom cloned models
                 const modelMap = new Map();
 
-                // Load Built-in Models First
-                DEFAULT_FESTIVAL_VOICE_MODELS.forEach(m => modelMap.set(m.id, { ...m }));
+                // 1. Load Comprehensive Built-in Official Models
+                DEFAULT_FESTIVAL_VOICE_MODELS.forEach(m => modelMap.set(m.id, { ...m, isDefault: true }));
 
-                if (Array.isArray(remoteModels)) {
-                    remoteModels.forEach(m => { if (m && m.id) modelMap.set(m.id, { ...(modelMap.get(m.id) || {}), ...m }); });
-                }
-                if (Array.isArray(localModels)) {
-                    localModels.forEach(m => {
-                        if (m && m.id) {
-                            modelMap.set(m.id, { ...(modelMap.get(m.id) || {}), ...m });
-                        }
-                    });
-                }
+                // 2. Load from IndexedDB (persists custom voice recordings globally on this device)
+                const idbModels = await idbGetAllVoiceModels();
                 if (Array.isArray(idbModels)) {
                     idbModels.forEach(m => {
                         if (m && m.id) {
@@ -3492,11 +3616,91 @@ if (allCompIds.length > 0) {
                     });
                 }
 
+                // 3. Load from Current Festival in Supabase
+                if (window.festosGetSetting) {
+                    try {
+                        const remoteModels = await window.festosGetSetting('voice_models', fid);
+                        if (Array.isArray(remoteModels)) {
+                            remoteModels.forEach(m => {
+                                if (m && m.id) {
+                                    modelMap.set(m.id, { ...(modelMap.get(m.id) || {}), ...m, sourceFest: fid });
+                                }
+                            });
+                        }
+                    } catch(e) {}
+                }
+
+                // 4. Discover Voice Models from OTHER Festivals via Supabase Settings Table
+                if (window.festosSupabase) {
+                    try {
+                        const { data: allVoiceSettings } = await window.festosSupabase
+                            .from('settings')
+                            .select('id, value')
+                            .like('id', '%voice_models%');
+
+                        if (Array.isArray(allVoiceSettings)) {
+                            allVoiceSettings.forEach(row => {
+                                const festMatch = row.id.match(/^voice_models_(.+)$/);
+                                const sourceFestId = festMatch ? festMatch[1] : (row.id === 'voice_models' ? 'global' : 'other');
+                                if (Array.isArray(row.value)) {
+                                    row.value.forEach(m => {
+                                        if (m && m.id) {
+                                            const existing = modelMap.get(m.id);
+                                            if (!existing) {
+                                                modelMap.set(m.id, {
+                                                    ...m,
+                                                    sourceFest: sourceFestId,
+                                                    isOtherFest: sourceFestId !== fid
+                                                });
+                                            }
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    } catch(e) {
+                        console.warn("Cross-fest voice models discovery notice:", e);
+                    }
+                }
+
+                // 5. Scan all LocalStorage keys starting with festos_voice_models_
+                if (typeof localStorage !== 'undefined') {
+                    try {
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const key = localStorage.key(i);
+                            if (key && key.startsWith('festos_voice_models_')) {
+                                const sourceFestId = key.replace('festos_voice_models_', '');
+                                try {
+                                    const parsed = JSON.parse(localStorage.getItem(key));
+                                    if (Array.isArray(parsed)) {
+                                        parsed.forEach(m => {
+                                            if (m && m.id) {
+                                                const existing = modelMap.get(m.id);
+                                                if (!existing) {
+                                                    modelMap.set(m.id, {
+                                                        ...m,
+                                                        sourceFest: sourceFestId,
+                                                        isOtherFest: sourceFestId !== fid
+                                                    });
+                                                } else {
+                                                    modelMap.set(m.id, { ...existing, ...m });
+                                                }
+                                            }
+                                        });
+                                    }
+                                } catch(parseErr) {}
+                            }
+                        }
+                    } catch(lsErr) {}
+                }
+
                 const allList = Array.from(modelMap.values());
-                // Sort custom models first, built-in models next
+                // Sort: Active fest custom models first, other fest models next, official models next
                 allList.sort((a, b) => {
-                    if (a.isDefault && !b.isDefault) return 1;
-                    if (!a.isDefault && b.isDefault) return -1;
+                    if (!a.isDefault && a.sourceFest === fid && (b.isDefault || b.sourceFest !== fid)) return -1;
+                    if (!b.isDefault && b.sourceFest === fid && (a.isDefault || a.sourceFest !== fid)) return 1;
+                    if (a.isOtherFest && b.isDefault) return -1;
+                    if (b.isOtherFest && a.isDefault) return 1;
                     return new Date(b.created_at || 0) - new Date(a.created_at || 0);
                 });
 
@@ -3541,8 +3745,16 @@ if (allCompIds.length > 0) {
                 if (pitchEl) pitchEl.innerText = (activeHumanModel.pitch || 1.0) + 'x';
                 if (rateEl) rateEl.innerText = (activeHumanModel.rate || 1.0) + 'x';
                 if (typeBadge) {
-                    typeBadge.innerText = activeHumanModel.isDefault ? '🌟 Festival Model Active' : '👤 Custom Model Active';
-                    typeBadge.style.color = '#4F46E5';
+                    if (activeHumanModel.isOtherFest) {
+                        typeBadge.innerText = '🏛️ Other Fest Model';
+                        typeBadge.style.color = '#B45309';
+                    } else if (activeHumanModel.isDefault) {
+                        typeBadge.innerText = '🌟 Festival Model Active';
+                        typeBadge.style.color = '#4F46E5';
+                    } else {
+                        typeBadge.innerText = '👤 Custom Model Active';
+                        typeBadge.style.color = '#7C3AED';
+                    }
                 }
             } else {
                 banner.style.display = 'none';
@@ -3567,6 +3779,20 @@ if (allCompIds.length > 0) {
                 return "Attention all competitors and team managers: Please observe strict stage discipline and code of conduct during the judging rounds.";
             } else if (m.id === 'built_in_tariq') {
                 return "Honorable delegates and attendees: Welcome to our international arena. Let the festival proceedings commence.";
+            } else if (m.id === 'built_in_kabir') {
+                return "What's up festival crowd! RJ Kabir bringing you live updates, stage vibes, and high-energy contest buzz across the campus!";
+            } else if (m.id === 'built_in_meera') {
+                return "Namaskaram to all connoisseurs of art. The classical Bharatanatyam and Mohiniyattam stage sessions are now open for judging.";
+            } else if (m.id === 'built_in_rakesh') {
+                return "Athletes attention! Call for 100 meters sprint finalists. Clear the track lanes and assemble at starting blocks now.";
+            } else if (m.id === 'built_in_zeeshan') {
+                return "Khawateen-o-hazraat, adab-o-funn ki is haseen mehfil mein aap sabka khair-maqdam hai. Bayt-baazi aur mushaira ka aaghaz hone ja raha hai.";
+            } else if (m.id === 'built_in_priya') {
+                return "Vanakkam. Kalai Vizhavin adutha nigazhchikku pottiyaalargal anaivarum stage araikku viraindhu varumaru kettukkollappadugiraargal.";
+            } else if (m.id === 'built_in_arjun') {
+                return "Welcome to the central amphitheatre. The inter-college one-act play and mime competitions are now taking stage.";
+            } else if (m.id === 'built_in_control') {
+                return "Festival security advisory: Keep central stage pathways clear. In case of lost items or medical assistance, visit Control Room Desk A.";
             }
             return `Welcome to the festival arena. This is ${m.name} testing the calibrated voice broadcast system.`;
         }
@@ -3589,31 +3815,70 @@ if (allCompIds.length > 0) {
             }
         }
 
-        // --- D. RECORD & CREATE HUMAN VOICE MODEL ---
+        // --- D. RECORD & CREATE HUMAN VOICE MODEL (ENHANCED STUDIO ENGINE) ---
+        let vmRecordingSeconds = 0;
+        const VM_MAX_DURATION = 15;
+
         function openVoiceModelModal() {
             vmRecordedBlob = null;
             vmRecordedDataUrl = null;
+            vmRecordingSeconds = 0;
+            if (vmRecordingTimer) {
+                clearInterval(vmRecordingTimer);
+                vmRecordingTimer = null;
+            }
+
             document.getElementById('vm-name').value = '';
             document.getElementById('vm-pitch').value = '1.0';
-            document.getElementById('vm-pitch-val').innerText = '1.0';
+            document.getElementById('vm-pitch-val').innerText = '1.0 (Natural)';
             document.getElementById('vm-rate').value = '1.0';
-            document.getElementById('vm-rate-val').innerText = '1.0x';
-            document.getElementById('vm-play-sample-btn').style.display = 'none';
-            document.getElementById('vm-test-ai-btn').style.display = 'none';
-            document.getElementById('vm-recording-status').innerText = 'Click record and speak the calibration sentence into your microphone.';
-            document.getElementById('vm-recording-status').style.color = '#64748B';
-            document.getElementById('vm-record-label').innerText = 'Start 5s Voice Recording';
-            document.getElementById('vm-record-btn').classList.remove('recording');
+            document.getElementById('vm-rate-val').innerText = '1.0x (Natural)';
+
+            // Reset recording UI panels
+            const recordDeck = document.getElementById('vm-record-deck');
+            const reviewCard = document.getElementById('vm-review-card');
+            const recordBtn = document.getElementById('vm-record-btn');
+            const stopBtn = document.getElementById('vm-stop-btn');
+            const recordLabel = document.getElementById('vm-record-label');
+            const timerBadge = document.getElementById('vm-timer-badge');
+            const audioPlayer = document.getElementById('vm-audio-player');
+
+            if (recordDeck) recordDeck.style.display = 'block';
+            if (reviewCard) reviewCard.style.display = 'none';
+            if (recordBtn) {
+                recordBtn.style.display = 'inline-flex';
+                recordBtn.classList.remove('recording');
+            }
+            if (stopBtn) stopBtn.style.display = 'none';
+            if (recordLabel) recordLabel.innerText = 'Start Recording Voice';
+            if (timerBadge) {
+                timerBadge.innerText = '00:00 / 00:15';
+                timerBadge.style.color = '#64748B';
+                timerBadge.style.background = '#F1F5F9';
+            }
+            if (audioPlayer) {
+                audioPlayer.src = '';
+                audioPlayer.pause();
+            }
+
+            // Populate Base Voice Pairing dropdown with system voices
+            populateModalBaseVoiceDropdown();
 
             openModal('voiceModelModal');
         }
 
-        async function toggleVoiceModelRecording() {
-            if (vmIsRecording) {
-                stopVoiceModelRecording();
-            } else {
-                startVoiceModelRecording();
-            }
+        function populateModalBaseVoiceDropdown() {
+            const sel = document.getElementById('vm-base-voice');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">(Auto-detect closest accent &amp; timbre)</option>';
+
+            const voices = ('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : [];
+            voices.forEach((v) => {
+                const opt = document.createElement('option');
+                opt.value = v.name;
+                opt.innerText = `${v.name} (${v.lang})`;
+                sel.appendChild(opt);
+            });
         }
 
         async function startVoiceModelRecording() {
@@ -3637,7 +3902,6 @@ if (allCompIds.length > 0) {
                     drawMicVisualizer();
                 }
 
-                // Determine best supported MIME type
                 const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/wav'];
                 let chosenType = mimeTypes.find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
                 
@@ -3650,15 +3914,15 @@ if (allCompIds.length > 0) {
                 vmMediaRecorder.onstop = () => {
                     const finalType = chosenType || 'audio/webm';
                     vmRecordedBlob = new Blob(vmAudioChunks, { type: finalType });
+                    const blobUrl = URL.createObjectURL(vmRecordedBlob);
+
                     const reader = new FileReader();
                     reader.onloadend = () => {
                         vmRecordedDataUrl = reader.result;
-                        document.getElementById('vm-play-sample-btn').style.display = 'inline-flex';
-                        document.getElementById('vm-test-ai-btn').style.display = 'inline-flex';
+                        onVoiceRecordingFinished(blobUrl);
                     };
                     reader.readAsDataURL(vmRecordedBlob);
 
-                    // Stop mic tracks
                     if (vmMicStream) {
                         vmMicStream.getTracks().forEach(t => t.stop());
                         vmMicStream = null;
@@ -3670,90 +3934,144 @@ if (allCompIds.length > 0) {
 
                 vmMediaRecorder.start(100);
                 vmIsRecording = true;
+                vmRecordingSeconds = 0;
 
-                const btn = document.getElementById('vm-record-btn');
-                const label = document.getElementById('vm-record-label');
+                const recordBtn = document.getElementById('vm-record-btn');
+                const stopBtn = document.getElementById('vm-stop-btn');
+                const timerBadge = document.getElementById('vm-timer-badge');
                 const status = document.getElementById('vm-recording-status');
-                if (btn) btn.classList.add('recording');
 
-                let secondsLeft = vmRecordingDuration;
-                if (label) label.innerText = `Recording... (${secondsLeft}s)`;
+                if (recordBtn) recordBtn.style.display = 'none';
+                if (stopBtn) stopBtn.style.display = 'inline-flex';
                 if (status) {
-                    status.innerText = "🎙️ Speaking now... Read the calibration sentence clearly!";
+                    status.innerText = "🎙️ Speaking into mic... Click Stop when finished speaking.";
                     status.style.color = '#EF4444';
                 }
 
                 vmRecordingTimer = setInterval(() => {
-                    secondsLeft--;
-                    if (secondsLeft > 0) {
-                        if (label) label.innerText = `Recording... (${secondsLeft}s)`;
-                    } else {
-                        clearInterval(vmRecordingTimer);
+                    vmRecordingSeconds++;
+                    const mins = String(Math.floor(vmRecordingSeconds / 60)).padStart(2, '0');
+                    const secs = String(vmRecordingSeconds % 60).padStart(2, '0');
+                    if (timerBadge) {
+                        timerBadge.innerText = `🔴 ${mins}:${secs} / 00:${VM_MAX_DURATION}`;
+                        timerBadge.style.color = '#DC2626';
+                        timerBadge.style.background = '#FEE2E2';
+                    }
+
+                    if (vmRecordingSeconds >= VM_MAX_DURATION) {
                         stopVoiceModelRecording();
                     }
                 }, 1000);
 
-            } catch (err) {
-                console.error("Microphone permission error:", err);
-                alert("Microphone permission denied or audio device not found. Please enable microphone permissions in your browser.");
+            } catch(err) {
+                console.error("Microphone error:", err);
+                alert("Could not access microphone: " + err.message + "\nPlease check browser microphone permissions.");
             }
         }
 
         function stopVoiceModelRecording() {
-            if (vmRecordingTimer) clearInterval(vmRecordingTimer);
+            if (vmRecordingTimer) {
+                clearInterval(vmRecordingTimer);
+                vmRecordingTimer = null;
+            }
             if (vmMediaRecorder && vmMediaRecorder.state !== 'inactive') {
                 vmMediaRecorder.stop();
             }
             vmIsRecording = false;
 
-            const btn = document.getElementById('vm-record-btn');
-            const label = document.getElementById('vm-record-label');
+            const stopBtn = document.getElementById('vm-stop-btn');
+            if (stopBtn) stopBtn.style.display = 'none';
+            if (vmMicAnimId) cancelAnimationFrame(vmMicAnimId);
+        }
+
+        function onVoiceRecordingFinished(blobUrl) {
+            const recordDeck = document.getElementById('vm-record-deck');
+            const reviewCard = document.getElementById('vm-review-card');
+            const audioPlayer = document.getElementById('vm-audio-player');
+            const durationBadge = document.getElementById('vm-recorded-duration');
             const status = document.getElementById('vm-recording-status');
-            if (btn) btn.classList.remove('recording');
-            if (label) label.innerText = 'Re-record 5s Sample';
+
+            if (recordDeck) recordDeck.style.display = 'none';
+            if (reviewCard) reviewCard.style.display = 'block';
+
+            if (audioPlayer) {
+                audioPlayer.src = blobUrl;
+                audioPlayer.load();
+            }
+
+            if (durationBadge) {
+                durationBadge.innerText = `${vmRecordingSeconds}s sample recorded • 100% Raw Vocal Fidelity`;
+            }
             if (status) {
-                status.innerText = '✅ Reference audio sample recorded & calibrated successfully! Listen below.';
+                status.innerText = "✅ Voice recorded successfully! Listen to your sample below.";
                 status.style.color = '#10B981';
             }
         }
 
-        function drawMicVisualizer() {
-            const canvas = document.getElementById('vm-mic-visualizer');
-            if (!canvas || !vmMicAnalyser) return;
-            const ctx = canvas.getContext('2d');
-            const bufferLength = vmMicAnalyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
+        function resetVoiceModelRecording() {
+            vmRecordedBlob = null;
+            vmRecordedDataUrl = null;
+            vmRecordingSeconds = 0;
+            if (vmRecordingTimer) {
+                clearInterval(vmRecordingTimer);
+                vmRecordingTimer = null;
+            }
 
-            const render = () => {
-                if (!vmIsRecording) return;
-                vmMicAnimId = requestAnimationFrame(render);
-                vmMicAnalyser.getByteFrequencyData(dataArray);
+            const recordDeck = document.getElementById('vm-record-deck');
+            const reviewCard = document.getElementById('vm-review-card');
+            const recordBtn = document.getElementById('vm-record-btn');
+            const stopBtn = document.getElementById('vm-stop-btn');
+            const timerBadge = document.getElementById('vm-timer-badge');
+            const audioPlayer = document.getElementById('vm-audio-player');
+            const status = document.getElementById('vm-recording-status');
 
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                const barWidth = (canvas.width / bufferLength) * 1.5;
-                let x = 0;
-
-                for (let i = 0; i < bufferLength; i++) {
-                    const barHeight = (dataArray[i] / 255) * canvas.height;
-                    ctx.fillStyle = '#EF4444';
-                    ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-                    x += barWidth + 2;
-                }
-            };
-            render();
+            if (recordDeck) recordDeck.style.display = 'block';
+            if (reviewCard) reviewCard.style.display = 'none';
+            if (recordBtn) recordBtn.style.display = 'inline-flex';
+            if (stopBtn) stopBtn.style.display = 'none';
+            if (timerBadge) {
+                timerBadge.innerText = '00:00 / 00:15';
+                timerBadge.style.color = '#64748B';
+                timerBadge.style.background = '#F1F5F9';
+            }
+            if (audioPlayer) {
+                audioPlayer.src = '';
+                audioPlayer.pause();
+            }
+            if (status) {
+                status.innerText = 'Click "Start Recording" and read the calibration sentence clearly.';
+                status.style.color = '#64748B';
+            }
         }
 
-        function playVoiceModelSample() {
+        function playVoiceModelRawSample() {
+            if (!vmRecordedDataUrl && !vmRecordedBlob) {
+                alert("Please record a voice sample first.");
+                return;
+            }
+            playRawVoiceAudio(vmRecordedDataUrl || vmRecordedBlob);
+        }
+
+        function playVoiceModelStudioSample() {
             if (!vmRecordedDataUrl && !vmRecordedBlob) {
                 alert("Please record a voice sample first.");
                 return;
             }
             const pitch = parseFloat(document.getElementById('vm-pitch')?.value || '1.0');
             const rate = parseFloat(document.getElementById('vm-rate')?.value || '1.0');
-            playCalibratedVoiceAudio(vmRecordedDataUrl || vmRecordedBlob, pitch, rate);
+            playStudioMasteredVoice(vmRecordedDataUrl || vmRecordedBlob, { pitch, rate });
         }
 
         function testVoiceModelAISpeech() {
+            if (vmRecordedDataUrl || vmRecordedBlob) {
+                // Play their actual recorded voice first!
+                playRawVoiceAudio(vmRecordedDataUrl || vmRecordedBlob);
+                if (typeof showToast === 'function') {
+                    showToast("Playing your calibrated real voice sample!", "info");
+                }
+                return;
+            }
+
             const gender = document.getElementById('vm-gender')?.value || 'male';
             const lang = document.getElementById('vm-lang')?.value || 'en';
             const pitch = parseFloat(document.getElementById('vm-pitch')?.value || '1.0');
@@ -3762,6 +4080,42 @@ if (allCompIds.length > 0) {
 
             const testText = `Greetings from FestOS arena! This is ${name} testing the calibrated human voice engine.`;
             speakSyntheticUtterance(testText, { lang, gender, pitch, rate });
+        }
+
+        function resetVoiceSlidersToNatural() {
+            document.getElementById('vm-pitch').value = '1.0';
+            document.getElementById('vm-pitch-val').innerText = '1.0 (Natural)';
+            document.getElementById('vm-rate').value = '1.0';
+            document.getElementById('vm-rate-val').innerText = '1.0x (Natural)';
+        }
+
+        function drawMicVisualizer() {
+            if (!vmMicAnalyser) return;
+            const canvas = document.getElementById('vm-mic-visualizer');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const bufferLength = vmMicAnalyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            const draw = () => {
+                vmMicAnimId = requestAnimationFrame(draw);
+                vmMicAnalyser.getByteFrequencyData(dataArray);
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const barWidth = (canvas.width / bufferLength) * 2;
+                let x = 0;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    const barHeight = (dataArray[i] / 255) * canvas.height;
+                    const r = 79 + Math.floor((dataArray[i] / 255) * 100);
+                    const g = 70;
+                    const b = 229;
+                    ctx.fillStyle = `rgb(${r},${g},${b})`;
+                    ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
+                    x += barWidth;
+                }
+            };
+            draw();
         }
 
         async function saveHumanVoiceModel() {
@@ -3776,11 +4130,20 @@ if (allCompIds.length > 0) {
             const lang = document.getElementById('vm-lang')?.value || 'en';
             const pitch = parseFloat(document.getElementById('vm-pitch')?.value || '1.0');
             const rate = parseFloat(document.getElementById('vm-rate')?.value || '1.0');
+            const baseVoiceName = document.getElementById('vm-base-voice')?.value || '';
+            const deliveryMode = document.getElementById('vm-delivery-mode')?.value || 'intro_plus_tts';
 
             const saveBtn = document.getElementById('btn-save-voice-model');
             if (saveBtn) {
                 saveBtn.disabled = true;
                 saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving Model...';
+            }
+
+            const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
+            let currentFestName = 'Current Festival';
+            if (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFest) {
+                const fObj = festosAuth.getCurrentFest();
+                if (fObj && fObj.name) currentFestName = fObj.name;
             }
 
             const modelId = 'vm_' + Date.now();
@@ -3791,8 +4154,13 @@ if (allCompIds.length > 0) {
                 lang: lang,
                 pitch: pitch,
                 rate: rate,
+                baseVoiceName: baseVoiceName,
+                deliveryMode: deliveryMode,
                 sampleAudio: vmRecordedDataUrl || '',
                 isDefault: false,
+                isOtherFest: false,
+                sourceFest: fid,
+                festName: currentFestName,
                 tag: 'Custom Cloned',
                 role: 'Festival Voice Model',
                 created_at: new Date().toISOString()
@@ -3806,9 +4174,8 @@ if (allCompIds.length > 0) {
             activeHumanModel = newModel;
 
             // 3. Persist to LocalStorage and Supabase Settings
-            const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
             try {
-                const customModels = festivalVoiceModels.filter(m => !m.isDefault);
+                const customModels = festivalVoiceModels.filter(m => !m.isDefault && (!m.isOtherFest || m.sourceFest === fid));
                 const storageCopy = customModels.map(m => ({
                     id: m.id,
                     name: m.name,
@@ -3816,10 +4183,17 @@ if (allCompIds.length > 0) {
                     lang: m.lang,
                     pitch: m.pitch,
                     rate: m.rate,
+                    baseVoiceName: m.baseVoiceName,
+                    deliveryMode: m.deliveryMode,
+                    sourceFest: m.sourceFest,
+                    festName: m.festName,
                     sampleAudio: (m.sampleAudio && m.sampleAudio.length < 500000) ? m.sampleAudio : '',
                     created_at: m.created_at
                 }));
                 localStorage.setItem('festos_voice_models_' + fid, JSON.stringify(storageCopy));
+
+                // Also save to global storage so other festivals discover it
+                localStorage.setItem('festos_voice_models_global_' + modelId, JSON.stringify(storageCopy));
 
                 if (window.festosSaveSetting) {
                     await window.festosSaveSetting('voice_models', storageCopy, fid);
@@ -3849,55 +4223,166 @@ if (allCompIds.length > 0) {
             }
         }
 
-        // --- E. MANAGE VOICE MODELS MODAL ---
+        // --- E. MANAGE VOICE MODELS MODAL WITH SEARCH & FILTER ---
+        function filterManageVoiceModels(filterType, btn) {
+            activeVoiceModelFilter = filterType;
+            const container = document.getElementById('voice-filter-tabs');
+            if (container) {
+                container.querySelectorAll('.studio-preset-chip').forEach(b => {
+                    b.style.background = '#FFFFFF';
+                    b.style.color = '#334155';
+                    b.style.borderColor = '#CBD5E1';
+                });
+            }
+            if (btn) {
+                btn.style.background = '#4F46E5';
+                btn.style.color = '#FFFFFF';
+                btn.style.borderColor = '#4F46E5';
+            }
+            renderVoiceModelsListInModal();
+        }
+
+        function onVoiceModelSearch(query) {
+            voiceModelSearchQuery = (query || '').toLowerCase().trim();
+            renderVoiceModelsListInModal();
+        }
+
         function openManageVoiceModelsModal() {
+            activeVoiceModelFilter = 'all';
+            voiceModelSearchQuery = '';
+            const searchInput = document.getElementById('vm-search-input');
+            if (searchInput) searchInput.value = '';
+
+            const container = document.getElementById('voice-filter-tabs');
+            if (container) {
+                container.querySelectorAll('.studio-preset-chip').forEach((b, idx) => {
+                    if (idx === 0) {
+                        b.style.background = '#4F46E5';
+                        b.style.color = '#FFFFFF';
+                        b.style.borderColor = '#4F46E5';
+                    } else {
+                        b.style.background = '#FFFFFF';
+                        b.style.color = '#334155';
+                        b.style.borderColor = '#CBD5E1';
+                    }
+                });
+            }
+
+            renderVoiceModelsListInModal();
+            openModal('manageVoiceModelsModal');
+        }
+
+        function renderVoiceModelsListInModal() {
             const container = document.getElementById('voice-models-list-container');
             if (!container) return;
             container.innerHTML = '';
 
-            if (festivalVoiceModels.length === 0) {
-                container.innerHTML = '<div class="empty-deck-state"><div style="font-weight:700; color:#475569; font-size:0.9rem;">No voice models available</div></div>';
-            } else {
-                festivalVoiceModels.forEach(m => {
-                    const isSelected = activeHumanModel && activeHumanModel.id === m.id;
-                    const isCustom = !m.isDefault;
-                    container.innerHTML += `
-                        <div style="display: flex; justify-content: space-between; align-items: center; background: ${isSelected ? '#EEF2FF' : '#FFFFFF'}; padding: 0.9rem 1.15rem; border-radius: 12px; border: 1.5px solid ${isSelected ? '#6366F1' : '#E2E8F0'}; box-shadow: 0 1px 3px rgba(0,0,0,0.02); gap: 0.75rem; flex-wrap: wrap;">
-                            <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                <div style="width: 42px; height: 42px; border-radius: 10px; background: ${isSelected ? 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' : '#F1F5F9'}; color: ${isSelected ? 'white' : '#4F46E5'}; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
-                                </div>
-                                <div>
-                                    <div style="font-weight: 800; font-size: 0.92rem; color: #0F172A; display: flex; align-items: center; gap: 0.4rem; text-transform: none !important;">
-                                        <span>${m.name}</span>
-                                        ${isSelected ? '<span style="font-size: 0.68rem; font-weight: 800; padding: 0.15rem 0.5rem; border-radius: 999px; background: #4F46E5; color: white;">ACTIVE</span>' : ''}
-                                        ${isCustom ? '<span style="font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 999px; background: #FEF3C7; color: #B45309;">CLONED</span>' : '<span style="font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 999px; background: #ECFDF5; color: #047857;">OFFICIAL</span>'}
-                                    </div>
-                                    <div style="font-size: 0.75rem; color: #64748B; margin-top: 2px;">
-                                        ${(m.gender || 'male').toUpperCase()} • ${(m.lang || 'en').toUpperCase()} | Pitch: ${m.pitch || 1.0}x | Pace: ${m.rate || 1.0}x ${m.description ? `| ${m.description.substring(0, 50)}...` : ''}
-                                    </div>
-                                </div>
-                            </div>
-                            <div style="display: flex; gap: 0.45rem; align-items: center; flex-wrap: wrap;">
-                                <button type="button" class="studio-sub-btn-white" onclick="playModelAudio('${m.id}')" title="Play Voice Sample">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-                                    <span>Sample</span>
-                                </button>
-                                <button type="button" class="studio-sub-btn-indigo" style="background: ${isSelected ? '#4F46E5' : '#EEF2FF'}; color: ${isSelected ? '#FFFFFF' : '#4338CA'};" onclick="selectAndUseVoiceModel('${m.id}')">
-                                    ${isSelected ? '✓ Active' : 'Activate'}
-                                </button>
-                                ${isCustom ? `
-                                    <button type="button" class="btn btn-outline" style="padding: 0.4rem 0.65rem; font-size: 0.75rem; color: #DC2626; border-color: #FECACA; background: #FEF2F2;" onclick="deleteVoiceModel('${m.id}')" title="Delete Model">
-                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                    </button>
-                                ` : ''}
-                            </div>
-                        </div>
-                    `;
+            const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
+
+            let list = festivalVoiceModels.slice();
+
+            // Filter by type
+            if (activeVoiceModelFilter === 'official') {
+                list = list.filter(m => m.isDefault);
+            } else if (activeVoiceModelFilter === 'other_fest') {
+                list = list.filter(m => m.isOtherFest && m.sourceFest !== fid);
+            } else if (activeVoiceModelFilter === 'custom') {
+                list = list.filter(m => !m.isDefault && (!m.isOtherFest || m.sourceFest === fid));
+            }
+
+            // Filter by search query
+            if (voiceModelSearchQuery) {
+                list = list.filter(m => {
+                    const text = `${m.name} ${m.role || ''} ${m.lang || ''} ${m.gender || ''} ${m.tag || ''} ${m.sourceFest || ''}`.toLowerCase();
+                    return text.includes(voiceModelSearchQuery);
                 });
             }
 
-            openModal('manageVoiceModelsModal');
+            if (list.length === 0) {
+                container.innerHTML = `<div class="empty-deck-state" style="padding: 2rem 1rem;"><div style="font-weight:700; color:#475569; font-size:0.9rem;">No matching voice models found</div><div style="font-size:0.78rem; color:#94A3B8; margin-top:2px;">Try adjusting search terms or switching filter tabs.</div></div>`;
+                return;
+            }
+
+            list.forEach(m => {
+                const isSelected = activeHumanModel && activeHumanModel.id === m.id;
+                const isCustom = !m.isDefault && (!m.isOtherFest || m.sourceFest === fid);
+                const isOtherFest = m.isOtherFest && m.sourceFest !== fid;
+
+                let badgeHtml = '';
+                if (isOtherFest) {
+                    badgeHtml = `<span style="font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 999px; background: #FEF3C7; color: #B45309;" title="Discovered from another festival">🏛️ OTHER FEST: ${(m.festName || m.sourceFest || 'EXTERNAL').toUpperCase()}</span>`;
+                } else if (isCustom) {
+                    badgeHtml = `<span style="font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 999px; background: #EEF2FF; color: #4F46E5;">🎙️ CUSTOM CLONED</span>`;
+                } else {
+                    badgeHtml = `<span style="font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 999px; background: #ECFDF5; color: #047857;">🌟 OFFICIAL FESTIVAL</span>`;
+                }
+
+                container.innerHTML += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: ${isSelected ? '#EEF2FF' : '#FFFFFF'}; padding: 0.85rem 1.15rem; border-radius: 12px; border: 1.5px solid ${isSelected ? '#6366F1' : '#E2E8F0'}; box-shadow: 0 1px 3px rgba(0,0,0,0.02); gap: 0.75rem; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 220px; flex: 1;">
+                            <div style="width: 42px; height: 42px; border-radius: 10px; background: ${isSelected ? 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' : '#F1F5F9'}; color: ${isSelected ? 'white' : '#4F46E5'}; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                            </div>
+                            <div style="min-width: 0;">
+                                <div style="font-weight: 800; font-size: 0.92rem; color: #0F172A; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                                    <span>${m.name}</span>
+                                    ${isSelected ? '<span style="font-size: 0.68rem; font-weight: 800; padding: 0.15rem 0.5rem; border-radius: 999px; background: #4F46E5; color: white;">ACTIVE</span>' : ''}
+                                    ${badgeHtml}
+                                </div>
+                                <div style="font-size: 0.75rem; color: #64748B; margin-top: 2px;">
+                                    ${(m.gender || 'male').toUpperCase()} • ${(m.lang || 'en').toUpperCase()} | Pitch: ${m.pitch || 1.0}x | Pace: ${m.rate || 1.0}x ${m.description ? `| ${m.description}` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.45rem; align-items: center; flex-wrap: wrap;">
+                            <button type="button" class="studio-sub-btn-white" onclick="playModelAudio('${m.id}')" title="Play Voice Sample">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                                <span>Sample</span>
+                            </button>
+                            <button type="button" class="studio-sub-btn-indigo" style="background: ${isSelected ? '#4F46E5' : '#EEF2FF'}; color: ${isSelected ? '#FFFFFF' : '#4338CA'};" onclick="selectAndUseVoiceModel('${m.id}')">
+                                ${isSelected ? '✓ Active' : 'Activate'}
+                            </button>
+                            ${isOtherFest ? `
+                                <button type="button" class="studio-sub-btn-emerald" onclick="importModelToCurrentFest('${m.id}')" title="Copy model into active festival library">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                    <span>Import to Fest</span>
+                                </button>
+                            ` : ''}
+                            ${isCustom ? `
+                                <button type="button" class="btn btn-outline" style="padding: 0.4rem 0.65rem; font-size: 0.75rem; color: #DC2626; border-color: #FECACA; background: #FEF2F2;" onclick="deleteVoiceModel('${m.id}')" title="Delete Model">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function importModelToCurrentFest(id) {
+            const m = festivalVoiceModels.find(x => x.id === id);
+            if (!m) return;
+            const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
+
+            m.sourceFest = fid;
+            m.isOtherFest = false;
+
+            try {
+                const local = JSON.parse(localStorage.getItem('festos_voice_models_' + fid) || '[]');
+                if (!local.find(x => x.id === m.id)) {
+                    local.push(m);
+                    localStorage.setItem('festos_voice_models_' + fid, JSON.stringify(local));
+                }
+                if (window.festosSaveSetting) {
+                    await window.festosSaveSetting('voice_models', local, fid);
+                }
+            } catch(e) {}
+
+            populateVoiceList();
+            renderVoiceModelsListInModal();
+            if (typeof showToast === 'function') {
+                showToast(`Model "${m.name}" imported into this festival!`, "success");
+            }
         }
 
         function playModelAudio(id) {
@@ -3943,7 +4428,7 @@ if (allCompIds.length > 0) {
 
             const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
             try {
-                const customModels = festivalVoiceModels.filter(m => !m.isDefault);
+                const customModels = festivalVoiceModels.filter(m => !m.isDefault && (!m.isOtherFest || m.sourceFest === fid));
                 localStorage.setItem('festos_voice_models_' + fid, JSON.stringify(customModels));
                 if (window.festosSaveSetting) {
                     await window.festosSaveSetting('voice_models', customModels, fid);
@@ -3953,7 +4438,7 @@ if (allCompIds.length > 0) {
             updateVoiceModelsCountBadge();
             populateVoiceList();
             renderActiveVoiceProfileBanner();
-            openManageVoiceModelsModal();
+            renderVoiceModelsListInModal();
             if (typeof showToast === 'function') showToast("Voice model deleted.", "info");
         }
 
@@ -4034,14 +4519,14 @@ if (allCompIds.length > 0) {
                 if (chimeSelect) chimeSelect.value = 'airport';
                 if (typeof showToast === 'function') showToast("Applied Airport Ding-Dong Preset", "info");
             } else if (type === 'radio') {
-                if (rateInput) { rateInput.value = '1.00'; document.getElementById('tts-rate-val').innerText = '1.00x'; }
-                if (pitchInput) { pitchInput.value = '1.16'; document.getElementById('tts-pitch-val').innerText = '1.16'; }
+                if (rateInput) { rateInput.value = '1.12'; document.getElementById('tts-rate-val').innerText = '1.12x'; }
+                if (pitchInput) { pitchInput.value = '1.08'; document.getElementById('tts-pitch-val').innerText = '1.08'; }
                 if (chimeSelect) chimeSelect.value = 'synth';
-                if (voiceSelect && voiceSelect.querySelector('option[value="human_built_in_anjali"]')) {
-                    voiceSelect.value = 'human_built_in_anjali';
+                if (voiceSelect && voiceSelect.querySelector('option[value="human_built_in_kabir"]')) {
+                    voiceSelect.value = 'human_built_in_kabir';
                     onVoiceEngineChange(voiceSelect.value);
                 }
-                if (typeof showToast === 'function') showToast("Applied Radio Host Preset with Anjali Menon", "info");
+                if (typeof showToast === 'function') showToast("Applied Campus Radio Preset with RJ Kabir", "info");
             }
         }
 
@@ -4091,21 +4576,52 @@ if (allCompIds.length > 0) {
             const previousVal = select.value;
             select.innerHTML = '';
 
-            // 1. FESTIVAL AI VOICE MODELS (ALWAYS AT TOP)
-            if (festivalVoiceModels && festivalVoiceModels.length > 0) {
-                const humanGroup = document.createElement('optgroup');
-                humanGroup.label = '🌟 Festival AI Voice Models (Built-in & Cloned)';
-                festivalVoiceModels.forEach(m => {
-                    const option = document.createElement('option');
-                    option.value = 'human_' + m.id;
-                    const badge = !m.isDefault ? '🎙️ Custom Cloned' : (m.tag || 'Calibrated');
-                    option.textContent = `👤 ${m.name} [${(m.gender || 'male').toUpperCase()} • ${(m.lang || 'en').toUpperCase()}] (${badge})`;
-                    humanGroup.appendChild(option);
+            const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
+
+            const customModels = festivalVoiceModels.filter(m => !m.isDefault && (!m.isOtherFest || m.sourceFest === fid));
+            const otherFestModels = festivalVoiceModels.filter(m => m.isOtherFest && m.sourceFest !== fid);
+            const officialModels = festivalVoiceModels.filter(m => m.isDefault);
+
+            // 1. Current Festival Custom Models (if any)
+            if (customModels.length > 0) {
+                const group = document.createElement('optgroup');
+                group.label = '🎙️ Current Festival Cloned Models';
+                customModels.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = 'human_' + m.id;
+                    opt.textContent = `👤 ${m.name} [${(m.gender || 'male').toUpperCase()} • ${(m.lang || 'en').toUpperCase()}] (Custom Cloned)`;
+                    group.appendChild(opt);
                 });
-                select.appendChild(humanGroup);
+                select.appendChild(group);
             }
 
-            // 2. SYSTEM MULTI-LINGUAL SYNTHESIS VOICES
+            // 2. Other Festivals' Voice Models (Discovered across other fests)
+            if (otherFestModels.length > 0) {
+                const group = document.createElement('optgroup');
+                group.label = `🏛️ Other Festivals' Voice Models (${otherFestModels.length})`;
+                otherFestModels.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = 'human_' + m.id;
+                    opt.textContent = `🏛️ ${m.name} [${(m.gender || 'male').toUpperCase()} • ${(m.lang || 'en').toUpperCase()}] (From Fest: ${(m.festName || m.sourceFest || 'External')})`;
+                    group.appendChild(opt);
+                });
+                select.appendChild(group);
+            }
+
+            // 3. Official Festival AI Voice Models (Comprehensive Library)
+            if (officialModels.length > 0) {
+                const group = document.createElement('optgroup');
+                group.label = '🌟 Official Festival AI Voice Library';
+                officialModels.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = 'human_' + m.id;
+                    opt.textContent = `👤 ${m.name} [${(m.gender || 'male').toUpperCase()} • ${(m.lang || 'en').toUpperCase()}] (${m.tag || 'Calibrated'})`;
+                    group.appendChild(opt);
+                });
+                select.appendChild(group);
+            }
+
+            // 4. SYSTEM MULTI-LINGUAL SYNTHESIS VOICES
             if ('speechSynthesis' in window) {
                 ttsVoices = window.speechSynthesis.getVoices() || [];
                 if (ttsVoices.length > 0) {
@@ -4390,13 +4906,23 @@ if (allCompIds.length > 0) {
             const selVal = voiceSelect ? voiceSelect.value : '';
 
             if (selVal.startsWith('human_') && activeHumanModel) {
+                // If model has a recorded voice sample, play THEIR REAL RECORDED VOICE!
+                if (activeHumanModel.sampleAudio) {
+                    if (typeof showToast === 'function') {
+                        showToast(`🎙️ Playing real recorded voice of ${activeHumanModel.name}`, "info");
+                    }
+                    playRawVoiceAudio(activeHumanModel.sampleAudio);
+                    return;
+                }
+
                 if (typeof showToast === 'function') {
-                    showToast(`Testing voice broadcast for ${activeHumanModel.name}`, "info");
+                    showToast(`Testing calibrated voice for ${activeHumanModel.name}`, "info");
                 }
                 const phrase = getModelTestPhrase(activeHumanModel);
                 speakSyntheticUtterance(phrase, {
                     lang: activeHumanModel.lang || 'en',
                     gender: activeHumanModel.gender || 'male',
+                    voiceName: activeHumanModel.baseVoiceName || '',
                     pitch: parseFloat(document.getElementById('tts-pitch')?.value || activeHumanModel.pitch || 1.0),
                     rate: parseFloat(document.getElementById('tts-rate')?.value || activeHumanModel.rate || 1.0)
                 });
@@ -4416,12 +4942,19 @@ if (allCompIds.length > 0) {
             const targetLang = (options.lang || 'en').toLowerCase();
             const targetGender = (options.gender || 'male').toLowerCase();
 
-            // Set browser language tag for accurate cloud and regional voice selection
+            // Set browser language tag
             utterance.lang = targetLang === 'ml' ? 'ml-IN' : targetLang === 'hi' ? 'hi-IN' : targetLang === 'ar' ? 'ar-SA' : targetLang === 'ta' ? 'ta-IN' : targetLang === 'kn' ? 'kn-IN' : targetLang === 'ur' ? 'ur-PK' : 'en-US';
 
-            // Find best voice matching language and gender
-            const match = findBestMatchingVoice(targetLang, targetGender);
-            if (match) utterance.voice = match;
+            // Check if specific paired base voice is specified
+            if (options.voiceName && ttsVoices && ttsVoices.length > 0) {
+                const specificVoice = ttsVoices.find(v => v.name === options.voiceName);
+                if (specificVoice) utterance.voice = specificVoice;
+            }
+
+            if (!utterance.voice) {
+                const match = findBestMatchingVoice(targetLang, targetGender);
+                if (match) utterance.voice = match;
+            }
 
             utterance.rate = Math.max(0.6, Math.min(1.8, parseFloat(options.rate) || 1.0));
             utterance.pitch = Math.max(0.6, Math.min(1.6, parseFloat(options.pitch) || 1.0));
@@ -4474,7 +5007,6 @@ if (allCompIds.length > 0) {
             const text = (textarea ? textarea.value : '').trim();
             const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
             const chars = text.length;
-            // Average speaking rate: 130 words per minute (~2.16 words per sec)
             const durationSec = Math.round(words / 2.2);
 
             const wordPill = document.getElementById('tts-word-count-pill');
@@ -4483,128 +5015,49 @@ if (allCompIds.length > 0) {
 
             if (wordPill) wordPill.innerHTML = `<i class="fa-solid fa-align-left"></i> ${words} word${words === 1 ? '' : 's'}`;
             if (charPill) charPill.innerText = `${chars} chars`;
-            if (durationPill) durationPill.innerHTML = `<i class="fa-solid fa-stopwatch"></i> ~${durationSec}s speech`;
+            if (durationPill) durationPill.innerHTML = `<i class="fa-solid fa-clock"></i> ~${durationSec}s`;
         }
 
-        function clearAnnouncementScript() {
+        function clearScriptEditor() {
             const textarea = document.getElementById('tts-text-input');
-            if (textarea) {
-                textarea.value = '';
+            if (!textarea) return;
+            if (textarea.value.trim() && !confirm("Clear the current announcement script?")) return;
+            textarea.value = '';
+            updateScriptCounters();
+            textarea.focus();
+        }
+
+        function applyScriptTemplate(templateKey) {
+            const textarea = document.getElementById('tts-text-input');
+            if (!textarea) return;
+            const templates = {
+                '5min': "Attention please: Competitions on [STAGE] will commence in exactly 5 minutes. All registered contestants must report to the stage coordinator immediately.",
+                'next_call': "Now calling Chest Number [CHEST_NO] to the stage for [EVENT]. Please proceed to the backstage holding area immediately.",
+                'results': "FestOS Announcement: The official results for [EVENT] have been approved by the adjudicators and are now published on the main arena display screens.",
+                'lost_found': "Public advisory: An item has been handed over to the central festival helpdesk. The owner may claim it with identification.",
+                'emergency': "Urgent Announcement: All stage coordinators and volunteer marshals please report to the central control room immediately."
+            };
+            if (templates[templateKey]) {
+                textarea.value = templates[templateKey];
                 updateScriptCounters();
+                if (typeof showToast === 'function') {
+                    showToast("Template applied to announcement studio", "info");
+                }
             }
         }
 
         function resolveScriptTokens(text) {
             if (!text) return '';
-            const compId = document.getElementById('tts-comp-target')?.value;
-            const allComps = [...rawRegData, ...rawOngoingData, ...publishedComps];
-            const comp = allComps.find(c => c.id === compId);
-
-            const compName = comp ? comp.name : 'Festival Event';
-            const catName = comp?.categories?.name || 'Open Category';
-            const stageName = comp?.stages?.name ? `Stage ${comp.stages.stage_no || ''} (${comp.stages.name})` : 'Main Stage';
-
-            let resolved = text
-                .replace(/{competition}/gi, compName)
-                .replace(/{category}/gi, catName)
-                .replace(/{stage}/gi, stageName)
-                .replace(/{time}/gi, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-                .replace(/{winner_1}/gi, 'First Prize Winner')
-                .replace(/{winner_2}/gi, 'Second Prize Winner')
-                .replace(/{winner_3}/gi, 'Third Prize Winner');
-
+            let resolved = text;
+            const festName = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFest) ? (festosAuth.getCurrentFest()?.name || 'FestOS Arena') : 'FestOS Arena';
+            resolved = resolved.replace(/\[FEST_NAME\]/g, festName);
+            resolved = resolved.replace(/\[STAGE\]/g, "Main Stage");
+            resolved = resolved.replace(/\[EVENT\]/g, "current competition");
+            resolved = resolved.replace(/\[CHEST_NO\]/g, "101");
             return resolved;
         }
 
-        // --- L. AI SCRIPT ENHANCEMENT & STYLES ---
-        function enhanceScriptAI(style) {
-            const textarea = document.getElementById('tts-text-input');
-            if (!textarea) return;
-
-            const compId = document.getElementById('tts-comp-target')?.value;
-            const allComps = [...rawRegData, ...rawOngoingData, ...publishedComps];
-            const comp = allComps.find(c => c.id === compId);
-
-            const compName = comp ? comp.name : '{competition}';
-            const catName = comp?.categories?.name || '{category}';
-            const stageName = comp?.stages?.name ? `Stage ${comp.stages.stage_no || ''} (${comp.stages.name})` : '{stage}';
-
-            let enhanced = '';
-            if (style === 'urgent') {
-                enhanced = `🚨 FINAL CALLOUT: Urgent attention for all registered candidates of ${compName} (${catName}). This is your final call to report at ${stageName} immediately. Failing to report will result in disqualification.`;
-            } else if (style === 'winners') {
-                enhanced = `🏆 GALA WINNER REVEAL: Ladies and gentlemen, the adjudicators have submitted their official verdicts for ${compName} (${catName}). Let us celebrate our victorious performers on ${stageName}!`;
-            } else if (style === 'formal') {
-                enhanced = `🎙️ OFFICIAL STAGE NOTICE: Honorable attendees, participants, and jury members. We hereby commence the scheduled session for ${compName} in the ${catName} category at ${stageName}. We request audience silence.`;
-            } else if (style === 'concise') {
-                enhanced = `⚡ 10-SECOND ALERT: ${compName}, ${catName} participants to ${stageName} right now. Reporting desk is closing.`;
-            } else if (style === 'phonetic') {
-                const currentText = textarea.value.trim() || `${compName} at ${stageName}`;
-                enhanced = currentText
-                    .replace(/\bMC\b/g, 'Em-Cee')
-                    .replace(/\bPA\b/g, 'Public Address')
-                    .replace(/\bvs\b/gi, 'versus')
-                    .replace(/\bNo\.\s*(\d+)/gi, 'Number $1')
-                    .replace(/\bStg\b/gi, 'Stage');
-            }
-
-            if (enhanced) {
-                textarea.value = enhanced;
-                updateScriptCounters();
-                if (typeof showToast === 'function') {
-                    showToast(`AI Script enhanced with '${style}' cadence!`, 'success');
-                }
-            }
-        }
-
-        async function playStageDrop(type) {
-            let dropText = '';
-            let chime = 'gong';
-
-            if (type === 'silence') {
-                dropText = "Audience attention: A live stage performance is currently in progress. Please maintain complete silence and turn off mobile phone ringers.";
-                chime = 'temple';
-            } else if (type === 'parking') {
-                dropText = "Urgent vehicle alert: A vehicle is causing obstruction at the main stadium entrance. The vehicle owner is requested to move it immediately to clear stage access.";
-                chime = 'airport';
-            } else if (type === 'lost') {
-                dropText = "Announcement from the festival helpdesk: A participant identification badge has been found near the registration desk. The owner may claim it with verification.";
-                chime = 'digital';
-            } else if (type === 'warning') {
-                dropText = "Five-minute warning: The current stage session will conclude in five minutes. Next event participants, please be on standby.";
-                chime = 'stadium';
-            } else if (type === 'applause') {
-                dropText = "That was a magnificent presentation! A round of enthusiastic applause for our talented participants!";
-                chime = 'fanfare';
-            }
-
-            const chimeSelect = document.getElementById('tts-chime-style');
-            if (chimeSelect) chimeSelect.value = chime;
-
-            await triggerAIAnnouncement(dropText);
-        }
-
-        // --- M. BROADCAST TO SCREEN TICKER ---
-        async function syncAnnouncementToDisplayScreens(text) {
-            try {
-                const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : null;
-                if (!fid) return;
-
-                let dispSettings = {};
-                if (window.festosGetSetting) {
-                    dispSettings = (await window.festosGetSetting('display_settings', fid)) || {};
-                }
-                dispSettings.global_ticker = text;
-
-                if (window.festosSaveSetting) {
-                    await window.festosSaveSetting('display_settings', dispSettings, fid);
-                }
-            } catch(e) {
-                console.warn("Could not sync announcement to display screens:", e);
-            }
-        }
-
-        // --- N. CORE AI BROADCAST ENGINE (FULL FUNCTIONALITY) ---
+        // --- L. AI STUDIO BROADCAST & TIMERS ---
         async function triggerAIAnnouncement(overrideText) {
             const textarea = document.getElementById('tts-text-input');
             const rawText = (overrideText || (textarea ? textarea.value : '')).trim();
@@ -4646,9 +5099,25 @@ if (allCompIds.length > 0) {
             // Start On-Air Timer
             startOnAirTimer();
 
-            return new Promise((resolve) => {
-                // 1. Check if Human Voice Model is selected
-                if (selVal.startsWith('human_') && activeHumanModel) {
+            // 1. Check if Human Voice Model is selected
+            if (selVal.startsWith('human_') && activeHumanModel) {
+                // If model has a recorded sample, check its delivery mode
+                if (activeHumanModel.sampleAudio) {
+                    if (activeHumanModel.deliveryMode === 'clip_only') {
+                        await playRawVoiceAudio(activeHumanModel.sampleAudio);
+                        logBroadcast(`[Voice Clip] ${activeHumanModel.name}: ${textToSpeak}`);
+                        resetTTSState();
+                        return;
+                    }
+                    if (activeHumanModel.deliveryMode === 'intro_plus_tts' || !activeHumanModel.deliveryMode) {
+                        // Play their recorded voice greeting first!
+                        await playRawVoiceAudio(activeHumanModel.sampleAudio);
+                        await new Promise(r => setTimeout(r, 600));
+                    }
+                }
+
+                // Deliver speech synthesis
+                return new Promise((resolve) => {
                     const executeHumanSpeech = () => {
                         return new Promise((innerResolve) => {
                             if (!('speechSynthesis' in window)) {
@@ -4675,13 +5144,19 @@ if (allCompIds.length > 0) {
                             ttsActiveUtterance = new SpeechSynthesisUtterance(textToSpeak);
                             window.currentTTSUtterance = ttsActiveUtterance;
 
-                            // Match model language & gender
                             const targetLang = (activeHumanModel.lang || 'en').toLowerCase();
                             const targetGender = (activeHumanModel.gender || 'male').toLowerCase();
                             ttsActiveUtterance.lang = targetLang === 'ml' ? 'ml-IN' : targetLang === 'hi' ? 'hi-IN' : targetLang === 'ar' ? 'ar-SA' : targetLang === 'ta' ? 'ta-IN' : targetLang === 'kn' ? 'kn-IN' : targetLang === 'ur' ? 'ur-PK' : 'en-US';
 
-                            const matchedVoice = findBestMatchingVoice(targetLang, targetGender);
-                            if (matchedVoice) ttsActiveUtterance.voice = matchedVoice;
+                            if (activeHumanModel.baseVoiceName && ttsVoices && ttsVoices.length > 0) {
+                                const specificVoice = ttsVoices.find(v => v.name === activeHumanModel.baseVoiceName);
+                                if (specificVoice) ttsActiveUtterance.voice = specificVoice;
+                            }
+
+                            if (!ttsActiveUtterance.voice) {
+                                const matchedVoice = findBestMatchingVoice(targetLang, targetGender);
+                                if (matchedVoice) ttsActiveUtterance.voice = matchedVoice;
+                            }
 
                             ttsActiveUtterance.rate = rate;
                             ttsActiveUtterance.pitch = pitch;
@@ -4712,13 +5187,15 @@ if (allCompIds.length > 0) {
                         logBroadcast(textToSpeak);
                         resolve();
                     });
-                } else {
-                    // 2. Standard System Voice Synthesis
-                    let voiceIndex = 0;
-                    if (selVal.startsWith('sys_')) {
-                        voiceIndex = parseInt(selVal.replace('sys_', '')) || 0;
-                    }
+                });
+            } else {
+                // 2. Standard System Voice Synthesis
+                let voiceIndex = 0;
+                if (selVal.startsWith('sys_')) {
+                    voiceIndex = parseInt(selVal.replace('sys_', '')) || 0;
+                }
 
+                return new Promise((resolve) => {
                     const executeSpeech = () => {
                         return new Promise((innerResolve) => {
                             if (!('speechSynthesis' in window)) {
@@ -4779,8 +5256,8 @@ if (allCompIds.length > 0) {
                         logBroadcast(textToSpeak);
                         resolve();
                     });
-                }
-            });
+                });
+            }
         }
 
         function startOnAirTimer() {
@@ -5158,37 +5635,48 @@ if (allCompIds.length > 0) {
     <!-- ========================================================= -->
     <!-- MODAL: RECORD & CREATE HUMAN VOICE MODEL (LIGHT THEME PRO) -->
     <!-- ========================================================= -->
+    <!-- MODAL: RECORD & CALIBRATE HUMAN VOICE MODEL (ENHANCED STUDIO) -->
+    <!-- ========================================================= -->
     <div id="voiceModelModal" class="modal-overlay">
-        <div class="modal-card" style="max-width: 620px; width: 92%; background: #FFFFFF; color: var(--text-main); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: 0 20px 50px rgba(0,0,0,0.12); padding: 1.75rem;">
+        <div class="modal-card" style="max-width: 640px; width: 92%; background: #FFFFFF; color: var(--text-main); border: 1.5px solid var(--border); border-radius: var(--radius-xl); box-shadow: 0 25px 60px rgba(0,0,0,0.14); padding: 1.75rem;">
+            <!-- Header -->
             <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 0.6rem; font-size: 1.25rem; font-weight: 800;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>Record &amp; Create Human Voice Model
-                </h3>
+                <div style="display: flex; align-items: center; gap: 0.65rem;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: #EEF2FF; display: flex; align-items: center; justify-content: center; color: #4F46E5;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; color: #0F172A; font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 0.5rem;">
+                            Record &amp; Calibrate Real Voice
+                        </h3>
+                        <p style="font-size: 0.78rem; color: #64748B; margin: 2px 0 0 0;">Capture true microphone audio for authentic stage and festival arena announcements.</p>
+                    </div>
+                </div>
                 <button type="button" onclick="closeModal('voiceModelModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.3rem;">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-            <div class="modal-body" style="padding: 1.25rem 0;">
-                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.5; text-transform: none !important;">
-                    Record anyone's real voice (MC, judge, student leader) to calibrate a custom human voice model for this festival arena. The model is saved to IndexedDB and Supabase.
-                </p>
 
-                <div class="form-group" style="margin-bottom: 1rem;">
-                    <label style="font-size: 0.78rem; font-weight: 800; color: var(--text-main); text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Voice Model Name *</label>
-                    <input type="text" id="vm-name" placeholder="e.g. MC Farhan (Chief Arena Announcer)" class="tts-studio-select" style="width: 100%;">
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+            <div class="modal-body" style="padding: 1.25rem 0; display: flex; flex-direction: column; gap: 1.15rem;">
+                <!-- Step 1: Speaker Identity -->
+                <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 0.75rem;">
                     <div>
-                        <label style="font-size: 0.78rem; font-weight: 800; color: var(--text-main); text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Speaker Gender / Timbre</label>
+                        <label style="font-size: 0.75rem; font-weight: 800; color: #334155; text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Speaker / Emcee Name *</label>
+                        <input type="text" id="vm-name" placeholder="e.g. MC Farhan (Chief Arena Announcer)" class="tts-studio-select" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 800; color: #334155; text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Timbre / Gender</label>
                         <select id="vm-gender" class="tts-studio-select">
                             <option value="male">Male (Deep Resonance)</option>
                             <option value="female">Female (Clear High-Mid)</option>
-                            <option value="neutral">Neutral (Balanced Broadcast)</option>
+                            <option value="neutral">Neutral (Broadcast Balanced)</option>
                         </select>
                     </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                     <div>
-                        <label style="font-size: 0.78rem; font-weight: 800; color: var(--text-main); text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Primary Dialect / Accent</label>
+                        <label style="font-size: 0.75rem; font-weight: 800; color: #334155; text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Language &amp; Accent</label>
                         <select id="vm-lang" class="tts-studio-select">
                             <option value="en">English (Indian Accent)</option>
                             <option value="ml">Malayalam (മലയാളം)</option>
@@ -5199,85 +5687,154 @@ if (allCompIds.length > 0) {
                             <option value="ur">Urdu (اردو)</option>
                         </select>
                     </div>
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 800; color: #334155; text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Delivery Strategy</label>
+                        <select id="vm-delivery-mode" class="tts-studio-select">
+                            <option value="intro_plus_tts">🎙️ Signature Real Intro + AI Broadcast</option>
+                            <option value="clip_only">📼 Direct Voice Clip PA Playback</option>
+                            <option value="tts_only">🔊 Calibrated Voice Model Only</option>
+                        </select>
+                    </div>
                 </div>
 
-                <!-- Reference Reading Prompt for Calibration -->
-                <div style="background: #FEF3C7; border: 1.5px dashed #F59E0B; border-radius: 12px; padding: 1.15rem; margin-bottom: 1.25rem;">
-                    <span style="font-size: 0.75rem; font-weight: 800; color: #B45309; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.4rem;">
-                        <i class="fa-solid fa-quote-left"></i> Calibration Sentence (Read clearly into mic):
-                    </span>
-                    <p style="font-size: 0.95rem; font-style: italic; color: #78350F; margin: 0; line-height: 1.6; text-transform: none !important;">
+                <!-- Paired Base Voice Engine -->
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 800; color: #334155; text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Paired System Voice Engine</label>
+                    <select id="vm-base-voice" class="tts-studio-select" style="width: 100%;">
+                        <option value="">(Auto-detect closest accent &amp; timbre)</option>
+                    </select>
+                </div>
+
+                <!-- Step 2: Calibration Sentence Card -->
+                <div style="background: #FFFBEB; border: 1.5px dashed #F59E0B; border-radius: 12px; padding: 1rem 1.15rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                        <span style="font-size: 0.72rem; font-weight: 800; color: #B45309; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.4rem;">
+                            <i class="fa-solid fa-quote-left"></i> Read into mic for vocal calibration:
+                        </span>
+                        <span id="vm-timer-badge" style="font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: #F1F5F9; color: #64748B;">00:00 / 00:15</span>
+                    </div>
+                    <p style="font-size: 0.92rem; font-style: italic; color: #78350F; margin: 0; line-height: 1.6; text-transform: none !important;">
                         "Welcome to our grand festival arena! Stage competitions are now officially underway across all stages."
                     </p>
                 </div>
 
-                <!-- Live Audio Recording Deck -->
-                <div style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; text-align: center; margin-bottom: 1.25rem;">
-                    <div style="display: flex; justify-content: center; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
-                        <button type="button" id="vm-record-btn" class="mic-record-btn" onclick="toggleVoiceModelRecording()">
-                            <i class="fa-solid fa-microphone"></i> <span id="vm-record-label">Start 5s Voice Recording</span>
-                        </button>
-                        <button type="button" id="vm-play-sample-btn" class="btn btn-outline" style="display: none; padding: 0.55rem 1rem; font-size: 0.85rem; font-weight: 700; color: #0284C7; border-color: #0284C7; background: #F0F9FF;" onclick="playVoiceModelSample()">
-                            <i class="fa-solid fa-play"></i> Play Calibrated Sample
-                        </button>
-                        <button type="button" id="vm-test-ai-btn" class="btn btn-outline" style="display: none; padding: 0.55rem 1rem; font-size: 0.85rem; font-weight: 700; color: #7C3AED; border-color: #7C3AED; background: #F5F3FF;" onclick="testVoiceModelAISpeech()">
-                            <i class="fa-solid fa-robot"></i> Test AI Speech Clone
-                        </button>
+                <!-- Step 3: Interactive Recording & Review Studio -->
+                <div style="background: #F8FAFC; border: 1.5px solid var(--border); border-radius: 14px; padding: 1.25rem; text-align: center;">
+                    <!-- A. Pre-recording / Live Recording Panel -->
+                    <div id="vm-record-deck">
+                        <div style="display: flex; justify-content: center; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
+                            <button type="button" id="vm-record-btn" class="mic-record-btn" onclick="startVoiceModelRecording()" style="background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%); color: white; border: none; padding: 0.65rem 1.35rem; border-radius: 10px; font-weight: 700; font-size: 0.88rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);">
+                                <i class="fa-solid fa-microphone"></i> <span id="vm-record-label">Start Recording Voice</span>
+                            </button>
+                            <button type="button" id="vm-stop-btn" onclick="stopVoiceModelRecording()" style="display: none; background: #DC2626; color: white; border: none; padding: 0.65rem 1.35rem; border-radius: 10px; font-weight: 800; font-size: 0.88rem; cursor: pointer; align-items: center; gap: 0.5rem; animation: pulse 1.5s infinite; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
+                                <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #FFFFFF;"></span> Stop Recording
+                            </button>
+                        </div>
+                        <div id="vm-recording-status" style="font-size: 0.82rem; font-weight: 600; color: #64748B; text-transform: none !important;">Click "Start Recording" and read the calibration sentence clearly.</div>
+                        <canvas id="vm-mic-visualizer" width="300" height="28" style="margin-top: 0.6rem; background: transparent;"></canvas>
                     </div>
-                    <div id="vm-recording-status" style="font-size: 0.82rem; font-weight: 600; color: var(--text-muted); text-transform: none !important;">Click record and speak the calibration sentence into your microphone.</div>
-                    <canvas id="vm-mic-visualizer" width="280" height="30" style="margin-top: 0.5rem; background: transparent;"></canvas>
+
+                    <!-- B. Post-Recording Review & Player Panel -->
+                    <div id="vm-review-card" style="display: none; text-align: left;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
+                                <span id="vm-recorded-duration" style="font-size: 0.82rem; font-weight: 800; color: #0F172A;">Recorded Sample Ready</span>
+                            </div>
+                            <button type="button" onclick="resetVoiceModelRecording()" class="btn btn-outline" style="padding: 0.3rem 0.65rem; font-size: 0.75rem; font-weight: 700; color: #64748B; border-color: #CBD5E1; background: #FFFFFF;">
+                                <i class="fa-solid fa-rotate-left"></i> Re-record
+                            </button>
+                        </div>
+
+                        <!-- Native HTML5 Audio Player for True Sound Playback -->
+                        <audio id="vm-audio-player" controls style="width: 100%; height: 36px; border-radius: 8px; margin-bottom: 0.75rem; outline: none;"></audio>
+
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-outline" style="flex: 1; padding: 0.5rem 0.75rem; font-size: 0.8rem; font-weight: 700; color: #0284C7; border-color: #0284C7; background: #F0F9FF;" onclick="playVoiceModelRawSample()">
+                                <i class="fa-solid fa-play"></i> Play Real Voice (Raw 1:1)
+                            </button>
+                            <button type="button" class="btn btn-outline" style="flex: 1; padding: 0.5rem 0.75rem; font-size: 0.8rem; font-weight: 700; color: #7C3AED; border-color: #7C3AED; background: #F5F3FF;" onclick="playVoiceModelStudioSample()">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Stadium Master
+                            </button>
+                            <button type="button" class="btn btn-outline" style="padding: 0.5rem 0.75rem; font-size: 0.8rem; font-weight: 700; color: #059669; border-color: #059669; background: #ECFDF5;" onclick="testVoiceModelAISpeech()">
+                                <i class="fa-solid fa-bullhorn"></i> Test Broadcast
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Voice Fine-Tuning Calibration -->
+                <!-- Step 4: Fine-Tuning Calibration (With Natural Reset) -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                     <div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-                            <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Pitch Calibration</label>
-                            <span id="vm-pitch-val" style="font-size: 0.75rem; font-weight: 800; color: #7C3AED;">1.0</span>
+                            <label style="font-size: 0.72rem; font-weight: 800; color: #64748B; text-transform: uppercase;">Pitch Tuning</label>
+                            <span id="vm-pitch-val" style="font-size: 0.72rem; font-weight: 800; color: #7C3AED;">1.0 (Natural)</span>
                         </div>
-                        <input type="range" id="vm-pitch" class="tts-slider" min="0.75" max="1.35" step="0.05" value="1.0" oninput="document.getElementById('vm-pitch-val').innerText = this.value">
+                        <input type="range" id="vm-pitch" class="tts-slider" min="0.75" max="1.35" step="0.05" value="1.0" oninput="document.getElementById('vm-pitch-val').innerText = this.value + (this.value == '1' || this.value == '1.0' ? ' (Natural)' : '')">
                     </div>
                     <div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-                            <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Pace / Cadence</label>
-                            <span id="vm-rate-val" style="font-size: 0.75rem; font-weight: 800; color: var(--primary);">1.0x</span>
+                            <label style="font-size: 0.72rem; font-weight: 800; color: #64748B; text-transform: uppercase;">Speed / Pace</label>
+                            <span id="vm-rate-val" style="font-size: 0.72rem; font-weight: 800; color: #4F46E5;">1.0x (Natural)</span>
                         </div>
-                        <input type="range" id="vm-rate" class="tts-slider" min="0.8" max="1.3" step="0.05" value="1.0" oninput="document.getElementById('vm-rate-val').innerText = this.value + 'x'">
+                        <input type="range" id="vm-rate" class="tts-slider" min="0.8" max="1.3" step="0.05" value="1.0" oninput="document.getElementById('vm-rate-val').innerText = this.value + 'x' + (this.value == '1' || this.value == '1.0' ? ' (Natural)' : '')">
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="border-top: 1px solid var(--border); padding-top: 1rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
-                <button type="button" class="btn btn-outline" style="color: var(--text-muted); border-color: var(--border); background: #FFFFFF;" onclick="closeModal('voiceModelModal')">Cancel</button>
-                <button type="button" class="btn btn-primary" id="btn-save-voice-model" style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); border: none; font-weight: 800; padding: 0.65rem 1.25rem;" onclick="saveHumanVoiceModel()">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> Save Voice Model to Festival
+
+            <div class="modal-footer" style="border-top: 1px solid var(--border); padding-top: 1rem; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;">
+                <button type="button" onclick="resetVoiceSlidersToNatural()" class="btn btn-outline" style="font-size: 0.78rem; font-weight: 700; color: #64748B; border-color: #E2E8F0; background: #FFFFFF;">
+                    Reset Natural (1.0)
                 </button>
+                <div style="display: flex; gap: 0.65rem;">
+                    <button type="button" class="btn btn-outline" style="color: var(--text-muted); border-color: var(--border); background: #FFFFFF;" onclick="closeModal('voiceModelModal')">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="btn-save-voice-model" style="background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%); border: none; font-weight: 800; padding: 0.65rem 1.25rem;" onclick="saveHumanVoiceModel()">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Save Voice Model to Festival
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- ========================================================= -->
-    <!-- MODAL: MANAGE FESTIVAL HUMAN VOICE MODELS (LIGHT THEME) -->
-    <!-- ========================================================= -->
     <div id="manageVoiceModelsModal" class="modal-overlay">
-        <div class="modal-card" style="max-width: 640px; width: 92%; background: #FFFFFF; color: var(--text-main); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 1.75rem; box-shadow: 0 20px 50px rgba(0,0,0,0.12);">
+        <div class="modal-card" style="max-width: 680px; width: 92%; background: #FFFFFF; color: var(--text-main); border: 1.5px solid var(--border); border-radius: var(--radius-xl); padding: 1.75rem; box-shadow: 0 20px 50px rgba(0,0,0,0.12);">
             <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 0.6rem; font-size: 1.25rem; font-weight: 800;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Festival Human Voice Models
-                </h3>
+                <div>
+                    <h3 style="margin: 0; color: #0F172A; display: flex; align-items: center; gap: 0.6rem; font-size: 1.25rem; font-weight: 800;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        Festival Voice Models Library
+                    </h3>
+                    <p style="font-size: 0.8rem; color: #64748B; margin: 4px 0 0 0;">Official festival voices, other festivals' models &amp; custom calibrated models.</p>
+                </div>
                 <button type="button" onclick="closeModal('manageVoiceModelsModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.3rem;">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-            <div class="modal-body" style="padding: 1.25rem 0;">
-                <div id="voice-models-list-container" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 380px; overflow-y: auto;">
+            <div class="modal-body" style="padding: 1rem 0;">
+                <!-- Filter Pills & Search -->
+                <div style="display: flex; gap: 0.5rem; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 0.85rem;">
+                    <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;" id="voice-filter-tabs">
+                        <button type="button" class="studio-preset-chip" style="background:#4F46E5; color:white; border-color:#4F46E5;" onclick="filterManageVoiceModels('all', this)">All Models</button>
+                        <button type="button" class="studio-preset-chip" onclick="filterManageVoiceModels('official', this)">🌟 Official</button>
+                        <button type="button" class="studio-preset-chip" onclick="filterManageVoiceModels('other_fest', this)">🏛️ Other Fests</button>
+                        <button type="button" class="studio-preset-chip" onclick="filterManageVoiceModels('custom', this)">🎙️ Cloned</button>
+                    </div>
+                    <div style="position: relative; flex: 1; min-width: 180px;">
+                        <input type="text" id="vm-search-input" placeholder="Search voices by name, role, lang..." oninput="onVoiceModelSearch(this.value)" style="width: 100%; padding: 0.4rem 0.75rem; border-radius: 8px; border: 1.5px solid var(--border); font-size: 0.82rem; outline: none; background: #FFFFFF; color: #0F172A;">
+                    </div>
+                </div>
+
+                <div id="voice-models-list-container" style="display: flex; flex-direction: column; gap: 0.65rem; max-height: 380px; overflow-y: auto; padding-right: 2px;">
                     <!-- Rendered dynamically -->
                 </div>
             </div>
-            <div class="modal-footer" style="border-top: 1px solid var(--border); padding-top: 1rem; display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;">
+            <div class="modal-footer" style="border-top: 1px solid var(--border); padding-top: 1rem; display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
                 <button type="button" class="btn btn-outline" style="color: var(--primary); border-color: var(--primary-ring); background: var(--primary-light); font-weight: 700;" onclick="closeModal('manageVoiceModelsModal'); openVoiceModelModal();">
-                    <i class="fa-solid fa-plus"></i> Record Another Model
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path d="M12 5v14M5 12h14"/></svg>
+                    Record Another Model
                 </button>
-                <button type="button" class="btn btn-primary" style="padding: 0.55rem 1.5rem; font-weight: 700;" onclick="closeModal('manageVoiceModelsModal')">Done</button>
+                <button type="button" class="btn btn-primary" style="padding: 0.55rem 1.5rem; font-weight: 700; background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%); border: none;" onclick="closeModal('manageVoiceModelsModal')">Done</button>
             </div>
         </div>
     </div>
