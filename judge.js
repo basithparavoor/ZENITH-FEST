@@ -214,8 +214,15 @@ async function loadDashboard(silent = false) {
         c.hasExistingMarks = judgeExistingMarksSet.has(c.id);
     });
 
-    // Dynamic sorting: In Valuation first, then Ongoing (including reopened), then Registration, then alphabetical
+    // Dynamic sorting:
+    // 1. Actionable evaluations first (uncompleted: valuation -> ongoing -> registration)
+    // 2. Already evaluated/judged competitions (hasExistingMarks === true) pushed down
+    // 3. Alphabetical by competition name
     globalJudgeComps.sort((a, b) => {
+        const aDone = !!a.hasExistingMarks;
+        const bDone = !!b.hasExistingMarks;
+        if (aDone !== bDone) return aDone ? 1 : -1;
+
         const statusPriority = { 'valuation': 1, 'ongoing': 2, 'registration': 3, 'pending': 4 };
         const aPri = statusPriority[a.status] || 5;
         const bPri = statusPriority[b.status] || 5;
@@ -298,9 +305,15 @@ function renderDashboard(data) {
         let badgeBg = 'var(--warning-light)';
 
         if (isValuation) {
-            statusText = 'In Valuation';
-            badgeColor = '#B45309';
-            badgeBg = '#FEF3C7';
+            if (comp.hasExistingMarks) {
+                statusText = 'Valuation Completed';
+                badgeColor = '#059669';
+                badgeBg = '#ECFDF5';
+            } else {
+                statusText = 'In Valuation';
+                badgeColor = '#B45309';
+                badgeBg = '#FEF3C7';
+            }
         } else if (isOngoing) {
             if (comp.hasExistingMarks) {
                 statusText = 'Live (Reopened)';
@@ -312,17 +325,29 @@ function renderDashboard(data) {
                 badgeBg = 'var(--success-light)';
             }
         } else if (isReg) {
-            statusText = isAdmin ? 'In Registration (Admin Override)' : 'In Registration';
-            badgeColor = isAdmin ? 'var(--primary)' : '#64748B';
-            badgeBg = isAdmin ? 'var(--primary-light)' : '#F1F5F9';
+            if (comp.hasExistingMarks) {
+                statusText = 'Evaluated';
+                badgeColor = '#059669';
+                badgeBg = '#ECFDF5';
+            } else {
+                statusText = isAdmin ? 'In Registration (Admin Override)' : 'In Registration';
+                badgeColor = isAdmin ? 'var(--primary)' : '#64748B';
+                badgeBg = isAdmin ? 'var(--primary-light)' : '#F1F5F9';
+            }
         } else if (isAdmin) {
-            statusText = 'Scheduled (Admin Access)';
-            badgeColor = '#4F46E5';
-            badgeBg = '#EEF2FF';
+            if (comp.hasExistingMarks) {
+                statusText = 'Evaluated (Admin)';
+                badgeColor = '#059669';
+                badgeBg = '#ECFDF5';
+            } else {
+                statusText = 'Scheduled (Admin Access)';
+                badgeColor = '#4F46E5';
+                badgeBg = '#EEF2FF';
+            }
         }
 
         const btnState = isReady ? '' : 'disabled';
-        let btnText = isReady ? (comp.hasExistingMarks ? 'Evaluate / Update Marks' : 'Evaluate Now') : 'Waiting...';
+        let btnText = isReady ? (comp.hasExistingMarks ? 'View / Update Marks' : 'Evaluate Now') : 'Waiting...';
         const categoryName = comp.categories?.name || 'UNCATEGORIZED';
 
         const overduePill = timeEnded ? `
@@ -648,18 +673,50 @@ async function submitJudgement() {
                 .select('judge_id, awarded_mark, participant_id')
                 .eq('competition_id', currentCompId);
 
-            const assignedJudges = [...new Set((allJudgeRecords || []).filter(j => !!j.judge_id).map(j => String(j.judge_id)))];
+            const compObj = globalJudgeComps.find(c => c.id === currentCompId);
+            const isOffstage = compObj ? isCompOffstage(compObj) : false;
+            const isAdmin = (user.role === 'master_admin' || user.role === 'admin' || user.role === 'super_admin');
+
+            // Pre-assigned judges explicitly created by manager (participant_id is null)
+            const preAssignedJudgeIds = [...new Set((allJudgeRecords || [])
+                .filter(j => j.judge_id && j.participant_id === null)
+                .map(j => String(j.judge_id)))];
+
             const marksRecords = (allJudgeRecords || []).filter(j => j.awarded_mark !== null && j.awarded_mark !== undefined && j.participant_id);
 
-            const allJudgesDone = assignedJudges.length > 0 && assignedJudges.every(judgeId => {
+            // Verify if all pre-assigned judges have submitted marks for all participants in rows
+            const allAssignedDone = preAssignedJudgeIds.length > 0 && preAssignedJudgeIds.every(judgeId => {
                 return Array.from(rows).every(row => {
                     const pId = row.getAttribute('data-pid');
                     return marksRecords.some(m => String(m.judge_id) === String(judgeId) && String(m.participant_id) === String(pId));
                 });
             });
 
-            if (allJudgesDone || assignedJudges.length <= 1) {
-                await supabaseClient.from('competitions').update({ status: 'judgement_complete', updated_at: new Date().toISOString() }).eq('id', currentCompId);
+            // Verify if current submitting judge has entered marks for all participants in rows
+            const currentJudgeDone = Array.from(rows).every(row => {
+                const pId = row.getAttribute('data-pid');
+                return marksRecords.some(m => String(m.judge_id) === String(user.id) && String(m.participant_id) === String(pId));
+            });
+
+            // Evaluation is complete if:
+            // 1. Admin direct valuation (admin holds top authority)
+            // 2. Offstage competition evaluated by judge/admin
+            // 3. Single judge assignment (or self-assigned / substitute judge)
+            // 4. All pre-assigned judges have completed valuation
+            const isValuationComplete = isAdmin 
+                || (isOffstage && currentJudgeDone)
+                || preAssignedJudgeIds.length <= 1 
+                || allAssignedDone;
+
+            if (isValuationComplete) {
+                const { error: compUpdateErr } = await supabaseClient
+                    .from('competitions')
+                    .update({ status: 'judgement_complete', updated_at: new Date().toISOString() })
+                    .eq('id', currentCompId);
+
+                if (compUpdateErr) {
+                    console.error("Error updating competition to judgement_complete:", compUpdateErr);
+                }
                 showToast('Marks submitted successfully! Valuation complete, sent to Manager.', "success");
             } else {
                 showToast('Your marks have been submitted successfully! Waiting for remaining judges to complete valuation.', "success");

@@ -2644,7 +2644,7 @@ if (allCompIds.length > 0) {
                             <button type="button" class="btn-studio-link" onclick="openCompInStudio('${comp.id}', 'awards', event)" title="Open & Edit in Studio" style="height: 34px; width: 34px;">
                                 <i class="fa-solid fa-sliders"></i>
                             </button>
-                        </div>div>
+                        </div>
                         <div class="metric" style="margin-bottom: 1rem;"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div>
                         <div class="data-list" style="margin-top:0;">
                             ${rows}
@@ -3523,7 +3523,6 @@ if (allCompIds.length > 0) {
         }
 
         // --- B. AUDIO DECODING & CALIBRATED PLAYBACK (PITCH & CADENCE) ---
-        // --- B. AUDIO ENGINE (BULLETPROOF DIRECT BROADCAST SOUND) ---
         function getStudioAudioContext() {
             if (!ttsAudioCtx || ttsAudioCtx.state === 'closed') {
                 const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -3547,11 +3546,1347 @@ if (allCompIds.length > 0) {
             }
         }
 
-        async function playChimeAudio(style = 'gong') {
-            if (style === 'none') return;
+        async function playRawVoiceAudio(audioDataOrUrl, onStart, onEnd) {
             await ensureAudioUnlocked();
+            if (!audioDataOrUrl) {
+                if (typeof onEnd === 'function') onEnd();
+                return false;
+            }
+            stopCalibratedVoiceAudio();
 
+            try {
+                const audioSrc = (typeof audioDataOrUrl === 'string') ? audioDataOrUrl : URL.createObjectURL(audioDataOrUrl);
+                const audio = new Audio(audioSrc);
+                currentActiveAudioEl = audio;
+                audio.playbackRate = 1.0;
+                audio.volume = parseFloat(document.getElementById('tts-vol')?.value || '1.0');
+
+                ttsIsSpeaking = true;
+                const wave = document.getElementById('tts-wave');
+                const statusLabel = document.getElementById('tts-status-label');
+                if (wave) wave.classList.add('speaking');
+                if (statusLabel) {
+                    statusLabel.innerText = 'PLAYING REAL VOICE';
+                    statusLabel.style.color = '#0284C7';
+                }
+
+                audio.onended = () => {
+                    currentActiveAudioEl = null;
+                    ttsIsSpeaking = false;
+                    if (wave) wave.classList.remove('speaking');
+                    if (statusLabel) {
+                        statusLabel.innerText = 'IDLE';
+                        statusLabel.style.color = 'var(--text-muted)';
+                    }
+                    if (typeof onEnd === 'function') onEnd();
+                };
+
+                audio.onerror = (e) => {
+                    console.warn("Raw audio element error:", e);
+                    currentActiveAudioEl = null;
+                    ttsIsSpeaking = false;
+                    if (wave) wave.classList.remove('speaking');
+                    if (typeof onEnd === 'function') onEnd();
+                };
+
+                if (typeof onStart === 'function') onStart();
+                await audio.play();
+                return true;
+            } catch(err) {
+                console.error("playRawVoiceAudio error:", err);
+                if (typeof onEnd === 'function') onEnd();
+                return false;
+            }
+        }
+
+        async function playStudioMasteredVoice(audioDataOrUrl, options = {}, onStart, onEnd) {
+            await ensureAudioUnlocked();
+            if (!audioDataOrUrl) {
+                if (typeof onEnd === 'function') onEnd();
+                return false;
+            }
+            stopCalibratedVoiceAudio();
+
+            try {
+                const ctx = getStudioAudioContext();
+                if (!ctx) throw new Error("Web Audio not supported");
+
+                let arrayBuffer;
+                if (typeof audioDataOrUrl === 'string') {
+                    if (audioDataOrUrl.startsWith('data:')) {
+                        const base64Data = audioDataOrUrl.split(',')[1];
+                        const binaryStr = atob(base64Data);
+                        const len = binaryStr.length;
+                        const bytes = new Uint8Array(len);
+                        for (let i = 0; i < len; i++) {
+                            bytes[i] = binaryStr.charCodeAt(i);
+                        }
+                        arrayBuffer = bytes.buffer;
+                    } else {
+                        const res = await fetch(audioDataOrUrl);
+                        arrayBuffer = await res.arrayBuffer();
+                    }
+                } else if (audioDataOrUrl instanceof Blob) {
+                    arrayBuffer = await audioDataOrUrl.arrayBuffer();
+                } else if (audioDataOrUrl instanceof ArrayBuffer) {
+                    arrayBuffer = audioDataOrUrl;
+                } else {
+                    throw new Error("Invalid audio source");
+                }
+
+                const decodedBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+                const source = ctx.createBufferSource();
+                source.buffer = decodedBuffer;
+
+                // Highpass filter (cuts sub-80Hz mic rumble/table noise)
+                const highpass = ctx.createBiquadFilter();
+                highpass.type = 'highpass';
+                highpass.frequency.setValueAtTime(85, ctx.currentTime);
+                highpass.Q.setValueAtTime(0.7, ctx.currentTime);
+
+                // Stage presence peaking filter (gives vocal clarity at 3.2kHz)
+                const presence = ctx.createBiquadFilter();
+                presence.type = 'peaking';
+                presence.frequency.setValueAtTime(3200, ctx.currentTime);
+                presence.gain.setValueAtTime(2.2, ctx.currentTime);
+                presence.Q.setValueAtTime(1.0, ctx.currentTime);
+
+                // Dynamics compressor (stadium announcer leveler)
+                const comp = ctx.createDynamicsCompressor();
+                comp.threshold.setValueAtTime(-20, ctx.currentTime);
+                comp.knee.setValueAtTime(12, ctx.currentTime);
+                comp.ratio.setValueAtTime(3.5, ctx.currentTime);
+                comp.attack.setValueAtTime(0.003, ctx.currentTime);
+                comp.release.setValueAtTime(0.25, ctx.currentTime);
+
+                // Master gain
+                const gainNode = ctx.createGain();
+                const masterVol = parseFloat(document.getElementById('tts-vol')?.value || '1.0');
+                gainNode.gain.setValueAtTime(masterVol, ctx.currentTime);
+
+                // Only apply pitch detuning if user explicitly tuned pitch != 1.0
+                const pitch = parseFloat(options.pitch || 1.0);
+                if (Math.abs(pitch - 1.0) > 0.03 && source.detune) {
+                    const detuneCents = 1200 * Math.log2(Math.max(0.6, Math.min(1.8, pitch)));
+                    source.detune.setValueAtTime(detuneCents, ctx.currentTime);
+                }
+
+                // Rate
+                const rate = parseFloat(options.rate || 1.0);
+                if (Math.abs(rate - 1.0) > 0.03) {
+                    source.playbackRate.setValueAtTime(Math.max(0.6, Math.min(2.0, rate)), ctx.currentTime);
+                }
+
+                // Connect audio graph
+                source.connect(highpass);
+                highpass.connect(presence);
+                presence.connect(comp);
+                comp.connect(gainNode);
+                gainNode.connect(ctx.destination);
+
+                ttsIsSpeaking = true;
+                const wave = document.getElementById('tts-wave');
+                const statusLabel = document.getElementById('tts-status-label');
+                if (wave) wave.classList.add('speaking');
+                if (statusLabel) {
+                    statusLabel.innerText = 'PLAYING MASTERED VOICE';
+                    statusLabel.style.color = '#7C3AED';
+                }
+
+                currentActiveCalibratedSource = source;
+
+                source.onended = () => {
+                    currentActiveCalibratedSource = null;
+                    ttsIsSpeaking = false;
+                    if (wave) wave.classList.remove('speaking');
+                    if (statusLabel) {
+                        statusLabel.innerText = 'IDLE';
+                        statusLabel.style.color = 'var(--text-muted)';
+                    }
+                    if (typeof onEnd === 'function') onEnd();
+                };
+
+                if (typeof onStart === 'function') onStart();
+                source.start(0);
+                return true;
+            } catch(e) {
+                console.warn("Web Audio studio mastering fallback to raw audio:", e);
+                return playRawVoiceAudio(audioDataOrUrl, onStart, onEnd);
+            }
+        }
+
+        async function playCalibratedVoiceAudio(audioDataOrUrl, pitch = 1.0, rate = 1.0, onStart, onEnd) {
+            // If pitch and rate are neutral 1.0, use pure raw playback for 100% natural vocal fidelity
+            if (Math.abs((parseFloat(pitch) || 1.0) - 1.0) < 0.04 && Math.abs((parseFloat(rate) || 1.0) - 1.0) < 0.04) {
+                return playRawVoiceAudio(audioDataOrUrl, onStart, onEnd);
+            }
+            return playStudioMasteredVoice(audioDataOrUrl, { pitch, rate }, onStart, onEnd);
+        }
+
+        function stopCalibratedVoiceAudio() {
+            if (currentActiveCalibratedSource) {
+                try { currentActiveCalibratedSource.stop(); } catch(e) {}
+                currentActiveCalibratedSource = null;
+            }
+            if (currentActiveAudioEl) {
+                try { currentActiveAudioEl.pause(); } catch(e) {}
+                currentActiveAudioEl = null;
+            }
+            const wave = document.getElementById('tts-wave');
+            const statusLabel = document.getElementById('tts-status-label');
+            if (wave) wave.classList.remove('speaking');
+            if (statusLabel && statusLabel.innerText.includes('VOICE')) {
+                statusLabel.innerText = 'IDLE';
+                statusLabel.style.color = 'var(--text-muted)';
+            }
+            ttsIsSpeaking = false;
+        }
+
+        // --- C. LOAD FESTIVAL VOICE MODELS & CROSS-FESTIVAL DISCOVERY ---
+        async function loadFestivalVoiceModels() {
+            try {
+                const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
+                const modelMap = new Map();
+
+                // 1. Load Comprehensive Built-in Official Models
+                DEFAULT_FESTIVAL_VOICE_MODELS.forEach(m => modelMap.set(m.id, { ...m, isDefault: true }));
+
+                // 2. Load from IndexedDB (persists custom voice recordings globally on this device)
+                const idbModels = await idbGetAllVoiceModels();
+                if (Array.isArray(idbModels)) {
+                    idbModels.forEach(m => {
+                        if (m && m.id) {
+                            modelMap.set(m.id, { ...(modelMap.get(m.id) || {}), ...m });
+                        }
+                    });
+                }
+
+                // 3. Load from Current Festival in Supabase
+                if (window.festosGetSetting) {
+                    try {
+                        const remoteModels = await window.festosGetSetting('voice_models', fid);
+                        if (Array.isArray(remoteModels)) {
+                            remoteModels.forEach(m => {
+                                if (m && m.id) {
+                                    modelMap.set(m.id, { ...(modelMap.get(m.id) || {}), ...m, sourceFest: fid });
+                                }
+                            });
+                        }
+                    } catch(e) {}
+                }
+
+                // 4. Discover Voice Models from OTHER Festivals via Supabase Settings Table
+                if (window.festosSupabase) {
+                    try {
+                        const { data: allVoiceSettings } = await window.festosSupabase
+                            .from('settings')
+                            .select('id, value')
+                            .like('id', '%voice_models%');
+
+                        if (Array.isArray(allVoiceSettings)) {
+                            allVoiceSettings.forEach(row => {
+                                const festMatch = row.id.match(/^voice_models_(.+)$/);
+                                const sourceFestId = festMatch ? festMatch[1] : (row.id === 'voice_models' ? 'global' : 'other');
+                                if (Array.isArray(row.value)) {
+                                    row.value.forEach(m => {
+                                        if (m && m.id) {
+                                            const existing = modelMap.get(m.id);
+                                            if (!existing) {
+                                                modelMap.set(m.id, {
+                                                    ...m,
+                                                    sourceFest: sourceFestId,
+                                                    isOtherFest: sourceFestId !== fid
+                                                });
+                                            }
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    } catch(e) {
+                        console.warn("Cross-fest voice models discovery notice:", e);
+                    }
+                }
+
+                // 5. Scan all LocalStorage keys starting with festos_voice_models_
+                if (typeof localStorage !== 'undefined') {
+                    try {
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const key = localStorage.key(i);
+                            if (key && key.startsWith('festos_voice_models_')) {
+                                const sourceFestId = key.replace('festos_voice_models_', '');
+                                try {
+                                    const parsed = JSON.parse(localStorage.getItem(key));
+                                    if (Array.isArray(parsed)) {
+                                        parsed.forEach(m => {
+                                            if (m && m.id) {
+                                                const existing = modelMap.get(m.id);
+                                                if (!existing) {
+                                                    modelMap.set(m.id, {
+                                                        ...m,
+                                                        sourceFest: sourceFestId,
+                                                        isOtherFest: sourceFestId !== fid
+                                                    });
+                                                } else {
+                                                    modelMap.set(m.id, { ...existing, ...m, sampleAudio: existing.sampleAudio || m.sampleAudio || '' });
+                                                }
+                                            }
+                                        });
+                                    }
+                                } catch(parseErr) {}
+                            }
+                        }
+                    } catch(lsErr) {}
+                }
+
+                const allList = Array.from(modelMap.values());
+                // Sort: Active fest custom models first, other fest models next, official models next
+                allList.sort((a, b) => {
+                    if (!a.isDefault && a.sourceFest === fid && (b.isDefault || b.sourceFest !== fid)) return -1;
+                    if (!b.isDefault && b.sourceFest === fid && (a.isDefault || a.sourceFest !== fid)) return 1;
+                    if (a.isOtherFest && b.isDefault) return -1;
+                    if (b.isOtherFest && a.isDefault) return 1;
+                    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+                });
+
+                festivalVoiceModels = allList;
+                if (!activeHumanModel && festivalVoiceModels.length > 0) {
+                    activeHumanModel = festivalVoiceModels[0];
+                }
+
+                updateVoiceModelsCountBadge();
+                populateVoiceList();
+                renderActiveVoiceProfileBanner();
+            } catch(e) {
+                console.warn("Could not load festival voice models:", e);
+                festivalVoiceModels = [...DEFAULT_FESTIVAL_VOICE_MODELS];
+                activeHumanModel = festivalVoiceModels[0];
+                populateVoiceList();
+                renderActiveVoiceProfileBanner();
+            }
+        }
+
+        function updateVoiceModelsCountBadge() {
+            const badge = document.getElementById('voice-models-count-badge');
+            if (badge) badge.innerText = festivalVoiceModels.length;
+        }
+
+        function renderActiveVoiceProfileBanner() {
+            const banner = document.getElementById('voice-active-banner');
+            const typeBadge = document.getElementById('tts-voice-type-badge');
+            if (!banner) return;
+
+            if (activeHumanModel) {
+                banner.style.display = 'flex';
+                const nameEl = document.getElementById('banner-model-name');
+                const genderEl = document.getElementById('banner-model-gender');
+                const langEl = document.getElementById('banner-model-lang');
+                const pitchEl = document.getElementById('banner-model-pitch');
+                const rateEl = document.getElementById('banner-model-rate');
+
+                if (nameEl) nameEl.innerText = activeHumanModel.name;
+                if (genderEl) genderEl.innerText = (activeHumanModel.gender || 'MALE').toUpperCase();
+                if (langEl) langEl.innerText = (activeHumanModel.lang || 'EN').toUpperCase();
+                if (pitchEl) pitchEl.innerText = (activeHumanModel.pitch || 1.0) + 'x';
+                if (rateEl) rateEl.innerText = (activeHumanModel.rate || 1.0) + 'x';
+                if (typeBadge) {
+                    if (activeHumanModel.isOtherFest) {
+                        typeBadge.innerText = '🏛️ Other Fest Model';
+                        typeBadge.style.color = '#B45309';
+                    } else if (activeHumanModel.isDefault) {
+                        typeBadge.innerText = '🌟 Festival Model Active';
+                        typeBadge.style.color = '#4F46E5';
+                    } else {
+                        typeBadge.innerText = '👤 Custom Model Active';
+                        typeBadge.style.color = '#7C3AED';
+                    }
+                }
+            } else {
+                banner.style.display = 'none';
+                if (typeBadge) {
+                    typeBadge.innerText = '🌐 Standard Engine';
+                    typeBadge.style.color = 'var(--primary)';
+                }
+            }
+        }
+
+        function getModelTestPhrase(m) {
+            if (!m) return "Welcome to our festival arena. The stage announcement engine is online.";
+            if (m.id === 'built_in_farhan') {
+                return "Welcome to our grand festival arena! This is MC Farhan. Stage competitions are now officially underway across all stages.";
+            } else if (m.id === 'built_in_sarah') {
+                return "Distinguished guests, faculty and students: Welcome to the annual festival felicitation ceremony. I am Sarah Jenkins.";
+            } else if (m.id === 'built_in_vikram') {
+                return "Urgent attention at Main Stage: All participants for the upcoming competition, report to the green room immediately.";
+            } else if (m.id === 'built_in_anjali') {
+                return "Welcome art lovers and participants. Stage presentations for classical dance and musical events are about to begin.";
+            } else if (m.id === 'built_in_shankaran') {
+                return "Attention all competitors and team managers: Please observe strict stage discipline and code of conduct during the judging rounds.";
+            } else if (m.id === 'built_in_tariq') {
+                return "Honorable delegates and attendees: Welcome to our international arena. Let the festival proceedings commence.";
+            } else if (m.id === 'built_in_kabir') {
+                return "What's up festival crowd! RJ Kabir bringing you live updates, stage vibes, and high-energy contest buzz across the campus!";
+            } else if (m.id === 'built_in_meera') {
+                return "Namaskaram to all connoisseurs of art. The classical Bharatanatyam and Mohiniyattam stage sessions are now open for judging.";
+            } else if (m.id === 'built_in_rakesh') {
+                return "Athletes attention! Call for 100 meters sprint finalists. Clear the track lanes and assemble at starting blocks now.";
+            } else if (m.id === 'built_in_zeeshan') {
+                return "Khawateen-o-hazraat, adab-o-funn ki is haseen mehfil mein aap sabka khair-maqdam hai. Bayt-baazi aur mushaira ka aaghaz hone ja raha hai.";
+            } else if (m.id === 'built_in_priya') {
+                return "Vanakkam. Kalai Vizhavin adutha nigazhchikku pottiyaalargal anaivarum stage araikku viraindhu varumaru kettukkollappadugiraargal.";
+            } else if (m.id === 'built_in_arjun') {
+                return "Welcome to the central amphitheatre. The inter-college one-act play and mime competitions are now taking stage.";
+            } else if (m.id === 'built_in_control') {
+                return "Festival security advisory: Keep central stage pathways clear. In case of lost items or medical assistance, visit Control Room Desk A.";
+            }
+            return `Welcome to the festival arena. This is ${m.name} testing the calibrated voice broadcast system.`;
+        }
+
+        function playActiveModelDirectSample() {
+            if (!activeHumanModel) return;
+            if (activeHumanModel.sampleAudio) {
+                if (typeof showToast === 'function') {
+                    showToast(`Playing calibrated audio sample for "${activeHumanModel.name}"`, "info");
+                }
+                playCalibratedVoiceAudio(activeHumanModel.sampleAudio, activeHumanModel.pitch, activeHumanModel.rate);
+            } else {
+                const phrase = getModelTestPhrase(activeHumanModel);
+                speakSyntheticUtterance(phrase, {
+                    lang: activeHumanModel.lang || 'en',
+                    gender: activeHumanModel.gender || 'male',
+                    pitch: activeHumanModel.pitch || 1.0,
+                    rate: activeHumanModel.rate || 1.0
+                });
+            }
+        }
+
+        // --- D. RECORD & CREATE HUMAN VOICE MODEL (ENHANCED STUDIO ENGINE) ---
+        let vmRecordingSeconds = 0;
+        const VM_MAX_DURATION = 15;
+
+        function openVoiceModelModal() {
+            vmRecordedBlob = null;
+            vmRecordedDataUrl = null;
+            vmRecordingSeconds = 0;
+            if (vmRecordingTimer) {
+                clearInterval(vmRecordingTimer);
+                vmRecordingTimer = null;
+            }
+
+            document.getElementById('vm-name').value = '';
+            document.getElementById('vm-pitch').value = '1.0';
+            document.getElementById('vm-pitch-val').innerText = '1.0 (Natural)';
+            document.getElementById('vm-rate').value = '1.0';
+            document.getElementById('vm-rate-val').innerText = '1.0x (Natural)';
+
+            // Reset recording UI panels
+            const recordDeck = document.getElementById('vm-record-deck');
+            const reviewCard = document.getElementById('vm-review-card');
+            const recordBtn = document.getElementById('vm-record-btn');
+            const stopBtn = document.getElementById('vm-stop-btn');
+            const recordLabel = document.getElementById('vm-record-label');
+            const timerBadge = document.getElementById('vm-timer-badge');
+            const audioPlayer = document.getElementById('vm-audio-player');
+
+            if (recordDeck) recordDeck.style.display = 'block';
+            if (reviewCard) reviewCard.style.display = 'none';
+            if (recordBtn) {
+                recordBtn.style.display = 'inline-flex';
+                recordBtn.classList.remove('recording');
+            }
+            if (stopBtn) stopBtn.style.display = 'none';
+            if (recordLabel) recordLabel.innerText = 'Start Recording Voice';
+            if (timerBadge) {
+                timerBadge.innerText = '00:00 / 00:15';
+                timerBadge.style.color = '#64748B';
+                timerBadge.style.background = '#F1F5F9';
+            }
+            if (audioPlayer) {
+                audioPlayer.src = '';
+                audioPlayer.pause();
+            }
+
+            // Populate Base Voice Pairing dropdown with system voices
+            populateModalBaseVoiceDropdown();
+
+            openModal('voiceModelModal');
+        }
+
+        function populateModalBaseVoiceDropdown() {
+            const sel = document.getElementById('vm-base-voice');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">(Auto-detect closest accent &amp; timbre)</option>';
+
+            const voices = ('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : [];
+            voices.forEach((v) => {
+                const opt = document.createElement('option');
+                opt.value = v.name;
+                opt.innerText = `${v.name} (${v.lang})`;
+                sel.appendChild(opt);
+            });
+        }
+
+        async function startVoiceModelRecording() {
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    alert("Microphone access is not supported by your browser. Please use Google Chrome, Edge, or Firefox.");
+                    return;
+                }
+
+                vmMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                vmAudioChunks = [];
+
+                // Audio Visualizer
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) {
+                    vmMicAudioCtx = new AudioCtx();
+                    const source = vmMicAudioCtx.createMediaStreamSource(vmMicStream);
+                    vmMicAnalyser = vmMicAudioCtx.createAnalyser();
+                    vmMicAnalyser.fftSize = 64;
+                    source.connect(vmMicAnalyser);
+                    drawMicVisualizer();
+                }
+
+                const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/wav'];
+                let chosenType = mimeTypes.find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
+                
+                vmMediaRecorder = chosenType ? new MediaRecorder(vmMicStream, { mimeType: chosenType }) : new MediaRecorder(vmMicStream);
+                
+                vmMediaRecorder.ondataavailable = (e) => {
+                    if (e.data && e.data.size > 0) vmAudioChunks.push(e.data);
+                };
+
+                vmMediaRecorder.onstop = () => {
+                    const finalType = chosenType || 'audio/webm';
+                    vmRecordedBlob = new Blob(vmAudioChunks, { type: finalType });
+                    const blobUrl = URL.createObjectURL(vmRecordedBlob);
+
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        vmRecordedDataUrl = reader.result;
+                        onVoiceRecordingFinished(blobUrl);
+                    };
+                    reader.readAsDataURL(vmRecordedBlob);
+
+                    if (vmMicStream) {
+                        vmMicStream.getTracks().forEach(t => t.stop());
+                        vmMicStream = null;
+                    }
+                    if (vmMicAudioCtx && vmMicAudioCtx.state !== 'closed') {
+                        vmMicAudioCtx.close();
+                    }
+                };
+
+                vmMediaRecorder.start(100);
+                vmIsRecording = true;
+                vmRecordingSeconds = 0;
+
+                const recordBtn = document.getElementById('vm-record-btn');
+                const stopBtn = document.getElementById('vm-stop-btn');
+                const timerBadge = document.getElementById('vm-timer-badge');
+                const status = document.getElementById('vm-recording-status');
+
+                if (recordBtn) recordBtn.style.display = 'none';
+                if (stopBtn) stopBtn.style.display = 'inline-flex';
+                if (status) {
+                    status.innerText = "🎙️ Speaking into mic... Click Stop when finished speaking.";
+                    status.style.color = '#EF4444';
+                }
+
+                vmRecordingTimer = setInterval(() => {
+                    vmRecordingSeconds++;
+                    const mins = String(Math.floor(vmRecordingSeconds / 60)).padStart(2, '0');
+                    const secs = String(vmRecordingSeconds % 60).padStart(2, '0');
+                    if (timerBadge) {
+                        timerBadge.innerText = `🔴 ${mins}:${secs} / 00:${VM_MAX_DURATION}`;
+                        timerBadge.style.color = '#DC2626';
+                        timerBadge.style.background = '#FEE2E2';
+                    }
+
+                    if (vmRecordingSeconds >= VM_MAX_DURATION) {
+                        stopVoiceModelRecording();
+                    }
+                }, 1000);
+
+            } catch(err) {
+                console.error("Microphone error:", err);
+                alert("Could not access microphone: " + err.message + "\nPlease check browser microphone permissions.");
+            }
+        }
+
+        function stopVoiceModelRecording() {
+            if (vmRecordingTimer) {
+                clearInterval(vmRecordingTimer);
+                vmRecordingTimer = null;
+            }
+            if (vmMediaRecorder && vmMediaRecorder.state !== 'inactive') {
+                vmMediaRecorder.stop();
+            }
+            vmIsRecording = false;
+
+            const stopBtn = document.getElementById('vm-stop-btn');
+            if (stopBtn) stopBtn.style.display = 'none';
+            if (vmMicAnimId) cancelAnimationFrame(vmMicAnimId);
+        }
+
+        function onVoiceRecordingFinished(blobUrl) {
+            const recordDeck = document.getElementById('vm-record-deck');
+            const reviewCard = document.getElementById('vm-review-card');
+            const audioPlayer = document.getElementById('vm-audio-player');
+            const durationBadge = document.getElementById('vm-recorded-duration');
+            const status = document.getElementById('vm-recording-status');
+
+            if (recordDeck) recordDeck.style.display = 'none';
+            if (reviewCard) reviewCard.style.display = 'block';
+
+            if (audioPlayer) {
+                audioPlayer.src = blobUrl;
+                audioPlayer.load();
+            }
+
+            if (durationBadge) {
+                durationBadge.innerText = `${vmRecordingSeconds}s sample recorded • 100% Raw Vocal Fidelity`;
+            }
+            if (status) {
+                status.innerText = "✅ Voice recorded successfully! Listen to your sample below.";
+                status.style.color = '#10B981';
+            }
+        }
+
+        function resetVoiceModelRecording() {
+            vmRecordedBlob = null;
+            vmRecordedDataUrl = null;
+            vmRecordingSeconds = 0;
+            if (vmRecordingTimer) {
+                clearInterval(vmRecordingTimer);
+                vmRecordingTimer = null;
+            }
+
+            const recordDeck = document.getElementById('vm-record-deck');
+            const reviewCard = document.getElementById('vm-review-card');
+            const recordBtn = document.getElementById('vm-record-btn');
+            const stopBtn = document.getElementById('vm-stop-btn');
+            const timerBadge = document.getElementById('vm-timer-badge');
+            const audioPlayer = document.getElementById('vm-audio-player');
+            const status = document.getElementById('vm-recording-status');
+
+            if (recordDeck) recordDeck.style.display = 'block';
+            if (reviewCard) reviewCard.style.display = 'none';
+            if (recordBtn) recordBtn.style.display = 'inline-flex';
+            if (stopBtn) stopBtn.style.display = 'none';
+            if (timerBadge) {
+                timerBadge.innerText = '00:00 / 00:15';
+                timerBadge.style.color = '#64748B';
+                timerBadge.style.background = '#F1F5F9';
+            }
+            if (audioPlayer) {
+                audioPlayer.src = '';
+                audioPlayer.pause();
+            }
+            if (status) {
+                status.innerText = 'Click "Start Recording" and read the calibration sentence clearly.';
+                status.style.color = '#64748B';
+            }
+        }
+
+        function playVoiceModelRawSample() {
+            if (!vmRecordedDataUrl && !vmRecordedBlob) {
+                alert("Please record a voice sample first.");
+                return;
+            }
+            playRawVoiceAudio(vmRecordedDataUrl || vmRecordedBlob);
+        }
+
+        function playVoiceModelStudioSample() {
+            if (!vmRecordedDataUrl && !vmRecordedBlob) {
+                alert("Please record a voice sample first.");
+                return;
+            }
+            const pitch = parseFloat(document.getElementById('vm-pitch')?.value || '1.0');
+            const rate = parseFloat(document.getElementById('vm-rate')?.value || '1.0');
+            playStudioMasteredVoice(vmRecordedDataUrl || vmRecordedBlob, { pitch, rate });
+        }
+
+        function testVoiceModelAISpeech() {
+            if (vmRecordedDataUrl || vmRecordedBlob) {
+                // Play their actual recorded voice first!
+                playRawVoiceAudio(vmRecordedDataUrl || vmRecordedBlob);
+                if (typeof showToast === 'function') {
+                    showToast("Playing your calibrated real voice sample!", "info");
+                }
+                return;
+            }
+
+            const gender = document.getElementById('vm-gender')?.value || 'male';
+            const lang = document.getElementById('vm-lang')?.value || 'en';
+            const pitch = parseFloat(document.getElementById('vm-pitch')?.value || '1.0');
+            const rate = parseFloat(document.getElementById('vm-rate')?.value || '1.0');
+            const name = document.getElementById('vm-name')?.value.trim() || 'Speaker';
+
+            const testText = `Greetings from FestOS arena! This is ${name} testing the calibrated human voice engine.`;
+            speakSyntheticUtterance(testText, { lang, gender, pitch, rate });
+        }
+
+        function resetVoiceSlidersToNatural() {
+            document.getElementById('vm-pitch').value = '1.0';
+            document.getElementById('vm-pitch-val').innerText = '1.0 (Natural)';
+            document.getElementById('vm-rate').value = '1.0';
+            document.getElementById('vm-rate-val').innerText = '1.0x (Natural)';
+        }
+
+        function drawMicVisualizer() {
+            if (!vmMicAnalyser) return;
+            const canvas = document.getElementById('vm-mic-visualizer');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const bufferLength = vmMicAnalyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            const draw = () => {
+                vmMicAnimId = requestAnimationFrame(draw);
+                vmMicAnalyser.getByteFrequencyData(dataArray);
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const barWidth = (canvas.width / bufferLength) * 2;
+                let x = 0;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    const barHeight = (dataArray[i] / 255) * canvas.height;
+                    const r = 79 + Math.floor((dataArray[i] / 255) * 100);
+                    const g = 70;
+                    const b = 229;
+                    ctx.fillStyle = `rgb(${r},${g},${b})`;
+                    ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
+                    x += barWidth;
+                }
+            };
+            draw();
+        }
+
+        async function saveHumanVoiceModel() {
+            const name = document.getElementById('vm-name')?.value.trim();
+            if (!name) {
+                alert("Please provide a name for this Voice Model (e.g. MC Farhan).");
+                document.getElementById('vm-name')?.focus();
+                return;
+            }
+
+            const gender = document.getElementById('vm-gender')?.value || 'male';
+            const lang = document.getElementById('vm-lang')?.value || 'en';
+            const pitch = parseFloat(document.getElementById('vm-pitch')?.value || '1.0');
+            const rate = parseFloat(document.getElementById('vm-rate')?.value || '1.0');
+            const baseVoiceName = document.getElementById('vm-base-voice')?.value || '';
+            const deliveryMode = document.getElementById('vm-delivery-mode')?.value || 'intro_plus_tts';
+
+            const saveBtn = document.getElementById('btn-save-voice-model');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving Model...';
+            }
+
+            const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
+            let currentFestName = 'Current Festival';
+            if (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFest) {
+                const fObj = festosAuth.getCurrentFest();
+                if (fObj && fObj.name) currentFestName = fObj.name;
+            }
+
+            const modelId = 'vm_' + Date.now();
+            const newModel = {
+                id: modelId,
+                name: name,
+                gender: gender,
+                lang: lang,
+                pitch: pitch,
+                rate: rate,
+                baseVoiceName: baseVoiceName,
+                deliveryMode: deliveryMode,
+                sampleAudio: vmRecordedDataUrl || '',
+                isDefault: false,
+                isOtherFest: false,
+                sourceFest: fid,
+                festName: currentFestName,
+                tag: 'Custom Cloned',
+                role: 'Festival Voice Model',
+                created_at: new Date().toISOString()
+            };
+
+            // 1. Save high-fidelity audio to IndexedDB
+            await idbSaveVoiceModel(newModel);
+
+            // 2. Add to active array (at top)
+            festivalVoiceModels.unshift(newModel);
+            activeHumanModel = newModel;
+
+            // 3. Persist to LocalStorage and Supabase Settings
+            try {
+                const customModels = festivalVoiceModels.filter(m => !m.isDefault && (!m.isOtherFest || m.sourceFest === fid));
+                const storageCopy = customModels.map(m => ({
+                    id: m.id,
+                    name: m.name,
+                    gender: m.gender,
+                    lang: m.lang,
+                    pitch: m.pitch,
+                    rate: m.rate,
+                    baseVoiceName: m.baseVoiceName,
+                    deliveryMode: m.deliveryMode,
+                    sourceFest: m.sourceFest,
+                    festName: m.festName,
+                    sampleAudio: m.sampleAudio || '',
+                    created_at: m.created_at
+                }));
+                localStorage.setItem('festos_voice_models_' + fid, JSON.stringify(storageCopy));
+
+                // Also save to global storage so other festivals discover it
+                localStorage.setItem('festos_voice_models_global_' + modelId, JSON.stringify(storageCopy));
+
+                if (window.festosSaveSetting) {
+                    await window.festosSaveSetting('voice_models', storageCopy, fid);
+                }
+            } catch(e) {
+                console.warn("Storage warning:", e);
+            }
+
+            closeModal('voiceModelModal');
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>Save Voice Model to Festival';
+            }
+
+            updateVoiceModelsCountBadge();
+            populateVoiceList();
+
+            // Auto-select this newly created model on the Announcer deck!
+            const voiceSelect = document.getElementById('tts-voice-select');
+            if (voiceSelect) {
+                voiceSelect.value = 'human_' + modelId;
+                onVoiceEngineChange(voiceSelect.value);
+            }
+
+            if (typeof showToast === 'function') {
+                showToast(`Voice Model "${name}" calibrated and activated on live deck!`, "success");
+            }
+        }
+
+        // --- E. MANAGE VOICE MODELS MODAL WITH SEARCH & FILTER ---
+        function filterManageVoiceModels(filterType, btn) {
+            activeVoiceModelFilter = filterType;
+            const container = document.getElementById('voice-filter-tabs');
+            if (container) {
+                container.querySelectorAll('.studio-preset-chip').forEach(b => {
+                    b.style.background = '#FFFFFF';
+                    b.style.color = '#334155';
+                    b.style.borderColor = '#CBD5E1';
+                });
+            }
+            if (btn) {
+                btn.style.background = '#4F46E5';
+                btn.style.color = '#FFFFFF';
+                btn.style.borderColor = '#4F46E5';
+            }
+            renderVoiceModelsListInModal();
+        }
+
+        function onVoiceModelSearch(query) {
+            voiceModelSearchQuery = (query || '').toLowerCase().trim();
+            renderVoiceModelsListInModal();
+        }
+
+        function openManageVoiceModelsModal() {
+            activeVoiceModelFilter = 'all';
+            voiceModelSearchQuery = '';
+            const searchInput = document.getElementById('vm-search-input');
+            if (searchInput) searchInput.value = '';
+
+            const container = document.getElementById('voice-filter-tabs');
+            if (container) {
+                container.querySelectorAll('.studio-preset-chip').forEach((b, idx) => {
+                    if (idx === 0) {
+                        b.style.background = '#4F46E5';
+                        b.style.color = '#FFFFFF';
+                        b.style.borderColor = '#4F46E5';
+                    } else {
+                        b.style.background = '#FFFFFF';
+                        b.style.color = '#334155';
+                        b.style.borderColor = '#CBD5E1';
+                    }
+                });
+            }
+
+            renderVoiceModelsListInModal();
+            openModal('manageVoiceModelsModal');
+        }
+
+        function renderVoiceModelsListInModal() {
+            const container = document.getElementById('voice-models-list-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
+
+            let list = festivalVoiceModels.slice();
+
+            // Filter by type
+            if (activeVoiceModelFilter === 'official') {
+                list = list.filter(m => m.isDefault);
+            } else if (activeVoiceModelFilter === 'other_fest') {
+                list = list.filter(m => m.isOtherFest && m.sourceFest !== fid);
+            } else if (activeVoiceModelFilter === 'custom') {
+                list = list.filter(m => !m.isDefault && (!m.isOtherFest || m.sourceFest === fid));
+            }
+
+            // Filter by search query
+            if (voiceModelSearchQuery) {
+                list = list.filter(m => {
+                    const text = `${m.name} ${m.role || ''} ${m.lang || ''} ${m.gender || ''} ${m.tag || ''} ${m.sourceFest || ''}`.toLowerCase();
+                    return text.includes(voiceModelSearchQuery);
+                });
+            }
+
+            if (list.length === 0) {
+                container.innerHTML = `<div class="empty-deck-state" style="padding: 2rem 1rem;"><div style="font-weight:700; color:#475569; font-size:0.9rem;">No matching voice models found</div><div style="font-size:0.78rem; color:#94A3B8; margin-top:2px;">Try adjusting search terms or switching filter tabs.</div></div>`;
+                return;
+            }
+
+            list.forEach(m => {
+                const isSelected = activeHumanModel && activeHumanModel.id === m.id;
+                const isCustom = !m.isDefault && (!m.isOtherFest || m.sourceFest === fid);
+                const isOtherFest = m.isOtherFest && m.sourceFest !== fid;
+
+                let badgeHtml = '';
+                if (isOtherFest) {
+                    badgeHtml = `<span style="font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 999px; background: #FEF3C7; color: #B45309;" title="Discovered from another festival">🏛️ OTHER FEST: ${(m.festName || m.sourceFest || 'EXTERNAL').toUpperCase()}</span>`;
+                } else if (isCustom) {
+                    badgeHtml = `<span style="font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 999px; background: #EEF2FF; color: #4F46E5;">🎙️ CUSTOM CLONED</span>`;
+                } else {
+                    badgeHtml = `<span style="font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 999px; background: #ECFDF5; color: #047857;">🌟 OFFICIAL FESTIVAL</span>`;
+                }
+
+                container.innerHTML += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: ${isSelected ? '#EEF2FF' : '#FFFFFF'}; padding: 0.85rem 1.15rem; border-radius: 12px; border: 1.5px solid ${isSelected ? '#6366F1' : '#E2E8F0'}; box-shadow: 0 1px 3px rgba(0,0,0,0.02); gap: 0.75rem; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 220px; flex: 1;">
+                            <div style="width: 42px; height: 42px; border-radius: 10px; background: ${isSelected ? 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' : '#F1F5F9'}; color: ${isSelected ? 'white' : '#4F46E5'}; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                            </div>
+                            <div style="min-width: 0;">
+                                <div style="font-weight: 800; font-size: 0.92rem; color: #0F172A; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                                    <span>${m.name}</span>
+                                    ${isSelected ? '<span style="font-size: 0.68rem; font-weight: 800; padding: 0.15rem 0.5rem; border-radius: 999px; background: #4F46E5; color: white;">ACTIVE</span>' : ''}
+                                    ${badgeHtml}
+                                </div>
+                                <div style="font-size: 0.75rem; color: #64748B; margin-top: 2px;">
+                                    ${(m.gender || 'male').toUpperCase()} • ${(m.lang || 'en').toUpperCase()} | Pitch: ${m.pitch || 1.0}x | Pace: ${m.rate || 1.0}x ${m.description ? `| ${m.description}` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.45rem; align-items: center; flex-wrap: wrap;">
+                            <button type="button" class="studio-sub-btn-white" onclick="playModelAudio('${m.id}')" title="Play Voice Sample">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                                <span>Sample</span>
+                            </button>
+                            <button type="button" class="studio-sub-btn-indigo" style="background: ${isSelected ? '#4F46E5' : '#EEF2FF'}; color: ${isSelected ? '#FFFFFF' : '#4338CA'};" onclick="selectAndUseVoiceModel('${m.id}')">
+                                ${isSelected ? '✓ Active' : 'Activate'}
+                            </button>
+                            ${isOtherFest ? `
+                                <button type="button" class="studio-sub-btn-emerald" onclick="importModelToCurrentFest('${m.id}')" title="Copy model into active festival library">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                    <span>Import to Fest</span>
+                                </button>
+                            ` : ''}
+                            ${isCustom ? `
+                                <button type="button" class="btn btn-outline" style="padding: 0.4rem 0.65rem; font-size: 0.75rem; color: #DC2626; border-color: #FECACA; background: #FEF2F2;" onclick="deleteVoiceModel('${m.id}')" title="Delete Model">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function importModelToCurrentFest(id) {
+            const m = festivalVoiceModels.find(x => x.id === id);
+            if (!m) return;
+            const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
+
+            m.sourceFest = fid;
+            m.isOtherFest = false;
+
+            try {
+                const local = JSON.parse(localStorage.getItem('festos_voice_models_' + fid) || '[]');
+                if (!local.find(x => x.id === m.id)) {
+                    local.push(m);
+                    localStorage.setItem('festos_voice_models_' + fid, JSON.stringify(local));
+                }
+                if (window.festosSaveSetting) {
+                    await window.festosSaveSetting('voice_models', local, fid);
+                }
+            } catch(e) {}
+
+            populateVoiceList();
+            renderVoiceModelsListInModal();
+            if (typeof showToast === 'function') {
+                showToast(`Model "${m.name}" imported into this festival!`, "success");
+            }
+        }
+
+        function playModelAudio(id) {
+            const m = festivalVoiceModels.find(x => x.id === id);
+            if (!m) return;
+            if (m.sampleAudio) {
+                playCalibratedVoiceAudio(m.sampleAudio, m.pitch, m.rate);
+            } else {
+                const phrase = getModelTestPhrase(m);
+                speakSyntheticUtterance(phrase, {
+                    lang: m.lang || 'en',
+                    gender: m.gender || 'male',
+                    pitch: m.pitch || 1.0,
+                    rate: m.rate || 1.0
+                });
+            }
+        }
+
+        function selectAndUseVoiceModel(id) {
+            const voiceSelect = document.getElementById('tts-voice-select');
+            if (voiceSelect) {
+                voiceSelect.value = 'human_' + id;
+                onVoiceEngineChange(voiceSelect.value);
+            }
+            closeModal('manageVoiceModelsModal');
+            if (typeof showToast === 'function') showToast("Voice Model activated on Announcer deck!", "success");
+        }
+
+        async function deleteVoiceModel(id) {
+            const target = festivalVoiceModels.find(m => m.id === id);
+            if (!target || target.isDefault) {
+                alert("Built-in official festival voice models cannot be deleted.");
+                return;
+            }
+            if (!confirm(`Are you sure you want to delete the custom voice model "${target.name}"?`)) return;
+
+            await idbDeleteVoiceModel(id);
+
+            festivalVoiceModels = festivalVoiceModels.filter(m => m.id !== id);
+            if (activeHumanModel && activeHumanModel.id === id) {
+                activeHumanModel = festivalVoiceModels[0] || null;
+            }
+
+            const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
+            try {
+                const customModels = festivalVoiceModels.filter(m => !m.isDefault && (!m.isOtherFest || m.sourceFest === fid));
+                localStorage.setItem('festos_voice_models_' + fid, JSON.stringify(customModels));
+                if (window.festosSaveSetting) {
+                    await window.festosSaveSetting('voice_models', customModels, fid);
+                }
+            } catch(e) {}
+
+            updateVoiceModelsCountBadge();
+            populateVoiceList();
+            renderActiveVoiceProfileBanner();
+            renderVoiceModelsListInModal();
+            if (typeof showToast === 'function') showToast("Voice model deleted.", "info");
+        }
+
+        // --- F. VOICE SELECTION & PRESETS ---
+        function onVoiceEngineChange(val) {
+            const strVal = String(val || '');
+            if (strVal.startsWith('human_')) {
+                const id = strVal.replace('human_', '');
+                activeHumanModel = festivalVoiceModels.find(m => m.id === id) || festivalVoiceModels[0] || null;
+                if (activeHumanModel) {
+                    if (document.getElementById('tts-pitch')) {
+                        document.getElementById('tts-pitch').value = activeHumanModel.pitch || 1.0;
+                        document.getElementById('tts-pitch-val').innerText = (activeHumanModel.pitch || 1.0);
+                    }
+                    if (document.getElementById('tts-rate')) {
+                        document.getElementById('tts-rate').value = activeHumanModel.rate || 1.0;
+                        document.getElementById('tts-rate-val').innerText = (activeHumanModel.rate || 1.0) + 'x';
+                    }
+                }
+            } else {
+                activeHumanModel = null;
+            }
+            renderActiveVoiceProfileBanner();
+        }
+
+        function resetRateSlider() {
+            const input = document.getElementById('tts-rate');
+            if (input) {
+                input.value = '1.0';
+                document.getElementById('tts-rate-val').innerText = '1.0x';
+            }
+        }
+
+        function resetPitchSlider() {
+            const input = document.getElementById('tts-pitch');
+            if (input) {
+                input.value = '1.0';
+                document.getElementById('tts-pitch-val').innerText = '1.0';
+            }
+        }
+
+        function applyVoicePreset(type) {
+            const rateInput = document.getElementById('tts-rate');
+            const pitchInput = document.getElementById('tts-pitch');
+            const chimeSelect = document.getElementById('tts-chime-style');
+            const voiceSelect = document.getElementById('tts-voice-select');
+
+            if (type === 'stadium') {
+                if (rateInput) { rateInput.value = '1.02'; document.getElementById('tts-rate-val').innerText = '1.02x'; }
+                if (pitchInput) { pitchInput.value = '0.92'; document.getElementById('tts-pitch-val').innerText = '0.92'; }
+                if (chimeSelect) chimeSelect.value = 'stadium';
+                if (voiceSelect && voiceSelect.querySelector('option[value="human_built_in_farhan"]')) {
+                    voiceSelect.value = 'human_built_in_farhan';
+                    onVoiceEngineChange(voiceSelect.value);
+                }
+                if (typeof showToast === 'function') showToast("Applied Stadium PA Preset with MC Farhan", "info");
+            } else if (type === 'gala') {
+                if (rateInput) { rateInput.value = '0.98'; document.getElementById('tts-rate-val').innerText = '0.98x'; }
+                if (pitchInput) { pitchInput.value = '1.12'; document.getElementById('tts-pitch-val').innerText = '1.12'; }
+                if (chimeSelect) chimeSelect.value = 'gong';
+                if (voiceSelect && voiceSelect.querySelector('option[value="human_built_in_sarah"]')) {
+                    voiceSelect.value = 'human_built_in_sarah';
+                    onVoiceEngineChange(voiceSelect.value);
+                }
+                if (typeof showToast === 'function') showToast("Applied Awards Gala Preset with Sarah Jenkins", "info");
+            } else if (type === 'urgent') {
+                if (rateInput) { rateInput.value = '1.18'; document.getElementById('tts-rate-val').innerText = '1.18x'; }
+                if (pitchInput) { pitchInput.value = '1.05'; document.getElementById('tts-pitch-val').innerText = '1.05'; }
+                if (chimeSelect) chimeSelect.value = 'fanfare';
+                if (voiceSelect && voiceSelect.querySelector('option[value="human_built_in_vikram"]')) {
+                    voiceSelect.value = 'human_built_in_vikram';
+                    onVoiceEngineChange(voiceSelect.value);
+                }
+                if (typeof showToast === 'function') showToast("Applied Urgent Call Preset with Vikram Rathore", "info");
+            } else if (type === 'airport') {
+                if (rateInput) { rateInput.value = '0.95'; document.getElementById('tts-rate-val').innerText = '0.95x'; }
+                if (pitchInput) { pitchInput.value = '1.05'; document.getElementById('tts-pitch-val').innerText = '1.05'; }
+                if (chimeSelect) chimeSelect.value = 'airport';
+                if (typeof showToast === 'function') showToast("Applied Airport Ding-Dong Preset", "info");
+            } else if (type === 'radio') {
+                if (rateInput) { rateInput.value = '1.12'; document.getElementById('tts-rate-val').innerText = '1.12x'; }
+                if (pitchInput) { pitchInput.value = '1.08'; document.getElementById('tts-pitch-val').innerText = '1.08'; }
+                if (chimeSelect) chimeSelect.value = 'synth';
+                if (voiceSelect && voiceSelect.querySelector('option[value="human_built_in_kabir"]')) {
+                    voiceSelect.value = 'human_built_in_kabir';
+                    onVoiceEngineChange(voiceSelect.value);
+                }
+                if (typeof showToast === 'function') showToast("Applied Campus Radio Preset with RJ Kabir", "info");
+            }
+        }
+
+        // --- G. SMART VOICE MATCHER & SYNTHESIS ---
+        function findBestMatchingVoice(targetLang = 'en', targetGender = 'male') {
+            if (!ttsVoices || ttsVoices.length === 0) {
+                if ('speechSynthesis' in window) ttsVoices = window.speechSynthesis.getVoices() || [];
+            }
+            if (!ttsVoices || ttsVoices.length === 0) return null;
+
+            const lang = (targetLang || 'en').toLowerCase();
+            const gender = (targetGender || 'male').toLowerCase();
+
+            // Candidates matching language prefix (e.g. 'en', 'ml', 'hi', etc.)
+            let langMatches = ttsVoices.filter(v => (v.lang || '').toLowerCase().startsWith(lang));
+            if (langMatches.length === 0) {
+                langMatches = ttsVoices.filter(v => (v.lang || '').toLowerCase().startsWith('en'));
+            }
+            if (langMatches.length === 0) langMatches = ttsVoices;
+
+            // Female voice indicators across OSes
+            const femaleKeywords = ['zira', 'jenny', 'samantha', 'karen', 'victoria', 'fiona', 'veena', 'sangeeta', 'priya', 'moira', 'tessa', 'helena', 'catherine', 'hazel', 'susan', 'female', 'woman', 'girl'];
+            // Male voice indicators
+            const maleKeywords = ['david', 'mark', 'george', 'guy', 'daniel', 'rishi', 'alex', 'fred', 'oliver', 'thomas', 'cosmo', 'male', 'man', 'boy'];
+
+            if (gender === 'female') {
+                const femaleMatch = langMatches.find(v => {
+                    const name = (v.name || '').toLowerCase();
+                    return femaleKeywords.some(k => name.includes(k));
+                });
+                if (femaleMatch) return femaleMatch;
+            } else if (gender === 'male') {
+                const maleMatch = langMatches.find(v => {
+                    const name = (v.name || '').toLowerCase();
+                    return maleKeywords.some(k => name.includes(k));
+                });
+                if (maleMatch) return maleMatch;
+            }
+
+            return langMatches[0] || ttsVoices[0] || null;
+        }
+
+        function populateVoiceList() {
+            const select = document.getElementById('tts-voice-select');
+            if (!select) return;
+
+            const previousVal = select.value;
+            select.innerHTML = '';
+
+            const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
+
+            const customModels = festivalVoiceModels.filter(m => !m.isDefault && (!m.isOtherFest || m.sourceFest === fid));
+            const otherFestModels = festivalVoiceModels.filter(m => m.isOtherFest && m.sourceFest !== fid);
+            const officialModels = festivalVoiceModels.filter(m => m.isDefault);
+
+            // 1. Current Festival Custom Models (if any)
+            if (customModels.length > 0) {
+                const group = document.createElement('optgroup');
+                group.label = '🎙️ Current Festival Cloned Models';
+                customModels.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = 'human_' + m.id;
+                    opt.textContent = `👤 ${m.name} [${(m.gender || 'male').toUpperCase()} • ${(m.lang || 'en').toUpperCase()}] (Custom Cloned)`;
+                    group.appendChild(opt);
+                });
+                select.appendChild(group);
+            }
+
+            // 2. Other Festivals' Voice Models (Discovered across other fests)
+            if (otherFestModels.length > 0) {
+                const group = document.createElement('optgroup');
+                group.label = `🏛️ Other Festivals' Voice Models (${otherFestModels.length})`;
+                otherFestModels.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = 'human_' + m.id;
+                    opt.textContent = `🏛️ ${m.name} [${(m.gender || 'male').toUpperCase()} • ${(m.lang || 'en').toUpperCase()}] (From Fest: ${(m.festName || m.sourceFest || 'External')})`;
+                    group.appendChild(opt);
+                });
+                select.appendChild(group);
+            }
+
+            // 3. Official Festival AI Voice Models (Comprehensive Library)
+            if (officialModels.length > 0) {
+                const group = document.createElement('optgroup');
+                group.label = '🌟 Official Festival AI Voice Library';
+                officialModels.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = 'human_' + m.id;
+                    opt.textContent = `👤 ${m.name} [${(m.gender || 'male').toUpperCase()} • ${(m.lang || 'en').toUpperCase()}] (${m.tag || 'Calibrated'})`;
+                    group.appendChild(opt);
+                });
+                select.appendChild(group);
+            }
+
+            // 4. SYSTEM MULTI-LINGUAL SYNTHESIS VOICES
+            if ('speechSynthesis' in window) {
+                ttsVoices = window.speechSynthesis.getVoices() || [];
+                if (ttsVoices.length > 0) {
+                    const enVoices = [];
+                    const mlVoices = [];
+                    const hiVoices = [];
+                    const arVoices = [];
+                    const taVoices = [];
+                    const knVoices = [];
+                    const urVoices = [];
+                    const otherVoices = [];
+
+                    ttsVoices.forEach((voice, index) => {
+                        const item = { voice, index };
+                        const lang = (voice.lang || '').toLowerCase();
+                        if (lang.startsWith('en')) enVoices.push(item);
+                        else if (lang.startsWith('ml')) mlVoices.push(item);
+                        else if (lang.startsWith('hi')) hiVoices.push(item);
+                        else if (lang.startsWith('ar')) arVoices.push(item);
+                        else if (lang.startsWith('ta')) taVoices.push(item);
+                        else if (lang.startsWith('kn')) knVoices.push(item);
+                        else if (lang.startsWith('ur')) urVoices.push(item);
+                        else otherVoices.push(item);
+                    });
+
+                    const appendGroup = (label, list) => {
+                        if (list.length === 0) return;
+                        const optgroup = document.createElement('optgroup');
+                        optgroup.label = label;
+                        list.forEach(({ voice, index }) => {
+                            const option = document.createElement('option');
+                            option.value = 'sys_' + index;
+                            option.textContent = `${voice.name} (${voice.lang})${voice.default ? ' — [DEFAULT]' : ''}`;
+                            optgroup.appendChild(option);
+                        });
+                        select.appendChild(optgroup);
+                    };
+
+                    appendGroup('🇬🇧 English Voices', enVoices);
+                    appendGroup('🇮🇳 Malayalam Voices (മലയാളം)', mlVoices);
+                    appendGroup('🇮🇳 Hindi Voices (हिन्दी)', hiVoices);
+                    appendGroup('🇦🇪 Arabic Voices (العربية)', arVoices);
+                    appendGroup('🇮🇳 Tamil Voices (தமிழ்)', taVoices);
+                    appendGroup('🇮🇳 Kannada Voices (ಕನ್ನಡ)', knVoices);
+                    appendGroup('🇵🇰 Urdu Voices (اردو)', urVoices);
+                    appendGroup('🌐 Other Multi-lingual Voices', otherVoices);
+                }
+            }
+
+            // Selection restoration
+            if (previousVal && select.querySelector(`option[value="${previousVal}"]`)) {
+                select.value = previousVal;
+            } else if (festivalVoiceModels.length > 0) {
+                select.value = 'human_' + festivalVoiceModels[0].id;
+            }
+
+            onVoiceEngineChange(select.value);
+        }
+
+        // --- H. INITIALIZE AI VOICE ENGINE ---
+        function initAIVoiceEngine() {
+            loadFestivalVoiceModels();
+
+            if ('speechSynthesis' in window) {
+                ttsVoices = window.speechSynthesis.getVoices() || [];
+                populateVoiceList();
+                if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                    window.speechSynthesis.onvoiceschanged = () => {
+                        ttsVoices = window.speechSynthesis.getVoices() || [];
+                        populateVoiceList();
+                    };
+                }
+            }
+
+            renderBroadcastHistory();
+            renderBroadcastQueue();
+            initVisualizerCanvas();
+            updateScriptCounters();
+        }
+
+        function initVisualizerCanvas() {
+            const canvas = document.getElementById('tts-visualizer-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const numBars = 16;
+            const barWidth = 5;
+            const barSpacing = 3;
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                for (let i = 0; i < numBars; i++) {
+                    let barHeight = 4;
+                    if (ttsIsSpeaking) {
+                        const freq = Math.sin(Date.now() * 0.008 + i * 0.6) * 0.5 + 0.5;
+                        barHeight = 4 + freq * (canvas.height - 8);
+                    }
+                    const x = i * (barWidth + barSpacing) + 12;
+                    const y = (canvas.height - barHeight) / 2;
+
+                    ctx.fillStyle = ttsIsSpeaking ? '#4F46E5' : '#CBD5E1';
+                    ctx.beginPath();
+                    ctx.roundRect ? ctx.roundRect(x, y, barWidth, barHeight, 2) : ctx.rect(x, y, barWidth, barHeight);
+                    ctx.fill();
+                }
+
+                ttsVisualizerAnimId = requestAnimationFrame(draw);
+            }
+
+            if (!ttsVisualizerAnimId) {
+                draw();
+            }
+        }
+
+        // --- I. ACOUSTIC CHIMES & SOUND FX ---
+        async function playChimeAudio(style = 'gong') {
+            await ensureAudioUnlocked();
             return new Promise((resolve) => {
+                if (style === 'none') return resolve();
+
                 try {
                     const ctx = getStudioAudioContext();
                     if (!ctx) return resolve();
@@ -3560,13 +4895,13 @@ if (allCompIds.length > 0) {
                     const masterVol = parseFloat(document.getElementById('tts-vol')?.value || '1.0');
 
                     if (style === 'gong') {
-                        // Harmonic Arena Gong (D5 587.33Hz -> A5 880Hz)
+                        // Harmonic Gong (D5 587.33Hz -> A5 880Hz)
                         const osc1 = ctx.createOscillator();
                         const gain1 = ctx.createGain();
                         osc1.type = 'sine';
                         osc1.frequency.setValueAtTime(587.33, now);
                         gain1.gain.setValueAtTime(0, now);
-                        gain1.gain.linearRampToValueAtTime(0.35 * masterVol, now + 0.04);
+                        gain1.gain.linearRampToValueAtTime(0.3 * masterVol, now + 0.04);
                         gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
                         osc1.connect(gain1);
                         gain1.connect(ctx.destination);
@@ -3576,64 +4911,131 @@ if (allCompIds.length > 0) {
                         const osc2 = ctx.createOscillator();
                         const gain2 = ctx.createGain();
                         osc2.type = 'sine';
-                        osc2.frequency.setValueAtTime(880, now + 0.18);
-                        gain2.gain.setValueAtTime(0, now + 0.18);
-                        gain2.gain.linearRampToValueAtTime(0.4 * masterVol, now + 0.22);
-                        gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.75);
+                        osc2.frequency.setValueAtTime(880, now + 0.2);
+                        gain2.gain.setValueAtTime(0, now + 0.2);
+                        gain2.gain.linearRampToValueAtTime(0.35 * masterVol, now + 0.24);
+                        gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.85);
                         osc2.connect(gain2);
                         gain2.connect(ctx.destination);
-                        osc2.start(now + 0.18);
-                        osc2.stop(now + 0.8);
+                        osc2.start(now + 0.2);
+                        osc2.stop(now + 0.9);
 
-                        setTimeout(resolve, 750);
+                        setTimeout(resolve, 850);
                     } else if (style === 'stadium') {
-                        // Stadium Chime Chords
+                        // Grand Stadium Horn (Dual-Brass Chords F4 349.23Hz + Bb4 466.16Hz)
                         [349.23, 466.16, 698.46].forEach((freq) => {
                             const osc = ctx.createOscillator();
                             const gain = ctx.createGain();
                             osc.type = 'sawtooth';
                             osc.frequency.setValueAtTime(freq, now);
                             gain.gain.setValueAtTime(0, now);
-                            gain.gain.linearRampToValueAtTime(0.2 * masterVol, now + 0.05);
-                            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.85);
+                            gain.gain.linearRampToValueAtTime(0.18 * masterVol, now + 0.05);
+                            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.95);
                             osc.connect(gain);
                             gain.connect(ctx.destination);
                             osc.start(now);
-                            osc.stop(now + 0.9);
+                            osc.stop(now + 1.0);
                         });
-                        setTimeout(resolve, 800);
+                        setTimeout(resolve, 950);
                     } else if (style === 'airport') {
-                        // Airport Double Bell
+                        // Airport Double Bell (F5 698.46Hz -> C6 1046.5Hz)
                         [698.46, 1046.5].forEach((freq, i) => {
                             const osc = ctx.createOscillator();
                             const gain = ctx.createGain();
                             osc.type = 'sine';
-                            osc.frequency.setValueAtTime(freq, now + i * 0.28);
-                            gain.gain.setValueAtTime(0, now + i * 0.28);
-                            gain.gain.linearRampToValueAtTime(0.32 * masterVol, now + i * 0.28 + 0.02);
-                            gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.28 + 0.5);
+                            osc.frequency.setValueAtTime(freq, now + i * 0.3);
+                            gain.gain.setValueAtTime(0, now + i * 0.3);
+                            gain.gain.linearRampToValueAtTime(0.3 * masterVol, now + i * 0.3 + 0.02);
+                            gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.3 + 0.55);
                             osc.connect(gain);
                             gain.connect(ctx.destination);
-                            osc.start(now + i * 0.28);
-                            osc.stop(now + i * 0.28 + 0.55);
+                            osc.start(now + i * 0.3);
+                            osc.stop(now + i * 0.3 + 0.6);
                         });
-                        setTimeout(resolve, 750);
-                    } else {
-                        // Default Stage Alert Bell
+                        setTimeout(resolve, 850);
+                    } else if (style === 'digital') {
+                        // Digital Chime (A5 880Hz -> D6 1174.66Hz -> E6 1318.5Hz)
+                        [880, 1174.66, 1318.5].forEach((freq, i) => {
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.type = 'triangle';
+                            osc.frequency.setValueAtTime(freq, now + i * 0.12);
+                            gain.gain.setValueAtTime(0, now + i * 0.12);
+                            gain.gain.linearRampToValueAtTime(0.28 * masterVol, now + i * 0.12 + 0.02);
+                            gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.12 + 0.35);
+                            osc.connect(gain);
+                            gain.connect(ctx.destination);
+                            osc.start(now + i * 0.12);
+                            osc.stop(now + i * 0.12 + 0.4);
+                        });
+                        setTimeout(resolve, 650);
+                    } else if (style === 'fanfare') {
+                        // Attention Fanfare (C5 523.25 -> E5 659.25 -> G5 783.99 -> C6 1046.5)
+                        [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.type = 'sawtooth';
+                            osc.frequency.setValueAtTime(freq, now + i * 0.14);
+                            gain.gain.setValueAtTime(0, now + i * 0.14);
+                            gain.gain.linearRampToValueAtTime(0.18 * masterVol, now + i * 0.14 + 0.02);
+                            gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.14 + 0.45);
+                            osc.connect(gain);
+                            gain.connect(ctx.destination);
+                            osc.start(now + i * 0.14);
+                            osc.stop(now + i * 0.14 + 0.5);
+                        });
+                        setTimeout(resolve, 850);
+                    } else if (style === 'temple') {
+                        // Resonant Temple Bells (E4 329.63Hz -> B4 493.88Hz)
+                        [329.63, 493.88].forEach((freq, i) => {
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(freq, now + i * 0.25);
+                            gain.gain.setValueAtTime(0, now + i * 0.25);
+                            gain.gain.linearRampToValueAtTime(0.35 * masterVol, now + i * 0.25 + 0.02);
+                            gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.25 + 1.2);
+                            osc.connect(gain);
+                            gain.connect(ctx.destination);
+                            osc.start(now + i * 0.25);
+                            osc.stop(now + i * 0.25 + 1.3);
+                        });
+                        setTimeout(resolve, 1100);
+                    } else if (style === 'synth') {
+                        // Cyber Synth Pulse
                         const osc = ctx.createOscillator();
                         const gain = ctx.createGain();
-                        osc.type = 'triangle';
-                        osc.frequency.setValueAtTime(783.99, now);
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(150, now);
+                        osc.frequency.exponentialRampToValueAtTime(60, now + 0.4);
                         gain.gain.setValueAtTime(0.35 * masterVol, now);
                         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
                         osc.connect(gain);
                         gain.connect(ctx.destination);
                         osc.start(now);
                         osc.stop(now + 0.55);
-                        setTimeout(resolve, 550);
+                        setTimeout(resolve, 600);
+                    } else if (style === 'harp') {
+                        // Gentle Harp Bell
+                        [523.25, 659.25, 783.99, 987.77].forEach((freq, i) => {
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(freq, now + i * 0.08);
+                            gain.gain.setValueAtTime(0, now + i * 0.08);
+                            gain.gain.linearRampToValueAtTime(0.25 * masterVol, now + i * 0.08 + 0.02);
+                            gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.08 + 0.6);
+                            osc.connect(gain);
+                            gain.connect(ctx.destination);
+                            osc.start(now + i * 0.08);
+                            osc.stop(now + i * 0.08 + 0.65);
+                        });
+                        setTimeout(resolve, 750);
+                    } else {
+                        resolve();
                     }
-                } catch(e) {
-                    console.warn("Chime Audio synthesis notice:", e);
+                } catch (e) {
+                    console.warn("Chime Audio synthesis error:", e);
                     resolve();
                 }
             });
@@ -4018,9 +5420,9 @@ if (allCompIds.length > 0) {
             if (type === 'results' || type === 'awards') {
                 const resList = (typeof computedResults !== 'undefined' && computedResults[compId]) ? computedResults[compId] : [];
                 
-                let w1 = resList.find(r => r.rank === 1 || r.currentRank === 1) || resList[0];
-                let w2 = resList.find(r => r.rank === 2 || r.currentRank === 2) || resList[1];
-                let w3 = resList.find(r => r.rank === 3 || r.currentRank === 3) || resList[2];
+                let w1 = resList.find(r => r.position === 1 || r.rank === 1 || r.currentRank === 1) || resList[0];
+                let w2 = resList.find(r => r.position === 2 || r.rank === 2 || r.currentRank === 2) || resList[1];
+                let w3 = resList.find(r => r.position === 3 || r.rank === 3 || r.currentRank === 3) || resList[2];
 
                 const w1Text = w1 ? `${w1.participant.name}${w1.participant.unique_id ? ', Chest Number ' + w1.participant.unique_id : ''}${w1.participant.teams?.name ? ', representing ' + w1.participant.teams.name : ''}` : '';
                 const w2Text = w2 ? `${w2.participant.name}${w2.participant.unique_id ? ', Chest Number ' + w2.participant.unique_id : ''}${w2.participant.teams?.name ? ', representing ' + w2.participant.teams.name : ''}` : '';
@@ -4108,6 +5510,24 @@ if (allCompIds.length > 0) {
             if (typeof showToast === 'function') {
                 showToast("Loaded competition into AI Announcer Studio", "info");
             }
+        }
+
+        async function speakSingleWinnerByIndex(compId, idx, event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+            const resList = (typeof computedResults !== 'undefined' && computedResults[compId]) ? computedResults[compId] : [];
+            const item = resList[idx];
+            if (!item) return;
+            const name = item.participant?.name || 'Participant';
+            const rank = item.position || (idx + 1);
+            const teamName = item.participant?.teams?.name || '';
+            await speakSingleWinner(compId, name, rank, teamName, event);
+        }
+
+        async function speakDirectResult(compId, event) {
+            await speakCompCallout(compId, 'results', event);
         }
 
         async function speakSingleWinner(compId, name, rank, teamName, event) {
