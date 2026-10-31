@@ -756,7 +756,7 @@
                 allTeams.forEach(t => calculatedTeamScores[t.id] = { name: t.name, score: 0 });
 
                 let compsQuery = supabaseClient.from('competitions')
-                    .select('*, categories(name), stages(name, is_offstage), participant_competitions(count)')
+                    .select('*, categories(name), stages(name), participant_competitions(count)')
                     .order('updated_at', { ascending: false });
                 if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery);
                 const { data: allComps } = await compsQuery;

@@ -966,7 +966,7 @@
 
             let schedCompsQuery = supabaseClient
                 .from('competitions')
-                .select('*, categories(name), stages(name, is_offstage)')
+                .select('*, categories(name), stages(name)')
                 .in('status', ['ongoing', 'valuation', 'registration'])
                 .order('status');
             if (window.festosApplyFilter) schedCompsQuery = window.festosApplyFilter(schedCompsQuery);
