@@ -1506,8 +1506,13 @@
             <div id="standings" class="results-sub-view active">
                 <div class="standings-header-card">
                     <div>
-                        <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); text-transform: uppercase;">Team Leaderboard</h3>
-                        <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 0.2rem; font-weight: 500; text-transform: uppercase;">Official points tally and overall team rankings.</p>
+                        <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
+                            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); text-transform: uppercase; margin: 0;">Team Leaderboard</h3>
+                            <span id="standings-count-badge" style="background: var(--primary-light); color: var(--primary); font-weight: 800; font-size: 0.78rem; padding: 0.25rem 0.75rem; border-radius: 9999px; border: 1.5px solid var(--primary-ring); display: inline-flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.03em;">
+                                <i class="fa-solid fa-trophy" style="font-size: 0.75rem;"></i> <span id="standings-count-text">After 0 Events</span>
+                            </span>
+                        </div>
+                        <p id="standings-count-subtitle" style="color: var(--text-muted); font-size: 0.82rem; margin-top: 0.25rem; font-weight: 500; text-transform: uppercase;">Official points tally and overall team rankings.</p>
                     </div>
                     
                     <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
@@ -2218,6 +2223,8 @@
         let calculatedTeamScores = {}; 
         let competitionResults = {}; 
         let competitionParticipantsMap = {}; // compId -> list of participant_competitions
+        let totalFestivalComps = 0;
+        let currentTimelineCompsCount = 0;
         let cachedTemplates = []; 
         let activeCompId = null;
         let activeTemplateIndex = 0; 
@@ -3002,6 +3009,8 @@
                             globalJudgements = r.globalJudgements || [];
                             calculatedTeamScores = r.calculatedTeamScores || {};
                             competitionParticipantsMap = r.competitionParticipantsMap || {};
+                            totalFestivalComps = r.totalFestivalComps || publishedCompetitions.length;
+                            currentTimelineCompsCount = publishedCompetitions.length;
 
                             const countEl = document.getElementById('published-count-display');
                             if (countEl) countEl.innerText = publishedCompetitions.length;
@@ -3123,6 +3132,7 @@
 
                 // 6. Dynamic Counts on Dashboard
                 const totalComps = cntCompsRes?.count || 0;
+                totalFestivalComps = totalComps;
                 const totalParticipants = cntPartsRes?.count || 0;
                 const totalTeamsCount = cntTeamsRes?.count || 0;
                 const totalStagesCount = cntStagesRes?.count || 0;
@@ -3216,6 +3226,7 @@
                                 globalJudgements,
                                 calculatedTeamScores,
                                 competitionParticipantsMap,
+                                totalFestivalComps,
                                 timestamp: Date.now()
                             }));
                         }
@@ -3279,6 +3290,8 @@
             
             let activeComps = publishedCompetitions;
             if (limitVal !== 'all') { activeComps = publishedCompetitions.slice(0, parseInt(limitVal)); }
+            
+            currentTimelineCompsCount = activeComps.length;
             
             const activeCompIds = activeComps.map(c => c.id);
             const filteredJudgements = globalJudgements.filter(j => activeCompIds.includes(j.competition_id));
@@ -3371,10 +3384,50 @@
             container.innerHTML = '';
             const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score);
 
+            const count = (currentTimelineCompsCount !== undefined && currentTimelineCompsCount !== null && currentTimelineCompsCount > 0)
+                ? currentTimelineCompsCount 
+                : publishedCompetitions.length;
+            const total = totalFestivalComps > 0 ? totalFestivalComps : (publishedCompetitions.length || 0);
+
+            // Update Header Card Badge & Subtitle
+            const badgeTextEl = document.getElementById('standings-count-text');
+            if (badgeTextEl) {
+                badgeTextEl.innerText = `After ${count} Events`;
+            }
+            const subtitleEl = document.getElementById('standings-count-subtitle');
+            if (subtitleEl) {
+                if (total > 0 && total !== count) {
+                    subtitleEl.innerText = `Official points tally after ${count} of ${total} competitions published.`;
+                } else {
+                    subtitleEl.innerText = `Official points tally after ${count} competition${count === 1 ? '' : 's'}.`;
+                }
+            }
+
             if(sortedTeams.length === 0) {
                 container.innerHTML = `<p style="text-align:center; padding: 4rem 1rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">AWAITING OFFICIAL RESULTS...</p>`;
                 return;
             }
+
+            // Summary Strip directly in Leaderboard View
+            const summaryStripHtml = `
+                <div class="standings-summary-strip" style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 0.85rem 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; box-shadow: var(--shadow-sm);">
+                    <div style="display: flex; align-items: center; gap: 0.65rem; font-size: 0.9rem; font-weight: 800; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.02em;">
+                        <span style="display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; background: var(--primary-light); color: var(--primary); font-size: 0.85rem;">
+                            <i class="fa-solid fa-flag-checkered"></i>
+                        </span>
+                        <span>Standings After <span style="color: var(--primary); font-weight: 900;">${count}</span> Competition${count === 1 ? '' : 's'}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+                        <span style="background: var(--bg-light); padding: 0.25rem 0.65rem; border-radius: 6px; border: 1px solid var(--surface-border); display: inline-flex; align-items: center; gap: 4px;">
+                            <i class="fa-solid fa-circle-check" style="color: var(--success);"></i> ${publishedCompetitions.length} Published
+                        </span>
+                        ${total > 0 ? `
+                        <span style="background: var(--bg-light); padding: 0.25rem 0.65rem; border-radius: 6px; border: 1px solid var(--surface-border); display: inline-flex; align-items: center; gap: 4px;">
+                            <i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${total} Total Events
+                        </span>` : ''}
+                    </div>
+                </div>
+            `;
 
             const podiumStyle = websiteConfig.theme?.podium_style || 'cards';
 
@@ -3392,6 +3445,7 @@
                 }).join('');
 
                 container.innerHTML = `
+                    ${summaryStripHtml}
                     <table class="leaderboard-linear-table">
                         <thead>
                             <tr>
@@ -3405,6 +3459,8 @@
                 `;
                 return;
             }
+
+            container.innerHTML = summaryStripHtml;
 
             sortedTeams.forEach((team, index) => {
                 const rank = index + 1;
