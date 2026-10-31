@@ -27,7 +27,15 @@
                 { key: 'Position3Photo', label: 'Position 3 Photo', type: 'image' },
                 { key: 'Position3Number', label: 'Position 3 Rank (#3)', type: 'text' },
                 { key: 'Position3Name', label: 'Position 3 Name', type: 'text' },
-                { key: 'Position3Team', label: 'Position 3 Team', type: 'text' }
+                { key: 'Position3Team', label: 'Position 3 Team', type: 'text' },
+                { key: 'Position4Photo', label: 'Position 4 Photo', type: 'image' },
+                { key: 'Position4Number', label: 'Position 4 Rank (#4)', type: 'text' },
+                { key: 'Position4Name', label: 'Position 4 Name', type: 'text' },
+                { key: 'Position4Team', label: 'Position 4 Team', type: 'text' },
+                { key: 'Position5Photo', label: 'Position 5 Photo', type: 'image' },
+                { key: 'Position5Number', label: 'Position 5 Rank (#5)', type: 'text' },
+                { key: 'Position5Name', label: 'Position 5 Name', type: 'text' },
+                { key: 'Position5Team', label: 'Position 5 Team', type: 'text' }
             ],
             prompt: `Design an ultra high-resolution 1080x1440 vertical sports and festival championship result poster. Features a triumphant podium aesthetic with dedicated, clearly labeled rectangular blank placeholder zones for:
 - [Competition] (bold header at top center)

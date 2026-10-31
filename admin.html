@@ -2819,12 +2819,17 @@ canvas {
 
     <!-- PANE: GALLERY -->
     <div id="builder-pane-gallery" class="builder-content-pane">
-        <div class="builder-pane-header">
+        <div class="builder-pane-header" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem;">
             <div>
-                <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-regular fa-images" style="color: var(--primary);"></i> Global Photo Gallery</h3>
-                <p style="font-size: 0.82rem; color: var(--text-muted);">Manage photo albums and event highlights on the results website.</p>
+                <h3 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-regular fa-images" style="color: var(--primary);"></i> Photo Gallery & Albums Manager</h3>
+                <p style="font-size: 0.82rem; color: var(--text-muted);">Upload multiple photos inside albums, provide descriptions, dates, venues, and share links on the public results website.</p>
             </div>
-            <button class="btn btn-primary" style="width: auto;" onclick="openNewAlbumModal()"><i class="fa-solid fa-plus"></i> New Album</button>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <input type="text" id="admin-gallery-search" placeholder="Search albums..." oninput="filterAdminGallery(this.value)" style="width: 220px; padding: 0.45rem 0.85rem; font-size: 0.82rem; border-radius: var(--radius-md); border: 1px solid var(--border); outline: none;">
+                <button class="btn btn-primary" style="width: auto; padding: 0.45rem 1.15rem; font-size: 0.84rem;" onclick="openNewAlbumModal()">
+                    <i class="fa-solid fa-plus"></i> Create New Album
+                </button>
+            </div>
         </div>
         <div class="builder-pane-body" style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); margin: 1.25rem; padding: 1.5rem;">
             <div id="builder-gallery-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem;">
@@ -7114,19 +7119,20 @@ canvas {
     </div>
 </div>
 
-<!-- New Album Modal -->
+<!-- Create / Edit Album Modal -->
 <div id="builderAlbumModal" class="modal-overlay" style="z-index: 2100;">
-    <div class="modal" style="max-width: 580px; max-height: 90vh; overflow-y: auto;">
+    <div class="modal" style="max-width: 620px; max-height: 90vh; overflow-y: auto;">
         <div class="modal-header">
             <h2 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
-                <i class="fa-regular fa-images" style="color: var(--primary);"></i> Create Photo Album
+                <i class="fa-regular fa-images" style="color: var(--primary);"></i> 
+                <span id="admin-album-modal-title">Create Photo Album</span>
             </h2>
             <button class="modal-close" onclick="closeAlbumModal()"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.25rem;">
             <div class="form-group">
                 <label>Album Title *</label>
-                <input type="text" id="album-title-input" placeholder="e.g. Inauguration & Cultural Night" style="width: 100%;">
+                <input type="text" id="album-title-input" placeholder="e.g. Grand Inauguration & Cultural Night" style="width: 100%;">
             </div>
             <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div class="form-group">
@@ -7138,6 +7144,7 @@ canvas {
                         <option value="Off-Stage Events">Off-Stage Events</option>
                         <option value="Inauguration & Ceremony">Inauguration & Ceremony</option>
                         <option value="Cultural Night">Cultural Night</option>
+                        <option value="Behind The Scenes">Behind The Scenes</option>
                         <option value="Highlights">Highlights</option>
                     </select>
                 </div>
@@ -7151,33 +7158,83 @@ canvas {
                 <input type="text" id="album-venue-input" placeholder="e.g. Main Auditorium / Stage 1" style="width: 100%;">
             </div>
             <div class="form-group">
-                <label>Album Description</label>
-                <textarea id="album-desc-input" rows="3" placeholder="Provide background details, dignitaries, memorable moments..." style="width: 100%; resize: vertical;"></textarea>
+                <label>Album Description & Highlights</label>
+                <textarea id="album-desc-input" rows="3" placeholder="Provide background details, VIP dignitaries, and memorable highlights for this photo album..." style="width: 100%; resize: vertical;"></textarea>
             </div>
             <div class="form-group">
                 <label>Cover Photo Image URL or Upload</label>
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
                     <input type="text" id="album-cover-url" placeholder="https://... or upload below" style="flex: 1; text-transform: none !important;">
-                    <button class="btn btn-outline" style="width: auto; padding: 0.5rem 1rem;" onclick="document.getElementById('upload-album-cover').click()"><i class="fa-solid fa-upload"></i></button>
+                    <button class="btn btn-outline" type="button" style="width: auto; padding: 0.5rem 1rem;" onclick="document.getElementById('upload-album-cover').click()"><i class="fa-solid fa-upload"></i></button>
                     <input type="file" id="upload-album-cover" accept="image/*" style="display: none;" onchange="handleAlbumCoverUpload(this)">
                 </div>
                 <img id="album-cover-preview" src="" style="width: 100%; height: 160px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); display: none;">
             </div>
             <div class="form-group">
                 <label>Upload Multiple Photos Inside Album</label>
-                <div style="border: 2px dashed var(--border); border-radius: 8px; padding: 1.25rem; text-align: center; cursor: pointer; background: var(--bg-surface);" onclick="document.getElementById('upload-album-multi-files').click()">
-                    <i class="fa-solid fa-cloud-arrow-up" style="font-size: 1.75rem; color: var(--primary); margin-bottom: 0.35rem; display: block;"></i>
-                    <strong style="font-size: 0.88rem;">Select Multiple Photos</strong>
-                    <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0.2rem 0 0 0;">Upload multiple JPG, PNG, WEBP files.</p>
+                <div style="border: 2px dashed var(--border); border-radius: 8px; padding: 1.5rem; text-align: center; cursor: pointer; background: var(--bg-surface); transition: border-color 0.2s;" onclick="document.getElementById('upload-album-multi-files').click()">
+                    <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2rem; color: var(--primary); margin-bottom: 0.4rem; display: block;"></i>
+                    <strong style="font-size: 0.92rem;">Click or Drag & Drop Multiple Photos</strong>
+                    <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0.2rem 0 0 0;">Select 5, 10, 20+ JPG, PNG, WEBP files. Images are automatically optimized.</p>
                     <input type="file" id="upload-album-multi-files" multiple accept="image/*" style="display: none;" onchange="handleAdminMultiPhotosUpload(this)">
                 </div>
-                <div id="admin-album-photos-preview-strip" style="display: none; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 0.5rem; max-height: 160px; overflow-y: auto; padding: 0.5rem; margin-top: 0.5rem; border: 1px solid var(--border); border-radius: 6px;"></div>
+                
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.6rem;">
+                    <input type="text" id="admin-album-url-add" placeholder="Or add photo via web image URL (https://...)" style="flex: 1; font-size: 0.82rem; text-transform: none !important;">
+                    <button type="button" class="btn btn-outline" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.8rem;" onclick="adminAddPhotoByUrl()"><i class="fa-solid fa-plus"></i> Add URL</button>
+                </div>
+
+                <div id="admin-album-photos-preview-container" style="display: none; margin-top: 0.75rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                        <span id="admin-album-photos-count" style="font-size: 0.78rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">0 Photos in Album</span>
+                        <span style="font-size: 0.72rem; color: var(--text-muted);"><i class="fa-solid fa-star" style="color:var(--primary);"></i> Click 'Cover' on any photo to set as thumbnail</span>
+                    </div>
+                    <div id="admin-album-photos-preview-strip" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 0.6rem; max-height: 220px; overflow-y: auto; padding: 0.6rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface);"></div>
+                </div>
             </div>
         </div>
-        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border);">
             <button class="btn btn-outline" style="width: auto;" onclick="closeAlbumModal()">Cancel</button>
-            <button class="btn btn-primary" id="btn-admin-save-album" style="width: auto;" onclick="saveNewAlbum()">Create Album</button>
+            <button class="btn btn-primary" id="btn-admin-save-album" style="width: auto;" onclick="saveNewAlbum()">Save Album</button>
         </div>
+    </div>
+</div>
+
+<!-- Admin Album Photos Manager & Viewer Modal -->
+<div id="adminAlbumPhotosModal" class="modal-overlay" style="z-index: 2150;">
+    <div class="modal" style="max-width: 920px; width: 95%; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem;">
+            <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem;">
+                    <span id="admin-view-album-category" style="font-size: 0.7rem; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase;">Category</span>
+                    <span id="admin-view-album-count" style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">0 Photos</span>
+                </div>
+                <h2 id="admin-view-album-title" style="font-size: 1.3rem; font-weight: 700; color: var(--text-main); margin: 0; text-transform: uppercase;">Album Title</h2>
+                <div id="admin-view-album-meta" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; display: flex; gap: 0.85rem; font-weight: 600;"></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <button class="btn btn-primary" style="width: auto; padding: 0.42rem 0.95rem; font-size: 0.82rem;" onclick="document.getElementById('admin-quick-add-files').click()">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload Photos
+                </button>
+                <button class="btn btn-outline" style="width: auto; padding: 0.42rem 0.85rem; font-size: 0.82rem;" onclick="openEditAlbumModal(currentAdminViewingAlbumId)">
+                    <i class="fa-solid fa-pen-to-square"></i> Edit Details
+                </button>
+                <button class="btn btn-outline" style="width: auto; padding: 0.42rem 0.85rem; font-size: 0.82rem;" onclick="copyAdminAlbumLink(currentAdminViewingAlbumId)">
+                    <i class="fa-regular fa-copy"></i> Link
+                </button>
+                <button class="modal-close" onclick="closeAdminAlbumPhotosModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+        
+        <div id="admin-view-album-desc-box" style="display: none; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; font-size: 0.86rem; color: var(--text-muted); line-height: 1.5;">
+            <p id="admin-view-album-desc" style="margin: 0;"></p>
+        </div>
+
+        <div id="admin-view-photos-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.85rem; padding: 0.25rem 0;">
+            <!-- Dynamically populated -->
+        </div>
+
+        <input type="file" id="admin-quick-add-files" multiple accept="image/*" style="display: none;" onchange="handleAdminQuickAddPhotos(this)">
     </div>
 </div>
 

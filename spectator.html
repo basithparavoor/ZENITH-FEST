@@ -877,19 +877,25 @@
 
             const results = computeSingleComp(comp, judgements || []);
 
-            // Set current poster payload
+            // Group results by effective rank to properly handle ties & multiple positions
+            const specRankGroups = { 1: [], 2: [], 3: [] };
+            results.forEach(r => {
+                const pos = (r.densePos && r.densePos <= 3) ? r.densePos : (r.pos <= 3 ? r.pos : 0);
+                if (pos && specRankGroups[pos]) specRankGroups[pos].push(r);
+            });
+
             currentPosterData = {
                 'Competition': comp.name,
                 'Category': comp.categories?.name || 'GENERAL',
-                'Position1Name': results[0]?.name || '',
-                'Position1Team': results[0]?.team || '',
-                'Position1Number': results[0] ? results[0].pos.toString() : '',
-                'Position2Name': results[1]?.name || '',
-                'Position2Team': results[1]?.team || '',
-                'Position2Number': results[1] ? results[1].pos.toString() : '',
-                'Position3Name': results[2]?.name || '',
-                'Position3Team': results[2]?.team || '',
-                'Position3Number': results[2] ? results[2].pos.toString() : ''
+                'Position1Name': specRankGroups[1].map(r => r.name).join(' & ') || '',
+                'Position1Team': [...new Set(specRankGroups[1].map(r => r.team))].join(' & ') || '',
+                'Position1Number': specRankGroups[1].length > 1 ? '1 (TIE)' : (specRankGroups[1].length === 1 ? '1' : ''),
+                'Position2Name': specRankGroups[2].map(r => r.name).join(' & ') || '',
+                'Position2Team': [...new Set(specRankGroups[2].map(r => r.team))].join(' & ') || '',
+                'Position2Number': specRankGroups[2].length > 1 ? '2 (TIE)' : (specRankGroups[2].length === 1 ? '2' : ''),
+                'Position3Name': specRankGroups[3].map(r => r.name).join(' & ') || '',
+                'Position3Team': [...new Set(specRankGroups[3].map(r => r.team))].join(' & ') || '',
+                'Position3Number': specRankGroups[3].length > 1 ? '3 (TIE)' : (specRankGroups[3].length === 1 ? '3' : '')
             };
 
             const topWinners = results.filter(r => r.pos <= 3);
@@ -1315,11 +1321,11 @@
                 ctx.font = '600 28px "Plus Jakarta Sans", sans-serif';
                 ctx.fillText(`${data.Category || 'GENERAL'} • OFFICIAL WINNERS`, 540, 230);
 
-                // 3 Podium Winner Cards
+                // 3 Podium Winner Cards (handling ties & auto-scaling text)
                 const winners = [
-                    { rank: 1, title: '1ST PLACE', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.12)', border: '#F59E0B', name: data.Position1Name, team: data.Position1Team, y: 310 },
-                    { rank: 2, title: '2ND PLACE', color: '#CBD5E1', bg: 'rgba(203, 213, 225, 0.10)', border: '#94A3B8', name: data.Position2Name, team: data.Position2Team, y: 600 },
-                    { rank: 3, title: '3RD PLACE', color: '#F97316', bg: 'rgba(249, 115, 22, 0.10)', border: '#F97316', name: data.Position3Name, team: data.Position3Team, y: 890 }
+                    { rank: 1, title: data.Position1Number && data.Position1Number.includes('TIE') ? '1ST PLACE (TIED)' : '1ST PLACE', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.12)', border: '#F59E0B', name: data.Position1Name, team: data.Position1Team, y: 310 },
+                    { rank: 2, title: data.Position2Number && data.Position2Number.includes('TIE') ? '2ND PLACE (TIED)' : '2ND PLACE', color: '#CBD5E1', bg: 'rgba(203, 213, 225, 0.10)', border: '#94A3B8', name: data.Position2Name, team: data.Position2Team, y: 600 },
+                    { rank: 3, title: data.Position3Number && data.Position3Number.includes('TIE') ? '3RD PLACE (TIED)' : '3RD PLACE', color: '#F97316', bg: 'rgba(249, 115, 22, 0.10)', border: '#F97316', name: data.Position3Name, team: data.Position3Team, y: 890 }
                 ];
 
                 winners.forEach(w => {
@@ -1337,15 +1343,17 @@
                     ctx.font = '900 28px "Plus Jakarta Sans", sans-serif';
                     ctx.fillText(w.title, 120, w.y + 60);
 
-                    // Name
+                    // Name (Auto-scale for multiple tied names)
                     ctx.fillStyle = '#FFFFFF';
-                    ctx.font = '900 48px "Plus Jakarta Sans", sans-serif';
-                    ctx.fillText((w.name || '---').toUpperCase(), 120, w.y + 135);
+                    const nameStr = (w.name || '---').toUpperCase();
+                    ctx.font = nameStr.length > 28 ? '900 32px "Plus Jakarta Sans", sans-serif' : '900 46px "Plus Jakarta Sans", sans-serif';
+                    ctx.fillText(nameStr, 120, w.y + 135);
 
-                    // Team
+                    // Team (Auto-scale for multiple tied teams)
                     ctx.fillStyle = '#94A3B8';
-                    ctx.font = 'bold 30px "Plus Jakarta Sans", sans-serif';
-                    ctx.fillText((w.team || '---').toUpperCase(), 120, w.y + 195);
+                    const teamStr = (w.team || '---').toUpperCase();
+                    ctx.font = teamStr.length > 32 ? 'bold 22px "Plus Jakarta Sans", sans-serif' : 'bold 30px "Plus Jakarta Sans", sans-serif';
+                    ctx.fillText(teamStr, 120, w.y + 195);
                 });
             }
 

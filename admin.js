@@ -6423,7 +6423,7 @@ let activeInputField = null; // Tracks which input the user is currently targeti
 
 // Global State to hold images and coordinates in memory
 let templateData = {
-    individual: { bgImage: new Image(), fields: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 2 Name', 'Position 3 Name', 'Team Name'], coords: {} },
+    individual: { bgImage: new Image(), fields: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 2 Name', 'Position 3 Name', 'Position 4 Name', 'Position 5 Name', 'Team Name'], coords: {} },
     team: { bgImage: new Image(), fields: ['Results Count Text', 'Team 1 Name', 'Team 1 Points', 'Team 2 Name', 'Team 2 Points'], coords: {} },
     final: { bgImage: new Image(), fields: ['Total Competitions Count', 'Final Champion Team', 'Champion Points'], coords: {} }
 };
@@ -6621,7 +6621,7 @@ let resizeStartX = 0;
 let resizeStartY = 0;
 
 const TEMPLATE_SCHEMAS = {
-    individual: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 1 Team', 'Position 1 Photo', 'Position 1 Number', 'Position 2 Name', 'Position 2 Team', 'Position 2 Photo', 'Position 2 Number', 'Position 3 Name', 'Position 3 Team', 'Position 3 Photo', 'Position 3 Number'],
+    individual: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 1 Team', 'Position 1 Photo', 'Position 1 Number', 'Position 2 Name', 'Position 2 Team', 'Position 2 Photo', 'Position 2 Number', 'Position 3 Name', 'Position 3 Team', 'Position 3 Photo', 'Position 3 Number', 'Position 4 Name', 'Position 4 Team', 'Position 4 Photo', 'Position 4 Number', 'Position 5 Name', 'Position 5 Team', 'Position 5 Photo', 'Position 5 Number'],
     team: ['Results Count Text', 'Rank 1 Team', 'Rank 1 Points', 'Rank 1 Number', 'Rank 2 Team', 'Rank 2 Points', 'Rank 2 Number', 'Rank 3 Team', 'Rank 3 Points', 'Rank 3 Number', 'Rank 4 Team', 'Rank 4 Points', 'Rank 4 Number', 'Rank 5 Team', 'Rank 5 Points', 'Rank 5 Number', 'Rank 6 Team', 'Rank 6 Points', 'Rank 6 Number', 'Rank 7 Team', 'Rank 7 Points', 'Rank 7 Number', 'Rank 8 Team', 'Rank 8 Points', 'Rank 8 Number', 'Rank 9 Team', 'Rank 9 Points', 'Rank 9 Number', 'Rank 10 Team', 'Rank 10 Points', 'Rank 10 Number'],
     final: ['Total Competitions Count', 'Rank 1 Team', 'Rank 1 Points', 'Rank 1 Number', 'Rank 2 Team', 'Rank 2 Points', 'Rank 2 Number', 'Rank 3 Team', 'Rank 3 Points', 'Rank 3 Number', 'Rank 4 Team', 'Rank 4 Points', 'Rank 4 Number', 'Rank 5 Team', 'Rank 5 Points', 'Rank 5 Number', 'Rank 6 Team', 'Rank 6 Points', 'Rank 6 Number', 'Rank 7 Team', 'Rank 7 Points', 'Rank 7 Number', 'Rank 8 Team', 'Rank 8 Points', 'Rank 8 Number', 'Rank 9 Team', 'Rank 9 Points', 'Rank 9 Number', 'Rank 10 Team', 'Rank 10 Points', 'Rank 10 Number'],
     id_card: ['Participant Name', 'Unique ID', 'Team Name', 'Category', 'Date of Birth', 'Photo', 'QR Code'],
@@ -6633,6 +6633,8 @@ const STUDIO_MOCK_DATA = {
     'Position1Name': 'JOHN DOE', 'Position1Team': 'FALCONS', 'Position1Number': '1',
     'Position2Name': 'JANE SMITH', 'Position2Team': 'EAGLES', 'Position2Number': '2',
     'Position3Name': 'MIKE TYSON', 'Position3Team': 'HAWKS', 'Position3Number': '3',
+    'Position4Name': 'CHRIS EVANS', 'Position4Team': 'TIGERS', 'Position4Number': '4',
+    'Position5Name': 'SCARLETT J', 'Position5Team': 'LIONS', 'Position5Number': '5',
     'ResultsCountText': 'AFTER 40',
     'TotalCompetitionsCount': 'FINAL OVERALL', 
     'Rank1Team': 'FALCONS', 'Rank1Points': '450', 'Rank1Number': '1',
@@ -17237,8 +17239,29 @@ function saveThemeConfig(event) {
 }
 window.saveThemeConfig = saveThemeConfig;
 
-// --- GALLERY BUILDER ENGINE (ENHANCED FOR MULTI-PHOTO & ALBUM DETAILS) ---
+// --- GALLERY BUILDER ENGINE (FULL MULTI-PHOTO & ALBUM MANAGEMENT) ---
 let adminPendingAlbumPhotos = [];
+let adminEditingAlbumId = null;
+let currentAdminViewingAlbumId = null;
+let adminGallerySearch = '';
+
+window.normalizeAdminAlbumPhotos = function(album) {
+    if (!album) return [];
+    if (Array.isArray(album.photos) && album.photos.length > 0) {
+        return album.photos.map((p, i) => {
+            if (typeof p === 'string') return { id: 'ph_' + i, url: p, caption: '' };
+            return { id: p.id || ('ph_' + i), url: p.url || p.image || '', caption: p.caption || '' };
+        }).filter(p => !!p.url);
+    }
+    const fallback = album.cover_url || album.image || '';
+    if (fallback) return [{ id: 'ph_0', url: fallback, caption: album.title || '' }];
+    return [];
+};
+
+window.filterAdminGallery = function(query) {
+    adminGallerySearch = (query || '').toLowerCase().trim();
+    renderGalleryBuilder();
+};
 
 window.renderGalleryBuilder = function() {
     const grid = document.getElementById('builder-gallery-grid');
@@ -17247,43 +17270,80 @@ window.renderGalleryBuilder = function() {
     
     if (albums.length === 0) {
         grid.innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-muted);">
-                <i class="fa-regular fa-images" style="font-size: 2.5rem; margin-bottom: 0.5rem; display: block; color: var(--text-dim);"></i>
-                <p style="font-size: 0.9rem; font-weight: 600;">No photo albums added yet.</p>
-                <button class="btn btn-primary" style="width: auto; margin-top: 1rem;" onclick="openNewAlbumModal()"><i class="fa-solid fa-plus"></i> Create First Album</button>
+            <div style="grid-column: 1/-1; text-align: center; padding: 3.5rem 1.5rem; color: var(--text-muted); background: var(--bg-surface); border: 1px dashed var(--border); border-radius: var(--radius-md);">
+                <i class="fa-regular fa-images" style="font-size: 2.8rem; margin-bottom: 0.6rem; display: block; color: var(--text-dim);"></i>
+                <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem;">No Photo Albums Added Yet</h4>
+                <p style="font-size: 0.85rem; max-width: 440px; margin: 0 auto 1.25rem auto;">Create albums, upload multiple photos, set event dates and details to display on the public results website.</p>
+                <button class="btn btn-primary" style="width: auto;" onclick="openNewAlbumModal()"><i class="fa-solid fa-plus"></i> Create First Album</button>
             </div>
         `;
         return;
     }
 
-    grid.innerHTML = albums.map(a => {
-        const photos = Array.isArray(a.photos) ? a.photos : [];
+    let filtered = albums;
+    if (adminGallerySearch) {
+        filtered = filtered.filter(a => 
+            (a.title || '').toLowerCase().includes(adminGallerySearch) ||
+            (a.category || '').toLowerCase().includes(adminGallerySearch) ||
+            (a.venue || '').toLowerCase().includes(adminGallerySearch) ||
+            (a.date || '').toLowerCase().includes(adminGallerySearch) ||
+            (a.desc || '').toLowerCase().includes(adminGallerySearch)
+        );
+    }
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                <p style="font-size: 0.9rem;">No albums matching "${adminGallerySearch}"</p>
+                <button class="btn btn-outline" style="width: auto; margin-top: 0.5rem; font-size: 0.8rem;" onclick="document.getElementById('admin-gallery-search').value=''; filterAdminGallery('');">Clear Search</button>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = filtered.map(a => {
+        const photos = normalizeAdminAlbumPhotos(a);
         const count = photos.length || a.count || 0;
-        const cover = a.cover_url || (photos[0] ? (photos[0].url || photos[0]) : 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80');
+        const cover = a.cover_url || (photos[0] ? photos[0].url : 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80');
 
         return `
-            <div style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; display: flex; flex-direction: column;">
-                <div style="position: relative; width: 100%; height: 140px; overflow: hidden; background: #000;">
-                    <img src="${cover}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80'">
-                    <span style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.75); color: #fff; font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 50px;">
-                        <i class="fa-solid fa-camera"></i> ${count}
+            <div style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow-sm); transition: transform 0.2s;">
+                <div style="position: relative; width: 100%; height: 150px; overflow: hidden; background: #0F172A; cursor: pointer;" onclick="openAdminAlbumPhotosModal('${a.id}')">
+                    <img src="${cover}" style="width: 100%; height: 100%; object-fit: cover; display: block;" onerror="this.src='https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80'">
+                    <span style="position: absolute; top: 8px; right: 8px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); color: #fff; font-size: 0.72rem; font-weight: 700; padding: 3px 8px; border-radius: 50px;">
+                        <i class="fa-solid fa-camera"></i> ${count} Photos
+                    </span>
+                    <span style="position: absolute; bottom: 8px; left: 8px; background: var(--primary); color: #fff; font-size: 0.68rem; font-weight: 800; padding: 2px 7px; border-radius: 4px; text-transform: uppercase;">
+                        ${a.category || 'Stage'}
                     </span>
                 </div>
-                <div style="padding: 0.85rem; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                <div style="padding: 1rem; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
                     <div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                            <span style="font-size: 0.7rem; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase;">${a.category || 'Stage'}</span>
-                            ${a.date ? `<small style="font-size: 0.72rem; color: var(--text-muted);"><i class="fa-regular fa-calendar"></i> ${a.date}</small>` : ''}
+                            ${a.date ? `<span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 600;"><i class="fa-regular fa-calendar"></i> ${a.date}</span>` : '<span></span>'}
+                            ${a.venue ? `<span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 600;"><i class="fa-solid fa-location-dot"></i> ${a.venue}</span>` : ''}
                         </div>
-                        <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem;">${a.title}</h4>
-                        ${a.venue ? `<small style="display: block; font-size: 0.74rem; color: var(--text-muted); margin-bottom: 0.35rem;"><i class="fa-solid fa-location-dot"></i> ${a.venue}</small>` : ''}
-                        ${a.desc ? `<p style="font-size: 0.76rem; color: var(--text-muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${a.desc}</p>` : ''}
+                        <h4 style="font-size: 0.98rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.35rem; line-height: 1.3; cursor: pointer;" onclick="openAdminAlbumPhotosModal('${a.id}')">${a.title}</h4>
+                        ${a.desc ? `<p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0.5rem;">${a.desc}</p>` : ''}
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--border);">
-                        <button class="btn btn-outline" style="width: auto; min-height: 28px; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="copyAdminAlbumLink('${a.id}')" title="Copy public share link">
-                            <i class="fa-regular fa-copy"></i> Link
-                        </button>
-                        <button class="btn btn-danger" style="width: auto; min-height: 28px; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="deleteAlbum('${a.id}')"><i class="fa-solid fa-trash"></i></button>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.85rem; padding-top: 0.75rem; border-top: 1px solid var(--border); gap: 0.4rem;">
+                        <div style="display: flex; gap: 0.35rem;">
+                            <button class="btn btn-outline" style="width: auto; min-height: 28px; padding: 0.25rem 0.65rem; font-size: 0.76rem;" onclick="openAdminAlbumPhotosModal('${a.id}')" title="View & Manage Photos">
+                                <i class="fa-regular fa-images"></i> Photos
+                            </button>
+                            <button class="btn btn-outline" style="width: auto; min-height: 28px; padding: 0.25rem 0.65rem; font-size: 0.76rem;" onclick="openEditAlbumModal('${a.id}')" title="Edit Album Details">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </button>
+                        </div>
+                        <div style="display: flex; gap: 0.35rem;">
+                            <button class="btn btn-outline" style="width: auto; min-height: 28px; padding: 0.25rem 0.65rem; font-size: 0.76rem;" onclick="copyAdminAlbumLink('${a.id}')" title="Copy public share link for results website">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                            <button class="btn btn-danger" style="width: auto; min-height: 28px; padding: 0.25rem 0.65rem; font-size: 0.76rem;" onclick="deleteAlbum('${a.id}')" title="Delete album">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -17294,32 +17354,70 @@ window.renderGalleryBuilder = function() {
 window.copyAdminAlbumLink = function(albumId) {
     const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || (window.festosAuth ? window.festosAuth.getCurrentFestId() : '') || '';
     const origin = window.location.origin || '';
-    const url = `${origin}/results.html?fest=${encodeURIComponent(fid)}&view=gallery&album=${encodeURIComponent(albumId)}`;
+    const pathname = window.location.pathname.replace(/admin.html.*$/i, 'results.html');
+    const url = `${origin}${pathname}?fest=${encodeURIComponent(fid)}&view=gallery&album=${encodeURIComponent(albumId)}`;
     if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(url).then(() => showToast('Album share link copied! 📋', 'success'));
+        navigator.clipboard.writeText(url).then(() => showToast('Public album link copied! 📋', 'success')).catch(() => prompt('Copy album link:', url));
     } else {
         prompt('Copy album link:', url);
     }
 };
 
 window.openNewAlbumModal = function() {
+    adminEditingAlbumId = null;
     adminPendingAlbumPhotos = [];
+    document.getElementById('admin-album-modal-title').innerText = 'Create Photo Album';
     document.getElementById('album-title-input').value = '';
+    document.getElementById('album-category-input').value = 'Stage Performance';
     if (document.getElementById('album-date-input')) document.getElementById('album-date-input').value = new Date().toISOString().split('T')[0];
     if (document.getElementById('album-venue-input')) document.getElementById('album-venue-input').value = '';
     if (document.getElementById('album-desc-input')) document.getElementById('album-desc-input').value = '';
     document.getElementById('album-cover-url').value = '';
     document.getElementById('album-cover-preview').style.display = 'none';
-    const strip = document.getElementById('admin-album-photos-preview-strip');
-    if (strip) {
-        strip.style.display = 'none';
-        strip.innerHTML = '';
+    if (document.getElementById('admin-album-url-add')) document.getElementById('admin-album-url-add').value = '';
+    document.getElementById('btn-admin-save-album').innerText = 'Create Album';
+    renderAdminPhotosPreviewStrip();
+    document.getElementById('builderAlbumModal').classList.add('show');
+};
+
+window.openEditAlbumModal = function(albumId) {
+    const album = (websiteConfig.gallery || []).find(a => a.id === albumId);
+    if (!album) return;
+
+    adminEditingAlbumId = albumId;
+    adminPendingAlbumPhotos = normalizeAdminAlbumPhotos(album).map((p, idx) => ({
+        id: p.id || ('ph_' + idx),
+        url: p.url,
+        caption: p.caption || '',
+        isCover: (album.cover_url && album.cover_url === p.url) || idx === 0
+    }));
+
+    document.getElementById('admin-album-modal-title').innerText = 'Edit Photo Album';
+    document.getElementById('album-title-input').value = album.title || '';
+    document.getElementById('album-category-input').value = album.category || 'Stage Performance';
+    if (document.getElementById('album-date-input')) document.getElementById('album-date-input').value = album.date || '';
+    if (document.getElementById('album-venue-input')) document.getElementById('album-venue-input').value = album.venue || '';
+    if (document.getElementById('album-desc-input')) document.getElementById('album-desc-input').value = album.desc || '';
+    
+    const coverInput = document.getElementById('album-cover-url');
+    const coverPrev = document.getElementById('album-cover-preview');
+    coverInput.value = album.cover_url || '';
+    if (album.cover_url) {
+        coverPrev.src = album.cover_url;
+        coverPrev.style.display = 'block';
+    } else {
+        coverPrev.style.display = 'none';
     }
+    
+    if (document.getElementById('admin-album-url-add')) document.getElementById('admin-album-url-add').value = '';
+    document.getElementById('btn-admin-save-album').innerText = 'Save Changes';
+    renderAdminPhotosPreviewStrip();
     document.getElementById('builderAlbumModal').classList.add('show');
 };
 
 window.closeAlbumModal = function() {
     document.getElementById('builderAlbumModal').classList.remove('show');
+    adminEditingAlbumId = null;
     adminPendingAlbumPhotos = [];
 };
 
@@ -17335,10 +17433,43 @@ window.handleAlbumCoverUpload = function(inputEl) {
     reader.readAsDataURL(inputEl.files[0]);
 };
 
+window.adminCompressImage = function(fileOrBlob, maxDim = 1600, quality = 0.82) {
+    return new Promise((resolve) => {
+        try {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    let w = img.naturalWidth || img.width;
+                    let h = img.naturalHeight || img.height;
+                    if (!w || !h) return resolve(e.target.result);
+                    let scale = 1;
+                    if (w > maxDim || h > maxDim) {
+                        scale = Math.min(maxDim / w, maxDim / h);
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.round(w * scale);
+                    canvas.height = Math.round(h * scale);
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = () => resolve(e.target.result);
+                img.src = e.target.result;
+            };
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(fileOrBlob);
+        } catch(err) {
+            resolve(null);
+        }
+    });
+};
+
 window.handleAdminMultiPhotosUpload = async function(inputEl) {
     if (!inputEl.files || inputEl.files.length === 0) return;
     const files = Array.from(inputEl.files);
     const saveBtn = document.getElementById('btn-admin-save-album');
+    const originalText = saveBtn ? saveBtn.innerText : '';
     if (saveBtn) {
         saveBtn.disabled = true;
         saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing ${files.length} Photos...`;
@@ -17346,17 +17477,13 @@ window.handleAdminMultiPhotosUpload = async function(inputEl) {
 
     for (const f of files) {
         try {
-            const dataUrl = await new Promise(resolve => {
-                const reader = new FileReader();
-                reader.onload = ev => resolve(ev.target.result);
-                reader.onerror = () => resolve(null);
-                reader.readAsDataURL(f);
-            });
-            if (dataUrl) {
+            const compressed = await adminCompressImage(f, 1600, 0.82);
+            if (compressed) {
                 adminPendingAlbumPhotos.push({
                     id: 'ph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-                    url: dataUrl,
-                    caption: f.name.replace(/\.[^/.]+$/, "")
+                    url: compressed,
+                    caption: f.name.replace(/\.[^/.]+$/, ""),
+                    isCover: adminPendingAlbumPhotos.length === 0
                 });
             }
         } catch(e) {}
@@ -17365,20 +17492,76 @@ window.handleAdminMultiPhotosUpload = async function(inputEl) {
     inputEl.value = '';
     if (saveBtn) {
         saveBtn.disabled = false;
-        saveBtn.innerHTML = 'Create Album';
+        saveBtn.innerText = originalText;
     }
 
-    const strip = document.getElementById('admin-album-photos-preview-strip');
-    if (strip && adminPendingAlbumPhotos.length > 0) {
-        strip.style.display = 'grid';
-        strip.innerHTML = adminPendingAlbumPhotos.map((p, idx) => `
-            <div style="position: relative; aspect-ratio: 1; border-radius: 4px; overflow: hidden; background: #000;">
-                <img src="${p.url}" style="width: 100%; height: 100%; object-fit: cover;">
-                <button type="button" style="position: absolute; top: 2px; right: 2px; background: rgba(239,68,68,0.9); color: #fff; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;" onclick="adminPendingAlbumPhotos.splice(${idx}, 1); this.parentElement.remove();">&times;</button>
-            </div>
-        `).join('');
-    }
+    renderAdminPhotosPreviewStrip();
     showToast(`${files.length} photos ready for album.`, 'success');
+};
+
+window.adminAddPhotoByUrl = function() {
+    const input = document.getElementById('admin-album-url-add');
+    const url = input ? input.value.trim() : '';
+    if (!url) return;
+    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('data:image')) {
+        return alert('Please enter a valid image URL (https://...)');
+    }
+    adminPendingAlbumPhotos.push({
+        id: 'ph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        url: url,
+        caption: '',
+        isCover: adminPendingAlbumPhotos.length === 0
+    });
+    input.value = '';
+    renderAdminPhotosPreviewStrip();
+    showToast('Photo URL added!', 'success');
+};
+
+window.renderAdminPhotosPreviewStrip = function() {
+    const container = document.getElementById('admin-album-photos-preview-container');
+    const strip = document.getElementById('admin-album-photos-preview-strip');
+    const countEl = document.getElementById('admin-album-photos-count');
+    if (!container || !strip) return;
+
+    if (adminPendingAlbumPhotos.length === 0) {
+        container.style.display = 'none';
+        strip.innerHTML = '';
+        return;
+    }
+
+    container.style.display = 'block';
+    if (countEl) countEl.innerText = `${adminPendingAlbumPhotos.length} Photo${adminPendingAlbumPhotos.length === 1 ? '' : 's'} in Album`;
+
+    strip.innerHTML = adminPendingAlbumPhotos.map((p, idx) => `
+        <div style="position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: #000; border: 1px solid var(--border);">
+            <img src="${p.url}" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+            ${p.isCover ? '<span style="position: absolute; top: 2px; left: 2px; background: var(--primary); color: #fff; font-size: 0.58rem; font-weight: 800; padding: 2px 4px; border-radius: 3px;"><i class="fa-solid fa-star"></i> COVER</span>' : ''}
+            <div style="position: absolute; bottom: 2px; left: 2px; right: 2px; display: flex; justify-content: space-between; align-items: center;">
+                ${!p.isCover ? `<button type="button" style="background: rgba(15, 23, 42, 0.8); color: #fff; border: none; font-size: 0.58rem; padding: 2px 4px; border-radius: 3px; cursor: pointer;" onclick="adminSetCoverPhoto(${idx})" title="Set as Cover"><i class="fa-regular fa-star"></i></button>` : '<span></span>'}
+                <button type="button" style="background: rgba(239, 68, 68, 0.9); color: #fff; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;" onclick="adminRemovePhoto(${idx})" title="Remove">&times;</button>
+            </div>
+        </div>
+    `).join('');
+};
+
+window.adminSetCoverPhoto = function(index) {
+    adminPendingAlbumPhotos.forEach((p, i) => p.isCover = (i === index));
+    if (adminPendingAlbumPhotos[index]) {
+        document.getElementById('album-cover-url').value = adminPendingAlbumPhotos[index].url;
+        const prev = document.getElementById('album-cover-preview');
+        prev.src = adminPendingAlbumPhotos[index].url;
+        prev.style.display = 'block';
+    }
+    renderAdminPhotosPreviewStrip();
+};
+
+window.adminRemovePhoto = function(index) {
+    const wasCover = adminPendingAlbumPhotos[index]?.isCover;
+    adminPendingAlbumPhotos.splice(index, 1);
+    if (wasCover && adminPendingAlbumPhotos.length > 0) {
+        adminPendingAlbumPhotos[0].isCover = true;
+    }
+    renderAdminPhotosPreviewStrip();
 };
 
 window.saveNewAlbum = function() {
@@ -17390,44 +17573,209 @@ window.saveNewAlbum = function() {
     const desc = document.getElementById('album-desc-input') ? document.getElementById('album-desc-input').value.trim() : '';
     
     let cover = document.getElementById('album-cover-url').value.trim();
-    if (!cover && adminPendingAlbumPhotos.length > 0) {
-        cover = adminPendingAlbumPhotos[0].url;
-    }
-    if (!cover) {
-        cover = 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80';
-    }
+    const coverItem = adminPendingAlbumPhotos.find(p => p.isCover) || adminPendingAlbumPhotos[0];
+    if (!cover && coverItem) cover = coverItem.url;
+    if (!cover) cover = 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80';
     
+    const cleanPhotos = adminPendingAlbumPhotos.map(p => ({
+        id: p.id,
+        url: p.url,
+        caption: p.caption || ''
+    }));
+
     if (!websiteConfig.gallery) websiteConfig.gallery = [];
-    websiteConfig.gallery.push({
-        id: 'alb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-        title,
-        category,
-        date,
-        venue,
-        desc,
-        cover_url: cover,
-        photos: adminPendingAlbumPhotos,
-        count: adminPendingAlbumPhotos.length || 1,
-        created_at: new Date().toISOString()
-    });
+
+    if (adminEditingAlbumId) {
+        const idx = websiteConfig.gallery.findIndex(a => a.id === adminEditingAlbumId);
+        if (idx !== -1) {
+            websiteConfig.gallery[idx] = {
+                ...websiteConfig.gallery[idx],
+                title,
+                category,
+                date,
+                venue,
+                desc,
+                cover_url: cover,
+                photos: cleanPhotos,
+                count: cleanPhotos.length,
+                updated_at: new Date().toISOString()
+            };
+        }
+        showToast('Album updated successfully!', 'success');
+    } else {
+        websiteConfig.gallery.unshift({
+            id: 'alb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            title,
+            category,
+            date,
+            venue,
+            desc,
+            cover_url: cover,
+            photos: cleanPhotos,
+            count: cleanPhotos.length,
+            created_at: new Date().toISOString()
+        });
+        showToast('New album created successfully!', 'success');
+    }
 
     closeAlbumModal();
     renderGalleryBuilder();
     executeWebsiteSave(null);
+
+    if (currentAdminViewingAlbumId && (currentAdminViewingAlbumId === adminEditingAlbumId)) {
+        openAdminAlbumPhotosModal(currentAdminViewingAlbumId);
+    }
 };
 
 window.deleteAlbum = function(id) {
     openConfirmModal(
         'Delete Album?',
-        'Are you sure you want to permanently delete this photo album from the gallery?',
+        'Are you sure you want to permanently delete this photo album and all its images from the gallery?',
         () => {
             websiteConfig.gallery = (websiteConfig.gallery || []).filter(a => a.id !== id);
+            if (currentAdminViewingAlbumId === id) {
+                closeAdminAlbumPhotosModal();
+            }
             renderGalleryBuilder();
             executeWebsiteSave(null);
             showToast('Album deleted.', 'success');
         },
         { confirmText: 'Yes, Delete', confirmBtnClass: 'btn-danger', icon: 'fa-solid fa-trash-can' }
     );
+};
+
+// --- ADMIN ALBUM PHOTOS MANAGER MODAL ---
+window.openAdminAlbumPhotosModal = function(albumId) {
+    const album = (websiteConfig.gallery || []).find(a => a.id === albumId);
+    if (!album) return;
+
+    currentAdminViewingAlbumId = albumId;
+    const photos = normalizeAdminAlbumPhotos(album);
+
+    document.getElementById('admin-view-album-title').innerText = album.title;
+    document.getElementById('admin-view-album-category').innerText = album.category || 'Stage';
+    document.getElementById('admin-view-album-count').innerText = `${photos.length} Photo${photos.length === 1 ? '' : 's'}`;
+
+    const metaEl = document.getElementById('admin-view-album-meta');
+    metaEl.innerHTML = `
+        ${album.date ? `<span><i class="fa-regular fa-calendar" style="color:var(--primary);"></i> ${album.date}</span>` : ''}
+        ${album.venue ? `<span><i class="fa-solid fa-location-dot" style="color:var(--primary);"></i> ${album.venue}</span>` : ''}
+    `;
+
+    const descBox = document.getElementById('admin-view-album-desc-box');
+    const descText = document.getElementById('admin-view-album-desc');
+    if (album.desc && album.desc.trim()) {
+        descText.innerText = album.desc;
+        descBox.style.display = 'block';
+    } else {
+        descBox.style.display = 'none';
+    }
+
+    const grid = document.getElementById('admin-view-photos-grid');
+    if (photos.length === 0) {
+        grid.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 3rem 1.5rem; background: var(--bg-surface); border-radius: 6px;">
+                <i class="fa-regular fa-images" style="font-size: 2.2rem; color: var(--text-dim); margin-bottom: 0.5rem; display: block;"></i>
+                <p style="font-size: 0.9rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.3rem;">No photos inside this album</p>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Upload photos directly into this album.</p>
+                <button class="btn btn-primary" style="width: auto;" onclick="document.getElementById('admin-quick-add-files').click()">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload Photos Now
+                </button>
+            </div>
+        `;
+    } else {
+        grid.innerHTML = photos.map((p, idx) => {
+            const isCover = (album.cover_url && album.cover_url === p.url) || idx === 0;
+            return `
+                <div style="position: relative; border-radius: var(--radius-md); overflow: hidden; background: #0F172A; aspect-ratio: 1; border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                    <img src="${p.url}" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                    ${isCover ? '<span style="position: absolute; top: 6px; left: 6px; background: var(--primary); color: #fff; font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 3px;"><i class="fa-solid fa-star"></i> COVER</span>' : ''}
+                    <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 0.4rem; background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.85) 100%); display: flex; justify-content: space-between; align-items: center;">
+                        ${!isCover ? `<button type="button" class="btn btn-outline" style="width: auto; min-height: 24px; padding: 2px 6px; font-size: 0.68rem; color: #fff; border-color: rgba(255,255,255,0.4); background: rgba(0,0,0,0.5);" onclick="adminSetAlbumCover('${album.id}', '${p.url}')" title="Set as Album Cover"><i class="fa-regular fa-star"></i> Cover</button>` : '<span></span>'}
+                        <div style="display: flex; gap: 0.3rem;">
+                            <a href="${p.url}" download="photo_${idx+1}.jpg" class="btn btn-outline" style="width: 24px; height: 24px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #fff; border-color: rgba(255,255,255,0.4); background: rgba(0,0,0,0.5);" title="Download Photo">
+                                <i class="fa-solid fa-download"></i>
+                            </a>
+                            <button type="button" class="btn btn-danger" style="width: 24px; height: 24px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem;" onclick="adminDeletePhotoFromAlbum('${album.id}', '${p.id}')" title="Delete Photo">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    document.getElementById('adminAlbumPhotosModal').classList.add('show');
+};
+
+window.closeAdminAlbumPhotosModal = function() {
+    document.getElementById('adminAlbumPhotosModal').classList.remove('show');
+    currentAdminViewingAlbumId = null;
+};
+
+window.handleAdminQuickAddPhotos = async function(inputEl) {
+    if (!inputEl.files || inputEl.files.length === 0 || !currentAdminViewingAlbumId) return;
+    const album = (websiteConfig.gallery || []).find(a => a.id === currentAdminViewingAlbumId);
+    if (!album) return;
+
+    const files = Array.from(inputEl.files);
+    showToast(`Compressing & uploading ${files.length} photos...`, 'info');
+
+    let photos = normalizeAdminAlbumPhotos(album);
+    for (const f of files) {
+        try {
+            const compressed = await adminCompressImage(f, 1600, 0.82);
+            if (compressed) {
+                photos.push({
+                    id: 'ph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                    url: compressed,
+                    caption: f.name.replace(/\.[^/.]+$/, "")
+                });
+            }
+        } catch(e) {}
+    }
+
+    album.photos = photos;
+    album.count = photos.length;
+    if (!album.cover_url && photos.length > 0) {
+        album.cover_url = photos[0].url;
+    }
+
+    await executeWebsiteSave(null);
+    inputEl.value = '';
+    openAdminAlbumPhotosModal(currentAdminViewingAlbumId);
+    renderGalleryBuilder();
+    showToast(`${files.length} photos added to ${album.title}!`, 'success');
+};
+
+window.adminDeletePhotoFromAlbum = async function(albumId, photoId) {
+    const album = (websiteConfig.gallery || []).find(a => a.id === albumId);
+    if (!album) return;
+    if (!confirm("Remove this photo from the album?")) return;
+
+    let photos = normalizeAdminAlbumPhotos(album);
+    photos = photos.filter(p => p.id !== photoId);
+    album.photos = photos;
+    album.count = photos.length;
+    if (photos.length > 0 && (!album.cover_url || photos.every(p => p.url !== album.cover_url))) {
+        album.cover_url = photos[0].url;
+    }
+
+    await executeWebsiteSave(null);
+    openAdminAlbumPhotosModal(albumId);
+    renderGalleryBuilder();
+    showToast('Photo removed from album.', 'success');
+};
+
+window.adminSetAlbumCover = async function(albumId, photoUrl) {
+    const album = (websiteConfig.gallery || []).find(a => a.id === albumId);
+    if (!album) return;
+    album.cover_url = photoUrl;
+    await executeWebsiteSave(null);
+    openAdminAlbumPhotosModal(albumId);
+    renderGalleryBuilder();
+    showToast('Album cover updated!', 'success');
 };
 
 // --- DOWNLOADS BUILDER ENGINE ---

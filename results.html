@@ -1885,93 +1885,6 @@
         </div>
     </div>
 
-    <!-- Album Creator & Editor Modal -->
-    <div class="modal-overlay" id="album-editor-modal" onclick="if(event.target===this) closeAlbumEditorModal()">
-        <div class="modal-content" style="max-width: 660px; max-height: 90vh; overflow-y: auto; padding: 1.5rem 1.75rem;">
-            <div class="modal-header" style="padding: 0 0 1rem 0; border-bottom: 1px solid var(--surface-border); margin-bottom: 1.25rem;">
-                <div>
-                    <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--primary); letter-spacing: 0.05em; background: var(--primary-light); padding: 0.3rem 0.65rem; border-radius: 50px; margin-bottom: 0.35rem; display: inline-block;">FESTIVAL GALLERY</span>
-                    <h2 id="album-editor-modal-title" style="font-size: 1.35rem; font-weight: 800; color: var(--text-main); margin-top: 0.2rem; text-transform: uppercase; display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="fa-solid fa-images" style="color: var(--primary);"></i> Create Photo Album
-                    </h2>
-                </div>
-                <button class="modal-close" onclick="closeAlbumEditorModal()"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-
-            <div style="display: flex; flex-direction: column; gap: 1.15rem;">
-                <div class="form-group">
-                    <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.4rem; display: block; text-transform: uppercase;">Album Title *</label>
-                    <input type="text" id="album-form-title" placeholder="e.g. Grand Inauguration & Cultural Night 2026" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); background: var(--surface); color: var(--text-main); font-size: 0.92rem; outline: none;">
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div class="form-group">
-                        <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.4rem; display: block; text-transform: uppercase;">Category Tag</label>
-                        <select id="album-form-category" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); background: var(--surface); color: var(--text-main); font-size: 0.88rem; outline: none;">
-                            <option value="Stage Performance">Stage Performance</option>
-                            <option value="Awards & Felicitation">Awards & Felicitation</option>
-                            <option value="Audience & Atmosphere">Audience & Atmosphere</option>
-                            <option value="Off-Stage Events">Off-Stage Events</option>
-                            <option value="Inauguration & Ceremony">Inauguration & Ceremony</option>
-                            <option value="Cultural Night">Cultural Night</option>
-                            <option value="Behind The Scenes">Behind The Scenes</option>
-                            <option value="Highlights">Highlights</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.4rem; display: block; text-transform: uppercase;">Event Date</label>
-                        <input type="date" id="album-form-date" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); background: var(--surface); color: var(--text-main); font-size: 0.88rem; outline: none; text-transform: none;">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.4rem; display: block; text-transform: uppercase;">Details / Venue / Location</label>
-                    <input type="text" id="album-form-venue" placeholder="e.g. Main Auditorium / Stage 1 / Open Grounds" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); background: var(--surface); color: var(--text-main); font-size: 0.92rem; outline: none;">
-                </div>
-
-                <div class="form-group">
-                    <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.4rem; display: block; text-transform: uppercase;">Album Description</label>
-                    <textarea id="album-form-desc" rows="3" placeholder="Provide background, memorable highlights, VIP dignitaries, and details for this photo album..." style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); background: var(--surface); color: var(--text-main); font-size: 0.88rem; outline: none; resize: vertical;"></textarea>
-                </div>
-
-                <!-- Multi-Photo Upload Dropzone -->
-                <div class="form-group">
-                    <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.4rem; display: block; text-transform: uppercase;">
-                        Upload Multiple Photos *
-                    </label>
-                    
-                    <div class="photo-dropzone" id="photo-dropzone" onclick="document.getElementById('album-form-files').click()">
-                        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2.2rem; color: var(--primary); margin-bottom: 0.5rem; display: block;"></i>
-                        <strong style="font-size: 0.95rem; color: var(--text-main); display: block;">Choose or Drag & Drop Multiple Photos</strong>
-                        <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.25rem;">Select 5, 10, 20+ photos at once. JPG, PNG, WEBP automatically optimized.</p>
-                        <input type="file" id="album-form-files" multiple accept="image/*" style="display: none;" onchange="handleAlbumMultiPhotoUpload(this)">
-                    </div>
-
-                    <div style="display: flex; gap: 0.5rem; margin-top: 0.65rem;">
-                        <input type="text" id="album-form-url-input" placeholder="Or add photo via web image URL (https://...)" style="flex: 1; padding: 0.55rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); background: var(--surface); color: var(--text-main); font-size: 0.82rem; outline: none; text-transform: none;">
-                        <button type="button" class="btn btn-outline" style="width: auto; padding: 0.55rem 1rem; font-size: 0.82rem;" onclick="addPhotoByUrl()"><i class="fa-solid fa-plus"></i> Add URL</button>
-                    </div>
-
-                    <!-- Previews of selected photos -->
-                    <div id="album-form-previews-container" style="display: none; margin-top: 0.85rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-                            <span style="font-size: 0.78rem; font-weight: 700; color: var(--primary); text-transform: uppercase;" id="album-form-photos-count">0 Photos Selected</span>
-                            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;"><i class="fa-solid fa-star" style="color: var(--primary);"></i> Primary photo is used as album cover</span>
-                        </div>
-                        <div class="photo-upload-previews" id="album-form-previews-grid"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--surface-border);">
-                <button type="button" class="btn btn-outline" style="width: auto; padding: 0.65rem 1.35rem;" onclick="closeAlbumEditorModal()">Cancel</button>
-                <button type="button" class="btn btn-primary" id="btn-save-album" style="width: auto; padding: 0.65rem 1.6rem;" onclick="saveAlbum()">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> Save & Publish Album
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Album Photos Viewer Modal -->
     <div class="modal-overlay" id="album-view-modal" onclick="if(event.target===this) closeAlbumViewModal()">
         <div class="modal-content" style="max-width: 1040px; width: 95%; max-height: 92vh; overflow-y: auto; padding: 1.5rem 1.75rem; border-radius: var(--radius-lg);">
@@ -1997,12 +1910,6 @@
                     <button class="btn-album-action" onclick="shareCurrentAlbum()" title="Share on WhatsApp or social apps">
                         <i class="fa-solid fa-share-nodes"></i> Share
                     </button>
-                    <button class="btn-album-open" onclick="openAddPhotosToCurrentAlbum()" title="Upload more photos inside this album">
-                        <i class="fa-solid fa-plus"></i> Add Photos
-                    </button>
-                    <button class="btn-album-action" onclick="openEditCurrentAlbum()" title="Edit album details">
-                        <i class="fa-solid fa-pen-to-square"></i> Edit
-                    </button>
                     <button class="modal-close" style="margin-left: 0.25rem;" onclick="closeAlbumViewModal()"><i class="fa-solid fa-xmark"></i></button>
                 </div>
             </div>
@@ -2017,9 +1924,7 @@
                 <!-- Dynamically populated -->
             </div>
 
-            <!-- Hidden input for appending photos to current album -->
-            <input type="file" id="album-append-photos-input" multiple accept="image/*" style="display: none;" onchange="handleAppendPhotosToCurrentAlbum(this)">
-        </div>
+            </div>
     </div>
 
     <!-- Gallery Lightbox Modal -->
@@ -3342,6 +3247,7 @@
                     }
                     entry.position = currentRank;
                     entry.densePos = currentDensePos;
+                    entry.effectivePos = (currentDensePos <= 3 || currentRank <= 3) ? (currentDensePos <= 3 ? currentDensePos : currentRank) : (currentDensePos || currentRank);
                     previousScore = entry.score;
 
                     let percent = (entry.score / (compData.comp_data?.max_mark || 100)) * 100;
@@ -3375,7 +3281,8 @@
                     }
                 });
 
-                competitionResults[compId] = participantsArr.filter(p => (p.position <= 3 || (p.densePos && p.densePos <= 3)));
+                // Capture all participants in top positions (including ties and up to top 5)
+                competitionResults[compId] = participantsArr.filter(p => (p.position <= 5 || (p.densePos && p.densePos <= 5)));
             }
         }
 
@@ -3725,12 +3632,30 @@
                 results.forEach((entry, idx) => {
                     const teamName = allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent';
                     
+                    const effPos = entry.effectivePos || entry.densePos || entry.position;
+                    const isTied = results.filter(r => (r.effectivePos || r.densePos || r.position) === effPos).length > 1;
+
                     let rankDisplay = '';
                     let posText = '';
-                    if (entry.position === 1) { rankDisplay = '<i class="fa-solid fa-trophy" style="color: var(--gold);"></i>'; posText = '1st Place Winner'; }
-                    else if (entry.position === 2) { rankDisplay = '<i class="fa-solid fa-medal" style="color: var(--silver);"></i>'; posText = '2nd Place Winner'; }
-                    else if (entry.position === 3) { rankDisplay = '<i class="fa-solid fa-medal" style="color: var(--bronze);"></i>'; posText = '3rd Place Winner'; }
-                    else { rankDisplay = `#${entry.position}`; posText = `Rank #${entry.position}`; }
+                    if (effPos === 1) { 
+                        rankDisplay = '<i class="fa-solid fa-trophy" style="color: var(--gold);"></i>'; 
+                        posText = isTied ? '1st Place Winner (Tied)' : '1st Place Winner'; 
+                    } else if (effPos === 2) { 
+                        rankDisplay = '<i class="fa-solid fa-medal" style="color: var(--silver);"></i>'; 
+                        posText = isTied ? '2nd Place Winner (Tied)' : '2nd Place Winner'; 
+                    } else if (effPos === 3) { 
+                        rankDisplay = '<i class="fa-solid fa-medal" style="color: var(--bronze);"></i>'; 
+                        posText = isTied ? '3rd Place Winner (Tied)' : '3rd Place Winner'; 
+                    } else if (effPos === 4) {
+                        rankDisplay = '<span style="font-weight:800; color:var(--text-main);">#4</span>';
+                        posText = isTied ? '4th Place (Tied)' : '4th Place';
+                    } else if (effPos === 5) {
+                        rankDisplay = '<span style="font-weight:800; color:var(--text-main);">#5</span>';
+                        posText = isTied ? '5th Place (Tied)' : '5th Place';
+                    } else { 
+                        rankDisplay = `#${effPos}`; 
+                        posText = isTied ? `Rank #${effPos} (Tied)` : `Rank #${effPos}`; 
+                    }
 
                     // Check for squad roster (for group events or team entries)
                     let squadChipsHtml = '';
@@ -3754,7 +3679,7 @@
                             <div class="winner-main-row">
                                 <div class="w-rank">${rankDisplay}</div>
                                 <div class="w-details" style="flex: 1;">
-                                    <h4>${entry.participant.name}${classBadge}</h4>
+                                    <h4>${entry.participant.name}${classBadge}${isTied ? '<span style="font-size:0.72rem; background:#FEF3C7; color:#B45309; padding:2px 8px; border-radius:12px; margin-left:6px; font-weight:800; vertical-align:middle; border:1px solid #FDE68A;"><i class="fa-solid fa-handshake" style="margin-right:3px;"></i>TIED</span>' : ''}</h4>
                                     <p>${teamName} • <span style="color: var(--primary); font-weight: 700;">${posText}</span></p>
                                 </div>
                             </div>
@@ -3815,12 +3740,46 @@
                         'Competition': comp?.name || ""
                     };
 
-                    for(let i = 0; i < 3; i++) {
-                        const entry = results[i];
-                        mappedData[`Position${i+1}Name`] = entry ? entry.participant.name : "";
-                        mappedData[`Position${i+1}Team`] = entry ? (allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent') : "";
-                        mappedData[`Position${i+1}Photo`] = entry ? entry.participant.photo_url : null;
-                        mappedData[`Position${i+1}Number`] = entry ? entry.position.toString() : "";
+                    // Group results by rank (Position 1, 2, 3, 4, 5) to properly handle ties & multiple positions
+                    const rankGroups = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+                    results.forEach(entry => {
+                        const pos = entry.effectivePos || entry.densePos || entry.position;
+                        if (rankGroups[pos]) rankGroups[pos].push(entry);
+                        else if (pos > 0 && pos <= 10) {
+                            if (!rankGroups[pos]) rankGroups[pos] = [];
+                            rankGroups[pos].push(entry);
+                        }
+                    });
+
+                    for (let i = 1; i <= 5; i++) {
+                        const group = rankGroups[i] || [];
+                        if (group.length === 1) {
+                            const entry = group[0];
+                            mappedData[`Position${i}Name`] = entry.participant.name;
+                            mappedData[`Position${i}Team`] = allTeams.find(t => t.id === entry.participant.team_id)?.name || 'Independent';
+                            mappedData[`Position${i}Photo`] = entry.participant.photo_url || null;
+                            mappedData[`Position${i}Number`] = i.toString();
+                        } else if (group.length > 1) {
+                            // Multiple winners in this position (TIE / SHARED RANK)
+                            mappedData[`Position${i}Name`] = group.map(g => g.participant.name).join(' & ');
+                            const distinctTeams = [...new Set(group.map(g => allTeams.find(t => t.id === g.participant.team_id)?.name || 'Independent'))];
+                            mappedData[`Position${i}Team`] = distinctTeams.join(' & ');
+                            mappedData[`Position${i}Photo`] = group[0].participant.photo_url || null;
+                            mappedData[`Position${i}Number`] = `${i} (TIE)`;
+
+                            // Also support individual sub-slots if template has Position1B, Position2B etc.
+                            for (let b = 1; b < group.length; b++) {
+                                const letter = String.fromCharCode(65 + b);
+                                mappedData[`Position${i}${letter}Name`] = group[b].participant.name;
+                                mappedData[`Position${i}${letter}Team`] = allTeams.find(t => t.id === group[b].participant.team_id)?.name || 'Independent';
+                                mappedData[`Position${i}${letter}Photo`] = group[b].participant.photo_url || null;
+                            }
+                        } else {
+                            mappedData[`Position${i}Name`] = "";
+                            mappedData[`Position${i}Team`] = "";
+                            mappedData[`Position${i}Photo`] = null;
+                            mappedData[`Position${i}Number`] = "";
+                        }
                     }
 
                     if(template.fields) {
@@ -3894,43 +3853,88 @@
                 ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
                 ctx.fillText(`${comp?.categories?.name?.toUpperCase() || 'GENERAL'} • OFFICIAL CERTIFIED RESULT`, 540, 145);
 
-                // Podium Winners
-                const podiumSlots = [
-                    { rank: 1, color: '#F59E0B', label: '1ST PLACE WINNER', y: 260 },
-                    { rank: 2, color: '#94A3B8', label: '2ND PLACE WINNER', y: 510 },
-                    { rank: 3, color: '#D97706', label: '3RD PLACE WINNER', y: 760 }
+                // Podium Winners supporting ties & multiple winners per rank
+                const rankDefs = [
+                    { rank: 1, color: '#F59E0B', label: '1ST PLACE' },
+                    { rank: 2, color: '#94A3B8', label: '2ND PLACE' },
+                    { rank: 3, color: '#D97706', label: '3RD PLACE' }
                 ];
 
-                podiumSlots.forEach(slot => {
-                    const winner = results.find(r => r.position === slot.rank);
+                const hasRank4 = results.some(r => (r.effectivePos || r.densePos || r.position) === 4);
+                const hasRank5 = results.some(r => (r.effectivePos || r.densePos || r.position) === 5);
+                if (hasRank4) rankDefs.push({ rank: 4, color: '#38BDF8', label: '4TH PLACE' });
+                if (hasRank5) rankDefs.push({ rank: 5, color: '#A855F7', label: '5TH PLACE' });
+
+                const totalSlots = rankDefs.length;
+                const startY = 230;
+                const totalAvailableH = 1050 - startY;
+                const gap = 16;
+                const slotH = Math.min(220, Math.floor((totalAvailableH - (gap * (totalSlots - 1))) / totalSlots));
+
+                rankDefs.forEach((slot, sIdx) => {
+                    const currentY = startY + sIdx * (slotH + gap);
+                    const winnersAtRank = results.filter(r => (r.effectivePos || r.densePos || r.position) === slot.rank);
+                    const isTied = winnersAtRank.length > 1;
+
                     ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
                     ctx.strokeStyle = slot.color;
                     ctx.lineWidth = 3;
 
-                    if (ctx.roundRect) ctx.roundRect(80, slot.y, 920, 210, 16);
-                    else ctx.rect(80, slot.y, 920, 210);
+                    if (ctx.roundRect) ctx.roundRect(80, currentY, 920, slotH, 16);
+                    else ctx.rect(80, currentY, 920, slotH);
                     ctx.fill();
                     ctx.stroke();
 
                     // Rank pill
                     ctx.fillStyle = slot.color;
-                    ctx.font = "800 24px sans-serif";
+                    ctx.font = totalSlots > 3 ? "800 20px sans-serif" : "800 24px sans-serif";
                     ctx.textAlign = "left";
-                    ctx.fillText(slot.label, 120, slot.y + 55);
+                    const titleText = isTied ? `${slot.label} WINNERS (TIED • ${winnersAtRank.length})` : `${slot.label} WINNER`;
+                    ctx.fillText(titleText, 110, currentY + (totalSlots > 3 ? 36 : 46));
 
-                    if (winner) {
+                    if (winnersAtRank.length === 0) {
+                        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+                        ctx.font = "600 24px sans-serif";
+                        ctx.fillText("NOT AWARDED", 110, currentY + (slotH / 2) + 15);
+                    } else if (winnersAtRank.length === 1) {
+                        const winner = winnersAtRank[0];
                         ctx.fillStyle = "#FFFFFF";
-                        ctx.font = "800 36px sans-serif";
-                        ctx.fillText(winner.participant.name.toUpperCase(), 120, slot.y + 115);
+                        ctx.font = totalSlots > 3 ? "800 28px sans-serif" : "800 34px sans-serif";
+                        ctx.fillText(winner.participant.name.toUpperCase(), 110, currentY + (totalSlots > 3 ? 75 : 98));
 
                         const tName = allTeams.find(t => t.id === winner.participant.team_id)?.name || 'Independent';
                         ctx.fillStyle = "#94A3B8";
-                        ctx.font = "700 24px sans-serif";
-                        ctx.fillText(tName.toUpperCase(), 120, slot.y + 160);
+                        ctx.font = totalSlots > 3 ? "700 20px sans-serif" : "700 22px sans-serif";
+                        ctx.fillText(tName.toUpperCase(), 110, currentY + (totalSlots > 3 ? 108 : 142));
+                    } else if (winnersAtRank.length === 2) {
+                        // Two winners tied: clean side-by-side columns
+                        const colW = 440;
+                        winnersAtRank.forEach((w, wIdx) => {
+                            const colX = 110 + (wIdx * colW);
+                            ctx.fillStyle = "#FFFFFF";
+                            ctx.font = "800 24px sans-serif";
+                            let wName = w.participant.name.toUpperCase();
+                            if (wName.length > 22) wName = wName.substring(0, 20) + '...';
+                            ctx.fillText(wName, colX, currentY + (totalSlots > 3 ? 75 : 95));
+
+                            const tName = allTeams.find(t => t.id === w.participant.team_id)?.name || 'Independent';
+                            ctx.fillStyle = "#94A3B8";
+                            ctx.font = "700 18px sans-serif";
+                            let dispTeam = tName.toUpperCase();
+                            if (dispTeam.length > 24) dispTeam = dispTeam.substring(0, 22) + '...';
+                            ctx.fillText(dispTeam, colX, currentY + (totalSlots > 3 ? 104 : 135));
+                        });
                     } else {
-                        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-                        ctx.font = "600 28px sans-serif";
-                        ctx.fillText("NOT AWARDED", 120, slot.y + 120);
+                        // 3 or more tied winners
+                        const namesJoined = winnersAtRank.map(w => w.participant.name.toUpperCase()).join(' • ');
+                        ctx.fillStyle = "#FFFFFF";
+                        ctx.font = "800 22px sans-serif";
+                        ctx.fillText(namesJoined.length > 60 ? namesJoined.substring(0, 58) + '...' : namesJoined, 110, currentY + (totalSlots > 3 ? 75 : 95));
+
+                        const teamsJoined = [...new Set(winnersAtRank.map(w => allTeams.find(t => t.id === w.participant.team_id)?.name || 'Independent'))].join(' • ');
+                        ctx.fillStyle = "#94A3B8";
+                        ctx.font = "700 18px sans-serif";
+                        ctx.fillText(teamsJoined.toUpperCase(), 110, currentY + (totalSlots > 3 ? 104 : 135));
                     }
                 });
 
@@ -4325,10 +4329,7 @@
                     <div style="grid-column: 1/-1; text-align: center; padding: 4.5rem 1.5rem; background: var(--surface); border: 1px dashed var(--surface-border); border-radius: var(--radius-lg);">
                         <i class="fa-regular fa-images" style="font-size: 3rem; color: var(--text-muted); opacity: 0.6; margin-bottom: 0.75rem; display: block;"></i>
                         <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.4rem; text-transform: uppercase;">No photo albums published yet</h3>
-                        <p style="color: var(--text-muted); font-size: 0.88rem; max-width: 420px; margin: 0 auto 1.5rem auto;">Create your first stage or podium album and upload multiple high-res photos to share with participants and spectators.</p>
-                        <button class="btn-upload-album" onclick="openNewAlbumModal()">
-                            <i class="fa-solid fa-plus"></i> Upload First Album
-                        </button>
+                        <p style="color: var(--text-muted); font-size: 0.88rem; max-width: 420px; margin: 0 auto;">Photo albums will be published soon.</p>
                     </div>
                 `;
                 return;
@@ -4396,13 +4397,7 @@
                                     <button class="btn-album-action" onclick="shareAlbum('${album.id}', event)" title="Share album">
                                         <i class="fa-solid fa-share-nodes"></i>
                                     </button>
-                                    <button class="btn-album-action" onclick="openEditAlbumModal('${album.id}')" title="Edit album & details">
-                                        <i class="fa-solid fa-pen-to-square"></i>
-                                    </button>
-                                    <button class="btn-album-action" style="color:#EF4444;" onclick="deleteAlbum('${album.id}', event)" title="Delete album">
-                                        <i class="fa-solid fa-trash-can"></i>
-                                    </button>
-                                </div>
+                                    </div>
                             </div>
                         </div>
                     </div>
@@ -4436,267 +4431,6 @@
             else renderGalleryView();
         }
         window.resetGalleryFilters = resetGalleryFilters;
-
-        // --- Album Creation & Editing Modal Logic ---
-        function openNewAlbumModal() {
-            editingAlbumId = null;
-            pendingAlbumPhotos = [];
-            document.getElementById('album-editor-modal-title').innerHTML = '<i class="fa-solid fa-images" style="color:var(--primary);"></i> Create Photo Album';
-            document.getElementById('album-form-title').value = '';
-            document.getElementById('album-form-category').value = 'Stage Performance';
-            document.getElementById('album-form-date').value = new Date().toISOString().split('T')[0];
-            document.getElementById('album-form-venue').value = '';
-            document.getElementById('album-form-desc').value = '';
-            document.getElementById('album-form-url-input').value = '';
-            renderPendingPhotosPreviews();
-            document.getElementById('album-editor-modal').classList.add('active');
-        }
-        window.openNewAlbumModal = openNewAlbumModal;
-
-        function openEditAlbumModal(albumId) {
-            const album = (websiteConfig.gallery || []).find(a => a.id === albumId);
-            if (!album) return;
-            editingAlbumId = albumId;
-            pendingAlbumPhotos = normalizeAlbumPhotos(album).map((p, idx) => ({
-                id: p.id || ('ph_' + idx),
-                url: p.url,
-                caption: p.caption || '',
-                isCover: (album.cover_url && album.cover_url === p.url) || idx === 0
-            }));
-
-            document.getElementById('album-editor-modal-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color:var(--primary);"></i> Edit Photo Album';
-            document.getElementById('album-form-title').value = album.title || '';
-            document.getElementById('album-form-category').value = album.category || 'Stage Performance';
-            document.getElementById('album-form-date').value = album.date || '';
-            document.getElementById('album-form-venue').value = album.venue || '';
-            document.getElementById('album-form-desc').value = album.desc || '';
-            document.getElementById('album-form-url-input').value = '';
-            renderPendingPhotosPreviews();
-            document.getElementById('album-editor-modal').classList.add('active');
-        }
-        window.openEditAlbumModal = openEditAlbumModal;
-
-        function closeAlbumEditorModal() {
-            document.getElementById('album-editor-modal').classList.remove('active');
-            editingAlbumId = null;
-            pendingAlbumPhotos = [];
-        }
-        window.closeAlbumEditorModal = closeAlbumEditorModal;
-
-        // --- Handle Multiple Photos Selection & Compression ---
-        async function handleAlbumMultiPhotoUpload(inputEl) {
-            if (!inputEl.files || inputEl.files.length === 0) return;
-            const files = Array.from(inputEl.files);
-            const saveBtn = document.getElementById('btn-save-album');
-            if (saveBtn) {
-                saveBtn.disabled = true;
-                saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Optimizing ${files.length} Photo${files.length === 1 ? '' : 's'}...`;
-            }
-
-            for (let i = 0; i < files.length; i++) {
-                try {
-                    const compressedUrl = await compressImageForGallery(files[i], 1600, 0.82);
-                    if (compressedUrl) {
-                        pendingAlbumPhotos.push({
-                            id: 'ph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-                            url: compressedUrl,
-                            caption: files[i].name.replace(/\.[^/.]+$/, ""),
-                            isCover: pendingAlbumPhotos.length === 0
-                        });
-                    }
-                } catch(e) {
-                    console.warn("Photo compression error:", e);
-                }
-            }
-
-            inputEl.value = ''; // Reset file input
-            if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Save & Publish Album';
-            }
-            renderPendingPhotosPreviews();
-            showToast(`${files.length} photo${files.length === 1 ? '' : 's'} added!`, 'success');
-        }
-        window.handleAlbumMultiPhotoUpload = handleAlbumMultiPhotoUpload;
-
-        function addPhotoByUrl() {
-            const input = document.getElementById('album-form-url-input');
-            const url = input ? input.value.trim() : '';
-            if (!url) return;
-            if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('data:image')) {
-                alert('Please enter a valid image URL (https://...)');
-                return;
-            }
-            pendingAlbumPhotos.push({
-                id: 'ph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-                url: url,
-                caption: '',
-                isCover: pendingAlbumPhotos.length === 0
-            });
-            input.value = '';
-            renderPendingPhotosPreviews();
-            showToast('Image URL added!', 'success');
-        }
-        window.addPhotoByUrl = addPhotoByUrl;
-
-        function renderPendingPhotosPreviews() {
-            const container = document.getElementById('album-form-previews-container');
-            const grid = document.getElementById('album-form-previews-grid');
-            const countLabel = document.getElementById('album-form-photos-count');
-            if (!container || !grid) return;
-
-            if (pendingAlbumPhotos.length === 0) {
-                container.style.display = 'none';
-                grid.innerHTML = '';
-                return;
-            }
-
-            container.style.display = 'block';
-            if (countLabel) countLabel.innerText = `${pendingAlbumPhotos.length} Photo${pendingAlbumPhotos.length === 1 ? '' : 's'} Ready`;
-
-            grid.innerHTML = pendingAlbumPhotos.map((p, idx) => `
-                <div class="preview-thumb-wrap">
-                    <img src="${p.url}" alt="Preview" onerror="this.src='https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80'">
-                    ${p.isCover ? '<span class="preview-cover-badge"><i class="fa-solid fa-star"></i> COVER</span>' : ''}
-                    <div class="preview-thumb-actions">
-                        ${!p.isCover ? `<button type="button" class="preview-set-cover" onclick="setPendingCoverPhoto(${idx})" title="Set as Album Cover"><i class="fa-regular fa-star"></i> Cover</button>` : ''}
-                        <button type="button" class="preview-thumb-remove" onclick="removePendingPhoto(${idx})" title="Remove Photo"><i class="fa-solid fa-xmark"></i></button>
-                    </div>
-                </div>
-            `).join('');
-        }
-        window.renderPendingPhotosPreviews = renderPendingPhotosPreviews;
-
-        function removePendingPhoto(index) {
-            const wasCover = pendingAlbumPhotos[index]?.isCover;
-            pendingAlbumPhotos.splice(index, 1);
-            if (wasCover && pendingAlbumPhotos.length > 0) {
-                pendingAlbumPhotos[0].isCover = true;
-            }
-            renderPendingPhotosPreviews();
-        }
-        window.removePendingPhoto = removePendingPhoto;
-
-        function setPendingCoverPhoto(index) {
-            pendingAlbumPhotos.forEach((p, i) => p.isCover = (i === index));
-            renderPendingPhotosPreviews();
-        }
-        window.setPendingCoverPhoto = setPendingCoverPhoto;
-
-        // --- Save / Publish Album ---
-        async function saveAlbum() {
-            const titleInput = document.getElementById('album-form-title');
-            const title = titleInput ? titleInput.value.trim() : '';
-            if (!title) {
-                alert('Please enter an album title.');
-                if (titleInput) titleInput.focus();
-                return;
-            }
-
-            const category = document.getElementById('album-form-category').value;
-            const date = document.getElementById('album-form-date').value;
-            const venue = document.getElementById('album-form-venue').value.trim();
-            const desc = document.getElementById('album-form-desc').value.trim();
-
-            if (pendingAlbumPhotos.length === 0) {
-                if (!confirm("No photos have been uploaded for this album yet. Do you want to create an empty album and upload photos later?")) {
-                    return;
-                }
-            }
-
-            // Determine Cover Image
-            const coverItem = pendingAlbumPhotos.find(p => p.isCover) || pendingAlbumPhotos[0];
-            const cover_url = coverItem ? coverItem.url : 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80';
-
-            const cleanPhotos = pendingAlbumPhotos.map(p => ({
-                id: p.id,
-                url: p.url,
-                caption: p.caption || ''
-            }));
-
-            if (!websiteConfig.gallery) websiteConfig.gallery = [];
-
-            const saveBtn = document.getElementById('btn-save-album');
-            if (saveBtn) {
-                saveBtn.disabled = true;
-                saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving Album...';
-            }
-
-            try {
-                if (editingAlbumId) {
-                    const idx = websiteConfig.gallery.findIndex(a => a.id === editingAlbumId);
-                    if (idx !== -1) {
-                        websiteConfig.gallery[idx] = {
-                            ...websiteConfig.gallery[idx],
-                            title,
-                            category,
-                            date,
-                            venue,
-                            desc,
-                            cover_url,
-                            photos: cleanPhotos,
-                            count: cleanPhotos.length,
-                            updated_at: new Date().toISOString()
-                        };
-                    }
-                } else {
-                    const newAlbum = {
-                        id: 'alb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-                        title,
-                        category,
-                        date,
-                        venue,
-                        desc,
-                        cover_url,
-                        photos: cleanPhotos,
-                        count: cleanPhotos.length,
-                        created_at: new Date().toISOString()
-                    };
-                    websiteConfig.gallery.unshift(newAlbum);
-                }
-
-                await persistWebsiteConfig();
-                closeAlbumEditorModal();
-                renderGalleryView();
-
-                // If currently open in viewer, refresh viewer
-                if (currentViewingAlbumId && (currentViewingAlbumId === editingAlbumId)) {
-                    openAlbumViewerModal(currentViewingAlbumId);
-                }
-
-                showToast(editingAlbumId ? 'Album updated successfully!' : 'Album published successfully!', 'success');
-            } catch(e) {
-                console.error("Save album error:", e);
-                alert("Failed to save album: " + e.message);
-            } finally {
-                if (saveBtn) {
-                    saveBtn.disabled = false;
-                    saveBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Save & Publish Album';
-                }
-            }
-        }
-        window.saveAlbum = saveAlbum;
-
-        // --- Delete Album ---
-        async function deleteAlbum(albumId, event) {
-            if (event) event.stopPropagation();
-            const album = (websiteConfig.gallery || []).find(a => a.id === albumId);
-            const title = album ? `"${album.title}"` : 'this album';
-            
-            if (!confirm(`Are you sure you want to permanently delete ${title} and all its photos?`)) {
-                return;
-            }
-
-            websiteConfig.gallery = (websiteConfig.gallery || []).filter(a => a.id !== albumId);
-            await persistWebsiteConfig();
-            
-            if (currentViewingAlbumId === albumId) {
-                closeAlbumViewModal();
-            }
-            renderGalleryView();
-            showToast('Album deleted.', 'success');
-        }
-        window.deleteAlbum = deleteAlbum;
 
         // --- Album Photos Viewer & Detail Modal ---
         function openAlbumViewerModal(albumId) {
@@ -4736,10 +4470,7 @@
                     <div style="grid-column: 1/-1; text-align: center; padding: 3.5rem 1rem; background: var(--surface-hover); border-radius: var(--radius-md);">
                         <i class="fa-regular fa-images" style="font-size: 2.5rem; color: var(--text-muted); opacity: 0.6; margin-bottom: 0.5rem; display: block;"></i>
                         <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem; text-transform: uppercase;">No photos in this album yet</h4>
-                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">Upload photos directly from your device.</p>
-                        <button class="btn btn-primary" style="width: auto; padding: 0.5rem 1.25rem;" onclick="openAddPhotosToCurrentAlbum()">
-                            <i class="fa-solid fa-plus"></i> Upload Photos
-                        </button>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Photos will be added soon.</p>
                     </div>
                 `;
             } else {
@@ -4756,10 +4487,7 @@
                             <a href="${p.url}" download="festos_${album.title.replace(/\s+/g, '_')}_${idx + 1}.jpg" class="photo-action-btn" onclick="event.stopPropagation()" title="Download Photo">
                                 <i class="fa-solid fa-download"></i>
                             </a>
-                            <button class="photo-action-btn btn-del" onclick="event.stopPropagation(); deletePhotoFromAlbum('${album.id}', '${p.id}')" title="Delete Photo">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
-                        </div>
+                            </div>
                     </div>
                 `).join('');
             }
@@ -4786,75 +4514,6 @@
             } catch(e) {}
         }
         window.closeAlbumViewModal = closeAlbumViewModal;
-
-        function openEditCurrentAlbum() {
-            if (!currentViewingAlbumId) return;
-            openEditAlbumModal(currentViewingAlbumId);
-        }
-        window.openEditCurrentAlbum = openEditCurrentAlbum;
-
-        function openAddPhotosToCurrentAlbum() {
-            const input = document.getElementById('album-append-photos-input');
-            if (input) input.click();
-        }
-        window.openAddPhotosToCurrentAlbum = openAddPhotosToCurrentAlbum;
-
-        async function handleAppendPhotosToCurrentAlbum(inputEl) {
-            if (!inputEl.files || inputEl.files.length === 0 || !currentViewingAlbumId) return;
-            const album = (websiteConfig.gallery || []).find(a => a.id === currentViewingAlbumId);
-            if (!album) return;
-
-            const files = Array.from(inputEl.files);
-            showToast(`Compressing & adding ${files.length} photo${files.length === 1 ? '' : 's'}...`, 'info');
-
-            let existingPhotos = normalizeAlbumPhotos(album);
-            for (let i = 0; i < files.length; i++) {
-                try {
-                    const compressed = await compressImageForGallery(files[i], 1600, 0.82);
-                    if (compressed) {
-                        existingPhotos.push({
-                            id: 'ph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-                            url: compressed,
-                            caption: files[i].name.replace(/\.[^/.]+$/, "")
-                        });
-                    }
-                } catch(e) {}
-            }
-
-            album.photos = existingPhotos;
-            album.count = existingPhotos.length;
-            if (!album.cover_url && existingPhotos.length > 0) {
-                album.cover_url = existingPhotos[0].url;
-            }
-
-            await persistWebsiteConfig();
-            inputEl.value = '';
-            openAlbumViewerModal(currentViewingAlbumId);
-            renderGalleryView();
-            showToast(`${files.length} photo${files.length === 1 ? '' : 's'} added to album!`, 'success');
-        }
-        window.handleAppendPhotosToCurrentAlbum = handleAppendPhotosToCurrentAlbum;
-
-        async function deletePhotoFromAlbum(albumId, photoId) {
-            const album = (websiteConfig.gallery || []).find(a => a.id === albumId);
-            if (!album) return;
-
-            if (!confirm("Are you sure you want to remove this photo from the album?")) return;
-
-            let photos = normalizeAlbumPhotos(album);
-            photos = photos.filter(p => p.id !== photoId);
-            album.photos = photos;
-            album.count = photos.length;
-            if (photos.length > 0 && (!album.cover_url || photos.every(p => p.url !== album.cover_url))) {
-                album.cover_url = photos[0].url;
-            }
-
-            await persistWebsiteConfig();
-            openAlbumViewerModal(albumId);
-            renderGalleryView();
-            showToast("Photo removed from album.", "success");
-        }
-        window.deletePhotoFromAlbum = deletePhotoFromAlbum;
 
         // --- Photo Fullscreen Lightbox Controls ---
         function openLightboxPhoto(index) {
