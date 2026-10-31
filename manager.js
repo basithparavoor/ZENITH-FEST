@@ -1440,10 +1440,13 @@ async function loadJudgesManagement() {
 
         let assignQuery = supabaseClient
             .from('judgements')
-            .select('judge_id, competition_id, competitions(name, categories(name), stages(name))');
+            .select('judge_id, competition_id, fest_id, competitions(id, name, fest_id, categories(id, name, fest_id), stages(name))');
         if (window.festosApplyFilter) assignQuery = window.festosApplyFilter(assignQuery);
         const { data: assignments, error: assignErr } = await assignQuery;
         if (assignErr) throw assignErr;
+
+        const activeFid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : null;
+        const isLegacy = window.festosIsLegacyFest ? window.festosIsLegacyFest(activeFid) : false;
 
         globalJudgesList.forEach(judge => {
             const judgeAssigns = (assignments || []).filter(a => a.judge_id === judge.id);
@@ -1451,7 +1454,11 @@ async function loadJudgesManagement() {
             
             judgeAssigns.forEach(a => {
                 if (a.competitions && !uniqueCompsMap.has(a.competition_id)) {
-                    uniqueCompsMap.set(a.competition_id, a.competitions);
+                    const compFestId = a.competitions.fest_id || a.fest_id;
+                    const matchesFest = !activeFid || compFestId === activeFid || (isLegacy && !compFestId);
+                    if (matchesFest) {
+                        uniqueCompsMap.set(a.competition_id, a.competitions);
+                    }
                 }
             });
             judge.assignments = Array.from(uniqueCompsMap.entries()).map(([id, comp]) => ({ id, ...comp }));
@@ -1600,15 +1607,35 @@ async function openAssignJudgeEvents(judgeId) {
     try {
         let compsQuery = supabaseClient
             .from('competitions')
-            .select('id, name, categories(name)');
+            .select('id, name, fest_id, categories(id, name, fest_id)');
         if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery);
         const { data: comps, error } = await compsQuery.order('name');
         if (error) throw error;
 
-        modalAssignComps = comps || [];
-        modalAssignedIds = judge.assignments.map(a => a.id);
+        const activeFid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : null;
+        const isLegacy = window.festosIsLegacyFest ? window.festosIsLegacyFest(activeFid) : false;
+
+        // Strictly keep competitions belonging to the active festival
+        modalAssignComps = (comps || []).filter(c => {
+            if (!activeFid) return true;
+            if (c.fest_id === activeFid) return true;
+            if (isLegacy && !c.fest_id) return true;
+            return false;
+        });
+
+        // Pre-check assigned competition IDs that belong to the current festival
+        const validCompIds = new Set(modalAssignComps.map(c => c.id));
+        modalAssignedIds = (judge.assignments || [])
+            .map(a => a.id)
+            .filter(id => validCompIds.has(id));
         
-        const uniqueCats = [...new Set(modalAssignComps.map(c => c.categories?.name || 'General'))].sort();
+        // Populate category filter strictly from active festival competitions
+        const uniqueCats = [...new Set(
+            modalAssignComps
+                .map(c => c.categories?.name || 'General')
+                .filter(Boolean)
+        )].sort();
+
         const catSelect = document.getElementById('filterAssignJudgeCat');
         catSelect.innerHTML = '<option value="">All Categories</option>';
         uniqueCats.forEach(cat => catSelect.innerHTML += `<option value="${cat}">${cat}</option>`);
@@ -1670,10 +1697,12 @@ async function saveJudgeAssignments() {
     btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Saving...';
     
     try {
-        await supabaseClient.from('judgements')
+        let delQuery = supabaseClient.from('judgements')
             .delete()
             .eq('judge_id', judgeId)
             .is('participant_id', null);
+        if (window.festosApplyFilter) delQuery = window.festosApplyFilter(delQuery);
+        await delQuery;
         
         if(modalAssignedIds.length > 0) {
             let inserts = modalAssignedIds.map(compId => ({ competition_id: compId, judge_id: judgeId }));
