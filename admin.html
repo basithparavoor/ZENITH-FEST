@@ -2179,7 +2179,7 @@ canvas {
             <div class="nav-sub">
                 <div class="nav-item" onclick="switchTab('categories')">Categories</div>
                 <div class="nav-item" onclick="switchTab('competitions')">Competitions</div>
-                <div class="nav-item" onclick="switchTab('conflict-permits')"><i class="fa-solid fa-ticket-simple" style="margin-right:6px; color:#F59E0B;"></i> Late Entry Permits</div>
+                <div class="nav-item" onclick="switchTab('conflict-permits')">Late Entry Permits</div>
                 <div class="nav-item" onclick="switchTab('point-settings')">Point System</div>
                 <div class="nav-item" onclick="switchTab('direct-valuation')">Direct Valuation</div>
                 <div class="nav-item" onclick="switchTab('admin-appeals')">Appeals</div>
@@ -3508,8 +3508,8 @@ canvas {
         <div id="conflict-permits" class="content-section">
             <div class="action-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
                 <div>
-                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 8px;">
-                        <i class="fa-solid fa-ticket-simple" style="color: #F59E0B;"></i> Cross-Competition Late Entry Permits
+                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">
+                        Cross-Competition Late Entry Permits
                     </h2>
                     <p style="color: var(--text-muted); font-size: 0.9rem;">Authorize a participant to check in late to an ongoing competition because they are attending another event.</p>
                 </div>
@@ -3560,8 +3560,8 @@ canvas {
         <div id="grantConflictPermitModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.5); backdrop-filter: blur(6px); z-index: 9999; justify-content: center; align-items: center;">
             <div class="card" style="width: 100%; max-width: 520px; background: var(--bg-surface); border-radius: 20px; padding: 1.75rem; box-shadow: 0 20px 40px rgba(0,0,0,0.2); border: 1px solid var(--border); max-height: 90vh; overflow-y: auto;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
-                    <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-                        <i class="fa-solid fa-ticket-simple" style="color: #F59E0B;"></i> Issue Late Entry Permit
+                    <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-main);">
+                        Issue Late Entry Permit
                     </h3>
                     <button class="btn btn-outline" style="border: none; width: 32px; height: 32px; padding: 0; border-radius: 50%;" onclick="closeGrantConflictPermitModal()"><i class="fa-solid fa-xmark"></i></button>
                 </div>

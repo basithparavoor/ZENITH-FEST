@@ -7976,7 +7976,6 @@ function renderConflictPermitsTable() {
         tbody.innerHTML = `
             <tr>
                 <td colspan="6" style="padding: 3rem 1rem; text-align: center; color: var(--text-muted);">
-                    <i class="fa-solid fa-ticket-simple" style="font-size: 2.2rem; color: #CBD5E1; margin-bottom: 0.75rem;"></i>
                     <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 0.25rem 0;">No late entry permits found</p>
                     <p style="font-size: 0.8rem; margin: 0;">Click "Issue Late Entry Permit" to authorize a participant for ongoing events.</p>
                 </td>
@@ -8059,11 +8058,10 @@ async function openGrantConflictPermitModal() {
             cQuery = festQuery(cQuery);
         }
 
-        const [pRes, cRes, regRes] = await Promise.all([
-            pQuery.catch(e => ({ data: [], error: e })),
-            cQuery.catch(e => ({ data: [], error: e })),
-            regQuery.catch(e => ({ data: [], error: e }))
-        ]);
+        let pRes = { data: [] }, cRes = { data: [] }, regRes = { data: [] };
+        try { pRes = await pQuery; } catch (e) { pRes = { data: [], error: e }; }
+        try { cRes = await cQuery; } catch (e) { cRes = { data: [], error: e }; }
+        try { regRes = await regQuery; } catch (e) { regRes = { data: [], error: e }; }
 
         if (pRes.error) console.warn("Participants query warning:", pRes.error);
         if (cRes.error) console.warn("Competitions query warning:", cRes.error);
@@ -15914,17 +15912,14 @@ let globalJudgesList = [];
 async function loadJudgesManagement() {
     try {
         const fid = (typeof getActiveFestId === 'function') ? getActiveFestId() : null;
-        let assignQuery = supabaseClient.from('judgements').select('judge_id, competition_id, competitions(name, categories(name), stages(name))');
-        if (fid) {
-            assignQuery = assignQuery.or(`fest_id.eq.${fid},fest_id.is.null`);
-        }
+        const isLegacy = window.festosIsLegacyFest ? window.festosIsLegacyFest(fid) : false;
 
         const [
             { data: allUsersForJudges, error: judgesErr },
             { data: assignments, error: assignErr }
         ] = await Promise.all([
             festQuery(supabaseClient.from('users').select('id, username, role')).order('username'),
-            assignQuery
+            festQuery(supabaseClient.from('judgements').select('judge_id, competition_id, fest_id, competitions(id, name, fest_id, categories(id, name, fest_id), stages(name))'))
         ]);
         
         if (judgesErr) throw judgesErr;
@@ -15939,7 +15934,11 @@ async function loadJudgesManagement() {
             
             judgeAssigns.forEach(a => {
                 if (a.competitions && !uniqueCompsMap.has(a.competition_id)) {
-                    uniqueCompsMap.set(a.competition_id, a.competitions);
+                    const compFestId = a.competitions.fest_id || a.fest_id;
+                    const matchesFest = !fid || compFestId === fid || (isLegacy && !compFestId);
+                    if (matchesFest) {
+                        uniqueCompsMap.set(a.competition_id, a.competitions);
+                    }
                 }
             });
             
@@ -16089,18 +16088,37 @@ async function openAssignJudgeEvents(judgeId) {
     document.getElementById('assignJudgeEventsModal').classList.add('show');
     
     try {
-        const { data: comps, error } = await supabaseClient
+        const { data: comps, error } = await festQuery(supabaseClient
             .from('competitions')
-            .select('id, name, categories(name)')
+            .select('id, name, fest_id, categories(id, name, fest_id)'))
             .order('name');
             
         if (error) throw error;
 
-        modalAssignComps = comps || [];
-        modalAssignedIds = judge.assignments.map(a => a.id);
+        const activeFid = (typeof getActiveFestId === 'function') ? getActiveFestId() : (window.festosAuth ? window.festosAuth.getCurrentFestId() : null);
+        const isLegacy = window.festosIsLegacyFest ? window.festosIsLegacyFest(activeFid) : false;
+
+        // Strictly keep competitions belonging to the active festival
+        modalAssignComps = (comps || []).filter(c => {
+            if (!activeFid) return true;
+            if (c.fest_id === activeFid) return true;
+            if (isLegacy && !c.fest_id) return true;
+            return false;
+        });
+
+        // Pre-check assigned competition IDs that belong to the current festival
+        const validCompIds = new Set(modalAssignComps.map(c => c.id));
+        modalAssignedIds = (judge.assignments || [])
+            .map(a => a.id)
+            .filter(id => validCompIds.has(id));
         
-        // Populate category filter
-        const uniqueCats = [...new Set(modalAssignComps.map(c => c.categories?.name || 'General'))].sort();
+        // Populate category filter strictly from active festival competitions
+        const uniqueCats = [...new Set(
+            modalAssignComps
+                .map(c => c.categories?.name || 'General')
+                .filter(Boolean)
+        )].sort();
+
         const catSelect = document.getElementById('filterAssignJudgeCat');
         catSelect.innerHTML = '<option value="">All Categories</option>';
         uniqueCats.forEach(cat => catSelect.innerHTML += `<option value="${cat}">${cat}</option>`);
