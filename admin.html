@@ -5709,7 +5709,7 @@ canvas {
     <style>
         .remote-btn-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            grid-template-columns: repeat(5, 1fr);
             gap: 0.75rem;
             margin-bottom: 1.25rem;
         }
@@ -5724,6 +5724,25 @@ canvas {
             display: grid;
             grid-template-columns: 1.1fr 0.9fr;
             gap: 1.75rem;
+        }
+        .disp-pin-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .disp-pin-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .disp-flash-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .disp-flash-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
         }
         .theme-chip-grid {
             display: grid;
@@ -5764,14 +5783,87 @@ canvas {
             .remote-sub-grid {
                 grid-template-columns: 1fr;
             }
-            .remote-btn-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
             .disp-preview-card {
                 position: relative !important;
                 top: 0 !important;
+                margin-top: 1rem;
                 margin-bottom: 1.5rem;
-                order: -1;
+                order: 2;
+            }
+        }
+        @media (max-width: 640px) {
+            #display-control .card {
+                padding: 1rem !important;
+                border-radius: var(--radius-md) !important;
+            }
+            .remote-btn-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 0.5rem;
+                margin-bottom: 1rem;
+            }
+            .remote-btn-grid button:nth-child(4) {
+                grid-column: span 1;
+            }
+            .remote-btn-grid button:nth-child(5) {
+                grid-column: span 2;
+            }
+            .remote-sub-grid {
+                gap: 0.85rem;
+                padding-top: 0.85rem;
+            }
+            .disp-pin-controls {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+            .disp-pin-controls select {
+                width: 100% !important;
+                min-width: 0 !important;
+            }
+            .disp-pin-actions {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.5rem;
+            }
+            .disp-pin-actions button {
+                width: 100% !important;
+                justify-content: center;
+            }
+            .disp-flash-controls {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+            .disp-flash-controls input {
+                width: 100% !important;
+                min-width: 0 !important;
+            }
+            .disp-flash-actions {
+                display: flex;
+                gap: 0.5rem;
+            }
+            .disp-flash-actions select {
+                flex: 0 0 75px;
+            }
+            .disp-flash-actions button.btn-danger {
+                flex: 1;
+                justify-content: center;
+            }
+            .disp-flash-actions button.btn-outline {
+                flex: 0 0 44px;
+                justify-content: center;
+            }
+            .theme-chip-grid {
+                grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+                gap: 0.4rem;
+            }
+            .theme-chip {
+                padding: 0.4rem 0.5rem;
+                font-size: 0.7rem;
+                justify-content: center;
+            }
+            #display-control .grid-2 {
+                grid-template-columns: 1fr !important;
             }
         }
     </style>
@@ -5818,19 +5910,21 @@ canvas {
                 <div style="font-size: 0.85rem; font-weight: 700; color: #93C5FD; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
                     <i class="fa-solid fa-thumbtack"></i> Pin / Force Specific Slide
                 </div>
-                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <div class="disp-pin-controls">
                     <select id="disp-pin-slide-select" style="flex: 1; min-width: 140px; background: #0F172A; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 0.55rem 0.6rem; font-size: 0.85rem;">
                         <option value="">-- Choose Slide to Lock --</option>
                         <option value="slide-leaderboard">🏆 Overall Team Leaderboard</option>
                         <option value="slide-schedule">📅 Live Upcoming Schedule</option>
                         <option value="slide-results-all">🥇 Declared Results Podiums</option>
                     </select>
-                    <button class="btn btn-primary" style="padding: 0.55rem 0.85rem; font-size: 0.85rem; white-space: nowrap;" onclick="setPinnedDisplaySlide()">
-                        <i class="fa-solid fa-lock"></i> Pin
-                    </button>
-                    <button class="btn btn-outline" style="color: #94A3B8; border-color: rgba(255,255,255,0.2); padding: 0.55rem 0.85rem; font-size: 0.85rem; white-space: nowrap;" onclick="clearPinnedDisplaySlide()" title="Release and resume normal rotation">
-                        <i class="fa-solid fa-unlock"></i> Free
-                    </button>
+                    <div class="disp-pin-actions">
+                        <button class="btn btn-primary" style="padding: 0.55rem 0.85rem; font-size: 0.85rem; white-space: nowrap;" onclick="setPinnedDisplaySlide()">
+                            <i class="fa-solid fa-lock"></i> Pin
+                        </button>
+                        <button class="btn btn-outline" style="color: #94A3B8; border-color: rgba(255,255,255,0.2); padding: 0.55rem 0.85rem; font-size: 0.85rem; white-space: nowrap;" onclick="clearPinnedDisplaySlide()" title="Release and resume normal rotation">
+                            <i class="fa-solid fa-unlock"></i> Free
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -5840,20 +5934,22 @@ canvas {
                     <span><i class="fa-solid fa-triangle-exclamation"></i> Instant Priority Flash Broadcast</span>
                     <span style="font-size: 0.75rem; color: #94A3B8; font-weight: normal;">Takes over screens</span>
                 </div>
-                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <div class="disp-flash-controls">
                     <input type="text" id="disp-flash-message" placeholder="e.g. Calling Chest #A-104 to Stage 2..." style="flex: 1; min-width: 160px; background: #0F172A; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 0.55rem 0.6rem; font-size: 0.85rem;">
-                    <select id="disp-flash-duration" style="width: 80px; background: #0F172A; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 0.55rem 0.4rem; font-size: 0.85rem;">
-                        <option value="10">10s</option>
-                        <option value="20">20s</option>
-                        <option value="30">30s</option>
-                        <option value="0">Fixed</option>
-                    </select>
-                    <button class="btn btn-danger" style="padding: 0.55rem 0.85rem; font-size: 0.85rem; white-space: nowrap; font-weight: 700;" onclick="sendDisplayFlashAlert()">
-                        <i class="fa-solid fa-bullhorn"></i> Alert
-                    </button>
-                    <button class="btn btn-outline" style="color: #94A3B8; border-color: rgba(255,255,255,0.2); padding: 0.55rem 0.75rem; font-size: 0.85rem;" onclick="clearDisplayFlashAlert()" title="Dismiss active alert">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
+                    <div class="disp-flash-actions">
+                        <select id="disp-flash-duration" style="width: 80px; background: #0F172A; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 0.55rem 0.4rem; font-size: 0.85rem;">
+                            <option value="10">10s</option>
+                            <option value="20">20s</option>
+                            <option value="30">30s</option>
+                            <option value="0">Fixed</option>
+                        </select>
+                        <button class="btn btn-danger" style="padding: 0.55rem 0.85rem; font-size: 0.85rem; white-space: nowrap; font-weight: 700;" onclick="sendDisplayFlashAlert()">
+                            <i class="fa-solid fa-bullhorn"></i> Alert
+                        </button>
+                        <button class="btn btn-outline" style="color: #94A3B8; border-color: rgba(255,255,255,0.2); padding: 0.55rem 0.75rem; font-size: 0.85rem;" onclick="clearDisplayFlashAlert()" title="Dismiss active alert">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

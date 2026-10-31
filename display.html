@@ -492,11 +492,13 @@
         let lastPublishedCount = 0;
         let currentPodiumCompId = null;
         
-        let globalActiveEvents = [];
-        let globalPublishedComps = [];
         let globalAllComps = [];
+        let globalPublishedComps = [];
+        let globalActiveEvents = [];
         let latestCompResults = [];
         let allCompPodiums = {};
+        let globalAllJudgements = [];
+        let allCompEnrollments = [];
         let lastScheduleData = {};
         let lastCustomSlidesArray = [];
 
@@ -513,6 +515,76 @@
             if (c.categories && c.categories.name) return c.categories.name;
             const found = (globalAllComps || []).find(x => String(x.id) === String(c.id));
             return found?.categories?.name || '';
+        }
+
+        function computePodiumForComp(comp) {
+            if (!comp) return null;
+            const cId = String(comp.id);
+            const compJudgements = (globalAllJudgements || []).filter(j => String(j.competition_id) === cId && j.awarded_mark !== null && j.participants);
+            if (!compJudgements || compJudgements.length === 0) return null;
+
+            const pMap = {};
+            compJudgements.forEach(j => {
+                if (!j.participants || !j.participants.id) return;
+                const pId = String(j.participants.id);
+                if (!pMap[pId]) pMap[pId] = { participant: j.participants, marks: [] };
+                pMap[pId].marks.push(parseFloat(j.awarded_mark));
+            });
+
+            const isGroup = !!comp.is_group;
+            const limit = comp.max_participants || 1;
+            const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
+            const registeredCount = comp.participant_competitions?.[0]?.count || Object.keys(pMap).length || 0;
+            const eligibleForPosPts = registeredCount >= 3;
+
+            const participantsArr = Object.values(pMap).map(data => {
+                let sortedMarks = data.marks.sort((a, b) => a - b);
+                if (sortedMarks.length >= 3) sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
+                const sum = sortedMarks.reduce((a, b) => a + b, 0);
+                return {
+                    participant: data.participant,
+                    score: sum / sortedMarks.length
+                };
+            }).sort((a, b) => b.score - a.score);
+
+            let currentRank = 1;
+            let currentDensePos = 0;
+            let previousScore = -1;
+            let compPodium = [];
+
+            participantsArr.forEach((entry, idx) => {
+                if (entry.score !== previousScore) {
+                    currentRank = idx + 1;
+                    currentDensePos++;
+                }
+                entry.position = currentRank;
+                entry.densePos = currentDensePos;
+                previousScore = entry.score;
+
+                const inTopThree = (currentDensePos <= 3 || currentRank <= 3);
+                if (inTopThree) {
+                    const teamId = entry.participant.team_id;
+                    const teamObj = (allTeams || []).find(t => String(t.id) === String(teamId));
+                    const teamName = teamObj?.name || 'IND';
+
+                    const teamGroupMembers = isGroup
+                        ? (allCompEnrollments || [])
+                            .filter(pc => String(pc.competition_id) === cId && String(pc.participants?.team_id) === String(teamId))
+                            .map(pc => ({ name: pc.participants?.name, is_leader: !!pc.is_leader }))
+                        : [];
+
+                    compPodium.push({
+                        rank: currentRank,
+                        densePos: currentDensePos,
+                        name: isGroup && teamGroupMembers.length > 0 ? `${teamName} SQUAD` : entry.participant.name,
+                        team: teamName,
+                        is_group: isGroup,
+                        members: teamGroupMembers
+                    });
+                }
+            });
+
+            return { comp: comp, podium: compPodium };
         }
 
         // --- EVENT RADAR RELEVANCE & TIME FILTER HELPERS ---
@@ -807,17 +879,19 @@
                     .not('participant_id', 'is', null).not('awarded_mark', 'is', null);
                 if (window.festosApplyFilter) judgementsQuery = window.festosApplyFilter(judgementsQuery);
                 const { data: judgements } = await judgementsQuery;
+                globalAllJudgements = judgements || [];
 
                 // Core Point Engine
                 const compGroups = {};
                 (judgements || []).forEach(j => {
                     if (!j.participants || !j.participants.id) return; 
-                    const comp = globalPublishedComps.find(c => c.id === j.competition_id);
+                    const comp = (allComps || []).find(c => String(c.id) === String(j.competition_id));
                     if(!comp) return; 
-                    if(!compGroups[j.competition_id]) compGroups[j.competition_id] = { participants: {}, comp_data: comp };
-                    const pId = j.participants.id;
-                    if(!compGroups[j.competition_id].participants[pId]) compGroups[j.competition_id].participants[pId] = { participant: j.participants, marks_array: [] };
-                    compGroups[j.competition_id].participants[pId].marks_array.push(parseFloat(j.awarded_mark));
+                    const cIdStr = String(j.competition_id);
+                    if(!compGroups[cIdStr]) compGroups[cIdStr] = { participants: {}, comp_data: comp };
+                    const pId = String(j.participants.id);
+                    if(!compGroups[cIdStr].participants[pId]) compGroups[cIdStr].participants[pId] = { participant: j.participants, marks_array: [] };
+                    compGroups[cIdStr].participants[pId].marks_array.push(parseFloat(j.awarded_mark));
                 });
 
                 latestCompResults = [];
@@ -875,7 +949,7 @@
                         const eligibleForTeam = allowAllTeam || inTopThree;
 
                         const teamId = entry.participant.team_id;
-                        const teamName = allTeams.find(t => t.id === teamId)?.name || 'IND';
+                        const teamName = allTeams.find(t => String(t.id) === String(teamId))?.name || 'IND';
                         if (teamId && calculatedTeamScores[teamId] && eligibleForTeam) {
                             calculatedTeamScores[teamId].score += (Number(gradePts) + Number(posPts)); 
                         }
@@ -890,6 +964,7 @@
 
                             compPodium.push({ 
                                 rank: currentRank, 
+                                densePos: currentDensePos,
                                 name: isGroup && teamGroupMembers.length > 0 ? `${teamName} SQUAD` : entry.participant.name, 
                                 team: teamName,
                                 is_group: isGroup,
@@ -899,8 +974,9 @@
                     });
 
                     allCompPodiums[compId] = { comp: compData.comp_data, podium: compPodium };
+                    allCompPodiums[String(compId)] = { comp: compData.comp_data, podium: compPodium };
 
-                    if (globalPublishedComps[0] && compId === globalPublishedComps[0].id) {
+                    if (globalPublishedComps[0] && String(compId) === String(globalPublishedComps[0].id)) {
                         latestCompResults = compPodium;
                         currentPodiumCompId = compId;
                     }
@@ -1197,8 +1273,15 @@
             // 3. BUILD ALL DECLARED RESULTS PODIUM SLIDES
             let podiumSlides = [];
             (globalPublishedComps || []).forEach(comp => {
-                const compPodiumData = allCompPodiums[comp.id];
-                const pResults = (compPodiumData && compPodiumData.podium) ? compPodiumData.podium : (comp.id === currentPodiumCompId ? latestCompResults : null);
+                let compPodiumData = allCompPodiums[comp.id] || allCompPodiums[String(comp.id)];
+                if (!compPodiumData) {
+                    compPodiumData = computePodiumForComp(comp);
+                    if (compPodiumData) {
+                        allCompPodiums[comp.id] = compPodiumData;
+                        allCompPodiums[String(comp.id)] = compPodiumData;
+                    }
+                }
+                const pResults = (compPodiumData && compPodiumData.podium) ? compPodiumData.podium : (String(comp.id) === String(currentPodiumCompId) ? latestCompResults : null);
                 if (pResults && pResults.length > 0) {
                     const slideId = `slide-results-${comp.id}`;
                     const podiumHtml = renderPodiumHtml(comp, pResults, slideId);
@@ -1281,33 +1364,41 @@
             else if (pinnedTarget && pinnedTarget.startsWith('slide-results-')) {
                 // SINGLE SPECIFIC RESULT LOCK: IF SELECTED ANY RESULT SO THAT RESULT ONLY
                 const targetCompId = pinnedTarget.replace('slide-results-', '');
-                const targetSlide = podiumSlides.find(s => String(s.compId) === String(targetCompId));
+                let targetSlide = podiumSlides.find(s => String(s.compId) === String(targetCompId));
+                const compObj = (globalAllComps || []).find(x => String(x.id) === String(targetCompId)) || 
+                                (globalPublishedComps || []).find(x => String(x.id) === String(targetCompId));
+                let pData = allCompPodiums[targetCompId] || allCompPodiums[String(targetCompId)];
+                if (!pData && compObj) {
+                    pData = computePodiumForComp(compObj);
+                    if (pData) {
+                        allCompPodiums[targetCompId] = pData;
+                        allCompPodiums[String(targetCompId)] = pData;
+                    }
+                }
+                if (!targetSlide && compObj && pData && pData.podium && pData.podium.length > 0) {
+                    const pHtml = renderPodiumHtml(compObj, pData.podium, pinnedTarget);
+                    targetSlide = { id: pinnedTarget, compId: targetCompId, html: pHtml };
+                    podiumSlides.push(targetSlide);
+                }
+
                 if (targetSlide) {
                     container.insertAdjacentHTML('beforeend', targetSlide.html);
                     activeSlides.push(targetSlide.id);
-                } else {
-                    const compObj = (globalAllComps || []).find(x => String(x.id) === String(targetCompId)) || (globalPublishedComps || []).find(x => String(x.id) === String(targetCompId));
-                    const pData = allCompPodiums[targetCompId];
-                    if (compObj && pData && pData.podium && pData.podium.length > 0) {
-                        const pHtml = renderPodiumHtml(compObj, pData.podium, pinnedTarget);
-                        container.insertAdjacentHTML('beforeend', pHtml);
-                        activeSlides.push(pinnedTarget);
-                    } else if (compObj) {
-                        const catName = getCompCategoryName(compObj);
-                        const catBadge = catName ? ` <span style="font-size:0.55em; vertical-align:middle; background:rgba(255,255,255,0.12); color:#E2E8F0; padding:4px 14px; border-radius:8px; font-weight:700; text-transform:uppercase; border:1px solid rgba(255,255,255,0.2); letter-spacing:0.04em;"><i class="fa-solid fa-layer-group"></i> ${catName}</span>` : '';
-                        const emptyHtml = `
-                            <div class="slide active" id="${pinnedTarget}" data-qr-type="results" data-qr-comp="${compObj.id}">
-                                <h2 class="slide-title theme-font">OFFICIAL RESULTS: <span style="color:var(--gold);">${compObj.name}</span>${catBadge}</h2>
-                                <div style="text-align:center; padding: 5rem 2rem;">
-                                    <i class="fa-solid fa-award" style="font-size: 5rem; color: var(--gold); margin-bottom: 1.5rem; opacity: 0.85;"></i>
-                                    <h3 class="theme-font" style="font-size: 2.8rem; color: #FFFFFF;">RESULTS BEING COMPILED</h3>
-                                    <p style="font-size: 1.5rem; color: var(--text-muted); margin-top: 0.5rem;">OFFICIAL PODIUM BROADCAST WILL BE DECLARED SHORTLY</p>
-                                </div>
+                } else if (compObj) {
+                    const catName = getCompCategoryName(compObj);
+                    const catBadge = catName ? ` <span style="font-size:0.55em; vertical-align:middle; background:rgba(255,255,255,0.12); color:#E2E8F0; padding:4px 14px; border-radius:8px; font-weight:700; text-transform:uppercase; border:1px solid rgba(255,255,255,0.2); letter-spacing:0.04em;"><i class="fa-solid fa-layer-group"></i> ${catName}</span>` : '';
+                    const emptyHtml = `
+                        <div class="slide active" id="${pinnedTarget}" data-qr-type="results" data-qr-comp="${compObj.id}">
+                            <h2 class="slide-title theme-font">OFFICIAL RESULTS: <span style="color:var(--gold);">${compObj.name}</span>${catBadge}</h2>
+                            <div style="text-align:center; padding: 5rem 2rem;">
+                                <i class="fa-solid fa-award" style="font-size: 5rem; color: var(--gold); margin-bottom: 1.5rem; opacity: 0.85;"></i>
+                                <h3 class="theme-font" style="font-size: 2.8rem; color: #FFFFFF;">RESULTS BEING COMPILED</h3>
+                                <p style="font-size: 1.5rem; color: var(--text-muted); margin-top: 0.5rem;">OFFICIAL PODIUM BROADCAST WILL BE DECLARED SHORTLY</p>
                             </div>
-                        `;
-                        container.insertAdjacentHTML('beforeend', emptyHtml);
-                        activeSlides.push(pinnedTarget);
-                    }
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', emptyHtml);
+                    activeSlides.push(pinnedTarget);
                 }
             } 
             else if (pinnedTarget && pinnedTarget.startsWith('slide-custom-')) {
@@ -1542,6 +1633,9 @@
                 
                 const newSettings = data.value;
                 const requiresPlaylistRebuild = JSON.stringify(displaySettings.custom_slides) !== JSON.stringify(newSettings.custom_slides);
+                const currentPin = displaySettings.pinned_slide || null;
+                const newPin = newSettings.pinned_slide || null;
+                const pinChanged = currentPin !== newPin;
 
                 displaySettings = newSettings;
                 
@@ -1567,11 +1661,17 @@
                 }
 
                 // 4. Pinned Slide State
-                if (displaySettings.pinned_slide) {
-                    if (isCategoryPinMode(displaySettings.pinned_slide)) {
-                        updatePinnedCategoryBadge(displaySettings.pinned_slide);
+                if (pinChanged) {
+                    if (newPin) {
+                        handlePinAction(newPin);
                     } else {
-                        activatePinnedSlide(displaySettings.pinned_slide);
+                        unpinSlide();
+                    }
+                } else if (newPin) {
+                    if (isCategoryPinMode(newPin)) {
+                        updatePinnedCategoryBadge(newPin);
+                    } else {
+                        activatePinnedSlide(newPin);
                     }
                 } else {
                     const pinnedBadge = document.getElementById('pinned-badge');
@@ -1752,10 +1852,21 @@
                 el = document.getElementById(slideId) || document.querySelector(`[data-qr-comp="${compId}"]`);
                 if (el) return el;
 
+                const comp = (globalAllComps || []).find(x => String(x.id) === String(compId)) ||
+                             (globalPublishedComps || []).find(x => String(x.id) === String(compId));
+                let pData = allCompPodiums[compId] || allCompPodiums[String(compId)];
+                if (!pData && comp) {
+                    pData = computePodiumForComp(comp);
+                    if (pData) {
+                        allCompPodiums[compId] = pData;
+                        allCompPodiums[String(compId)] = pData;
+                    }
+                }
+
                 // If not in DOM yet, build dynamically if we have podium data
-                if (allCompPodiums[compId] && allCompPodiums[compId].podium && allCompPodiums[compId].podium.length > 0) {
-                    const comp = allCompPodiums[compId].comp;
-                    const html = renderPodiumHtml(comp, allCompPodiums[compId].podium, slideId);
+                if (pData && pData.podium && pData.podium.length > 0) {
+                    const compToUse = comp || pData.comp;
+                    const html = renderPodiumHtml(compToUse, pData.podium, slideId);
                     const container = document.getElementById('slide-container');
                     if (container) {
                         container.insertAdjacentHTML('beforeend', html);
@@ -1765,7 +1876,6 @@
                 }
 
                 // If comp exists in allComps but no marks recorded yet
-                const comp = (globalAllComps || []).find(x => String(x.id) === String(compId));
                 if (comp) {
                     const container = document.getElementById('slide-container');
                     if (container) {
@@ -1814,12 +1924,47 @@
             if (span) span.innerText = `PINNED: ${label}`;
         }
 
-        function handlePinAction(targetSlide) {
+        async function handlePinAction(targetSlide) {
             displaySettings.pinned_slide = targetSlide;
             clearTimeout(slideTimer);
             currentSlide = 0;
+
+            if (targetSlide && targetSlide.startsWith('slide-results-')) {
+                const targetCompId = targetSlide.replace('slide-results-', '');
+                let pData = allCompPodiums[targetCompId] || allCompPodiums[String(targetCompId)];
+                const compObj = (globalAllComps || []).find(x => String(x.id) === String(targetCompId)) ||
+                                (globalPublishedComps || []).find(x => String(x.id) === String(targetCompId));
+                if (!pData && compObj) {
+                    pData = computePodiumForComp(compObj);
+                }
+                if (!pData) {
+                    try {
+                        let q = supabaseClient.from('judgements')
+                            .select('competition_id, awarded_mark, participant_id, participants(id, name, team_id, unique_id)')
+                            .eq('competition_id', targetCompId)
+                            .not('participant_id', 'is', null).not('awarded_mark', 'is', null);
+                        if (window.festosApplyFilter) q = window.festosApplyFilter(q);
+                        const { data: freshJ } = await q;
+                        if (freshJ && freshJ.length > 0) {
+                            (freshJ || []).forEach(fj => {
+                                if (!globalAllJudgements.some(gj => String(gj.competition_id) === String(fj.competition_id) && String(gj.participant_id) === String(fj.participant_id))) {
+                                    globalAllJudgements.push(fj);
+                                }
+                            });
+                            if (compObj) pData = computePodiumForComp(compObj);
+                        }
+                    } catch (err) {
+                        console.error("Error fetching on-demand judgements for pinned comp:", err);
+                    }
+                }
+                if (pData) {
+                    allCompPodiums[targetCompId] = pData;
+                    allCompPodiums[String(targetCompId)] = pData;
+                }
+            }
+
             if (Object.keys(lastScheduleData).length === 0 && activeSlides.length === 0) {
-                fetchDisplayData();
+                await fetchDisplayData();
             } else {
                 buildPlaylist(lastScheduleData, lastCustomSlidesArray);
             }
@@ -1842,26 +1987,24 @@
             clearTimeout(slideTimer);
             document.getElementById('progress')?.classList.remove('animating');
 
-            if (!targetEl.classList.contains('active')) {
-                document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
-                targetEl.classList.add('active');
+            document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+            targetEl.classList.add('active');
 
-                // Dynamic QR Sync
-                const customQrUrl = targetEl.getAttribute('data-qr-url');
-                const customQrText = targetEl.getAttribute('data-qr-text');
-                if (customQrUrl) {
-                    updateDynamicQR(targetEl.id, customQrUrl, customQrText);
-                } else {
-                    updateDynamicQR(targetEl.id);
-                }
+            // Dynamic QR Sync
+            const customQrUrl = targetEl.getAttribute('data-qr-url');
+            const customQrText = targetEl.getAttribute('data-qr-text');
+            if (customQrUrl) {
+                updateDynamicQR(targetEl.id, customQrUrl, customQrText);
+            } else {
+                updateDynamicQR(targetEl.id);
+            }
 
-                // Render Ticker Data
-                const customTicker = targetEl.getAttribute('data-ticker');
-                const track = document.getElementById('live-ticker-track');
-                if (customTicker && customTicker.trim() !== '' && track) {
-                    const html = `<div class="ticker-item"><span class="t-badge" style="background:var(--primary); color:white;">ANNOUNCEMENT</span> ${customTicker}</div>`;
-                    track.innerHTML = html + html + html + html; 
-                }
+            // Render Ticker Data
+            const customTicker = targetEl.getAttribute('data-ticker');
+            const track = document.getElementById('live-ticker-track');
+            if (customTicker && customTicker.trim() !== '' && track) {
+                const html = `<div class="ticker-item"><span class="t-badge" style="background:var(--primary); color:white;">ANNOUNCEMENT</span> ${customTicker}</div>`;
+                track.innerHTML = html + html + html + html; 
             }
 
             // Ensure Pinned Badge UI is displayed with informative human-readable label
