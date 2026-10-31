@@ -8057,12 +8057,25 @@ async function openGrantConflictPermitModal() {
         if (typeof festQuery === 'function') {
             pQuery = festQuery(pQuery);
             cQuery = festQuery(cQuery);
-            regQuery = festQuery(regQuery);
         }
 
-        const [pRes, cRes, regRes] = await Promise.all([pQuery, cQuery, regQuery]);
-        globalPermitParticipants = pRes.data || [];
-        globalPermitCompetitions = cRes.data || [];
+        const [pRes, cRes, regRes] = await Promise.all([
+            pQuery.catch(e => ({ data: [], error: e })),
+            cQuery.catch(e => ({ data: [], error: e })),
+            regQuery.catch(e => ({ data: [], error: e }))
+        ]);
+
+        if (pRes.error) console.warn("Participants query warning:", pRes.error);
+        if (cRes.error) console.warn("Competitions query warning:", cRes.error);
+
+        globalPermitParticipants = (pRes.data && pRes.data.length > 0) 
+            ? pRes.data 
+            : (Array.isArray(window.participantsList) ? window.participantsList : []);
+
+        globalPermitCompetitions = (cRes.data && cRes.data.length > 0) 
+            ? cRes.data 
+            : (Array.isArray(window.competitionsList) ? window.competitionsList : []);
+
         globalPermitRegistrations = regRes.data || [];
 
         // Populate Participants
@@ -8162,7 +8175,8 @@ async function submitGrantConflictPermit() {
         closeGrantConflictPermitModal();
         await loadConflictPermits();
     } catch (e) {
-        showToast("Error issuing permit: " + e.message, "error");
+        console.error("Error issuing permit:", e);
+        showToast("Error issuing permit: " + (e ? (e.message || e.toString()) : "Unknown error"), "error");
     } finally {
         if (btn) {
             btn.disabled = false;

@@ -715,33 +715,41 @@ const festosBranding = {
                     if (branding.fest_logo === 'festos-logo.svg' || branding.fest_logo === '/festos-logo.svg') {
                         branding.fest_logo = '';
                     }
-                    localStorage.setItem(this.getCacheKey(festId), JSON.stringify(branding));
+                    try { localStorage.setItem(this.getCacheKey(festId), JSON.stringify(branding)); } catch(e) {}
                     this.apply(branding);
                 }
             };
 
             await fetchAndApplyFestBranding();
 
-            // Realtime subscriptions scoped ONLY to this festival's settings and fests record
-            festosSupabase
-                .channel(`festos_branding_realtime_${festId}`)
-                .on('postgres_changes', {
-                    event: '*',
-                    schema: 'public',
-                    table: 'settings',
-                    filter: `id=eq.${festKey}`
-                }, () => {
-                    fetchAndApplyFestBranding();
-                })
-                .on('postgres_changes', {
-                    event: '*',
-                    schema: 'public',
-                    table: 'fests',
-                    filter: `id=eq.${festId}`
-                }, () => {
-                    fetchAndApplyFestBranding();
-                })
-                .subscribe();
+            // Realtime subscriptions scoped ONLY to this festival's settings and fests record (prevent duplicate subscribe errors)
+            const channelName = `festos_branding_realtime_${festId}`;
+            const existingChannels = (typeof festosSupabase.getChannels === 'function') 
+                ? festosSupabase.getChannels() 
+                : [];
+            const isAlreadySubscribed = existingChannels.some(c => c.topic === `realtime:${channelName}`);
+
+            if (!isAlreadySubscribed) {
+                festosSupabase
+                    .channel(channelName)
+                    .on('postgres_changes', {
+                        event: '*',
+                        schema: 'public',
+                        table: 'settings',
+                        filter: `id=eq.${festKey}`
+                    }, () => {
+                        fetchAndApplyFestBranding();
+                    })
+                    .on('postgres_changes', {
+                        event: '*',
+                        schema: 'public',
+                        table: 'fests',
+                        filter: `id=eq.${festId}`
+                    }, () => {
+                        fetchAndApplyFestBranding();
+                    })
+                    .subscribe();
+            }
 
         } catch (err) {
             console.warn('[FestOS Branding] Festival branding fetch error:', err);
@@ -2361,8 +2369,8 @@ async function festosGetSetting(key, targetFestId = null, options = {}) {
             return data.value;
         }
 
-        // Do NOT fallback to Zenith Fest for festival-specific scheduling, website customizer, branding, point system, or newspaper config
-        const isolatedKeys = ['master_schedule', 'website_config', 'display_settings', 'system_branding', 'point_system', 'newspaper_config'];
+        // Do NOT fallback to Zenith Fest for festival-specific scheduling, website customizer, branding, point system, permits, or newspaper config
+        const isolatedKeys = ['master_schedule', 'website_config', 'display_settings', 'system_branding', 'point_system', 'newspaper_config', 'cross_competition_permits'];
         if (isolatedKeys.includes(key)) {
             return null; // Return clean empty state for new festivals
         }
@@ -3584,7 +3592,11 @@ async function festosIssueConflictPermit({ participant, fromComp, toComp, notes 
     };
 
     filtered.unshift(newPermit);
-    await festosSaveConflictPermits(filtered);
+    const saveRes = await festosSaveConflictPermits(filtered);
+    if (saveRes && saveRes.error) {
+        console.error('[festosIssueConflictPermit] Error saving permit:', saveRes.error);
+        throw new Error(saveRes.error.message || 'Database error saving permit');
+    }
     return newPermit;
 }
 
