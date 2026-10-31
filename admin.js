@@ -867,7 +867,11 @@ async function loadAdminDashboard() {
         (teams || []).forEach(t => teamScores[t.id] = { name: t.name, score: 0 });
         (participants || []).forEach(p => partScores[p.id] = { name: p.name, score: 0, star: 0, pen: 0 });
 
-        allComps.forEach(comp => {
+        // CRITICAL: Base dashboard team standings and top candidates on published results when available,
+        // matching the Public Results, Live Display, and official festival standings
+        const targetComps = (publishedComps && publishedComps.length > 0) ? publishedComps : allComps;
+
+        targetComps.forEach(comp => {
             if(!compAverages[comp.id]) return;
             const participantsArr = Object.entries(compAverages[comp.id]).map(([pId, data]) => {
                 let sortedMarks = data.marks_array.sort((a, b) => a - b);
@@ -880,6 +884,11 @@ async function loadAdminDashboard() {
             const limit = comp.max_participants || 1;
             const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
             
+            const cfg = pointsAdminSettings || {};
+            const th = cfg.thresholds || { aplus: 90, a: 70, b: 60, c: 50 };
+            const ptsTable = cfg[`points_${sizeCat}`] || { aplus: 8, a: 7, b: 5, c: 3 };
+            const posTable = cfg.pos_points || { p1: 3, p2: 2, p3: 1 };
+
             let currentRank = 1;
             let currentDensePos = 0;
             let previousScore = -1;
@@ -896,23 +905,23 @@ async function loadAdminDashboard() {
                 let gradePts = 0; let posPts = 0;
 
                 if (percent >= 50) {
-                    if (percent >= pointsAdminSettings.thresholds.aplus) gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].aplus) || 0;
-                    else if (percent >= pointsAdminSettings.thresholds.a) gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].a) || 0;
-                    else if (percent >= pointsAdminSettings.thresholds.b) gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].b) || 0;
-                    else gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].c) || 0;
+                    if (percent >= th.aplus) gradePts = Number(ptsTable.aplus) || 0;
+                    else if (percent >= th.a) gradePts = Number(ptsTable.a) || 0;
+                    else if (percent >= th.b) gradePts = Number(ptsTable.b) || 0;
+                    else gradePts = Number(ptsTable.c) || 0;
                 }
                 
                 // Position points supporting ties and multiple participants in top 3 positions
                 const inTopThree = (currentDensePos <= 3 || currentRank <= 3);
                 const effectivePos = currentDensePos <= 3 ? currentDensePos : (currentRank <= 3 ? currentRank : 0);
-                if (effectivePos === 1) posPts = Number(pointsAdminSettings.pos_points.p1) || 0;
-                else if (effectivePos === 2) posPts = Number(pointsAdminSettings.pos_points.p2) || 0;
-                else if (effectivePos === 3) posPts = Number(pointsAdminSettings.pos_points.p3) || 0;
+                if (effectivePos === 1) posPts = Number(posTable.p1) || 0;
+                else if (effectivePos === 2) posPts = Number(posTable.p2) || 0;
+                else if (effectivePos === 3) posPts = Number(posTable.p3) || 0;
                 
                 const totalPts = gradePts + posPts;
                 const tId = pMap[p.id] ? pMap[p.id].team_id : null;
                 
-                const allowAllTeamPoints = !!pointsAdminSettings.team_points_all_participants;
+                const allowAllTeamPoints = !!cfg.team_points_all_participants;
                 const eligibleForTeam = allowAllTeamPoints || inTopThree;
 
                 // Teams get points if eligible (all participants or top 3 positions only)
@@ -2191,7 +2200,8 @@ async function refreshAdminData(btn) {
             typeof loadCategories === 'function' ? loadCategories() : Promise.resolve(),
             typeof loadSchedules === 'function' ? loadSchedules() : Promise.resolve()
         ];
-        if (typeof loadDashboardMetrics === 'function') promises.push(loadDashboardMetrics());
+        if (typeof loadAdminDashboard === 'function') promises.push(loadAdminDashboard());
+        if (typeof loadParticipantPoints === 'function') promises.push(loadParticipantPoints());
         await Promise.all(promises);
 
         if (window.compCurrentViewMode === 'sheet' && typeof initCompetitionsSheet === 'function') {
@@ -8314,7 +8324,20 @@ let pointsAdminSettings = {
 
 async function loadPointSettings() {
     try {
-        const val = window.festosGetSetting ? await window.festosGetSetting('point_system') : null;
+        let val = null;
+        if (window.festosGetSetting) {
+            val = await window.festosGetSetting('point_system', null, { fresh: true });
+        }
+        if (!val && typeof supabaseClient !== 'undefined' && supabaseClient) {
+            const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : (window.FESTIVAL_ID || (typeof getActiveFestId === 'function' ? getActiveFestId() : ''));
+            const key = festId ? `point_system_${festId}` : 'point_system';
+            const { data: dbData } = await supabaseClient.from('settings').select('value').eq('id', key).maybeSingle();
+            if (dbData && dbData.value) val = dbData.value;
+            if (!val && key !== 'point_system') {
+                const { data: dbData2 } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
+                if (dbData2 && dbData2.value) val = dbData2.value;
+            }
+        }
         let data = val ? { value: val } : null;
 
         const defaults = {
@@ -8420,7 +8443,11 @@ async function loadPointSettings() {
         } catch(limErr) {
             console.warn("Could not load limit rules in point settings:", limErr);
         }
-    } catch (e) { console.warn("Using default point settings:", e); }
+        return pointsAdminSettings;
+    } catch (e) {
+        console.warn("Using default point settings:", e);
+        return pointsAdminSettings;
+    }
 }
 
 async function savePointSettings() {
@@ -8471,11 +8498,11 @@ async function savePointSettings() {
         if (error) throw error;
         pointsAdminSettings = payload;
         showToast("Settings Saved Successfully!");
+        if (typeof loadAdminDashboard === 'function') {
+            loadAdminDashboard().catch(() => {});
+        }
         if (typeof loadParticipantPoints === 'function') {
             loadParticipantPoints().catch(() => {});
-        }
-        if (typeof loadDashboardStats === 'function') {
-            loadDashboardStats().catch(() => {});
         }
     } catch (e) { showToast(e.message, 'error'); }
 }
