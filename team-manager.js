@@ -730,10 +730,14 @@ async function updateDashboardStats(prefetchedJudgements = null) {
                 const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
                 
                 let currentRank = 1;
+                let currentDensePos = 0;
                 let previousScore = -1;
 
                 participantsArr.forEach((p, index) => {
-                    if (p.mark !== previousScore) currentRank = index + 1;
+                    if (p.mark !== previousScore) {
+                        currentRank = index + 1;
+                        currentDensePos++;
+                    }
                     previousScore = p.mark;
 
                     let percent = (p.mark / (comp.max_mark || 100)) * 100;
@@ -745,14 +749,20 @@ async function updateDashboardStats(prefetchedJudgements = null) {
                         else if (percent >= systemSettings.thresholds.b) gradePts = Number(systemSettings[`points_${sizeCat}`]?.b) || 0;
                         else gradePts = Number(systemSettings[`points_${sizeCat}`]?.c) || 0;
                     }
-                    if (currentRank <= 3 && systemSettings.pos_points) {
-                        if (currentRank === 1) posPts = Number(systemSettings.pos_points.p1) || 0;
-                        else if (currentRank === 2) posPts = Number(systemSettings.pos_points.p2) || 0;
-                        else if (currentRank === 3) posPts = Number(systemSettings.pos_points.p3) || 0;
+                    
+                    const inTopThree = (currentDensePos <= 3 || currentRank <= 3);
+                    const effectivePos = currentDensePos <= 3 ? currentDensePos : (currentRank <= 3 ? currentRank : 0);
+                    if (inTopThree && systemSettings.pos_points) {
+                        if (effectivePos === 1) posPts = Number(systemSettings.pos_points.p1) || 0;
+                        else if (effectivePos === 2) posPts = Number(systemSettings.pos_points.p2) || 0;
+                        else if (effectivePos === 3) posPts = Number(systemSettings.pos_points.p3) || 0;
                     }
                     
+                    const allowAllTeam = !!systemSettings.team_points_all_participants;
+                    const eligibleForTeam = allowAllTeam || inTopThree;
+
                     // If the participant belongs to MY team, add the points to the TM dashboard
-                    if (myStudentIds.includes(p.id)) {
+                    if (myStudentIds.includes(p.id) && eligibleForTeam) {
                         totalPoints += (gradePts + posPts);
                     }
                 });
@@ -3984,6 +3994,7 @@ function computeTeamResults() {
 
         // Assign Olympic ranks with tie handling
         let currentRank = 1;
+        let currentDensePos = 0;
         let prevMark = -1;
         const maxMark = comp.max_mark || 100;
         const limit = comp.max_participants || 1;
@@ -3994,8 +4005,10 @@ function computeTeamResults() {
         participantsArr.forEach((entry, idx) => {
             if (entry.avgMark !== prevMark) {
                 currentRank = idx + 1;
+                currentDensePos++;
             }
             entry.rank = currentRank;
+            entry.densePos = currentDensePos;
             prevMark = entry.avgMark;
 
             const percent = (entry.avgMark / maxMark) * 100;
@@ -4008,18 +4021,20 @@ function computeTeamResults() {
                 else { grade = 'C'; gradePts = Number(gradePointsTable.c || 0); }
             }
 
+            const inTopThree = (currentDensePos <= 3 || currentRank <= 3);
+            const effectivePos = currentDensePos <= 3 ? currentDensePos : (currentRank <= 3 ? currentRank : 0);
+
             let posPts = 0;
-            if (currentRank <= 3) {
-                if (currentRank === 1) posPts = Number(posPoints.p1 || 0);
-                else if (currentRank === 2) posPts = Number(posPoints.p2 || 0);
-                else if (currentRank === 3) posPts = Number(posPoints.p3 || 0);
-            }
+            if (effectivePos === 1) posPts = Number(posPoints.p1 || 0);
+            else if (effectivePos === 2) posPts = Number(posPoints.p2 || 0);
+            else if (effectivePos === 3) posPts = Number(posPoints.p3 || 0);
 
             entry.percent = percent;
             entry.grade = grade;
             entry.gradePts = gradePts;
             entry.posPts = posPts;
             entry.totalPts = gradePts + posPts;
+            entry.inTopThree = inTopThree;
 
             rankedEntriesMap[entry.participantId] = entry;
         });
@@ -4053,19 +4068,24 @@ function computeTeamResults() {
             }
         }
 
+        const allowAllTeam = !!systemSettings.team_points_all_participants;
+        const teamEntryPointsEligible = teamEntryResult ? (allowAllTeam || teamEntryResult.inTopThree) : false;
+
         // Add to competition results list
         compResultsList.push({
             competition: comp,
             isGroup,
             participants: teamParticipantsInEvent,
             result: teamEntryResult,
-            points: teamEntryResult ? teamEntryResult.totalPts : 0
+            points: teamEntryResult && teamEntryPointsEligible ? teamEntryResult.totalPts : 0
         });
 
         // Attach results to individual student scorecards
         if (isGroup) {
             if (teamEntryResult) {
-                summaryTotalPoints += teamEntryResult.totalPts;
+                if (teamEntryPointsEligible) {
+                    summaryTotalPoints += teamEntryResult.totalPts;
+                }
                 if (teamEntryResult.rank === 1) summaryGold++;
                 else if (teamEntryResult.rank === 2) summarySilver++;
                 else if (teamEntryResult.rank === 3) summaryBronze++;
@@ -4126,7 +4146,10 @@ function computeTeamResults() {
                 const studentRes = rankedEntriesMap[String(tp.student.id)];
                 if (sData) {
                     if (studentRes) {
-                        summaryTotalPoints += studentRes.totalPts;
+                        const studentPointsEligible = allowAllTeam || studentRes.inTopThree;
+                        if (studentPointsEligible) {
+                            summaryTotalPoints += studentRes.totalPts;
+                        }
                         if (studentRes.rank === 1) summaryGold++;
                         else if (studentRes.rank === 2) summarySilver++;
                         else if (studentRes.rank === 3) summaryBronze++;

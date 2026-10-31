@@ -1746,7 +1746,8 @@
             points_large: { aplus: 15, a: 12, b: 10, c: 7 },
             pos_points: { p1: 3, p2: 2, p3: 1 },
             poster_interval: 10,
-            tm_access: true
+            tm_access: true,
+            team_points_all_participants: false
         };
 
         // Active Festival Runtime State
@@ -2919,13 +2920,16 @@
                 }).sort((a, b) => b.score - a.score);
 
                 let currentRank = 1;
+                let currentDensePos = 0;
                 let previousScore = -1;
 
                 participantsArr.forEach((entry, idx) => {
                     if (entry.score !== previousScore) {
                         currentRank = idx + 1; 
+                        currentDensePos++;
                     }
                     entry.position = currentRank;
+                    entry.densePos = currentDensePos;
                     previousScore = entry.score;
 
                     let percent = (entry.score / (compData.comp_data?.max_mark || 100)) * 100;
@@ -2939,24 +2943,27 @@
                         else { gradePts = Number(SYSTEM_SETTINGS[`points_${sizeCat}`]?.c || 0); gradeStr = 'C'; }
                     }
                     
-                    if (currentRank <= 3) {
-                        if (currentRank === 1) posPts = Number(SYSTEM_SETTINGS.pos_points.p1) || 0;
-                        else if (currentRank === 2) posPts = Number(SYSTEM_SETTINGS.pos_points.p2) || 0;
-                        else if (currentRank === 3) posPts = Number(SYSTEM_SETTINGS.pos_points.p3) || 0;
-                    }
+                    const inTopThree = (currentDensePos <= 3 || currentRank <= 3);
+                    const effectivePos = currentDensePos <= 3 ? currentDensePos : (currentRank <= 3 ? currentRank : 0);
+                    if (effectivePos === 1) posPts = Number(SYSTEM_SETTINGS.pos_points.p1) || 0;
+                    else if (effectivePos === 2) posPts = Number(SYSTEM_SETTINGS.pos_points.p2) || 0;
+                    else if (effectivePos === 3) posPts = Number(SYSTEM_SETTINGS.pos_points.p3) || 0;
                     
                     entry.grade = gradeStr;
                     entry.gradePoints = gradePts;
                     entry.posPoints = posPts;
                     entry.points = gradePts + posPts;
 
-                    const teamId = entry.participant.team_id;
-                    if (teamId && calculatedTeamScores[teamId]) { 
+                    const allowAllTeam = !!SYSTEM_SETTINGS.team_points_all_participants;
+                    const eligibleForTeam = allowAllTeam || inTopThree;
+
+                    const teamId = entry.participant?.team_id;
+                    if (teamId && calculatedTeamScores[teamId] && eligibleForTeam) { 
                         calculatedTeamScores[teamId].score += (gradePts + posPts); 
                     }
                 });
 
-                competitionResults[compId] = participantsArr.filter(p => p.position <= 3);
+                competitionResults[compId] = participantsArr.filter(p => (p.position <= 3 || (p.densePos && p.densePos <= 3)));
             }
         }
 

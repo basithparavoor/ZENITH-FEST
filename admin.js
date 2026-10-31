@@ -881,10 +881,14 @@ async function loadAdminDashboard() {
             const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
             
             let currentRank = 1;
+            let currentDensePos = 0;
             let previousScore = -1;
 
             participantsArr.forEach((p, index) => {
-                if (p.mark !== previousScore) currentRank = index + 1;
+                if (p.mark !== previousScore) {
+                    currentRank = index + 1;
+                    currentDensePos++;
+                }
                 previousScore = p.mark;
 
                 // CRITICAL FIX: Calculate percent based on the competition's specific max_mark
@@ -898,17 +902,21 @@ async function loadAdminDashboard() {
                     else gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].c) || 0;
                 }
                 
-                if (currentRank <= 3) {
-                    if (currentRank === 1) posPts = Number(pointsAdminSettings.pos_points.p1) || 0;
-                    else if (currentRank === 2) posPts = Number(pointsAdminSettings.pos_points.p2) || 0;
-                    else if (currentRank === 3) posPts = Number(pointsAdminSettings.pos_points.p3) || 0;
-                }
+                // Position points supporting ties and multiple participants in top 3 positions
+                const inTopThree = (currentDensePos <= 3 || currentRank <= 3);
+                const effectivePos = currentDensePos <= 3 ? currentDensePos : (currentRank <= 3 ? currentRank : 0);
+                if (effectivePos === 1) posPts = Number(pointsAdminSettings.pos_points.p1) || 0;
+                else if (effectivePos === 2) posPts = Number(pointsAdminSettings.pos_points.p2) || 0;
+                else if (effectivePos === 3) posPts = Number(pointsAdminSettings.pos_points.p3) || 0;
                 
                 const totalPts = gradePts + posPts;
                 const tId = pMap[p.id] ? pMap[p.id].team_id : null;
                 
-                // Teams ALWAYS get points for both individual and group events
-                if (tId && teamScores[tId]) teamScores[tId].score += totalPts;
+                const allowAllTeamPoints = !!pointsAdminSettings.team_points_all_participants;
+                const eligibleForTeam = allowAllTeamPoints || inTopThree;
+
+                // Teams get points if eligible (all participants or top 3 positions only)
+                if (tId && teamScores[tId] && eligibleForTeam) teamScores[tId].score += totalPts;
                 
                 // CRITICAL FIX: Ignore group events when calculating individual scores
                 if (!comp.is_group) {
@@ -8300,7 +8308,8 @@ let pointsAdminSettings = {
     announcer_offset: 30, // NEW DEFAULT
     registration_offset: 15,
     strict_start_time: true,
-    tm_access: true
+    tm_access: true,
+    team_points_all_participants: false
 };
 
 async function loadPointSettings() {
@@ -8319,7 +8328,8 @@ async function loadPointSettings() {
             registration_offset: 15,
             strict_start_time: true,
             lock_date: '',
-            tm_access: true
+            tm_access: true,
+            team_points_all_participants: false
         };
 
         const v = (data && data.value) ? { ...defaults, ...data.value } : defaults;
@@ -8336,6 +8346,18 @@ async function loadPointSettings() {
         if(document.getElementById('pos-2')) document.getElementById('pos-2').value = v.pos_points?.p2 ?? defaults.pos_points.p2;
         if(document.getElementById('pos-3')) document.getElementById('pos-3').value = v.pos_points?.p3 ?? defaults.pos_points.p3;
         if(document.getElementById('setting-poster-interval')) document.getElementById('setting-poster-interval').value = v.poster_interval ?? defaults.poster_interval;
+
+        // Team Points Calculation Mode (All vs Top 3 positions only)
+        if(document.getElementById('setting-team-points-all')) {
+            const checkbox = document.getElementById('setting-team-points-all');
+            checkbox.checked = v.team_points_all_participants === true;
+            if (checkbox.nextElementSibling) {
+                checkbox.nextElementSibling.style.backgroundColor = checkbox.checked ? 'var(--success)' : '#D1D5DB';
+            }
+            if (checkbox.nextElementSibling && checkbox.nextElementSibling.nextElementSibling) {
+                checkbox.nextElementSibling.nextElementSibling.style.transform = checkbox.checked ? 'translateX(20px)' : 'translateX(0)';
+            }
+        }
         
         // Announcer Offset
         if(document.getElementById('setting-announcer-offset')) document.getElementById('setting-announcer-offset').value = v.announcer_offset !== undefined ? v.announcer_offset : defaults.announcer_offset;
@@ -8440,6 +8462,7 @@ async function savePointSettings() {
         strict_start_time: document.getElementById('setting-strict-start-time') ? document.getElementById('setting-strict-start-time').checked : true,
         lock_date: document.getElementById('setting-lock-date') ? document.getElementById('setting-lock-date').value : null,
         tm_access: document.getElementById('setting-tm-access') ? document.getElementById('setting-tm-access').checked : true,
+        team_points_all_participants: document.getElementById('setting-team-points-all') ? document.getElementById('setting-team-points-all').checked : false,
         class_system: window.currentClassSystem
     };
 
@@ -8448,6 +8471,12 @@ async function savePointSettings() {
         if (error) throw error;
         pointsAdminSettings = payload;
         showToast("Settings Saved Successfully!");
+        if (typeof loadParticipantPoints === 'function') {
+            loadParticipantPoints().catch(() => {});
+        }
+        if (typeof loadDashboardStats === 'function') {
+            loadDashboardStats().catch(() => {});
+        }
     } catch (e) { showToast(e.message, 'error'); }
 }
 
@@ -8521,10 +8550,14 @@ async function loadParticipantPoints() {
             // PARTICIPANT LIMIT RESTRICTION REMOVED HERE
             
             let currentRank = 1;
+            let currentDensePos = 0;
             let previousScore = -1;
 
             participantsArr.forEach((p, index) => {
-                if (p.mark !== previousScore) currentRank = index + 1;
+                if (p.mark !== previousScore) {
+                    currentRank = index + 1;
+                    currentDensePos++;
+                }
                 previousScore = p.mark;
 
                 let percent = (p.mark / (comp.max_mark || 100)) * 100;
@@ -8538,21 +8571,24 @@ async function loadParticipantPoints() {
                     else { grade = 'C'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].c) || 0; }
                 }
                 
-                // 2. Assign Position Points ALWAYS for Top 3 (Removed the >= 3 limit)
-                if (currentRank <= 3) {
-                    if (currentRank === 1) posPts = Number(pointsAdminSettings.pos_points.p1) || 0;
-                    else if (currentRank === 2) posPts = Number(pointsAdminSettings.pos_points.p2) || 0;
-                    else if (currentRank === 3) posPts = Number(pointsAdminSettings.pos_points.p3) || 0;
-                }
+                // 2. Assign Position Points for Top 3 Positions (handling ties / multiple participants in positions)
+                const inTopThree = (currentDensePos <= 3 || currentRank <= 3);
+                const effectivePos = currentDensePos <= 3 ? currentDensePos : (currentRank <= 3 ? currentRank : 0);
+                if (effectivePos === 1) posPts = Number(pointsAdminSettings.pos_points.p1) || 0;
+                else if (effectivePos === 2) posPts = Number(pointsAdminSettings.pos_points.p2) || 0;
+                else if (effectivePos === 3) posPts = Number(pointsAdminSettings.pos_points.p3) || 0;
                 
                 const totalPts = gradePts + posPts;
                 const pData = pMap[p.id];
                 const tId = pData ? pData.team_id : null;
+
+                const allowAllTeamPoints = !!pointsAdminSettings.team_points_all_participants;
+                const eligibleForTeam = allowAllTeamPoints || inTopThree;
                 
                 // === THE NEW ROUTING LOGIC WITH AWARD TRACKING ===
                 if (comp.is_group) {
-                    // Group Events: Add ONLY to Team Ledger
-                    if (tId && teamResults[tId]) {
+                    // Group Events: Add to Team Ledger if eligible (all participants or top 3 positions)
+                    if (tId && teamResults[tId] && eligibleForTeam) {
                         teamResults[tId].breakdown.push({
                             compName: comp.name,
                             compCat: comp.categories?.name || 'General',
@@ -8579,8 +8615,8 @@ async function loadParticipantPoints() {
                         awardType: comp.award_type // Track award type here
                     });
 
-                    // Individual Events: ALSO add to Team Ledger
-                    if (tId && teamResults[tId]) {
+                    // Individual Events: ALSO add to Team Ledger if eligible (all participants or top 3 positions)
+                    if (tId && teamResults[tId] && eligibleForTeam) {
                         teamResults[tId].breakdown.push({
                             compName: comp.name,
                             compCat: comp.categories?.name || 'General',
@@ -9753,13 +9789,18 @@ async function bulkDownloadCertificates(compId) {
         await loadPointSettings(); 
         
         let currentRank = 1;
+        let currentDensePos = 0;
         let previousScore = -1;
 
         allResults.forEach((r, idx) => {
             // Increment rank only if the score differs from the previous
-            if (r.avgMark !== previousScore) currentRank = idx + 1;
+            if (r.avgMark !== previousScore) {
+                currentRank = idx + 1;
+                currentDensePos++;
+            }
             previousScore = r.avgMark;
             r.numericRank = currentRank;
+            r.densePos = currentDensePos;
 
             let percent = (r.avgMark / (comp.max_mark || 100)) * 100;
             let gradeStr = 'N/A';
@@ -9771,12 +9812,13 @@ async function bulkDownloadCertificates(compId) {
             }
             r.grade = gradeStr;
             
-            // Assign textual position based on the calculated rank
-            r.position = currentRank === 1 ? 'FIRST PLACE' : currentRank === 2 ? 'SECOND PLACE' : currentRank === 3 ? 'THIRD PLACE' : 'PARTICIPANT';
+            // Assign textual position based on the calculated rank (supporting multiple participants in positions)
+            const effectivePos = currentDensePos <= 3 ? currentDensePos : (currentRank <= 3 ? currentRank : 0);
+            r.position = effectivePos === 1 ? 'FIRST PLACE' : effectivePos === 2 ? 'SECOND PLACE' : effectivePos === 3 ? 'THIRD PLACE' : 'PARTICIPANT';
         });
 
-        // 6. Slice Top 3 Based on Rank (This safely captures all tied participants)
-        const results = allResults.filter(r => r.numericRank <= 3);
+        // 6. Slice Top 3 Based on Rank (This safely captures all tied participants in top 3 positions)
+        const results = allResults.filter(r => (r.densePos <= 3 || r.numericRank <= 3));
 
         if (results.length === 0) throw new Error("Could not calculate top standings. No valid participant data.");
 
@@ -9970,11 +10012,15 @@ async function viewCompetitionLog(compId) {
             // REMOVED: const eligibleForPosPts = enrollments.length >= 3;
             
             let currentRank = 1;
+            let currentDensePos = 0;
             let previousScore = -1;
 
             pAverages.forEach((p, idx) => {
                 // Proper tie handling
-                if (p.mark !== previousScore) currentRank = idx + 1;
+                if (p.mark !== previousScore) {
+                    currentRank = idx + 1;
+                    currentDensePos++;
+                }
                 previousScore = p.mark;
 
                 let percent = (p.mark / (comp.max_mark || 100)) * 100;
@@ -9988,15 +10034,15 @@ async function viewCompetitionLog(compId) {
                     else { grade = 'C'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].c) || 0; }
                 }
 
-                // 2. Assign Position Points ALWAYS for Top 3 (Removed the >= 3 limit)
-                if (currentRank <= 3) {
-                    if (currentRank === 1) posPts = Number(pointsAdminSettings.pos_points.p1) || 0;
-                    else if (currentRank === 2) posPts = Number(pointsAdminSettings.pos_points.p2) || 0;
-                    else if (currentRank === 3) posPts = Number(pointsAdminSettings.pos_points.p3) || 0;
-                }
+                // 2. Assign Position Points for Top 3 (handling ties / multiple participants in positions)
+                const inTopThree = (currentDensePos <= 3 || currentRank <= 3);
+                const effectivePos = currentDensePos <= 3 ? currentDensePos : (currentRank <= 3 ? currentRank : 0);
+                if (effectivePos === 1) posPts = Number(pointsAdminSettings.pos_points.p1) || 0;
+                else if (effectivePos === 2) posPts = Number(pointsAdminSettings.pos_points.p2) || 0;
+                else if (effectivePos === 3) posPts = Number(pointsAdminSettings.pos_points.p3) || 0;
 
                 compResults[p.id] = {
-                    rank: currentRank,
+                    rank: effectivePos || currentRank,
                     mark: p.mark.toFixed(2),
                     grade: grade,
                     points: gradePts + posPts

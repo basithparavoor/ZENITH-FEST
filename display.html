@@ -481,7 +481,7 @@
         let slideTimer = null;
         let flashTimer = null;
         let isStardustRunning = false;
-        let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_solo: { aplus: 8, a: 7, b: 5, c: 3 }, points_small: { aplus: 12, a: 10, b: 7, c: 5 }, points_large: { aplus: 15, a: 12, b: 10, c: 7 }, pos_points: { p1: 3, p2: 2, p3: 1 } };        
+        let systemSettings = { thresholds: { aplus: 90, a: 70, b: 60, c: 50 }, points_solo: { aplus: 8, a: 7, b: 5, c: 3 }, points_small: { aplus: 12, a: 10, b: 7, c: 5 }, points_large: { aplus: 15, a: 12, b: 10, c: 7 }, pos_points: { p1: 3, p2: 2, p3: 1 }, team_points_all_participants: false };        
         
         let allTeams = [];
         let calculatedTeamScores = {};
@@ -822,12 +822,17 @@
                     }).sort((a, b) => b.score - a.score);
 
                     let currentRank = 1;
+                    let currentDensePos = 0;
                     let previousScore = -1;
                     let compPodium = [];
 
                     participantsArr.forEach((entry, idx) => {
-                        if (entry.score !== previousScore) currentRank = idx + 1; 
+                        if (entry.score !== previousScore) {
+                            currentRank = idx + 1; 
+                            currentDensePos++;
+                        }
                         entry.position = currentRank;
+                        entry.densePos = currentDensePos;
                         previousScore = entry.score;
 
                         let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
@@ -839,19 +844,26 @@
                             else if (percent >= systemSettings.thresholds.b) gradePts = systemSettings[`points_${sizeCat}`].b;
                             else gradePts = systemSettings[`points_${sizeCat}`].c;
                         }
-                        if (eligibleForPosPts && currentRank <= 3) {
-                            if (currentRank === 1) posPts = systemSettings.pos_points.p1;
-                            else if (currentRank === 2) posPts = systemSettings.pos_points.p2;
-                            else if (currentRank === 3) posPts = systemSettings.pos_points.p3;
+
+                        const inTopThree = (currentDensePos <= 3 || currentRank <= 3);
+                        const effectivePos = currentDensePos <= 3 ? currentDensePos : (currentRank <= 3 ? currentRank : 0);
+
+                        if (eligibleForPosPts && inTopThree) {
+                            if (effectivePos === 1) posPts = systemSettings.pos_points.p1;
+                            else if (effectivePos === 2) posPts = systemSettings.pos_points.p2;
+                            else if (effectivePos === 3) posPts = systemSettings.pos_points.p3;
                         }
+
+                        const allowAllTeam = !!systemSettings.team_points_all_participants;
+                        const eligibleForTeam = allowAllTeam || inTopThree;
 
                         const teamId = entry.participant.team_id;
                         const teamName = allTeams.find(t => t.id === teamId)?.name || 'IND';
-                        if (teamId && calculatedTeamScores[teamId]) {
+                        if (teamId && calculatedTeamScores[teamId] && eligibleForTeam) {
                             calculatedTeamScores[teamId].score += (Number(gradePts) + Number(posPts)); 
                         }
 
-                        if (currentRank <= 3) {
+                        if (inTopThree) {
                             // Collect ALL participants in this group from this team
                             const teamGroupMembers = isGroup
                                 ? (allCompEnrollments || [])
