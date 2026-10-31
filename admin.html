@@ -6809,22 +6809,161 @@ canvas {
 </div>
 
 <!-- ================= CASCADE DELAY & STAGE RECOVERY MODAL ================= -->
-<div id="cascadeDelayModal" class="modal-overlay" style="z-index: 1055;">
-    <div class="modal" style="max-width: 920px; width: 95%; max-height: 92vh; display: flex; flex-direction: column; padding: 1.75rem;">
-        <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.25rem;">
+<style>
+#cascadeDelayModal.modal-overlay {
+    z-index: 2050;
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(5px);
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    box-sizing: border-box;
+}
+#cascadeDelayModal.modal-overlay.show {
+    display: flex !important;
+    opacity: 1 !important;
+}
+#cascadeDelayModal .modal-container {
+    background: #ffffff;
+    width: 100%;
+    max-width: 920px;
+    height: 88vh;
+    max-height: 840px;
+    border-radius: var(--radius-xl, 18px);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: auto;
+    position: relative;
+    box-sizing: border-box;
+    transform: scale(0.98);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+#cascadeDelayModal.modal-overlay.show .modal-container {
+    transform: scale(1);
+}
+#cascadeDelayModal .modal-header {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.75rem;
+    margin: 0;
+    border-bottom: 1px solid var(--border, #E2E8F0);
+    background: #ffffff;
+    z-index: 10;
+}
+#cascadeDelayModal .modal-scroll-body {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 1.5rem 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: #CBD5E1 #F8FAFC;
+}
+#cascadeDelayModal .modal-scroll-body::-webkit-scrollbar {
+    width: 7px;
+}
+#cascadeDelayModal .modal-scroll-body::-webkit-scrollbar-track {
+    background: #F8FAFC;
+}
+#cascadeDelayModal .modal-scroll-body::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 4px;
+}
+#cascadeDelayModal .modal-scroll-body::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8;
+}
+#cascadeDelayModal .modal-footer {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 1rem 1.75rem;
+    margin: 0;
+    border-top: 1px solid var(--border, #E2E8F0);
+    background: #FAFAFA;
+    z-index: 10;
+}
+@media (max-width: 768px) {
+    #cascadeDelayModal.modal-overlay {
+        align-items: flex-end !important;
+        padding: 0 !important;
+    }
+    #cascadeDelayModal .modal-container {
+        width: 100% !important;
+        max-width: 100vw !important;
+        height: 92dvh !important;
+        max-height: 92dvh !important;
+        border-radius: 24px 24px 0 0 !important;
+        transform: translateY(100%) !important;
+        transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+    }
+    #cascadeDelayModal.modal-overlay.show .modal-container {
+        transform: translateY(0) !important;
+    }
+    #cascadeDelayModal .modal-header {
+        padding: 1rem 1.25rem !important;
+    }
+    #cascadeDelayModal .modal-scroll-body {
+        padding: 1rem 1.25rem !important;
+        gap: 1rem !important;
+    }
+    #cascadeDelayModal .modal-footer {
+        padding: 0.85rem 1.25rem !important;
+        flex-direction: column-reverse !important;
+        gap: 0.6rem !important;
+    }
+    #cascadeDelayModal .modal-footer > div {
+        width: 100% !important;
+        display: flex !important;
+        gap: 0.5rem !important;
+    }
+    #cascadeDelayModal .modal-footer .btn {
+        flex: 1 !important;
+        justify-content: center !important;
+        text-align: center !important;
+        min-height: 44px !important;
+    }
+    #cascadeDelayModal .custom-input-grid {
+        grid-template-columns: 1fr !important;
+        gap: 0.6rem !important;
+    }
+}
+</style>
+<div id="cascadeDelayModal" class="modal-overlay">
+    <div class="modal modal-container">
+        <!-- Header (Pinned at Top) -->
+        <div class="modal-header">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); color: #D97706; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; box-shadow: 0 2px 8px rgba(217, 119, 6, 0.15); flex-shrink: 0;">
                     <i class="fa-solid fa-clock-rotate-left"></i>
                 </div>
                 <div>
-                    <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 2px; color: var(--text-main);">Stage Cascade Delay & Recovery</h2>
+                    <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 2px; color: var(--text-main);">Stage Cascade Delay &amp; Recovery</h2>
                     <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Targeted stage delay engine with date boundary locks &amp; 1-click baseline recovery.</p>
                 </div>
             </div>
             <button class="close-btn" onclick="closeCascadeDelayModal()"><i class="fa-solid fa-xmark"></i></button>
         </div>
 
-        <div style="overflow-y: auto; flex: 1; padding-right: 4px; display: flex; flex-direction: column; gap: 1.25rem;">
+        <!-- Scrollable Modal Body (Flex 1 + min-height: 0 + overflow-y: auto) -->
+        <div class="modal-scroll-body">
             <!-- Isolation Alert Banner -->
             <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: var(--radius-md); padding: 0.85rem 1rem; display: flex; align-items: flex-start; gap: 0.75rem; font-size: 0.85rem; color: #1E40AF;">
                 <i class="fa-solid fa-shield-halved" style="font-size: 1.1rem; color: #3B82F6; margin-top: 2px;"></i>
@@ -6885,7 +7024,7 @@ canvas {
                 </div>
 
                 <!-- Custom Input & Reason -->
-                <div style="display: grid; grid-template-columns: 140px 1fr; gap: 1rem; align-items: center;">
+                <div class="custom-input-grid" style="display: grid; grid-template-columns: 140px 1fr; gap: 1rem; align-items: center;">
                     <div>
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <input type="number" id="cascadeMinutesInput" value="20" oninput="updateCascadePreview()" style="width: 100%; padding: 0.65rem 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-weight: 700; font-size: 1rem; text-align: center;">
@@ -6907,12 +7046,12 @@ canvas {
 
             <!-- Real-Time Impact Preview Table -->
             <div style="border: 1px solid var(--border); border-radius: var(--radius-lg); background: white; overflow: hidden;">
-                <div style="padding: 0.75rem 1rem; background: var(--bg-main); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                <div style="padding: 0.75rem 1rem; background: var(--bg-main); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
                     <strong style="font-size: 0.88rem; color: var(--text-main);"><i class="fa-solid fa-list-check"></i> Impact Preview (<span id="cascadeAffectedCount">0</span> events affected)</strong>
                     <span id="cascadeStageStatusLabel" class="badge" style="background:#FEF3C7; color:#B45309;">Stage Preview</span>
                 </div>
-                <div style="max-height: 240px; overflow-y: auto;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <div style="overflow-x: auto; width: 100%;">
+                    <table style="width: 100%; min-width: 540px; border-collapse: collapse; font-size: 0.85rem;">
                         <thead>
                             <tr style="background: #F8FAFC; border-bottom: 1px solid var(--border); text-align: left;">
                                 <th style="padding: 0.6rem 1rem; font-weight: 700; color: var(--text-muted);">Event Name</th>
@@ -6930,9 +7069,9 @@ canvas {
             </div>
         </div>
 
-        <!-- Modal Footer with 1-Click Rollback / Restore Controls -->
-        <div class="modal-footer" style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <!-- Modal Footer with 1-Click Rollback / Restore Controls (Pinned at Bottom) -->
+        <div class="modal-footer">
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                 <button type="button" class="btn btn-outline" onclick="revertActiveStageToBaseline()" style="color: #DC2626; border-color: #FCA5A5; background: #FEF2F2; font-weight: 700; font-size: 0.82rem; padding: 0.5rem 0.9rem;" title="Restore all events on this stage/day to original baseline times">
                     <i class="fa-solid fa-rotate-left"></i> Revert Stage to Baseline
                 </button>
@@ -6940,7 +7079,7 @@ canvas {
                     <i class="fa-solid fa-arrow-rotate-left"></i> Undo Last Cascade
                 </button>
             </div>
-            <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
                 <button type="button" class="btn btn-outline" onclick="closeCascadeDelayModal()">Cancel</button>
                 <button type="button" id="btnApplyCascadeDelay" class="btn btn-warning" onclick="applyCascadeDelayFromModal()" style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); color: white; border: none; font-weight: 700; padding: 0.6rem 1.4rem; box-shadow: 0 2px 8px rgba(217, 119, 6, 0.25);">
                     <i class="fa-solid fa-bolt"></i> Apply Cascade Delay
