@@ -497,6 +497,16 @@
         let globalAllComps = [];
         let latestCompResults = [];
         let allCompPodiums = {};
+        let lastScheduleData = {};
+        let lastCustomSlidesArray = [];
+
+        function isCategoryPinMode(pinId) {
+            if (!pinId) return false;
+            return pinId === 'slide-schedule' ||
+                   pinId === 'slide-leaderboard' ||
+                   pinId === 'slide-results-all' ||
+                   pinId === 'slide-results';
+        }
 
         // --- EVENT RADAR RELEVANCE & TIME FILTER HELPERS ---
         // Helper: Check if a status represents a completed competition
@@ -890,6 +900,8 @@
                 }
 
                 // --- BUILD PLAYLIST ---
+                lastScheduleData = scheduleData;
+                lastCustomSlidesArray = customSlidesArray;
                 buildPlaylist(scheduleData, customSlidesArray);
 
             } catch (error) { console.error("Display Fetch Error:", error); }
@@ -1149,87 +1161,204 @@
                 }
             }
 
-            // 3. BUILD PODIUM RESULTS SLIDE
-            let podiumSlide = null;
-            if (globalPublishedComps.length > 0) {
-                const latestComp = globalPublishedComps[0];
-                const latestPodiumData = allCompPodiums[latestComp.id];
-                const pResults = (latestPodiumData && latestPodiumData.podium) ? latestPodiumData.podium : latestCompResults;
+            // 3. BUILD ALL DECLARED RESULTS PODIUM SLIDES
+            let podiumSlides = [];
+            (globalPublishedComps || []).forEach(comp => {
+                const compPodiumData = allCompPodiums[comp.id];
+                const pResults = (compPodiumData && compPodiumData.podium) ? compPodiumData.podium : (comp.id === currentPodiumCompId ? latestCompResults : null);
                 if (pResults && pResults.length > 0) {
-                    const podiumHtml = renderPodiumHtml(latestComp, pResults, 'slide-podium');
-                    podiumSlide = { id: 'slide-podium', html: podiumHtml };
+                    const slideId = `slide-results-${comp.id}`;
+                    const podiumHtml = renderPodiumHtml(comp, pResults, slideId);
+                    podiumSlides.push({ id: slideId, compId: comp.id, html: podiumHtml });
                 }
-            }
-
-            // --- ASSEMBLE PLAYLIST GIVING TOP PREFERENCE TO ONGOING & REGISTRATION ---
-            // 1. Live schedule slides come FIRST so active and calling events get maximum visibility!
-            if (scheduleSlides.length > 0) {
-                scheduleSlides.forEach(s => {
-                    container.insertAdjacentHTML('beforeend', s.html);
-                    activeSlides.push(s.id);
-                });
-            }
-
-            // 2. Championship standings slides
-            standingsSlides.forEach(s => {
-                container.insertAdjacentHTML('beforeend', s.html);
-                activeSlides.push(s.id);
             });
 
-            // 3. Results Podium (if available)
-            if (podiumSlide) {
-                container.insertAdjacentHTML('beforeend', podiumSlide.html);
-                activeSlides.push(podiumSlide.id);
-            }
+            // --- ASSEMBLE PLAYLIST BASED ON PINNED MODE ---
+            const pinnedTarget = displaySettings.pinned_slide;
 
-            // 3B. Pin-forced Result Podium (ensure slide exists if a specific result podium is pinned)
-            if (displaySettings.pinned_slide && displaySettings.pinned_slide.startsWith('slide-results-')) {
-                const pCompId = displaySettings.pinned_slide.replace('slide-results-', '');
-                const pSlideId = `slide-results-${pCompId}`;
-                if (!document.getElementById(pSlideId) && allCompPodiums[pCompId] && allCompPodiums[pCompId].podium && allCompPodiums[pCompId].podium.length > 0) {
-                    const pHtml = renderPodiumHtml(allCompPodiums[pCompId].comp, allCompPodiums[pCompId].podium, pSlideId);
-                    container.insertAdjacentHTML('beforeend', pHtml);
-                    activeSlides.push(pSlideId);
-                }
-            }
-
-            // 4. CUSTOM SLIDES
-            customSlidesArray.forEach(cs => {
-                const slideId = `slide-custom-${cs.id}`;
-                const slideHtml = `
-                    <div id="${slideId}" class="slide" 
-                         data-duration="${cs.duration || ''}" 
-                         data-qr-url="${cs.qr_url || ''}" 
-                         data-qr-text="${cs.qr_text || ''}"
-                         data-ticker="${cs.ticker || ''}">
-                        <div class="cs-bg" style="background-image:url('${cs.bg_url || ''}');"></div>
-                        <div class="cs-content">
-                            <h2 class="theme-font cs-title">${cs.title || ''}</h2>
-                            <p class="cs-text">${cs.text || ''}</p>
+            if (pinnedTarget === 'slide-schedule') {
+                // CATEGORY: LIVE UPCOMING SCHEDULE ONLY (SLIDE ALL SCHEDULES ONLY)
+                if (scheduleSlides.length > 0) {
+                    scheduleSlides.forEach(s => {
+                        container.insertAdjacentHTML('beforeend', s.html);
+                        activeSlides.push(s.id);
+                    });
+                } else {
+                    const emptyHtml = `
+                        <div class="slide active" id="slide-schedule-0" data-slide-alias="slide-schedule" data-qr-type="live">
+                            <h2 class="slide-title theme-font">EVENT RADAR & STAGE TIMELINE</h2>
+                            <div style="text-align:center; padding: 4rem 2rem;">
+                                <i class="fa-regular fa-calendar-check" style="font-size: 5rem; color: var(--primary); margin-bottom: 1.5rem; opacity: 0.85;"></i>
+                                <h3 class="theme-font" style="font-size: 2.8rem; color: #FFFFFF;">NO IMMEDIATE EVENTS SCHEDULED</h3>
+                                <p style="font-size: 1.5rem; color: var(--text-muted); margin-top: 0.5rem;">ALL STAGES ARE CURRENTLY ON BREAK OR RECENT EVENTS HAVE CONCLUDED</p>
+                            </div>
                         </div>
-                    </div>
-                `;
-                container.insertAdjacentHTML('beforeend', slideHtml);
-                activeSlides.push(slideId);
-            });
+                    `;
+                    container.insertAdjacentHTML('beforeend', emptyHtml);
+                    activeSlides.push('slide-schedule-0');
+                }
+            } 
+            else if (pinnedTarget === 'slide-leaderboard') {
+                // CATEGORY: OVERALL TEAM LEADERBOARD ONLY (SLIDE ALL STANDINGS ONLY)
+                if (standingsSlides.length > 0) {
+                    standingsSlides.forEach(s => {
+                        container.insertAdjacentHTML('beforeend', s.html);
+                        activeSlides.push(s.id);
+                    });
+                } else {
+                    const emptyHtml = `
+                        <div class="slide active" id="slide-standings-0" data-slide-alias="slide-leaderboard" data-qr-type="standings">
+                            <h2 class="slide-title theme-font">CHAMPIONSHIP STANDINGS</h2>
+                            <div style="text-align:center; padding: 4rem 2rem;">
+                                <i class="fa-solid fa-trophy" style="font-size: 5rem; color: var(--gold); margin-bottom: 1.5rem; opacity: 0.85;"></i>
+                                <h3 class="theme-font" style="font-size: 2.8rem; color: #FFFFFF;">STANDINGS COMPUTING</h3>
+                                <p style="font-size: 1.5rem; color: var(--text-muted); margin-top: 0.5rem;">TEAM POINTS WILL BE BROADCASTED ONCE EVALUATIONS ARE COMPLETED</p>
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', emptyHtml);
+                    activeSlides.push('slide-standings-0');
+                }
+            } 
+            else if (pinnedTarget === 'slide-results-all' || pinnedTarget === 'slide-results') {
+                // CATEGORY: DECLARED RESULTS PODIUMS (SLIDE ALL DECLARED RESULTS ONLY)
+                if (podiumSlides.length > 0) {
+                    podiumSlides.forEach(s => {
+                        container.insertAdjacentHTML('beforeend', s.html);
+                        activeSlides.push(s.id);
+                    });
+                } else {
+                    const emptyHtml = `
+                        <div class="slide active" id="slide-podium-empty" data-qr-type="results">
+                            <h2 class="slide-title theme-font">OFFICIAL COMPETITION RESULTS</h2>
+                            <div style="text-align:center; padding: 5rem 2rem;">
+                                <i class="fa-solid fa-award" style="font-size: 5rem; color: var(--gold); margin-bottom: 1.5rem; opacity: 0.85;"></i>
+                                <h3 class="theme-font" style="font-size: 2.8rem; color: #FFFFFF;">NO RESULTS PUBLISHED YET</h3>
+                                <p style="font-size: 1.5rem; color: var(--text-muted); margin-top: 0.5rem;">DECLARED PODIUMS WILL ROTATE HERE AS SOON AS THEY ARE PUBLISHED</p>
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', emptyHtml);
+                    activeSlides.push('slide-podium-empty');
+                }
+            } 
+            else if (pinnedTarget && pinnedTarget.startsWith('slide-results-')) {
+                // SINGLE SPECIFIC RESULT LOCK: IF SELECTED ANY RESULT SO THAT RESULT ONLY
+                const targetCompId = pinnedTarget.replace('slide-results-', '');
+                const targetSlide = podiumSlides.find(s => String(s.compId) === String(targetCompId));
+                if (targetSlide) {
+                    container.insertAdjacentHTML('beforeend', targetSlide.html);
+                    activeSlides.push(targetSlide.id);
+                } else {
+                    const compObj = (globalAllComps || []).find(x => String(x.id) === String(targetCompId)) || (globalPublishedComps || []).find(x => String(x.id) === String(targetCompId));
+                    const pData = allCompPodiums[targetCompId];
+                    if (compObj && pData && pData.podium && pData.podium.length > 0) {
+                        const pHtml = renderPodiumHtml(compObj, pData.podium, pinnedTarget);
+                        container.insertAdjacentHTML('beforeend', pHtml);
+                        activeSlides.push(pinnedTarget);
+                    } else if (compObj) {
+                        const emptyHtml = `
+                            <div class="slide active" id="${pinnedTarget}" data-qr-type="results" data-qr-comp="${compObj.id}">
+                                <h2 class="slide-title theme-font">OFFICIAL RESULTS: <span style="color:var(--gold);">${compObj.name}</span></h2>
+                                <div style="text-align:center; padding: 5rem 2rem;">
+                                    <i class="fa-solid fa-award" style="font-size: 5rem; color: var(--gold); margin-bottom: 1.5rem; opacity: 0.85;"></i>
+                                    <h3 class="theme-font" style="font-size: 2.8rem; color: #FFFFFF;">RESULTS BEING COMPILED</h3>
+                                    <p style="font-size: 1.5rem; color: var(--text-muted); margin-top: 0.5rem;">OFFICIAL PODIUM BROADCAST WILL BE DECLARED SHORTLY</p>
+                                </div>
+                            </div>
+                        `;
+                        container.insertAdjacentHTML('beforeend', emptyHtml);
+                        activeSlides.push(pinnedTarget);
+                    }
+                }
+            } 
+            else if (pinnedTarget && pinnedTarget.startsWith('slide-custom-')) {
+                // SINGLE CUSTOM SLIDE LOCK
+                const cs = customSlidesArray.find(s => `slide-custom-${s.id}` === pinnedTarget);
+                if (cs) {
+                    const slideHtml = `
+                        <div id="${pinnedTarget}" class="slide active" 
+                             data-duration="${cs.duration || ''}" 
+                             data-qr-url="${cs.qr_url || ''}" 
+                             data-qr-text="${cs.qr_text || ''}"
+                             data-ticker="${cs.ticker || ''}">
+                            <div class="cs-bg" style="background-image:url('${cs.bg_url || ''}');"></div>
+                            <div class="cs-content">
+                                <h2 class="theme-font cs-title">${cs.title || ''}</h2>
+                                <p class="cs-text">${cs.text || ''}</p>
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', slideHtml);
+                    activeSlides.push(pinnedTarget);
+                }
+            } 
+            else {
+                // NORMAL UNPINNED ROTATION (ALL CATEGORIES)
+                if (scheduleSlides.length > 0) {
+                    scheduleSlides.forEach(s => {
+                        container.insertAdjacentHTML('beforeend', s.html);
+                        activeSlides.push(s.id);
+                    });
+                }
+                if (standingsSlides.length > 0) {
+                    standingsSlides.forEach(s => {
+                        container.insertAdjacentHTML('beforeend', s.html);
+                        activeSlides.push(s.id);
+                    });
+                }
+                if (podiumSlides.length > 0) {
+                    podiumSlides.slice(0, 2).forEach(s => {
+                        container.insertAdjacentHTML('beforeend', s.html);
+                        activeSlides.push(s.id);
+                    });
+                }
+                customSlidesArray.forEach(cs => {
+                    const slideId = `slide-custom-${cs.id}`;
+                    const slideHtml = `
+                        <div id="${slideId}" class="slide" 
+                             data-duration="${cs.duration || ''}" 
+                             data-qr-url="${cs.qr_url || ''}" 
+                             data-qr-text="${cs.qr_text || ''}"
+                             data-ticker="${cs.ticker || ''}">
+                            <div class="cs-bg" style="background-image:url('${cs.bg_url || ''}');"></div>
+                            <div class="cs-content">
+                                <h2 class="theme-font cs-title">${cs.title || ''}</h2>
+                                <p class="cs-text">${cs.text || ''}</p>
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', slideHtml);
+                    activeSlides.push(slideId);
+                });
 
-            // 5. FALLBACK SLIDE IF EMPTY
-            if (activeSlides.length === 0) {
-                container.innerHTML = `
-                    <div class="slide active" id="slide-fallback" style="text-align:center; align-items: center; justify-content: center; height: 100%;">
-                        <i class="fa-solid fa-hourglass-half fa-spin-pulse" style="font-size: 6rem; color: var(--primary); margin-bottom: 2rem;"></i>
-                        <h1 class="theme-font" style="font-size: 4.5rem; font-weight: 800; color: #FFFFFF;">EVENTS UNDERWAY</h1>
-                        <p style="font-size: 2.2rem; color: rgba(255,255,255,0.65); margin-top: 1rem; font-weight: 600;">RESULTS & SCHEDULE BROADCASTING SHORTLY</p>
-                    </div>
-                `;
-                activeSlides.push('slide-fallback');
+                if (activeSlides.length === 0) {
+                    container.innerHTML = `
+                        <div class="slide active" id="slide-fallback" style="text-align:center; align-items: center; justify-content: center; height: 100%;">
+                            <i class="fa-solid fa-hourglass-half fa-spin-pulse" style="font-size: 6rem; color: var(--primary); margin-bottom: 2rem;"></i>
+                            <h1 class="theme-font" style="font-size: 4.5rem; font-weight: 800; color: #FFFFFF;">EVENTS UNDERWAY</h1>
+                            <p style="font-size: 2.2rem; color: rgba(255,255,255,0.65); margin-top: 1rem; font-weight: 600;">RESULTS & SCHEDULE BROADCASTING SHORTLY</p>
+                        </div>
+                    `;
+                    activeSlides.push('slide-fallback');
+                }
             }
 
             clearTimeout(slideTimer);
             if (displaySettings.pinned_slide) {
-                activatePinnedSlide(displaySettings.pinned_slide);
-                return;
+                if (isCategoryPinMode(displaySettings.pinned_slide)) {
+                    updatePinnedCategoryBadge(displaySettings.pinned_slide);
+                    if (currentSlide >= activeSlides.length) currentSlide = 0;
+                    rotateSlides();
+                    return;
+                } else {
+                    activatePinnedSlide(displaySettings.pinned_slide);
+                    return;
+                }
             }
+
+            const pb = document.getElementById('pinned-badge');
+            if (pb) pb.style.display = 'none';
             if (currentSlide >= activeSlides.length) currentSlide = 0;
             rotateSlides();
         }
@@ -1397,7 +1526,11 @@
 
                 // 4. Pinned Slide State
                 if (displaySettings.pinned_slide) {
-                    activatePinnedSlide(displaySettings.pinned_slide);
+                    if (isCategoryPinMode(displaySettings.pinned_slide)) {
+                        updatePinnedCategoryBadge(displaySettings.pinned_slide);
+                    } else {
+                        activatePinnedSlide(displaySettings.pinned_slide);
+                    }
                 } else {
                     const pinnedBadge = document.getElementById('pinned-badge');
                     if (pinnedBadge) pinnedBadge.style.display = 'none';
@@ -1429,7 +1562,7 @@
                         rotateSlides();
                     }
                     else if (action.type === 'pin') {
-                        activatePinnedSlide(action.target_slide);
+                        handlePinAction(action.target_slide);
                     }
                     else if (action.type === 'unpin') {
                         unpinSlide();
@@ -1458,7 +1591,13 @@
                     }
                 }
 
-                if (requiresPlaylistRebuild) fetchDisplayData(); 
+                if (requiresPlaylistRebuild) {
+                    if (Object.keys(lastScheduleData).length > 0) {
+                        buildPlaylist(lastScheduleData, lastCustomSlidesArray);
+                    } else {
+                        fetchDisplayData();
+                    }
+                } 
 
             } catch (e) { console.error("Polling error:", e); }
         }
@@ -1600,8 +1739,35 @@
             return document.getElementById(activeSlides[0]) || document.querySelector('.slide');
         }
 
+        function updatePinnedCategoryBadge(pinId) {
+            const pb = document.getElementById('pinned-badge');
+            if (!pb) return;
+            pb.style.display = 'flex';
+            let label = 'CATEGORY LOCKED';
+            if (pinId === 'slide-schedule') label = 'LIVE UPCOMING SCHEDULE';
+            else if (pinId === 'slide-leaderboard') label = 'OVERALL LEADERBOARD';
+            else if (pinId === 'slide-results-all' || pinId === 'slide-results') label = 'DECLARED RESULTS PODIUMS';
+            const span = pb.querySelector('span');
+            if (span) span.innerText = `PINNED: ${label}`;
+        }
+
+        function handlePinAction(targetSlide) {
+            displaySettings.pinned_slide = targetSlide;
+            clearTimeout(slideTimer);
+            currentSlide = 0;
+            if (Object.keys(lastScheduleData).length === 0 && activeSlides.length === 0) {
+                fetchDisplayData();
+            } else {
+                buildPlaylist(lastScheduleData, lastCustomSlidesArray);
+            }
+        }
+
         function activatePinnedSlide(slideId) {
             if (!slideId) return false;
+            if (isCategoryPinMode(slideId)) {
+                handlePinAction(slideId);
+                return true;
+            }
             displaySettings.pinned_slide = slideId;
 
             const targetEl = resolvePinnedSlideElement(slideId);
@@ -1665,17 +1831,26 @@
             const pb = document.getElementById('pinned-badge');
             if (pb) pb.style.display = 'none';
             clearTimeout(slideTimer);
-            rotateSlides();
+            currentSlide = 0;
+            if (Object.keys(lastScheduleData).length === 0 && activeSlides.length === 0) {
+                fetchDisplayData();
+            } else {
+                buildPlaylist(lastScheduleData, lastCustomSlidesArray);
+            }
         }
 
         // --- SLIDE ROTATION ENGINE ---
         function rotateSlides() {
             if (activeSlides.length === 0) return;
-            if (displaySettings.pinned_slide) {
+            if (displaySettings.pinned_slide && !isCategoryPinMode(displaySettings.pinned_slide)) {
                 activatePinnedSlide(displaySettings.pinned_slide);
                 return;
             }
             if (displaySettings.is_paused) return; // Halt if paused
+
+            if (displaySettings.pinned_slide && isCategoryPinMode(displaySettings.pinned_slide)) {
+                updatePinnedCategoryBadge(displaySettings.pinned_slide);
+            }
 
             if (currentSlide >= activeSlides.length) currentSlide = 0;
 
@@ -1839,7 +2014,7 @@
                     if (action.blackout) document.body.classList.add('blackout-active');
                     else document.body.classList.remove('blackout-active');
                 } else if (action.type === 'pin') {
-                    activatePinnedSlide(action.target_slide);
+                    handlePinAction(action.target_slide);
                 } else if (action.type === 'unpin') {
                     unpinSlide();
                 } else if (action.type === 'flash_alert') {

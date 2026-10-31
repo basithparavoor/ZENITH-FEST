@@ -10511,7 +10511,11 @@ function updateDisplayRemoteStatusUI() {
             badge.style.background = 'rgba(59, 130, 246, 0.2)';
             badge.style.color = '#93C5FD';
             badge.style.borderColor = 'rgba(59, 130, 246, 0.4)';
-            badge.innerHTML = `<span style="width:8px; height:8px; background:#3B82F6; border-radius:50%; box-shadow:0 0 8px #3B82F6;"></span><span>PINNED: ${displayState.pinned_slide.replace('slide-','').toUpperCase()}</span>`;
+            let label = displayState.pinned_slide.replace('slide-','').toUpperCase();
+            if (displayState.pinned_slide === 'slide-schedule') label = 'SCHEDULES ONLY';
+            else if (displayState.pinned_slide === 'slide-leaderboard') label = 'LEADERBOARD ONLY';
+            else if (displayState.pinned_slide === 'slide-results-all' || displayState.pinned_slide === 'slide-results') label = 'RESULTS ONLY';
+            badge.innerHTML = `<span style="width:8px; height:8px; background:#3B82F6; border-radius:50%; box-shadow:0 0 8px #3B82F6;"></span><span>PINNED: ${label}</span>`;
         } else if (displayState.is_paused) {
             badge.style.background = 'rgba(245, 158, 11, 0.2)';
             badge.style.color = '#FCD34D';
@@ -10535,6 +10539,7 @@ async function populateDisplayPinSlideDropdown() {
         <option value="">-- Choose Slide to Lock --</option>
         <option value="slide-leaderboard">🏆 Overall Team Leaderboard</option>
         <option value="slide-schedule">📅 Live Upcoming Schedule</option>
+        <option value="slide-results-all">🥇 Declared Results Podiums</option>
     `;
 
     // Add Published Competitions
@@ -10543,6 +10548,12 @@ async function populateDisplayPinSlideDropdown() {
     if (published.length > 0) {
         const group = document.createElement('optgroup');
         group.label = '🥇 Declared Results Podiums';
+        
+        const allResultsOpt = document.createElement('option');
+        allResultsOpt.value = 'slide-results-all';
+        allResultsOpt.innerText = '✨ Slide All Results Only';
+        group.appendChild(allResultsOpt);
+
         published.forEach(c => {
             const opt = document.createElement('option');
             opt.value = `slide-results-${c.id}`;
