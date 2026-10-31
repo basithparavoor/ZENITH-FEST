@@ -3799,19 +3799,58 @@
                                     const nameKey = key.replace('Photo', 'Name');
                                     if (key.includes('Photo') && mappedData[nameKey] === "") continue;
 
-                                    const photoSrc = mappedData[key] || 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="600"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="40" font-weight="bold" fill="%236B7280"%3ENO PHOTO%3C/text%3E%3C/svg%3E';
-                                    try {
-                                        const pPhoto = await new Promise((resolve) => {
-                                            const pImg = new Image(); pImg.crossOrigin = "Anonymous";
-                                            pImg.onload = () => resolve(pImg); pImg.onerror = () => resolve(null);
-                                            pImg.src = photoSrc;
-                                        });
-                                        if (pPhoto) {
-                                            ctx.save(); ctx.beginPath();
-                                            if(ctx.roundRect) { ctx.roundRect(fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h, fieldConfig.radius || 0); } 
-                                            else { ctx.rect(fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); }
-                                            ctx.clip(); ctx.drawImage(pPhoto, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); ctx.restore();
+                                    const posMatch = key.match(/^Position(\d+)Photo$/);
+                                    const rankNum = posMatch ? parseInt(posMatch[1]) : 0;
+                                    const group = (rankNum && rankGroups[rankNum]) ? rankGroups[rankNum] : [];
+                                    
+                                    // Helper function for aspect-cover image drawing
+                                    const drawCoverImg = (pImg, dx, dy, dw, dh) => {
+                                        if (!pImg || !pImg.naturalWidth) return;
+                                        const iRatio = pImg.naturalWidth / pImg.naturalHeight;
+                                        const bRatio = dw / dh;
+                                        let sx = 0, sy = 0, sw = pImg.naturalWidth, sh = pImg.naturalHeight;
+                                        if (iRatio > bRatio) {
+                                            sw = Math.floor(pImg.naturalHeight * bRatio);
+                                            sx = Math.floor((pImg.naturalWidth - sw) / 2);
+                                        } else {
+                                            sh = Math.floor(pImg.naturalWidth / bRatio);
+                                            sy = Math.floor((pImg.naturalHeight - sh) / 2);
                                         }
+                                        ctx.drawImage(pImg, sx, sy, sw, sh, dx, dy, dw, dh);
+                                    };
+
+                                    const loadImgAsync = (src) => new Promise((resolve) => {
+                                        if (!src) return resolve(null);
+                                        const p = new Image(); p.crossOrigin = "Anonymous";
+                                        p.onload = () => resolve(p); p.onerror = () => resolve(null);
+                                        p.src = src;
+                                    });
+
+                                    try {
+                                        ctx.save(); ctx.beginPath();
+                                        if (ctx.roundRect) { ctx.roundRect(fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h, fieldConfig.radius || 0); } 
+                                        else { ctx.rect(fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h); }
+                                        ctx.clip();
+
+                                        // Automatic Dual-Photo Split if 2 participants tied in this single position
+                                        if (group.length === 2 && group[0].participant.photo_url && group[1].participant.photo_url) {
+                                            const [img1, img2] = await Promise.all([
+                                                loadImgAsync(group[0].participant.photo_url),
+                                                loadImgAsync(group[1].participant.photo_url)
+                                            ]);
+                                            const halfW = Math.floor(fieldConfig.w / 2) - 1;
+                                            if (img1) drawCoverImg(img1, fieldConfig.x, fieldConfig.y, halfW, fieldConfig.h);
+                                            if (img2) drawCoverImg(img2, fieldConfig.x + halfW + 2, fieldConfig.y, halfW, fieldConfig.h);
+                                            
+                                            // Divider line
+                                            ctx.fillStyle = '#FFFFFF';
+                                            ctx.fillRect(fieldConfig.x + halfW, fieldConfig.y, 2, fieldConfig.h);
+                                        } else {
+                                            const photoSrc = mappedData[key] || 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="600"%3E%3Crect width="100%25" height="100%25" fill="%23E5E7EB"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="40" font-weight="bold" fill="%236B7280"%3ENO PHOTO%3C/text%3E%3C/svg%3E';
+                                            const pPhoto = await loadImgAsync(photoSrc);
+                                            if (pPhoto) drawCoverImg(pPhoto, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h);
+                                        }
+                                        ctx.restore();
                                     } catch (err) { }
                                 }
                             } else {
@@ -3820,7 +3859,20 @@
                                 
                                 ctx.textAlign = fieldConfig.align || 'left'; 
                                 ctx.fillStyle = fieldConfig.color || '#000000';
-                                ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
+                                
+                                let fontSize = fieldConfig.size || 40;
+                                ctx.font = `${fieldConfig.weight || 'bold'} ${fontSize}px ${fieldConfig.font || 'sans-serif'}`;
+                                
+                                // Auto-scale font size if multiple names/teams are joined with '&' to prevent overflow
+                                if (text.includes(' & ')) {
+                                    const maxW = fieldConfig.w || (fieldConfig.align === 'center' ? Math.min(canvas.width - 60, 960) : (canvas.width - fieldConfig.x - 40));
+                                    const textW = ctx.measureText(text).width;
+                                    if (textW > maxW && maxW > 60) {
+                                        const scaleRatio = maxW / textW;
+                                        fontSize = Math.max(16, Math.floor(fontSize * scaleRatio));
+                                        ctx.font = `${fieldConfig.weight || 'bold'} ${fontSize}px ${fieldConfig.font || 'sans-serif'}`;
+                                    }
+                                }
                                 ctx.fillText(text, fieldConfig.x, fieldConfig.y);
                             }
                         }
@@ -3906,35 +3958,32 @@
                         ctx.fillStyle = "#94A3B8";
                         ctx.font = totalSlots > 3 ? "700 20px sans-serif" : "700 22px sans-serif";
                         ctx.fillText(tName.toUpperCase(), 110, currentY + (totalSlots > 3 ? 108 : 142));
-                    } else if (winnersAtRank.length === 2) {
-                        // Two winners tied: clean side-by-side columns
-                        const colW = 440;
-                        winnersAtRank.forEach((w, wIdx) => {
-                            const colX = 110 + (wIdx * colW);
-                            ctx.fillStyle = "#FFFFFF";
-                            ctx.font = "800 24px sans-serif";
-                            let wName = w.participant.name.toUpperCase();
-                            if (wName.length > 22) wName = wName.substring(0, 20) + '...';
-                            ctx.fillText(wName, colX, currentY + (totalSlots > 3 ? 75 : 95));
-
-                            const tName = allTeams.find(t => t.id === w.participant.team_id)?.name || 'Independent';
-                            ctx.fillStyle = "#94A3B8";
-                            ctx.font = "700 18px sans-serif";
-                            let dispTeam = tName.toUpperCase();
-                            if (dispTeam.length > 24) dispTeam = dispTeam.substring(0, 22) + '...';
-                            ctx.fillText(dispTeam, colX, currentY + (totalSlots > 3 ? 104 : 135));
-                        });
                     } else {
-                        // 3 or more tied winners
-                        const namesJoined = winnersAtRank.map(w => w.participant.name.toUpperCase()).join(' • ');
-                        ctx.fillStyle = "#FFFFFF";
-                        ctx.font = "800 22px sans-serif";
-                        ctx.fillText(namesJoined.length > 60 ? namesJoined.substring(0, 58) + '...' : namesJoined, 110, currentY + (totalSlots > 3 ? 75 : 95));
+                        // Multiple tied winners: automatically separate names and teams with ' & '
+                        const combinedNames = winnersAtRank.map(w => w.participant.name.toUpperCase()).join(' & ');
+                        const distinctTeams = [...new Set(winnersAtRank.map(w => (allTeams.find(t => t.id === w.participant.team_id)?.name || 'Independent').toUpperCase()))];
+                        const combinedTeams = distinctTeams.join(' & ');
 
-                        const teamsJoined = [...new Set(winnersAtRank.map(w => allTeams.find(t => t.id === w.participant.team_id)?.name || 'Independent'))].join(' • ');
+                        ctx.fillStyle = "#FFFFFF";
+                        let nameFont = totalSlots > 3 ? 24 : 32;
+                        ctx.font = `800 ${nameFont}px sans-serif`;
+                        const maxBoxW = 860;
+                        let nameW = ctx.measureText(combinedNames).width;
+                        if (nameW > maxBoxW) {
+                            nameFont = Math.max(16, Math.floor(nameFont * (maxBoxW / nameW)));
+                            ctx.font = `800 ${nameFont}px sans-serif`;
+                        }
+                        ctx.fillText(combinedNames, 110, currentY + (totalSlots > 3 ? 75 : 98));
+
                         ctx.fillStyle = "#94A3B8";
-                        ctx.font = "700 18px sans-serif";
-                        ctx.fillText(teamsJoined.toUpperCase(), 110, currentY + (totalSlots > 3 ? 104 : 135));
+                        let teamFont = totalSlots > 3 ? 18 : 22;
+                        ctx.font = `700 ${teamFont}px sans-serif`;
+                        let teamW = ctx.measureText(combinedTeams).width;
+                        if (teamW > maxBoxW) {
+                            teamFont = Math.max(14, Math.floor(teamFont * (maxBoxW / teamW)));
+                            ctx.font = `700 ${teamFont}px sans-serif`;
+                        }
+                        ctx.fillText(combinedTeams, 110, currentY + (totalSlots > 3 ? 108 : 142));
                     }
                 });
 
