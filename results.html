@@ -128,6 +128,7 @@
             font-size: 0.88rem; font-weight: 700; color: var(--text-muted);
             cursor: pointer; transition: var(--transition); text-transform: uppercase;
             position: relative; padding: 0.5rem 0.2rem; display: inline-flex; align-items: center; gap: 0.4rem;
+            text-decoration: none;
         }
         .nav-link:hover { color: var(--primary); }
         .nav-link.active { color: var(--primary); }
@@ -1314,13 +1315,13 @@
             <span id="head-title">FESTOS</span>
         </div>
         <div class="nav-links" id="desktop-nav-links">
-            <a class="nav-link active" data-nav="home" onclick="switchMainTab('home', this)"><i class="fa-solid fa-house"></i> Home</a>
-            <a class="nav-link" data-nav="schedule" onclick="switchMainTab('schedule', this)"><i class="fa-solid fa-calendar-days"></i> Schedules</a>
-            <a class="nav-link" data-nav="results" onclick="switchMainTab('results', this)"><i class="fa-solid fa-trophy"></i> Results</a>
-            <a class="nav-link" data-nav="portal" onclick="switchMainTab('portal', this)"><i class="fa-solid fa-user-lock"></i> Participant Portal</a>
-            <a class="nav-link" data-nav="downloads" onclick="switchMainTab('downloads', this)"><i class="fa-solid fa-file-arrow-down"></i> Downloads</a>
-            <a class="nav-link" data-nav="gallery" onclick="switchMainTab('gallery', this)"><i class="fa-solid fa-images"></i> Gallery</a>
-            <a class="nav-link" data-nav="news" onclick="switchMainTab('news', this)"><i class="fa-solid fa-bullhorn"></i> News</a>
+            <a class="nav-link active" data-nav="home" href="?tab=home" onclick="switchMainTab('home', this); return false;"><i class="fa-solid fa-house"></i> Home</a>
+            <a class="nav-link" data-nav="schedule" href="?tab=schedule" onclick="switchMainTab('schedule', this); return false;"><i class="fa-solid fa-calendar-days"></i> Schedules</a>
+            <a class="nav-link" data-nav="results" href="?tab=results" onclick="switchMainTab('results', this); return false;"><i class="fa-solid fa-trophy"></i> Results</a>
+            <a class="nav-link" data-nav="portal" href="?tab=portal" onclick="switchMainTab('portal', this); return false;"><i class="fa-solid fa-user-lock"></i> Participant Portal</a>
+            <a class="nav-link" data-nav="downloads" href="?tab=downloads" onclick="switchMainTab('downloads', this); return false;"><i class="fa-solid fa-file-arrow-down"></i> Downloads</a>
+            <a class="nav-link" data-nav="gallery" href="?tab=gallery" onclick="switchMainTab('gallery', this); return false;"><i class="fa-solid fa-images"></i> Gallery</a>
+            <a class="nav-link" data-nav="news" href="?tab=news" onclick="switchMainTab('news', this); return false;"><i class="fa-solid fa-bullhorn"></i> News</a>
         </div>
         <div class="live-badge">
             <div class="live-dot-container"><span class="live-ping"></span><span class="live-dot"></span></div>
@@ -1432,6 +1433,14 @@
                     <i class="fa-solid fa-calendar-days" style="color: var(--primary); margin-right: 8px;"></i> Official Stage Schedule
                 </h2>
                 <p style="color: var(--text-muted); font-weight: 600; font-size: 0.92rem; text-transform: uppercase;">Real-time scheduled timings, venues, and stage lineups</p>
+                <div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.85rem; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-outline" onclick="copyCurrentTabLink()" style="width: auto; padding: 0.45rem 1rem; font-size: 0.8rem; font-weight: 700; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; background: var(--surface);" title="Copy dynamic link to Schedule">
+                        <i class="fa-regular fa-copy" style="color: var(--primary);"></i> Copy Schedule Link
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="shareCurrentTabLink()" style="width: auto; padding: 0.45rem 1rem; font-size: 0.8rem; font-weight: 700; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; background: var(--surface);" title="Share Schedule Link">
+                        <i class="fa-solid fa-share-nodes" style="color: var(--primary);"></i> Share
+                    </button>
+                </div>
             </div>
 
             <!-- Schedule Search & Filter Bar -->
@@ -1492,13 +1501,23 @@
                 <p style="color: var(--text-muted); font-weight: 600; font-size: 0.92rem; text-transform: uppercase;" id="results-portal-subtitle">Official verified standings and winners podium</p>
             </div>
 
-            <!-- Navigation Sub-Tabs -->
-            <div class="tabs">
-                <div class="tab active" onclick="switchResultsTab('standings', this)">
-                    <i class="fa-solid fa-trophy"></i> Overall Standings
+            <!-- Navigation Sub-Tabs & Direct Link Controls -->
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.75rem;">
+                <div class="tabs" style="margin-bottom: 0; flex: 1; min-width: 280px;">
+                    <a class="tab active" id="subtab-btn-standings" href="?tab=results&subtab=standings" onclick="switchResultsTab('standings', this); return false;">
+                        <i class="fa-solid fa-trophy"></i> Overall Standings
+                    </a>
+                    <a class="tab" id="subtab-btn-individual" href="?tab=results&subtab=individual" onclick="switchResultsTab('individual', this); return false;">
+                        <i class="fa-solid fa-list-check"></i> Event Results
+                    </a>
                 </div>
-                <div class="tab" onclick="switchResultsTab('individual', this)">
-                    <i class="fa-solid fa-list-check"></i> Event Results
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-outline" onclick="copyCurrentTabLink()" style="width: auto; padding: 0.65rem 1rem; font-size: 0.82rem; font-weight: 700; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; background: var(--surface);" title="Copy dynamic shareable link for this tab">
+                        <i class="fa-regular fa-copy" style="color: var(--primary);"></i> Copy Tab Link
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="shareCurrentTabLink()" style="width: auto; padding: 0.65rem 1rem; font-size: 0.82rem; font-weight: 700; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; background: var(--surface);" title="Share tab link via WhatsApp / social apps">
+                        <i class="fa-solid fa-share-nodes" style="color: var(--primary);"></i> Share
+                    </button>
                 </div>
             </div>
 
@@ -1821,7 +1840,15 @@
                     <span id="modal-cat-name" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--primary); letter-spacing: 0.05em; background: var(--primary-light); padding: 0.3rem 0.65rem; border-radius: 50px; margin-bottom: 0.4rem; display: inline-block;">Category</span>
                     <h2 id="modal-comp-name" style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-top: 0.2rem; line-height: 1.2; text-transform: uppercase;">Competition Name</h2>
                 </div>
-                <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-outline" onclick="copyCurrentEventResultLink()" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.76rem; font-weight: 700; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px;" title="Copy direct link to this event result">
+                        <i class="fa-regular fa-copy"></i> Copy Link
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="shareCurrentEventResultLink()" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.76rem; font-weight: 700; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px;" title="Share event result">
+                        <i class="fa-solid fa-share-nodes"></i> Share
+                    </button>
+                    <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
             </div>
             
             <div class="modal-body">
@@ -2182,8 +2209,197 @@
             }
         }
 
+        // --- Dynamic URL & Deep Linking Engine ---
+        let currentActiveResultsSubTab = 'standings';
+
+        function getDynamicTabUrl(tabId, subTabId = null) {
+            try {
+                const origin = window.location.origin && window.location.origin !== 'null' ? window.location.origin : '';
+                const pathname = window.location.pathname || '';
+                const params = new URLSearchParams(window.location.search);
+                
+                // Preserve fest identifier if present
+                const fid = (typeof currentFestDetails !== 'undefined' && currentFestDetails?.id) || window.activeFestId || '';
+                if (fid && !params.has('fest') && !params.has('fest_id') && !params.has('slug')) {
+                    params.set('fest', fid);
+                }
+
+                // Set or clear tab
+                if (tabId === 'home') {
+                    params.delete('tab');
+                    params.delete('view');
+                    params.delete('subtab');
+                } else {
+                    params.set('tab', tabId);
+                    params.delete('view');
+                    if (tabId === 'results') {
+                        const targetSub = subTabId || currentActiveResultsSubTab || 'standings';
+                        params.set('subtab', targetSub);
+                    } else {
+                        params.delete('subtab');
+                    }
+                }
+
+                // Clean up entity-specific params if not in that view
+                if (tabId !== 'gallery') params.delete('album');
+                if (tabId !== 'results') params.delete('comp');
+
+                const qs = params.toString();
+                return `${origin}${pathname}${qs ? '?' + qs : ''}`;
+            } catch (e) {
+                return window.location.href;
+            }
+        }
+        window.getDynamicTabUrl = getDynamicTabUrl;
+
+        function updateBrowserUrl(tabId, subTabId = null, replace = false) {
+            try {
+                const newUrl = getDynamicTabUrl(tabId, subTabId);
+                const state = { tab: tabId, subtab: subTabId };
+                if (replace) {
+                    window.history.replaceState(state, '', newUrl);
+                } else {
+                    if (window.location.href !== newUrl) {
+                        window.history.pushState(state, '', newUrl);
+                    }
+                }
+            } catch (e) {}
+        }
+        window.updateBrowserUrl = updateBrowserUrl;
+
+        function refreshDynamicTabLinks() {
+            try {
+                document.querySelectorAll('.nav-link[data-nav]').forEach(el => {
+                    const nav = el.getAttribute('data-nav');
+                    if (nav) el.setAttribute('href', getDynamicTabUrl(nav));
+                });
+                const standingsBtn = document.getElementById('subtab-btn-standings');
+                if (standingsBtn) standingsBtn.setAttribute('href', getDynamicTabUrl('results', 'standings'));
+                const individualBtn = document.getElementById('subtab-btn-individual');
+                if (individualBtn) individualBtn.setAttribute('href', getDynamicTabUrl('results', 'individual'));
+            } catch (e) {}
+        }
+        window.refreshDynamicTabLinks = refreshDynamicTabLinks;
+
+        function getActiveTabInfo() {
+            const activeSection = document.querySelector('.view-section.active');
+            let tabId = activeSection ? activeSection.id.replace('view-', '') : 'home';
+            let subTabId = null;
+            let label = 'Live Portal';
+
+            if (tabId === 'results') {
+                const isStandingsVisible = document.getElementById('standings')?.style.display !== 'none';
+                subTabId = isStandingsVisible ? 'standings' : 'individual';
+                label = isStandingsVisible ? 'Overall Standings' : 'Event Results';
+            } else if (tabId === 'schedule') {
+                label = 'Stage Schedule';
+            } else if (tabId === 'portal') {
+                label = 'Participant Portal';
+            } else if (tabId === 'downloads') {
+                label = 'Official Downloads';
+            } else if (tabId === 'gallery') {
+                label = 'Festival Gallery';
+            } else if (tabId === 'news') {
+                label = 'News & Announcements';
+            } else {
+                label = 'Home Portal';
+            }
+
+            return { tabId, subTabId, label, url: getDynamicTabUrl(tabId, subTabId) };
+        }
+
+        function copyCurrentTabLink() {
+            const tabInfo = getActiveTabInfo();
+            const url = tabInfo.url;
+            
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                    showToast(`${tabInfo.label} link copied! 📋`, 'success');
+                }).catch(() => {
+                    fallbackCopy(url);
+                    showToast(`${tabInfo.label} link copied! 📋`, 'success');
+                });
+            } else {
+                fallbackCopy(url);
+                showToast(`${tabInfo.label} link copied! 📋`, 'success');
+            }
+        }
+        window.copyCurrentTabLink = copyCurrentTabLink;
+
+        function shareCurrentTabLink() {
+            const tabInfo = getActiveTabInfo();
+            const festName = (typeof currentFestDetails !== 'undefined' && currentFestDetails?.name) || 'Festival';
+            const shareData = {
+                title: `${festName} - ${tabInfo.label}`,
+                text: `Check out ${tabInfo.label} on ${festName}:`,
+                url: tabInfo.url
+            };
+
+            if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+                navigator.share(shareData).catch(() => {});
+            } else {
+                copyCurrentTabLink();
+            }
+        }
+        window.shareCurrentTabLink = shareCurrentTabLink;
+
+        function getEventResultShareUrl(compId) {
+            const cid = compId || (typeof activeCompId !== 'undefined' ? activeCompId : null);
+            if (!cid) return getDynamicTabUrl('results', 'individual');
+            const origin = window.location.origin && window.location.origin !== 'null' ? window.location.origin : '';
+            const pathname = window.location.pathname || '';
+            const params = new URLSearchParams(window.location.search);
+            const fid = (typeof currentFestDetails !== 'undefined' && currentFestDetails?.id) || window.activeFestId || '';
+            if (fid && !params.has('fest') && !params.has('fest_id') && !params.has('slug')) {
+                params.set('fest', fid);
+            }
+            params.set('tab', 'results');
+            params.set('subtab', 'individual');
+            params.set('comp', cid);
+            return `${origin}${pathname}?${params.toString()}`;
+        }
+        window.getEventResultShareUrl = getEventResultShareUrl;
+
+        function copyCurrentEventResultLink() {
+            if (typeof activeCompId === 'undefined' || !activeCompId) return;
+            const comp = (typeof publishedCompetitions !== 'undefined') ? publishedCompetitions.find(c => c.id === activeCompId) : null;
+            const url = getEventResultShareUrl(activeCompId);
+            const label = comp ? comp.name : 'Event Result';
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                    showToast(`${label} result link copied! 📋`, 'success');
+                }).catch(() => {
+                    fallbackCopy(url);
+                    showToast(`${label} result link copied! 📋`, 'success');
+                });
+            } else {
+                fallbackCopy(url);
+                showToast(`${label} result link copied! 📋`, 'success');
+            }
+        }
+        window.copyCurrentEventResultLink = copyCurrentEventResultLink;
+
+        function shareCurrentEventResultLink() {
+            if (typeof activeCompId === 'undefined' || !activeCompId) return;
+            const comp = (typeof publishedCompetitions !== 'undefined') ? publishedCompetitions.find(c => c.id === activeCompId) : null;
+            const url = getEventResultShareUrl(activeCompId);
+            const label = comp ? comp.name : 'Event Result';
+            const festName = (typeof currentFestDetails !== 'undefined' && currentFestDetails?.name) || 'Festival';
+            const shareData = {
+                title: `${festName} - ${label} Results`,
+                text: `View official results for ${label} on ${festName}:`,
+                url: url
+            };
+            if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+                navigator.share(shareData).catch(() => {});
+            } else {
+                copyCurrentEventResultLink();
+            }
+        }
+        window.shareCurrentEventResultLink = shareCurrentEventResultLink;
+
         // --- Routing and Tab Logic ---
-        function switchMainTab(tabId, element) {
+        function switchMainTab(tabId, element, updateUrl = true) {
             // Check visibility settings
             const pageVis = websiteConfig.visibility?.page || {};
             const keyMap = { 'schedule': 'schedules', 'results': 'results', 'portal': 'portal', 'downloads': 'downloads', 'gallery': 'gallery', 'news': 'news' };
@@ -2220,6 +2436,11 @@
 
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
+            if (updateUrl) {
+                const subTab = tabId === 'results' ? (currentActiveResultsSubTab || 'standings') : null;
+                updateBrowserUrl(tabId, subTab);
+            }
+
             if (tabId === 'schedule') loadPublicSchedule();
             if (tabId === 'downloads') renderDownloadsView();
             if (tabId === 'gallery') renderGalleryView();
@@ -2227,13 +2448,69 @@
             if (tabId === 'portal') checkExistingPortalSession();
         }
 
-        function switchResultsTab(subTabId, element) {
+        function switchResultsTab(subTabId, element, updateUrl = true) {
+            currentActiveResultsSubTab = subTabId;
             document.querySelectorAll('.results-sub-view').forEach(el => el.style.display = 'none');
             document.querySelectorAll('.tabs .tab').forEach(el => el.classList.remove('active'));
             
-            document.getElementById(subTabId).style.display = 'block';
-            if (element) element.classList.add('active');
+            const target = document.getElementById(subTabId);
+            if (target) target.style.display = 'block';
+            
+            const activeBtn = element || document.getElementById(`subtab-btn-${subTabId}`) || (subTabId === 'standings' ? document.querySelectorAll('.tabs .tab')[0] : document.querySelectorAll('.tabs .tab')[1]);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            if (updateUrl) {
+                updateBrowserUrl('results', subTabId);
+            }
         }
+
+        function handleUrlRouting(updateUrl = false) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const hash = (window.location.hash || '').replace('#', '').trim().toLowerCase();
+            
+            let tab = urlParams.get('tab') || urlParams.get('view') || hash || 'home';
+            let subtab = urlParams.get('subtab') || null;
+            const targetCompId = urlParams.get('comp') || null;
+            const targetAlbumId = urlParams.get('album') || null;
+
+            // Normalize subtab aliases
+            if (tab === 'standings' || hash === 'standings') {
+                tab = 'results';
+                subtab = 'standings';
+            } else if (tab === 'individual' || tab === 'events' || hash === 'individual' || hash === 'events') {
+                tab = 'results';
+                subtab = 'individual';
+            }
+
+            if (targetAlbumId || tab === 'gallery') {
+                switchMainTab('gallery', null, updateUrl);
+                if (targetAlbumId) {
+                    setTimeout(() => { if (typeof openAlbumViewerModal === 'function') openAlbumViewerModal(targetAlbumId); }, 350);
+                }
+            } else if (tab === 'results') {
+                switchMainTab('results', null, updateUrl);
+                if (targetCompId) {
+                    switchResultsTab('individual', document.getElementById('subtab-btn-individual'), updateUrl);
+                    setTimeout(() => { openResultModal(targetCompId); }, 300);
+                } else if (subtab === 'individual') {
+                    switchResultsTab('individual', document.getElementById('subtab-btn-individual'), updateUrl);
+                } else {
+                    switchResultsTab('standings', document.getElementById('subtab-btn-standings'), updateUrl);
+                }
+            } else if (tab && tab !== 'home') {
+                switchMainTab(tab, null, updateUrl);
+            } else {
+                switchMainTab('home', null, updateUrl);
+            }
+        }
+        window.handleUrlRouting = handleUrlRouting;
+
+        window.addEventListener('popstate', () => {
+            handleUrlRouting(false);
+        });
+        window.addEventListener('hashchange', () => {
+            handleUrlRouting(false);
+        });
 
         // --- Mobile More Menu Drawer Controls ---
         function openMobileMoreMenu() {
@@ -3204,26 +3481,9 @@
                 populateCategoryFilter();
                 renderCompetitionsGrid();
 
-                // 11. URL Routing
-                const viewContext = urlParams.get('view') || urlParams.get('tab') || 'home';
-                const targetCompId = urlParams.get('comp') || null;
-                const targetAlbumId = urlParams.get('album') || null;
-
-                if (targetAlbumId || viewContext === 'gallery') {
-                    switchMainTab('gallery');
-                    if (targetAlbumId) {
-                        setTimeout(() => { if (typeof openAlbumViewerModal === 'function') openAlbumViewerModal(targetAlbumId); }, 350);
-                    }
-                } else if (viewContext === 'results' && targetCompId) {
-                    switchMainTab('results');
-                    switchResultsTab('individual', document.querySelectorAll('.tabs .tab')[1]);
-                    setTimeout(() => { openResultModal(targetCompId); }, 300);
-                } else if (viewContext === 'standings') {
-                    switchMainTab('results');
-                    switchResultsTab('standings', document.querySelectorAll('.tabs .tab')[0]);
-                } else if (viewContext && viewContext !== 'home') {
-                    switchMainTab(viewContext);
-                }
+                // 11. URL Routing & Dynamic Tab Links
+                refreshDynamicTabLinks();
+                handleUrlRouting(false);
 
             } catch (err) {
                 console.error("Init Error:", err);
@@ -3762,9 +4022,20 @@
             activeTemplateIndex = 0; 
             renderPreviewCanvas();
             document.getElementById('result-modal').classList.add('active');
+            try {
+                const modalUrl = getEventResultShareUrl(compId);
+                window.history.pushState({ tab: 'results', subtab: 'individual', comp: compId }, '', modalUrl);
+            } catch(e) {}
         } 
         
-        function closeModal() { document.getElementById('result-modal').classList.remove('active'); activeCompId = null; }
+        function closeModal() { 
+            document.getElementById('result-modal').classList.remove('active'); 
+            activeCompId = null; 
+            try {
+                const prevUrl = getDynamicTabUrl('results', 'individual');
+                window.history.replaceState({ tab: 'results', subtab: 'individual' }, '', prevUrl);
+            } catch(e) {}
+        }
 
         function renderPreviewCanvas() {
             if(!activeCompId) return;
