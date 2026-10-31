@@ -5420,7 +5420,59 @@ if (allCompIds.length > 0) {
             });
         }
 
-        // --- O. DIRECT COMPETITION ANNOUNCER ENGINE (ONE-CLICK BROADCAST) ---
+        function startOnAirTimer() {
+            if (ttsOnAirTimer) clearInterval(ttsOnAirTimer);
+            ttsOnAirStartTime = Date.now();
+            const timerDisplay = document.getElementById('tts-timer-display');
+            if (timerDisplay) {
+                timerDisplay.style.display = 'inline-flex';
+                timerDisplay.innerText = '00:00';
+            }
+
+            ttsOnAirTimer = setInterval(() => {
+                if (!ttsIsSpeaking) {
+                    clearInterval(ttsOnAirTimer);
+                    return;
+                }
+                const elapsedSec = Math.floor((Date.now() - ttsOnAirStartTime) / 1000);
+                const mins = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+                const secs = String(elapsedSec % 60).padStart(2, '0');
+                if (timerDisplay) timerDisplay.innerText = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function stopAISpeech() {
+            ttsIsSpeaking = false;
+            ttsCurrentRepeat = 0;
+            if (typeof stopCalibratedVoiceAudio === 'function') {
+                stopCalibratedVoiceAudio();
+            }
+            if ('speechSynthesis' in window) {
+                try {
+                    window.speechSynthesis.cancel();
+                } catch(e) {}
+            }
+            resetTTSState();
+        }
+
+        function resetTTSState() {
+            ttsIsSpeaking = false;
+            const wave = document.getElementById('tts-wave');
+            const statusLabel = document.getElementById('tts-status-label');
+            const onAirBadge = document.getElementById('tts-on-air-badge');
+            const timerDisplay = document.getElementById('tts-timer-display');
+
+            if (wave) wave.classList.remove('speaking');
+            if (onAirBadge) onAirBadge.style.display = 'none';
+            if (timerDisplay) timerDisplay.style.display = 'none';
+            if (statusLabel) {
+                statusLabel.innerText = 'IDLE';
+                statusLabel.style.color = 'var(--text-muted)';
+            }
+            if (ttsOnAirTimer) clearInterval(ttsOnAirTimer);
+        }
+
+                // --- O. DIRECT COMPETITION ANNOUNCER ENGINE (ONE-CLICK BROADCAST) ---
         async function speakCompCallout(compId, type, event) {
             if (event) {
                 event.stopPropagation();
