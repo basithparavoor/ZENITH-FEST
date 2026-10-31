@@ -67,6 +67,37 @@ async function initializeApp() {
 
     adjustLayoutPadding();
     loadDashboard(); 
+    setupLiveJudgeSync();
+}
+
+// Live Realtime Sync & Background Polling for status updates (e.g. Manager Reopen to Live Event)
+function setupLiveJudgeSync() {
+    // 1. Polling interval every 12 seconds when viewing dashboard
+    setInterval(() => {
+        const evalView = document.getElementById('evaluation-view');
+        if (!evalView || evalView.style.display === 'none') {
+            loadDashboard(true);
+        }
+    }, 12000);
+
+    // 2. Realtime listener for Postgres competition updates
+    try {
+        if (supabaseClient && typeof supabaseClient.channel === 'function') {
+            const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+            const chanName = festId ? `judge-comps-sync-${festId}` : 'judge-comps-sync';
+            supabaseClient
+                .channel(chanName)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'competitions' }, () => {
+                    const evalView = document.getElementById('evaluation-view');
+                    if (!evalView || evalView.style.display === 'none') {
+                        loadDashboard(true);
+                    }
+                })
+                .subscribe();
+        }
+    } catch(e) {
+        console.warn("Could not attach judge realtime channel:", e);
+    }
 }
 
 // Helper to detect offstage competition accurately
@@ -78,11 +109,33 @@ function isCompOffstage(comp) {
     return false;
 }
 
-// 2. Load Assigned Competitions (Global Grading Fix)
-async function loadDashboard() {
+// Helper to detect if scheduled time has elapsed (overdue)
+function isCompScheduledTimeEnded(comp) {
+    const sched = comp?.schedule || (window.masterSchedule ? window.masterSchedule[comp?.id] : null);
+    if (!sched || !sched.date) return false;
+    const toTime = sched.to_time || sched.time;
+    if (!toTime) return false;
+    const endDateTime = new Date(`${sched.date}T${toTime}`);
+    if (isNaN(endDateTime)) return false;
+    return new Date() > endDateTime;
+}
+
+// 2. Load Assigned Competitions
+async function loadDashboard(silent = false) {
     const container = document.getElementById('competitions-container');
-    container.innerHTML = `<div style="text-align: center; padding: 3rem 1rem;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary); margin-bottom: 1rem;"></i><p style="color: var(--text-muted); font-weight: 600;">Loading assignments...</p></div>`;
-    adjustLayoutPadding();
+    if (!silent) {
+        container.innerHTML = `<div style="text-align: center; padding: 3rem 1rem;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary); margin-bottom: 1rem;"></i><p style="color: var(--text-muted); font-weight: 600;">Loading assignments...</p></div>`;
+        adjustLayoutPadding();
+    }
+
+    // Fetch Master Schedule for schedule and overdue detection
+    try {
+        const activeFid = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+        const val = window.festosGetSetting ? await window.festosGetSetting('master_schedule', activeFid) : null;
+        window.masterSchedule = val || {};
+    } catch(e) {
+        window.masterSchedule = window.masterSchedule || {};
+    }
 
     globalJudgeComps = []; // Reset global state
 
@@ -104,21 +157,9 @@ async function loadDashboard() {
             adjustLayoutPadding();
             return;
         }
-        
-        let gradedQuery = supabaseClient
-            .from('judgements')
-            .select('competition_id')
-            .not('awarded_mark', 'is', null);
-        if (window.festosApplyFilter) {
-            gradedQuery = window.festosApplyFilter(gradedQuery);
-        }
 
-        const { data: gradedRecords } = await gradedQuery;
-
-        const gradedIds = new Set(gradedRecords?.map(m => m.competition_id) || []);
-
-        allComps.forEach(comp => {
-            if (!gradedIds.has(comp.id)) globalJudgeComps.push(comp);
+        (allComps || []).forEach(comp => {
+            globalJudgeComps.push(comp);
         });
 
     } else {
@@ -134,7 +175,7 @@ async function loadDashboard() {
         if (window.festosApplyFilter) {
             assignQuery = window.festosApplyFilter(assignQuery);
         }
-        const { data: assignments, error: assignError } = await assignQuery; // NEW: Added valuation
+        const { data: assignments, error: assignError } = await assignQuery;
 
         if (assignError) {
             container.innerHTML = `<p style="color: #EF4444; text-align:center; font-weight: 600; padding: 2rem;">Failed to load assignments.</p>`;
@@ -143,25 +184,37 @@ async function loadDashboard() {
         }
         
         if (assignments && assignments.length > 0) {
-            const activeCompIds = assignments.map(a => a.competition_id);
-
-            const { data: gradedRecords } = await supabaseClient
-                .from('judgements')
-                .select('competition_id')
-                .in('competition_id', activeCompIds)
-                .not('awarded_mark', 'is', null);
-
-            const gradedIds = new Set(gradedRecords?.map(m => m.competition_id) || []);
-            
+            const seenCompIds = new Set();
             assignments.forEach(row => {
-                if (row.competitions && !gradedIds.has(row.competition_id)) {
+                if (row.competitions && !seenCompIds.has(row.competition_id)) {
+                    seenCompIds.add(row.competition_id);
                     globalJudgeComps.push(row.competitions);
                 }
             });
         }
     }
 
-    // Dynamic sorting: In Valuation first, then Ongoing, then Registration, then alphabetical
+    // Attach master schedule & check if this judge already has existing marks for each comp
+    const activeCompIds = globalJudgeComps.map(c => c.id);
+    const judgeExistingMarksSet = new Set();
+    if (activeCompIds.length > 0) {
+        let marksQuery = supabaseClient
+            .from('judgements')
+            .select('competition_id')
+            .in('competition_id', activeCompIds)
+            .eq('judge_id', user.id)
+            .not('awarded_mark', 'is', null);
+        if (window.festosApplyFilter) marksQuery = window.festosApplyFilter(marksQuery);
+        const { data: myMarks } = await marksQuery;
+        (myMarks || []).forEach(m => judgeExistingMarksSet.add(m.competition_id));
+    }
+
+    globalJudgeComps.forEach(c => {
+        c.schedule = c.schedule || (window.masterSchedule ? window.masterSchedule[c.id] : null);
+        c.hasExistingMarks = judgeExistingMarksSet.has(c.id);
+    });
+
+    // Dynamic sorting: In Valuation first, then Ongoing (including reopened), then Registration, then alphabetical
     globalJudgeComps.sort((a, b) => {
         const statusPriority = { 'valuation': 1, 'ongoing': 2, 'registration': 3, 'pending': 4 };
         const aPri = statusPriority[a.status] || 5;
@@ -232,12 +285,13 @@ function renderDashboard(data) {
         const isOngoing = (comp.status === 'ongoing');
         const isReg = (comp.status === 'registration');
         const isAdmin = (user.role === 'master_admin' || user.role === 'admin' || user.role === 'super_admin');
+        const timeEnded = isCompScheduledTimeEnded(comp);
 
         // Evaluation readiness:
-        // - Any competition in 'valuation' is ALWAYS ready to evaluate (for judges & master admin)
-        // - Onstage ongoing competitions are ready to evaluate live
-        // - Master Admin / Admin has full direct override access to evaluate ANY competition
-        const isReady = isValuation || (!offstage && isOngoing) || isAdmin;
+        // - Any competition in 'valuation' is ALWAYS ready to evaluate
+        // - Any competition in 'ongoing' (Live Event) is ready for valuation (including reopened, onstage, offstage, and overdue!)
+        // - Master Admin / Admin has full direct override access
+        const isReady = isValuation || isOngoing || isAdmin;
         
         let statusText = 'Starts Soon';
         let badgeColor = '#D97706';
@@ -248,14 +302,14 @@ function renderDashboard(data) {
             badgeColor = '#B45309';
             badgeBg = '#FEF3C7';
         } else if (isOngoing) {
-            if (!offstage) {
+            if (comp.hasExistingMarks) {
+                statusText = 'Live (Reopened)';
+                badgeColor = '#7C3AED';
+                badgeBg = '#EDE9FE';
+            } else {
                 statusText = 'Live / Ongoing';
                 badgeColor = 'var(--success)';
                 badgeBg = 'var(--success-light)';
-            } else {
-                statusText = isAdmin ? 'Event Ongoing (Admin Access)' : 'Event Ongoing';
-                badgeColor = isAdmin ? 'var(--primary)' : '#4F46E5';
-                badgeBg = isAdmin ? 'var(--primary-light)' : '#EEF2FF';
             }
         } else if (isReg) {
             statusText = isAdmin ? 'In Registration (Admin Override)' : 'In Registration';
@@ -268,20 +322,38 @@ function renderDashboard(data) {
         }
 
         const btnState = isReady ? '' : 'disabled';
-        const btnText = isReady ? 'Evaluate Now' : 'Waiting...';
+        let btnText = isReady ? (comp.hasExistingMarks ? 'Evaluate / Update Marks' : 'Evaluate Now') : 'Waiting...';
         const categoryName = comp.categories?.name || 'UNCATEGORIZED';
+
+        const overduePill = timeEnded ? `
+            <span style="display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.68rem; font-weight: 800; color: #B45309; background: #FEF3C7; padding: 0.2rem 0.55rem; border-radius: 6px; border: 1px solid #FDE68A;">
+                <i class="fa-solid fa-clock-rotate-left"></i> Overdue
+            </span>
+        ` : '';
+
+        const schedTimeBadge = (comp.schedule && comp.schedule.time) ? `
+            <span style="font-size: 0.72rem; font-weight: 600; color: var(--text-muted); background: var(--bg-main); padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid var(--border); display: inline-flex; align-items: center; gap: 0.3rem;">
+                <i class="fa-regular fa-clock"></i> ${comp.schedule.time}${comp.schedule.to_time ? ' - ' + comp.schedule.to_time : ''}
+            </span>
+        ` : '';
         
         const card = document.createElement('div');
         card.className = 'card comp-card';
         card.innerHTML = `
             <div class="comp-card-inner">
                 <div style="flex: 1;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 0.5rem;">
-                        <span style="font-size: 0.72rem; font-weight: 800; color: var(--primary); letter-spacing: 0.04em; background: #EEF2FF; padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid rgba(99, 102, 241, 0.15);">${categoryName}</span>
-                        <span style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.72rem; font-weight: 700; color: ${badgeColor}; background: ${badgeBg}; padding: 0.25rem 0.6rem; border-radius: 6px;">
-                            <span style="display: inline-block; width: 6px; height: 6px; background: ${badgeColor}; border-radius: 50%;"></span>
-                            ${statusText}
-                        </span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 0.5rem; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                            <span style="font-size: 0.72rem; font-weight: 800; color: var(--primary); letter-spacing: 0.04em; background: #EEF2FF; padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid rgba(99, 102, 241, 0.15);">${categoryName}</span>
+                            ${schedTimeBadge}
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+                            ${overduePill}
+                            <span style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.72rem; font-weight: 700; color: ${badgeColor}; background: ${badgeBg}; padding: 0.25rem 0.6rem; border-radius: 6px;">
+                                <span style="display: inline-block; width: 6px; height: 6px; background: ${badgeColor}; border-radius: 50%;"></span>
+                                ${statusText}
+                            </span>
+                        </div>
                     </div>
                     <h3 style="margin-bottom: 0.25rem; font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; color: var(--text-main); line-height: 1.3;">${comp.name}</h3>
                     <p style="color: var(--text-muted); font-size: 0.82rem; font-weight: 600;">
@@ -324,12 +396,36 @@ async function openEvaluation(compId) {
     const container = document.getElementById('participants-container');
     container.innerHTML = `<div style="text-align: center; padding: 3rem 1rem;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary); margin-bottom: 1rem;"></i><p style="color: var(--text-muted); font-weight: 600;">Loading participants...</p></div>`;
 
-    const { data: registrations, error } = await supabaseClient
-        .from('participant_competitions')
-        .select('participant_id, code_letter, is_leader, group_id, competitions(is_group)')
-        .eq('competition_id', compId)
-        .eq('is_present', true)
-        .order('code_letter', { ascending: true });
+    let [regsResult, existingMarksResult] = await Promise.all([
+        supabaseClient
+            .from('participant_competitions')
+            .select('participant_id, code_letter, is_leader, group_id, competitions(is_group)')
+            .eq('competition_id', compId)
+            .eq('is_present', true)
+            .order('code_letter', { ascending: true }),
+        supabaseClient
+            .from('judgements')
+            .select('participant_id, awarded_mark, feedback')
+            .eq('competition_id', compId)
+            .eq('judge_id', user.id)
+            .not('participant_id', 'is', null)
+    ]);
+
+    const registrations = regsResult.data;
+    const error = regsResult.error;
+
+    const existingMarksMap = new Map();
+    const existingFeedbackMap = new Map();
+    if (existingMarksResult.data && existingMarksResult.data.length > 0) {
+        existingMarksResult.data.forEach(m => {
+            if (m.awarded_mark !== null && m.awarded_mark !== undefined) {
+                existingMarksMap.set(String(m.participant_id), m.awarded_mark);
+            }
+            if (m.feedback) {
+                existingFeedbackMap.set(String(m.participant_id), m.feedback);
+            }
+        });
+    }
 
     container.innerHTML = '';
 
@@ -357,6 +453,9 @@ async function openEvaluation(compId) {
                 : `<span style="background: #E2E8F0; color: #475569; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block;">Party</span>`;
         }
 
+        const prevMark = existingMarksMap.has(String(reg.participant_id)) ? existingMarksMap.get(String(reg.participant_id)) : '';
+        const prevFeedback = existingFeedbackMap.has(String(reg.participant_id)) ? existingFeedbackMap.get(String(reg.participant_id)) : '';
+
         container.innerHTML += `
             <div class="participant-row" data-pid="${reg.participant_id}">
                 <div class="participant-main">
@@ -377,13 +476,14 @@ async function openEvaluation(compId) {
                                min="0" 
                                max="${currentMaxMark}" 
                                step="0.5" 
+                               value="${prevMark !== '' ? prevMark : ''}"
                                inputmode="decimal"
                                oninput="validateMark(this, ${currentMaxMark})">
                         <div class="max-mark-divider"></div>
                         <span class="max-mark-label">${currentMaxMark}</span>
                     </div>
                 </div>
-                <textarea class="feedback-input" rows="2" placeholder="ADD CONSTRUCTIVE FEEDBACK (OPTIONAL)..."></textarea>
+                <textarea class="feedback-input" rows="2" placeholder="ADD CONSTRUCTIVE FEEDBACK (OPTIONAL)...">${prevFeedback}</textarea>
             </div>
         `;
     });
