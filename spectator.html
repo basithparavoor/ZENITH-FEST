@@ -966,11 +966,26 @@
 
             let schedCompsQuery = supabaseClient
                 .from('competitions')
-                .select('*, categories(name), stages(name)')
+                .select('*, categories(name), stages(name, is_offstage)')
                 .in('status', ['ongoing', 'valuation', 'registration'])
                 .order('status');
             if (window.festosApplyFilter) schedCompsQuery = window.festosApplyFilter(schedCompsQuery);
-            const { data: comps } = await schedCompsQuery;
+            const { data: rawComps } = await schedCompsQuery;
+
+            const isCompOffstage = (c) => {
+                if (!c) return false;
+                if (c.is_offstage === true || c.is_offstage === 'true' || c.is_offstage === 1) return true;
+                if (String(c.type || '').toLowerCase().trim() === 'offstage') return true;
+                if (c.stages?.is_offstage === true || c.stages?.is_offstage === 'true' || c.stages?.is_offstage === 1) return true;
+                if (c.stages?.name && String(c.stages.name).toLowerCase().includes('offstage')) return true;
+                return false;
+            };
+
+            const comps = (rawComps || []).filter(c => {
+                const s = String(c.status || '').toLowerCase().trim();
+                if (s === 'valuation' && isCompOffstage(c)) return false;
+                return true;
+            });
 
             container.innerHTML = `
                 <div class="view-header">

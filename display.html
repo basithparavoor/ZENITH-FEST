@@ -549,13 +549,29 @@
             return diffHours <= 3.25 && diffHours >= -3.5;
         }
 
+        // Helper: Check if a competition is offstage
+        function isCompOffstage(c) {
+            if (!c) return false;
+            if (c.is_offstage === true || c.is_offstage === 'true' || c.is_offstage === 1) return true;
+            if (String(c.type || '').toLowerCase().trim() === 'offstage') return true;
+            if (c.stages?.is_offstage === true || c.stages?.is_offstage === 'true' || c.stages?.is_offstage === 1) return true;
+            if (c.stages?.name && String(c.stages.name).toLowerCase().includes('offstage')) return true;
+            return false;
+        }
+
         // Master Event Radar visibility gate:
-        // 1. If ongoing, registration, valuation: ALWAYS SHOW
-        // 2. If completed: NO NEED TO VIEW AFTER 10 MINS OF COMPLETION (NOT ON SCHEDULED TIME, AFTER PROGRAM ENDED)
-        // 3. If upcoming (pending): ONLY VIEW IF SCHEDULED ABOUT 3 HRS
+        // 1. If ongoing, registration: ALWAYS SHOW
+        // 2. If valuation: ALWAYS SHOW FOR STAGE EVENTS, BUT IF OFFSTAGE AND IN VALUATION, DO NOT SHOW
+        // 3. If completed: NO NEED TO VIEW AFTER 10 MINS OF COMPLETION (NOT ON SCHEDULED TIME, AFTER PROGRAM ENDED)
+        // 4. If upcoming (pending): ONLY VIEW IF SCHEDULED ABOUT 3 HRS
         function shouldShowInEventRadar(c, sched) {
             if (!c) return false;
             const s = String(c.status || 'pending').toLowerCase().trim();
+
+            // Offstage competition in valuation is NOT shown in Event Radar
+            if (s === 'valuation' && isCompOffstage(c)) {
+                return false;
+            }
 
             if (s === 'ongoing' || s === 'registration' || s === 'valuation') {
                 return true;
@@ -740,7 +756,7 @@
                 allTeams.forEach(t => calculatedTeamScores[t.id] = { name: t.name, score: 0 });
 
                 let compsQuery = supabaseClient.from('competitions')
-                    .select('*, categories(name), stages(name), participant_competitions(count)')
+                    .select('*, categories(name), stages(name, is_offstage), participant_competitions(count)')
                     .order('updated_at', { ascending: false });
                 if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery);
                 const { data: allComps } = await compsQuery;
@@ -1220,8 +1236,8 @@
                 tickerHtml += `<div class="ticker-item"><span class="t-badge t-reg">CALLING NOW</span> ${c.name}</div>`; 
             });
 
-            // Priority 3: IN VALUATION (valuation - ALWAYS SHOW)
-            (activeEvents || []).filter(c => String(c.status || '').toLowerCase().trim() === 'valuation').forEach(c => { 
+            // Priority 3: IN VALUATION (valuation - ALWAYS SHOW for onstage, not offstage)
+            (activeEvents || []).filter(c => String(c.status || '').toLowerCase().trim() === 'valuation' && !isCompOffstage(c)).forEach(c => { 
                 tickerHtml += `<div class="ticker-item"><span class="t-badge t-val">IN VALUATION</span> ${c.name}</div>`; 
             });
 
