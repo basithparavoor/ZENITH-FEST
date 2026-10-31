@@ -1143,6 +1143,20 @@
             // 2. BUILD TEAM LEADERBOARD SLIDES
             let standingsSlides = [];
             const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score);
+            const declaredResultsCount = (globalPublishedComps || []).length;
+            const totalCompsCount = (globalAllComps || []).length;
+            let resultsBadgeText = '';
+            if (totalCompsCount > 0) {
+                resultsBadgeText = declaredResultsCount === 1 
+                    ? `AFTER 1 OF ${totalCompsCount} RESULT` 
+                    : `AFTER ${declaredResultsCount} OF ${totalCompsCount} RESULTS`;
+            } else {
+                resultsBadgeText = declaredResultsCount === 1 
+                    ? `AFTER 1 RESULT` 
+                    : `AFTER ${declaredResultsCount} RESULTS`;
+            }
+            const standingsResultsBadge = `<span style="font-size: 1.15rem; font-family: sans-serif; font-weight: 800; vertical-align: middle; background: rgba(245, 158, 11, 0.22); border: 1.5px solid rgba(245, 158, 11, 0.5); color: #FCD34D; padding: 4px 16px; border-radius: 9999px; letter-spacing: 0.05em; text-transform: uppercase; margin-left: 0.8rem; box-shadow: 0 0 15px rgba(245, 158, 11, 0.2); display: inline-flex; align-items: center; gap: 0.45rem;"><i class="fa-solid fa-trophy" style="font-size: 1rem;"></i> ${resultsBadgeText}</span>`;
+
             if (sortedTeams.length > 0) {
                 const CHUNK = 5; 
                 for (let i = 0; i < sortedTeams.length; i += CHUNK) {
@@ -1151,7 +1165,11 @@
                     const slideId = `slide-standings-${i}`;
                     
                     let lbHtml = `<div class="slide" id="${slideId}" ${i === 0 ? 'data-slide-alias="slide-leaderboard"' : ''} data-qr-type="standings">
-                        <h2 class="slide-title theme-font">CHAMPIONSHIP STANDINGS ${pageInfo}</h2>
+                        <h2 class="slide-title theme-font" style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; flex-wrap: wrap;">
+                            <span>CHAMPIONSHIP STANDINGS</span>
+                            ${standingsResultsBadge}
+                            ${pageInfo}
+                        </h2>
                         <div class="leaderboard">`;
                     
                     chunk.forEach((team, idx) => {
@@ -1223,7 +1241,10 @@
                 } else {
                     const emptyHtml = `
                         <div class="slide active" id="slide-standings-0" data-slide-alias="slide-leaderboard" data-qr-type="standings">
-                            <h2 class="slide-title theme-font">CHAMPIONSHIP STANDINGS</h2>
+                            <h2 class="slide-title theme-font" style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; flex-wrap: wrap;">
+                                <span>CHAMPIONSHIP STANDINGS</span>
+                                ${standingsResultsBadge}
+                            </h2>
                             <div style="text-align:center; padding: 4rem 2rem;">
                                 <i class="fa-solid fa-trophy" style="font-size: 5rem; color: var(--gold); margin-bottom: 1.5rem; opacity: 0.85;"></i>
                                 <h3 class="theme-font" style="font-size: 2.8rem; color: #FFFFFF;">STANDINGS COMPUTING</h3>
@@ -1689,9 +1710,25 @@
                 // Dynamic empty standings placeholder if no teams are in yet
                 const container = document.getElementById('slide-container');
                 if (container) {
+                    const declaredResultsCount = (globalPublishedComps || []).length;
+                    const totalCompsCount = (globalAllComps || []).length;
+                    let resultsBadgeText = '';
+                    if (totalCompsCount > 0) {
+                        resultsBadgeText = declaredResultsCount === 1 
+                            ? `AFTER 1 OF ${totalCompsCount} RESULT` 
+                            : `AFTER ${declaredResultsCount} OF ${totalCompsCount} RESULTS`;
+                    } else {
+                        resultsBadgeText = declaredResultsCount === 1 
+                            ? `AFTER 1 RESULT` 
+                            : `AFTER ${declaredResultsCount} RESULTS`;
+                    }
+                    const standingsResultsBadge = `<span style="font-size: 1.15rem; font-family: sans-serif; font-weight: 800; vertical-align: middle; background: rgba(245, 158, 11, 0.22); border: 1.5px solid rgba(245, 158, 11, 0.5); color: #FCD34D; padding: 4px 16px; border-radius: 9999px; letter-spacing: 0.05em; text-transform: uppercase; margin-left: 0.8rem; display: inline-flex; align-items: center; gap: 0.45rem;"><i class="fa-solid fa-trophy" style="font-size: 1rem;"></i> ${resultsBadgeText}</span>`;
                     const emptyHtml = `
                         <div class="slide" id="slide-standings-0" data-slide-alias="slide-leaderboard" data-qr-type="standings">
-                            <h2 class="slide-title theme-font">CHAMPIONSHIP STANDINGS</h2>
+                            <h2 class="slide-title theme-font" style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; flex-wrap: wrap;">
+                                <span>CHAMPIONSHIP STANDINGS</span>
+                                ${standingsResultsBadge}
+                            </h2>
                             <div style="text-align:center; padding: 4rem 2rem;">
                                 <i class="fa-solid fa-trophy" style="font-size: 5rem; color: var(--gold); margin-bottom: 1.5rem; opacity: 0.85;"></i>
                                 <h3 class="theme-font" style="font-size: 2.8rem; color: #FFFFFF;">STANDINGS COMPUTING</h3>
@@ -1768,7 +1805,10 @@
             pb.style.display = 'flex';
             let label = 'CATEGORY LOCKED';
             if (pinId === 'slide-schedule') label = 'LIVE UPCOMING SCHEDULE';
-            else if (pinId === 'slide-leaderboard') label = 'OVERALL LEADERBOARD';
+            else if (pinId === 'slide-leaderboard') {
+                const declaredCount = (globalPublishedComps || []).length;
+                label = `OVERALL LEADERBOARD (AFTER ${declaredCount} RESULTS)`;
+            }
             else if (pinId === 'slide-results-all' || pinId === 'slide-results') label = 'DECLARED RESULTS PODIUMS';
             const span = pb.querySelector('span');
             if (span) span.innerText = `PINNED: ${label}`;
@@ -1830,7 +1870,8 @@
                 pb.style.display = 'flex';
                 let label = slideId.replace('slide-', '').toUpperCase();
                 if (slideId === 'slide-leaderboard' || targetEl.id.startsWith('slide-standings')) {
-                    label = 'OVERALL LEADERBOARD';
+                    const declaredCount = (globalPublishedComps || []).length;
+                    label = `OVERALL LEADERBOARD (AFTER ${declaredCount} RESULTS)`;
                 } else if (slideId === 'slide-schedule' || targetEl.id.startsWith('slide-schedule')) {
                     label = 'EVENT RADAR';
                 } else if (slideId.startsWith('slide-results-')) {

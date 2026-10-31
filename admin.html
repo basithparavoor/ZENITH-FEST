@@ -7116,7 +7116,7 @@ canvas {
 
 <!-- New Album Modal -->
 <div id="builderAlbumModal" class="modal-overlay" style="z-index: 2100;">
-    <div class="modal" style="max-width: 540px;">
+    <div class="modal" style="max-width: 580px; max-height: 90vh; overflow-y: auto;">
         <div class="modal-header">
             <h2 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
                 <i class="fa-regular fa-images" style="color: var(--primary);"></i> Create Photo Album
@@ -7125,17 +7125,34 @@ canvas {
         </div>
         <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.25rem;">
             <div class="form-group">
-                <label>Album Title</label>
+                <label>Album Title *</label>
                 <input type="text" id="album-title-input" placeholder="e.g. Inauguration & Cultural Night" style="width: 100%;">
             </div>
+            <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Category Tag</label>
+                    <select id="album-category-input" style="width: 100%;">
+                        <option value="Stage Performance">Stage Performance</option>
+                        <option value="Awards & Felicitation">Awards & Felicitation</option>
+                        <option value="Audience & Atmosphere">Audience & Atmosphere</option>
+                        <option value="Off-Stage Events">Off-Stage Events</option>
+                        <option value="Inauguration & Ceremony">Inauguration & Ceremony</option>
+                        <option value="Cultural Night">Cultural Night</option>
+                        <option value="Highlights">Highlights</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Event Date</label>
+                    <input type="date" id="album-date-input" style="width: 100%; text-transform: none;">
+                </div>
+            </div>
             <div class="form-group">
-                <label>Category Tag</label>
-                <select id="album-category-input" style="width: 100%;">
-                    <option value="Stage">Stage Performance</option>
-                    <option value="Audience">Audience & Atmosphere</option>
-                    <option value="Off-Stage">Off-Stage Events</option>
-                    <option value="Awards">Awards & Felicitation</option>
-                </select>
+                <label>Location / Venue / Specific Details</label>
+                <input type="text" id="album-venue-input" placeholder="e.g. Main Auditorium / Stage 1" style="width: 100%;">
+            </div>
+            <div class="form-group">
+                <label>Album Description</label>
+                <textarea id="album-desc-input" rows="3" placeholder="Provide background details, dignitaries, memorable moments..." style="width: 100%; resize: vertical;"></textarea>
             </div>
             <div class="form-group">
                 <label>Cover Photo Image URL or Upload</label>
@@ -7146,10 +7163,20 @@ canvas {
                 </div>
                 <img id="album-cover-preview" src="" style="width: 100%; height: 160px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); display: none;">
             </div>
+            <div class="form-group">
+                <label>Upload Multiple Photos Inside Album</label>
+                <div style="border: 2px dashed var(--border); border-radius: 8px; padding: 1.25rem; text-align: center; cursor: pointer; background: var(--bg-surface);" onclick="document.getElementById('upload-album-multi-files').click()">
+                    <i class="fa-solid fa-cloud-arrow-up" style="font-size: 1.75rem; color: var(--primary); margin-bottom: 0.35rem; display: block;"></i>
+                    <strong style="font-size: 0.88rem;">Select Multiple Photos</strong>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0.2rem 0 0 0;">Upload multiple JPG, PNG, WEBP files.</p>
+                    <input type="file" id="upload-album-multi-files" multiple accept="image/*" style="display: none;" onchange="handleAdminMultiPhotosUpload(this)">
+                </div>
+                <div id="admin-album-photos-preview-strip" style="display: none; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 0.5rem; max-height: 160px; overflow-y: auto; padding: 0.5rem; margin-top: 0.5rem; border: 1px solid var(--border); border-radius: 6px;"></div>
+            </div>
         </div>
         <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
             <button class="btn btn-outline" style="width: auto;" onclick="closeAlbumModal()">Cancel</button>
-            <button class="btn btn-primary" style="width: auto;" onclick="saveNewAlbum()">Create Album</button>
+            <button class="btn btn-primary" id="btn-admin-save-album" style="width: auto;" onclick="saveNewAlbum()">Create Album</button>
         </div>
     </div>
 </div>

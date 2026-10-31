@@ -456,18 +456,183 @@
         .dl-title { font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem; text-transform: uppercase; }
         .dl-desc { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.2rem; line-height: 1.4; }
 
-        /* --- Gallery View --- */
-        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; }
-        .gallery-item {
-            background: var(--surface); border-radius: var(--radius-lg); overflow: hidden;
-            border: 1px solid var(--surface-border); box-shadow: var(--card-shadow); transition: var(--transition);
-            cursor: pointer; position: relative;
+        /* --- Enhanced Gallery & Album System --- */
+        .gallery-header-bar {
+            display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+            gap: 1rem; margin-bottom: 2rem; background: var(--surface);
+            padding: 1.15rem 1.4rem; border-radius: var(--radius-lg); border: 1px solid var(--surface-border);
+            box-shadow: var(--card-shadow);
         }
-        .gallery-item:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
-        .gallery-thumb { width: 100%; aspect-ratio: 16/10; object-fit: cover; display: block; }
-        .gallery-caption { padding: 1rem 1.25rem; }
-        .gallery-title { font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.2rem; text-transform: uppercase; }
-        .gallery-tag { font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase; }
+        .gallery-filter-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+        .gallery-chip {
+            padding: 0.45rem 1rem; border-radius: 50px; font-size: 0.78rem; font-weight: 700;
+            cursor: pointer; transition: var(--transition); border: 1px solid var(--surface-border);
+            background: var(--surface-hover); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em;
+        }
+        .gallery-chip:hover { border-color: var(--primary); color: var(--primary); }
+        .gallery-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 4px 12px var(--primary-glow); }
+        .gallery-search-wrap { position: relative; min-width: 220px; flex: 1; max-width: 320px; }
+        .gallery-search-wrap input {
+            width: 100%; padding: 0.6rem 0.9rem 0.6rem 2.3rem; font-size: 0.85rem;
+            border-radius: 50px; border: 1px solid var(--surface-border); background: var(--surface-hover);
+            color: var(--text-main); outline: none; transition: var(--transition);
+        }
+        .gallery-search-wrap input:focus { border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 3px var(--primary-ring); }
+        .gallery-search-wrap i { position: absolute; left: 0.9rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85rem; }
+
+        .btn-upload-album {
+            background: var(--primary-gradient, linear-gradient(135deg, #2563EB 0%, #4F46E5 100%));
+            color: #fff; border: none; border-radius: 50px; padding: 0.6rem 1.35rem;
+            font-size: 0.86rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.55rem;
+            cursor: pointer; box-shadow: 0 4px 14px var(--primary-glow); transition: var(--transition);
+        }
+        .btn-upload-album:hover { transform: translateY(-2px); box-shadow: 0 6px 18px var(--primary-glow); filter: brightness(1.08); }
+
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 1.5rem; }
+        .album-card {
+            background: var(--surface); border-radius: var(--radius-lg); overflow: hidden;
+            border: 1px solid var(--surface-border); box-shadow: var(--card-shadow); transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex; flex-direction: column; cursor: pointer; position: relative;
+        }
+        .album-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); border-color: var(--primary); }
+        .album-cover-wrap { position: relative; width: 100%; aspect-ratio: 16/10; overflow: hidden; background: #0F172A; }
+        .album-cover-img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.45s ease; display: block; }
+        .album-card:hover .album-cover-img { transform: scale(1.05); }
+        .album-badge-count {
+            position: absolute; top: 0.75rem; right: 0.75rem; background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px); color: #fff; font-size: 0.72rem; font-weight: 700;
+            padding: 0.35rem 0.75rem; border-radius: 50px; border: 1px solid rgba(255, 255, 255, 0.18);
+            display: flex; align-items: center; gap: 0.4rem; z-index: 2;
+        }
+        .album-badge-tag {
+            position: absolute; bottom: 0.75rem; left: 0.75rem; background: var(--primary);
+            color: #fff; font-size: 0.68rem; font-weight: 800; padding: 0.28rem 0.7rem;
+            border-radius: 50px; text-transform: uppercase; letter-spacing: 0.05em; z-index: 2;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+        }
+        .album-content { padding: 1.25rem; display: flex; flex-direction: column; flex: 1; }
+        .album-title { font-size: 1.05rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.4rem; line-height: 1.35; text-transform: uppercase; }
+        .album-meta-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.65rem; font-size: 0.78rem; color: var(--text-muted); font-weight: 600; }
+        .album-meta-row span { display: inline-flex; align-items: center; gap: 0.35rem; }
+        .album-desc-text {
+            font-size: 0.84rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1.1rem;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .album-actions-footer {
+            margin-top: auto; padding-top: 0.9rem; border-top: 1px solid var(--surface-border);
+            display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+        }
+        .btn-album-action {
+            background: var(--surface-hover); color: var(--text-main); border: 1px solid var(--surface-border);
+            border-radius: 8px; padding: 0.42rem 0.75rem; font-size: 0.78rem; font-weight: 700;
+            cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; gap: 0.35rem;
+        }
+        .btn-album-action:hover { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+        .btn-album-open {
+            background: var(--primary); color: #fff; border: 1px solid var(--primary);
+            border-radius: 8px; padding: 0.42rem 1rem; font-size: 0.78rem; font-weight: 700;
+            cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; gap: 0.4rem;
+        }
+        .btn-album-open:hover { filter: brightness(1.12); transform: translateY(-1px); }
+
+        /* --- Photos Grid in Album Viewer --- */
+        .album-photos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+        .photo-card {
+            position: relative; border-radius: var(--radius-md); overflow: hidden;
+            background: #0F172A; aspect-ratio: 1; cursor: pointer; border: 1px solid var(--surface-border);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: var(--transition);
+        }
+        .photo-card:hover { transform: scale(1.02); box-shadow: var(--shadow-md); }
+        .photo-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .photo-overlay {
+            position: absolute; inset: 0; background: rgba(0, 0, 0, 0.48);
+            display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+            opacity: 0; transition: opacity 0.2s ease;
+        }
+        .photo-card:hover .photo-overlay { opacity: 1; }
+        .photo-action-btn {
+            width: 36px; height: 36px; border-radius: 50%; background: rgba(255, 255, 255, 0.95);
+            color: #111; display: flex; align-items: center; justify-content: center; font-size: 0.88rem;
+            border: none; cursor: pointer; transition: transform 0.2s, background 0.2s;
+        }
+        .photo-action-btn:hover { transform: scale(1.15); background: #fff; color: var(--primary); }
+        .photo-action-btn.btn-del { color: #EF4444; }
+        .photo-action-btn.btn-del:hover { background: #EF4444; color: #fff; }
+
+        /* --- Multi-photo Upload Dropzone & Previews --- */
+        .photo-dropzone {
+            border: 2px dashed var(--surface-border); border-radius: var(--radius-md);
+            padding: 1.75rem 1.25rem; text-align: center; cursor: pointer; transition: var(--transition);
+            background: var(--surface-hover);
+        }
+        .photo-dropzone:hover, .photo-dropzone.dragover {
+            border-color: var(--primary); background: var(--primary-light);
+        }
+        .photo-upload-previews {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)); gap: 0.65rem;
+            max-height: 230px; overflow-y: auto; padding: 0.6rem; margin-top: 0.75rem;
+            border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--surface);
+        }
+        .preview-thumb-wrap {
+            position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden;
+            border: 1px solid var(--surface-border); background: #000;
+        }
+        .preview-thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
+        .preview-cover-badge {
+            position: absolute; top: 3px; left: 3px; background: var(--primary);
+            color: #fff; font-size: 0.6rem; font-weight: 800; padding: 2px 5px; border-radius: 3px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+        }
+        .preview-thumb-actions {
+            position: absolute; bottom: 3px; left: 3px; right: 3px; display: flex;
+            justify-content: space-between; align-items: center;
+        }
+        .preview-set-cover {
+            background: rgba(15, 23, 42, 0.75); color: #fff; border: none; font-size: 0.6rem;
+            padding: 2px 4px; border-radius: 3px; cursor: pointer;
+        }
+        .preview-thumb-remove {
+            background: rgba(239, 68, 68, 0.85); color: #fff; width: 20px; height: 20px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem; border: none; cursor: pointer; margin-left: auto;
+        }
+        .preview-thumb-remove:hover { background: #EF4444; }
+
+        /* --- Toast Notification System --- */
+        #toast-container {
+            position: fixed; bottom: 2rem; right: 2rem; z-index: 999999;
+            display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none;
+        }
+        @media(max-width: 768px) {
+            #toast-container { bottom: 5.5rem; right: 1rem; left: 1rem; }
+        }
+        .festos-toast {
+            pointer-events: auto; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px);
+            color: #fff; padding: 0.8rem 1.3rem; border-radius: 12px; font-size: 0.88rem; font-weight: 600;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15);
+            display: flex; align-items: center; gap: 0.75rem; animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .festos-toast.success i { color: #10B981; }
+        .festos-toast.info i { color: #3B82F6; }
+        .festos-toast.error i { color: #EF4444; }
+        @keyframes toastSlideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes toastFadeOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(20px); } }
+
+        /* --- Lightbox Top Bar & Nav Controls --- */
+        .lightbox-nav-btn {
+            position: absolute; top: 50%; transform: translateY(-50%); width: 48px; height: 48px;
+            border-radius: 50%; background: rgba(0, 0, 0, 0.6); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
+            cursor: pointer; z-index: 30; transition: var(--transition);
+        }
+        .lightbox-nav-btn:hover { background: var(--primary); transform: translateY(-50%) scale(1.1); }
+        .lightbox-nav-prev { left: 1rem; }
+        .lightbox-nav-next { right: 1rem; }
+        @media(max-width: 640px) {
+            .lightbox-nav-btn { width: 38px; height: 38px; font-size: 1rem; }
+            .lightbox-nav-prev { left: 0.5rem; }
+            .lightbox-nav-next { right: 0.5rem; }
+        }
 
         /* --- News & Bulletins View --- */
         .news-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
@@ -1514,8 +1679,30 @@
 
         <!-- GALLERY TAB -->
         <div id="view-gallery" class="view-section">
-            <h2 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 0.5rem; text-align: center; text-transform: uppercase;">Championship Gallery</h2>
-            <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem; font-weight: 600; text-transform: uppercase;">Glimpses, podium moments, and official stage photography.</p>
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <h2 style="font-size: 1.85rem; font-weight: 800; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: -0.02em;">Championship Gallery</h2>
+                <p style="color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.9rem;">Glimpses, podium moments, and official stage photography.</p>
+            </div>
+
+            <!-- Gallery Controls & Filter Bar -->
+            <div class="gallery-header-bar">
+                <div class="gallery-filter-chips" id="gallery-category-chips">
+                    <button class="gallery-chip active" onclick="filterGalleryCategory('ALL', this)">All Albums</button>
+                    <button class="gallery-chip" onclick="filterGalleryCategory('Stage Performance', this)">Stage</button>
+                    <button class="gallery-chip" onclick="filterGalleryCategory('Awards & Felicitation', this)">Awards</button>
+                    <button class="gallery-chip" onclick="filterGalleryCategory('Audience & Atmosphere', this)">Audience</button>
+                    <button class="gallery-chip" onclick="filterGalleryCategory('Off-Stage Events', this)">Off-Stage</button>
+                </div>
+                <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <div class="gallery-search-wrap">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="gallery-search-input" placeholder="Search albums, dates, events..." oninput="filterGallerySearch(this.value)">
+                    </div>
+                    <button class="btn-upload-album" onclick="openNewAlbumModal()">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload Album
+                    </button>
+                </div>
+            </div>
             
             <div class="gallery-grid" id="gallery-container">
                 <p style="text-align:center; color:var(--text-muted); grid-column: 1/-1; padding: 4rem 1rem; font-weight: 600; text-transform: uppercase;">No gallery albums added yet.</p>
@@ -1693,24 +1880,230 @@
         </div>
     </div>
 
+    <!-- Album Creator & Editor Modal -->
+    <div class="modal-overlay" id="album-editor-modal" onclick="if(event.target===this) closeAlbumEditorModal()">
+        <div class="modal-content" style="max-width: 660px; max-height: 90vh; overflow-y: auto; padding: 1.5rem 1.75rem;">
+            <div class="modal-header" style="padding: 0 0 1rem 0; border-bottom: 1px solid var(--surface-border); margin-bottom: 1.25rem;">
+                <div>
+                    <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--primary); letter-spacing: 0.05em; background: var(--primary-light); padding: 0.3rem 0.65rem; border-radius: 50px; margin-bottom: 0.35rem; display: inline-block;">FESTIVAL GALLERY</span>
+                    <h2 id="album-editor-modal-title" style="font-size: 1.35rem; font-weight: 800; color: var(--text-main); margin-top: 0.2rem; text-transform: uppercase; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-images" style="color: var(--primary);"></i> Create Photo Album
+                    </h2>
+                </div>
+                <button class="modal-close" onclick="closeAlbumEditorModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 1.15rem;">
+                <div class="form-group">
+                    <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.4rem; display: block; text-transform: uppercase;">Album Title *</label>
+                    <input type="text" id="album-form-title" placeholder="e.g. Grand Inauguration & Cultural Night 2026" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); background: var(--surface); color: var(--text-main); font-size: 0.92rem; outline: none;">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.4rem; display: block; text-transform: uppercase;">Category Tag</label>
+                        <select id="album-form-category" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); background: var(--surface); color: var(--text-main); font-size: 0.88rem; outline: none;">
+                            <option value="Stage Performance">Stage Performance</option>
+                            <option value="Awards & Felicitation">Awards & Felicitation</option>
+                            <option value="Audience & Atmosphere">Audience & Atmosphere</option>
+                            <option value="Off-Stage Events">Off-Stage Events</option>
+                            <option value="Inauguration & Ceremony">Inauguration & Ceremony</option>
+                            <option value="Cultural Night">Cultural Night</option>
+                            <option value="Behind The Scenes">Behind The Scenes</option>
+                            <option value="Highlights">Highlights</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.4rem; display: block; text-transform: uppercase;">Event Date</label>
+                        <input type="date" id="album-form-date" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); background: var(--surface); color: var(--text-main); font-size: 0.88rem; outline: none; text-transform: none;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.4rem; display: block; text-transform: uppercase;">Details / Venue / Location</label>
+                    <input type="text" id="album-form-venue" placeholder="e.g. Main Auditorium / Stage 1 / Open Grounds" style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); background: var(--surface); color: var(--text-main); font-size: 0.92rem; outline: none;">
+                </div>
+
+                <div class="form-group">
+                    <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.4rem; display: block; text-transform: uppercase;">Album Description</label>
+                    <textarea id="album-form-desc" rows="3" placeholder="Provide background, memorable highlights, VIP dignitaries, and details for this photo album..." style="width: 100%; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); background: var(--surface); color: var(--text-main); font-size: 0.88rem; outline: none; resize: vertical;"></textarea>
+                </div>
+
+                <!-- Multi-Photo Upload Dropzone -->
+                <div class="form-group">
+                    <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.4rem; display: block; text-transform: uppercase;">
+                        Upload Multiple Photos *
+                    </label>
+                    
+                    <div class="photo-dropzone" id="photo-dropzone" onclick="document.getElementById('album-form-files').click()">
+                        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2.2rem; color: var(--primary); margin-bottom: 0.5rem; display: block;"></i>
+                        <strong style="font-size: 0.95rem; color: var(--text-main); display: block;">Choose or Drag & Drop Multiple Photos</strong>
+                        <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.25rem;">Select 5, 10, 20+ photos at once. JPG, PNG, WEBP automatically optimized.</p>
+                        <input type="file" id="album-form-files" multiple accept="image/*" style="display: none;" onchange="handleAlbumMultiPhotoUpload(this)">
+                    </div>
+
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.65rem;">
+                        <input type="text" id="album-form-url-input" placeholder="Or add photo via web image URL (https://...)" style="flex: 1; padding: 0.55rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); background: var(--surface); color: var(--text-main); font-size: 0.82rem; outline: none; text-transform: none;">
+                        <button type="button" class="btn btn-outline" style="width: auto; padding: 0.55rem 1rem; font-size: 0.82rem;" onclick="addPhotoByUrl()"><i class="fa-solid fa-plus"></i> Add URL</button>
+                    </div>
+
+                    <!-- Previews of selected photos -->
+                    <div id="album-form-previews-container" style="display: none; margin-top: 0.85rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                            <span style="font-size: 0.78rem; font-weight: 700; color: var(--primary); text-transform: uppercase;" id="album-form-photos-count">0 Photos Selected</span>
+                            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;"><i class="fa-solid fa-star" style="color: var(--primary);"></i> Primary photo is used as album cover</span>
+                        </div>
+                        <div class="photo-upload-previews" id="album-form-previews-grid"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--surface-border);">
+                <button type="button" class="btn btn-outline" style="width: auto; padding: 0.65rem 1.35rem;" onclick="closeAlbumEditorModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btn-save-album" style="width: auto; padding: 0.65rem 1.6rem;" onclick="saveAlbum()">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Save & Publish Album
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Album Photos Viewer Modal -->
+    <div class="modal-overlay" id="album-view-modal" onclick="if(event.target===this) closeAlbumViewModal()">
+        <div class="modal-content" style="max-width: 1040px; width: 95%; max-height: 92vh; overflow-y: auto; padding: 1.5rem 1.75rem; border-radius: var(--radius-lg);">
+            <!-- Modal Header -->
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--surface-border); margin-bottom: 1.25rem;">
+                <div style="flex: 1; min-width: 260px;">
+                    <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; flex-wrap: wrap;">
+                        <button class="btn-album-action" onclick="closeAlbumViewModal()" style="padding: 0.35rem 0.75rem; font-size: 0.76rem;">
+                            <i class="fa-solid fa-arrow-left"></i> Gallery
+                        </button>
+                        <span id="view-album-category" style="font-size: 0.7rem; font-weight: 800; color: #fff; background: var(--primary); padding: 0.25rem 0.65rem; border-radius: 50px; text-transform: uppercase;">Category</span>
+                        <span id="view-album-count-badge" style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); background: var(--surface-hover); padding: 0.25rem 0.65rem; border-radius: 50px; border: 1px solid var(--surface-border);">0 Photos</span>
+                    </div>
+                    <h2 id="view-album-title" style="font-size: 1.4rem; font-weight: 800; color: var(--text-main); line-height: 1.3; text-transform: uppercase;">Album Title</h2>
+                    <div class="album-meta-row" id="view-album-meta" style="margin-top: 0.4rem; margin-bottom: 0;"></div>
+                </div>
+
+                <!-- Action Toolbar -->
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="btn-album-action" onclick="copyCurrentAlbumLink()" title="Copy direct album link">
+                        <i class="fa-regular fa-copy"></i> Copy Link
+                    </button>
+                    <button class="btn-album-action" onclick="shareCurrentAlbum()" title="Share on WhatsApp or social apps">
+                        <i class="fa-solid fa-share-nodes"></i> Share
+                    </button>
+                    <button class="btn-album-open" onclick="openAddPhotosToCurrentAlbum()" title="Upload more photos inside this album">
+                        <i class="fa-solid fa-plus"></i> Add Photos
+                    </button>
+                    <button class="btn-album-action" onclick="openEditCurrentAlbum()" title="Edit album details">
+                        <i class="fa-solid fa-pen-to-square"></i> Edit
+                    </button>
+                    <button class="modal-close" style="margin-left: 0.25rem;" onclick="closeAlbumViewModal()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+
+            <!-- Album Description Banner -->
+            <div id="view-album-desc-card" style="display: none; background: var(--surface-hover); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 1rem 1.25rem; margin-bottom: 1.5rem;">
+                <p id="view-album-desc-text" style="font-size: 0.88rem; line-height: 1.6; color: var(--text-main); margin: 0;"></p>
+            </div>
+
+            <!-- Photos Grid inside Album -->
+            <div class="album-photos-grid" id="view-album-photos-grid">
+                <!-- Dynamically populated -->
+            </div>
+
+            <!-- Hidden input for appending photos to current album -->
+            <input type="file" id="album-append-photos-input" multiple accept="image/*" style="display: none;" onchange="handleAppendPhotosToCurrentAlbum(this)">
+        </div>
+    </div>
+
     <!-- Gallery Lightbox Modal -->
     <div class="modal-overlay" id="gallery-modal" onclick="if(event.target===this) closeGalleryModal()">
-        <div class="modal-content" style="max-width: 800px; background: #000; border: none; padding: 0;">
-            <div style="position: absolute; top: 1rem; right: 1rem; z-index: 20;">
-                <button class="modal-close" style="background: rgba(255,255,255,0.2); color: #fff;" onclick="closeGalleryModal()"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <img id="lightbox-img" src="" style="width: 100%; max-height: 70vh; object-fit: contain; display: block;" />
-            <div style="padding: 1.5rem; background: #111; color: #fff;">
-                <h3 id="lightbox-title" style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.35rem; text-transform: uppercase;"></h3>
-                <p id="lightbox-desc" style="color: #9CA3AF; font-size: 0.88rem;"></p>
-                <div style="margin-top: 1rem; display: flex; gap: 0.75rem;">
-                    <a id="lightbox-download-link" href="" download class="btn btn-primary" style="width: auto; padding: 0.5rem 1.25rem;">
-                        <i class="fa-solid fa-download"></i> Download Image
+        <div class="modal-content" style="max-width: 960px; width: 95%; background: #000; border: none; padding: 0; border-radius: var(--radius-lg); overflow: hidden; position: relative;">
+            <!-- Top Controls Bar -->
+            <div style="position: absolute; top: 0; left: 0; right: 0; padding: 1rem 1.25rem; background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%); display: flex; justify-content: space-between; align-items: center; z-index: 25;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span id="lightbox-counter" style="color: #fff; font-size: 0.78rem; font-weight: 700; background: rgba(255,255,255,0.2); padding: 0.25rem 0.65rem; border-radius: 50px;">1 / 1</span>
+                    <span id="lightbox-album-tag" style="color: #E2E8F0; font-size: 0.82rem; font-weight: 700; text-transform: uppercase;"></span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <button class="btn btn-outline" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.76rem; color: #fff; border-color: rgba(255,255,255,0.3); background: rgba(0,0,0,0.4);" onclick="copyCurrentPhotoLink()">
+                        <i class="fa-regular fa-copy"></i> Copy Link
+                    </button>
+                    <a id="lightbox-download-link" href="" download class="btn btn-outline" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.76rem; color: #fff; border-color: rgba(255,255,255,0.3); background: rgba(0,0,0,0.4);">
+                        <i class="fa-solid fa-download"></i> Download
                     </a>
+                    <button class="modal-close" style="background: rgba(255,255,255,0.2); color: #fff; width: 34px; height: 34px;" onclick="closeGalleryModal()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <button class="lightbox-nav-btn lightbox-nav-prev" onclick="prevLightboxPhoto()" title="Previous Photo (Left Arrow)">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <button class="lightbox-nav-btn lightbox-nav-next" onclick="nextLightboxPhoto()" title="Next Photo (Right Arrow)">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+
+            <!-- Lightbox Main Image Display -->
+            <div style="width: 100%; height: 72vh; display: flex; align-items: center; justify-content: center; background: #000;">
+                <img id="lightbox-img" src="" style="max-width: 100%; max-height: 100%; object-fit: contain; display: block;" />
+            </div>
+
+            <!-- Bottom Caption & Info -->
+            <div style="padding: 1.15rem 1.5rem; background: #0F172A; color: #fff; border-top: 1px solid rgba(255,255,255,0.1);">
+                <h3 id="lightbox-title" style="font-size: 1.1rem; font-weight: 800; margin-bottom: 0.25rem; text-transform: uppercase;"></h3>
+                <p id="lightbox-desc" style="color: #94A3B8; font-size: 0.85rem; margin: 0;"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Album Modal -->
+    <div class="modal-overlay" id="album-share-modal" onclick="if(event.target===this) closeShareModal()">
+        <div class="modal-content" style="max-width: 480px; padding: 1.75rem; border-radius: var(--radius-lg);">
+            <div class="modal-header" style="padding: 0 0 0.85rem 0; border-bottom: 1px solid var(--surface-border); margin-bottom: 1.25rem;">
+                <div>
+                    <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--primary); letter-spacing: 0.05em; background: var(--primary-light); padding: 0.3rem 0.65rem; border-radius: 50px; margin-bottom: 0.35rem; display: inline-block;">SHARE & INVITE</span>
+                    <h2 id="share-modal-album-title" style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-top: 0.2rem; text-transform: uppercase;">Share Album</h2>
+                </div>
+                <button class="modal-close" onclick="closeShareModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 1.15rem;">
+                <p style="font-size: 0.86rem; color: var(--text-muted); margin: 0;">Anyone with this link can view all stage photography, podium moments, and photos in this album.</p>
+                
+                <!-- Direct Link with Copy Button -->
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="share-modal-url-input" readonly style="flex: 1; padding: 0.65rem 0.95rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); background: var(--surface-hover); color: var(--text-main); font-size: 0.82rem; font-weight: 600; outline: none; text-transform: none;">
+                    <button class="btn btn-primary" style="width: auto; padding: 0.65rem 1.15rem; font-size: 0.84rem;" onclick="copyShareModalUrl()">
+                        <i class="fa-regular fa-copy"></i> Copy
+                    </button>
+                </div>
+
+                <!-- Instant Share Buttons -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.65rem; margin-top: 0.25rem;">
+                    <button id="btn-share-whatsapp" class="btn btn-outline" style="padding: 0.65rem 0.5rem; font-size: 0.82rem; color: #25D366; border-color: rgba(37, 211, 102, 0.3);">
+                        <i class="fa-brands fa-whatsapp" style="font-size: 1.1rem; margin-right: 0.35rem;"></i> WhatsApp
+                    </button>
+                    <button id="btn-share-telegram" class="btn btn-outline" style="padding: 0.65rem 0.5rem; font-size: 0.82rem; color: #229ED9; border-color: rgba(34, 158, 217, 0.3);">
+                        <i class="fa-brands fa-telegram" style="font-size: 1.1rem; margin-right: 0.35rem;"></i> Telegram
+                    </button>
+                    <button id="btn-share-twitter" class="btn btn-outline" style="padding: 0.65rem 0.5rem; font-size: 0.82rem; color: var(--text-main); border-color: var(--surface-border);">
+                        <i class="fa-brands fa-x-twitter" style="font-size: 1.1rem; margin-right: 0.35rem;"></i> X / Twitter
+                    </button>
+                </div>
+
+                <!-- QR Code Box -->
+                <div style="text-align: center; margin-top: 0.5rem; padding-top: 1rem; border-top: 1px solid var(--surface-border);">
+                    <small style="color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 0.65rem;">Scan QR to Open on Mobile</small>
+                    <canvas id="share-modal-qr-canvas" style="display: inline-block; border-radius: 8px; border: 1px solid var(--surface-border); padding: 6px; background: #fff;"></canvas>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
 
     <!-- News Article Reader Modal -->
     <div class="modal-overlay" id="news-modal">
@@ -2837,10 +3230,16 @@
 
                 // 11. URL Routing
                 const urlParams = new URLSearchParams(window.location.search);
-                const viewContext = urlParams.get('view') || 'home';
+                const viewContext = urlParams.get('view') || urlParams.get('tab') || 'home';
                 const targetCompId = urlParams.get('comp') || null;
+                const targetAlbumId = urlParams.get('album') || null;
 
-                if (viewContext === 'results' && targetCompId) {
+                if (targetAlbumId || viewContext === 'gallery') {
+                    switchMainTab('gallery');
+                    if (targetAlbumId) {
+                        setTimeout(() => { if (typeof openAlbumViewerModal === 'function') openAlbumViewerModal(targetAlbumId); }, 350);
+                    }
+                } else if (viewContext === 'results' && targetCompId) {
                     switchMainTab('results');
                     switchResultsTab('individual', document.querySelectorAll('.tabs .tab')[1]);
                     setTimeout(() => { openResultModal(targetCompId); }, 300);
@@ -3723,44 +4122,872 @@
             `).join('');
         }
 
-        // --- Gallery View ---
+        // =========================================================================
+        // --- FESTOS CHAMPIONSHIP GALLERY & MULTI-PHOTO ALBUM ENGINE ---
+        // =========================================================================
+
+        let currentGalleryFilter = 'ALL';
+        let currentGallerySearch = '';
+        let editingAlbumId = null;
+        let pendingAlbumPhotos = [];
+        let currentViewingAlbumId = null;
+        let currentLightboxIndex = 0;
+        let currentLightboxPhotos = [];
+
+        // --- Toast Notification Utility ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            if (!container) {
+                alert(message);
+                return;
+            }
+            const toast = document.createElement('div');
+            toast.className = `festos-toast ${type}`;
+            const icon = type === 'success' ? '<i class="fa-solid fa-circle-check" style="font-size:1.15rem;"></i>' :
+                         type === 'info' ? '<i class="fa-solid fa-circle-info" style="font-size:1.15rem;"></i>' :
+                         '<i class="fa-solid fa-circle-exclamation" style="font-size:1.15rem;"></i>';
+            toast.innerHTML = `${icon}<span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'toastFadeOut 0.3s forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+        window.showToast = showToast;
+
+        // --- Normalize Album Photos Helper ---
+        function normalizeAlbumPhotos(album) {
+            if (!album) return [];
+            if (Array.isArray(album.photos) && album.photos.length > 0) {
+                return album.photos.map((p, i) => {
+                    if (typeof p === 'string') return { id: 'ph_' + i, url: p, caption: '' };
+                    return { id: p.id || ('ph_' + i), url: p.url || p.image || '', caption: p.caption || '' };
+                }).filter(p => !!p.url);
+            }
+            const fallback = album.cover_url || album.image || '';
+            if (fallback) {
+                return [{ id: 'ph_0', url: fallback, caption: album.title || '' }];
+            }
+            return [];
+        }
+
+        // --- Client-side Image Compression Helper for Reliable Multi-upload ---
+        function compressImageForGallery(fileOrBlob, maxDim = 1600, quality = 0.82) {
+            return new Promise((resolve) => {
+                try {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            let w = img.naturalWidth || img.width;
+                            let h = img.naturalHeight || img.height;
+                            if (!w || !h) return resolve(e.target.result);
+                            let scale = 1;
+                            if (w > maxDim || h > maxDim) {
+                                scale = Math.min(maxDim / w, maxDim / h);
+                            }
+                            const canvas = document.createElement('canvas');
+                            canvas.width = Math.round(w * scale);
+                            canvas.height = Math.round(h * scale);
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                            resolve(dataUrl);
+                        };
+                        img.onerror = () => resolve(e.target.result);
+                        img.src = e.target.result;
+                    };
+                    reader.onerror = () => resolve(null);
+                    reader.readAsDataURL(fileOrBlob);
+                } catch(err) {
+                    console.warn("Image compression notice:", err);
+                    resolve(null);
+                }
+            });
+        }
+
+        // --- Format Date String ---
+        function formatAlbumDate(dateStr) {
+            if (!dateStr) return '';
+            try {
+                const parts = dateStr.split('-');
+                if (parts.length === 3) {
+                    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                }
+                const d = new Date(dateStr);
+                return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            } catch(e) {
+                return dateStr;
+            }
+        }
+
+        // --- Persist Website Config to LocalStorage and Cloud Database ---
+        async function persistWebsiteConfig() {
+            const fid = currentFestDetails.id || window.activeFestId || (window.festosAuth ? window.festosAuth.getCurrentFestId() : '') || 'fest_zenith_2026';
+            
+            // 1. Instant LocalStorage Cache
+            try {
+                if (fid) {
+                    localStorage.setItem('festos_cfg_website_config_' + fid, JSON.stringify(websiteConfig));
+                    localStorage.setItem('website_config_' + fid, JSON.stringify(websiteConfig));
+                }
+                localStorage.setItem('festos_cfg_website_config', JSON.stringify(websiteConfig));
+                localStorage.setItem('websiteConfig', JSON.stringify(websiteConfig));
+            } catch(e) {
+                console.warn('LocalStorage save error:', e);
+            }
+
+            // 2. Persist via festosSaveSetting
+            if (window.festosSaveSetting) {
+                try {
+                    await window.festosSaveSetting('website_config', websiteConfig, fid);
+                    await window.festosSaveSetting('website_config', websiteConfig, null);
+                } catch(e) {}
+            }
+
+            // 3. Direct Supabase Settings upsert
+            if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+                try {
+                    const records = [{ id: 'website_config', value: websiteConfig }];
+                    if (fid) records.push({ id: 'website_config_' + fid, value: websiteConfig });
+                    await supabaseClient.from('settings').upsert(records);
+                } catch(dbErr) {
+                    console.warn('Supabase settings upsert note:', dbErr);
+                }
+            }
+        }
+
+        // --- Render Gallery Albums Grid ---
         function renderGalleryView() {
             const container = document.getElementById('gallery-container');
             if (!container) return;
-            const items = websiteConfig.gallery || [];
+            const albums = websiteConfig.gallery || [];
 
-            if (items.length === 0) {
-                container.innerHTML = `<p style="text-align:center; color:var(--text-muted); grid-column: 1/-1; padding: 4rem 1rem; font-weight: 600; text-transform: uppercase;">No gallery albums added yet.</p>`;
+            if (albums.length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 4.5rem 1.5rem; background: var(--surface); border: 1px dashed var(--surface-border); border-radius: var(--radius-lg);">
+                        <i class="fa-regular fa-images" style="font-size: 3rem; color: var(--text-muted); opacity: 0.6; margin-bottom: 0.75rem; display: block;"></i>
+                        <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.4rem; text-transform: uppercase;">No photo albums published yet</h3>
+                        <p style="color: var(--text-muted); font-size: 0.88rem; max-width: 420px; margin: 0 auto 1.5rem auto;">Create your first stage or podium album and upload multiple high-res photos to share with participants and spectators.</p>
+                        <button class="btn-upload-album" onclick="openNewAlbumModal()">
+                            <i class="fa-solid fa-plus"></i> Upload First Album
+                        </button>
+                    </div>
+                `;
                 return;
             }
 
-            container.innerHTML = items.map((g, idx) => `
-                <div class="gallery-item" onclick="openGalleryLightbox(${idx})">
-                    <img src="${g.image || g.cover_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80'}" alt="${g.title}" class="gallery-thumb" loading="lazy">
-                    <div class="gallery-caption">
-                        <span class="gallery-tag">${g.tag || g.category || 'Highlights'}</span>
-                        <h4 class="gallery-title">${g.title}</h4>
+            // Apply Filters (Category & Search)
+            let filtered = albums;
+            if (currentGalleryFilter && currentGalleryFilter !== 'ALL') {
+                filtered = filtered.filter(a => (a.category || '').toLowerCase() === currentGalleryFilter.toLowerCase());
+            }
+
+            if (currentGallerySearch && currentGallerySearch.trim()) {
+                const q = currentGallerySearch.toLowerCase().trim();
+                filtered = filtered.filter(a => 
+                    (a.title || '').toLowerCase().includes(q) ||
+                    (a.desc || '').toLowerCase().includes(q) ||
+                    (a.venue || '').toLowerCase().includes(q) ||
+                    (a.date || '').toLowerCase().includes(q) ||
+                    (a.category || '').toLowerCase().includes(q)
+                );
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 3.5rem 1.5rem;">
+                        <i class="fa-solid fa-magnifying-glass" style="font-size: 2.2rem; color: var(--text-muted); opacity: 0.5; margin-bottom: 0.5rem; display: block;"></i>
+                        <p style="color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.9rem;">No albums matching "${currentGallerySearch || currentGalleryFilter}"</p>
+                        <button class="btn btn-outline" style="width: auto; margin-top: 1rem; padding: 0.4rem 1rem;" onclick="resetGalleryFilters()">Clear Filters</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(album => {
+                const photos = normalizeAlbumPhotos(album);
+                const count = photos.length || album.count || 0;
+                const cover = album.cover_url || (photos[0] ? photos[0].url : 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80');
+                const formattedDate = formatAlbumDate(album.date);
+
+                return `
+                    <div class="album-card" onclick="openAlbumViewerModal('${album.id}')">
+                        <div class="album-cover-wrap">
+                            <img src="${cover}" alt="${album.title}" class="album-cover-img" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80'">
+                            <span class="album-badge-count"><i class="fa-solid fa-camera"></i> ${count} Photo${count === 1 ? '' : 's'}</span>
+                            <span class="album-badge-tag">${album.category || 'Highlights'}</span>
+                        </div>
+                        <div class="album-content">
+                            <h4 class="album-title">${album.title}</h4>
+                            
+                            <div class="album-meta-row">
+                                ${formattedDate ? `<span><i class="fa-regular fa-calendar" style="color:var(--primary);"></i> ${formattedDate}</span>` : ''}
+                                ${album.venue ? `<span><i class="fa-solid fa-location-dot" style="color:var(--primary);"></i> ${album.venue}</span>` : ''}
+                            </div>
+
+                            ${album.desc ? `<p class="album-desc-text">${album.desc}</p>` : ''}
+
+                            <div class="album-actions-footer" onclick="event.stopPropagation()">
+                                <button class="btn-album-open" onclick="openAlbumViewerModal('${album.id}')">
+                                    <i class="fa-regular fa-folder-open"></i> View
+                                </button>
+                                <div style="display: flex; gap: 0.4rem;">
+                                    <button class="btn-album-action" onclick="copyAlbumLink('${album.id}', event)" title="Copy direct album link">
+                                        <i class="fa-regular fa-copy"></i>
+                                    </button>
+                                    <button class="btn-album-action" onclick="shareAlbum('${album.id}', event)" title="Share album">
+                                        <i class="fa-solid fa-share-nodes"></i>
+                                    </button>
+                                    <button class="btn-album-action" onclick="openEditAlbumModal('${album.id}')" title="Edit album & details">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </button>
+                                    <button class="btn-album-action" style="color:#EF4444;" onclick="deleteAlbum('${album.id}', event)" title="Delete album">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        window.renderGalleryView = renderGalleryView;
+
+        // --- Filter Helpers ---
+        function filterGalleryCategory(cat, btnEl) {
+            currentGalleryFilter = cat;
+            document.querySelectorAll('#gallery-category-chips .gallery-chip').forEach(c => c.classList.remove('active'));
+            if (btnEl) btnEl.classList.add('active');
+            renderGalleryView();
+        }
+        window.filterGalleryCategory = filterGalleryCategory;
+
+        function filterGallerySearch(query) {
+            currentGallerySearch = query;
+            renderGalleryView();
+        }
+        window.filterGallerySearch = filterGallerySearch;
+
+        function resetGalleryFilters() {
+            currentGalleryFilter = 'ALL';
+            currentGallerySearch = '';
+            const searchInput = document.getElementById('gallery-search-input');
+            if (searchInput) searchInput.value = '';
+            const firstChip = document.querySelector('#gallery-category-chips .gallery-chip');
+            if (firstChip) filterGalleryCategory('ALL', firstChip);
+            else renderGalleryView();
+        }
+        window.resetGalleryFilters = resetGalleryFilters;
+
+        // --- Album Creation & Editing Modal Logic ---
+        function openNewAlbumModal() {
+            editingAlbumId = null;
+            pendingAlbumPhotos = [];
+            document.getElementById('album-editor-modal-title').innerHTML = '<i class="fa-solid fa-images" style="color:var(--primary);"></i> Create Photo Album';
+            document.getElementById('album-form-title').value = '';
+            document.getElementById('album-form-category').value = 'Stage Performance';
+            document.getElementById('album-form-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('album-form-venue').value = '';
+            document.getElementById('album-form-desc').value = '';
+            document.getElementById('album-form-url-input').value = '';
+            renderPendingPhotosPreviews();
+            document.getElementById('album-editor-modal').classList.add('active');
+        }
+        window.openNewAlbumModal = openNewAlbumModal;
+
+        function openEditAlbumModal(albumId) {
+            const album = (websiteConfig.gallery || []).find(a => a.id === albumId);
+            if (!album) return;
+            editingAlbumId = albumId;
+            pendingAlbumPhotos = normalizeAlbumPhotos(album).map((p, idx) => ({
+                id: p.id || ('ph_' + idx),
+                url: p.url,
+                caption: p.caption || '',
+                isCover: (album.cover_url && album.cover_url === p.url) || idx === 0
+            }));
+
+            document.getElementById('album-editor-modal-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color:var(--primary);"></i> Edit Photo Album';
+            document.getElementById('album-form-title').value = album.title || '';
+            document.getElementById('album-form-category').value = album.category || 'Stage Performance';
+            document.getElementById('album-form-date').value = album.date || '';
+            document.getElementById('album-form-venue').value = album.venue || '';
+            document.getElementById('album-form-desc').value = album.desc || '';
+            document.getElementById('album-form-url-input').value = '';
+            renderPendingPhotosPreviews();
+            document.getElementById('album-editor-modal').classList.add('active');
+        }
+        window.openEditAlbumModal = openEditAlbumModal;
+
+        function closeAlbumEditorModal() {
+            document.getElementById('album-editor-modal').classList.remove('active');
+            editingAlbumId = null;
+            pendingAlbumPhotos = [];
+        }
+        window.closeAlbumEditorModal = closeAlbumEditorModal;
+
+        // --- Handle Multiple Photos Selection & Compression ---
+        async function handleAlbumMultiPhotoUpload(inputEl) {
+            if (!inputEl.files || inputEl.files.length === 0) return;
+            const files = Array.from(inputEl.files);
+            const saveBtn = document.getElementById('btn-save-album');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Optimizing ${files.length} Photo${files.length === 1 ? '' : 's'}...`;
+            }
+
+            for (let i = 0; i < files.length; i++) {
+                try {
+                    const compressedUrl = await compressImageForGallery(files[i], 1600, 0.82);
+                    if (compressedUrl) {
+                        pendingAlbumPhotos.push({
+                            id: 'ph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                            url: compressedUrl,
+                            caption: files[i].name.replace(/\.[^/.]+$/, ""),
+                            isCover: pendingAlbumPhotos.length === 0
+                        });
+                    }
+                } catch(e) {
+                    console.warn("Photo compression error:", e);
+                }
+            }
+
+            inputEl.value = ''; // Reset file input
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Save & Publish Album';
+            }
+            renderPendingPhotosPreviews();
+            showToast(`${files.length} photo${files.length === 1 ? '' : 's'} added!`, 'success');
+        }
+        window.handleAlbumMultiPhotoUpload = handleAlbumMultiPhotoUpload;
+
+        function addPhotoByUrl() {
+            const input = document.getElementById('album-form-url-input');
+            const url = input ? input.value.trim() : '';
+            if (!url) return;
+            if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('data:image')) {
+                alert('Please enter a valid image URL (https://...)');
+                return;
+            }
+            pendingAlbumPhotos.push({
+                id: 'ph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                url: url,
+                caption: '',
+                isCover: pendingAlbumPhotos.length === 0
+            });
+            input.value = '';
+            renderPendingPhotosPreviews();
+            showToast('Image URL added!', 'success');
+        }
+        window.addPhotoByUrl = addPhotoByUrl;
+
+        function renderPendingPhotosPreviews() {
+            const container = document.getElementById('album-form-previews-container');
+            const grid = document.getElementById('album-form-previews-grid');
+            const countLabel = document.getElementById('album-form-photos-count');
+            if (!container || !grid) return;
+
+            if (pendingAlbumPhotos.length === 0) {
+                container.style.display = 'none';
+                grid.innerHTML = '';
+                return;
+            }
+
+            container.style.display = 'block';
+            if (countLabel) countLabel.innerText = `${pendingAlbumPhotos.length} Photo${pendingAlbumPhotos.length === 1 ? '' : 's'} Ready`;
+
+            grid.innerHTML = pendingAlbumPhotos.map((p, idx) => `
+                <div class="preview-thumb-wrap">
+                    <img src="${p.url}" alt="Preview" onerror="this.src='https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80'">
+                    ${p.isCover ? '<span class="preview-cover-badge"><i class="fa-solid fa-star"></i> COVER</span>' : ''}
+                    <div class="preview-thumb-actions">
+                        ${!p.isCover ? `<button type="button" class="preview-set-cover" onclick="setPendingCoverPhoto(${idx})" title="Set as Album Cover"><i class="fa-regular fa-star"></i> Cover</button>` : ''}
+                        <button type="button" class="preview-thumb-remove" onclick="removePendingPhoto(${idx})" title="Remove Photo"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                 </div>
             `).join('');
         }
+        window.renderPendingPhotosPreviews = renderPendingPhotosPreviews;
 
-        function openGalleryLightbox(index) {
-            const items = websiteConfig.gallery || [];
-            const item = items[index];
-            if (!item) return;
+        function removePendingPhoto(index) {
+            const wasCover = pendingAlbumPhotos[index]?.isCover;
+            pendingAlbumPhotos.splice(index, 1);
+            if (wasCover && pendingAlbumPhotos.length > 0) {
+                pendingAlbumPhotos[0].isCover = true;
+            }
+            renderPendingPhotosPreviews();
+        }
+        window.removePendingPhoto = removePendingPhoto;
 
-            const imgSrc = item.image || item.cover_url || '';
-            document.getElementById('lightbox-img').src = imgSrc;
-            document.getElementById('lightbox-title').innerText = item.title;
-            document.getElementById('lightbox-desc').innerText = item.desc || '';
-            document.getElementById('lightbox-download-link').href = imgSrc;
+        function setPendingCoverPhoto(index) {
+            pendingAlbumPhotos.forEach((p, i) => p.isCover = (i === index));
+            renderPendingPhotosPreviews();
+        }
+        window.setPendingCoverPhoto = setPendingCoverPhoto;
+
+        // --- Save / Publish Album ---
+        async function saveAlbum() {
+            const titleInput = document.getElementById('album-form-title');
+            const title = titleInput ? titleInput.value.trim() : '';
+            if (!title) {
+                alert('Please enter an album title.');
+                if (titleInput) titleInput.focus();
+                return;
+            }
+
+            const category = document.getElementById('album-form-category').value;
+            const date = document.getElementById('album-form-date').value;
+            const venue = document.getElementById('album-form-venue').value.trim();
+            const desc = document.getElementById('album-form-desc').value.trim();
+
+            if (pendingAlbumPhotos.length === 0) {
+                if (!confirm("No photos have been uploaded for this album yet. Do you want to create an empty album and upload photos later?")) {
+                    return;
+                }
+            }
+
+            // Determine Cover Image
+            const coverItem = pendingAlbumPhotos.find(p => p.isCover) || pendingAlbumPhotos[0];
+            const cover_url = coverItem ? coverItem.url : 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80';
+
+            const cleanPhotos = pendingAlbumPhotos.map(p => ({
+                id: p.id,
+                url: p.url,
+                caption: p.caption || ''
+            }));
+
+            if (!websiteConfig.gallery) websiteConfig.gallery = [];
+
+            const saveBtn = document.getElementById('btn-save-album');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving Album...';
+            }
+
+            try {
+                if (editingAlbumId) {
+                    const idx = websiteConfig.gallery.findIndex(a => a.id === editingAlbumId);
+                    if (idx !== -1) {
+                        websiteConfig.gallery[idx] = {
+                            ...websiteConfig.gallery[idx],
+                            title,
+                            category,
+                            date,
+                            venue,
+                            desc,
+                            cover_url,
+                            photos: cleanPhotos,
+                            count: cleanPhotos.length,
+                            updated_at: new Date().toISOString()
+                        };
+                    }
+                } else {
+                    const newAlbum = {
+                        id: 'alb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                        title,
+                        category,
+                        date,
+                        venue,
+                        desc,
+                        cover_url,
+                        photos: cleanPhotos,
+                        count: cleanPhotos.length,
+                        created_at: new Date().toISOString()
+                    };
+                    websiteConfig.gallery.unshift(newAlbum);
+                }
+
+                await persistWebsiteConfig();
+                closeAlbumEditorModal();
+                renderGalleryView();
+
+                // If currently open in viewer, refresh viewer
+                if (currentViewingAlbumId && (currentViewingAlbumId === editingAlbumId)) {
+                    openAlbumViewerModal(currentViewingAlbumId);
+                }
+
+                showToast(editingAlbumId ? 'Album updated successfully!' : 'Album published successfully!', 'success');
+            } catch(e) {
+                console.error("Save album error:", e);
+                alert("Failed to save album: " + e.message);
+            } finally {
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Save & Publish Album';
+                }
+            }
+        }
+        window.saveAlbum = saveAlbum;
+
+        // --- Delete Album ---
+        async function deleteAlbum(albumId, event) {
+            if (event) event.stopPropagation();
+            const album = (websiteConfig.gallery || []).find(a => a.id === albumId);
+            const title = album ? `"${album.title}"` : 'this album';
+            
+            if (!confirm(`Are you sure you want to permanently delete ${title} and all its photos?`)) {
+                return;
+            }
+
+            websiteConfig.gallery = (websiteConfig.gallery || []).filter(a => a.id !== albumId);
+            await persistWebsiteConfig();
+            
+            if (currentViewingAlbumId === albumId) {
+                closeAlbumViewModal();
+            }
+            renderGalleryView();
+            showToast('Album deleted.', 'success');
+        }
+        window.deleteAlbum = deleteAlbum;
+
+        // --- Album Photos Viewer & Detail Modal ---
+        function openAlbumViewerModal(albumId) {
+            const album = (websiteConfig.gallery || []).find(a => a.id === albumId);
+            if (!album) return;
+
+            currentViewingAlbumId = albumId;
+            currentLightboxPhotos = normalizeAlbumPhotos(album);
+
+            // Populate Modal Header Info
+            document.getElementById('view-album-category').innerText = album.category || 'Highlights';
+            document.getElementById('view-album-title').innerText = album.title;
+            document.getElementById('view-album-count-badge').innerHTML = `<i class="fa-solid fa-camera"></i> ${currentLightboxPhotos.length} Photo${currentLightboxPhotos.length === 1 ? '' : 's'}`;
+
+            // Populate Meta Row
+            const metaEl = document.getElementById('view-album-meta');
+            const formattedDate = formatAlbumDate(album.date);
+            metaEl.innerHTML = `
+                ${formattedDate ? `<span><i class="fa-regular fa-calendar" style="color:var(--primary);"></i> ${formattedDate}</span>` : ''}
+                ${album.venue ? `<span><i class="fa-solid fa-location-dot" style="color:var(--primary);"></i> ${album.venue}</span>` : ''}
+            `;
+
+            // Populate Description Card
+            const descCard = document.getElementById('view-album-desc-card');
+            const descText = document.getElementById('view-album-desc-text');
+            if (album.desc && album.desc.trim()) {
+                descText.innerHTML = `<i class="fa-solid fa-quote-left" style="color:var(--primary); opacity:0.6; margin-right:0.4rem;"></i>${album.desc}`;
+                descCard.style.display = 'block';
+            } else {
+                descCard.style.display = 'none';
+            }
+
+            // Populate Photos Grid
+            const grid = document.getElementById('view-album-photos-grid');
+            if (currentLightboxPhotos.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 3.5rem 1rem; background: var(--surface-hover); border-radius: var(--radius-md);">
+                        <i class="fa-regular fa-images" style="font-size: 2.5rem; color: var(--text-muted); opacity: 0.6; margin-bottom: 0.5rem; display: block;"></i>
+                        <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem; text-transform: uppercase;">No photos in this album yet</h4>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">Upload photos directly from your device.</p>
+                        <button class="btn btn-primary" style="width: auto; padding: 0.5rem 1.25rem;" onclick="openAddPhotosToCurrentAlbum()">
+                            <i class="fa-solid fa-plus"></i> Upload Photos
+                        </button>
+                    </div>
+                `;
+            } else {
+                grid.innerHTML = currentLightboxPhotos.map((p, idx) => `
+                    <div class="photo-card" onclick="openLightboxPhoto(${idx})">
+                        <img src="${p.url}" alt="${p.caption || album.title}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80'">
+                        <div class="photo-overlay">
+                            <button class="photo-action-btn" onclick="event.stopPropagation(); openLightboxPhoto(${idx})" title="View Fullscreen">
+                                <i class="fa-solid fa-expand"></i>
+                            </button>
+                            <button class="photo-action-btn" onclick="event.stopPropagation(); copyDirectPhotoLink('${p.url}')" title="Copy Photo Link">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                            <a href="${p.url}" download="festos_${album.title.replace(/\s+/g, '_')}_${idx + 1}.jpg" class="photo-action-btn" onclick="event.stopPropagation()" title="Download Photo">
+                                <i class="fa-solid fa-download"></i>
+                            </a>
+                            <button class="photo-action-btn btn-del" onclick="event.stopPropagation(); deletePhotoFromAlbum('${album.id}', '${p.id}')" title="Delete Photo">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Sync URL query without reloading for direct sharing
+            try {
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('album', albumId);
+                window.history.replaceState({}, '', currentUrl.toString());
+            } catch(e) {}
+
+            document.getElementById('album-view-modal').classList.add('active');
+        }
+        window.openAlbumViewerModal = openAlbumViewerModal;
+
+        function closeAlbumViewModal() {
+            document.getElementById('album-view-modal').classList.remove('active');
+            currentViewingAlbumId = null;
+            // Clean URL query
+            try {
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.delete('album');
+                window.history.replaceState({}, '', currentUrl.toString());
+            } catch(e) {}
+        }
+        window.closeAlbumViewModal = closeAlbumViewModal;
+
+        function openEditCurrentAlbum() {
+            if (!currentViewingAlbumId) return;
+            openEditAlbumModal(currentViewingAlbumId);
+        }
+        window.openEditCurrentAlbum = openEditCurrentAlbum;
+
+        function openAddPhotosToCurrentAlbum() {
+            const input = document.getElementById('album-append-photos-input');
+            if (input) input.click();
+        }
+        window.openAddPhotosToCurrentAlbum = openAddPhotosToCurrentAlbum;
+
+        async function handleAppendPhotosToCurrentAlbum(inputEl) {
+            if (!inputEl.files || inputEl.files.length === 0 || !currentViewingAlbumId) return;
+            const album = (websiteConfig.gallery || []).find(a => a.id === currentViewingAlbumId);
+            if (!album) return;
+
+            const files = Array.from(inputEl.files);
+            showToast(`Compressing & adding ${files.length} photo${files.length === 1 ? '' : 's'}...`, 'info');
+
+            let existingPhotos = normalizeAlbumPhotos(album);
+            for (let i = 0; i < files.length; i++) {
+                try {
+                    const compressed = await compressImageForGallery(files[i], 1600, 0.82);
+                    if (compressed) {
+                        existingPhotos.push({
+                            id: 'ph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                            url: compressed,
+                            caption: files[i].name.replace(/\.[^/.]+$/, "")
+                        });
+                    }
+                } catch(e) {}
+            }
+
+            album.photos = existingPhotos;
+            album.count = existingPhotos.length;
+            if (!album.cover_url && existingPhotos.length > 0) {
+                album.cover_url = existingPhotos[0].url;
+            }
+
+            await persistWebsiteConfig();
+            inputEl.value = '';
+            openAlbumViewerModal(currentViewingAlbumId);
+            renderGalleryView();
+            showToast(`${files.length} photo${files.length === 1 ? '' : 's'} added to album!`, 'success');
+        }
+        window.handleAppendPhotosToCurrentAlbum = handleAppendPhotosToCurrentAlbum;
+
+        async function deletePhotoFromAlbum(albumId, photoId) {
+            const album = (websiteConfig.gallery || []).find(a => a.id === albumId);
+            if (!album) return;
+
+            if (!confirm("Are you sure you want to remove this photo from the album?")) return;
+
+            let photos = normalizeAlbumPhotos(album);
+            photos = photos.filter(p => p.id !== photoId);
+            album.photos = photos;
+            album.count = photos.length;
+            if (photos.length > 0 && (!album.cover_url || photos.every(p => p.url !== album.cover_url))) {
+                album.cover_url = photos[0].url;
+            }
+
+            await persistWebsiteConfig();
+            openAlbumViewerModal(albumId);
+            renderGalleryView();
+            showToast("Photo removed from album.", "success");
+        }
+        window.deletePhotoFromAlbum = deletePhotoFromAlbum;
+
+        // --- Photo Fullscreen Lightbox Controls ---
+        function openLightboxPhoto(index) {
+            if (!currentLightboxPhotos || currentLightboxPhotos.length === 0) return;
+            currentLightboxIndex = index;
+            const photo = currentLightboxPhotos[index];
+            if (!photo) return;
+
+            const album = (websiteConfig.gallery || []).find(a => a.id === currentViewingAlbumId);
+
+            document.getElementById('lightbox-img').src = photo.url;
+            document.getElementById('lightbox-counter').innerText = `${index + 1} / ${currentLightboxPhotos.length}`;
+            document.getElementById('lightbox-album-tag').innerText = album ? album.title : 'Championship Gallery';
+            document.getElementById('lightbox-title').innerText = photo.caption || (album ? album.title : '');
+            document.getElementById('lightbox-desc').innerText = (album && album.desc) ? album.desc : '';
+            
+            const dlLink = document.getElementById('lightbox-download-link');
+            if (dlLink) {
+                dlLink.href = photo.url;
+                dlLink.setAttribute('download', `photo_${index + 1}.jpg`);
+            }
+
             document.getElementById('gallery-modal').classList.add('active');
         }
+        window.openLightboxPhoto = openLightboxPhoto;
+
+        function nextLightboxPhoto() {
+            if (!currentLightboxPhotos || currentLightboxPhotos.length === 0) return;
+            currentLightboxIndex = (currentLightboxIndex + 1) % currentLightboxPhotos.length;
+            openLightboxPhoto(currentLightboxIndex);
+        }
+        window.nextLightboxPhoto = nextLightboxPhoto;
+
+        function prevLightboxPhoto() {
+            if (!currentLightboxPhotos || currentLightboxPhotos.length === 0) return;
+            currentLightboxIndex = (currentLightboxIndex - 1 + currentLightboxPhotos.length) % currentLightboxPhotos.length;
+            openLightboxPhoto(currentLightboxIndex);
+        }
+        window.prevLightboxPhoto = prevLightboxPhoto;
 
         function closeGalleryModal() {
             document.getElementById('gallery-modal').classList.remove('active');
         }
+        window.closeGalleryModal = closeGalleryModal;
+
+        // Keyboard navigation for Lightbox
+        window.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('gallery-modal');
+            if (!modal || !modal.classList.contains('active')) return;
+            if (e.key === 'ArrowRight') nextLightboxPhoto();
+            else if (e.key === 'ArrowLeft') prevLightboxPhoto();
+            else if (e.key === 'Escape') closeGalleryModal();
+        });
+
+        // --- Share & Copy Link Engine ---
+        function getAlbumShareUrl(albumId) {
+            const fid = currentFestDetails.id || window.activeFestId || (window.festosAuth ? window.festosAuth.getCurrentFestId() : '') || '';
+            const origin = window.location.origin && window.location.origin !== 'null' ? window.location.origin : '';
+            const pathname = window.location.pathname || '';
+            const params = new URLSearchParams();
+            if (fid) params.set('fest', fid);
+            params.set('view', 'gallery');
+            params.set('album', albumId);
+            return `${origin}${pathname}?${params.toString()}`;
+        }
+
+        function copyAlbumLink(albumId, event) {
+            if (event) event.stopPropagation();
+            const url = getAlbumShareUrl(albumId);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                    showToast('Album link copied to clipboard! 📋', 'success');
+                }).catch(() => fallbackCopy(url));
+            } else {
+                fallbackCopy(url);
+            }
+        }
+        window.copyAlbumLink = copyAlbumLink;
+
+        function copyCurrentAlbumLink() {
+            if (!currentViewingAlbumId) return;
+            copyAlbumLink(currentViewingAlbumId);
+        }
+        window.copyCurrentAlbumLink = copyCurrentAlbumLink;
+
+        function copyDirectPhotoLink(url) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                    showToast('Photo link copied! 📋', 'success');
+                }).catch(() => fallbackCopy(url));
+            } else {
+                fallbackCopy(url);
+            }
+        }
+        window.copyDirectPhotoLink = copyDirectPhotoLink;
+
+        function copyCurrentPhotoLink() {
+            if (!currentLightboxPhotos || !currentLightboxPhotos[currentLightboxIndex]) return;
+            copyDirectPhotoLink(currentLightboxPhotos[currentLightboxIndex].url);
+        }
+        window.copyCurrentPhotoLink = copyCurrentPhotoLink;
+
+        function fallbackCopy(text) {
+            const el = document.createElement('textarea');
+            el.value = text;
+            el.setAttribute('readonly', '');
+            el.style.position = 'absolute';
+            el.style.left = '-9999px';
+            document.body.appendChild(el);
+            el.select();
+            try {
+                document.execCommand('copy');
+                showToast('Link copied to clipboard! 📋', 'success');
+            } catch(e) {
+                prompt('Copy this link:', text);
+            }
+            document.body.removeChild(el);
+        }
+
+        function shareAlbum(albumId, event) {
+            if (event) event.stopPropagation();
+            const album = (websiteConfig.gallery || []).find(a => a.id === albumId);
+            if (!album) return;
+
+            const url = getAlbumShareUrl(albumId);
+            const shareText = `📸 Explore the "${album.title}" photo album on ${currentFestDetails.name || 'Festival'} Results:\n${url}`;
+
+            if (navigator.share) {
+                navigator.share({
+                    title: `${album.title} - ${currentFestDetails.name || 'Festival'} Gallery`,
+                    text: album.desc || `Official photo captures from ${album.title}`,
+                    url: url
+                }).catch(err => {
+                    if (err.name !== 'AbortError') openShareModal(album, url);
+                });
+            } else {
+                openShareModal(album, url);
+            }
+        }
+        window.shareAlbum = shareAlbum;
+
+        function shareCurrentAlbum() {
+            if (!currentViewingAlbumId) return;
+            shareAlbum(currentViewingAlbumId);
+        }
+        window.shareCurrentAlbum = shareCurrentAlbum;
+
+        function openShareModal(album, url) {
+            document.getElementById('share-modal-album-title').innerText = album.title;
+            const input = document.getElementById('share-modal-url-input');
+            input.value = url;
+
+            const encodedUrl = encodeURIComponent(url);
+            const encodedText = encodeURIComponent(`📸 Glimpses from "${album.title}" - ${currentFestDetails.name || 'Festival'}:\n${url}`);
+
+            document.getElementById('btn-share-whatsapp').onclick = () => {
+                window.open(`https://api.whatsapp.com/send?text=${encodedText}`, '_blank');
+            };
+            document.getElementById('btn-share-telegram').onclick = () => {
+                window.open(`https://t.me/share/url?url=${encodedUrl}&text=${encodeURIComponent(album.title)}`, '_blank');
+            };
+            document.getElementById('btn-share-twitter').onclick = () => {
+                window.open(`https://twitter.com/intent/tweet?text=${encodedText}`, '_blank');
+            };
+
+            // Render QR Code
+            const qrCanvas = document.getElementById('share-modal-qr-canvas');
+            if (qrCanvas && window.QRCode) {
+                QRCode.toCanvas(qrCanvas, url, { width: 140, margin: 1 }, function (error) {
+                    if (error) console.warn("QR code render note:", error);
+                });
+            }
+
+            document.getElementById('album-share-modal').classList.add('active');
+        }
+        window.openShareModal = openShareModal;
+
+        function closeShareModal() {
+            document.getElementById('album-share-modal').classList.remove('active');
+        }
+        window.closeShareModal = closeShareModal;
+
+        function copyShareModalUrl() {
+            const input = document.getElementById('share-modal-url-input');
+            if (input) {
+                copyDirectPhotoLink(input.value);
+            }
+        }
+        window.copyShareModalUrl = copyShareModalUrl;
 
         // --- News & Bulletins View ---
         function renderNewsView() {

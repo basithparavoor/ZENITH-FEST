@@ -11010,7 +11010,10 @@ function updateDisplayRemoteStatusUI() {
             badge.style.borderColor = 'rgba(59, 130, 246, 0.4)';
             let label = displayState.pinned_slide.replace('slide-','').toUpperCase();
             if (displayState.pinned_slide === 'slide-schedule') label = 'SCHEDULES ONLY';
-            else if (displayState.pinned_slide === 'slide-leaderboard') label = 'LEADERBOARD ONLY';
+            else if (displayState.pinned_slide === 'slide-leaderboard') {
+                const pubCount = (competitionsList || []).filter(c => c.status === 'published').length;
+                label = `LEADERBOARD ONLY (AFTER ${pubCount} RESULTS)`;
+            }
             else if (displayState.pinned_slide === 'slide-results-all' || displayState.pinned_slide === 'slide-results') label = 'RESULTS ONLY';
             else if (displayState.pinned_slide.startsWith('slide-results-')) {
                 const cId = displayState.pinned_slide.replace('slide-results-', '');
@@ -17233,7 +17236,10 @@ function saveThemeConfig(event) {
     executeWebsiteSave(btn);
 }
 window.saveThemeConfig = saveThemeConfig;
-// --- GALLERY BUILDER ENGINE ---
+
+// --- GALLERY BUILDER ENGINE (ENHANCED FOR MULTI-PHOTO & ALBUM DETAILS) ---
+let adminPendingAlbumPhotos = [];
+
 window.renderGalleryBuilder = function() {
     const grid = document.getElementById('builder-gallery-grid');
     if (!grid) return;
@@ -17250,32 +17256,73 @@ window.renderGalleryBuilder = function() {
         return;
     }
 
-    grid.innerHTML = albums.map(a => `
-        <div style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; display: flex; flex-direction: column;">
-            <img src="${a.cover_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80'}" style="width: 100%; height: 140px; object-fit: cover;">
-            <div style="padding: 0.85rem; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
-                <div>
-                    <span style="font-size: 0.7rem; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase;">${a.category || 'Stage'}</span>
-                    <h4 style="font-size: 0.95rem; font-weight: 700; margin-top: 0.35rem; color: var(--text-main);">${a.title}</h4>
+    grid.innerHTML = albums.map(a => {
+        const photos = Array.isArray(a.photos) ? a.photos : [];
+        const count = photos.length || a.count || 0;
+        const cover = a.cover_url || (photos[0] ? (photos[0].url || photos[0]) : 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80');
+
+        return `
+            <div style="background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; display: flex; flex-direction: column;">
+                <div style="position: relative; width: 100%; height: 140px; overflow: hidden; background: #000;">
+                    <img src="${cover}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80'">
+                    <span style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.75); color: #fff; font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 50px;">
+                        <i class="fa-solid fa-camera"></i> ${count}
+                    </span>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--border);">
-                    <small style="color: var(--text-muted); font-size: 0.75rem;">${a.count || 10} Photos</small>
-                    <button class="btn btn-danger" style="width: auto; min-height: 28px; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="deleteAlbum('${a.id}')"><i class="fa-solid fa-trash"></i></button>
+                <div style="padding: 0.85rem; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                            <span style="font-size: 0.7rem; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase;">${a.category || 'Stage'}</span>
+                            ${a.date ? `<small style="font-size: 0.72rem; color: var(--text-muted);"><i class="fa-regular fa-calendar"></i> ${a.date}</small>` : ''}
+                        </div>
+                        <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem;">${a.title}</h4>
+                        ${a.venue ? `<small style="display: block; font-size: 0.74rem; color: var(--text-muted); margin-bottom: 0.35rem;"><i class="fa-solid fa-location-dot"></i> ${a.venue}</small>` : ''}
+                        ${a.desc ? `<p style="font-size: 0.76rem; color: var(--text-muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${a.desc}</p>` : ''}
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--border);">
+                        <button class="btn btn-outline" style="width: auto; min-height: 28px; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="copyAdminAlbumLink('${a.id}')" title="Copy public share link">
+                            <i class="fa-regular fa-copy"></i> Link
+                        </button>
+                        <button class="btn btn-danger" style="width: auto; min-height: 28px; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="deleteAlbum('${a.id}')"><i class="fa-solid fa-trash"></i></button>
+                    </div>
                 </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
+};
+
+window.copyAdminAlbumLink = function(albumId) {
+    const fid = (typeof getActiveFestId === 'function' ? getActiveFestId() : '') || (window.festosAuth ? window.festosAuth.getCurrentFestId() : '') || '';
+    const origin = window.location.origin || '';
+    const url = `${origin}/results.html?fest=${encodeURIComponent(fid)}&view=gallery&album=${encodeURIComponent(albumId)}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => showToast('Album share link copied! 📋', 'success'));
+    } else {
+        prompt('Copy album link:', url);
+    }
 };
 
 window.openNewAlbumModal = function() {
+    adminPendingAlbumPhotos = [];
     document.getElementById('album-title-input').value = '';
+    if (document.getElementById('album-date-input')) document.getElementById('album-date-input').value = new Date().toISOString().split('T')[0];
+    if (document.getElementById('album-venue-input')) document.getElementById('album-venue-input').value = '';
+    if (document.getElementById('album-desc-input')) document.getElementById('album-desc-input').value = '';
     document.getElementById('album-cover-url').value = '';
     document.getElementById('album-cover-preview').style.display = 'none';
+    const strip = document.getElementById('admin-album-photos-preview-strip');
+    if (strip) {
+        strip.style.display = 'none';
+        strip.innerHTML = '';
+    }
     document.getElementById('builderAlbumModal').classList.add('show');
 };
+
 window.closeAlbumModal = function() {
     document.getElementById('builderAlbumModal').classList.remove('show');
+    adminPendingAlbumPhotos = [];
 };
+
 window.handleAlbumCoverUpload = function(inputEl) {
     if (!inputEl.files || !inputEl.files[0]) return;
     const reader = new FileReader();
@@ -17287,25 +17334,88 @@ window.handleAlbumCoverUpload = function(inputEl) {
     };
     reader.readAsDataURL(inputEl.files[0]);
 };
+
+window.handleAdminMultiPhotosUpload = async function(inputEl) {
+    if (!inputEl.files || inputEl.files.length === 0) return;
+    const files = Array.from(inputEl.files);
+    const saveBtn = document.getElementById('btn-admin-save-album');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing ${files.length} Photos...`;
+    }
+
+    for (const f of files) {
+        try {
+            const dataUrl = await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = ev => resolve(ev.target.result);
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(f);
+            });
+            if (dataUrl) {
+                adminPendingAlbumPhotos.push({
+                    id: 'ph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                    url: dataUrl,
+                    caption: f.name.replace(/\.[^/.]+$/, "")
+                });
+            }
+        } catch(e) {}
+    }
+
+    inputEl.value = '';
+    if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = 'Create Album';
+    }
+
+    const strip = document.getElementById('admin-album-photos-preview-strip');
+    if (strip && adminPendingAlbumPhotos.length > 0) {
+        strip.style.display = 'grid';
+        strip.innerHTML = adminPendingAlbumPhotos.map((p, idx) => `
+            <div style="position: relative; aspect-ratio: 1; border-radius: 4px; overflow: hidden; background: #000;">
+                <img src="${p.url}" style="width: 100%; height: 100%; object-fit: cover;">
+                <button type="button" style="position: absolute; top: 2px; right: 2px; background: rgba(239,68,68,0.9); color: #fff; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;" onclick="adminPendingAlbumPhotos.splice(${idx}, 1); this.parentElement.remove();">&times;</button>
+            </div>
+        `).join('');
+    }
+    showToast(`${files.length} photos ready for album.`, 'success');
+};
+
 window.saveNewAlbum = function() {
     const title = document.getElementById('album-title-input').value.trim();
     if (!title) return alert("Please enter an album title.");
     const category = document.getElementById('album-category-input').value;
-    const cover = document.getElementById('album-cover-url').value.trim() || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80';
+    const date = document.getElementById('album-date-input') ? document.getElementById('album-date-input').value : '';
+    const venue = document.getElementById('album-venue-input') ? document.getElementById('album-venue-input').value.trim() : '';
+    const desc = document.getElementById('album-desc-input') ? document.getElementById('album-desc-input').value.trim() : '';
+    
+    let cover = document.getElementById('album-cover-url').value.trim();
+    if (!cover && adminPendingAlbumPhotos.length > 0) {
+        cover = adminPendingAlbumPhotos[0].url;
+    }
+    if (!cover) {
+        cover = 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=80';
+    }
     
     if (!websiteConfig.gallery) websiteConfig.gallery = [];
     websiteConfig.gallery.push({
-        id: 'alb_' + Date.now(),
+        id: 'alb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
         title,
         category,
+        date,
+        venue,
+        desc,
         cover_url: cover,
-        count: Math.floor(Math.random() * 20) + 5
+        photos: adminPendingAlbumPhotos,
+        count: adminPendingAlbumPhotos.length || 1,
+        created_at: new Date().toISOString()
     });
 
     closeAlbumModal();
     renderGalleryBuilder();
     executeWebsiteSave(null);
 };
+
 window.deleteAlbum = function(id) {
     openConfirmModal(
         'Delete Album?',

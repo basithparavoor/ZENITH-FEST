@@ -760,7 +760,7 @@
 
             // Set Poster Payload
             currentPosterData = {
-                'ResultsCountText': `AFTER ${activeCount}`,
+                'ResultsCountText': `AFTER ${activeCount} ${activeCount === 1 ? 'RESULT' : 'RESULTS'}`,
                 'TotalCompetitionsCount': `FINAL STANDINGS`
             };
             for (let i = 0; i < 15; i++) {
