@@ -1251,6 +1251,93 @@
             #view-results .data-item > div:last-child { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; border: none; padding-top: 0; width: auto; gap: 0.35rem; }
             #view-results .data-item > div:last-child span:first-child { margin-right: 0 !important; font-size: 1.05rem !important; }
         }
+    
+        /* Direct Announce Card Buttons & Interactive Actions */
+        .btn-announce-card {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.42rem 0.85rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #4F46E5;
+            background: #EEF2FF;
+            border: 1.5px solid #C7D2FE;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            white-space: nowrap;
+            text-transform: none !important;
+            box-shadow: 0 1px 3px rgba(79, 70, 229, 0.08);
+        }
+        .btn-announce-card:hover {
+            background: #4F46E5;
+            color: #FFFFFF;
+            border-color: #4F46E5;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+            transform: translateY(-1px);
+        }
+        .btn-announce-card:active {
+            transform: translateY(0);
+        }
+        .btn-announce-card.announcing {
+            background: #DC2626 !important;
+            color: #FFFFFF !important;
+            border-color: #DC2626 !important;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25) !important;
+            animation: pulse 1.5s infinite;
+        }
+        .btn-announce-card.announced {
+            background: #ECFDF5 !important;
+            color: #059669 !important;
+            border-color: #A7F3D0 !important;
+        }
+
+        .btn-studio-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            font-size: 0.78rem;
+            color: #64748B;
+            background: #FFFFFF;
+            border: 1.5px solid #CBD5E1;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        .btn-studio-link:hover {
+            color: #4F46E5;
+            border-color: #818CF8;
+            background: #EEF2FF;
+            transform: translateY(-1px);
+        }
+
+        .btn-row-speak {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            padding: 0;
+            font-size: 0.72rem;
+            color: #64748B;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            margin-right: 4px;
+        }
+        .btn-row-speak:hover {
+            color: #4F46E5;
+            background: #EEF2FF;
+            border-color: #C7D2FE;
+        }
+
     </style>
     <link rel="stylesheet" href="premium-forms.css">
 </head>
@@ -2257,7 +2344,7 @@ if (allCompIds.length > 0) {
                 let judgesStr = comp.uniqueJudges && comp.uniqueJudges.length > 0 ? comp.uniqueJudges.join(', ') : 'Awaiting';
                 const stageDisplay = `Stage ${comp.stages?.stage_no || 'TBD'} - ${comp.stages?.name || 'Global Stage'}`;
 
-                return `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><div style="display:flex; gap:0.5rem; align-items:center;"><button class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'call')" title="Broadcast AI Voice Callout"><i class="fa-solid fa-volume-high"></i> AI Call</button><span class="badge badge-reg">${comp.status === 'pending' ? 'UPCOMING' : 'CALLING'}</span></div></div><div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${stageDisplay}</div>${schedBadge}<div class="metric"><i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Judges: ${judgesStr}</div>${participantsHtml}</div>`;
+                return `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><div style="display:flex; gap:0.5rem; align-items:center;"><button type="button" class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'call', event)" title="Direct Broadcast Live Callout"><i class="fa-solid fa-bullhorn"></i> Direct Announce</button><button type="button" class="btn-studio-link" onclick="openCompInStudio('${comp.id}', 'call', event)" title="Open & Edit in Studio"><i class="fa-solid fa-sliders"></i></button><span class="badge badge-reg">${comp.status === 'pending' ? 'UPCOMING' : 'CALLING'}</span></div></div><div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${stageDisplay}</div>${schedBadge}<div class="metric"><i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Judges: ${judgesStr}</div>${participantsHtml}</div>`;
             }).join('');
         }
 
@@ -2275,7 +2362,7 @@ if (allCompIds.length > 0) {
                 let judgesStr = comp.uniqueJudges && comp.uniqueJudges.length > 0 ? comp.uniqueJudges.join(', ') : 'Awaiting Marks';
                 const stageDisplay = `Stage ${comp.stages?.stage_no || 'TBD'} - ${comp.stages?.name || 'Global Stage'}`;
 
-                return `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><div style="display:flex; gap:0.5rem; align-items:center;"><button class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'ongoing')" title="Broadcast AI Voice Notice"><i class="fa-solid fa-volume-high"></i> AI Notice</button><span class="badge badge-live"><i class="fa-solid fa-satellite-dish fa-fade"></i> LIVE</span></div></div><div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${stageDisplay}</div>${schedBadge}<div class="metric"><i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Judges: ${judgesStr}</div></div>`;
+                return `<div class="card"><div class="card-header"><div class="card-title">${comp.name}</div><div style="display:flex; gap:0.5rem; align-items:center;"><button type="button" class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'ongoing', event)" title="Direct Broadcast Live Notice"><i class="fa-solid fa-bullhorn"></i> Direct Announce</button><button type="button" class="btn-studio-link" onclick="openCompInStudio('${comp.id}', 'ongoing', event)" title="Open & Edit in Studio"><i class="fa-solid fa-sliders"></i></button><span class="badge badge-live"><i class="fa-solid fa-satellite-dish fa-fade"></i> LIVE</span></div></div><div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div><div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${stageDisplay}</div>${schedBadge}<div class="metric"><i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Judges: ${judgesStr}</div></div>`;
             }).join('');
         }
 
@@ -2310,10 +2397,10 @@ if (allCompIds.length > 0) {
                 const stageDisplay = `Stage ${comp.stages?.stage_no || 'TBD'} - ${comp.stages?.name || 'Global Stage'}`;
 
                 if(resultsList.length > 0) {
-                    const rows = resultsList.map(r => `
+                    const rows = resultsList.map((r, idx) => `
                         <div class="data-item" style="gap: 1rem;">
                             <div style="display:flex; gap: 1rem; align-items:center; flex: 1; min-width: 0;">
-                                <span class="pos-${r.position <= 3 ? r.position : '0'}" style="flex-shrink: 0;">#${r.position}</span>
+                                <span class="pos-${r.position <= 3 ? r.position : '0'}" style="flex-shrink: 0;">#${r.position}</span><button type="button" class="btn-row-speak" onclick="speakSingleWinnerByIndex('${comp.id}', ${idx}, event)" title="Direct Announce This Winner"><i class="fa-solid fa-volume-high"></i></button>
                                 <div style="min-width: 0; overflow: hidden;">
                                     <strong style="color: var(--text-main); font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.participant.name} ${r.participant.class_name ? `<span style="font-size:0.7rem; background:#EEF2FF; color:#4F46E5; padding:1px 6px; border-radius:4px; margin-left:4px; font-weight:700;"><i class="fa-solid fa-graduation-cap" style="margin-right:2px;"></i>${r.participant.class_name}</span>` : ''}</strong>
                                     <small style="color:var(--text-muted); font-family: monospace; font-weight: 500; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.participant.teams?.name || 'IND'}${r.participant.class_name ? ` • Class: ${r.participant.class_name}` : ''}</small>
@@ -2342,7 +2429,7 @@ if (allCompIds.length > 0) {
                     <div class="card-header">
                         <div class="card-title">${comp.name}</div>
                         <div style="display:flex; gap:0.5rem; align-items:center;">
-                            <button class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'results')" title="Broadcast AI Voice Results"><i class="fa-solid fa-volume-high"></i> AI Speak</button>
+                            <button type="button" class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'results', event)" title="Direct Broadcast Results & Winners"><i class="fa-solid fa-bullhorn"></i> Direct Announce</button><button type="button" class="btn-studio-link" onclick="openCompInStudio('${comp.id}', 'results', event)" title="Open & Edit in Studio"><i class="fa-solid fa-sliders"></i></button>
                             <span class="badge badge-results">PUBLISHED</span>
                         </div>
                     </div>
@@ -2512,7 +2599,7 @@ if (allCompIds.length > 0) {
                         <div class="card-header" style="margin-bottom:0.5rem;">
                             <div class="card-title">${comp.name}</div>
                             <div style="display:flex; gap:0.5rem; align-items:center;">
-                                <button class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'awards')" title="Broadcast AI Voice Awards"><i class="fa-solid fa-volume-high"></i> AI Speak</button>
+                                <button type="button" class="btn-announce-card" onclick="speakCompCallout('${comp.id}', 'awards', event)" title="Direct Broadcast Awards Ceremony"><i class="fa-solid fa-trophy"></i> Direct Announce</button><button type="button" class="btn-studio-link" onclick="openCompInStudio('${comp.id}', 'awards', event)" title="Open & Edit in Studio"><i class="fa-solid fa-sliders"></i></button>
                                 <span class="badge badge-awards"><i class="fa-solid fa-trophy"></i> AWARDS</span>
                             </div>
                         </div>
@@ -5311,22 +5398,156 @@ if (allCompIds.length > 0) {
         }
 
         // --- O. SPEAK COMPETITION CALLOUT HELPER ---
-        function speakCompCallout(compId, type) {
-            switchTab('ai-announcer');
-            const compSelect = document.getElementById('tts-comp-target');
-            if (compSelect) {
-                compSelect.value = compId;
+        // --- O. DIRECT COMPETITION ANNOUNCER ENGINE (ONE-CLICK BROADCAST) ---
+        async function speakCompCallout(compId, type, event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
             }
+
+            let btn = null;
+            if (event && event.currentTarget) {
+                btn = event.currentTarget;
+            } else if (window.event && window.event.currentTarget) {
+                btn = window.event.currentTarget;
+            }
+
+            // Find competition data
+            const allComps = [
+                ...(window.allFestivalCompetitions || []),
+                ...(publishedComps || []),
+                ...(rawOngoingData || []),
+                ...(rawRegData || [])
+            ];
+            const comp = allComps.find(c => String(c.id) === String(compId)) || { id: compId, name: 'Competition' };
+            const stageDisplay = (comp.stages && comp.stages.name) ? comp.stages.name : (comp.stage_no ? `Stage ${comp.stage_no}` : 'Main Stage');
+            const festName = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFest) ? (festosAuth.getCurrentFest()?.name || 'FestOS Arena') : 'FestOS Arena';
+
+            let speechScript = '';
+
+            if (type === 'results' || type === 'awards') {
+                const resList = (typeof computedResults !== 'undefined' && computedResults[compId]) ? computedResults[compId] : [];
+                
+                let w1 = resList.find(r => r.rank === 1 || r.currentRank === 1) || resList[0];
+                let w2 = resList.find(r => r.rank === 2 || r.currentRank === 2) || resList[1];
+                let w3 = resList.find(r => r.rank === 3 || r.currentRank === 3) || resList[2];
+
+                const w1Text = w1 ? `${w1.participant.name}${w1.participant.unique_id ? ', Chest Number ' + w1.participant.unique_id : ''}${w1.participant.teams?.name ? ', representing ' + w1.participant.teams.name : ''}` : '';
+                const w2Text = w2 ? `${w2.participant.name}${w2.participant.unique_id ? ', Chest Number ' + w2.participant.unique_id : ''}${w2.participant.teams?.name ? ', representing ' + w2.participant.teams.name : ''}` : '';
+                const w3Text = w3 ? `${w3.participant.name}${w3.participant.unique_id ? ', Chest Number ' + w3.participant.unique_id : ''}${w3.participant.teams?.name ? ', representing ' + w3.participant.teams.name : ''}` : '';
+
+                if (w1Text || w2Text || w3Text) {
+                    speechScript = `${festName} Official Results Announcement. For the competition, ${comp.name}, held on ${stageDisplay}. `;
+                    if (w1Text) speechScript += `First Place is awarded to: ${w1Text}. `;
+                    if (w2Text) speechScript += `Second Place is awarded to: ${w2Text}. `;
+                    if (w3Text) speechScript += `Third Place is awarded to: ${w3Text}. `;
+                    speechScript += `Heartiest congratulations to all the winners and participants!`;
+                } else {
+                    speechScript = `${festName} Official Results Announcement. Results for ${comp.name} on ${stageDisplay} have been finalized and published. All participants may verify their score sheets.`;
+                }
+            } else if (type === 'ongoing') {
+                speechScript = `Attention please: ${comp.name} is now actively underway on ${stageDisplay}. All attendees and coordinators are requested to maintain auditorium discipline.`;
+            } else {
+                // Callout / upcoming
+                speechScript = `Attention please: Stage callout for ${comp.name} on ${stageDisplay}. All registered contestants must report to the stage coordinator immediately. The competition is commencing now.`;
+            }
+
+            const originalHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.classList.add('announcing');
+                btn.innerHTML = '<i class="fa-solid fa-satellite-dish fa-fade"></i> Announcing...';
+                btn.disabled = true;
+            }
+
+            if (typeof showToast === 'function') {
+                showToast(`🎙️ Direct Announcing: ${comp.name}`, "info");
+            }
+
+            // Sync studio editor in background
+            const textarea = document.getElementById('tts-text-input');
+            if (textarea) {
+                textarea.value = speechScript;
+                if (typeof updateScriptCounters === 'function') updateScriptCounters();
+            }
+            const compSelect = document.getElementById('tts-comp-target');
+            if (compSelect) compSelect.value = compId;
+
+            try {
+                await triggerAIAnnouncement(speechScript);
+            } catch(err) {
+                console.error("Direct announcement error:", err);
+            } finally {
+                if (btn) {
+                    btn.classList.remove('announcing');
+                    btn.classList.add('announced');
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Announced';
+                    btn.disabled = false;
+                    setTimeout(() => {
+                        if (btn && btn.classList.contains('announced')) {
+                            btn.classList.remove('announced');
+                            btn.innerHTML = originalHtml;
+                        }
+                    }, 6000);
+                }
+            }
+        }
+
+        function openCompInStudio(compId, type, event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+            switchTab('ai-announcer');
+
+            const compSelect = document.getElementById('tts-comp-target');
+            if (compSelect) compSelect.value = compId;
 
             const templateSelect = document.getElementById('tts-template-type');
             if (templateSelect) {
-                templateSelect.value = type === 'urgent' ? 'urgent_call' : 'call_en';
+                templateSelect.value = (type === 'results' || type === 'awards') ? 'results_en' : 'call_en';
             }
 
             loadAnnouncementTemplate();
-            setTimeout(() => {
-                triggerAIAnnouncement();
-            }, 450);
+
+            const studioInput = document.getElementById('tts-text-input');
+            if (studioInput) {
+                studioInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                studioInput.focus();
+            }
+
+            if (typeof showToast === 'function') {
+                showToast("Loaded competition into AI Announcer Studio", "info");
+            }
+        }
+
+        async function speakSingleWinner(compId, name, rank, teamName, event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+
+            const allComps = [
+                ...(window.allFestivalCompetitions || []),
+                ...(publishedComps || [])
+            ];
+            const comp = allComps.find(c => String(c.id) === String(compId)) || { name: 'Competition' };
+            const rankWords = { '1': 'First Place', '2': 'Second Place', '3': 'Third Place' };
+            const rankLabel = rankWords[String(rank)] || `Position ${rank}`;
+
+            const text = `FestOS Winner Announcement: In ${comp.name}, ${rankLabel} is awarded to ${name}${teamName ? ', representing ' + teamName : ''}. Congratulations!`;
+            
+            if (typeof showToast === 'function') {
+                showToast(`🎙️ Direct Announcing ${rankLabel}: ${name}`, "info");
+            }
+
+            // Sync studio editor in background
+            const textarea = document.getElementById('tts-text-input');
+            if (textarea) {
+                textarea.value = text;
+                if (typeof updateScriptCounters === 'function') updateScriptCounters();
+            }
+
+            await triggerAIAnnouncement(text);
         }
 
         // --- P. BROADCAST PLAYLIST QUEUE ---
