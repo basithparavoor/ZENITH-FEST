@@ -3281,8 +3281,8 @@
                     }
                 });
 
-                // Capture all participants in top positions (including ties and up to top 5)
-                competitionResults[compId] = participantsArr.filter(p => (p.position <= 5 || (p.densePos && p.densePos <= 5)));
+                // Capture only top 3 positions (handling all ties in 1st, 2nd, 3rd)
+                competitionResults[compId] = participantsArr.filter(p => (p.effectivePos <= 3 || p.densePos <= 3 || p.position <= 3));
             }
         }
 
@@ -3646,12 +3646,6 @@
                     } else if (effPos === 3) { 
                         rankDisplay = '<i class="fa-solid fa-medal" style="color: var(--bronze);"></i>'; 
                         posText = isTied ? '3rd Place Winner (Tied)' : '3rd Place Winner'; 
-                    } else if (effPos === 4) {
-                        rankDisplay = '<span style="font-weight:800; color:var(--text-main);">#4</span>';
-                        posText = isTied ? '4th Place (Tied)' : '4th Place';
-                    } else if (effPos === 5) {
-                        rankDisplay = '<span style="font-weight:800; color:var(--text-main);">#5</span>';
-                        posText = isTied ? '5th Place (Tied)' : '5th Place';
                     } else { 
                         rankDisplay = `#${effPos}`; 
                         posText = isTied ? `Rank #${effPos} (Tied)` : `Rank #${effPos}`; 
@@ -3751,7 +3745,7 @@
                         }
                     });
 
-                    for (let i = 1; i <= 5; i++) {
+                    for (let i = 1; i <= 3; i++) {
                         const group = rankGroups[i] || [];
                         if (group.length === 1) {
                             const entry = group[0];
@@ -3905,26 +3899,16 @@
                 ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
                 ctx.fillText(`${comp?.categories?.name?.toUpperCase() || 'GENERAL'} • OFFICIAL CERTIFIED RESULT`, 540, 145);
 
-                // Podium Winners supporting ties & multiple winners per rank
+                // Exactly 3 Podium Positions (1st, 2nd, 3rd) supporting multiple winners/ties separated with '&'
                 const rankDefs = [
-                    { rank: 1, color: '#F59E0B', label: '1ST PLACE' },
-                    { rank: 2, color: '#94A3B8', label: '2ND PLACE' },
-                    { rank: 3, color: '#D97706', label: '3RD PLACE' }
+                    { rank: 1, color: '#F59E0B', label: '1ST PLACE', y: 260 },
+                    { rank: 2, color: '#94A3B8', label: '2ND PLACE', y: 510 },
+                    { rank: 3, color: '#D97706', label: '3RD PLACE', y: 760 }
                 ];
+                const slotH = 210;
 
-                const hasRank4 = results.some(r => (r.effectivePos || r.densePos || r.position) === 4);
-                const hasRank5 = results.some(r => (r.effectivePos || r.densePos || r.position) === 5);
-                if (hasRank4) rankDefs.push({ rank: 4, color: '#38BDF8', label: '4TH PLACE' });
-                if (hasRank5) rankDefs.push({ rank: 5, color: '#A855F7', label: '5TH PLACE' });
-
-                const totalSlots = rankDefs.length;
-                const startY = 230;
-                const totalAvailableH = 1050 - startY;
-                const gap = 16;
-                const slotH = Math.min(220, Math.floor((totalAvailableH - (gap * (totalSlots - 1))) / totalSlots));
-
-                rankDefs.forEach((slot, sIdx) => {
-                    const currentY = startY + sIdx * (slotH + gap);
+                rankDefs.forEach(slot => {
+                    const currentY = slot.y;
                     const winnersAtRank = results.filter(r => (r.effectivePos || r.densePos || r.position) === slot.rank);
                     const isTied = winnersAtRank.length > 1;
 
@@ -3939,10 +3923,10 @@
 
                     // Rank pill
                     ctx.fillStyle = slot.color;
-                    ctx.font = totalSlots > 3 ? "800 20px sans-serif" : "800 24px sans-serif";
+                    ctx.font = "800 24px sans-serif";
                     ctx.textAlign = "left";
                     const titleText = isTied ? `${slot.label} WINNERS (TIED • ${winnersAtRank.length})` : `${slot.label} WINNER`;
-                    ctx.fillText(titleText, 110, currentY + (totalSlots > 3 ? 36 : 46));
+                    ctx.fillText(titleText, 110, currentY + 46);
 
                     if (winnersAtRank.length === 0) {
                         ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
@@ -3951,13 +3935,13 @@
                     } else if (winnersAtRank.length === 1) {
                         const winner = winnersAtRank[0];
                         ctx.fillStyle = "#FFFFFF";
-                        ctx.font = totalSlots > 3 ? "800 28px sans-serif" : "800 34px sans-serif";
-                        ctx.fillText(winner.participant.name.toUpperCase(), 110, currentY + (totalSlots > 3 ? 75 : 98));
+                        ctx.font = "800 34px sans-serif";
+                        ctx.fillText(winner.participant.name.toUpperCase(), 110, currentY + 98);
 
                         const tName = allTeams.find(t => t.id === winner.participant.team_id)?.name || 'Independent';
                         ctx.fillStyle = "#94A3B8";
-                        ctx.font = totalSlots > 3 ? "700 20px sans-serif" : "700 22px sans-serif";
-                        ctx.fillText(tName.toUpperCase(), 110, currentY + (totalSlots > 3 ? 108 : 142));
+                        ctx.font = "700 22px sans-serif";
+                        ctx.fillText(tName.toUpperCase(), 110, currentY + 142);
                     } else {
                         // Multiple tied winners: automatically separate names and teams with ' & '
                         const combinedNames = winnersAtRank.map(w => w.participant.name.toUpperCase()).join(' & ');
@@ -3965,7 +3949,7 @@
                         const combinedTeams = distinctTeams.join(' & ');
 
                         ctx.fillStyle = "#FFFFFF";
-                        let nameFont = totalSlots > 3 ? 24 : 32;
+                        let nameFont = 32;
                         ctx.font = `800 ${nameFont}px sans-serif`;
                         const maxBoxW = 860;
                         let nameW = ctx.measureText(combinedNames).width;
@@ -3973,17 +3957,17 @@
                             nameFont = Math.max(16, Math.floor(nameFont * (maxBoxW / nameW)));
                             ctx.font = `800 ${nameFont}px sans-serif`;
                         }
-                        ctx.fillText(combinedNames, 110, currentY + (totalSlots > 3 ? 75 : 98));
+                        ctx.fillText(combinedNames, 110, currentY + (98));
 
                         ctx.fillStyle = "#94A3B8";
-                        let teamFont = totalSlots > 3 ? 18 : 22;
+                        let teamFont = 22;
                         ctx.font = `700 ${teamFont}px sans-serif`;
                         let teamW = ctx.measureText(combinedTeams).width;
                         if (teamW > maxBoxW) {
                             teamFont = Math.max(14, Math.floor(teamFont * (maxBoxW / teamW)));
                             ctx.font = `700 ${teamFont}px sans-serif`;
                         }
-                        ctx.fillText(combinedTeams, 110, currentY + (totalSlots > 3 ? 108 : 142));
+                        ctx.fillText(combinedTeams, 110, currentY + (142));
                     }
                 });
 

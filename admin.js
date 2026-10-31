@@ -6423,7 +6423,7 @@ let activeInputField = null; // Tracks which input the user is currently targeti
 
 // Global State to hold images and coordinates in memory
 let templateData = {
-    individual: { bgImage: new Image(), fields: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 2 Name', 'Position 3 Name', 'Position 4 Name', 'Position 5 Name', 'Team Name'], coords: {} },
+    individual: { bgImage: new Image(), fields: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 2 Name', 'Position 3 Name', 'Team Name'], coords: {} },
     team: { bgImage: new Image(), fields: ['Results Count Text', 'Team 1 Name', 'Team 1 Points', 'Team 2 Name', 'Team 2 Points'], coords: {} },
     final: { bgImage: new Image(), fields: ['Total Competitions Count', 'Final Champion Team', 'Champion Points'], coords: {} }
 };
@@ -6621,7 +6621,7 @@ let resizeStartX = 0;
 let resizeStartY = 0;
 
 const TEMPLATE_SCHEMAS = {
-    individual: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 1 Team', 'Position 1 Photo', 'Position 1 Number', 'Position 2 Name', 'Position 2 Team', 'Position 2 Photo', 'Position 2 Number', 'Position 3 Name', 'Position 3 Team', 'Position 3 Photo', 'Position 3 Number', 'Position 4 Name', 'Position 4 Team', 'Position 4 Photo', 'Position 4 Number', 'Position 5 Name', 'Position 5 Team', 'Position 5 Photo', 'Position 5 Number'],
+    individual: ['Result Number', 'Category', 'Competition', 'Position 1 Name', 'Position 1 Team', 'Position 1 Photo', 'Position 1 Number', 'Position 2 Name', 'Position 2 Team', 'Position 2 Photo', 'Position 2 Number', 'Position 3 Name', 'Position 3 Team', 'Position 3 Photo', 'Position 3 Number'],
     team: ['Results Count Text', 'Rank 1 Team', 'Rank 1 Points', 'Rank 1 Number', 'Rank 2 Team', 'Rank 2 Points', 'Rank 2 Number', 'Rank 3 Team', 'Rank 3 Points', 'Rank 3 Number', 'Rank 4 Team', 'Rank 4 Points', 'Rank 4 Number', 'Rank 5 Team', 'Rank 5 Points', 'Rank 5 Number', 'Rank 6 Team', 'Rank 6 Points', 'Rank 6 Number', 'Rank 7 Team', 'Rank 7 Points', 'Rank 7 Number', 'Rank 8 Team', 'Rank 8 Points', 'Rank 8 Number', 'Rank 9 Team', 'Rank 9 Points', 'Rank 9 Number', 'Rank 10 Team', 'Rank 10 Points', 'Rank 10 Number'],
     final: ['Total Competitions Count', 'Rank 1 Team', 'Rank 1 Points', 'Rank 1 Number', 'Rank 2 Team', 'Rank 2 Points', 'Rank 2 Number', 'Rank 3 Team', 'Rank 3 Points', 'Rank 3 Number', 'Rank 4 Team', 'Rank 4 Points', 'Rank 4 Number', 'Rank 5 Team', 'Rank 5 Points', 'Rank 5 Number', 'Rank 6 Team', 'Rank 6 Points', 'Rank 6 Number', 'Rank 7 Team', 'Rank 7 Points', 'Rank 7 Number', 'Rank 8 Team', 'Rank 8 Points', 'Rank 8 Number', 'Rank 9 Team', 'Rank 9 Points', 'Rank 9 Number', 'Rank 10 Team', 'Rank 10 Points', 'Rank 10 Number'],
     id_card: ['Participant Name', 'Unique ID', 'Team Name', 'Category', 'Date of Birth', 'Photo', 'QR Code'],
@@ -6633,8 +6633,6 @@ const STUDIO_MOCK_DATA = {
     'Position1Name': 'JOHN DOE', 'Position1Team': 'FALCONS', 'Position1Number': '1',
     'Position2Name': 'JANE SMITH', 'Position2Team': 'EAGLES', 'Position2Number': '2',
     'Position3Name': 'MIKE TYSON', 'Position3Team': 'HAWKS', 'Position3Number': '3',
-    'Position4Name': 'CHRIS EVANS', 'Position4Team': 'TIGERS', 'Position4Number': '4',
-    'Position5Name': 'SCARLETT J', 'Position5Team': 'LIONS', 'Position5Number': '5',
     'ResultsCountText': 'AFTER 40',
     'TotalCompetitionsCount': 'FINAL OVERALL', 
     'Rank1Team': 'FALCONS', 'Rank1Points': '450', 'Rank1Number': '1',
