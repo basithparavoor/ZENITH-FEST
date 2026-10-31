@@ -105,6 +105,86 @@ function isCompScheduledTimeEnded(comp) {
 }
 window.isCompScheduledTimeEnded = isCompScheduledTimeEnded;
 
+function getValuationStatus(comp) {
+    if (!comp) return { isComplete: false, reason: "Competition data missing", badgeText: "PENDING" };
+
+    // Offstage competitions do not require onstage live valuation to end event
+    if (checkIsCompOffstage(comp)) {
+        return { isComplete: true, reason: "Offstage event (evaluated in valuation)", badgeText: "OFFSTAGE" };
+    }
+
+    // If already judgement_complete or published or completed, valuation is done
+    if (comp.status === 'judgement_complete' || comp.status === 'published' || comp.status === 'completed') {
+        return { isComplete: true, reason: "Valuation already completed", badgeText: "COMPLETED" };
+    }
+
+    // Get present participants (checked-in with code_letter or is_present)
+    const presentList = (comp.participant_competitions || []).filter(p => p.is_present === true || (p.code_letter && p.is_present !== false));
+
+    // If no participants checked in / attended at all
+    if (presentList.length === 0) {
+        return { isComplete: true, reason: "No checked-in participants", badgeText: "NO ATTENDEES" };
+    }
+
+    const allJudgements = comp.judgements || [];
+    // Extract unique assigned judges
+    const assignedJudges = [...new Set(allJudgements.filter(j => !!j.judge_id).map(j => String(j.judge_id)))];
+
+    if (assignedJudges.length === 0) {
+        return { 
+            isComplete: false, 
+            reason: "No judges assigned to this competition", 
+            badgeText: "NO JUDGE" 
+        };
+    }
+
+    // Marks that have awarded_mark
+    const markRecords = allJudgements.filter(j => j.awarded_mark !== null && j.awarded_mark !== undefined && j.participant_id);
+
+    if (markRecords.length === 0) {
+        return { 
+            isComplete: false, 
+            reason: `Judges have not submitted marks yet (${presentList.length} participant${presentList.length > 1 ? 's' : ''} awaiting evaluation)`, 
+            badgeText: "AWAITING MARKS" 
+        };
+    }
+
+    // Check each assigned judge
+    const completedJudgeIds = assignedJudges.filter(jId => {
+        return presentList.every(p => {
+            return markRecords.some(m => String(m.judge_id) === String(jId) && String(m.participant_id) === String(p.participant_id));
+        });
+    });
+
+    if (completedJudgeIds.length === assignedJudges.length) {
+        return { 
+            isComplete: true, 
+            reason: `All assigned judges (${completedJudgeIds.length}/${assignedJudges.length}) completed valuation`, 
+            badgeText: "VALUATION COMPLETE" 
+        };
+    }
+
+    // Fallback: If Direct Valuation was entered by admin, check if every present participant has at least one valid mark
+    const allPresentHaveMarks = presentList.every(p => {
+        return markRecords.some(m => String(m.participant_id) === String(p.participant_id));
+    });
+
+    if (allPresentHaveMarks && completedJudgeIds.length > 0) {
+        return { 
+            isComplete: true, 
+            reason: "All participants evaluated", 
+            badgeText: "VALUATION COMPLETE" 
+        };
+    }
+
+    return { 
+        isComplete: false, 
+        reason: `Judge valuation in progress (${completedJudgeIds.length}/${assignedJudges.length} judges completed)`, 
+        badgeText: `${completedJudgeIds.length}/${assignedJudges.length} JUDGES DONE` 
+    };
+}
+window.getValuationStatus = getValuationStatus;
+
 function isStageAssignedToUser(stage, userId) {
     if (!stage || !userId) return false;
     const map = window.stageControllersMap;
@@ -251,7 +331,7 @@ async function loadCompetitions(stageId) {
     }
 
     let query = supabaseClient.from('competitions')
-        .select('*, categories(name), stages(id, name, stage_no), judgements(judge_id, awarded_mark, users(username)), participant_competitions(participant_id)');
+        .select('*, categories(name), stages(id, name, stage_no), judgements(judge_id, awarded_mark, participant_id, users(username)), participant_competitions(participant_id, is_present, code_letter)');
 
     if (window.festosApplyFilter) {
         query = window.festosApplyFilter(query);
@@ -475,17 +555,33 @@ async function loadCompetitions(stageId) {
                     const endTarget = isOff ? 'valuation' : 'judgement_complete';
                     const targetLabel = isOff ? 'Send to Valuation' : 'End Event';
                     const timeLabel = sched?.to_time || sched?.time || 'Scheduled slot ended';
-                    return `
-                        <div style="background: #FEF3C7; border: 1.5px solid #FCD34D; color: #92400E; padding: 7px 12px; border-radius: 10px; font-size: 0.78rem; font-weight: 700; margin-bottom: 0.65rem; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
-                            <span style="display: inline-flex; align-items: center; gap: 6px;">
-                                <i class="fa-solid fa-clock-rotate-left" style="color: #D97706; font-size: 0.95rem;"></i>
-                                Slot ended (${timeLabel}). Stage finished?
-                            </span>
-                            <button type="button" class="btn btn-warning" style="min-height: 28px !important; padding: 2px 10px !important; font-size: 0.72rem !important; border-radius: 6px !important; width: auto !important; margin: 0 !important;" onclick="changeCompetitionState('${comp.id}', '${endTarget}', this, 'ENDING')">
-                                <i class="fa-solid fa-flag-checkered"></i> ${targetLabel}
-                            </button>
-                        </div>
-                    `;
+                    const valStatus = isOff ? { isComplete: true } : getValuationStatus(comp);
+
+                    if (valStatus.isComplete) {
+                        return `
+                            <div style="background: #FEF3C7; border: 1.5px solid #FCD34D; color: #92400E; padding: 7px 12px; border-radius: 10px; font-size: 0.78rem; font-weight: 700; margin-bottom: 0.65rem; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+                                <span style="display: inline-flex; align-items: center; gap: 6px;">
+                                    <i class="fa-solid fa-clock-rotate-left" style="color: #D97706; font-size: 0.95rem;"></i>
+                                    Slot ended (${timeLabel}). Stage finished?
+                                </span>
+                                <button type="button" class="btn btn-warning" style="min-height: 28px !important; padding: 2px 10px !important; font-size: 0.72rem !important; border-radius: 6px !important; width: auto !important; margin: 0 !important;" onclick="changeCompetitionState('${comp.id}', '${endTarget}', this, 'ENDING')">
+                                    <i class="fa-solid fa-flag-checkered"></i> ${targetLabel}
+                                </button>
+                            </div>
+                        `;
+                    } else {
+                        return `
+                            <div style="background: #FEF3C7; border: 1.5px solid #FCD34D; color: #92400E; padding: 7px 12px; border-radius: 10px; font-size: 0.78rem; font-weight: 700; margin-bottom: 0.65rem; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+                                <span style="display: inline-flex; align-items: center; gap: 6px;">
+                                    <i class="fa-solid fa-clock-rotate-left" style="color: #D97706; font-size: 0.95rem;"></i>
+                                    Slot ended (${timeLabel}). Awaiting Valuation:
+                                </span>
+                                <button type="button" class="btn btn-outline" style="min-height: 28px !important; padding: 2px 10px !important; font-size: 0.72rem !important; border-radius: 6px !important; width: auto !important; margin: 0 !important; opacity: 0.65; cursor: not-allowed; background: #F8FAFC; border-color: #CBD5E1; color: var(--text-muted);" disabled title="Valuation must be completed by judges before ending an onstage competition (${valStatus.reason})">
+                                    <i class="fa-solid fa-hourglass-half"></i> ${valStatus.badgeText}
+                                </button>
+                            </div>
+                        `;
+                    }
                 }
                 return '';
             })()}
@@ -751,8 +847,8 @@ function getButtonsForStatus(comp) {
             ? `<button class="btn btn-outline" style="border-color: #CBD5E1; color: var(--text-muted); background: #F8FAFC;" onclick="alertStartBeforeSchedule('${comp.id}', ${minsUntilStart}, '${schedStartTimeStr}')" title="Scheduled to start at ${schedStartTimeStr}"><i class="fa-solid fa-hourglass-half"></i> STARTS AT ${schedStartTimeStr} (${minsUntilStart}m)</button>`
             : `<button class="btn btn-success" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'STARTING')"><i class="fa-solid fa-play"></i> START EVENT</button>`;
 
-        // If competition ended or after scheduled time and controller didn't click end, show END EVENT option!
-        const endEventBtn = timeEnded
+        // If competition ended or after scheduled time and controller didn't click end, show END EVENT option for offstage
+        const endEventBtn = (timeEnded && isOff)
             ? `<button class="btn btn-warning btn-full" style="margin-top: 0.25rem !important;" onclick="changeCompetitionState('${comp.id}', '${endTargetStatus}', this, 'ENDING')"><i class="fa-solid fa-flag-checkered"></i> ${endTargetLabel} (SLOT ENDED)</button>`
             : '';
 
@@ -775,15 +871,32 @@ function getButtonsForStatus(comp) {
                 </div>
             `;
         } else {
-            // Stage controller MUST always have the option to end the event when stage performance is finished,
-            // especially after the scheduled time! Never disable the button.
-            const endBtn = `<button class="btn btn-warning" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'ENDING')"><i class="fa-solid fa-flag-checkered"></i> END EVENT</button>`;
+            // For onstage competitions: ONLY enable END EVENT if valuation is complete!
+            const valStatus = getValuationStatus(comp);
+            let endBtn = '';
+            let valMsg = '';
+
+            if (valStatus.isComplete) {
+                endBtn = `<button class="btn btn-warning" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'ENDING')"><i class="fa-solid fa-flag-checkered"></i> END EVENT</button>`;
+            } else {
+                endBtn = `
+                    <button class="btn btn-warning" disabled style="opacity: 0.55; cursor: not-allowed; background: #94A3B8; border-color: #94A3B8;" title="Valuation Incomplete: ${valStatus.reason}">
+                        <i class="fa-solid fa-hourglass-half"></i> END EVENT (${valStatus.badgeText})
+                    </button>
+                `;
+                valMsg = `
+                    <div style="font-size: 0.72rem; color: #D97706; font-weight: 600; margin-top: 6px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                        <i class="fa-solid fa-circle-exclamation"></i> Valuation incomplete: ${valStatus.reason}
+                    </div>
+                `;
+            }
 
             return `
                 <div>
                     <button class="btn btn-outline" onclick="backToRegistration('${comp.id}', this)"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT</button>
                     ${endBtn}
                 </div>
+                ${valMsg}
             `;
         }
     }
@@ -1300,6 +1413,44 @@ async function changeCompetitionState(compId, newStatus, btnElement, loadingText
         }
     }
 
+    // Rule: In onstage competitions, ONLY allow ending competition if valuation is complete!
+    if (newStatus === 'judgement_complete' && !isOffstage) {
+        let valStatus = getValuationStatus(comp);
+
+        // Fetch fresh state from Supabase to ensure real-time accuracy if judge just submitted marks
+        try {
+            const [freshJudgementsRes, freshParticipantsRes] = await Promise.all([
+                supabaseClient.from('judgements').select('judge_id, awarded_mark, participant_id').eq('competition_id', compId),
+                supabaseClient.from('participant_competitions').select('participant_id, is_present, code_letter').eq('competition_id', compId)
+            ]);
+
+            const freshComp = {
+                ...(comp || {}),
+                judgements: freshJudgementsRes.data || comp?.judgements || [],
+                participant_competitions: freshParticipantsRes.data || comp?.participant_competitions || []
+            };
+            valStatus = getValuationStatus(freshComp);
+        } catch (e) {
+            console.warn("Error checking live valuation status:", e);
+        }
+
+        if (!valStatus.isComplete) {
+            showToast("Cannot End Event: Valuation is not yet completed by judges.", "warning");
+            openConfirmModal(
+                "Valuation Incomplete",
+                `<strong>"${comp ? comp.name : 'This competition'}"</strong> is an onstage competition and cannot be ended until valuation is completed.<br><br>
+                <div style="background: #FEF3C7; border: 1.5px solid #FCD34D; color: #92400E; padding: 12px; border-radius: 10px; font-size: 0.85rem; text-align: left; line-height: 1.5;">
+                    <i class="fa-solid fa-triangle-exclamation" style="margin-right: 6px; color: #D97706;"></i>
+                    <strong>Status:</strong> ${valStatus.reason}
+                </div><br>
+                Please wait for the assigned judges to finish scoring and submit marks in their Judges Panel before ending the competition.`,
+                null,
+                { confirmText: "Understood", hideCancel: true }
+            );
+            return;
+        }
+    }
+
     if (newStatus === 'ongoing' || newStatus === 'judgement_complete' || newStatus === 'valuation') {
         let title = "Confirm Action";
         let text = "Are you sure you want to proceed?";
@@ -1311,12 +1462,7 @@ async function changeCompetitionState(compId, newStatus, btnElement, loadingText
             text = "End offstage competition? The event will now move to Valuation for judge evaluation.";
         } else if (newStatus === 'judgement_complete') {
             title = "End Event & Send to Manager?";
-            const hasMarks = comp?.judgements && comp.judgements.some(j => j.awarded_mark !== null);
-            if (!hasMarks) {
-                text = "End stage competition and send to Manager?<br><br><span style='color: #D97706; font-size: 0.85rem;'><i class='fa-solid fa-triangle-exclamation'></i> Note: Judge marks have not been submitted in the app yet. They can still be recorded by judges or finalized in Manager Portal.</span>";
-            } else {
-                text = "End competition? This finalizes stage performance and notifies the Manager to publish results.";
-            }
+            text = "End competition and push to Manager for publishing? Judge valuation has been completed.";
         }
 
         openConfirmModal(title, text, () => {

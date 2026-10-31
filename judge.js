@@ -446,9 +446,29 @@ async function submitJudgement() {
         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Final Marks';
     } else {
         try {
-            await supabaseClient.from('competitions').update({ status: 'judgement_complete', updated_at: new Date().toISOString() }).eq('id', currentCompId);
+            // Check if all assigned judges have submitted marks for this competition
+            const { data: allJudgeRecords } = await supabaseClient
+                .from('judgements')
+                .select('judge_id, awarded_mark, participant_id')
+                .eq('competition_id', currentCompId);
+
+            const assignedJudges = [...new Set((allJudgeRecords || []).filter(j => !!j.judge_id).map(j => String(j.judge_id)))];
+            const marksRecords = (allJudgeRecords || []).filter(j => j.awarded_mark !== null && j.awarded_mark !== undefined && j.participant_id);
+
+            const allJudgesDone = assignedJudges.length > 0 && assignedJudges.every(judgeId => {
+                return Array.from(rows).every(row => {
+                    const pId = row.getAttribute('data-pid');
+                    return marksRecords.some(m => String(m.judge_id) === String(judgeId) && String(m.participant_id) === String(pId));
+                });
+            });
+
+            if (allJudgesDone || assignedJudges.length <= 1) {
+                await supabaseClient.from('competitions').update({ status: 'judgement_complete', updated_at: new Date().toISOString() }).eq('id', currentCompId);
+                showToast('Marks submitted successfully! Valuation complete, sent to Manager.', "success");
+            } else {
+                showToast('Your marks have been submitted successfully! Waiting for remaining judges to complete valuation.', "success");
+            }
         } catch(e) { console.warn(e); }
-        showToast('Marks submitted successfully! Sent to Manager for publishing.', "success");
         closeEvaluation();
         loadDashboard(); 
     }
