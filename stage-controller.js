@@ -86,6 +86,25 @@ function checkIsCompOffstage(comp) {
 }
 window.checkIsCompOffstage = checkIsCompOffstage;
 
+function isCompScheduledTimeEnded(comp) {
+    if (!comp) return false;
+    const sched = comp.schedule || (window.masterSchedule ? window.masterSchedule[comp.id] : null);
+    if (!sched || !sched.date || !sched.time) return false;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (sched.date < todayStr) return true;
+    if (sched.date > todayStr) return false;
+
+    const startM = timeStringToMinutes(sched.time);
+    let endM = sched.to_time ? timeStringToMinutes(sched.to_time) : (startM + (parseInt(sched.manual_time || comp.duration) || 30));
+    if (endM <= startM) endM = startM + 30;
+
+    const now = new Date();
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+    return currentMins >= endM;
+}
+window.isCompScheduledTimeEnded = isCompScheduledTimeEnded;
+
 async function loadDashboard() {
     const container = document.getElementById('competitions-container');
     container.innerHTML = `<div style="text-align:center; padding: 3rem;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i><p style="margin-top: 1rem; color: var(--text-muted); font-weight: 600;">Loading Stage Data...</p></div>`;
@@ -435,20 +454,23 @@ async function loadCompetitions(stageId) {
             </div>
             
             ${(() => {
-                if (sched && sched.date && (sched.to_time || sched.time) && (comp.status === 'ongoing' || comp.status === 'registration')) {
-                    const startM = timeStringToMinutes(sched.time);
-                    let endM = sched.to_time ? timeStringToMinutes(sched.to_time) : (startM + (parseInt(sched.manual_time) || 30));
-                    if (endM <= startM) endM = startM + 30;
-                    const endH = Math.floor(endM / 60);
-                    const endMin = endM % 60;
-                    const endDateTime = new Date(`${sched.date}T${String(endH).padStart(2, '0')}:${String(endMin).padStart(2, '0')}:00`);
-                    if (!isNaN(endDateTime.getTime()) && Date.now() > endDateTime.getTime()) {
-                        return `
-                            <div style="background: #FEF3C7; border: 1px solid #FCD34D; color: #92400E; padding: 6px 12px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
-                                <span><i class="fa-solid fa-clock-rotate-left"></i> Scheduled slot ended (${sched.to_time || minutesToTimeString(endM)}). Complete or End Event when stage is finished.</span>
-                            </div>
-                        `;
-                    }
+                const timeEnded = isCompScheduledTimeEnded(comp);
+                if (timeEnded && comp.status !== 'judgement_complete' && comp.status !== 'published') {
+                    const isOff = checkIsCompOffstage(comp);
+                    const endTarget = isOff ? 'valuation' : 'judgement_complete';
+                    const targetLabel = isOff ? 'Send to Valuation' : 'End Event';
+                    const timeLabel = sched?.to_time || sched?.time || 'Scheduled slot ended';
+                    return `
+                        <div style="background: #FEF3C7; border: 1.5px solid #FCD34D; color: #92400E; padding: 7px 12px; border-radius: 10px; font-size: 0.78rem; font-weight: 700; margin-bottom: 0.65rem; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+                            <span style="display: inline-flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-clock-rotate-left" style="color: #D97706; font-size: 0.95rem;"></i>
+                                Slot ended (${timeLabel}). Stage finished?
+                            </span>
+                            <button type="button" class="btn btn-warning" style="min-height: 28px !important; padding: 2px 10px !important; font-size: 0.72rem !important; border-radius: 6px !important; width: auto !important; margin: 0 !important;" onclick="changeCompetitionState('${comp.id}', '${endTarget}', this, 'ENDING')">
+                                <i class="fa-solid fa-flag-checkered"></i> ${targetLabel}
+                            </button>
+                        </div>
+                    `;
                 }
                 return '';
             })()}
@@ -654,6 +676,9 @@ function getButtonsForStatus(comp) {
     const sched = comp.schedule || (window.masterSchedule ? window.masterSchedule[comp.id] : null);
     const regOffset = window.stageControllerSettings?.registrationOffset !== undefined ? window.stageControllerSettings.registrationOffset : 15;
     const strictStart = window.stageControllerSettings?.strictStartTime !== undefined ? window.stageControllerSettings.strictStartTime : true;
+    const timeEnded = isCompScheduledTimeEnded(comp);
+    const endTargetStatus = isOff ? 'valuation' : 'judgement_complete';
+    const endTargetLabel = isOff ? 'END EVENT (SEND TO VALUATION)' : 'END EVENT';
 
     if (comp.status === 'pending') {
         if (sched && sched.date && sched.time) {
@@ -672,6 +697,17 @@ function getButtonsForStatus(comp) {
                 }
             }
         }
+
+        // If scheduled slot ended, give option to start registration OR directly end event
+        if (timeEnded) {
+            return `
+                <div>
+                    <button class="btn btn-primary" onclick="changeCompetitionState('${comp.id}', 'registration', this, 'STARTING')"><i class="fa-solid fa-qrcode"></i> START REG</button>
+                    <button class="btn btn-warning" onclick="changeCompetitionState('${comp.id}', '${endTargetStatus}', this, 'ENDING')"><i class="fa-solid fa-flag-checkered"></i> END EVENT</button>
+                </div>
+            `;
+        }
+
         return `
             <div>
                 <button class="btn btn-primary btn-full" onclick="changeCompetitionState('${comp.id}', 'registration', this, 'STARTING')"><i class="fa-solid fa-qrcode"></i> START REGISTRATION</button>
@@ -700,11 +736,17 @@ function getButtonsForStatus(comp) {
             ? `<button class="btn btn-outline" style="border-color: #CBD5E1; color: var(--text-muted); background: #F8FAFC;" onclick="alertStartBeforeSchedule('${comp.id}', ${minsUntilStart}, '${schedStartTimeStr}')" title="Scheduled to start at ${schedStartTimeStr}"><i class="fa-solid fa-hourglass-half"></i> STARTS AT ${schedStartTimeStr} (${minsUntilStart}m)</button>`
             : `<button class="btn btn-success" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'STARTING')"><i class="fa-solid fa-play"></i> START EVENT</button>`;
 
+        // If competition ended or after scheduled time and controller didn't click end, show END EVENT option!
+        const endEventBtn = timeEnded
+            ? `<button class="btn btn-warning btn-full" style="margin-top: 0.25rem !important;" onclick="changeCompetitionState('${comp.id}', '${endTargetStatus}', this, 'ENDING')"><i class="fa-solid fa-flag-checkered"></i> ${endTargetLabel} (SLOT ENDED)</button>`
+            : '';
+
         return `
             <div>
                 <button class="btn btn-outline btn-full" style="color: var(--primary); border-color: var(--primary); margin-bottom: 0.25rem !important;" onclick="openScannerModal('${comp.id}', '${safeName}')" title="SCAN QR"><i class="fa-solid fa-expand"></i> SCAN QR</button>
                 <button class="btn btn-danger" onclick="cancelRegistration('${comp.id}', this)"><i class="fa-solid fa-xmark"></i> CANCEL</button>
                 ${startEventBtn}
+                ${endEventBtn}
             </div>
         `;
     }
@@ -718,10 +760,9 @@ function getButtonsForStatus(comp) {
                 </div>
             `;
         } else {
-            const hasMarks = comp.judgements && comp.judgements.some(j => j.awarded_mark !== null);
-            const endBtn = hasMarks 
-                ? `<button class="btn btn-warning" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'ENDING')"><i class="fa-solid fa-flag-checkered"></i> END EVENT</button>`
-                : `<button class="btn btn-outline" style="opacity: 0.6; pointer-events: none;" disabled><i class="fa-solid fa-hourglass-half"></i> AWAITING JUDGE MARKS...</button>`;
+            // Stage controller MUST always have the option to end the event when stage performance is finished,
+            // especially after the scheduled time! Never disable the button.
+            const endBtn = `<button class="btn btn-warning" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'ENDING')"><i class="fa-solid fa-flag-checkered"></i> END EVENT</button>`;
 
             return `
                 <div>
@@ -733,10 +774,7 @@ function getButtonsForStatus(comp) {
     }
     
     if (comp.status === 'valuation') {
-        const hasMarks = comp.judgements && comp.judgements.some(j => j.awarded_mark !== null);
-        const endBtn = hasMarks 
-            ? `<button class="btn btn-success" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'SUBMITTING')"><i class="fa-solid fa-check-double"></i> PUSH TO MANAGER</button>`
-            : `<button class="btn btn-outline" style="opacity: 0.6; pointer-events: none;" disabled><i class="fa-solid fa-hourglass-half"></i> AWAITING JUDGE MARKS</button>`;
+        const endBtn = `<button class="btn btn-success" onclick="changeCompetitionState('${comp.id}', 'judgement_complete', this, 'SUBMITTING')"><i class="fa-solid fa-check-double"></i> PUSH TO MANAGER</button>`;
         return `
             <div>
                 <button class="btn btn-outline" onclick="changeCompetitionState('${comp.id}', 'ongoing', this, 'REVERTING')"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT</button>
@@ -1258,7 +1296,12 @@ async function changeCompetitionState(compId, newStatus, btnElement, loadingText
             text = "End offstage competition? The event will now move to Valuation for judge evaluation.";
         } else if (newStatus === 'judgement_complete') {
             title = "End Event & Send to Manager?";
-            text = "End competition? This finalizes marks and notifies the Manager to publish results.";
+            const hasMarks = comp?.judgements && comp.judgements.some(j => j.awarded_mark !== null);
+            if (!hasMarks) {
+                text = "End stage competition and send to Manager?<br><br><span style='color: #D97706; font-size: 0.85rem;'><i class='fa-solid fa-triangle-exclamation'></i> Note: Judge marks have not been submitted in the app yet. They can still be recorded by judges or finalized in Manager Portal.</span>";
+            } else {
+                text = "End competition? This finalizes stage performance and notifies the Manager to publish results.";
+            }
         }
 
         openConfirmModal(title, text, () => {

@@ -121,6 +121,7 @@ function timeStringToMinutes(timeStr) {
 
 function isCompScheduledTimeEnded(comp) {
     if (!comp || !comp.schedule) return false;
+    if (['published', 'judgement_complete'].includes(comp.status)) return false;
     const sched = comp.schedule;
     if (!sched.date) return false;
 
@@ -170,6 +171,7 @@ function filterCompetitions() {
         else if (statusFilter === 'ongoing') statusMatch = (comp.status === 'ongoing');
         else if (statusFilter === 'registration') statusMatch = (comp.status === 'registration');
         else if (statusFilter === 'pending') statusMatch = (comp.status === 'pending');
+        else if (statusFilter === 'published') statusMatch = (comp.status === 'published');
         else if (statusFilter === 'action_needed') {
             statusMatch = (comp.status === 'judgement_complete') || isCompScheduledTimeEnded(comp);
         }
@@ -201,41 +203,25 @@ async function loadAssignments() {
 
         // 1. Fetch Competitions, grabbing the stage_no alongside the name
         let compsQuery = supabaseClient.from('competitions')
-            .select('*, categories(name), stages(name, stage_no)') 
-            .in('status', ['pending', 'registration', 'ongoing', 'valuation', 'judgement_complete']);
+            .select('*, categories(name), stages(name, stage_no)');
         if (window.festosApplyFilter) compsQuery = window.festosApplyFilter(compsQuery);
         const { data: comps } = await compsQuery;
             
         // 2. Fetch Master Schedule
         const schedVal = window.festosGetSetting ? await window.festosGetSetting('master_schedule') : null;
         const masterSchedule = schedVal || {};
-        
-        // 3. Fetch Visibility Offset Setting
-        const pointVal = window.festosGetSetting ? await window.festosGetSetting('point_system') : null;
-        const announcerOffset = pointVal?.announcer_offset !== undefined ? parseInt(pointVal.announcer_offset) : 30;
 
-        const now = new Date();
-        
-        // 4. Filter Competitions based on Status and Schedule (Applying the Offset limit)
-        let activeComps = (comps || []).filter(comp => {
-            if (comp.status !== 'pending') return true; 
-            const sched = masterSchedule[comp.id];
-            if (!sched || sched.status !== 'published') return false; 
-            
-            const schedDate = new Date(`${sched.date}T${sched.time}`);
-            if (isNaN(schedDate)) return true;
-            
-            const diffMins = (schedDate - now) / 60000;
-            return diffMins <= announcerOffset;
-        });
+        // 3. Keep all competitions without filtering out based on fixed schedule time or announcer offset
+        let activeComps = comps ? [...comps] : [];
 
-        // 5. Chronological Sorting (Order by Time)
+        // 4. Chronological Sorting (Order by scheduled time if set, then alphabetically by name)
         activeComps.sort((a, b) => {
             const schedA = masterSchedule[a.id];
             const schedB = masterSchedule[b.id];
             const timeA = schedA && schedA.date && schedA.time ? new Date(`${schedA.date}T${schedA.time}`).getTime() : Infinity;
             const timeB = schedB && schedB.date && schedB.time ? new Date(`${schedB.date}T${schedB.time}`).getTime() : Infinity;
-            return timeA - timeB;
+            if (timeA !== timeB) return timeA - timeB;
+            return (a.name || '').localeCompare(b.name || '');
         });
 
         // Attach schedule to object for rendering
@@ -266,7 +252,7 @@ function renderGrid(competitions) {
 
     if (competitions.length === 0) {
         if (selectAllContainer) selectAllContainer.style.display = 'none'; // Hide Select All
-        grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1; color: var(--text-muted);"><i class="ph ph-magnifying-glass" style="font-size:2rem; margin-bottom:1rem;"></i><p>No active/upcoming competitions match your filters.</p></div>`;
+        grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column: 1/-1; color: var(--text-muted);"><i class="ph ph-magnifying-glass" style="font-size:2rem; margin-bottom:1rem;"></i><p>No competitions match your filters.</p></div>`;
         return;
     }
 
@@ -298,6 +284,10 @@ function renderGrid(competitions) {
             badgeClass = '';
             badgeLabel = 'REGISTRATION';
             badgeStyle = 'background: #E0F2FE; color: #0284C7; border: 1.5px solid #BAE6FD; font-weight: 700;';
+        } else if (comp.status === 'published') {
+            badgeClass = '';
+            badgeLabel = 'PUBLISHED';
+            badgeStyle = 'background: #DCFCE7; color: #15803D; border: 1.5px solid #86EFAC; font-weight: 700;';
         }
 
         // Build the interactive tags for assigned judges
@@ -320,11 +310,13 @@ function renderGrid(competitions) {
         
         // Format Time Schedule
         let schedBadge = '';
-        if (comp.schedule) {
+        if (comp.schedule && comp.schedule.date) {
             const timeObj = new Date(`${comp.schedule.date}T${comp.schedule.time}`);
-            const timeStr = isNaN(timeObj) ? comp.schedule.time : timeObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const timeStr = isNaN(timeObj) ? (comp.schedule.time || '') : timeObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             const toStr = comp.schedule.to_time ? ` - ${comp.schedule.to_time}` : '';
             schedBadge = `<div class="card-meta" style="color: var(--primary); font-weight: 700; margin-bottom: 0.65rem;"><i class="ph ph-clock"></i> ${comp.schedule.date} @ ${timeStr}${toStr}</div>`;
+        } else {
+            schedBadge = `<div class="card-meta" style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.65rem;"><i class="ph ph-clock"></i> Unscheduled</div>`;
         }
 
         // Time Ended / Overdue Check
@@ -391,6 +383,15 @@ function renderGrid(competitions) {
                 </button>
                 <button class="btn btn-sm btn-outline" style="color: #7E22CE; border-color: #D8B4FE; padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="openManagerRedoModal('${comp.id}')">
                     <i class="ph-bold ph-arrow-counter-clockwise"></i> Redo
+                </button>
+            `;
+        } else if (comp.status === 'published') {
+            actionButtonsHTML = `
+                <button class="btn btn-sm btn-outline" style="flex: 1; color: #15803D; border-color: #86EFAC; padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="switchTab('published-results')">
+                    <i class="ph-bold ph-check-circle"></i> View Published
+                </button>
+                <button class="btn btn-sm btn-outline" style="color: #7E22CE; border-color: #D8B4FE; padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="openManagerRedoModal('${comp.id}')">
+                    <i class="ph-bold ph-arrow-counter-clockwise"></i> Redo / Revert
                 </button>
             `;
         } else {
@@ -506,7 +507,7 @@ function exportToCSV() {
     // Quick re-filter to get active data
     const visibleData = allCompetitions.filter(comp => {
         const stageFilter = document.getElementById('stageFilter').value;
-        const compStage = comp.stage || 'Unstaged';
+        const compStage = comp.stages?.name || 'Unstaged';
         
         return comp.name.toLowerCase().includes(searchTerm) && 
                (catFilter === 'all' || (comp.categories?.name === catFilter)) &&
