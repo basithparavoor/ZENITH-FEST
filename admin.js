@@ -8032,21 +8032,60 @@ function renderConflictPermitsTable() {
     }).join('');
 }
 
+function populatePermitParticipantDropdown() {
+    const pSelect = document.getElementById('permitParticipantSelect');
+    if (!pSelect) return;
+    const list = Array.isArray(globalPermitParticipants) ? globalPermitParticipants : [];
+    pSelect.innerHTML = `<option value="">-- Select Participant (${list.length}) --</option>` +
+        list.map(p => {
+            const team = p.teams?.name ? ` [${p.teams.name}]` : '';
+            const uId = p.unique_id ? ` (#${p.unique_id})` : '';
+            return `<option value="${p.id}">${p.name}${uId}${team}</option>`;
+        }).join('');
+}
+
+function populatePermitCompetitionDropdown() {
+    const toSelect = document.getElementById('permitToCompSelect');
+    if (!toSelect) return;
+    const list = Array.isArray(globalPermitCompetitions) ? globalPermitCompetitions : [];
+    toSelect.innerHTML = `<option value="">-- Select Target Competition (Allow Late Check-in) --</option>` +
+        list.map(c => {
+            const st = c.status ? ` [${(c.status || '').toUpperCase()}]` : '';
+            return `<option value="${c.id}">${c.name}${st}</option>`;
+        }).join('');
+}
+
 async function openGrantConflictPermitModal() {
     const modal = document.getElementById('grantConflictPermitModal');
     if (!modal) return;
 
+    modal.classList.add('show');
     modal.style.display = 'flex';
-    document.getElementById('permitNotesInput').value = '';
+    modal.style.opacity = '1';
 
-    // Load participants and competitions
+    const notesInput = document.getElementById('permitNotesInput');
+    if (notesInput) notesInput.value = '';
+
     const pSelect = document.getElementById('permitParticipantSelect');
     const fromSelect = document.getElementById('permitFromCompSelect');
     const toSelect = document.getElementById('permitToCompSelect');
 
-    pSelect.innerHTML = `<option value="">Loading participants...</option>`;
-    fromSelect.innerHTML = `<option value="">-- Choose Participant First --</option>`;
-    toSelect.innerHTML = `<option value="">Loading competitions...</option>`;
+    if (fromSelect) fromSelect.innerHTML = `<option value="">-- Choose Participant First --</option>`;
+
+    // Fast-path: immediate population from in-memory cache if available
+    if (Array.isArray(window.participantsList) && window.participantsList.length > 0) {
+        globalPermitParticipants = window.participantsList;
+        populatePermitParticipantDropdown();
+    } else if (pSelect) {
+        pSelect.innerHTML = `<option value="">Loading participants...</option>`;
+    }
+
+    if (Array.isArray(window.competitionsList) && window.competitionsList.length > 0) {
+        globalPermitCompetitions = window.competitionsList;
+        populatePermitCompetitionDropdown();
+    } else if (toSelect) {
+        toSelect.innerHTML = `<option value="">Loading competitions...</option>`;
+    }
 
     try {
         let pQuery = supabaseClient.from('participants').select('id, name, unique_id, team_id, teams(name)').order('name');
@@ -8056,6 +8095,7 @@ async function openGrantConflictPermitModal() {
         if (typeof festQuery === 'function') {
             pQuery = festQuery(pQuery);
             cQuery = festQuery(cQuery);
+            regQuery = festQuery(regQuery);
         }
 
         let pRes = { data: [] }, cRes = { data: [] }, regRes = { data: [] };
@@ -8063,42 +8103,41 @@ async function openGrantConflictPermitModal() {
         try { cRes = await cQuery; } catch (e) { cRes = { data: [], error: e }; }
         try { regRes = await regQuery; } catch (e) { regRes = { data: [], error: e }; }
 
-        if (pRes.error) console.warn("Participants query warning:", pRes.error);
-        if (cRes.error) console.warn("Competitions query warning:", cRes.error);
+        if (pRes.data && pRes.data.length > 0) {
+            globalPermitParticipants = pRes.data;
+        } else if (!globalPermitParticipants || globalPermitParticipants.length === 0) {
+            globalPermitParticipants = Array.isArray(window.participantsList) ? window.participantsList : [];
+        }
 
-        globalPermitParticipants = (pRes.data && pRes.data.length > 0) 
-            ? pRes.data 
-            : (Array.isArray(window.participantsList) ? window.participantsList : []);
-
-        globalPermitCompetitions = (cRes.data && cRes.data.length > 0) 
-            ? cRes.data 
-            : (Array.isArray(window.competitionsList) ? window.competitionsList : []);
+        if (cRes.data && cRes.data.length > 0) {
+            globalPermitCompetitions = cRes.data;
+        } else if (!globalPermitCompetitions || globalPermitCompetitions.length === 0) {
+            globalPermitCompetitions = Array.isArray(window.competitionsList) ? window.competitionsList : [];
+        }
 
         globalPermitRegistrations = regRes.data || [];
 
-        // Populate Participants
-        pSelect.innerHTML = `<option value="">-- Select Participant (${globalPermitParticipants.length}) --</option>` +
-            globalPermitParticipants.map(p => {
-                const team = p.teams?.name ? ` [${p.teams.name}]` : '';
-                const uId = p.unique_id ? ` (#${p.unique_id})` : '';
-                return `<option value="${p.id}">${p.name}${uId}${team}</option>`;
-            }).join('');
-
-        // Populate Target "To Competition"
-        toSelect.innerHTML = `<option value="">-- Select Target Competition (Allow Late Check-in) --</option>` +
-            globalPermitCompetitions.map(c => {
-                const st = c.status ? ` [${c.status.toUpperCase()}]` : '';
-                return `<option value="${c.id}">${c.name}${st}</option>`;
-            }).join('');
+        populatePermitParticipantDropdown();
+        populatePermitCompetitionDropdown();
 
     } catch (e) {
-        showToast("Error loading data: " + e.message, "error");
+        console.warn("Background fetch warning for permits modal:", e);
+        if (globalPermitParticipants && globalPermitParticipants.length > 0) {
+            populatePermitParticipantDropdown();
+        }
+        if (globalPermitCompetitions && globalPermitCompetitions.length > 0) {
+            populatePermitCompetitionDropdown();
+        }
     }
 }
 
 function closeGrantConflictPermitModal() {
     const modal = document.getElementById('grantConflictPermitModal');
-    if (modal) modal.style.display = 'none';
+    if (modal) {
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+        modal.style.opacity = '0';
+    }
 }
 
 function onPermitParticipantChanged() {

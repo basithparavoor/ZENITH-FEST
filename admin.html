@@ -3557,8 +3557,8 @@ canvas {
         </div>
 
         <!-- Issue Conflict Permit Modal -->
-        <div id="grantConflictPermitModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.5); backdrop-filter: blur(6px); z-index: 9999; justify-content: center; align-items: center;">
-            <div class="card" style="width: 100%; max-width: 520px; background: var(--bg-surface); border-radius: 20px; padding: 1.75rem; box-shadow: 0 20px 40px rgba(0,0,0,0.2); border: 1px solid var(--border); max-height: 90vh; overflow-y: auto;">
+        <div id="grantConflictPermitModal" class="modal-overlay" onclick="if(event.target === this) closeGrantConflictPermitModal()" style="z-index: 9999;">
+            <div class="modal card" style="width: 100%; max-width: 520px; background: var(--bg-surface); border-radius: 20px; padding: 1.75rem; box-shadow: 0 20px 40px rgba(0,0,0,0.2); border: 1px solid var(--border); max-height: 90vh; overflow-y: auto;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
                     <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-main);">
                         Issue Late Entry Permit
