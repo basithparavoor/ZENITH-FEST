@@ -8561,7 +8561,12 @@ async function loadParticipantPoints() {
             if (p.team_id && teamResults[p.team_id]) teamResults[p.team_id].participantCount++;
         });
 
-        (comps || []).forEach(comp => {
+        // CRITICAL: Base Points Ledger (Team Ledger & Participant Ledger) on published results when available,
+        // matching the official published standings, Live Display, and Public Results
+        const publishedComps = (comps || []).filter(c => c.status === 'published');
+        const targetComps = (publishedComps && publishedComps.length > 0) ? publishedComps : (comps || []);
+
+        targetComps.forEach(comp => {
             if(!compAverages[comp.id]) return;
             
             const participantsArr = Object.entries(compAverages[comp.id]).map(([pId, data]) => {
@@ -8574,7 +8579,10 @@ async function loadParticipantPoints() {
             const limit = comp.max_participants || 1;
             let sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
             
-            // PARTICIPANT LIMIT RESTRICTION REMOVED HERE
+            const cfg = pointsAdminSettings || {};
+            const th = cfg.thresholds || { aplus: 90, a: 70, b: 60, c: 50 };
+            const ptsTable = cfg[`points_${sizeCat}`] || { aplus: 8, a: 7, b: 5, c: 3 };
+            const posTable = cfg.pos_points || { p1: 3, p2: 2, p3: 1 };
             
             let currentRank = 1;
             let currentDensePos = 0;
@@ -8592,24 +8600,24 @@ async function loadParticipantPoints() {
 
                 // 1. Assign Grade Points ONLY if >= 50% (Wrapped in Number() to force math addition)
                 if (percent >= 50) {
-                    if (percent >= pointsAdminSettings.thresholds.aplus) { grade = 'A+'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].aplus) || 0; }
-                    else if (percent >= pointsAdminSettings.thresholds.a) { grade = 'A'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].a) || 0; }
-                    else if (percent >= pointsAdminSettings.thresholds.b) { grade = 'B'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].b) || 0; }
-                    else { grade = 'C'; gradePts = Number(pointsAdminSettings[`points_${sizeCat}`].c) || 0; }
+                    if (percent >= th.aplus) { grade = 'A+'; gradePts = Number(ptsTable.aplus) || 0; }
+                    else if (percent >= th.a) { grade = 'A'; gradePts = Number(ptsTable.a) || 0; }
+                    else if (percent >= th.b) { grade = 'B'; gradePts = Number(ptsTable.b) || 0; }
+                    else { grade = 'C'; gradePts = Number(ptsTable.c) || 0; }
                 }
                 
                 // 2. Assign Position Points for Top 3 Positions (handling ties / multiple participants in positions)
                 const inTopThree = (currentDensePos <= 3 || currentRank <= 3);
                 const effectivePos = currentDensePos <= 3 ? currentDensePos : (currentRank <= 3 ? currentRank : 0);
-                if (effectivePos === 1) posPts = Number(pointsAdminSettings.pos_points.p1) || 0;
-                else if (effectivePos === 2) posPts = Number(pointsAdminSettings.pos_points.p2) || 0;
-                else if (effectivePos === 3) posPts = Number(pointsAdminSettings.pos_points.p3) || 0;
+                if (effectivePos === 1) posPts = Number(posTable.p1) || 0;
+                else if (effectivePos === 2) posPts = Number(posTable.p2) || 0;
+                else if (effectivePos === 3) posPts = Number(posTable.p3) || 0;
                 
                 const totalPts = gradePts + posPts;
                 const pData = pMap[p.id];
                 const tId = pData ? pData.team_id : null;
 
-                const allowAllTeamPoints = !!pointsAdminSettings.team_points_all_participants;
+                const allowAllTeamPoints = !!cfg.team_points_all_participants;
                 const eligibleForTeam = allowAllTeamPoints || inTopThree;
                 
                 // === THE NEW ROUTING LOGIC WITH AWARD TRACKING ===
