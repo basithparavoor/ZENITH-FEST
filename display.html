@@ -496,7 +496,12 @@
         window.addEventListener('resize', autoScaleDisplay);
         window.addEventListener('orientationchange', autoScaleDisplay);
 
-        // --- GLOBALS ---
+        // --- GLOBALS & FEST RESOLUTION ---
+        function getEffectiveFestId() {
+            return (window.festosAuth && typeof window.festosAuth.getCurrentFestId === 'function' ? window.festosAuth.getCurrentFestId() : null) || 
+                   (new URLSearchParams(window.location.search).get('fest') || null);
+        }
+        let effectiveFestId = getEffectiveFestId();
         let displaySettings = {};
         let systemBranding = {};
         let slideTimer = null;
@@ -809,7 +814,8 @@
             try {
                 if (window.festosHostFestReady) { try { await window.festosHostFestReady; } catch (e) {} }
                 // Strict Branding Injection & Favicon Sync
-                const festId = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+                effectiveFestId = getEffectiveFestId();
+                const festId = effectiveFestId;
                 let brandVal = window.festosGetSetting ? await window.festosGetSetting('system_branding', festId) : null;
                 if (!brandVal && festId && typeof supabaseClient !== 'undefined') {
                     const { data: fData } = await supabaseClient.from('fests').select('name, logo').eq('id', festId).maybeSingle();
@@ -827,7 +833,7 @@
 
                 // Handle Display Settings & Custom Slides (Preserve Pin & Avoid Stale Cache)
                 const currentPinnedSlide = displaySettings.pinned_slide || null;
-                const effectiveFestId = festId || (new URLSearchParams(window.location.search).get('fest') || null);
+                effectiveFestId = getEffectiveFestId();
                 let dispVal = null;
                 if (effectiveFestId && typeof supabaseClient !== 'undefined') {
                     const { data: fData } = await supabaseClient.from('settings').select('value').eq('id', `display_settings_${effectiveFestId}`).maybeSingle();
@@ -1392,7 +1398,7 @@
                     newSlides.push({ id: 'slide-podium-empty', html: emptyHtml });
                 }
             } 
-            else if (pinnedTarget && pinnedTarget.startsWith('slide-results-')) {
+            else if (pinnedTarget && pinnedTarget.startsWith('slide-results-') && pinnedTarget !== 'slide-results-all') {
                 // SINGLE SPECIFIC RESULT LOCK: IF SELECTED ANY RESULT SO THAT RESULT ONLY
                 const targetCompId = pinnedTarget.replace('slide-results-', '');
                 let targetSlide = podiumSlides.find(s => String(s.compId) === String(targetCompId));
@@ -1619,8 +1625,9 @@
             // 2. Dynamic Mode: Context-Aware Matching to the exact slide currently visible
             else if (slideId === 'slide-podium' || (slideId && slideId.startsWith('slide-results-'))) {
                 const targetSlideEl = document.getElementById(slideId);
-                const compId = targetSlideEl?.getAttribute('data-qr-comp') || (slideId.startsWith('slide-results-') ? slideId.replace('slide-results-', '') : currentPodiumCompId);
-                targetUrl = `${spectatorUrl}&view=result&comp=${compId || currentPodiumCompId}`;
+                const isSingleResult = slideId.startsWith('slide-results-') && slideId !== 'slide-results-all';
+                const compId = targetSlideEl?.getAttribute('data-qr-comp') || (isSingleResult ? slideId.replace('slide-results-', '') : (currentPodiumCompId || ''));
+                targetUrl = compId ? `${spectatorUrl}&view=result&comp=${compId}` : `${spectatorUrl}&view=results`;
                 mainText = 'SCAN FOR RESULTS';
                 subText = 'DOWNLOAD POSTER';
             } else if (slideId && (slideId.startsWith('slide-standings') || slideId === 'slide-leaderboard')) {
@@ -1837,7 +1844,9 @@
                 if (displayRealtimeSub) {
                     supabaseClient.removeChannel(displayRealtimeSub);
                 }
-                const channelId = `disp_rt_${effectiveFestId || 'global'}_${Date.now().toString(36)}`;
+                const curFestId = getEffectiveFestId();
+                effectiveFestId = curFestId;
+                const channelId = `disp_rt_${curFestId || 'global'}_${Date.now().toString(36)}`;
                 displayRealtimeSub = supabaseClient.channel(channelId)
                     .on('postgres_changes', {
                         event: '*',
@@ -1846,7 +1855,7 @@
                     }, (payload) => {
                         const rec = payload.new;
                         if (!rec || !rec.id) return;
-                        if (rec.id === 'display_settings' || (effectiveFestId && rec.id === `display_settings_${effectiveFestId}`)) {
+                        if (rec.id === 'display_settings' || (curFestId && rec.id === `display_settings_${curFestId}`)) {
                             let val = rec.value;
                             if (typeof val === 'string') {
                                 try { val = JSON.parse(val); } catch(e) {}
@@ -1869,9 +1878,11 @@
         // --- FAST POLLING ENGINE (FALLBACK / CONTINUOUS SYNC) ---
         async function pollLiveTriggers() {
             try {
+                const curFestId = getEffectiveFestId();
+                effectiveFestId = curFestId;
                 let newSettings = null;
-                if (effectiveFestId && typeof supabaseClient !== 'undefined') {
-                    const { data: fData } = await supabaseClient.from('settings').select('value').eq('id', `display_settings_${effectiveFestId}`).maybeSingle();
+                if (curFestId && typeof supabaseClient !== 'undefined') {
+                    const { data: fData } = await supabaseClient.from('settings').select('value').eq('id', `display_settings_${curFestId}`).maybeSingle();
                     if (fData && fData.value) newSettings = fData.value;
                 }
                 if (!newSettings && typeof supabaseClient !== 'undefined') {
@@ -1983,11 +1994,11 @@
             }
 
             // 5. Results / Podium aliases
-            if (slideId === 'slide-podium') {
-                return document.getElementById('slide-podium') || document.querySelector('.slide[data-qr-type="results"]');
+            if (slideId === 'slide-podium' || slideId === 'slide-results-all' || slideId === 'slide-results') {
+                return document.querySelector('.slide[data-qr-type="results"]') || document.getElementById('slide-podium-empty') || document.getElementById('slide-podium');
             }
 
-            if (slideId.startsWith('slide-results-')) {
+            if (slideId.startsWith('slide-results-') && slideId !== 'slide-results-all') {
                 const compId = slideId.replace('slide-results-', '');
                 el = document.getElementById(slideId) || document.querySelector(`[data-qr-comp="${compId}"]`);
                 if (el) return el;
@@ -2069,7 +2080,7 @@
             clearTimeout(slideTimer);
             currentSlide = 0;
 
-            if (targetSlide && targetSlide.startsWith('slide-results-')) {
+            if (targetSlide && targetSlide.startsWith('slide-results-') && targetSlide !== 'slide-results-all') {
                 const targetCompId = targetSlide.replace('slide-results-', '');
                 let pData = allCompPodiums[targetCompId] || allCompPodiums[String(targetCompId)];
                 const compObj = (globalAllComps || []).find(x => String(x.id) === String(targetCompId)) ||
@@ -2157,6 +2168,8 @@
                     label = `OVERALL LEADERBOARD (AFTER ${declaredCount} RESULTS)`;
                 } else if (slideId === 'slide-schedule' || targetEl.id.startsWith('slide-schedule')) {
                     label = 'EVENT RADAR';
+                } else if (slideId === 'slide-results-all' || slideId === 'slide-results') {
+                    label = 'DECLARED RESULTS PODIUMS';
                 } else if (slideId.startsWith('slide-results-')) {
                     const cId = slideId.replace('slide-results-', '');
                     const c = (globalAllComps || []).find(x => String(x.id) === String(cId)) || 
