@@ -9304,8 +9304,8 @@ async function loadOnstageParticipantsLedger(forceRefresh = false) {
 
     try {
         const [compsRes, partsRes, teamsRes, catsRes, pcRes] = await Promise.all([
-            festQuery(supabaseClient.from('competitions').select('id, name, is_offstage, stage_id, category_id, stages(id, name, is_offstage), categories(id, name)')),
-            festQuery(supabaseClient.from('participants').select('id, name, unique_id, class_name, dob, team_id, category_id, teams(id, name), categories(id, name)')),
+            festQuery(supabaseClient.from('competitions').select('id, name, is_offstage, stage_id, category_id, stages(name), categories(name)')),
+            festQuery(supabaseClient.from('participants').select('id, name, unique_id, class_name, dob, team_id, category_id, teams(name), categories(name)')),
             festQuery(supabaseClient.from('teams').select('id, name').order('name')),
             festQuery(supabaseClient.from('categories').select('id, name').order('name')),
             festQuery(supabaseClient.from('participant_competitions').select('id, participant_id, competition_id'))
@@ -9320,7 +9320,7 @@ async function loadOnstageParticipantsLedger(forceRefresh = false) {
         // Build mapping of ONSTAGE competitions (competitions not flagged as offstage)
         const onstageCompMap = {};
         comps.forEach(c => {
-            const isOffstage = !!c.is_offstage || (c.stages && !!c.stages.is_offstage);
+            const stageName = c.stages?.name || 'Main Stage'; const stageIsOffstage = (window.stageOffstageFlags && c.stage_id && window.stageOffstageFlags[c.stage_id] !== undefined) ? !!window.stageOffstageFlags[c.stage_id] : (stageName && stageName.toUpperCase().includes('OFFSTAGE')); const isOffstage = !!c.is_offstage || stageIsOffstage;
             if (!isOffstage) {
                 onstageCompMap[String(c.id)] = {
                     id: c.id,
