@@ -2469,7 +2469,7 @@ if (allCompIds.length > 0) {
                         <button type="button" class="btn-studio-link" onclick="openCompInStudio('${comp.id}', 'results', event)" title="Open & Edit in Studio" style="height: 34px; width: 34px;">
                             <i class="fa-solid fa-sliders"></i>
                         </button>
-                    </div></div>
+                    </div>
                     <div class="metric"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> ${comp.categories?.name || 'General'}</div>
                     <div class="metric"><i class="fa-solid fa-microphone-stage" style="color: var(--primary);"></i> ${stageDisplay}</div>
                     ${schedBadge}
@@ -5207,6 +5207,37 @@ if (allCompIds.length > 0) {
         // --- L. AI STUDIO BROADCAST & TIMERS (BULLETPROOF SPEECH SYNTHESIS) ---
         let chromeTTSKeepAliveTimer = null;
 
+        // --- BIG SCREEN LIVE DISPLAY SYNC ENGINE ---
+        async function syncAnnouncementToDisplayScreens(text) {
+            if (!text) return;
+            try {
+                const cleanText = String(text).trim();
+                const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : 'default';
+
+                // 1. Cross-tab BroadcastChannel for open Live Display screens
+                if (typeof BroadcastChannel !== 'undefined') {
+                    try {
+                        const bc = new BroadcastChannel('festos_live_announcements');
+                        bc.postMessage({ type: 'announcement', text: cleanText, timestamp: Date.now() });
+                        bc.close();
+                    } catch(e) {}
+                }
+
+                // 2. Storage event broadcast for big screens
+                try {
+                    localStorage.setItem('festos_latest_announcement', cleanText);
+                    localStorage.setItem('festos_announcement_time', String(Date.now()));
+                } catch(e) {}
+
+                // 3. Supabase persistence if online
+                if (window.festosSaveSetting) {
+                    await window.festosSaveSetting('live_announcement', { text: cleanText, timestamp: Date.now() }, fid);
+                }
+            } catch (e) {
+                console.warn("syncAnnouncementToDisplayScreens notice:", e);
+            }
+        }
+
         async function triggerAIAnnouncement(overrideText) {
             const textarea = document.getElementById('tts-text-input');
             const rawText = (overrideText || (textarea ? textarea.value : '')).trim();
@@ -5221,7 +5252,9 @@ if (allCompIds.length > 0) {
             // Sync to Big Screen Live Ticker if checked
             const syncCheckbox = document.getElementById('tts-sync-screen');
             if (syncCheckbox && syncCheckbox.checked) {
-                syncAnnouncementToDisplayScreens(textToSpeak);
+                if (typeof syncAnnouncementToDisplayScreens === 'function') {
+                    try { syncAnnouncementToDisplayScreens(textToSpeak); } catch(syncErr) { console.warn("Display sync notice:", syncErr); }
+                }
             }
 
             // Unlock Web Audio immediately
