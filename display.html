@@ -827,8 +827,16 @@
                     applyDisplayBranding(brandVal);
                 }
 
-                const pointVal = window.festosGetSetting ? await window.festosGetSetting('point_system') : null;
-                const set_data = pointVal ? { value: pointVal } : (await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle()).data;
+                const pointVal = window.festosGetSetting ? await window.festosGetSetting('point_system', effectiveFestId) : null;
+                let set_data = pointVal ? { value: pointVal } : null;
+                if (!set_data && effectiveFestId && typeof supabaseClient !== 'undefined') {
+                    const { data: fPoint } = await supabaseClient.from('settings').select('value').eq('id', `point_system_${effectiveFestId}`).maybeSingle();
+                    if (fPoint && fPoint.value) set_data = fPoint;
+                }
+                if (!set_data && typeof supabaseClient !== 'undefined') {
+                    const { data: gPoint } = await supabaseClient.from('settings').select('value').eq('id', 'point_system').maybeSingle();
+                    if (gPoint && gPoint.value) set_data = gPoint;
+                }
                 if (set_data && set_data.value) systemSettings = set_data.value;
 
                 // Handle Display Settings & Custom Slides (Preserve Pin & Avoid Stale Cache)
@@ -925,16 +933,20 @@
                 const { data: judgements } = await judgementsQuery;
                 globalAllJudgements = judgements || [];
 
-                // Core Point Engine
+                // Strict Published Competitions for Leaderboard & Team Points (EXACT SAME AS RESULTS.HTML)
+                const publishedCompIds = new Set((globalPublishedComps || []).map(c => String(c.id)));
+
+                // Core Point Engine (Strictly Published Competitions)
                 const compGroups = {};
                 (judgements || []).forEach(j => {
                     if (!j.participants || !j.participants.id) return; 
-                    const comp = (allComps || []).find(c => String(c.id) === String(j.competition_id));
-                    if(!comp) return; 
                     const cIdStr = String(j.competition_id);
-                    if(!compGroups[cIdStr]) compGroups[cIdStr] = { participants: {}, comp_data: comp };
+                    if (!publishedCompIds.has(cIdStr)) return; // Only published competitions award team points!
+                    const comp = (globalPublishedComps || []).find(c => String(c.id) === cIdStr);
+                    if (!comp) return; 
+                    if (!compGroups[cIdStr]) compGroups[cIdStr] = { participants: {}, comp_data: comp };
                     const pId = String(j.participants.id);
-                    if(!compGroups[cIdStr].participants[pId]) compGroups[cIdStr].participants[pId] = { participant: j.participants, marks_array: [] };
+                    if (!compGroups[cIdStr].participants[pId]) compGroups[cIdStr].participants[pId] = { participant: j.participants, marks_array: [] };
                     compGroups[cIdStr].participants[pId].marks_array.push(parseFloat(j.awarded_mark));
                 });
 
@@ -945,8 +957,6 @@
                     const isGroup = !!compData.comp_data.is_group;
                     const limit = compData.comp_data.max_participants || 1;
                     const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
-                    const registeredCount = compData.comp_data.participant_competitions?.[0]?.count || 0;
-                    const eligibleForPosPts = registeredCount >= 3;
 
                     const participantsArr = Object.values(compData.participants).map(p => {
                         let sortedMarks = p.marks_array.sort((a, b) => a - b);
@@ -971,28 +981,27 @@
                         previousScore = entry.score;
 
                         let percent = (entry.score / (compData.comp_data.max_mark || 100)) * 100;
-                        let gradePts = 0; let posPts = 0;
+                        let gradePts = 0; 
+                        let posPts = 0;
 
                         if (percent >= 50) {
-                            if (percent >= systemSettings.thresholds.aplus) gradePts = systemSettings[`points_${sizeCat}`].aplus;
-                            else if (percent >= systemSettings.thresholds.a) gradePts = systemSettings[`points_${sizeCat}`].a;
-                            else if (percent >= systemSettings.thresholds.b) gradePts = systemSettings[`points_${sizeCat}`].b;
-                            else gradePts = systemSettings[`points_${sizeCat}`].c;
+                            if (percent >= (systemSettings.thresholds?.aplus ?? 90)) gradePts = Number(systemSettings[`points_${sizeCat}`]?.aplus || 0);
+                            else if (percent >= (systemSettings.thresholds?.a ?? 70)) gradePts = Number(systemSettings[`points_${sizeCat}`]?.a || 0);
+                            else if (percent >= (systemSettings.thresholds?.b ?? 60)) gradePts = Number(systemSettings[`points_${sizeCat}`]?.b || 0);
+                            else gradePts = Number(systemSettings[`points_${sizeCat}`]?.c || 0);
                         }
 
                         const inTopThree = (currentDensePos <= 3 || currentRank <= 3);
                         const effectivePos = currentDensePos <= 3 ? currentDensePos : (currentRank <= 3 ? currentRank : 0);
 
-                        if (eligibleForPosPts && inTopThree) {
-                            if (effectivePos === 1) posPts = systemSettings.pos_points.p1;
-                            else if (effectivePos === 2) posPts = systemSettings.pos_points.p2;
-                            else if (effectivePos === 3) posPts = systemSettings.pos_points.p3;
-                        }
+                        if (effectivePos === 1) posPts = Number(systemSettings.pos_points?.p1 || 0);
+                        else if (effectivePos === 2) posPts = Number(systemSettings.pos_points?.p2 || 0);
+                        else if (effectivePos === 3) posPts = Number(systemSettings.pos_points?.p3 || 0);
 
                         const allowAllTeam = !!systemSettings.team_points_all_participants;
                         const eligibleForTeam = allowAllTeam || inTopThree;
 
-                        const teamId = entry.participant.team_id;
+                        const teamId = entry.participant?.team_id;
                         const teamName = allTeams.find(t => String(t.id) === String(teamId))?.name || 'IND';
                         if (teamId && calculatedTeamScores[teamId] && eligibleForTeam) {
                             calculatedTeamScores[teamId].score += (Number(gradePts) + Number(posPts)); 
