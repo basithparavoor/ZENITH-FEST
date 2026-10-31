@@ -3113,6 +3113,17 @@ canvas {
                             <option value="">All Stages</option>
                         </select>
                     </div>
+                    <div class="filter-box" style="flex: 1; min-width: 160px;">
+                        <select id="filterCompStatus" onchange="filterCompetitions(true)">
+                            <option value="">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="registration">Registration</option>
+                            <option value="ongoing">Ongoing</option>
+                            <option value="valuation">In Valuation</option>
+                            <option value="judgement_complete">Judgement Complete</option>
+                            <option value="published">Results Published</option>
+                        </select>
+                    </div>
                     <button class="btn btn-primary" onclick="openBulkEditStageModal()" style="padding: 0.65rem 1rem; font-size: 0.85rem; font-weight: 600; white-space: nowrap;"><i class="fa-solid fa-layer-group"></i> Bulk Edit Stage</button>
                     <button class="btn" onclick="openBulkConvertTypeModal()" style="background: #F59E0B; border: 1px solid #D97706; color: white; padding: 0.65rem 1rem; font-size: 0.85rem; font-weight: 600; white-space: nowrap;"><i class="fa-solid fa-arrows-rotate"></i> Convert Stage / Offstage</button>
                     <button class="btn btn-danger" onclick="bulkDelete('competitions', 'competitions-tbody')"><i class="fa-solid fa-trash"></i> Delete Selected</button>
@@ -3167,6 +3178,15 @@ canvas {
                             <option value="">All Modes</option>
                             <option value="stage">🎭 Stage Only</option>
                             <option value="offstage">📝 Offstage Only</option>
+                        </select>
+                        <select id="sheetStatusFilter" onchange="filterCompSheetTable()" style="padding: 0.5rem 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-main); font-size: 0.85rem; font-weight: 600;">
+                            <option value="">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="registration">Registration</option>
+                            <option value="ongoing">Ongoing</option>
+                            <option value="valuation">In Valuation</option>
+                            <option value="judgement_complete">Judgement Complete</option>
+                            <option value="published">Results Published</option>
                         </select>
                         <button type="button" class="btn btn-outline" id="btnSheetDiscard" onclick="discardCompSheetChanges()" style="padding: 0.5rem 0.85rem; font-size: 0.85rem; font-weight: 700; display: none;">
                             <i class="fa-solid fa-rotate-left"></i> Discard

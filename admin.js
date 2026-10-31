@@ -1367,19 +1367,23 @@ async function loadCompetitions() {
 }
 
 function filterCompetitions(resetPage = true) {
-    const query = document.getElementById('searchCompInput').value.toLowerCase();
-    const catFilter = document.getElementById('filterCompCategory').value;
+    const query = document.getElementById('searchCompInput')?.value?.toLowerCase() || '';
+    const catFilter = document.getElementById('filterCompCategory')?.value || '';
     const stageFilter = document.getElementById('filterCompStage') ? document.getElementById('filterCompStage').value : "";
+    const statusFilter = document.getElementById('filterCompStatus') ? document.getElementById('filterCompStatus').value.toLowerCase() : "";
     
     filteredCompetitionsList = competitionsList.filter(comp => {
-        const matchName = comp.name.toLowerCase().includes(query);
+        const matchName = (comp.name || '').toLowerCase().includes(query);
         const compCatName = comp.categories?.name || '';
         const matchCat = catFilter === "" || compCatName === catFilter;
         
         const compStageName = comp.stages?.name || '';
         const matchStage = stageFilter === "" || compStageName === stageFilter;
+
+        const compStatus = (comp.status || 'pending').toLowerCase();
+        const matchStatus = statusFilter === "" || compStatus === statusFilter;
         
-        return matchName && matchCat && matchStage;
+        return matchName && matchCat && matchStage && matchStatus;
     });
     
     if (resetPage) compCurrentPage = 1;
@@ -1407,11 +1411,32 @@ function renderCompetitionsTable() {
 let stageDisplay = comp.stages?.name || 'Unassigned';
         if (comp.is_offstage) {
             stageDisplay += ` <br><span class="badge" style="background:#FEF3C7; color:#D97706; font-weight:800; margin-top: 4px; display: inline-block; font-size: 0.65rem;"><i class="fa-solid fa-pen-nib"></i> OFFSTAGE</span>`;
-        }    
+        }
+
+        // Status badge
+        const compStatus = (comp.status || 'pending').toLowerCase();
+        let statusBadge = '';
+        if (compStatus === 'ongoing') {
+            statusBadge = `<span class="badge" style="background: #DCFCE7; color: #15803D; font-weight: 700; font-size: 0.68rem; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-play" style="font-size:0.6rem; margin-right:3px;"></i> ONGOING</span>`;
+        } else if (compStatus === 'valuation') {
+            statusBadge = `<span class="badge" style="background: #FEF3C7; color: #B45309; font-weight: 700; font-size: 0.68rem; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-scale-balanced" style="font-size:0.6rem; margin-right:3px;"></i> IN VALUATION</span>`;
+        } else if (compStatus === 'judgement_complete') {
+            statusBadge = `<span class="badge" style="background: #F3E8FF; color: #7E22CE; font-weight: 700; font-size: 0.68rem; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-flag-checkered" style="font-size:0.6rem; margin-right:3px;"></i> JUDGEMENT COMPLETE</span>`;
+        } else if (compStatus === 'published') {
+            statusBadge = `<span class="badge" style="background: #E0E7FF; color: #4338CA; font-weight: 700; font-size: 0.68rem; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-globe" style="font-size:0.6rem; margin-right:3px;"></i> PUBLISHED</span>`;
+        } else if (compStatus === 'registration') {
+            statusBadge = `<span class="badge" style="background: #DBEAFE; color: #1E40AF; font-weight: 700; font-size: 0.68rem; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-user-plus" style="font-size:0.6rem; margin-right:3px;"></i> REGISTRATION</span>`;
+        } else {
+            statusBadge = `<span class="badge" style="background: #F1F5F9; color: #64748B; font-weight: 700; font-size: 0.68rem; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-clock" style="font-size:0.6rem; margin-right:3px;"></i> PENDING</span>`;
+        }
+
         tbody.innerHTML += `
             <tr>
                 <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${comp.id}" ${globalSelections['competitions-tbody']?.has(comp.id) ? 'checked' : ''} onchange="handleRowSelection('competitions-tbody', this.value, this.checked)"></td>
-                <td style="font-weight: 700;">${comp.name}</td>
+                <td style="font-weight: 700;">
+                    <div>${comp.name}</div>
+                    ${statusBadge}
+                </td>
                 <td><span class="badge badge-primary">${comp.categories?.name || 'N/A'}</span></td>
                 <td>${stageDisplay}</td>
                 
@@ -1841,6 +1866,7 @@ function initCompetitionsSheet() {
             name: c.name || '',
             category_id: c.category_id || '',
             stage_id: c.stage_id || '',
+            status: c.status || 'pending',
             is_offstage: !!c.is_offstage,
             max_mark: c.max_mark ?? 100,
             max_participants: c.max_participants ?? 1,
@@ -1863,6 +1889,7 @@ function renderCompetitionsSheet() {
     const searchInput = document.getElementById('sheetSearchInput')?.value?.toLowerCase()?.trim() || '';
     const catFilter = document.getElementById('sheetCategoryFilter')?.value || '';
     const modeFilter = document.getElementById('sheetModeFilter')?.value || '';
+    const statusFilter = document.getElementById('sheetStatusFilter')?.value?.toLowerCase() || '';
 
     let rows = Object.values(window.compSheetData || {});
 
@@ -1889,6 +1916,9 @@ function renderCompetitionsSheet() {
         rows = rows.filter(r => !r.is_offstage);
     } else if (modeFilter === 'offstage') {
         rows = rows.filter(r => !!r.is_offstage);
+    }
+    if (statusFilter) {
+        rows = rows.filter(r => (r.status || 'pending').toLowerCase() === statusFilter);
     }
 
     rows.sort((a, b) => {
