@@ -1981,8 +1981,9 @@ function renderUsersTable() {
     const roleFilter = document.getElementById('user-role-filter')?.value || 'all';
 
     const filtered = globalUsers.filter(u => {
+        const userRoles = (window.festosMultiRole && festosMultiRole.getUserRoles(u)) || (u.roles || [u.role]);
         const matchesSearch = u.username.toLowerCase().includes(search);
-        const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+        const matchesRole = roleFilter === 'all' || userRoles.includes(roleFilter);
         const matchesFest = festFilterVal === 'all' || u.fest_id === festFilterVal || u.username.startsWith(globalFests.find(f => f.id === festFilterVal)?.slug || '');
         return matchesSearch && matchesRole && matchesFest;
     });
@@ -2024,9 +2025,15 @@ function renderUsersTable() {
                     <span style="font-size:0.85rem; color:var(--text-main); font-weight:700;"><i class="fa-solid fa-crown" style="color:var(--amber); margin-right:4px;"></i> ${festName}</span>
                 </td>
                 <td>
-                    <span style="padding:3px 8px; border-radius:6px; font-size:0.75rem; font-weight:700; ${isMaster ? 'background:var(--secondary-light); color:var(--secondary);' : 'background:var(--primary-light); color:var(--primary);'}">
-                        ${u.role}
-                    </span>
+                    <div style="display:flex; flex-wrap:wrap; gap:3px;">
+                        ${((window.festosMultiRole && festosMultiRole.getUserRoles(u)) || (u.roles || [u.role])).map(r => {
+                            const meta = (window.festosMultiRole && festosMultiRole.ROLES[r]) || { name: r, color: 'var(--primary)', bg: 'var(--primary-light)' };
+                            const isAct = (r === u.role);
+                            return `<span style="padding:2px 7px; border-radius:6px; font-size:0.75rem; font-weight:700; background:${meta.bg}; color:${meta.color}; border:1px solid ${isAct ? meta.color : 'transparent'};">
+                                ${isAct ? '● ' : ''}${r}
+                            </span>`;
+                        }).join(' ')}
+                    </div>
                 </td>
                 <td>
                     <div style="display:inline-flex; align-items:center; gap:6px; background:var(--bg-main); border:1px solid var(--border); padding:3px 8px; border-radius:6px; font-family:var(--font-mono); font-size:0.8rem;">
@@ -2208,6 +2215,23 @@ function triggerBulkDeleteUsersDialog() {
     );
 }
 
+function onSaUserRoleChange() {
+    const checked = Array.from(document.querySelectorAll('input[name="saUserRoleCheck"]:checked')).map(cb => cb.value);
+    const primSelect = document.getElementById('modal-user-role');
+    if (primSelect) {
+        const curVal = primSelect.value;
+        if (checked.length > 0) {
+            primSelect.innerHTML = checked.map(v => {
+                const name = v.replace('_', ' ').toUpperCase();
+                return `<option value="${v}" ${v === curVal ? 'selected' : ''}>${name}</option>`;
+            }).join('');
+        } else {
+            primSelect.innerHTML = `<option value="master_admin">Master Admin</option>`;
+        }
+    }
+}
+window.onSaUserRoleChange = onSaUserRoleChange;
+
 // Single User Modal Actions
 function openCreateUserModal() {
     currentEditingUser = null;
@@ -2215,6 +2239,12 @@ function openCreateUserModal() {
     document.getElementById('modal-user-id').value = '';
     document.getElementById('modal-user-username').value = '';
     document.getElementById('modal-user-password').value = '';
+    
+    // Default to master_admin checked
+    document.querySelectorAll('input[name="saUserRoleCheck"]').forEach(cb => {
+        cb.checked = (cb.value === 'master_admin');
+    });
+    onSaUserRoleChange();
     document.getElementById('modal-user-role').value = 'master_admin';
 
     const festSelect = document.getElementById('modal-user-fest');
@@ -2236,7 +2266,14 @@ function editUserModal(userId) {
     document.getElementById('modal-user-id').value = user.id;
     document.getElementById('modal-user-username').value = user.username;
     document.getElementById('modal-user-password').value = user.password_hash || '';
-    document.getElementById('modal-user-role').value = user.role || 'master_admin';
+
+    // Check all roles user currently holds
+    const userRoles = (window.festosMultiRole && festosMultiRole.getUserRoles(user)) || (user.roles || [user.role || 'master_admin']);
+    document.querySelectorAll('input[name="saUserRoleCheck"]').forEach(cb => {
+        cb.checked = userRoles.includes(cb.value);
+    });
+    onSaUserRoleChange();
+    document.getElementById('modal-user-role').value = user.role || userRoles[0] || 'master_admin';
 
     const festSelect = document.getElementById('modal-user-fest');
     if (festSelect) {
@@ -2275,8 +2312,14 @@ async function saveUserSubmit() {
     const id = document.getElementById('modal-user-id').value;
     const username = document.getElementById('modal-user-username').value.trim();
     const password = document.getElementById('modal-user-password').value.trim();
-    const role = document.getElementById('modal-user-role').value;
     const festId = document.getElementById('modal-user-fest').value;
+
+    const checkedBoxes = Array.from(document.querySelectorAll('input[name="saUserRoleCheck"]:checked'));
+    const selectedRoles = checkedBoxes.map(cb => cb.value);
+    if (selectedRoles.length === 0) {
+        return alert('Please select at least one role.');
+    }
+    const role = document.getElementById('modal-user-role')?.value || selectedRoles[0];
 
     if (!username || !password) return alert('Username and password are required.');
 
@@ -2296,11 +2339,17 @@ async function saveUserSubmit() {
         const { error } = await festosSupabase.from('users').upsert(payload);
         if (error) throw error;
 
-        festosLogger.log('AUTH', `Created/updated credentials for "${username}" as ${role}`, { role, festId }, 'INFO');
+        // Save multi-role mapping
+        const savedUserId = id || (await festosSupabase.from('users').select('id').eq('username', username).maybeSingle()).data?.id || username;
+        if (typeof festosMultiRole !== 'undefined') {
+            await festosMultiRole.saveUserRoles(savedUserId, selectedRoles, festId);
+        }
+
+        festosLogger.log('AUTH', `Created/updated credentials for "${username}" with roles: ${selectedRoles.join(', ')}`, { roles: selectedRoles, festId }, 'INFO');
         closeModal('userModal');
         await loadInitialData();
         renderUsersTable();
-        showToast(`User "${username}" saved for festival!`, 'success');
+        showToast(`User "${username}" saved with ${selectedRoles.length} role(s)!`, 'success');
     } catch (e) {
         showToast('Error saving user: ' + e.message, 'error');
     } finally {

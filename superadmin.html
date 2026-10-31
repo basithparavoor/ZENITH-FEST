@@ -3266,7 +3266,34 @@ input:checked + .slider:before { transform: translateX(22px); }
                     </div>
 
                     <div class="form-group">
-                        <label>Access Role / Permissions *</label>
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>Access Roles & Permissions *</span>
+                            <span style="font-size:0.75rem; color:var(--primary); font-weight:700;"><i class="fa-solid fa-layer-group"></i> Multiple Roles Allowed</span>
+                        </label>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:6px; margin-bottom:8px;" id="sa-user-roles-grid">
+                            <label style="display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); cursor:pointer; font-size:0.85rem; font-weight:600;">
+                                <input type="checkbox" name="saUserRoleCheck" value="master_admin" onchange="onSaUserRoleChange()"> Master Admin
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); cursor:pointer; font-size:0.85rem; font-weight:600;">
+                                <input type="checkbox" name="saUserRoleCheck" value="admin" onchange="onSaUserRoleChange()"> Admin
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); cursor:pointer; font-size:0.85rem; font-weight:600;">
+                                <input type="checkbox" name="saUserRoleCheck" value="fest_manager" onchange="onSaUserRoleChange()"> Fest Manager
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); cursor:pointer; font-size:0.85rem; font-weight:600;">
+                                <input type="checkbox" name="saUserRoleCheck" value="judge" onchange="onSaUserRoleChange()"> Judge
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); cursor:pointer; font-size:0.85rem; font-weight:600;">
+                                <input type="checkbox" name="saUserRoleCheck" value="stage_controller" onchange="onSaUserRoleChange()"> Stage Controller
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); cursor:pointer; font-size:0.85rem; font-weight:600;">
+                                <input type="checkbox" name="saUserRoleCheck" value="announcer" onchange="onSaUserRoleChange()"> Announcer
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Default Starting Role *</label>
                         <select class="form-control" id="modal-user-role">
                             <option value="master_admin">Master Admin (Full Festival Control)</option>
                             <option value="admin">Admin</option>
@@ -3275,6 +3302,7 @@ input:checked + .slider:before { transform: translateX(22px); }
                             <option value="stage_controller">Stage Controller</option>
                             <option value="announcer">Announcer</option>
                         </select>
+                        <small style="color:var(--text-muted); display:block; margin-top:4px;">Users with multiple roles can toggle between portals anytime from the top bar.</small>
                     </div>
                 </div>
                 <div class="modal-footer">

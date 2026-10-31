@@ -1051,6 +1051,43 @@ const festosAuth = {
         window.location.href = redirectUrl;
     },
 
+    getUserRoles(user = null) {
+        const u = user || this.getUser();
+        if (!u) return [];
+        if (typeof festosMultiRole !== 'undefined') {
+            return festosMultiRole.getUserRoles(u);
+        }
+        return Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : (u.role ? [u.role] : []);
+    },
+
+    hasRole(roleName, user = null) {
+        const roles = this.getUserRoles(user);
+        return roles.includes(String(roleName).toLowerCase().trim());
+    },
+
+    switchRole(targetRole, redirect = true) {
+        if (typeof festosMultiRole !== 'undefined') {
+            return festosMultiRole.switchRole(targetRole, redirect);
+        }
+        const user = this.getUser();
+        if (!user) return;
+        user.role = targetRole;
+        this.setUser(user);
+        if (redirect) {
+            const roleRoutes = (typeof ROLE_ROUTES !== 'undefined') ? ROLE_ROUTES : {
+                'super_admin': 'superadmin.html',
+                'master_admin': 'admin.html',
+                'admin': 'admin.html',
+                'fest_manager': 'manager.html', 
+                'team_manager': 'team-manager.html', 
+                'stage_controller': 'stage-controller.html',
+                'judge': 'judge.html',
+                'announcer': 'announcements.html'
+            };
+            window.location.href = roleRoutes[targetRole] || 'admin.html';
+        }
+    },
+
     requireRole(allowedRoles = [], redirectUrl = 'index.html') {
         const user = this.getUser();
         const superAdmin = this.getSuperAdmin();
@@ -1058,13 +1095,820 @@ const festosAuth = {
         // Super Admin has global bypass
         if (superAdmin) return true;
 
-        if (!user || (allowedRoles.length > 0 && !allowedRoles.includes(user.role))) {
+        if (!user) {
+            window.location.href = redirectUrl;
+            return false;
+        }
+
+        if (allowedRoles.length > 0) {
+            if (allowedRoles.includes(user.role)) return true;
+
+            // If user has multiple roles, check if any of their granted roles is allowed on this portal
+            const userRoles = this.getUserRoles(user);
+            const matched = allowedRoles.find(r => userRoles.includes(r));
+            if (matched) {
+                user.role = matched;
+                this.setUser(user);
+                return true;
+            }
+
             window.location.href = redirectUrl;
             return false;
         }
         return true;
     }
 };
+
+// =========================================================================
+// 2.2 ENTERPRISE MULTI-ROLE REPOSITORY & DYNAMIC ROLE SWITCHER
+// =========================================================================
+const festosMultiRole = {
+    // Registry of supported portal roles with display names, landing routes, badge colors & SVG icons
+    ROLES: {
+        'admin': {
+            name: 'Admin',
+            page: 'admin.html',
+            icon: 'fa-solid fa-shield-halved',
+            svg: '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>',
+            color: '#DC2626',
+            bg: '#FEF2F2',
+            desc: 'Festival management & master controls'
+        },
+        'master_admin': {
+            name: 'Master Admin',
+            page: 'admin.html',
+            icon: 'fa-solid fa-crown',
+            svg: '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>',
+            color: '#DC2626',
+            bg: '#FEF2F2',
+            desc: 'Full festival administration'
+        },
+        'fest_manager': {
+            name: 'Fest Manager',
+            page: 'manager.html',
+            icon: 'fa-solid fa-calendar-check',
+            svg: '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>',
+            color: '#2563EB',
+            bg: '#EFF6FF',
+            desc: 'Competition schedule & judge allocation'
+        },
+        'team_manager': {
+            name: 'Team Manager',
+            page: 'team-manager.html',
+            icon: 'fa-solid fa-users',
+            svg: '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>',
+            color: '#059669',
+            bg: '#ECFDF5',
+            desc: 'Team roster & participant slips'
+        },
+        'stage_controller': {
+            name: 'Stage Controller',
+            page: 'stage-controller.html',
+            icon: 'fa-solid fa-sliders',
+            svg: '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>',
+            color: '#D97706',
+            bg: '#FEF3C7',
+            desc: 'Live stage queue & QR check-in'
+        },
+        'judge': {
+            name: 'Judge',
+            page: 'judge.html',
+            icon: 'fa-solid fa-gavel',
+            svg: '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>',
+            color: '#7C3AED',
+            bg: '#F3E8FF',
+            desc: 'Scorecard entry & participant evaluations'
+        },
+        'announcer': {
+            name: 'Announcer',
+            page: 'announcements.html',
+            icon: 'fa-solid fa-bullhorn',
+            svg: '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>',
+            color: '#0284C7',
+            bg: '#E0F2FE',
+            desc: 'Public callouts & stage broadcasts'
+        },
+        'stage_announcer': {
+            name: 'Announcer',
+            page: 'announcements.html',
+            icon: 'fa-solid fa-bullhorn',
+            svg: '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>',
+            color: '#0284C7',
+            bg: '#E0F2FE',
+            desc: 'Public callouts & stage broadcasts'
+        },
+        'super_admin': {
+            name: 'Super Admin',
+            page: 'superadmin.html',
+            icon: 'fa-solid fa-bolt',
+            svg: '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>',
+            color: '#4F46E5',
+            bg: '#EEF2FF',
+            desc: 'Root system administration'
+        }
+    },
+
+    _memRolesMap: {},
+
+    _getStorageKey(festId = null) {
+        const fid = festId || (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : 'global');
+        return `festos_user_roles_${fid}`;
+    },
+
+    getUserRoles(user) {
+        if (!user) return [];
+        
+        let roles = [];
+        // 1. Direct user.roles array
+        if (Array.isArray(user.roles) && user.roles.length > 0) {
+            roles = user.roles;
+        } else if (typeof user.roles === 'string') {
+            try {
+                const parsed = JSON.parse(user.roles);
+                if (Array.isArray(parsed)) roles = parsed;
+            } catch(e) {
+                roles = user.roles.split(',').map(s => s.trim());
+            }
+        }
+
+        // 2. Lookup in memory / storage cache
+        if (roles.length === 0) {
+            const fid = user.fest_id || (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
+            const key = this._getStorageKey(fid);
+            let cachedMap = this._memRolesMap[key];
+            if (!cachedMap) {
+                try {
+                    cachedMap = JSON.parse(localStorage.getItem(key) || '{}');
+                    this._memRolesMap[key] = cachedMap;
+                } catch(e) { cachedMap = {}; }
+            }
+
+            const fromCache = (user.id && cachedMap[user.id]) || (user.username && cachedMap[user.username]);
+            if (Array.isArray(fromCache) && fromCache.length > 0) {
+                roles = fromCache;
+            }
+        }
+
+        // 3. Fallback to active role
+        if (roles.length === 0 && user.role) {
+            roles = [user.role];
+        }
+
+        // Sanitize: lowercase, trim, deduplicate
+        const clean = [...new Set(roles.map(r => String(r || '').trim().toLowerCase()).filter(Boolean))];
+        return clean;
+    },
+
+    hasRole(user, targetRole) {
+        if (!user || !targetRole) return false;
+        const roles = this.getUserRoles(user);
+        return roles.includes(String(targetRole).trim().toLowerCase());
+    },
+
+    async loadRoles(festId = null, forceFresh = false) {
+        const fid = festId || (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
+        const storageKey = this._getStorageKey(fid);
+
+        try {
+            if (typeof festosGetSetting === 'function') {
+                const remoteVal = await festosGetSetting('festos_user_roles', fid, { fresh: forceFresh });
+                if (remoteVal && typeof remoteVal === 'object') {
+                    this._memRolesMap[storageKey] = remoteVal;
+                    localStorage.setItem(storageKey, JSON.stringify(remoteVal));
+                    return remoteVal;
+                }
+            }
+        } catch(e) {
+            console.warn('[festosMultiRole] load error:', e);
+        }
+
+        try {
+            const local = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            this._memRolesMap[storageKey] = local;
+            return local;
+        } catch(e) {
+            return {};
+        }
+    },
+
+    async saveUserRoles(userIdOrUsername, rolesArray, festId = null) {
+        if (!userIdOrUsername) return;
+        const fid = festId || (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
+        const storageKey = this._getStorageKey(fid);
+
+        const cleanRoles = [...new Set((rolesArray || []).map(r => String(r || '').trim().toLowerCase()).filter(Boolean))];
+
+        let currentMap = this._memRolesMap[storageKey] || {};
+        try {
+            if (Object.keys(currentMap).length === 0) {
+                currentMap = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            }
+        } catch(e) { currentMap = {}; }
+
+        currentMap[String(userIdOrUsername)] = cleanRoles;
+        this._memRolesMap[storageKey] = currentMap;
+        localStorage.setItem(storageKey, JSON.stringify(currentMap));
+
+        // If the current logged-in user is this user, sync session immediately
+        const activeUser = (typeof festosAuth !== 'undefined') ? festosAuth.getUser() : null;
+        if (activeUser && (String(activeUser.id) === String(userIdOrUsername) || String(activeUser.username).toLowerCase() === String(userIdOrUsername).toLowerCase())) {
+            activeUser.roles = cleanRoles;
+            if (!cleanRoles.includes(activeUser.role) && cleanRoles.length > 0) {
+                activeUser.role = cleanRoles[0];
+            }
+            if (typeof festosAuth !== 'undefined') {
+                festosAuth.setUser(activeUser);
+            } else {
+                localStorage.setItem('festUser', JSON.stringify(activeUser));
+            }
+            this.mount();
+        }
+
+        // Async persist to settings table
+        if (typeof festosSaveSetting === 'function') {
+            try {
+                await festosSaveSetting('festos_user_roles', currentMap, fid);
+            } catch(e) {
+                console.warn('[festosMultiRole] persist to settings error:', e);
+            }
+        }
+
+        // Also attempt to update users.roles column if present
+        if (festosSupabase && /^[0-9a-fA-F-]{36}$/.test(String(userIdOrUsername))) {
+            try {
+                await festosSupabase.from('users').update({ roles: cleanRoles }).eq('id', userIdOrUsername);
+            } catch(e) {
+                // Column might not exist in older DB schema; safe to ignore
+            }
+        }
+
+        return cleanRoles;
+    },
+
+    switchRole(targetRole, redirect = true) {
+        const user = (typeof festosAuth !== 'undefined') ? festosAuth.getUser() : JSON.parse(localStorage.getItem('festUser') || 'null');
+        if (!user) return;
+
+        const cleanTarget = String(targetRole || '').trim().toLowerCase();
+        const availableRoles = this.getUserRoles(user);
+
+        if (!availableRoles.includes(cleanTarget) && cleanTarget !== 'super_admin') {
+            console.warn(`[festosMultiRole] User ${user.username} lacks role '${cleanTarget}'`);
+            return;
+        }
+
+        if (user.role === cleanTarget) {
+            this.closeMenu();
+            return;
+        }
+
+        // Apply new active role
+        user.role = cleanTarget;
+        if (typeof festosAuth !== 'undefined') {
+            festosAuth.setUser(user);
+        } else {
+            localStorage.setItem('festUser', JSON.stringify(user));
+        }
+
+        const roleMeta = this.ROLES[cleanTarget] || { name: cleanTarget.replace('_', ' ').toUpperCase(), page: 'admin.html' };
+
+        if (typeof showToast === 'function') {
+            showToast(`Switching to ${roleMeta.name} portal...`, 'info');
+        }
+
+        if (redirect) {
+            setTimeout(() => {
+                window.location.href = roleMeta.page;
+            }, 120);
+        }
+    },
+
+    // Silent alignment of active role to current page route
+    autoAlignPageRole() {
+        try {
+            if (typeof window === 'undefined' || !window.location) return;
+            const path = (window.location.pathname || '').toLowerCase();
+            const userStr = localStorage.getItem('festUser');
+            if (!userStr) return;
+            const user = JSON.parse(userStr);
+            if (!user) return;
+
+            const roles = this.getUserRoles(user);
+            if (roles.length <= 1) return;
+
+            let matchedRole = null;
+            if (path.endsWith('stage-controller.html') && roles.includes('stage_controller')) {
+                matchedRole = 'stage_controller';
+            } else if (path.endsWith('judge.html') && roles.includes('judge')) {
+                matchedRole = 'judge';
+            } else if (path.endsWith('manager.html') && roles.includes('fest_manager')) {
+                matchedRole = 'fest_manager';
+            } else if (path.endsWith('team-manager.html') && roles.includes('team_manager')) {
+                matchedRole = 'team_manager';
+            } else if (path.endsWith('admin.html') && (roles.includes('admin') || roles.includes('master_admin'))) {
+                matchedRole = roles.includes('master_admin') ? 'master_admin' : 'admin';
+            } else if (path.endsWith('announcements.html') && (roles.includes('announcer') || roles.includes('stage_announcer'))) {
+                matchedRole = 'announcer';
+            } else if (path.endsWith('superadmin.html') && roles.includes('super_admin')) {
+                matchedRole = 'super_admin';
+            }
+
+            if (matchedRole && user.role !== matchedRole) {
+                user.role = matchedRole;
+                localStorage.setItem('festUser', JSON.stringify(user));
+            }
+        } catch(e) {
+            console.warn('[festosMultiRole] autoAlign error:', e);
+        }
+    },
+
+    // UI Toggle & Switcher Menu Mount
+    mount() {
+        if (typeof document === 'undefined') return;
+
+        // Ensure user is logged in & has multiple roles
+        const user = (typeof festosAuth !== 'undefined') ? festosAuth.getUser() : JSON.parse(localStorage.getItem('festUser') || 'null');
+        if (!user) {
+            this.destroy();
+            return;
+        }
+
+        const roles = this.getUserRoles(user);
+        if (roles.length <= 1) {
+            this.destroy();
+            return;
+        }
+
+        this.injectCSS();
+
+        const activeRole = String(user.role || '').trim().toLowerCase();
+        const activeMeta = this.ROLES[activeRole] || { name: activeRole.toUpperCase(), color: '#4F46E5', bg: '#EEF2FF', icon: 'fa-solid fa-user-tag' };
+
+        // Determine if we show a 2-role quick switch or full dropdown
+        const isTwoRoles = (roles.length === 2);
+        const otherRole = isTwoRoles ? roles.find(r => r !== activeRole) : null;
+        const otherMeta = otherRole ? (this.ROLES[otherRole] || { name: otherRole.toUpperCase(), color: '#059669', bg: '#ECFDF5' }) : null;
+
+        // Build HTML for switcher component
+        let switcherHtml = '';
+        if (isTwoRoles && otherMeta) {
+            switcherHtml = `
+                <div class="festos-role-switcher-container" id="festos-role-switcher-container">
+                    <div class="festos-role-segmented-pill" title="You have 2 assigned roles. Click to switch.">
+                        <button type="button" class="festos-role-pill-btn active" style="--pill-color:${activeMeta.color}; --pill-bg:${activeMeta.bg};">
+                            <span class="festos-role-dot"></span>
+                            <span class="festos-role-title">${activeMeta.name}</span>
+                        </button>
+                        <button type="button" class="festos-role-pill-btn inactive" onclick="festosMultiRole.switchRole('${otherRole}')" style="--pill-color:${otherMeta.color};" title="Switch to ${otherMeta.name}">
+                            <i class="fa-solid fa-repeat" style="font-size:0.75rem;"></i>
+                            <span>Switch to <strong>${otherMeta.name}</strong></span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            const roleListItems = roles.map(r => {
+                const meta = this.ROLES[r] || { name: r.toUpperCase(), color: '#4F46E5', bg: '#EEF2FF', desc: 'Portal Access' };
+                const isActive = (r === activeRole);
+                return `
+                    <div class="festos-role-menu-item ${isActive ? 'active' : ''}" onclick="festosMultiRole.switchRole('${r}')" style="--role-accent:${meta.color};">
+                        <div class="festos-role-item-icon" style="background:${meta.bg}; color:${meta.color};">
+                            ${meta.svg}
+                        </div>
+                        <div class="festos-role-item-content">
+                            <div class="festos-role-item-name">${meta.name}</div>
+                            <div class="festos-role-item-desc">${meta.desc}</div>
+                        </div>
+                        <div class="festos-role-item-badge">
+                            ${isActive 
+                                ? '<span class="festos-role-badge-active"><i class="fa-solid fa-check"></i> Active</span>' 
+                                : '<span class="festos-role-badge-switch">Switch &rarr;</span>'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            switcherHtml = `
+                <div class="festos-role-switcher-container" id="festos-role-switcher-container">
+                    <button type="button" class="festos-role-toggle-btn" id="festos-role-toggle-btn" onclick="festosMultiRole.toggleMenu(event)" aria-expanded="false" title="Switch role / portal">
+                        <span class="festos-role-toggle-icon" style="color:${activeMeta.color};">
+                            <i class="fa-solid fa-repeat"></i>
+                        </span>
+                        <span class="festos-role-toggle-label">Role: <strong>${activeMeta.name}</strong></span>
+                        <span class="festos-role-toggle-count" title="${roles.length} roles available">${roles.length}</span>
+                        <i class="fa-solid fa-chevron-down festos-role-toggle-chevron"></i>
+                    </button>
+                    <div class="festos-role-dropdown-menu" id="festos-role-dropdown-menu" style="display:none;" onclick="event.stopPropagation()">
+                        <div class="festos-role-menu-header">
+                            <div class="festos-role-menu-header-title">
+                                <i class="fa-solid fa-layer-group" style="color:#6366f1;"></i>
+                                <span>Switch Active Portal</span>
+                            </div>
+                            <div class="festos-role-menu-header-sub">Signed in as <strong>@${user.username}</strong></div>
+                        </div>
+                        <div class="festos-role-menu-body">
+                            ${roleListItems}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Target locations to inject into the current page header
+        const mountTargets = [
+            // Admin header
+            document.querySelector('.top-bar > div:last-child'),
+            document.querySelector('.header > div:last-child'),
+            document.querySelector('.header-actions'),
+            document.querySelector('.navbar-actions'),
+            document.querySelector('.top-nav-right'),
+            document.querySelector('#user-profile'),
+            document.querySelector('.nav-actions')
+        ];
+
+        let mounted = false;
+        // Remove existing switcher if present
+        const oldContainer = document.getElementById('festos-role-switcher-container');
+        if (oldContainer) oldContainer.remove();
+
+        for (const target of mountTargets) {
+            if (target && target.parentNode) {
+                const wrap = document.createElement('div');
+                wrap.innerHTML = switcherHtml;
+                const node = wrap.firstElementChild;
+                target.insertBefore(node, target.firstChild);
+                mounted = true;
+                break;
+            }
+        }
+
+        // Always also maintain a sleek floating switch pill for mobile / minimalist screens
+        this.mountFloatingPill(activeMeta, otherMeta, roles, isTwoRoles);
+    },
+
+    mountFloatingPill(activeMeta, otherMeta, roles, isTwoRoles) {
+        let floating = document.getElementById('festos-role-floating-pill');
+        if (!floating) {
+            floating = document.createElement('div');
+            floating.id = 'festos-role-floating-pill';
+            floating.className = 'festos-role-floating-pill';
+            document.body.appendChild(floating);
+        }
+
+        if (isTwoRoles && otherMeta) {
+            const targetRole = roles.find(r => r !== activeMeta.name.toLowerCase().replace(' ', '_'));
+            floating.innerHTML = `
+                <button type="button" class="festos-role-floating-btn" onclick="festosMultiRole.switchRole('${targetRole}')" title="Quick switch to ${otherMeta.name}">
+                    <i class="fa-solid fa-repeat"></i>
+                    <span>Switch: <strong>${otherMeta.name}</strong></span>
+                </button>
+            `;
+        } else {
+            floating.innerHTML = `
+                <button type="button" class="festos-role-floating-btn" onclick="festosMultiRole.toggleMenu(event)" title="Switch Role (${roles.length} available)">
+                    <i class="fa-solid fa-repeat"></i>
+                    <span>Role: <strong>${activeMeta.name}</strong></span>
+                    <span class="festos-role-floating-count">${roles.length}</span>
+                </button>
+            `;
+        }
+    },
+
+    toggleMenu(e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        const menu = document.getElementById('festos-role-dropdown-menu');
+        const btn = document.getElementById('festos-role-toggle-btn');
+        if (!menu) return;
+
+        const isHidden = (menu.style.display === 'none' || !menu.style.display);
+        if (isHidden) {
+            menu.style.display = 'block';
+            if (btn) btn.setAttribute('aria-expanded', 'true');
+            this.showBackdrop();
+        } else {
+            this.closeMenu();
+        }
+    },
+
+    closeMenu() {
+        const menu = document.getElementById('festos-role-dropdown-menu');
+        const btn = document.getElementById('festos-role-toggle-btn');
+        if (menu) menu.style.display = 'none';
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+        this.hideBackdrop();
+    },
+
+    showBackdrop() {
+        let bd = document.getElementById('festos-role-backdrop');
+        if (!bd) {
+            bd = document.createElement('div');
+            bd.id = 'festos-role-backdrop';
+            bd.className = 'festos-role-backdrop';
+            bd.onclick = () => this.closeMenu();
+            document.body.appendChild(bd);
+        }
+        bd.style.display = 'block';
+    },
+
+    hideBackdrop() {
+        const bd = document.getElementById('festos-role-backdrop');
+        if (bd) bd.style.display = 'none';
+    },
+
+    destroy() {
+        const el = document.getElementById('festos-role-switcher-container');
+        if (el) el.remove();
+        const fl = document.getElementById('festos-role-floating-pill');
+        if (fl) fl.remove();
+        this.hideBackdrop();
+    },
+
+    injectCSS() {
+        if (document.getElementById('festos-role-switcher-css')) return;
+        const style = document.createElement('style');
+        style.id = 'festos-role-switcher-css';
+        style.textContent = `
+            .festos-role-switcher-container {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                margin-right: 0.5rem;
+                flex-shrink: 0;
+                z-index: 990;
+            }
+            .festos-role-segmented-pill {
+                display: inline-flex;
+                align-items: center;
+                background: #F1F5F9;
+                border: 1.5px solid #CBD5E1;
+                border-radius: 9999px;
+                padding: 3px;
+                gap: 4px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            }
+            .festos-role-pill-btn {
+                border: none;
+                background: transparent;
+                padding: 5px 12px;
+                border-radius: 9999px;
+                font-size: 0.82rem;
+                font-weight: 700;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                transition: all 0.2s ease;
+                color: #475569;
+                white-space: nowrap;
+            }
+            .festos-role-pill-btn.active {
+                background: white;
+                color: var(--pill-color, #1e293b);
+                box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            }
+            .festos-role-pill-btn.inactive:hover {
+                background: rgba(255,255,255,0.8);
+                color: var(--pill-color, #0f172a);
+            }
+            .festos-role-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: var(--pill-color, #10b981);
+                display: inline-block;
+            }
+            .festos-role-toggle-btn {
+                background: white;
+                border: 1.5px solid #E2E8F0;
+                border-radius: 9999px;
+                padding: 6px 14px;
+                color: #1E293B;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 0.82rem;
+                font-weight: 700;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            }
+            .festos-role-toggle-btn:hover {
+                border-color: #6366F1;
+                background: #F8FAFC;
+                box-shadow: 0 4px 12px rgba(99, 102, 241, 0.12);
+            }
+            .festos-role-toggle-icon {
+                font-size: 0.9rem;
+            }
+            .festos-role-toggle-count {
+                background: #EEF2FF;
+                color: #4F46E5;
+                font-size: 0.7rem;
+                font-weight: 800;
+                border-radius: 9999px;
+                padding: 1px 6px;
+            }
+            .festos-role-toggle-chevron {
+                font-size: 0.7rem;
+                color: #94A3B8;
+                transition: transform 0.2s ease;
+            }
+            .festos-role-toggle-btn[aria-expanded="true"] .festos-role-toggle-chevron {
+                transform: rotate(180deg);
+            }
+            .festos-role-dropdown-menu {
+                position: absolute;
+                top: calc(100% + 8px);
+                right: 0;
+                width: 320px;
+                max-width: 90vw;
+                background: white;
+                border-radius: 16px;
+                border: 1px solid #E2E8F0;
+                box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.18);
+                overflow: hidden;
+                z-index: 99998;
+                animation: festosMenuFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            }
+            @keyframes festosMenuFadeIn {
+                from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+                to { opacity: 1; transform: translateY(0) scale(1); }
+            }
+            .festos-role-menu-header {
+                padding: 12px 16px;
+                background: #F8FAFC;
+                border-bottom: 1px solid #E2E8F0;
+            }
+            .festos-role-menu-header-title {
+                font-size: 0.85rem;
+                font-weight: 800;
+                color: #0F172A;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .festos-role-menu-header-sub {
+                font-size: 0.75rem;
+                color: #64748B;
+                margin-top: 2px;
+            }
+            .festos-role-menu-body {
+                padding: 8px;
+                max-height: 380px;
+                overflow-y: auto;
+            }
+            .festos-role-menu-item {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 10px 12px;
+                border-radius: 10px;
+                cursor: pointer;
+                transition: all 0.15s ease;
+                border: 1px solid transparent;
+            }
+            .festos-role-menu-item:hover {
+                background: #F1F5F9;
+            }
+            .festos-role-menu-item.active {
+                background: #F8FAFC;
+                border-color: var(--role-accent, #6366F1);
+            }
+            .festos-role-item-icon {
+                width: 36px;
+                height: 36px;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+            .festos-role-item-content {
+                flex: 1;
+                min-width: 0;
+            }
+            .festos-role-item-name {
+                font-size: 0.88rem;
+                font-weight: 700;
+                color: #1E293B;
+            }
+            .festos-role-item-desc {
+                font-size: 0.72rem;
+                color: #64748B;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .festos-role-badge-active {
+                font-size: 0.72rem;
+                font-weight: 800;
+                color: var(--role-accent, #10B981);
+                background: white;
+                border: 1px solid var(--role-accent, #10B981);
+                border-radius: 9999px;
+                padding: 2px 8px;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+            }
+            .festos-role-badge-switch {
+                font-size: 0.75rem;
+                font-weight: 700;
+                color: #6366F1;
+                background: #EEF2FF;
+                border-radius: 9999px;
+                padding: 3px 10px;
+            }
+            .festos-role-backdrop {
+                display: none;
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.25);
+                backdrop-filter: blur(2px);
+                z-index: 99997;
+            }
+            .festos-role-floating-pill {
+                display: none;
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                z-index: 9990;
+            }
+            .festos-role-floating-btn {
+                background: #0F172A;
+                color: white;
+                border: 1.5px solid rgba(255,255,255,0.2);
+                border-radius: 9999px;
+                padding: 8px 16px;
+                font-size: 0.8rem;
+                font-weight: 700;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+                cursor: pointer;
+                transition: transform 0.2s ease;
+            }
+            .festos-role-floating-btn:hover {
+                transform: scale(1.04);
+            }
+            .festos-role-floating-count {
+                background: #6366F1;
+                color: white;
+                font-size: 0.68rem;
+                font-weight: 800;
+                border-radius: 9999px;
+                padding: 1px 6px;
+            }
+            @media (max-width: 640px) {
+                .festos-role-floating-pill {
+                    display: block;
+                }
+                .festos-role-dropdown-menu {
+                    position: fixed;
+                    top: auto;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    width: 100%;
+                    max-width: 100%;
+                    border-radius: 20px 20px 0 0;
+                    box-shadow: 0 -10px 30px rgba(0,0,0,0.2);
+                    animation: festosMenuSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+                @keyframes festosMenuSlideUp {
+                    from { transform: translateY(100%); }
+                    to { transform: translateY(0); }
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+};
+
+// Auto-run early role alignment and UI mount
+if (typeof window !== 'undefined') {
+    festosMultiRole.autoAlignPageRole();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            festosMultiRole.mount();
+        });
+    } else {
+        setTimeout(() => festosMultiRole.mount(), 100);
+    }
+    document.addEventListener('click', (e) => {
+        const container = document.getElementById('festos-role-switcher-container');
+        if (container && !container.contains(e.target)) {
+            festosMultiRole.closeMenu();
+        }
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') festosMultiRole.closeMenu();
+    });
+}
 
 // =========================================================================
 // 2.5 CRYPTOGRAPHIC EDGE AUTHENTICATION & SUPER ADMIN SIGNATURE SUITE
@@ -2797,6 +3641,7 @@ if (typeof window !== 'undefined') {
     window.festosCrypto = festosCrypto;
     window.festosGetAuthHeaders = festosGetAuthHeaders;
     window.festosRefreshSupabaseHeaders = festosRefreshSupabaseHeaders;
+    window.festosMultiRole = festosMultiRole;
 }
 
 

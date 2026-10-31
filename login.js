@@ -261,6 +261,26 @@ if (loginForm) {
                 }
             }
 
+            // Multi-role resolution: Load all granted roles for this user
+            if (typeof festosMultiRole !== 'undefined') {
+                try {
+                    await festosMultiRole.loadRoles(data.fest_id);
+                    const userRoles = festosMultiRole.getUserRoles(data);
+                    if (userRoles && userRoles.length > 0) {
+                        data.roles = userRoles;
+                        if (!data.roles.includes(data.role)) {
+                            data.role = data.roles[0];
+                        }
+                    } else {
+                        data.roles = [data.role];
+                    }
+                } catch(re) {
+                    data.roles = [data.role];
+                }
+            } else if (!data.roles) {
+                data.roles = [data.role];
+            }
+
             // Handle "Save Login" persistent session & active fest
             if (typeof festosAuth !== 'undefined') {
                 if (data.role === 'super_admin') {

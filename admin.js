@@ -2597,8 +2597,8 @@ async function loadStagesAndTeams() {
         });
 
         // Fetch all stage controller users to map their names cleanly in the table
-        const { data: allControllers } = await festQuery(supabaseClient.from('users').select('id, username')).eq('role', 'stage_controller');
-        availableControllers = allControllers || [];
+        const { data: allUsersForControllers } = await festQuery(supabaseClient.from('users').select('id, username, role'));
+        availableControllers = (allUsersForControllers || []).filter(u => u.role === 'stage_controller' || (typeof festosMultiRole !== 'undefined' && festosMultiRole.hasRole(u, 'stage_controller')));
 
         teamsList = teamsRes.data || [];
         if (typeof populateBulkStageSelect === 'function') populateBulkStageSelect();
@@ -2768,9 +2768,9 @@ function deleteTeam(id, name) {
 
 async function openStageModal(editData = null) {
     try {
-        // Freshly query only users with role 'stage_controller' (never announcers)
-        const { data } = await festQuery(supabaseClient.from('users').select('*')).eq('role', 'stage_controller');
-        availableControllers = data || [];
+        // Freshly query all users who have 'stage_controller' role (supports multi-role accounts)
+        const { data: allUsers } = await festQuery(supabaseClient.from('users').select('*'));
+        availableControllers = (allUsers || []).filter(u => u.role === 'stage_controller' || (typeof festosMultiRole !== 'undefined' && festosMultiRole.hasRole(u, 'stage_controller')));
         
         const isEdit = !!editData;
         const sId = isEdit ? editData.id : '';
@@ -4175,6 +4175,15 @@ function generateUserCredentialShareText(user) {
     const roleKey = isTeamMgr ? 'team_manager' : user.role;
     const roleDisplay = roleMap[roleKey] || (user.role || '').toUpperCase();
 
+    // Multi-role details if multiple roles are granted
+    const userRoles = (window.festosMultiRole && festosMultiRole.getUserRoles(user)) || (user.roles || [user.role]);
+    let rolesDisplay = roleDisplay;
+    let multiRoleNote = '';
+    if (userRoles && userRoles.length > 1) {
+        rolesDisplay = userRoles.map(r => roleMap[r] || r.toUpperCase()).join(' + ');
+        multiRoleNote = `\n🔄 *Multi-Role Access:* You have ${userRoles.length} active roles! Toggle between your assigned portals anytime using the Switch Role button in the top navigation bar.`;
+    }
+
     // 3. Resolve Team Info (if applicable)
     let teamInfo = '';
     const teamName = user.teams?.name || ((teamsList || []).find(t => String(t.id) === String(user.team_id))?.name) || '';
@@ -4202,7 +4211,7 @@ Dear ${recipientName},
 
 Here are your official login credentials to access the festival operating system:
 
-👤 *Role:* ${roleDisplay}${teamInfo}
+👤 *Role(s):* ${rolesDisplay}${teamInfo}${multiRoleNote}
 🔑 *Username:* ${user.username}
 🔒 *Password:* ${user.password_hash || '(not set)'}
 
@@ -4213,7 +4222,7 @@ ${loginUrl}
 1. Open the portal link above.
 2. Sign in with your Username and Password.
 3. Access your live schedule, participant submissions, and event notifications.
-
+${userRoles && userRoles.length > 1 ? '4. Switch between your assigned roles using the Role Switcher at the top of the screen.\n' : ''}
 _Please keep these credentials confidential._`;
 }
 window.generateUserCredentialShareText = generateUserCredentialShareText;
@@ -4288,6 +4297,10 @@ window.copyAllFilteredUsersCredentials = copyAllFilteredUsersCredentials;
 
 async function loadUsers() {
     try {
+        if (typeof festosMultiRole !== 'undefined') {
+            await festosMultiRole.loadRoles(getActiveFestId());
+        }
+
         if (!teamsList || teamsList.length === 0) {
             const { data: tData } = await festQuery(supabaseClient.from('teams').select('id, name')).order('name');
             teamsList = tData || [];
@@ -4304,7 +4317,14 @@ async function loadUsers() {
             
         if (error) throw error;
         
-        allUsersList = data || [];
+        allUsersList = (data || []).map(u => {
+            if (typeof festosMultiRole !== 'undefined') {
+                u.roles = festosMultiRole.getUserRoles(u);
+            } else if (!u.roles) {
+                u.roles = [u.role];
+            }
+            return u;
+        });
         window.allUsersMap = {};
         allUsersList.forEach(u => {
             window.allUsersMap[u.id] = u;
@@ -4325,12 +4345,13 @@ function filterUsersTable() {
     const roleFilter = document.getElementById('filterUserRole')?.value || '';
 
     const filtered = (allUsersList || []).filter(u => {
-        if (roleFilter && u.role !== roleFilter) return false;
+        const userRoles = (u.roles && u.roles.length > 0) ? u.roles : [u.role];
+        if (roleFilter && !userRoles.includes(roleFilter)) return false;
         if (search) {
             const matchName = (u.name || '').toLowerCase().includes(search);
             const matchUser = (u.username || '').toLowerCase().includes(search);
             const matchTeam = (u.teams?.name || '').toLowerCase().includes(search);
-            const matchRole = (u.role || '').toLowerCase().includes(search);
+            const matchRole = userRoles.some(r => r.toLowerCase().includes(search));
             if (!matchName && !matchUser && !matchTeam && !matchRole) return false;
         }
         return true;
@@ -4341,26 +4362,25 @@ function filterUsersTable() {
     filtered.forEach(u => {
         const isTeamManager = u.role === 'team_manager' || !!u.team_id || (u.username && u.username.toLowerCase().endsWith('_mgr'));
         const effectiveRole = isTeamManager ? 'team_manager' : u.role;
-        const roleDisplay = effectiveRole.replace('_', ' ').toUpperCase();
+        const userRoles = (u.roles && u.roles.length > 0) ? u.roles : [effectiveRole];
 
-        let roleBadgeColor = 'var(--primary)';
-        let roleBadgeBg = 'var(--primary-light)';
-        if (effectiveRole === 'team_manager') {
-            roleBadgeColor = '#059669';
-            roleBadgeBg = '#ECFDF5';
-        } else if (effectiveRole === 'stage_controller') {
-            roleBadgeColor = '#D97706';
-            roleBadgeBg = '#FEF3C7';
-        } else if (effectiveRole === 'judge') {
-            roleBadgeColor = '#7C3AED';
-            roleBadgeBg = '#F3E8FF';
-        } else if (effectiveRole === 'announcer') {
-            roleBadgeColor = '#2563EB';
-            roleBadgeBg = '#EFF6FF';
-        } else if (effectiveRole === 'admin') {
-            roleBadgeColor = '#DC2626';
-            roleBadgeBg = '#FEF2F2';
-        }
+        const roleBadges = userRoles.map(r => {
+            const roleInfo = (window.festosMultiRole && festosMultiRole.ROLES[r]) || { 
+                name: r.replace('_', ' ').toUpperCase(), 
+                color: '#4F46E5', 
+                bg: '#EEF2FF' 
+            };
+            const isActive = (r === u.role);
+            return `
+                <span class="badge" style="background:${roleInfo.bg}; color:${roleInfo.color}; font-weight:700; margin:2px 3px 2px 0; display:inline-flex; align-items:center; gap:4px; border:1px solid ${isActive ? roleInfo.color : 'transparent'}; font-size:0.75rem; padding:3px 8px; border-radius:6px;" title="${isActive ? 'Active Role' : 'Granted Role'}">
+                    ${isActive ? '<i class="fa-solid fa-circle-dot" style="font-size:0.55rem;"></i>' : ''}${roleInfo.name.toUpperCase()}
+                </span>
+            `;
+        }).join('');
+
+        const multiTag = userRoles.length > 1
+            ? `<div style="font-size:0.72rem; color:#4F46E5; font-weight:800; margin-top:3px; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-layer-group"></i> ${userRoles.length} ROLES (Active: ${(festosMultiRole?.ROLES[u.role]?.name || u.role).toUpperCase()})</div>`
+            : '';
 
         const teamName = u.teams?.name || ((teamsList || []).find(t => String(t.id) === String(u.team_id))?.name) || '';
         const teamTag = teamName ? `<br><span style="font-size: 0.75rem; color: #059669; font-weight: 800; letter-spacing: 0.05em;"><i class="fa-solid fa-users"></i> TEAM: ${teamName.toUpperCase()}</span>` : '';
@@ -4372,7 +4392,12 @@ function filterUsersTable() {
                     <strong style="font-size:1.05rem; text-transform: none !important;">${u.username}</strong>
                     ${teamTag}
                 </td> 
-                <td><span class="badge" style="background:${roleBadgeBg}; color:${roleBadgeColor}; font-weight:700;">${roleDisplay}</span></td>
+                <td>
+                    <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                        <div style="display:flex; flex-wrap:wrap; gap:2px;">${roleBadges}</div>
+                        ${multiTag}
+                    </div>
+                </td>
                 <td>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                        <input type="password" id="pwd-${u.id}" value="${u.password_hash || ''}" readonly style="border: none; background: transparent; width: 110px; font-weight: 600; color: var(--text-muted); outline: none; pointer-events: none; text-transform: none !important;">
@@ -4412,13 +4437,64 @@ function togglePassword(id) {
 window.togglePassword = togglePassword;
 
 function toggleUserTeamGroup() {
-    const roleSelect = document.getElementById('newUserRole');
+    const checkedBoxes = Array.from(document.querySelectorAll('input[name="userRoleCheck"]:checked'));
+    const isTeamMgr = checkedBoxes.some(cb => cb.value === 'team_manager');
     const teamGroup = document.getElementById('userTeamGroup');
-    if (roleSelect && teamGroup) {
-        teamGroup.style.display = (roleSelect.value === 'team_manager') ? 'block' : 'none';
+    if (teamGroup) {
+        teamGroup.style.display = isTeamMgr ? 'block' : 'none';
     }
 }
 window.toggleUserTeamGroup = toggleUserTeamGroup;
+
+const FESTOS_AVAILABLE_ROLES = [
+    { id: 'team_manager', name: 'Team Manager', desc: 'Squad roster, slips & registrations', color: '#059669', bg: '#ECFDF5', icon: 'fa-users' },
+    { id: 'judge', name: 'Judge', desc: 'Live event scoring & mark sheets', color: '#7C3AED', bg: '#F3E8FF', icon: 'fa-gavel' },
+    { id: 'stage_controller', name: 'Stage Controller', desc: 'Stage queue, calls & QR check-in', color: '#D97706', bg: '#FEF3C7', icon: 'fa-sliders' },
+    { id: 'fest_manager', name: 'Fest Manager', desc: 'Schedules, judge assignments & publishing', color: '#2563EB', bg: '#EFF6FF', icon: 'fa-calendar-check' },
+    { id: 'announcer', name: 'Announcer', desc: 'Public callouts & stage broadcasts', color: '#0284C7', bg: '#E0F2FE', icon: 'fa-bullhorn' },
+    { id: 'admin', name: 'Admin', desc: 'Festival coordinator & administration', color: '#DC2626', bg: '#FEF2F2', icon: 'fa-shield-halved' }
+];
+
+window.onUserRoleCheckboxChange = function() {
+    const checkedBoxes = Array.from(document.querySelectorAll('input[name="userRoleCheck"]:checked'));
+    const checkedValues = checkedBoxes.map(cb => cb.value);
+
+    document.querySelectorAll('.user-role-card-item').forEach(card => {
+        const cb = card.querySelector('input[type="checkbox"]');
+        if (cb && cb.checked) {
+            card.classList.add('checked');
+            const r = FESTOS_AVAILABLE_ROLES.find(x => x.id === cb.value);
+            if (r) {
+                card.style.borderColor = r.color;
+                card.style.background = r.bg;
+            }
+        } else {
+            card.classList.remove('checked');
+            card.style.borderColor = 'var(--border)';
+            card.style.background = 'var(--bg-main)';
+        }
+    });
+
+    // Toggle team manager select box
+    const teamGroup = document.getElementById('userTeamGroup');
+    if (teamGroup) {
+        teamGroup.style.display = checkedValues.includes('team_manager') ? 'block' : 'none';
+    }
+
+    // Refresh primary role dropdown with currently checked roles
+    const primSelect = document.getElementById('newPrimaryRole');
+    if (primSelect) {
+        const curVal = primSelect.value;
+        if (checkedValues.length > 0) {
+            primSelect.innerHTML = checkedValues.map(v => {
+                const r = FESTOS_AVAILABLE_ROLES.find(x => x.id === v) || { name: v.toUpperCase() };
+                return `<option value="${v}" ${v === curVal ? 'selected' : ''}>${r.name}</option>`;
+            }).join('');
+        } else {
+            primSelect.innerHTML = `<option value="">-- No Roles Selected --</option>`;
+        }
+    }
+};
 
 async function openUserModal(userIdOrData = null) {
     let editData = null;
@@ -4448,13 +4524,22 @@ async function openUserModal(userIdOrData = null) {
     const uName = editData ? (editData.username || '') : '';
     const uPass = editData ? (editData.password_hash || '') : '';
 
-    const isTeamManager = editData 
-        ? (editData.role === 'team_manager' || !!editData.team_id || (editData.username && editData.username.toLowerCase().endsWith('_mgr'))) 
-        : false;
+    // Multi-role resolution
+    let assignedRoles = [];
+    if (editData) {
+        assignedRoles = (editData.roles && Array.isArray(editData.roles) && editData.roles.length > 0)
+            ? editData.roles
+            : (window.festosMultiRole ? festosMultiRole.getUserRoles(editData) : [editData.role]);
+        if (!assignedRoles || assignedRoles.length === 0) {
+            assignedRoles = [editData.role || 'team_manager'];
+        }
+    } else {
+        assignedRoles = ['team_manager'];
+    }
 
-    let uRole = 'team_manager';
-    if (editData && editData.role) {
-        uRole = isTeamManager ? 'team_manager' : editData.role;
+    let primaryRole = editData ? editData.role : (assignedRoles[0] || 'team_manager');
+    if (!assignedRoles.includes(primaryRole)) {
+        primaryRole = assignedRoles[0] || 'team_manager';
     }
 
     const uTeamId = editData ? (editData.team_id || editData.teams?.id || '') : '';
@@ -4475,6 +4560,26 @@ async function openUserModal(userIdOrData = null) {
         </option>
     `).join('');
 
+    const roleCardsHtml = FESTOS_AVAILABLE_ROLES.map(r => {
+        const isChecked = assignedRoles.includes(r.id);
+        return `
+            <label class="user-role-card-item ${isChecked ? 'checked' : ''}" style="display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-radius:10px; border:1.5px solid ${isChecked ? r.color : 'var(--border)'}; background:${isChecked ? r.bg : 'var(--bg-main)'}; cursor:pointer; transition:all 0.15s ease;">
+                <input type="checkbox" name="userRoleCheck" value="${r.id}" ${isChecked ? 'checked' : ''} onchange="window.onUserRoleCheckboxChange()" style="margin-top:3px; cursor:pointer; accent-color:${r.color}; width:16px; height:16px;">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:700; font-size:0.88rem; color:var(--text-main); display:flex; align-items:center; gap:6px;">
+                        <i class="fa-solid ${r.icon}" style="color:${r.color};"></i>
+                        <span>${r.name}</span>
+                    </div>
+                    <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">${r.desc}</div>
+                </div>
+            </label>
+        `;
+    }).join('');
+
+    const primaryRoleOptions = FESTOS_AVAILABLE_ROLES.filter(r => assignedRoles.includes(r.id)).map(r => `
+        <option value="${r.id}" ${r.id === primaryRole ? 'selected' : ''}>${r.name}</option>
+    `).join('');
+
     const shareBarHtml = isEdit ? `
         <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; padding: 0.75rem 1rem; background: var(--bg-main); border-radius: var(--radius-md); border: 1px solid var(--border); align-items: center; justify-content: space-between; flex-wrap: wrap;">
             <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);"><i class="fa-solid fa-share-nodes" style="color: var(--primary);"></i> Share Credentials:</span>
@@ -4485,7 +4590,7 @@ async function openUserModal(userIdOrData = null) {
         </div>
     ` : '';
 
-    openModal(isEdit ? 'Edit User Account & Password' : 'Create User Account', `
+    openModal(isEdit ? 'Edit User Account & Roles' : 'Create User Account', `
         <input type="hidden" id="editUserId" value="${uId}">
         
         <div class="form-group">
@@ -4503,25 +4608,33 @@ async function openUserModal(userIdOrData = null) {
             <small style="color: var(--text-muted); display: block; margin-top: 4px;">Update this field to change the user's login password.</small>
         </div>
         
+        <!-- Multi-Role Selection Section -->
         <div class="form-group">
-            <label>Role</label>
-            <select id="newUserRole" onchange="toggleUserTeamGroup()">
-                <option value="team_manager" ${uRole === 'team_manager' ? 'selected' : ''}>Team Manager (Squad Lead)</option>
-                <option value="judge" ${uRole === 'judge' ? 'selected' : ''}>Judge</option>
-                <option value="stage_controller" ${uRole === 'stage_controller' ? 'selected' : ''}>Stage Controller</option>
-                <option value="fest_manager" ${uRole === 'fest_manager' ? 'selected' : ''}>Fest Manager</option>
-                <option value="announcer" ${uRole === 'announcer' ? 'selected' : ''}>Announcer</option>
-                <option value="admin" ${uRole === 'admin' ? 'selected' : ''}>Admin</option>
-            </select>
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+                <span>Assigned Roles <span style="color:var(--danger);">*</span></span>
+                <span style="font-size:0.75rem; color:#4F46E5; font-weight:700;"><i class="fa-solid fa-layer-group"></i> Multiple Roles Allowed</span>
+            </label>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.6rem;">Check all roles granted to this account. When signed in, the user can switch between roles from the top bar.</div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:0.5rem; margin-bottom:0.75rem;" id="userRolesCheckboxesGrid">
+                ${roleCardsHtml}
+            </div>
         </div>
 
-        <div class="form-group" id="userTeamGroup" style="display: ${uRole === 'team_manager' ? 'block' : 'none'};">
+        <div class="form-group">
+            <label>Default Starting Role <span style="color:var(--danger);">*</span></label>
+            <select id="newPrimaryRole" style="font-weight:700; color:var(--primary);">
+                ${primaryRoleOptions}
+            </select>
+            <small style="color: var(--text-muted); display: block; margin-top: 4px;">The initial portal loaded when this user signs in.</small>
+        </div>
+
+        <div class="form-group" id="userTeamGroup" style="display: ${assignedRoles.includes('team_manager') ? 'block' : 'none'};">
             <label>Assigned Team <span style="color:var(--danger);">*</span></label>
             <select id="newUserTeam">
                 <option value="">-- SELECT TEAM --</option>
                 ${teamOptions}
             </select>
-            <small style="color: var(--text-muted); display: block; margin-top: 4px;">You can assign multiple manager accounts to the same team so assistant managers and coordinators each have their own login.</small>
+            <small style="color: var(--text-muted); display: block; margin-top: 4px;">Required for Team Manager role so this account accesses the squad's roster.</small>
         </div>
 
         ${shareBarHtml}
@@ -4530,14 +4643,22 @@ async function openUserModal(userIdOrData = null) {
         const name = document.getElementById('newFullName').value.trim();
         const username = document.getElementById('newUsername').value.trim();
         const password_hash = document.getElementById('newPassword').value.trim();
-        const role = document.getElementById('newUserRole').value;
+        
+        // Multi-role collection
+        const checkedBoxes = Array.from(document.querySelectorAll('input[name="userRoleCheck"]:checked'));
+        const selectedRoles = checkedBoxes.map(cb => cb.value);
+        if (selectedRoles.length === 0) {
+            return showToast('Please select at least one role for this account.', 'error');
+        }
+
+        const primaryRole = document.getElementById('newPrimaryRole')?.value || selectedRoles[0];
         const selectedTeamId = document.getElementById('newUserTeam')?.value || null;
         
         if (!username || !password_hash) {
             return showToast('Username and Password are required.', 'error');
         }
 
-        if (role === 'team_manager' && !selectedTeamId && !uTeamId) {
+        if (selectedRoles.includes('team_manager') && !selectedTeamId && !uTeamId) {
             return showToast('Please select which team this Team Manager belongs to.', 'error');
         }
         
@@ -4547,10 +4668,10 @@ async function openUserModal(userIdOrData = null) {
             name: name || username, 
             username, 
             password_hash, 
-            role 
+            role: primaryRole 
         };
 
-        if (role === 'team_manager') {
+        if (selectedRoles.includes('team_manager')) {
             payload.team_id = selectedTeamId || uTeamId;
         } else {
             payload.team_id = null;
@@ -4560,18 +4681,29 @@ async function openUserModal(userIdOrData = null) {
         
         const { error } = await supabaseClient.from('users').upsert([festPayload(payload)]);
         
-        setLoading('modalSaveBtn', false);
-        
         if (error) {
+            setLoading('modalSaveBtn', false);
             if (error.code === '23505') showToast('Username already taken. Please choose another username.', 'error'); 
             else showToast(error.message, 'error');
-        } else { 
-            showToast(id ? 'Account & password updated successfully!' : 'Account created successfully!');
-            closeModal(); 
-            await loadUsers(); 
-            if (typeof loadStagesAndTeams === 'function') {
-                loadStagesAndTeams();
+            return;
+        }
+
+        // Save multiple roles mapping
+        try {
+            const savedUserId = id || (await supabaseClient.from('users').select('id').eq('username', username).maybeSingle()).data?.id || username;
+            if (typeof festosMultiRole !== 'undefined') {
+                await festosMultiRole.saveUserRoles(savedUserId, selectedRoles, getActiveFestId());
             }
+        } catch(roleSaveErr) {
+            console.warn('Error saving multi-roles:', roleSaveErr);
+        }
+        
+        setLoading('modalSaveBtn', false);
+        showToast(id ? `Account updated with ${selectedRoles.length} role(s)!` : `Account created with ${selectedRoles.length} role(s)!`);
+        closeModal(); 
+        await loadUsers(); 
+        if (typeof loadStagesAndTeams === 'function') {
+            loadStagesAndTeams();
         }
     });
 }
@@ -15774,16 +15906,16 @@ async function loadJudgesManagement() {
         }
 
         const [
-            { data: judges, error: judgesErr },
+            { data: allUsersForJudges, error: judgesErr },
             { data: assignments, error: assignErr }
         ] = await Promise.all([
-            festQuery(supabaseClient.from('users').select('id, username')).eq('role', 'judge').order('username'),
+            festQuery(supabaseClient.from('users').select('id, username, role')).order('username'),
             assignQuery
         ]);
         
         if (judgesErr) throw judgesErr;
         if (assignErr) throw assignErr;
-        globalJudgesList = judges || [];
+        globalJudgesList = (allUsersForJudges || []).filter(u => u.role === 'judge' || (typeof festosMultiRole !== 'undefined' && festosMultiRole.hasRole(u, 'judge')));
 
         // 3. Group and deduplicate assignments per judge 
         // (Since judgements might have multiple rows per comp if marks are saved)

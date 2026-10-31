@@ -188,10 +188,10 @@ async function loadAssignments() {
 
     try {
         if (availableJudges.length === 0) {
-            let judgesQuery = supabaseClient.from('users').select('id, username').eq('role', 'judge');
+            let judgesQuery = supabaseClient.from('users').select('id, username, role');
             if (window.festosApplyFilter) judgesQuery = window.festosApplyFilter(judgesQuery);
-            const { data: judges } = await judgesQuery;
-            availableJudges = judges || [];
+            const { data: allUsers } = await judgesQuery;
+            availableJudges = (allUsers || []).filter(u => u.role === 'judge' || (typeof festosMultiRole !== 'undefined' && festosMultiRole.hasRole(u, 'judge')));
         }
 
         if (allStages.length === 0) {
@@ -1431,13 +1431,12 @@ async function loadJudgesManagement() {
     try {
         let judgesQuery = supabaseClient
             .from('users')
-            .select('id, username')
-            .eq('role', 'judge');
+            .select('id, username, role');
         if (window.festosApplyFilter) judgesQuery = window.festosApplyFilter(judgesQuery);
-        const { data: judges, error: judgesErr } = await judgesQuery.order('username');
+        const { data: allUsers, error: judgesErr } = await judgesQuery.order('username');
         if (judgesErr) throw judgesErr;
         
-        globalJudgesList = judges || [];
+        globalJudgesList = (allUsers || []).filter(u => u.role === 'judge' || (typeof festosMultiRole !== 'undefined' && festosMultiRole.hasRole(u, 'judge')));
 
         let assignQuery = supabaseClient
             .from('judgements')
@@ -2110,10 +2109,10 @@ async function loadValuations() {
 
     try {
         if (availableJudges.length === 0) {
-            let judgesQuery = supabaseClient.from('users').select('id, username').eq('role', 'judge');
+            let judgesQuery = supabaseClient.from('users').select('id, username, role');
             if (window.festosApplyFilter) judgesQuery = window.festosApplyFilter(judgesQuery);
-            const { data: judges } = await judgesQuery;
-            availableJudges = judges || [];
+            const { data: allUsers } = await judgesQuery;
+            availableJudges = (allUsers || []).filter(u => u.role === 'judge' || (typeof festosMultiRole !== 'undefined' && festosMultiRole.hasRole(u, 'judge')));
         }
 
         // Fetch competitions in status 'valuation'
