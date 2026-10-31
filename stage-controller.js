@@ -863,9 +863,12 @@ function getButtonsForStatus(comp) {
     }
     
     if (comp.status === 'ongoing') {
+        const lateEntryBtn = `<button class="btn btn-outline btn-full" style="color: var(--primary); border-color: var(--primary); margin-bottom: 0.25rem !important;" onclick="openScannerModal('${comp.id}', '${safeName}', true)" title="Scan pending participant with Admin Late Entry Permit"><i class="fa-solid fa-user-clock"></i> SCAN LATE ENTRY (PERMIT)</button>`;
+
         if (isOff) {
             return `
                 <div>
+                    ${lateEntryBtn}
                     <button class="btn btn-outline btn-full" onclick="backToRegistration('${comp.id}', this)" style="margin-bottom: 0.25rem !important;"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT TO REGISTRATION</button>
                     <button class="btn btn-warning btn-full" onclick="changeCompetitionState('${comp.id}', 'valuation', this, 'ENDING')"><i class="fa-solid fa-flag-checkered"></i> END EVENT (SEND TO VALUATION)</button>
                 </div>
@@ -893,6 +896,7 @@ function getButtonsForStatus(comp) {
 
             return `
                 <div>
+                    ${lateEntryBtn}
                     <button class="btn btn-outline" onclick="backToRegistration('${comp.id}', this)"><i class="fa-solid fa-arrow-rotate-left"></i> REVERT</button>
                     ${endBtn}
                 </div>
@@ -946,10 +950,14 @@ async function stopCameraTracks() {
     } catch (e) {}
 }
 
-async function openScannerModal(compId, compName) {
+let isLateEntryScanning = false;
+
+async function openScannerModal(compId, compName, isLate = false) {
     activeScanCompId = compId;
     isProcessingScan = false;
-    document.getElementById('modal-comp-name').innerText = `Scanning: ${compName}`;
+    isLateEntryScanning = !!isLate;
+    const titlePrefix = isLate ? 'Late Entry Scan (Permits Only)' : 'Scanning';
+    document.getElementById('modal-comp-name').innerText = `${titlePrefix}: ${compName}`;
     document.getElementById('scanner-modal').style.display = 'flex';
 
     await startQrScanner();
@@ -1077,6 +1085,7 @@ async function closeScannerModal() {
     document.getElementById('scanner-modal').style.display = 'none';
     activeScanCompId = null;
     isProcessingScan = false;
+    isLateEntryScanning = false;
     loadDashboard(); 
 }
 
@@ -1175,6 +1184,39 @@ async function onScanSuccess(decodedText) {
             return;
         } 
 
+        const comp = (window.allLoadedCompetitions || []).find(c => String(c.id) === String(activeScanCompId));
+        const isOngoingComp = comp && comp.status === 'ongoing';
+
+        // --- STRICT ADMIN PERMIT CHECK FOR ONGOING EVENTS (LATE CHECK-IN) ---
+        let activePermit = null;
+        if (isOngoingComp || isLateEntryScanning) {
+            const allPermits = (typeof festosGetConflictPermits === 'function') 
+                ? await festosGetConflictPermits(true) 
+                : [];
+
+            activePermit = (allPermits || []).find(p => 
+                String(p.to_competition_id) === String(activeScanCompId) &&
+                p.status === 'pending' &&
+                (String(p.participant_id) === String(participant.id) || String(p.participant_unique_id).trim().toLowerCase() === String(qrId).trim().toLowerCase())
+            );
+
+            if (!activePermit) {
+                showToast(`Late entry blocked: ${participant.name} does not have an Admin permit for this ongoing competition.`, "error");
+                openConfirmModal(
+                    "Admin Permit Required",
+                    `<strong>${participant.name} (${participant.unique_id || qrId})</strong> cannot be checked in late to this ongoing competition.<br><br>
+                    <div style="background: #FEE2E2; border: 1.5px solid #FCA5A5; color: #991B1B; padding: 12px; border-radius: 10px; font-size: 0.85rem; text-align: left; line-height: 1.5;">
+                        <i class="fa-solid fa-ban" style="margin-right: 6px;"></i>
+                        <strong>Late Entry Unauthorized:</strong> This competition is already ongoing. Delayed participants may only be scanned late if an Admin has issued an official Late Entry Permit in the Admin Panel.
+                    </div>`,
+                    null,
+                    { confirmText: "Understood", hideCancel: true }
+                );
+                resetScanner();
+                return;
+            }
+        }
+
         // Strictly determine unique next available code letter from real-time DB records
         let codeLetter = registration.code_letter ? registration.code_letter.trim().toUpperCase() : null;
         if (!codeLetter) {
@@ -1199,7 +1241,10 @@ async function onScanSuccess(decodedText) {
         const { error: updateErr } = await updateQuery;
 
         if (!updateErr) {
-            showToast(`Success! ${participant.name} assigned: Code ${codeLetter}`);
+            if (activePermit && typeof festosMarkPermitCheckedIn === 'function') {
+                await festosMarkPermitCheckedIn(activePermit.id, codeLetter);
+            }
+            showToast(`Success! ${participant.name}${activePermit ? ' (Admin Late Permit)' : ''} assigned: Code ${codeLetter}`);
             loadCheckedInList(activeScanCompId); 
         } else {
             showToast("Database error saving check-in: " + updateErr.message, "error");
@@ -1231,7 +1276,7 @@ async function loadCheckedInList(compId) {
 
     const { data, error } = await supabaseClient
         .from('participant_competitions')
-        .select('code_letter, is_present, is_leader, participants(name, unique_id, teams(name))') // Updated line
+        .select('participant_id, code_letter, is_present, is_leader, participants(id, name, unique_id, teams(name))')
         .eq('competition_id', compId);
 
     if (error) {
@@ -1247,6 +1292,13 @@ async function loadCheckedInList(compId) {
         if (badgeCountEl) { badgeCountEl.innerText = '0 Enrolled'; }
         return;
     }
+
+    let allPermits = [];
+    try {
+        if (typeof festosGetConflictPermits === 'function') {
+            allPermits = await festosGetConflictPermits(false);
+        }
+    } catch(e) {}
 
     const checkedIn = data.filter(d => d.is_present).sort((a, b) => {
         if(a.code_letter < b.code_letter) return 1;
@@ -1302,11 +1354,22 @@ async function loadCheckedInList(compId) {
             if (comp && comp.is_group && reg.is_leader) displayName += " & PARTY";
             let teamName = reg.participants?.teams?.name || 'IND';
 
+            const permit = (allPermits || []).find(p => 
+                String(p.to_competition_id) === String(compId) &&
+                p.status === 'pending' &&
+                (String(p.participant_id) === String(reg.participant_id) || String(p.participant_unique_id).toLowerCase() === String(reg.participants?.unique_id || '').toLowerCase())
+            );
+
+            const permitBadge = permit 
+                ? `<span style="background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; font-size: 0.68rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; margin-top: 3px;"><i class="fa-solid fa-clock"></i> In: ${permit.from_competition_name} (Admin Permit)</span>`
+                : '';
+
             return `
             <div class="participant-item-compact absent">
                 <div class="p-info">
                     <span class="p-name">${displayName}</span>
                     <span class="p-sub">${reg.participants?.unique_id || 'N/A'} • ${teamName}</span>
+                    ${permitBadge}
                 </div>
                 <span class="p-status-pill">ABSENT</span>
             </div>
@@ -1448,6 +1511,60 @@ async function changeCompetitionState(compId, newStatus, btnElement, loadingText
                 { confirmText: "Understood", hideCancel: true }
             );
             return;
+        }
+    }
+
+    // Rule: Check if any participant in this competition has an approved Admin Late Entry Permit but is still pending
+    if (newStatus === 'judgement_complete' || newStatus === 'valuation') {
+        try {
+            const allPermits = (typeof festosGetConflictPermits === 'function')
+                ? await festosGetConflictPermits(true)
+                : [];
+            const pendingPermits = (allPermits || []).filter(p => 
+                String(p.to_competition_id) === String(compId) && p.status === 'pending'
+            );
+
+            if (pendingPermits.length > 0) {
+                const { data: freshParticipants } = await supabaseClient
+                    .from('participant_competitions')
+                    .select('participant_id, is_present, code_letter')
+                    .eq('competition_id', compId);
+
+                const enrolledList = freshParticipants || comp?.participant_competitions || [];
+                const uncheckPermits = pendingPermits.filter(permit => {
+                    return !enrolledList.some(pc => 
+                        String(pc.participant_id) === String(permit.participant_id) && (pc.is_present === true || pc.code_letter)
+                    );
+                });
+
+                if (uncheckPermits.length > 0) {
+                    const listHtml = uncheckPermits.map(p => 
+                        `• <strong>${p.participant_name}</strong> (${p.participant_unique_id || ''}) is in <em>"${p.from_competition_name}"</em>`
+                    ).join('<br>');
+
+                    openConfirmModal(
+                        "Wait for Permitted Participant!",
+                        `The following participant(s) are currently in another competition and were allowed late entry by Admin:<br><br>
+                        <div style="background: #FEF3C7; border: 1.5px solid #FCD34D; color: #92400E; padding: 12px; border-radius: 10px; font-size: 0.85rem; text-align: left; line-height: 1.5;">
+                            ${listHtml}
+                            <br><br>
+                            <strong>⚠️ Please wait for them to finish their other competition before ending this event.</strong>
+                        </div><br>
+                        Do you want to wait for them, or end the competition anyway?`,
+                        () => {
+                            executeStateChange(compId, newStatus, btnElement, loadingText);
+                        },
+                        {
+                            confirmText: "End Event Anyway",
+                            cancelText: "Wait for Participant",
+                            isDangerous: true
+                        }
+                    );
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn("Error checking pending permits before ending event:", e);
         }
     }
 
@@ -1611,6 +1728,7 @@ function openConfirmModal(title, text, confirmCallback, options = {}) {
 
     const cancelBtn = document.querySelector('#confirmModal .btn-outline');
     if (cancelBtn) {
+        cancelBtn.innerText = options.cancelText || 'Cancel';
         cancelBtn.style.display = options.hideCancel ? 'none' : 'inline-block';
     }
     
@@ -1619,7 +1737,10 @@ function openConfirmModal(title, text, confirmCallback, options = {}) {
 
 function closeConfirmModal() {
     const cancelBtn = document.querySelector('#confirmModal .btn-outline');
-    if (cancelBtn) cancelBtn.style.display = 'inline-block';
+    if (cancelBtn) {
+        cancelBtn.innerText = 'Cancel';
+        cancelBtn.style.display = 'inline-block';
+    }
     document.getElementById('confirmModal').style.display = 'none';
 }
 

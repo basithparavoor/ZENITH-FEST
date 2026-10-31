@@ -662,6 +662,7 @@ function switchTab(tabId) {
         else if (tabId === 'judges') loadJudgesManagement();
         else if (tabId === 'assignments') initAssignWorkspace();
         else if (tabId === 'direct-valuation') initDirectValuation();
+        else if (tabId === 'conflict-permits') loadConflictPermits();
         else if (tabId === 'point-settings') loadPointSettings(); 
         else if (tabId === 'branding-settings') loadBrandingSettings();
         else if (tabId === 'participant-points') loadParticipantPoints();
@@ -7783,6 +7784,284 @@ function openFullViewModal() {
     document.getElementById('fullViewImage').src = canvas.toDataURL("image/png");
     document.getElementById('fullViewModal').classList.add('show');
 }
+
+// ============================================================================
+// CROSS-COMPETITION LATE ENTRY PERMITS (CLASH MANAGEMENT)
+// ============================================================================
+let globalConflictPermits = [];
+let globalPermitParticipants = [];
+let globalPermitCompetitions = [];
+let globalPermitRegistrations = [];
+
+async function loadConflictPermits() {
+    const tbody = document.getElementById('conflictPermitsTableBody');
+    if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: 2.5rem; text-align: center; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size: 1.5rem; color: var(--primary); margin-bottom: 0.5rem;"></i><br>Loading permits...</td></tr>`;
+    }
+
+    try {
+        globalConflictPermits = await window.festosGetConflictPermits(true);
+        renderConflictPermitsTable();
+    } catch (err) {
+        console.error("Error loading conflict permits:", err);
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="6" style="padding: 2rem; text-align: center; color: var(--danger);"><i class="fa-solid fa-triangle-exclamation" style="margin-right: 6px;"></i> Error loading permits: ${err.message}</td></tr>`;
+        }
+    }
+}
+
+function renderConflictPermitsTable() {
+    const tbody = document.getElementById('conflictPermitsTableBody');
+    if (!tbody) return;
+
+    const searchTerm = (document.getElementById('permitSearchInput')?.value || '').trim().toLowerCase();
+    
+    let filtered = globalConflictPermits || [];
+    if (searchTerm) {
+        filtered = filtered.filter(p => 
+            (p.participant_name || '').toLowerCase().includes(searchTerm) ||
+            (p.participant_unique_id || '').toLowerCase().includes(searchTerm) ||
+            (p.from_competition_name || '').toLowerCase().includes(searchTerm) ||
+            (p.to_competition_name || '').toLowerCase().includes(searchTerm) ||
+            (p.team_name || '').toLowerCase().includes(searchTerm)
+        );
+    }
+
+    // Update Badges
+    const totalCount = (globalConflictPermits || []).length;
+    const pendingCount = (globalConflictPermits || []).filter(p => p.status === 'pending').length;
+    const checkedInCount = (globalConflictPermits || []).filter(p => p.status === 'checked_in').length;
+
+    const badgeTotal = document.getElementById('permits-count-badge');
+    const badgePending = document.getElementById('permits-pending-badge');
+    const badgeCheckedIn = document.getElementById('permits-checkedin-badge');
+
+    if (badgeTotal) badgeTotal.innerText = `${totalCount} Total Permits`;
+    if (badgePending) badgePending.innerText = `${pendingCount} Pending`;
+    if (badgeCheckedIn) badgeCheckedIn.innerText = `${checkedInCount} Checked In`;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="padding: 3rem 1rem; text-align: center; color: var(--text-muted);">
+                    <i class="fa-solid fa-ticket-simple" style="font-size: 2.2rem; color: #CBD5E1; margin-bottom: 0.75rem;"></i>
+                    <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 0.25rem 0;">No late entry permits found</p>
+                    <p style="font-size: 0.8rem; margin: 0;">Click "Issue Late Entry Permit" to authorize a participant for ongoing events.</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(permit => {
+        const isPending = permit.status === 'pending';
+        const isCheckedIn = permit.status === 'checked_in';
+
+        let statusBadge = '';
+        if (isPending) {
+            statusBadge = `<span class="badge" style="background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; font-size: 0.72rem; padding: 4px 8px; border-radius: 6px; font-weight: 700;"><i class="fa-solid fa-clock" style="margin-right: 4px;"></i> Awaiting Check-In</span>`;
+        } else if (isCheckedIn) {
+            statusBadge = `<span class="badge" style="background: #D1FAE5; color: #065F46; border: 1px solid #A7F3D0; font-size: 0.72rem; padding: 4px 8px; border-radius: 6px; font-weight: 700;"><i class="fa-solid fa-circle-check" style="margin-right: 4px;"></i> Checked In (${permit.code_letter ? 'Code ' + permit.code_letter : 'Present'})</span>`;
+        } else {
+            statusBadge = `<span class="badge" style="background: #F1F5F9; color: #64748B; border: 1px solid #CBD5E1; font-size: 0.72rem; padding: 4px 8px; border-radius: 6px; font-weight: 700;">Revoked</span>`;
+        }
+
+        const dateStr = permit.created_at ? new Date(permit.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+
+        return `
+            <tr style="border-bottom: 1px solid var(--border); transition: background 0.15s ease;">
+                <td style="padding: 12px 16px;">
+                    <div style="font-weight: 700; color: var(--text-main); font-size: 0.9rem;">${permit.participant_name}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 6px; align-items: center; margin-top: 2px;">
+                        <span style="background: var(--bg-main); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border); font-family: monospace;">${permit.participant_unique_id || 'NO ID'}</span>
+                        ${permit.team_name ? `<span>• ${permit.team_name}</span>` : ''}
+                    </div>
+                </td>
+                <td style="padding: 12px 16px;">
+                    <div style="font-weight: 600; color: var(--primary); font-size: 0.85rem;"><i class="fa-solid fa-arrow-right-from-bracket" style="margin-right: 4px; font-size: 0.75rem;"></i> ${permit.from_competition_name}</div>
+                    ${permit.notes ? `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;"><em>Note: ${permit.notes}</em></div>` : ''}
+                </td>
+                <td style="padding: 12px 16px;">
+                    <div style="font-weight: 700; color: #059669; font-size: 0.85rem;"><i class="fa-solid fa-arrow-right-to-bracket" style="margin-right: 4px; font-size: 0.75rem;"></i> ${permit.to_competition_name}</div>
+                    <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Stage Controller allowed to scan late</div>
+                </td>
+                <td style="padding: 12px 16px; text-align: center;">
+                    ${statusBadge}
+                </td>
+                <td style="padding: 12px 16px; font-size: 0.8rem; color: var(--text-muted);">
+                    ${dateStr}
+                </td>
+                <td style="padding: 12px 16px; text-align: right;">
+                    <button class="btn btn-outline" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3); padding: 4px 10px; font-size: 0.75rem; border-radius: 6px;" onclick="revokeConflictPermit('${permit.id}')" title="Revoke Permit">
+                        <i class="fa-solid fa-trash-can"></i> Revoke
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function openGrantConflictPermitModal() {
+    const modal = document.getElementById('grantConflictPermitModal');
+    if (!modal) return;
+
+    modal.style.display = 'flex';
+    document.getElementById('permitNotesInput').value = '';
+
+    // Load participants and competitions
+    const pSelect = document.getElementById('permitParticipantSelect');
+    const fromSelect = document.getElementById('permitFromCompSelect');
+    const toSelect = document.getElementById('permitToCompSelect');
+
+    pSelect.innerHTML = `<option value="">Loading participants...</option>`;
+    fromSelect.innerHTML = `<option value="">-- Choose Participant First --</option>`;
+    toSelect.innerHTML = `<option value="">Loading competitions...</option>`;
+
+    try {
+        let pQuery = supabaseClient.from('participants').select('id, name, unique_id, team_id, teams(name)').order('name');
+        let cQuery = supabaseClient.from('competitions').select('id, name, status, stage_id, stages(name)').order('name');
+        let regQuery = supabaseClient.from('participant_competitions').select('participant_id, competition_id');
+
+        if (typeof festQuery === 'function') {
+            pQuery = festQuery(pQuery);
+            cQuery = festQuery(cQuery);
+            regQuery = festQuery(regQuery);
+        }
+
+        const [pRes, cRes, regRes] = await Promise.all([pQuery, cQuery, regQuery]);
+        globalPermitParticipants = pRes.data || [];
+        globalPermitCompetitions = cRes.data || [];
+        globalPermitRegistrations = regRes.data || [];
+
+        // Populate Participants
+        pSelect.innerHTML = `<option value="">-- Select Participant (${globalPermitParticipants.length}) --</option>` +
+            globalPermitParticipants.map(p => {
+                const team = p.teams?.name ? ` [${p.teams.name}]` : '';
+                const uId = p.unique_id ? ` (#${p.unique_id})` : '';
+                return `<option value="${p.id}">${p.name}${uId}${team}</option>`;
+            }).join('');
+
+        // Populate Target "To Competition"
+        toSelect.innerHTML = `<option value="">-- Select Target Competition (Allow Late Check-in) --</option>` +
+            globalPermitCompetitions.map(c => {
+                const st = c.status ? ` [${c.status.toUpperCase()}]` : '';
+                return `<option value="${c.id}">${c.name}${st}</option>`;
+            }).join('');
+
+    } catch (e) {
+        showToast("Error loading data: " + e.message, "error");
+    }
+}
+
+function closeGrantConflictPermitModal() {
+    const modal = document.getElementById('grantConflictPermitModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function onPermitParticipantChanged() {
+    const pId = document.getElementById('permitParticipantSelect')?.value;
+    const fromSelect = document.getElementById('permitFromCompSelect');
+    if (!fromSelect) return;
+
+    if (!pId) {
+        fromSelect.innerHTML = `<option value="">-- Choose Participant First --</option>`;
+        return;
+    }
+
+    // Find competitions this student is registered for
+    const registeredCompIds = new Set(
+        (globalPermitRegistrations || [])
+            .filter(r => String(r.participant_id) === String(pId))
+            .map(r => String(r.competition_id))
+    );
+
+    const registeredComps = (globalPermitCompetitions || []).filter(c => registeredCompIds.has(String(c.id)));
+    const otherComps = (globalPermitCompetitions || []).filter(c => !registeredCompIds.has(String(c.id)));
+
+    let html = `<option value="">-- Choose Registered / Current Competition --</option>`;
+    if (registeredComps.length > 0) {
+        html += `<optgroup label="Registered Events for this Participant">` +
+            registeredComps.map(c => `<option value="${c.id}">${c.name} [${(c.status || 'pending').toUpperCase()}]</option>`).join('') +
+            `</optgroup>`;
+    }
+    if (otherComps.length > 0) {
+        html += `<optgroup label="Other Competitions">` +
+            otherComps.map(c => `<option value="${c.id}">${c.name} [${(c.status || 'pending').toUpperCase()}]</option>`).join('') +
+            `</optgroup>`;
+    }
+
+    fromSelect.innerHTML = html;
+}
+
+async function submitGrantConflictPermit() {
+    const pId = document.getElementById('permitParticipantSelect')?.value;
+    const fromCompId = document.getElementById('permitFromCompSelect')?.value;
+    const toCompId = document.getElementById('permitToCompSelect')?.value;
+    const notes = document.getElementById('permitNotesInput')?.value?.trim() || '';
+
+    if (!pId) return showToast("Please select a participant.", "error");
+    if (!fromCompId) return showToast("Please select the current registered competition (From).", "error");
+    if (!toCompId) return showToast("Please select the target competition (To).", "error");
+    if (fromCompId === toCompId) return showToast("From Competition and To Competition cannot be the same.", "error");
+
+    const participant = (globalPermitParticipants || []).find(p => String(p.id) === String(pId));
+    const fromComp = (globalPermitCompetitions || []).find(c => String(c.id) === String(fromCompId));
+    const toComp = (globalPermitCompetitions || []).find(c => String(c.id) === String(toCompId));
+
+    if (!participant || !fromComp || !toComp) {
+        return showToast("Selected participant or competition record not found.", "error");
+    }
+
+    const btn = document.getElementById('btnSubmitPermit');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Issuing Permit...`;
+    }
+
+    try {
+        await window.festosIssueConflictPermit({
+            participant,
+            fromComp,
+            toComp,
+            notes
+        });
+
+        showToast(`Late entry permit issued for ${participant.name}! Stage controller is authorized to scan late.`, "success");
+        closeGrantConflictPermitModal();
+        await loadConflictPermits();
+    } catch (e) {
+        showToast("Error issuing permit: " + e.message, "error");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-check"></i> Grant Late Entry Permit`;
+        }
+    }
+}
+
+async function revokeConflictPermit(permitId) {
+    openConfirmModal(
+        "Revoke Permit?",
+        "Are you sure you want to revoke this late entry authorization? The stage controller will no longer be permitted to check in this participant late.",
+        async () => {
+            try {
+                await window.festosRevokeConflictPermit(permitId);
+                showToast("Permit revoked successfully.", "success");
+                await loadConflictPermits();
+            } catch (e) {
+                showToast("Error revoking permit: " + e.message, "error");
+            }
+        }
+    );
+}
+
+window.loadConflictPermits = loadConflictPermits;
+window.renderConflictPermitsTable = renderConflictPermitsTable;
+window.openGrantConflictPermitModal = openGrantConflictPermitModal;
+window.closeGrantConflictPermitModal = closeGrantConflictPermitModal;
+window.onPermitParticipantChanged = onPermitParticipantChanged;
+window.submitGrantConflictPermit = submitGrantConflictPermit;
+window.revokeConflictPermit = revokeConflictPermit;
 
 // ============================================================================
 // DIRECT VALUATION ENGINE (BYPASS WORKFLOW)

@@ -2179,6 +2179,7 @@ canvas {
             <div class="nav-sub">
                 <div class="nav-item" onclick="switchTab('categories')">Categories</div>
                 <div class="nav-item" onclick="switchTab('competitions')">Competitions</div>
+                <div class="nav-item" onclick="switchTab('conflict-permits')"><i class="fa-solid fa-ticket-simple" style="margin-right:6px; color:#F59E0B;"></i> Late Entry Permits</div>
                 <div class="nav-item" onclick="switchTab('point-settings')">Point System</div>
                 <div class="nav-item" onclick="switchTab('direct-valuation')">Direct Valuation</div>
                 <div class="nav-item" onclick="switchTab('admin-appeals')">Appeals</div>
@@ -2229,6 +2230,7 @@ canvas {
             <div class="nav-sub">
                 <div class="nav-item" onclick="switchTab('display-control')">Display Control</div>
                 <div class="nav-item" onclick="switchTab('schedule-mgmt')">Event Schedule</div>
+                <div class="nav-item" onclick="switchTab('conflict-permits')"><i class="fa-solid fa-ticket-simple" style="margin-right:6px; color:#F59E0B;"></i> Late Entry Permits</div>
             </div>
         </div>
 
@@ -3498,6 +3500,113 @@ canvas {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cross-Competition Late Entry Permits View -->
+        <div id="conflict-permits" class="content-section">
+            <div class="action-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-ticket-simple" style="color: #F59E0B;"></i> Cross-Competition Late Entry Permits
+                    </h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Authorize a participant to check in late to an ongoing competition because they are attending another event.</p>
+                </div>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                    <button class="btn btn-outline" onclick="loadConflictPermits()"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+                    <button class="btn btn-primary" onclick="openGrantConflictPermitModal()"><i class="fa-solid fa-plus"></i> Issue Late Entry Permit</button>
+                </div>
+            </div>
+
+            <!-- Stats & Filter Bar -->
+            <div class="controls-bar" style="padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg);">
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <span id="permits-count-badge" class="badge badge-primary" style="padding: 6px 12px; font-size: 0.8rem; font-weight: 700;">0 Total Permits</span>
+                    <span id="permits-pending-badge" class="badge" style="background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; padding: 6px 12px; font-size: 0.8rem; font-weight: 700;">0 Pending</span>
+                    <span id="permits-checkedin-badge" class="badge" style="background: #D1FAE5; color: #065F46; border: 1px solid #A7F3D0; padding: 6px 12px; font-size: 0.8rem; font-weight: 700;">0 Checked In</span>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex: 1; max-width: 380px;">
+                    <input type="text" id="permitSearchInput" placeholder="Search participant or competition..." oninput="renderConflictPermitsTable()" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem;">
+                </div>
+            </div>
+
+            <!-- Permits Table -->
+            <div class="table-container" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="background: var(--bg-main); border-bottom: 1px solid var(--border); font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
+                            <th style="padding: 12px 16px;">Participant</th>
+                            <th style="padding: 12px 16px;">Current / Registered Event (From)</th>
+                            <th style="padding: 12px 16px;">Allowed Late Event (To)</th>
+                            <th style="padding: 12px 16px; text-align: center;">Status</th>
+                            <th style="padding: 12px 16px;">Issued At</th>
+                            <th style="padding: 12px 16px; text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="conflictPermitsTableBody">
+                        <tr>
+                            <td colspan="6" style="padding: 3rem 1rem; text-align: center; color: var(--text-muted); font-weight: 500;">
+                                <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.5rem; color: var(--primary); margin-bottom: 0.5rem;"></i><br>
+                                Loading permits...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Issue Conflict Permit Modal -->
+        <div id="grantConflictPermitModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.5); backdrop-filter: blur(6px); z-index: 9999; justify-content: center; align-items: center;">
+            <div class="card" style="width: 100%; max-width: 520px; background: var(--bg-surface); border-radius: 20px; padding: 1.75rem; box-shadow: 0 20px 40px rgba(0,0,0,0.2); border: 1px solid var(--border); max-height: 90vh; overflow-y: auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                    <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-ticket-simple" style="color: #F59E0B;"></i> Issue Late Entry Permit
+                    </h3>
+                    <button class="btn btn-outline" style="border: none; width: 32px; height: 32px; padding: 0; border-radius: 50%;" onclick="closeGrantConflictPermitModal()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.4;">
+                    Authorize this participant to scan and check in to an <strong>ongoing competition</strong> even after the event has started, because they are currently participating in another event.
+                </p>
+
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <!-- 1. Participant Selection -->
+                    <div>
+                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem;">1. SELECT PARTICIPANT</label>
+                        <select id="permitParticipantSelect" onchange="onPermitParticipantChanged()" style="width: 100%; padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-main);">
+                            <option value="">-- Choose Participant --</option>
+                        </select>
+                    </div>
+
+                    <!-- 2. From Competition (Ongoing Registered Event) -->
+                    <div>
+                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem;">2. FROM COMPETITION (CURRENT/REGISTERED)</label>
+                        <select id="permitFromCompSelect" style="width: 100%; padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-main);">
+                            <option value="">-- Choose Ongoing Registered Competition --</option>
+                        </select>
+                        <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; display: block;">The event the student is currently performing in or registered for.</span>
+                    </div>
+
+                    <!-- 3. To Competition (Target Event Allowed for Late Check-in) -->
+                    <div>
+                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem;">3. TO COMPETITION (ALLOW LATE CHECK-IN)</label>
+                        <select id="permitToCompSelect" style="width: 100%; padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-main);">
+                            <option value="">-- Choose Target Competition --</option>
+                        </select>
+                        <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; display: block;">The stage controller of this event will be allowed to scan them after the event has started.</span>
+                    </div>
+
+                    <!-- 4. Notes / Reason -->
+                    <div>
+                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem;">4. NOTES / REASON (OPTIONAL)</label>
+                        <input type="text" id="permitNotesInput" placeholder="e.g. Schedule clash between Stage 1 & Stage 2" style="width: 100%; padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.88rem;">
+                    </div>
+
+                    <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.75rem;">
+                        <button class="btn btn-outline" onclick="closeGrantConflictPermitModal()">Cancel</button>
+                        <button class="btn btn-primary" id="btnSubmitPermit" onclick="submitGrantConflictPermit()"><i class="fa-solid fa-check"></i> Grant Late Entry Permit</button>
                     </div>
                 </div>
             </div>

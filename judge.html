@@ -643,7 +643,12 @@ input, .mark-input { text-transform: none; }
             <div class="card eval-top-card">
                 <div class="eval-header-actions">
                     <button class="btn btn-outline" onclick="closeEvaluation()"><i class="fa-solid fa-arrow-left"></i> Back</button>
-                    <span class="eval-mode-badge"><i class="fa-solid fa-gavel"></i> Evaluation Mode</span>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button class="btn btn-outline" onclick="syncEvaluationParticipants(true)" title="Check for late checked-in participants" style="padding: 4px 10px; font-size: 0.78rem; border-radius: 8px; border-color: var(--primary); color: var(--primary);">
+                            <i class="fa-solid fa-arrows-rotate"></i> Sync
+                        </button>
+                        <span class="eval-mode-badge"><i class="fa-solid fa-gavel"></i> Evaluation Mode</span>
+                    </div>
                 </div>
                 <div class="eval-header">
                     <h2 id="eval-comp-name">Competition Name</h2>

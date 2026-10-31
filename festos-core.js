@@ -1013,6 +1013,9 @@ const festosAuth = {
             festosRefreshSupabaseHeaders();
         }
         festosLogger.log('AUTH', `User ${user.username} logged in as ${user.role} for fest: ${user.fest_id || 'Global'}`, { userId: user.id, role: user.role, festId: user.fest_id }, 'INFO');
+        if (typeof festosMultiRole !== 'undefined' && typeof festosMultiRole.mount === 'function') {
+            setTimeout(() => festosMultiRole.mount(), 50);
+        }
     },
 
     setSuperAdmin(superAdminData) {
@@ -2694,8 +2697,79 @@ if (typeof window !== 'undefined') {
     window.festosHostFestReady = festosDomains.resolveCurrentFest();
 }
 
+// ============================================================================
+// CROSS-COMPETITION LATE ENTRY PERMITS (CLASH MANAGEMENT)
+// ============================================================================
+async function festosGetConflictPermits(forceFresh = false) {
+    try {
+        const val = await festosGetSetting('cross_competition_permits', null, { fresh: forceFresh });
+        return Array.isArray(val) ? val : [];
+    } catch (e) {
+        console.warn('Error fetching conflict permits:', e);
+        return [];
+    }
+}
+
+async function festosSaveConflictPermits(permits) {
+    return await festosSaveSetting('cross_competition_permits', Array.isArray(permits) ? permits : []);
+}
+
+async function festosIssueConflictPermit({ participant, fromComp, toComp, notes = '' }) {
+    if (!participant || !fromComp || !toComp) {
+        throw new Error('Participant, From Competition, and To Competition are required.');
+    }
+    const permits = await festosGetConflictPermits(true);
+    // Remove any existing active pending permit for this same participant & target competition
+    const filtered = permits.filter(p => !(String(p.participant_id) === String(participant.id) && String(p.to_competition_id) === String(toComp.id) && p.status === 'pending'));
+
+    const newPermit = {
+        id: 'permit_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        participant_id: participant.id,
+        participant_name: participant.name,
+        participant_unique_id: participant.unique_id || '',
+        team_name: participant.team_name || (participant.teams?.name || ''),
+        from_competition_id: fromComp.id,
+        from_competition_name: fromComp.name,
+        to_competition_id: toComp.id,
+        to_competition_name: toComp.name,
+        notes: notes || '',
+        status: 'pending', // 'pending' | 'checked_in' | 'revoked'
+        created_at: new Date().toISOString(),
+        checked_in_at: null,
+        code_letter: null
+    };
+
+    filtered.unshift(newPermit);
+    await festosSaveConflictPermits(filtered);
+    return newPermit;
+}
+
+async function festosRevokeConflictPermit(permitId) {
+    const permits = await festosGetConflictPermits(true);
+    const updated = permits.filter(p => String(p.id) !== String(permitId));
+    await festosSaveConflictPermits(updated);
+    return updated;
+}
+
+async function festosMarkPermitCheckedIn(permitId, codeLetter) {
+    const permits = await festosGetConflictPermits(true);
+    const permit = permits.find(p => String(p.id) === String(permitId));
+    if (permit) {
+        permit.status = 'checked_in';
+        permit.checked_in_at = new Date().toISOString();
+        permit.code_letter = codeLetter;
+        await festosSaveConflictPermits(permits);
+    }
+    return permits;
+}
+
 // Expose on window object
 if (typeof window !== 'undefined') {
+    window.festosGetConflictPermits = festosGetConflictPermits;
+    window.festosSaveConflictPermits = festosSaveConflictPermits;
+    window.festosIssueConflictPermit = festosIssueConflictPermit;
+    window.festosRevokeConflictPermit = festosRevokeConflictPermit;
+    window.festosMarkPermitCheckedIn = festosMarkPermitCheckedIn;
     window.FESTOS_BASE_DOMAIN = FESTOS_BASE_DOMAIN;
     window.FESTOS_DEFAULT_FEST_ID = FESTOS_DEFAULT_FEST_ID;
     window.festosDomains = festosDomains;

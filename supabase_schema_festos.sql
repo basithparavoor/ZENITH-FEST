@@ -58,6 +58,7 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS fest_id TEXT;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS password_history JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS team_id UUID;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS roles JSONB DEFAULT '[]'::jsonb;
 
 ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS fest_id TEXT;
 ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS eligible_classes JSONB DEFAULT '[]'::jsonb;

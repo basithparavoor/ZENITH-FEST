@@ -388,7 +388,103 @@ async function openEvaluation(compId) {
         `;
     });
     setTimeout(adjustLayoutPadding, 50);
+
+    if (evalSyncTimer) clearInterval(evalSyncTimer);
+    evalSyncTimer = setInterval(() => {
+        syncEvaluationParticipants(false);
+    }, 10000);
 }
+
+// Live sync newly checked-in participants without disrupting typed marks
+let evalSyncTimer = null;
+
+async function syncEvaluationParticipants(manual = false) {
+    if (!currentCompId) return;
+
+    try {
+        const { data: registrations, error } = await supabaseClient
+            .from('participant_competitions')
+            .select('participant_id, code_letter, is_leader, group_id, competitions(is_group)')
+            .eq('competition_id', currentCompId)
+            .eq('is_present', true)
+            .order('code_letter', { ascending: true });
+
+        if (error || !registrations) return;
+
+        const container = document.getElementById('participants-container');
+        if (!container) return;
+
+        // Collect existing participant IDs in DOM
+        const existingPids = new Set();
+        container.querySelectorAll('.participant-row').forEach(row => {
+            const pId = row.getAttribute('data-pid');
+            if (pId) existingPids.add(String(pId));
+        });
+
+        let addedCount = 0;
+        registrations.forEach(reg => {
+            if (!existingPids.has(String(reg.participant_id))) {
+                // If container has placeholder message, clear it
+                if (existingPids.size === 0) {
+                    container.innerHTML = '';
+                }
+
+                const isGroupEvent = reg.competitions?.is_group;
+                let roleBadge = '';
+                if (isGroupEvent) {
+                    roleBadge = reg.is_leader 
+                        ? `<span style="background: var(--primary-light); color: var(--primary); font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block;">Leader</span>`
+                        : `<span style="background: #E2E8F0; color: #475569; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block;">Party</span>`;
+                }
+
+                const newRow = document.createElement('div');
+                newRow.className = 'participant-row';
+                newRow.setAttribute('data-pid', reg.participant_id);
+                newRow.style.animation = 'fadeIn 0.3s ease';
+                newRow.innerHTML = `
+                    <div class="participant-main">
+                        <div class="participant-info">
+                            <div class="code-letter">
+                                ${reg.code_letter || '?'}
+                            </div>
+                            <div class="participant-meta">
+                                <span class="participant-label">Participant</span>
+                                <span class="participant-code">${reg.code_letter ? 'Code ' + reg.code_letter : 'Unknown'}</span>
+                                ${roleBadge ? `<div style="margin-top: 2px;">${roleBadge}</div>` : ''}
+                            </div>
+                        </div>
+                        <div class="mark-wrapper">
+                            <input type="number" 
+                                   class="mark-input" 
+                                   placeholder="00.0" 
+                                   min="0" 
+                                   max="${currentMaxMark}" 
+                                   step="0.5" 
+                                   inputmode="decimal"
+                                   oninput="validateMark(this, ${currentMaxMark})">
+                            <div class="max-mark-divider"></div>
+                            <span class="max-mark-label">${currentMaxMark}</span>
+                        </div>
+                    </div>
+                    <textarea class="feedback-input" rows="2" placeholder="ADD CONSTRUCTIVE FEEDBACK (OPTIONAL)..."></textarea>
+                `;
+                container.appendChild(newRow);
+                existingPids.add(String(reg.participant_id));
+                addedCount++;
+            }
+        });
+
+        if (addedCount > 0) {
+            showToast(`${addedCount} new participant(s) added to evaluation!`, "info");
+            adjustLayoutPadding();
+        } else if (manual) {
+            showToast("Participants list is up to date.", "info");
+        }
+    } catch (e) {
+        console.warn("Error syncing evaluation participants:", e);
+    }
+}
+window.syncEvaluationParticipants = syncEvaluationParticipants;
 
 // 4. Validate Input Live
 function validateMark(input, max) {
@@ -475,6 +571,10 @@ async function submitJudgement() {
 }
 
 function closeEvaluation() {
+    if (evalSyncTimer) {
+        clearInterval(evalSyncTimer);
+        evalSyncTimer = null;
+    }
     const filterBtn = document.getElementById('filter-toggle-btn');
     if (filterBtn) filterBtn.style.display = 'inline-flex';
 
