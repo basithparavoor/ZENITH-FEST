@@ -105,15 +105,30 @@ function isCompScheduledTimeEnded(comp) {
 }
 window.isCompScheduledTimeEnded = isCompScheduledTimeEnded;
 
+function isStageAssignedToUser(stage, userId) {
+    if (!stage || !userId) return false;
+    const map = window.stageControllersMap;
+    if (map && map[stage.id] && Array.isArray(map[stage.id])) {
+        if (map[stage.id].includes(userId)) return true;
+    }
+    return stage.controller_id === userId;
+}
+window.isStageAssignedToUser = isStageAssignedToUser;
+
 async function loadDashboard() {
     const container = document.getElementById('competitions-container');
     container.innerHTML = `<div style="text-align:center; padding: 3rem;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i><p style="margin-top: 1rem; color: var(--text-muted); font-weight: 600;">Loading Stage Data...</p></div>`;
 
-    // Fetch all stages for this festival
+    // Fetch all stages for this festival and stage controllers mapping
     let stagesQuery = supabaseClient.from('stages').select('id, name, stage_no, controller_id').order('stage_no');
     if (window.festosApplyFilter) stagesQuery = window.festosApplyFilter(stagesQuery);
-    const { data: stages } = await stagesQuery;
-    window.allStagesList = stages || [];
+    const [stagesRes, stageControllersVal] = await Promise.all([
+        stagesQuery,
+        window.festosGetSetting ? window.festosGetSetting('stage_controllers_map') : (supabaseClient.from('settings').select('value').eq('id', 'stage_controllers_map').maybeSingle().then(r => r.data?.value))
+    ]);
+    const stages = stagesRes.data || [];
+    window.stageControllersMap = stageControllersVal || {};
+    window.allStagesList = stages;
 
     const filterContainer = document.getElementById('master-filter-container');
     const filterDropdown = document.getElementById('master-stage-filter');
@@ -143,8 +158,8 @@ async function loadDashboard() {
         return;
     }
 
-    // Role is stage_controller: strictly show ONLY stages assigned to this controller
-    const myStages = (stages || []).filter(s => s.controller_id === user.id);
+    // Role is stage_controller: show stages assigned to this controller (supports multiple controllers per stage)
+    const myStages = (stages || []).filter(s => isStageAssignedToUser(s, user.id));
 
     if (myStages.length === 0) {
         if (filterContainer) filterContainer.style.display = 'none';
@@ -203,7 +218,7 @@ window.addEventListener('resize', adjustLayoutPadding);
 
 async function loadCompetitions(stageId) {
     const isAdmin = (user.role === 'master_admin' || user.role === 'admin' || user.role === 'super_admin');
-    const myStages = (window.allStagesList || []).filter(s => s.controller_id === user.id);
+    const myStages = (window.allStagesList || []).filter(s => isStageAssignedToUser(s, user.id));
     const myStageIds = myStages.map(s => s.id);
 
     // Strict Stage Isolation: If stage controller is assigned to stage(s), enforce isolation

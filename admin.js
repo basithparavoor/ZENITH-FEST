@@ -2558,22 +2558,28 @@ window.closeConfirmModal = closeConfirmModal;
 // --- STAGES & TEAMS MANAGEMENT ---
 async function loadStagesAndTeams() {
     try {
-        const [stagesRes, teamsRes, stageFlagsVal] = await Promise.all([
+        const [stagesRes, teamsRes, stageFlagsVal, stageControllersVal] = await Promise.all([
             festQuery(supabaseClient.from('stages').select(`*, users(username), competitions(count)`)).order('stage_no'),
             festQuery(supabaseClient.from('teams').select('*, participants(count), users(id, username, password_hash, role)')).order('name'),
-            window.festosGetSetting ? window.festosGetSetting('stage_offstage_flags') : (supabaseClient.from('settings').select('value').eq('id', 'stage_offstage_flags').maybeSingle().then(r => r.data?.value))
+            window.festosGetSetting ? window.festosGetSetting('stage_offstage_flags') : (supabaseClient.from('settings').select('value').eq('id', 'stage_offstage_flags').maybeSingle().then(r => r.data?.value)),
+            window.festosGetSetting ? window.festosGetSetting('stage_controllers_map') : (supabaseClient.from('settings').select('value').eq('id', 'stage_controllers_map').maybeSingle().then(r => r.data?.value))
         ]);
         
         if (stagesRes.error) throw stagesRes.error;
         if (teamsRes.error) throw teamsRes.error;
         
         window.stageOffstageFlags = stageFlagsVal || {};
+        window.stageControllersMap = stageControllersVal || {};
         stagesList = stagesRes.data || [];
         stagesList.forEach(s => {
             s.is_offstage = (window.stageOffstageFlags && window.stageOffstageFlags[s.id] !== undefined)
                 ? !!window.stageOffstageFlags[s.id]
                 : (s.name && s.name.toUpperCase().includes('OFFSTAGE'));
         });
+
+        // Fetch all stage controller users to map their names cleanly in the table
+        const { data: allControllers } = await festQuery(supabaseClient.from('users').select('id, username')).eq('role', 'stage_controller');
+        availableControllers = allControllers || [];
 
         teamsList = teamsRes.data || [];
         if (typeof populateBulkStageSelect === 'function') populateBulkStageSelect();
@@ -2587,18 +2593,38 @@ async function loadStagesAndTeams() {
                 ? `<span class="badge" style="background:#FEF3C7; color:#D97706; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:4px; margin-top:4px; display:inline-block;"><i class="fa-solid fa-layer-group"></i> OFFSTAGE VENUE</span>`
                 : `<span class="badge" style="background:#EEF2FF; color:#4F46E5; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:4px; margin-top:4px; display:inline-block;"><i class="fa-solid fa-microphone-lines"></i> ONSTAGE VENUE</span>`;
 
+            // Resolve all assigned controllers for this stage (multi-controller support)
+            const assignedIds = (window.stageControllersMap && window.stageControllersMap[s.id] && Array.isArray(window.stageControllersMap[s.id]))
+                ? window.stageControllersMap[s.id]
+                : (s.controller_id ? [s.controller_id] : []);
+            
+            const controllerNames = assignedIds.map(cid => {
+                const u = availableControllers.find(usr => usr.id === cid);
+                return u ? u.username : null;
+            }).filter(Boolean);
+
+            if (controllerNames.length === 0 && s.users?.username) {
+                controllerNames.push(s.users.username);
+            }
+
+            const controllerBadges = controllerNames.length > 0
+                ? controllerNames.map(cn => `<span style="display:inline-block; background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; padding:1px 7px; border-radius:5px; font-weight:700; font-size:0.76rem; margin:1px 2px;"><i class="fa-solid fa-user-check" style="font-size:0.7rem; margin-right:3px;"></i> ${escapeSheetHtml(cn)}</span>`).join('')
+                : '<span style="color:var(--text-muted); font-size:0.75rem; font-style:italic;">None Assigned</span>';
+
             stbody.innerHTML += `
                 <tr>
                     <td>
                         <strong>${escapeSheetHtml(s.name)}</strong><br>
-                        <small style="color:var(--text-muted)">CONTROLLER: ${s.users?.username || 'NONE'}</small><br>
+                        <div style="font-size:0.78rem; margin: 4px 0 2px 0;">
+                            <span style="color:var(--text-muted); font-weight:700;">CONTROLLERS (${controllerNames.length}):</span> ${controllerBadges}
+                        </div>
                         ${modeBadge}
                     </td>
                     <td>STAGE ${s.stage_no}</td>
                     <td><span class="badge-count" onclick="viewRelationalData('competitions', 'stage_id', '${s.id}')">${compCount} COMPS</span></td>
                     <td>
                         <div style="display: flex; gap: 0.5rem;">
-                            <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openStageModal(${JSON.stringify(s).replace(/'/g, "&apos;")})' title="Edit Stage"><i class="fa-solid fa-pen"></i></button>
+                            <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick='openStageModal(${JSON.stringify(s).replace(/'/g, "&apos;")})' title="Edit Stage & Controllers"><i class="fa-solid fa-pen"></i></button>
                             <button class="btn btn-danger" style="padding:0.4rem 0.75rem;" onclick="deleteStage('${s.id}', '${s.name.replace(/'/g, "\\'")}')" title="Delete Stage"><i class="fa-solid fa-trash"></i></button>
                         </div>
                     </td>
@@ -2676,6 +2702,25 @@ function deleteStage(id, name) {
             try {
                 const { error } = await supabaseClient.from('stages').delete().eq('id', id); 
                 if (error) throw error;
+
+                // Clean up stage controllers map and offstage flags
+                if (window.stageControllersMap && window.stageControllersMap[id]) {
+                    delete window.stageControllersMap[id];
+                    if (window.festosSaveSetting) {
+                        await window.festosSaveSetting('stage_controllers_map', window.stageControllersMap);
+                    } else {
+                        await supabaseClient.from('settings').upsert({ id: 'stage_controllers_map', value: window.stageControllersMap });
+                    }
+                }
+                if (window.stageOffstageFlags && window.stageOffstageFlags[id]) {
+                    delete window.stageOffstageFlags[id];
+                    if (window.festosSaveSetting) {
+                        await window.festosSaveSetting('stage_offstage_flags', window.stageOffstageFlags);
+                    } else {
+                        await supabaseClient.from('settings').upsert({ id: 'stage_offstage_flags', value: window.stageOffstageFlags });
+                    }
+                }
+
                 showToast('Stage deleted successfully.');
                 loadStagesAndTeams(); 
             } catch(e) { 
@@ -2716,15 +2761,49 @@ async function openStageModal(editData = null) {
             ? (editData.is_offstage !== undefined ? editData.is_offstage : (window.stageOffstageFlags && !!window.stageOffstageFlags[editData.id]))
             : false;
         
-        let controllerOpts = availableControllers.map(c => 
-            `<option value="${c.id}" ${isEdit && editData.controller_id === c.id ? 'selected' : ''}>${c.username}</option>`
-        ).join('');
+        // Resolve currently assigned controllers (supporting multiple controllers)
+        const assignedIds = isEdit
+            ? ((window.stageControllersMap && window.stageControllersMap[editData.id] && Array.isArray(window.stageControllersMap[editData.id]))
+                ? window.stageControllersMap[editData.id]
+                : (editData.controller_id ? [editData.controller_id] : []))
+            : [];
+        
+        let controllerListHtml = '';
+        if (availableControllers.length > 0) {
+            controllerListHtml = availableControllers.map(c => {
+                const isChecked = assignedIds.includes(c.id);
+                return `
+                    <label style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1.5px solid ${isChecked ? 'var(--primary)' : 'var(--border)'}; background: ${isChecked ? 'var(--primary-light)' : 'var(--bg-surface)'}; cursor: pointer; transition: all 0.2s; user-select: none;">
+                        <div style="display: flex; align-items: center; gap: 0.65rem;">
+                            <input type="checkbox" class="stage-controller-cb" value="${c.id}" ${isChecked ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;" onchange="this.closest('label').style.background = this.checked ? 'var(--primary-light)' : 'var(--bg-surface)'; this.closest('label').style.borderColor = this.checked ? 'var(--primary)' : 'var(--border)';">
+                            <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);"><i class="fa-solid fa-user-gear" style="color: var(--primary); margin-right: 5px;"></i> ${escapeSheetHtml(c.username)}</span>
+                        </div>
+                        <span style="font-size: 0.7rem; font-weight: 800; color: ${isChecked ? 'var(--primary)' : 'var(--text-muted)'}; background: ${isChecked ? '#EEF2FF' : 'var(--bg-main)'}; padding: 2px 7px; border-radius: 4px;">Controller</span>
+                    </label>
+                `;
+            }).join('');
+        } else {
+            controllerListHtml = `
+                <div style="color: var(--text-muted); font-size: 0.85rem; padding: 1rem; text-align: center; background: var(--bg-main); border-radius: 8px; border: 1px dashed var(--border);">
+                    <i class="fa-solid fa-circle-info" style="margin-right: 4px;"></i> No Stage Controller accounts found. Create them in the <strong>Users</strong> tab with role <em>Stage Controller</em>.
+                </div>
+            `;
+        }
         
         openModal(isEdit ? 'Edit Stage / Venue' : 'Add Stage / Venue', `
             <input type="hidden" id="stageId" value="${sId}">
             <div class="form-group"><label>Stage / Venue Name</label><input type="text" id="stageName" value="${escapeSheetHtml(sName)}" placeholder="e.g. Main Auditorium, Stage 1, Drawing Hall"></div>
             <div class="form-group"><label>Stage Number (ID)</label><input type="number" id="stageNo" value="${sNo}"></div>
-            <div class="form-group"><label>Assign Controller</label><select id="stageController"><option value="">-- SELECT CONTROLLER --</option>${controllerOpts}</select></div>
+            
+            <div class="form-group">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                    <label style="margin: 0; font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-users" style="color: var(--primary); margin-right: 4px;"></i> Assign Stage Controllers (Multiple Allowed)</label>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">Check all who can manage this stage</span>
+                </div>
+                <div style="max-height: 190px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.45rem; padding: 0.25rem 0.1rem; border: 1px solid var(--border); border-radius: 10px; padding: 8px; background: var(--bg-main);">
+                    ${controllerListHtml}
+                </div>
+            </div>
 
             <div class="form-group" style="display: flex; align-items: flex-start; gap: 0.85rem; background: #FEF3C7; padding: 1rem; border-radius: var(--radius-md); border: 1.5px solid #FDE68A; margin-top: 1rem;">
                 <input type="checkbox" id="stageIsOffstage" ${sIsOffstage ? 'checked' : ''} style="width: 22px; height: 22px; accent-color: #D97706; cursor: pointer; margin-top: 2px;">
@@ -2741,13 +2820,15 @@ async function openStageModal(editData = null) {
             const id = document.getElementById('stageId').value;
             const name = document.getElementById('stageName').value;
             const stage_no = document.getElementById('stageNo').value;
-            const controller_id = document.getElementById('stageController').value || null;
+            const selectedControllerCbs = Array.from(document.querySelectorAll('.stage-controller-cb:checked'));
+            const selectedControllerIds = selectedControllerCbs.map(cb => cb.value);
+            const primaryControllerId = selectedControllerIds[0] || null;
             const isOffstage = document.getElementById('stageIsOffstage')?.checked || false;
             
             if(!name || !stage_no) return showToast('Name and Number required', 'error');
             
             setLoading('modalSaveBtn', true);
-            const payload = { name, stage_no, controller_id };
+            const payload = { name, stage_no, controller_id: primaryControllerId };
             if (id) payload.id = id;
 
             const { data: upsertData, error } = await supabaseClient.from('stages').upsert([festPayload(payload)]).select();
@@ -2757,9 +2838,18 @@ async function openStageModal(editData = null) {
                 return showToast(error.message, 'error');
             }
 
-            // Persist the offstage venue flag in settings
             const savedStageId = id || (upsertData && upsertData[0] ? upsertData[0].id : null);
             if (savedStageId) {
+                // 1. Persist multiple controllers map in settings
+                window.stageControllersMap = window.stageControllersMap || {};
+                window.stageControllersMap[savedStageId] = selectedControllerIds;
+                if (window.festosSaveSetting) {
+                    await window.festosSaveSetting('stage_controllers_map', window.stageControllersMap);
+                } else {
+                    await supabaseClient.from('settings').upsert({ id: 'stage_controllers_map', value: window.stageControllersMap });
+                }
+
+                // 2. Persist the offstage venue flag in settings
                 window.stageOffstageFlags = window.stageOffstageFlags || {};
                 window.stageOffstageFlags[savedStageId] = isOffstage;
                 if (window.festosSaveSetting) {
