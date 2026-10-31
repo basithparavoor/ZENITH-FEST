@@ -1205,7 +1205,7 @@ async function executeStateChange(compId, newStatus, btnElement, loadingText) {
 
         const { error } = await supabaseClient
             .from('competitions')
-            .update({ status: newStatus })
+            .update({ status: newStatus, updated_at: new Date().toISOString() })
             .eq('id', compId);
 
         if (error) throw error;

@@ -880,7 +880,7 @@ async function publishCompetition(compId, btnElement) {
     openConfirmModal("Publish Results?", "Push final standings to the Live Portal immediately?", async () => {
         btnElement.disabled = true;
         btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Publishing...';
-        await window.db.from('competitions').update({ status: 'published' }).eq('id', compId);
+        await window.db.from('competitions').update({ status: 'published', updated_at: new Date().toISOString() }).eq('id', compId);
         showToast("Results published!", "success");
         loadPublishableComps(); 
     });
@@ -968,7 +968,7 @@ async function revertPublishedResult(compId, btnElement) {
         btnElement.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Reverting...';
 
         const { error } = await window.db.from('competitions')
-            .update({ status: 'judgement_complete' }) 
+            .update({ status: 'judgement_complete', updated_at: new Date().toISOString() }) 
             .eq('id', compId);
 
         if (error) {
@@ -1287,7 +1287,7 @@ async function managerEndCompetition(compId, btnElement) {
             }
             try {
                 const { error } = await window.db.from('competitions')
-                    .update({ status: targetStatus })
+                    .update({ status: targetStatus, updated_at: new Date().toISOString() })
                     .eq('id', compId);
 
                 if (error) throw error;
@@ -1399,7 +1399,7 @@ async function managerStartCompetition(compId, targetStatus, btnElement) {
             }
             try {
                 const { error } = await window.db.from('competitions')
-                    .update({ status: targetStatus })
+                    .update({ status: targetStatus, updated_at: new Date().toISOString() })
                     .eq('id', compId);
 
                 if (error) throw error;
