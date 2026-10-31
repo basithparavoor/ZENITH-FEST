@@ -303,7 +303,7 @@
 
         .container { padding: 2rem 2.5rem; width: 100%; max-width: 1400px; margin: 0 auto; }
         
-        .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+        .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 1.5rem; width: 100%; max-width: 100%; box-sizing: border-box; }
         
         /* --- PREMIUM CONTROLS & FILTERS --- */
         .filter-bar { 
@@ -1230,26 +1230,78 @@
                 width: 100%;
             }
 
-            /* --- MOBILE CARDS (Glassmorphism) --- */
-            .grid-layout { grid-template-columns: 1fr; gap: 1.25rem; }
+            /* --- MOBILE CARDS & CONTAINER (FLUID RESPONSIVE) --- */
+            .grid-layout { 
+                grid-template-columns: minmax(0, 1fr) !important; 
+                gap: 1rem !important; 
+                width: 100% !important; 
+                max-width: 100% !important; 
+                box-sizing: border-box !important; 
+            }
             .card { 
-                padding: 1.5rem; 
-                border-radius: var(--radius-xl); 
+                padding: 1.15rem 1rem !important; 
+                border-radius: 14px !important; 
                 box-shadow: 0 2px 8px rgba(0,0,0,0.03); 
+                width: 100% !important; 
+                max-width: 100% !important; 
+                min-width: 0 !important; 
+                box-sizing: border-box !important; 
+                overflow: hidden !important; 
             }
             .card:hover { transform: none; }
             
-            .btn-main { min-height: 48px; font-size: 1rem; }
+            .btn-main { min-height: 44px; font-size: 0.95rem; }
             
             /* Inner Card Data List Fixes */
-            #view-awards .data-item { flex-direction: column; align-items: stretch; gap: 1rem; }
-            #view-awards .data-item > button { width: 100%; min-height: 48px; justify-content: center; }
+            #view-awards .data-item { flex-direction: column; align-items: stretch; gap: 0.75rem; padding: 0.85rem; }
+            #view-awards .data-item > button { width: 100%; min-height: 44px; justify-content: center; }
             
-            /* Fixed Results Layout - Keeps items on one line, neatly stacked */
-            #view-results .data-item { flex-direction: row; align-items: center; gap: 0.5rem; padding: 0.85rem 1rem; }
+            /* Fixed Results Layout - Prevents horizontal blowout and allows full name wrapping */
+            #view-results .filter-bar {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0.5rem !important;
+                padding: 0 !important;
+                margin-bottom: 1rem !important;
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            #view-results .filter-bar .btn-pdf-small {
+                width: 100% !important;
+                min-height: 42px !important;
+                box-sizing: border-box !important;
+            }
+            #view-results .data-item { 
+                display: flex !important;
+                flex-direction: row !important; 
+                align-items: center !important; 
+                justify-content: space-between !important;
+                gap: 0.65rem !important; 
+                padding: 0.75rem 0.85rem !important; 
+                box-sizing: border-box !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
             #view-results .data-item > div:first-child { flex: 1; min-width: 0; }
-            #view-results .data-item > div:last-child { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; border: none; padding-top: 0; width: auto; gap: 0.35rem; }
-            #view-results .data-item > div:last-child span:first-child { margin-right: 0 !important; font-size: 1.05rem !important; }
+            #view-results .data-item > div:last-child { 
+                display: flex; 
+                flex-direction: column; 
+                align-items: flex-end; 
+                justify-content: center; 
+                border: none; 
+                padding-top: 0; 
+                width: auto; 
+                gap: 0.2rem; 
+                flex-shrink: 0;
+            }
+            #view-results .data-item > div:last-child span:first-child { 
+                margin-right: 0 !important; 
+                font-size: 1.1rem !important; 
+                font-weight: 800 !important;
+            }
         }
     
         /* Direct Announce Card Buttons & Interactive Actions */
@@ -1487,7 +1539,7 @@
             </div>
 
             <div id="view-results" class="tab-content view-section hidden">
-                <div class="filter-bar" style="margin-bottom: 1.5rem; justify-content: flex-end; gap: 0.75rem; padding: 0.5rem 1rem; background: transparent; border: none; box-shadow: none;">
+                <div class="filter-bar" style="margin-bottom: 1.25rem; justify-content: flex-end; gap: 0.75rem; padding: 0.5rem 0; background: transparent; border: none; box-shadow: none; flex-wrap: wrap; width: 100%; box-sizing: border-box;">
                     <button class="btn-pdf-small" onclick="downloadAllResultsCSV()" style="color: var(--success); border-color: rgba(16, 185, 129, 0.3);">
                         <i class="fa-solid fa-file-csv"></i> Download CSV
                     </button>
@@ -2430,17 +2482,25 @@ if (allCompIds.length > 0) {
 
                 if(resultsList.length > 0) {
                     const rows = resultsList.map((r, idx) => `
-                        <div class="data-item" style="gap: 1rem;">
-                            <div style="display:flex; gap: 1rem; align-items:center; flex: 1; min-width: 0;">
-                                <span class="pos-${r.position <= 3 ? r.position : '0'}" style="flex-shrink: 0;">#${r.position}</span><button type="button" class="btn-row-speak" onclick="speakSingleWinnerByIndex('${comp.id}', ${idx}, event)" title="Direct Announce This Winner"><i class="fa-solid fa-volume-high"></i></button>
-                                <div style="min-width: 0; overflow: hidden;">
-                                    <strong style="color: var(--text-main); font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.participant.name} ${r.participant.class_name ? `<span style="font-size:0.7rem; background:#EEF2FF; color:#4F46E5; padding:1px 6px; border-radius:4px; margin-left:4px; font-weight:700;"><i class="fa-solid fa-graduation-cap" style="margin-right:2px;"></i>${r.participant.class_name}</span>` : ''}</strong>
-                                    <small style="color:var(--text-muted); font-family: monospace; font-weight: 500; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.participant.teams?.name || 'IND'}${r.participant.class_name ? ` • Class: ${r.participant.class_name}` : ''}</small>
+                        <div class="data-item result-data-row" style="display: flex; justify-content: space-between; align-items: center; gap: 0.65rem; padding: 0.75rem 0.85rem; width: 100%; box-sizing: border-box;">
+                            <div style="display: flex; gap: 0.55rem; align-items: flex-start; flex: 1; min-width: 0;">
+                                <span class="pos-${r.position <= 3 ? r.position : '0'}" style="flex-shrink: 0; margin-top: 2px;">#${r.position}</span>
+                                <button type="button" class="btn-row-speak" onclick="speakSingleWinnerByIndex('${comp.id}', ${idx}, event)" title="Direct Announce This Winner" style="flex-shrink: 0; margin-top: 2px; width: 30px; height: 30px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;">
+                                    <i class="fa-solid fa-volume-high" style="font-size: 0.75rem;"></i>
+                                </button>
+                                <div style="flex: 1; min-width: 0;">
+                                    <strong style="color: var(--text-main); font-size: 0.92rem; font-weight: 700; line-height: 1.35; display: block; word-break: break-word;">
+                                        ${r.participant.name}
+                                        ${r.participant.class_name ? `<span style="font-size:0.7rem; background:#EEF2FF; color:#4F46E5; padding:1px 6px; border-radius:4px; margin-left:4px; font-weight:700; display:inline-block;"><i class="fa-solid fa-graduation-cap" style="margin-right:2px;"></i>${r.participant.class_name}</span>` : ''}
+                                    </strong>
+                                    <small style="color: var(--text-muted); font-size: 0.78rem; font-weight: 500; display: block; word-break: break-word; margin-top: 2px;">
+                                        ${r.participant.teams?.name || 'IND'}${r.participant.unique_id ? ` • ${r.participant.unique_id}` : ''}
+                                    </small>
                                 </div>
                             </div>
-                            <div style="text-align: right; flex-shrink: 0;">
-                                <span style="font-weight: 700; color: var(--primary); font-size: 1.15rem; margin-right: 10px;">${r.grade}</span>
-                                <span style="font-size:0.75rem; font-weight:600; background: var(--input-bg); color: var(--text-muted); padding: 0.35rem 0.65rem; border-radius: 6px; border: 1px solid var(--border);">${r.points} PTS</span>
+                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 0.2rem; min-width: 50px;">
+                                <span style="font-weight: 800; color: var(--primary); font-size: 1.1rem; line-height: 1;">${r.grade}</span>
+                                <span style="font-size: 0.72rem; font-weight: 700; background: #F1F5F9; color: #475569; padding: 2px 6px; border-radius: 5px; border: 1px solid #E2E8F0; white-space: nowrap;">${r.points} PTS</span>
                             </div>
                         </div>`).join('');
 
