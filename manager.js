@@ -334,12 +334,17 @@ function renderGrid(competitions) {
             `;
         } else if (timeEnded) {
             noticeBanner = `
-                <div style="background: #FFFBEB; border: 1.5px solid #FDE68A; border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                <div style="background: #FFFBEB; border: 1.5px solid #FDE68A; border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
                     <div style="display: flex; align-items: center; gap: 0.5rem; color: #B45309; font-size: 0.82rem; font-weight: 700;">
                         <i class="ph-fill ph-clock-countdown" style="font-size: 1.15rem; color: #D97706;"></i>
                         <span>Scheduled Time Elapsed</span>
                     </div>
-                    <span style="font-size: 0.72rem; color: #B45309; background: #FEF3C7; padding: 2px 7px; border-radius: 4px; font-weight: 800;">OVERDUE</span>
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <span style="font-size: 0.72rem; color: #B45309; background: #FEF3C7; padding: 2px 7px; border-radius: 4px; font-weight: 800;">OVERDUE</span>
+                        <button class="btn btn-sm btn-danger" style="padding: 2px 8px; font-size: 0.72rem; font-weight: 800;" onclick="managerDirectComplete('${comp.id}', this)" title="Stage Controller didn't click End. Force end and push to Manager Queue">
+                            <i class="ph-bold ph-stop-circle"></i> End Event
+                        </button>
+                    </div>
                 </div>
             `;
         }
@@ -378,8 +383,11 @@ function renderGrid(competitions) {
             `;
         } else if (comp.status === 'valuation') {
             actionButtonsHTML = `
-                <button class="btn btn-sm btn-warning" style="flex: 1; padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="switchTab('valuation')">
-                    <i class="ph-bold ph-pencil-simple-line"></i> Open Valuation
+                <button class="btn btn-sm btn-danger" style="flex: 1; padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="managerDirectComplete('${comp.id}', this)" title="End competition & push to publish queue">
+                    <i class="ph-bold ph-stop-circle"></i> End Competition
+                </button>
+                <button class="btn btn-sm btn-warning" style="padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="switchTab('valuation')" title="Open Valuation View">
+                    <i class="ph-bold ph-pencil-simple-line"></i> Valuation
                 </button>
                 <button class="btn btn-sm btn-outline" style="color: #7E22CE; border-color: #D8B4FE; padding: 0.45rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="openManagerRedoModal('${comp.id}')">
                     <i class="ph-bold ph-arrow-counter-clockwise"></i> Redo
@@ -1270,12 +1278,14 @@ async function openStatsModal() {
 // MANAGER DIRECT EVENT CONTROLS (END / REDO / START)
 // ==========================================
 
-async function managerEndCompetition(compId, btnElement) {
+async function managerEndCompetition(compId, btnElement, directToComplete = false) {
     const comp = allCompetitions.find(c => c.id === compId);
     const compName = comp ? comp.name : 'this competition';
-    const isOffstage = comp && (comp.type === 'offstage' || (comp.stages && comp.stages.name && comp.stages.name.toLowerCase().includes('offstage')));
-    const targetStatus = isOffstage ? 'valuation' : 'judgement_complete';
-    const targetLabel = isOffstage ? 'In Valuation (Offstage)' : 'Completed (Awaiting Manager)';
+    const isOffstage = comp && (comp.type === 'offstage' || comp.is_offstage || (comp.stages && comp.stages.name && comp.stages.name.toLowerCase().includes('offstage')));
+    
+    // If directToComplete or already in valuation, push to judgement_complete
+    const targetStatus = (directToComplete || (comp && comp.status === 'valuation')) ? 'judgement_complete' : (isOffstage ? 'valuation' : 'judgement_complete');
+    const targetLabel = targetStatus === 'valuation' ? 'In Valuation (Offstage)' : 'Completed (Awaiting Manager)';
 
     openConfirmModal(
         "End Competition?",
@@ -1293,6 +1303,8 @@ async function managerEndCompetition(compId, btnElement) {
                 if (error) throw error;
                 showToast(`"${compName}" marked as ${targetLabel}!`, 'success');
                 loadAssignments();
+                if (typeof loadValuations === 'function') loadValuations();
+                if (typeof loadPendingPublishCount === 'function') loadPendingPublishCount();
             } catch (err) {
                 console.error("Error ending competition:", err);
                 showToast("Failed to end competition: " + err.message, 'error');
@@ -1304,6 +1316,11 @@ async function managerEndCompetition(compId, btnElement) {
         }
     );
 }
+
+async function managerDirectComplete(compId, btnElement) {
+    return managerEndCompetition(compId, btnElement, true);
+}
+window.managerDirectComplete = managerDirectComplete;
 
 function openManagerRedoModal(compId) {
     const comp = allCompetitions.find(c => c.id === compId);
@@ -2313,6 +2330,15 @@ function filterValuations() {
             </div>
 
             ${judgeSectionHtml}
+
+            <div style="display: flex; gap: 0.5rem; margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.75rem; flex-wrap: wrap;">
+                <button class="btn btn-sm btn-danger" style="flex: 1; padding: 0.5rem 0.85rem; font-size: 0.82rem; font-weight: 700;" onclick="managerDirectComplete('${comp.id}', this)" title="End competition & push to publish queue">
+                    <i class="ph-bold ph-stop-circle"></i> End Competition &amp; Send to Publish Queue
+                </button>
+                <button class="btn btn-sm btn-outline" style="color: #7E22CE; border-color: #D8B4FE; padding: 0.5rem 0.85rem; font-size: 0.82rem; font-weight: 700;" onclick="openManagerRedoModal('${comp.id}')" title="Revert competition status">
+                    <i class="ph-bold ph-arrow-counter-clockwise"></i> Redo / Revert
+                </button>
+            </div>
         `;
         grid.appendChild(card);
     });
