@@ -863,7 +863,11 @@ function getButtonsForStatus(comp) {
     }
     
     if (comp.status === 'ongoing') {
-        const lateEntryBtn = `<button class="btn btn-outline btn-full" style="color: var(--primary); border-color: var(--primary); margin-bottom: 0.25rem !important;" onclick="openScannerModal('${comp.id}', '${safeName}', true)" title="Scan pending participant with Admin Late Entry Permit"><i class="fa-solid fa-user-clock"></i> SCAN LATE ENTRY (PERMIT)</button>`;
+        const enrolled = comp.participant_competitions || [];
+        const pendingCount = enrolled.filter(p => !p.is_present && !p.code_letter).length;
+        const lateEntryBtn = pendingCount > 0
+            ? `<button class="btn btn-outline btn-full" style="color: var(--primary); border-color: var(--primary); margin-bottom: 0.25rem !important;" onclick="openScannerModal('${comp.id}', '${safeName}', true)" title="Scan pending participant with Admin Late Entry Permit (${pendingCount} pending)"><i class="fa-solid fa-user-clock"></i> SCAN LATE ENTRY (PERMIT)</button>`
+            : '';
 
         if (isOff) {
             return `
