@@ -1583,7 +1583,8 @@ function renderLiveTracking() {
         
         let statusBadge = `<span class="badge badge-gray" style="border: 1px solid var(--border);">UPCOMING</span>`;
         if(comp.status === 'ongoing' || comp.status === 'registration') statusBadge = `<span class="badge" style="background: #FEF3C7; color: #D97706; border: 1px solid rgba(245, 158, 11, 0.2);"><i class="fa-solid fa-satellite-dish fa-fade"></i> LIVE</span>`;
-        if(comp.status === 'published' || comp.status === 'judgement_complete') statusBadge = `<span class="badge badge-success">COMPLETED</span>`;
+        if(comp.status === 'judgement_complete') statusBadge = `<span class="badge" style="background: #EDE9FE; color: #6D28D9; border: 1.5px solid #C4B5FD; font-weight: 800;">COMPLETED</span>`;
+        if(comp.status === 'published') statusBadge = `<span class="badge" style="background: #DCFCE7; color: #15803D; border: 1.5px solid #86EFAC; font-weight: 800;">RESULT PUBLISHED</span>`;
 
         tbody.innerHTML += `
             <tr>
@@ -2485,10 +2486,10 @@ function getCompStatusBadge(comp) {
         return `<span class="badge" style="background: #F3E8FF; color: #7E22CE; border: 1px solid rgba(126, 34, 206, 0.3); font-weight: 700;"><i class="fa-solid fa-clipboard-check"></i> EVALUATION</span>`;
     }
     if (s === 'judgement_complete') {
-        return `<span class="badge" style="background: #F3E8FF; color: #7E22CE; border: 1px solid rgba(126, 34, 206, 0.3); font-weight: 700;"><i class="fa-solid fa-check-double"></i> EVALUATED</span>`;
+        return `<span class="badge" style="background: #F3E8FF; color: #7E22CE; border: 1px solid rgba(126, 34, 206, 0.3); font-weight: 700;"><i class="fa-solid fa-check-double"></i> COMPLETED</span>`;
     }
     if (s === 'published' || s === 'completed') {
-        return `<span class="badge badge-success" style="font-weight: 700;"><i class="fa-solid fa-flag-checkered"></i> COMPLETED</span>`;
+        return `<span class="badge" style="background: #ECFDF5; color: #059669; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 700;"><i class="fa-solid fa-award"></i> RESULT PUBLISHED</span>`;
     }
     return `<span class="badge badge-gray" style="border: 1px solid var(--border); font-weight: 600;"><i class="fa-solid fa-clock"></i> UPCOMING</span>`;
 }

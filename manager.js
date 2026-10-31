@@ -272,7 +272,7 @@ function renderGrid(competitions) {
 
         if (comp.status === 'judgement_complete') {
             badgeClass = '';
-            badgeLabel = 'Awaiting Manager';
+            badgeLabel = 'COMPLETED';
             badgeStyle = 'background: #EDE9FE; color: #6D28D9; border: 1.5px solid #C4B5FD; font-weight: 800;';
         } else if (comp.status === 'valuation') {
             badgeClass = 'badge-valuation';
@@ -286,8 +286,8 @@ function renderGrid(competitions) {
             badgeStyle = 'background: #E0F2FE; color: #0284C7; border: 1.5px solid #BAE6FD; font-weight: 700;';
         } else if (comp.status === 'published') {
             badgeClass = '';
-            badgeLabel = 'PUBLISHED';
-            badgeStyle = 'background: #DCFCE7; color: #15803D; border: 1.5px solid #86EFAC; font-weight: 700;';
+            badgeLabel = 'RESULT PUBLISHED';
+            badgeStyle = 'background: #DCFCE7; color: #15803D; border: 1.5px solid #86EFAC; font-weight: 800;';
         }
 
         // Build the interactive tags for assigned judges
@@ -327,9 +327,9 @@ function renderGrid(competitions) {
                 <div style="background: #F5F3FF; border: 1.5px solid #DDD6FE; border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
                     <div style="display: flex; align-items: center; gap: 0.5rem; color: #6D28D9; font-size: 0.82rem; font-weight: 700;">
                         <i class="ph-fill ph-check-circle" style="font-size: 1.15rem; color: #7C3AED;"></i>
-                        <span>Event Finished &bull; Waiting for Manager</span>
+                        <span>Competition Completed &bull; Judgement Complete</span>
                     </div>
-                    <span style="font-size: 0.72rem; color: #7C3AED; background: #EDE9FE; padding: 2px 7px; border-radius: 4px; font-weight: 800;">ACTION REQUIRED</span>
+                    <span style="font-size: 0.72rem; color: #7C3AED; background: #EDE9FE; padding: 2px 7px; border-radius: 4px; font-weight: 800;">COMPLETED</span>
                 </div>
             `;
         } else if (timeEnded) {

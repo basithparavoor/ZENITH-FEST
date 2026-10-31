@@ -483,7 +483,8 @@ async function loadCompetitions(stageId) {
         if (comp.status === 'registration') { badgeClass = 'badge-registration'; statusText = 'REGISTRATION'; statusIcon = '<i class="fa-solid fa-qrcode"></i>';}
         if (comp.status === 'ongoing') { badgeClass = 'badge-ongoing'; statusText = 'ONGOING'; statusIcon = '<i class="fa-solid fa-circle-play"></i>';}
         if (comp.status === 'valuation') { badgeClass = 'badge-pending'; statusText = 'IN VALUATION'; statusIcon = '<i class="fa-solid fa-pen-clip"></i>';}
-        if (comp.status === 'judgement_complete') { badgeClass = 'badge-complete'; statusText = 'AWAITING RESULTS'; statusIcon = '<i class="fa-solid fa-flag-checkered"></i>';}
+        if (comp.status === 'judgement_complete') { badgeClass = 'badge-complete'; statusText = 'COMPLETED'; statusIcon = '<i class="fa-solid fa-check-double"></i>';}
+        if (comp.status === 'published') { badgeClass = 'badge-complete'; statusText = 'RESULT PUBLISHED'; statusIcon = '<i class="fa-solid fa-globe"></i>';}
 
         const enrolledCount = comp.participant_competitions ? comp.participant_competitions.length : 0;
         const categoryName = comp.categories?.name || 'Uncategorized';
@@ -921,7 +922,7 @@ function getButtonsForStatus(comp) {
     
     return `
         <div style="color: var(--primary); font-size: 0.95rem; font-weight: 700; width: 100%; text-align: center; background: var(--primary-light); padding: 1.25rem; border-radius: 16px; border: 1px dashed rgba(79, 70, 229, 0.3);">
-            <div style="margin-bottom: 0.35rem;"><i class="fa-solid fa-flag-checkered" style="margin-right: 6px;"></i> EVENT COMPLETED. WAITING FOR MANAGER.</div>
+            <div style="margin-bottom: 0.35rem;"><i class="fa-solid fa-check-double" style="margin-right: 6px;"></i> COMPETITION COMPLETED</div>
             <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Judging marks recorded. Results are in manager queue for publishing.</div>
         </div>
     `;

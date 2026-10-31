@@ -1421,9 +1421,9 @@ let stageDisplay = comp.stages?.name || 'Unassigned';
         } else if (compStatus === 'valuation') {
             statusBadge = `<span class="badge" style="background: #FEF3C7; color: #B45309; font-weight: 700; font-size: 0.68rem; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-scale-balanced" style="font-size:0.6rem; margin-right:3px;"></i> IN VALUATION</span>`;
         } else if (compStatus === 'judgement_complete') {
-            statusBadge = `<span class="badge" style="background: #F3E8FF; color: #7E22CE; font-weight: 700; font-size: 0.68rem; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-flag-checkered" style="font-size:0.6rem; margin-right:3px;"></i> JUDGEMENT COMPLETE</span>`;
+            statusBadge = `<span class="badge" style="background: #F3E8FF; color: #7E22CE; font-weight: 700; font-size: 0.68rem; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-check-double" style="font-size:0.6rem; margin-right:3px;"></i> COMPLETED</span>`;
         } else if (compStatus === 'published') {
-            statusBadge = `<span class="badge" style="background: #E0E7FF; color: #4338CA; font-weight: 700; font-size: 0.68rem; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-globe" style="font-size:0.6rem; margin-right:3px;"></i> PUBLISHED</span>`;
+            statusBadge = `<span class="badge" style="background: #DCFCE7; color: #15803D; font-weight: 700; font-size: 0.68rem; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-globe" style="font-size:0.6rem; margin-right:3px;"></i> RESULT PUBLISHED</span>`;
         } else if (compStatus === 'registration') {
             statusBadge = `<span class="badge" style="background: #DBEAFE; color: #1E40AF; font-weight: 700; font-size: 0.68rem; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-user-plus" style="font-size:0.6rem; margin-right:3px;"></i> REGISTRATION</span>`;
         } else {
@@ -12375,7 +12375,14 @@ function filterScheduleTable() {
         if (item.comp.status === 'registration') compStateColor = '#1D4ED8';
         if (item.comp.status === 'ongoing') compStateColor = '#059669';
         if (item.comp.status === 'valuation') compStateColor = '#D97706';
-        if (item.comp.status === 'judgement_complete') compStateColor = '#7E22CE';
+        if (item.comp.status === 'judgement_complete') {
+            compStateStr = 'COMPLETED';
+            compStateColor = '#7E22CE';
+        }
+        if (item.comp.status === 'published') {
+            compStateStr = 'RESULT PUBLISHED';
+            compStateColor = '#059669';
+        }
 
         const stateBadge = `<br><span style="font-size: 0.7rem; font-weight: 800; color: ${compStateColor}; margin-top: 4px; display: inline-block;">${compStateStr}</span>`;
         
@@ -14591,7 +14598,14 @@ function renderScheduleSheet() {
         if (item.compStatus === 'registration') compStateColor = '#1D4ED8';
         if (item.compStatus === 'ongoing') compStateColor = '#059669';
         if (item.compStatus === 'valuation') compStateColor = '#D97706';
-        if (item.compStatus === 'judgement_complete') compStateColor = '#7E22CE';
+        if (item.compStatus === 'judgement_complete') {
+            compStateStr = 'COMPLETED';
+            compStateColor = '#7E22CE';
+        }
+        if (item.compStatus === 'published') {
+            compStateStr = 'RESULT PUBLISHED';
+            compStateColor = '#059669';
+        }
 
         html += `
             <tr id="sched-sheet-row-${item.compId}" class="${rowClass}">

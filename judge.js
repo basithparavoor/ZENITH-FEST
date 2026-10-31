@@ -304,7 +304,15 @@ function renderDashboard(data) {
         let badgeColor = '#D97706';
         let badgeBg = 'var(--warning-light)';
 
-        if (isValuation) {
+        if (comp.status === 'published') {
+            statusText = 'Result Published';
+            badgeColor = '#059669';
+            badgeBg = '#ECFDF5';
+        } else if (comp.status === 'judgement_complete') {
+            statusText = 'Completed';
+            badgeColor = '#7C3AED';
+            badgeBg = '#EDE9FE';
+        } else if (isValuation) {
             if (comp.hasExistingMarks) {
                 statusText = 'Valuation Completed';
                 badgeColor = '#059669';
