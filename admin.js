@@ -6723,6 +6723,13 @@ function dataURLtoBlob(dataurl) {
 async function compressImageForStorage(imageSource, maxDim = 1920, quality = 0.86) {
     return new Promise((resolve) => {
         try {
+            // PDF files cannot be decoded in <img> tag; handle separately
+            if (imageSource instanceof File || imageSource instanceof Blob) {
+                if (imageSource.type === 'application/pdf' || (imageSource.name && imageSource.name.toLowerCase().endsWith('.pdf'))) {
+                    return resolve(null);
+                }
+            }
+
             const img = new Image();
             img.crossOrigin = 'Anonymous';
             img.onload = () => {
@@ -6777,13 +6784,31 @@ async function ensureTemplateBgUploaded(activeData) {
     if (!source) return activeData.bg_base64;
 
     try {
-        const compressed = await compressImageForStorage(source, 1920, 0.86);
-        const blobToUpload = compressed ? compressed.blob : (activeData.pendingFile || (typeof activeData.bg_base64 === 'string' && activeData.bg_base64.startsWith('data:') ? dataURLtoBlob(activeData.bg_base64) : null));
+        let blobToUpload = null;
+        let compressedDataUrl = null;
+
+        // If source is already an image File or Blob
+        if (activeData.pendingFile && activeData.pendingFile.type && activeData.pendingFile.type.startsWith('image/')) {
+            blobToUpload = activeData.pendingFile;
+        } else if (typeof activeData.bg_base64 === 'string' && activeData.bg_base64.startsWith('data:image/')) {
+            blobToUpload = dataURLtoBlob(activeData.bg_base64);
+        }
+
+        // If not already prepared, compress with offscreen canvas
+        if (!blobToUpload) {
+            const maxDim = activeData.bg_is_pdf ? 3508 : 2400;
+            const quality = activeData.bg_is_pdf ? 0.94 : 0.88;
+            const compressed = await compressImageForStorage(source, maxDim, quality);
+            if (compressed) {
+                blobToUpload = compressed.blob;
+                compressedDataUrl = compressed.dataUrl;
+            }
+        }
 
         if (blobToUpload && typeof supabaseClient !== 'undefined' && supabaseClient.storage) {
             const { error: uploadError } = await supabaseClient.storage
                 .from('templates')
-                .upload(fileName, blobToUpload, { contentType: 'image/jpeg', upsert: true });
+                .upload(fileName, blobToUpload, { contentType: blobToUpload.type || 'image/jpeg', upsert: true });
 
             if (!uploadError) {
                 const { data: publicUrlData } = supabaseClient.storage
@@ -6800,9 +6825,9 @@ async function ensureTemplateBgUploaded(activeData) {
             }
         }
 
-        // Fallback: use compressed data URL so payload stays small (<400KB)
-        if (compressed && compressed.dataUrl) {
-            activeData.bg_base64 = compressed.dataUrl;
+        // Fallback: use compressed data URL so payload stays compact and saves to DB cleanly
+        if (compressedDataUrl) {
+            activeData.bg_base64 = compressedDataUrl;
         }
     } catch (err) {
         console.warn("ensureTemplateBgUploaded caught error:", err);
@@ -7422,11 +7447,85 @@ function loadPdfJsLibrary() {
 }
 window.loadPdfJsLibrary = loadPdfJsLibrary;
 
+// Universal Template Background Loader (Images, PDFs, Base64 & Disguised PDFs)
+async function loadTemplateBackgroundElement(bgSource) {
+    if (!bgSource) throw new Error("Template has no background image defined. Please select or design a valid template in Poster Templates Studio.");
+
+    async function renderPdfToCanvas(pdfSourceData) {
+        if (typeof pdfjsLib === 'undefined' && typeof loadPdfJsLibrary === 'function') {
+            await loadPdfJsLibrary();
+        }
+        if (typeof pdfjsLib === 'undefined') {
+            throw new Error("PDF.js library is not available to render PDF background.");
+        }
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        const loadingTask = pdfjsLib.getDocument(pdfSourceData);
+        const pdfDoc = await loadingTask.promise;
+        const page = await pdfDoc.getPage(1);
+        const unscaled = page.getViewport({ scale: 1.0 });
+        const longestEdge = Math.max(unscaled.width, unscaled.height);
+        const targetWidth = 3508; // 300 DPI A4
+        const renderScale = Math.max(2.5, targetWidth / longestEdge);
+        const viewport = page.getViewport({ scale: renderScale });
+
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = Math.round(viewport.width);
+        offCanvas.height = Math.round(viewport.height);
+        const offCtx = offCanvas.getContext('2d', { alpha: false });
+        offCtx.fillStyle = '#FFFFFF';
+        offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+        await page.render({ canvasContext: offCtx, viewport: viewport }).promise;
+        return offCanvas;
+    }
+
+    // 1. Direct PDF check (data URL or explicit .pdf URL)
+    if (typeof bgSource === 'string') {
+        const isPdfUrl = bgSource.startsWith('data:application/pdf') || /\.pdf(\?|$)/i.test(bgSource);
+        if (isPdfUrl) {
+            try {
+                let dataToPass = bgSource;
+                if (bgSource.startsWith('http://') || bgSource.startsWith('https://')) {
+                    const resp = await fetch(bgSource);
+                    dataToPass = await resp.arrayBuffer();
+                }
+                return await renderPdfToCanvas(dataToPass);
+            } catch(pdfErr) {
+                console.error("Direct PDF render error:", pdfErr);
+            }
+        }
+    }
+
+    // 2. Standard image load with smart %PDF recovery
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = async () => {
+            // Check if this remote URL is actually a PDF file (e.g. uploaded with .jpg extension)
+            if (typeof bgSource === 'string' && (bgSource.startsWith('http://') || bgSource.startsWith('https://'))) {
+                try {
+                    const resp = await fetch(bgSource);
+                    const buf = await resp.arrayBuffer();
+                    const header = new Uint8Array(buf.slice(0, 5));
+                    // Check "%PDF-" magic bytes [0x25, 0x50, 0x44, 0x46, 0x2D]
+                    if (header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46) {
+                        const pdfCanvas = await renderPdfToCanvas(buf);
+                        return resolve(pdfCanvas);
+                    }
+                } catch(deepErr) {
+                    console.warn("PDF recovery inspection notice:", deepErr);
+                }
+            }
+            reject(new Error("Unable to load template background image. Please re-upload or select a valid background in Poster Templates Studio."));
+        };
+        img.src = bgSource;
+    });
+}
+window.loadTemplateBackgroundElement = loadTemplateBackgroundElement;
+
 async function handleStudioUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
-    studioActiveData.pendingFile = file;
 
     // Check if uploaded background is a Vector PDF
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
@@ -7461,10 +7560,23 @@ async function handleStudioUpload(event) {
 
                 await page.render({ canvasContext: offCtx, viewport: viewport }).promise;
 
-                const highResDataUrl = offCanvas.toDataURL('image/png');
+                // High quality JPEG for 300 DPI print quality without 20MB bloat
+                const highResDataUrl = offCanvas.toDataURL('image/jpeg', 0.94);
                 studioActiveData.bg_base64 = highResDataUrl;
                 studioActiveData.bg_is_pdf = true;
                 studioActiveData.bg_pdf_name = file.name;
+
+                // Set pendingFile as a valid JPEG File so ensureTemplateBgUploaded sends a valid image
+                await new Promise((resBlob) => {
+                    offCanvas.toBlob((blob) => {
+                        if (blob) {
+                            studioActiveData.pendingFile = new File([blob], `${file.name.replace(/\.pdf$/i, '')}_300dpi.jpg`, { type: 'image/jpeg' });
+                        } else {
+                            studioActiveData.pendingFile = null;
+                        }
+                        resBlob();
+                    }, 'image/jpeg', 0.94);
+                });
 
                 studioActiveData.imgObj = new Image();
                 studioActiveData.imgObj.crossOrigin = "Anonymous";
@@ -7482,6 +7594,7 @@ async function handleStudioUpload(event) {
         }
     }
 
+    studioActiveData.pendingFile = file;
     const reader = new FileReader();
     reader.onload = function(e) {
         studioActiveData.bg_base64 = e.target.result; 
@@ -11458,13 +11571,7 @@ async function executeBulkCertificatesDownload() {
         }
 
         // 5. Preload Background Image
-        const img = new Image();
-        img.crossOrigin = "Anonymous";
-        await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = () => resolve(null);
-            img.src = template.bg_base64;
-        });
+        const bgElement = await loadTemplateBackgroundElement(template.bg_base64);
 
         // Preload Custom Fonts
         if (template.customFonts && template.customFonts.length > 0) {
@@ -11620,8 +11727,8 @@ async function executeBulkCertificatesDownload() {
         const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = img.naturalWidth || 1600;
-        canvas.height = img.naturalHeight || 1130;
+        canvas.width = bgElement.naturalWidth || bgElement.width || 1600;
+        canvas.height = bgElement.naturalHeight || bgElement.height || 1130;
 
         let pdf = null;
         let pdfConfig = null;
@@ -11638,7 +11745,7 @@ async function executeBulkCertificatesDownload() {
             if (progressDetail) progressDetail.innerText = `[${i + 1}/${totalCerts}] ${entry.participant?.name || 'Contestant'} - ${entry.position} (${comp.name})`;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
+            ctx.drawImage(bgElement, 0, 0);
 
             const catName = comp.categories?.name || (categoriesList.find(c => String(c.id) === String(comp.category_id))?.name) || 'GENERAL';
 
@@ -11866,11 +11973,7 @@ async function bulkDownloadCertificates(compId) {
         let pdf = null;
         let pdfConfig = null;
 
-        const img = new Image();
-        img.crossOrigin = "Anonymous";
-        await new Promise((resolve, reject) => {
-            img.onload = resolve; img.onerror = reject; img.src = template.bg_base64;
-        });
+        const bgElement = await loadTemplateBackgroundElement(template.bg_base64);
 
         // Preload custom fonts from template
         if (template.customFonts && template.customFonts.length > 0) {
@@ -11885,13 +11988,13 @@ async function bulkDownloadCertificates(compId) {
 
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = img.naturalWidth || 1600; 
-        canvas.height = img.naturalHeight || 1130;
+        canvas.width = bgElement.naturalWidth || bgElement.width || 1600;
+        canvas.height = bgElement.naturalHeight || bgElement.height || 1130;
 
         for (let i = 0; i < finalCertList.length; i++) {
             const entry = finalCertList[i];
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
+            ctx.drawImage(bgElement, 0, 0);
 
             const mappedData = {
                 'ParticipantName': (entry.participant?.name || 'UNKNOWN').toUpperCase(),
@@ -11968,8 +12071,9 @@ async function bulkDownloadCertificates(compId) {
         showToast("Certificates Downloaded Successfully!", "success");
 
     } catch (e) {
-        console.error(e);
-        showToast(e.message, 'error');
+        console.error("bulkDownloadCertificates error:", e);
+        const errMsg = (e && e.message) ? e.message : (e instanceof Event ? "Failed to load certificate template background image. Please re-upload or select a valid background in Poster Templates Studio." : String(e));
+        showToast(errMsg, 'error');
     }
 }
 window.bulkDownloadCertificates = bulkDownloadCertificates;
