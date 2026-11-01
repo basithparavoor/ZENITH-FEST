@@ -3970,7 +3970,6 @@
                             allTeams = r.allTeams;
                             publishedCompetitions = r.publishedCompetitions || [];
                             globalJudgements = r.globalJudgements || [];
-                            calculatedTeamScores = r.calculatedTeamScores || {};
                             competitionParticipantsMap = r.competitionParticipantsMap || {};
                             totalFestivalComps = r.totalFestivalComps || publishedCompetitions.length;
                             currentTimelineCompsCount = publishedCompetitions.length;
@@ -3979,7 +3978,12 @@
                             if (countEl) countEl.innerText = publishedCompetitions.length;
 
                             populateTimelineDropdown();
-                            renderLeaderboard();
+                            if (globalJudgements.length > 0) {
+                                applyTimelineFilter();
+                            } else {
+                                calculatedTeamScores = r.calculatedTeamScores || {};
+                                renderLeaderboard();
+                            }
                             renderCompetitionsGrid();
                         }
                     }
