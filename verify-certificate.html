@@ -3,50 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Official Certificate Verification</title>
+    <title>Official Certificate Verification | Credential Authentication Portal</title>
     <link rel="icon" href="favicon.png">
     
-    <!-- Google Fonts & FontAwesome -->
+    <!-- Google Fonts: Inter & Playfair Display -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cinzel:wght@500;600;700;800;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,600&family=Great+Vibes&family=Inter:wght@400;500;600;700&family=Montserrat:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
-    <!-- Supabase Client & FestOS Core -->
+    <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="festos-core.js"></script>
 
     <style>
         :root {
-            /* Luxury Champagne & Ivory Light Palette */
-            --primary: #B45309;
-            --primary-dark: #78350F;
-            --primary-light: #FDE68A;
-            --gold: #D97706;
-            --gold-light: #FBBF24;
-            --gold-foil: linear-gradient(135deg, #B45309 0%, #D97706 40%, #F59E0B 70%, #B45309 100%);
-            --emerald: #059669;
-            --emerald-bg: #ECFDF5;
-            --emerald-border: #A7F3D0;
+            /* Institutional Academic Color System */
+            --primary: #172B24;
+            --primary-hover: #0F1D18;
+            --secondary: #B18A4A;
+            --secondary-light: #F4EEDF;
+            --background: #F5F4F0;
+            --surface: #FFFFFF;
+            --text-primary: #202720;
+            --text-secondary: #747970;
+            --text-muted: #8E938A;
+            --border: #E5E2DA;
+            --border-subtle: #ECEAE3;
+            --success: #28764B;
+            --success-background: #EAF4ED;
+            --success-border: #C8E3CF;
+            --error: #991B1B;
+            --error-background: #FEF2F2;
+            --error-border: #FCA5A5;
             
-            --bg-page: #F8F9FA;
-            --bg-card: #FFFFFF;
-            --bg-surface: #F1F5F9;
-            --bg-subtle: #FAF9F5;
-            
-            --text-heading: #0F172A;
-            --text-body: #334155;
-            --text-muted: #64748B;
-            --text-gold: #92400E;
-            
-            --border-soft: #E2E8F0;
-            --border-gold: rgba(217, 119, 6, 0.35);
-            --border-gold-solid: #D97706;
-            
-            --shadow-subtle: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-            --shadow-card: 0 20px 45px -12px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(217, 119, 6, 0.16);
-            --shadow-float: 0 25px 50px -12px rgba(180, 83, 9, 0.15);
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-serif: 'Playfair Display', Georgia, serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-script: 'Alex Brush', cursive;
         }
 
         * {
@@ -57,786 +51,1011 @@
         }
 
         body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: var(--bg-page);
-            color: var(--text-body);
+            font-family: var(--font-sans);
+            background-color: var(--background);
+            color: var(--text-primary);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            padding: 1.5rem 1rem 4rem;
-            position: relative;
-            overflow-x: hidden;
-            background-image: 
-                radial-gradient(at 50% 0%, #FEF3C7 0px, transparent 60%),
-                radial-gradient(at 100% 100%, #F1F5F9 0px, transparent 50%),
-                radial-gradient(at 0% 50%, #FFFBEB 0px, transparent 50%);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
-        /* Subtle Ambient Light Accents */
-        .ambient-bg {
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: 0;
-            background-image: radial-gradient(rgba(217, 119, 6, 0.04) 1px, transparent 1px);
-            background-size: 24px 24px;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 640px;
-            position: relative;
-            z-index: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 1.25rem;
-        }
-
-        /* Header Navigation */
+        /* Minimal Institutional Header */
         .header {
+            background-color: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1.15rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .header-inner {
+            max-width: 1050px;
+            margin: 0 auto;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-            padding: 0.25rem 0.25rem 0.5rem;
+            gap: 1rem;
         }
 
-        .fest-identity-badge {
-            display: inline-flex;
+        .header-brand {
+            display: flex;
             align-items: center;
-            gap: 0.65rem;
-            padding: 0.5rem 1rem;
-            background: #FFFFFF;
-            border: 1px solid var(--border-gold);
-            border-radius: 999px;
-            box-shadow: 0 4px 12px rgba(180, 83, 9, 0.08);
+            gap: 0.9rem;
             text-decoration: none;
-            transition: all 0.2s ease;
-        }
-        .fest-identity-badge:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(180, 83, 9, 0.12);
+            color: var(--text-primary);
         }
 
-        .fest-logo-wrapper {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
+        .header-logo-frame {
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #FFFBEB, #FEF3C7);
-            border: 1px solid rgba(217, 119, 6, 0.3);
+            background-color: #FAFAF8;
             overflow: hidden;
             flex-shrink: 0;
         }
 
-        .fest-logo-img {
+        .header-logo-frame img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
 
-        .fest-crest-fallback {
-            font-size: 0.75rem;
-            font-weight: 800;
-            font-family: 'Cinzel', serif;
-            color: var(--primary);
-        }
-
-        .fest-name-text {
+        .header-logo-initials {
+            font-family: var(--font-serif);
+            font-weight: 700;
             font-size: 0.9rem;
-            font-weight: 700;
-            color: var(--text-heading);
-            letter-spacing: -0.01em;
-            max-width: 240px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .verification-status-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.45rem;
-            padding: 0.45rem 0.9rem;
-            background: var(--emerald-bg);
-            border: 1px solid var(--emerald-border);
-            border-radius: 999px;
-            color: var(--emerald);
-            font-size: 0.8rem;
-            font-weight: 700;
-            box-shadow: var(--shadow-subtle);
-        }
-
-        .status-dot-pulse {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--emerald);
-            box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.6);
-            animation: pulseEmerald 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
-        }
-
-        @keyframes pulseEmerald {
-            0% { box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.6); }
-            70% { box-shadow: 0 0 0 8px rgba(5, 150, 105, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(5, 150, 105, 0); }
-        }
-
-        /* Verified Official Credential Banner */
-        .verified-banner {
-            background: linear-gradient(135deg, #FFFFFF 0%, #FFFBEB 100%);
-            border: 1px solid rgba(217, 119, 6, 0.3);
-            border-radius: 16px;
-            padding: 1.15rem 1.25rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            box-shadow: var(--shadow-card);
-        }
-
-        .banner-icon-box {
-            width: 48px;
-            height: 48px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
-            border: 1px solid #F59E0B;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.45rem;
-            color: #B45309;
-            flex-shrink: 0;
-            box-shadow: 0 4px 10px rgba(217, 119, 6, 0.15);
-        }
-
-        .banner-text-box h3 {
-            font-family: 'Cinzel', serif;
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--text-heading);
+            color: var(--primary);
             letter-spacing: 0.05em;
-            margin-bottom: 0.2rem;
         }
 
-        .banner-text-box p {
-            font-size: 0.82rem;
-            color: var(--text-muted);
-            line-height: 1.35;
-        }
-
-        /* ========================================================
-           MUSEUM-GRADE CERTIFICATE REPLICA (PREMIUM LIGHT CARD)
-           ======================================================== */
-        .cert-card {
-            background: var(--bg-card);
-            border-radius: 20px;
-            padding: 2.5rem 2rem 2.25rem;
-            position: relative;
-            box-shadow: var(--shadow-card), var(--shadow-float);
-            border: 2px solid #E2B857;
-            outline: 1px solid rgba(217, 119, 6, 0.3);
-            outline-offset: -9px;
-            overflow: hidden;
+        .header-brand-titles {
             display: flex;
             flex-direction: column;
-            gap: 1.6rem;
-            background-image: 
-                radial-gradient(circle at 50% 0%, rgba(254, 243, 199, 0.35) 0%, transparent 60%),
-                radial-gradient(circle at 50% 100%, rgba(241, 245, 249, 0.5) 0%, transparent 60%);
         }
 
-        /* Elegant Corner Filigree Accents */
-        .corner-filigree {
-            position: absolute;
-            width: 32px;
-            height: 32px;
-            pointer-events: none;
-            opacity: 0.85;
-        }
-        .filigree-tl { top: 13px; left: 13px; border-top: 2px solid #D97706; border-left: 2px solid #D97706; }
-        .filigree-tr { top: 13px; right: 13px; border-top: 2px solid #D97706; border-right: 2px solid #D97706; }
-        .filigree-bl { bottom: 13px; left: 13px; border-bottom: 2px solid #D97706; border-left: 2px solid #D97706; }
-        .filigree-br { bottom: 13px; right: 13px; border-bottom: 2px solid #D97706; border-right: 2px solid #D97706; }
-
-        .corner-filigree::after {
-            content: '';
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            background: #D97706;
-            border-radius: 50%;
-        }
-        .filigree-tl::after { top: 2px; left: 2px; }
-        .filigree-tr::after { top: 2px; right: 2px; }
-        .filigree-bl::after { bottom: 2px; left: 2px; }
-        .filigree-br::after { bottom: 2px; right: 2px; }
-
-        /* Top Crest Section */
-        .cert-crest-header {
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.45rem;
-            padding-top: 0.25rem;
-        }
-
-        .crest-stars {
-            color: #D97706;
-            letter-spacing: 0.35em;
-            font-size: 0.95rem;
-            text-shadow: 0 1px 2px rgba(217, 119, 6, 0.25);
-        }
-
-        .cert-fest-heading {
-            font-family: 'Cinzel', serif;
-            font-size: 1.55rem;
-            font-weight: 800;
-            color: var(--text-heading);
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            line-height: 1.2;
-            margin-top: 0.2rem;
-            position: relative;
-            padding-bottom: 0.45rem;
-        }
-
-        .cert-fest-heading::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60px;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #D97706, transparent);
-        }
-
-        .cert-type-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.45rem;
-            padding: 0.3rem 0.9rem;
-            background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
-            border: 1px solid rgba(217, 119, 6, 0.35);
-            border-radius: 999px;
-            font-size: 0.76rem;
+        .fest-title-text {
+            font-family: var(--font-serif);
             font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-gold);
-            margin-top: 0.3rem;
-        }
-
-        /* Presentation & Recipient */
-        .presentation-block {
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .presentation-intro {
-            font-family: 'Cormorant Garamond', serif;
-            font-style: italic;
-            font-size: 1.15rem;
-            color: var(--text-muted);
-            letter-spacing: 0.03em;
-        }
-
-        .recipient-fullname {
-            font-family: 'Playfair Display', serif;
-            font-size: 2.15rem;
-            font-weight: 700;
-            color: var(--text-heading);
+            font-size: 1.05rem;
+            color: var(--primary);
             letter-spacing: -0.01em;
-            text-transform: uppercase;
-            line-height: 1.15;
-            padding: 0.15rem 0.5rem;
-            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
-            word-break: break-word;
-        }
-
-        .chest-badge-interactive {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.45rem;
-            padding: 0.3rem 0.8rem;
-            background: #F8FAFC;
-            border: 1px solid #CBD5E1;
-            border-radius: 999px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.8rem;
-            font-weight: 700;
-            color: #475569;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-        }
-        .chest-badge-interactive:hover {
-            background: #F1F5F9;
-            border-color: #94A3B8;
-            color: #0F172A;
-            transform: translateY(-1px);
-        }
-
-        /* Placement Ribbon Cards */
-        .placement-ribbon-card {
-            border-radius: 14px;
-            padding: 1rem 1.25rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-        }
-
-        .placement-medal {
-            font-size: 2.1rem;
-            line-height: 1;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
-        }
-
-        .placement-title {
-            font-family: 'Cinzel', serif;
-            font-size: 1.2rem;
-            font-weight: 800;
-            letter-spacing: 0.06em;
             line-height: 1.2;
         }
 
-        .placement-subtitle {
-            font-size: 0.8rem;
-            font-weight: 600;
-            opacity: 0.88;
+        .fest-subtitle-text {
+            font-size: 0.72rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
             margin-top: 0.15rem;
         }
 
-        /* Placement Styles */
-        .placement-ribbon-card.first {
-            background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 60%, #FDE68A 100%);
-            border: 1.5px solid #F59E0B;
-            color: #92400E;
+        .header-registry-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            background: #FAFAF8;
+            padding: 0.35rem 0.75rem;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            letter-spacing: 0.02em;
         }
-        .placement-ribbon-card.second {
-            background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 60%, #E2E8F0 100%);
-            border: 1.5px solid #94A3B8;
+
+        /* Main Page Layout */
+        .main-content {
+            flex: 1;
+            max-width: 1050px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2.25rem 1.5rem 4.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.75rem;
+        }
+
+        /* Horizontal Verification Status Banner */
+        .verification-status-panel {
+            background-color: var(--success-background);
+            border: 1px solid var(--success-border);
+            border-radius: 6px;
+            padding: 1.15rem 1.4rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+        }
+
+        .status-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--success);
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .status-text-block {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+
+        .status-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--success);
+        }
+
+        .status-description {
+            font-size: 0.84rem;
+            color: #2F593F;
+        }
+
+        .status-meta-badge {
+            font-family: var(--font-mono);
+            font-size: 0.76rem;
+            font-weight: 500;
+            color: var(--success);
+            background: rgba(40, 118, 75, 0.08);
+            padding: 0.3rem 0.65rem;
+            border-radius: 4px;
+            border: 1px solid rgba(40, 118, 75, 0.2);
+            white-space: nowrap;
+        }
+
+        /* Invalid / Error Status Panel */
+        .status-panel-error {
+            background-color: var(--error-background);
+            border-color: var(--error-border);
+        }
+        .status-panel-error .status-icon {
+            background-color: var(--error);
+        }
+        .status-panel-error .status-title {
+            color: var(--error);
+        }
+        .status-panel-error .status-description {
+            color: #7F1D1D;
+        }
+
+        /* Loading Skeleton Panel */
+        .loading-panel {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 3rem 2rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 2px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ========================================================
+           INSTITUTIONAL CERTIFICATE DOCUMENT CARD
+           ======================================================== */
+        .certificate-card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
+            padding: 3.5rem 3.75rem 3rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2.5rem;
+            position: relative;
+        }
+
+        /* Section 1: Certificate Heading & Institutional Eyebrow */
+        .cert-header-section {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .eyebrow-text {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-secondary);
+        }
+
+        .cert-main-heading {
+            font-family: var(--font-serif);
+            font-size: 1.85rem;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+        }
+
+        .gold-divider {
+            width: 70px;
+            height: 1.5px;
+            background-color: var(--secondary);
+            margin-top: 0.4rem;
+        }
+
+        /* Section 2: Recipient Presentation */
+        .recipient-section {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .recipient-intro {
+            font-size: 0.92rem;
+            font-weight: 400;
+            color: var(--text-secondary);
+            font-style: italic;
+            font-family: var(--font-serif);
+        }
+
+        .recipient-name {
+            font-family: var(--font-serif);
+            font-size: 2.35rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.01em;
+            line-height: 1.15;
+            text-transform: uppercase;
+            padding: 0 0.5rem;
+            word-break: break-word;
+        }
+
+        .participant-id-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background-color: #FAFAF8;
+            border: 1px solid var(--border);
+            padding: 0.3rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .participant-id-pill:hover {
+            color: var(--text-primary);
+            border-color: #CBD5E1;
+            background-color: #F1F5F9;
+        }
+
+        /* Section 3: Structured Achievement Panel */
+        .achievement-panel {
+            background-color: #FAFAF8;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .achievement-standing-bar {
+            background-color: #FFFFFF;
+            border-bottom: 1px solid var(--border);
+            padding: 1.15rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .standing-title-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .standing-marker {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--secondary);
+        }
+
+        .standing-title {
+            font-family: var(--font-serif);
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+
+        .standing-badge {
+            font-size: 0.76rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 0.3rem 0.75rem;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background-color: #FAFAF8;
+            color: var(--text-primary);
+        }
+
+        .standing-badge.first {
+            border-color: #E6CA85;
+            background-color: #FDF9EE;
+            color: #8C6218;
+        }
+        .standing-badge.second {
+            border-color: #CBD5E1;
+            background-color: #F8FAFC;
             color: #334155;
         }
-        .placement-ribbon-card.third {
-            background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 60%, #FED7AA 100%);
-            border: 1.5px solid #FB923C;
-            color: #9A3412;
+        .standing-badge.third {
+            border-color: #E2B593;
+            background-color: #FAF4EF;
+            color: #8C4718;
         }
-        .placement-ribbon-card.participant {
-            background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 60%, #BFDBFE 100%);
-            border: 1.5px solid #60A5FA;
+        .standing-badge.participant {
+            border-color: #BFDBFE;
+            background-color: #EFF6FF;
             color: #1E40AF;
         }
 
-        /* Credential Metadata Grid */
-        .credential-grid {
+        .achievement-details-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 0.85rem;
+            gap: 1px;
+            background-color: var(--border-subtle);
         }
 
-        @media (max-width: 520px) {
-            .credential-grid {
-                grid-template-columns: 1fr;
-            }
-            .recipient-fullname {
-                font-size: 1.75rem;
-            }
-            .cert-card {
-                padding: 2rem 1.25rem 1.75rem;
-            }
-        }
-
-        .credential-cell {
-            background: #F8FAFC;
-            border: 1px solid var(--border-soft);
-            border-radius: 12px;
-            padding: 0.85rem 1rem;
+        .detail-cell {
+            background-color: #FFFFFF;
+            padding: 1rem 1.5rem;
             display: flex;
             flex-direction: column;
             gap: 0.25rem;
-            transition: all 0.2s ease;
-        }
-        .credential-cell:hover {
-            border-color: #CBD5E1;
-            background: #F1F5F9;
         }
 
-        .cell-label {
+        .detail-label {
             font-size: 0.72rem;
-            font-weight: 700;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
+            letter-spacing: 0.07em;
+            color: var(--text-secondary);
         }
 
-        .cell-value {
-            font-size: 0.96rem;
-            font-weight: 700;
-            color: var(--text-heading);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .detail-value {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            word-break: break-word;
         }
 
-        .grade-chip {
+        .grade-tag {
             display: inline-flex;
             align-items: center;
             gap: 0.35rem;
-            padding: 0.2rem 0.6rem;
-            background: var(--emerald-bg);
-            border: 1px solid var(--emerald-border);
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-weight: 800;
-            color: var(--emerald);
-        }
-
-        /* Signatures & Wax Seal Section */
-        .signatures-section {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 1.2rem 0.5rem 0.5rem;
-            gap: 0.75rem;
-            position: relative;
-        }
-
-        .sig-box {
-            flex: 1;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .sig-drawing {
-            font-family: 'Alex Brush', cursive;
-            font-size: 1.75rem;
-            color: #1E293B;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transform: rotate(-3deg);
-            user-select: none;
-        }
-
-        .sig-line {
-            width: 100%;
-            max-width: 140px;
-            height: 1px;
-            background: #CBD5E1;
-            margin: 0.35rem 0 0.3rem;
-        }
-
-        .sig-title {
-            font-size: 0.75rem;
+            color: var(--success);
             font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
         }
 
-        /* 3D Embossed Gold Wax Seal */
-        .gold-seal-center {
-            width: 72px;
-            height: 72px;
-            border-radius: 50%;
-            background: radial-gradient(circle at 35% 35%, #FDE68A 0%, #D97706 65%, #92400E 100%);
-            box-shadow: 
-                0 6px 16px rgba(180, 83, 9, 0.35),
-                inset 0 2px 4px rgba(255, 255, 255, 0.7),
-                inset 0 -2px 4px rgba(0, 0, 0, 0.4);
-            border: 2px dashed rgba(254, 243, 199, 0.6);
+        /* Section 4: Official Authorization & Signatures */
+        .authorization-section {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .signature-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .signature-script {
+            font-family: var(--font-script);
+            font-size: 1.85rem;
+            color: #1A2821;
+            line-height: 1;
+            min-height: 38px;
+            display: flex;
+            align-items: center;
+            user-select: none;
+            transform: rotate(-2deg);
+        }
+
+        .signature-line {
+            width: 100%;
+            max-width: 160px;
+            height: 1px;
+            background-color: var(--border);
+            margin: 0.45rem 0 0.4rem;
+        }
+
+        .signature-role {
+            font-size: 0.74rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .signature-institution {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 0.15rem;
+        }
+
+        /* Institutional Insignia Seal */
+        .institutional-seal-frame {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: #FFFBEB;
             text-align: center;
-            user-select: none;
-            flex-shrink: 0;
+            padding: 0 0.5rem;
+        }
+
+        .insignia-circle {
+            width: 74px;
+            height: 74px;
+            border-radius: 50%;
+            border: 1.5px solid var(--secondary);
+            outline: 1px dashed var(--secondary);
+            outline-offset: -5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #FAF8F2;
+            color: var(--primary);
             position: relative;
-            transform: rotate(-5deg);
+            user-select: none;
         }
 
-        .seal-star {
-            font-size: 0.85rem;
+        .insignia-star {
+            font-size: 0.75rem;
+            color: var(--secondary);
             line-height: 1;
-            color: #FFFBEB;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
         }
 
-        .seal-txt {
-            font-family: 'Cinzel', serif;
-            font-size: 0.58rem;
+        .insignia-text-main {
+            font-family: var(--font-serif);
+            font-size: 0.52rem;
             font-weight: 800;
             letter-spacing: 0.12em;
-            line-height: 1.1;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+            line-height: 1.15;
+            color: var(--primary);
+            text-transform: uppercase;
+            margin-top: 0.1rem;
         }
 
-        /* Security Verification Bar */
-        .security-bar {
-            background: #FAF9F5;
-            border-top: 1px dashed rgba(217, 119, 6, 0.35);
-            margin: 0 -2rem -2.25rem;
-            padding: 0.85rem 2rem;
+        .insignia-subtext {
+            font-size: 0.42rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: var(--secondary);
+            text-transform: uppercase;
+            margin-top: 0.1rem;
+        }
+
+        /* Section 5: Credential Technical Footer */
+        .credential-meta-bar {
+            background-color: #FAFAF8;
+            border-top: 1px solid var(--border);
+            margin: 0 -3.75rem -3rem;
+            padding: 1.15rem 3.75rem;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            font-size: 0.75rem;
-            color: var(--text-muted);
+            gap: 1rem;
             flex-wrap: wrap;
-            gap: 0.5rem;
         }
 
-        @media (max-width: 520px) {
-            .security-bar {
-                margin: 0 -1.25rem -1.75rem;
-                padding: 0.85rem 1.25rem;
-            }
-        }
-
-        .security-sig {
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 700;
-            color: var(--primary-dark);
-            background: #FEF3C7;
-            padding: 0.15rem 0.45rem;
-            border-radius: 4px;
-            border: 1px solid rgba(217, 119, 6, 0.25);
-        }
-
-        /* Action Buttons Stack */
-        .action-buttons-stack {
+        .meta-group {
             display: flex;
-            flex-direction: column;
-            gap: 0.65rem;
-            margin-top: 0.25rem;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.76rem;
+            color: var(--text-secondary);
+        }
+
+        .meta-label {
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+        }
+
+        .meta-value {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Action Buttons Area */
+        .actions-panel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .actions-primary-group {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            flex-wrap: wrap;
         }
 
         .btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 0.6rem;
-            padding: 0.85rem 1.5rem;
-            border-radius: 12px;
-            font-size: 0.92rem;
-            font-weight: 700;
+            gap: 0.55rem;
+            padding: 0.72rem 1.4rem;
+            border-radius: 6px;
+            font-size: 0.86rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
             cursor: pointer;
             text-decoration: none;
-            transition: all 0.2s ease;
-            border: none;
-            width: 100%;
+            transition: all 0.15s ease;
+            white-space: nowrap;
         }
 
-        .btn-gold {
-            background: linear-gradient(135deg, #D97706 0%, #B45309 100%);
+        .btn-primary-dark {
+            background-color: var(--primary);
             color: #FFFFFF;
-            box-shadow: 0 4px 14px rgba(180, 83, 9, 0.25);
+            border: 1px solid var(--primary);
         }
-        .btn-gold:hover {
-            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-            box-shadow: 0 6px 18px rgba(180, 83, 9, 0.35);
-            transform: translateY(-1px);
+        .btn-primary-dark:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
         }
 
-        .btn-outline-glass {
-            background: #FFFFFF;
-            border: 1px solid var(--border-soft);
-            color: var(--text-heading);
-            box-shadow: var(--shadow-subtle);
+        .btn-outline {
+            background-color: var(--surface);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
         }
-        .btn-outline-glass:hover {
-            background: #F8FAFC;
+        .btn-outline:hover {
+            background-color: #F8F7F4;
             border-color: #CBD5E1;
-            transform: translateY(-1px);
         }
 
-        /* Print Media Styles */
+        .link-standings {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+        .link-standings:hover {
+            color: var(--secondary);
+            text-decoration: underline;
+        }
+
+        /* Institutional Verification Audit Card */
+        .verification-details-card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        .audit-card-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .audit-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.25rem;
+        }
+
+        .audit-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .audit-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+        }
+
+        .audit-val {
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            word-break: break-all;
+        }
+
+        /* Institutional Footer */
+        .footer {
+            border-top: 1px solid var(--border);
+            background-color: var(--surface);
+            padding: 2rem 1.5rem;
+            text-align: center;
+            margin-top: auto;
+        }
+
+        .footer-text {
+            font-size: 0.76rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        /* Responsive Layout Breakpoints */
+        @media (max-width: 820px) {
+            .certificate-card {
+                padding: 2.5rem 2rem 2.25rem;
+            }
+            .credential-meta-bar {
+                margin: 0 -2rem -2.25rem;
+                padding: 1rem 2rem;
+            }
+            .audit-grid {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+            .recipient-name {
+                font-size: 1.95rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .main-content {
+                padding: 1.5rem 1rem 3rem;
+            }
+            .header-inner {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.6rem;
+            }
+            .header-registry-tag {
+                align-self: flex-start;
+            }
+            .certificate-card {
+                padding: 2rem 1.25rem 1.75rem;
+                gap: 1.75rem;
+            }
+            .cert-main-heading {
+                font-size: 1.5rem;
+            }
+            .recipient-name {
+                font-size: 1.6rem;
+            }
+            .achievement-details-grid {
+                grid-template-columns: 1fr;
+            }
+            .authorization-section {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            .institutional-seal-frame {
+                order: -1;
+            }
+            .credential-meta-bar {
+                margin: 0 -1.25rem -1.75rem;
+                padding: 1rem 1.25rem;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .actions-panel {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .actions-primary-group {
+                flex-direction: column;
+                width: 100%;
+            }
+            .actions-primary-group .btn {
+                width: 100%;
+            }
+            .link-standings {
+                justify-content: center;
+                padding-top: 0.5rem;
+            }
+        }
+
+        /* Clean Institutional Print Stylesheet */
         @media print {
             body {
                 background: #FFFFFF !important;
+                color: #000000 !important;
                 padding: 0 !important;
             }
-            .ambient-bg, .header, .action-buttons-stack, .verified-banner {
+            .header, .actions-panel, .verification-status-panel, .footer, .participant-id-pill i {
                 display: none !important;
             }
-            .container {
+            .main-content {
                 max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
             }
-            .cert-card {
+            .certificate-card {
+                border: 1px solid #999999 !important;
                 box-shadow: none !important;
-                border: 2px solid #D97706 !important;
+                padding: 3rem 2.5rem !important;
                 page-break-inside: avoid;
+            }
+            .achievement-panel, .detail-cell, .achievement-standing-bar {
+                background-color: #FFFFFF !important;
+                border-color: #CCCCCC !important;
+            }
+            .credential-meta-bar {
+                background-color: #FAFAFA !important;
+                border-top: 1px solid #999999 !important;
+            }
+            .verification-details-card {
+                border-color: #CCCCCC !important;
+                page-break-inside: avoid;
+                margin-top: 1.5rem;
             }
         }
     </style>
 </head>
 <body>
 
-    <div class="ambient-bg"></div>
-
-    <div class="container">
-        <!-- Top Branded Header -->
-        <header class="header">
-            <div class="fest-identity-badge" id="header-fest-badge">
-                <div class="fest-logo-wrapper" id="fest-logo-box">
-                    <img id="fest-logo-top" class="fest-logo-img" src="" alt="Festival Crest" style="display: none;">
-                    <span id="fest-crest-fallback" class="fest-crest-fallback"><i class="fa-solid fa-crown"></i></span>
+    <!-- Minimal Institutional Header -->
+    <header class="header">
+        <div class="header-inner">
+            <a href="#" class="header-brand" id="header-fest-link">
+                <div class="header-logo-frame" id="header-logo-frame">
+                    <img id="fest-logo-img" src="" alt="Festival Crest" style="display: none;">
+                    <span id="fest-logo-initials" class="header-logo-initials">V</span>
                 </div>
-                <span id="fest-name-top" class="fest-name-text">Festival Verification Portal</span>
+                <div class="header-brand-titles">
+                    <span class="fest-title-text" id="fest-title-heading">VIBRANIUM 2026</span>
+                    <span class="fest-subtitle-text">Official Certificate Verification Portal</span>
+                </div>
+            </a>
+            <div class="header-registry-tag">
+                <i class="fa-solid fa-building-columns"></i>
+                <span>Institutional Credential Registry</span>
             </div>
+        </div>
+    </header>
 
-            <div class="verification-status-pill">
-                <span class="status-dot-pulse"></span>
-                <span>Verified Authentic</span>
+    <main class="main-content">
+        <!-- Verification Status Panel -->
+        <div class="verification-status-panel" id="verification-status-panel">
+            <div class="status-left">
+                <div class="status-icon" id="status-icon-box">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <div class="status-text-block">
+                    <div class="status-title" id="status-title-text">Verified Authentic</div>
+                    <div class="status-description" id="status-desc-text">This certificate has been successfully authenticated against the official festival registry.</div>
+                </div>
             </div>
-        </header>
-
-        <!-- Official Status Banner -->
-        <div class="verified-banner">
-            <div class="banner-icon-box">
-                <i class="fa-solid fa-shield-halved"></i>
-            </div>
-            <div class="banner-text-box">
-                <h3>Officially Authenticated Credential</h3>
-                <p id="banner-description-text">This certificate is issued and recorded in the official festival registry with cryptographic verification.</p>
+            <div class="status-meta-badge" id="status-auth-timestamp">
+                REGISTRY ID: AUTH-VALID
             </div>
         </div>
 
-        <!-- Museum-Grade Certificate Card -->
-        <div class="cert-card" id="certificate-replica">
-            <div class="corner-filigree filigree-tl"></div>
-            <div class="corner-filigree filigree-tr"></div>
-            <div class="corner-filigree filigree-bl"></div>
-            <div class="corner-filigree filigree-br"></div>
-
-            <!-- Header Crest -->
-            <div class="cert-crest-header">
-                <div class="crest-stars">★★★★★</div>
-                <div class="cert-fest-heading" id="cert-fest-heading">FESTIVAL OF ARTS &amp; EXCELLENCE</div>
-                <div class="cert-type-pill">
-                    <i class="fa-solid fa-award"></i>
-                    <span>Certificate of Merit &amp; Distinction</span>
-                </div>
+        <!-- Certificate Card (Institutional Information Panel) -->
+        <article class="certificate-card" id="certificate-document">
+            <!-- Section 1: Heading -->
+            <div class="cert-header-section">
+                <span class="eyebrow-text" id="cert-eyebrow-fest">VIBRANIUM 2026 • OFFICIAL REGISTRY RECORD</span>
+                <h1 class="cert-main-heading">Certificate of Merit &amp; Distinction</h1>
+                <div class="gold-divider"></div>
             </div>
 
-            <!-- Recipient Presentation Block -->
-            <div class="presentation-block">
-                <div class="presentation-intro">This certificate is proudly conferred upon</div>
-                <div class="recipient-fullname" id="cert-recipient-name">Recipient Name</div>
-                <div class="chest-badge-interactive" id="chest-badge" onclick="copyChestNumber()" title="Click to copy ID">
-                    <i class="fa-solid fa-fingerprint"></i>
+            <!-- Section 2: Recipient Identity -->
+            <div class="recipient-section">
+                <p class="recipient-intro">This certificate is proudly conferred upon</p>
+                <div class="recipient-name" id="cert-recipient-name">Recipient Name</div>
+                <button type="button" class="participant-id-pill" id="participant-id-badge" onclick="copyUniqueId()" title="Click to copy identification number">
+                    <i class="fa-regular fa-id-card"></i>
                     <span id="cert-uid-text">ST-0000</span>
-                    <i class="fa-regular fa-copy" style="font-size: 0.72rem; opacity: 0.7;"></i>
-                </div>
+                    <i class="fa-regular fa-copy" style="font-size: 0.72rem; opacity: 0.7; margin-left: 0.15rem;"></i>
+                </button>
             </div>
 
-            <!-- Placement / Distinction Ribbon -->
-            <div class="placement-ribbon-card first" id="placement-ribbon">
-                <span class="placement-medal" id="placement-medal">🥇</span>
-                <div>
-                    <div class="placement-title" id="placement-title">FIRST PLACE</div>
-                    <div class="placement-subtitle" id="placement-subtitle">Official 1st Standing Distinction</div>
+            <!-- Section 3: Achievement Panel -->
+            <div class="achievement-panel">
+                <div class="achievement-standing-bar">
+                    <div class="standing-title-group">
+                        <div class="standing-marker"></div>
+                        <span class="standing-title" id="standing-title-text">FIRST PLACE</span>
+                    </div>
+                    <span class="standing-badge first" id="standing-badge-pill">First Place Distinction</span>
                 </div>
-            </div>
 
-            <!-- Credential Details Grid -->
-            <div class="credential-grid">
-                <div class="credential-cell">
-                    <div class="cell-label"><i class="fa-solid fa-trophy" style="color:var(--gold);"></i> Competition Event</div>
-                    <div class="cell-value" id="cert-event-name">Event Name</div>
-                </div>
-                <div class="credential-cell">
-                    <div class="cell-label"><i class="fa-solid fa-layer-group" style="color:#4F46E5;"></i> Category</div>
-                    <div class="cell-value" id="cert-category-name">Category</div>
-                </div>
-                <div class="credential-cell">
-                    <div class="cell-label"><i class="fa-solid fa-users" style="color:#0284C7;"></i> Team / Institution</div>
-                    <div class="cell-value" id="cert-team-name">Independent</div>
-                </div>
-                <div class="credential-cell">
-                    <div class="cell-label"><i class="fa-solid fa-star" style="color:var(--emerald);"></i> Performance Grade</div>
-                    <div class="cell-value" id="cert-grade-box">
-                        <span class="grade-chip" id="grade-chip"><i class="fa-solid fa-check-double"></i> <span id="grade-val-text">A+ Grade</span></span>
+                <div class="achievement-details-grid">
+                    <div class="detail-cell">
+                        <span class="detail-label">Competition Event</span>
+                        <span class="detail-value" id="cert-event-name">Event Name</span>
+                    </div>
+                    <div class="detail-cell">
+                        <span class="detail-label">Category Sector</span>
+                        <span class="detail-value" id="cert-category-name">Category</span>
+                    </div>
+                    <div class="detail-cell">
+                        <span class="detail-label">Affiliated Team / Institution</span>
+                        <span class="detail-value" id="cert-team-name">Independent</span>
+                    </div>
+                    <div class="detail-cell">
+                        <span class="detail-label">Performance Grade</span>
+                        <span class="detail-value" id="cert-grade-container">
+                            <span class="grade-tag" id="grade-tag-val">Distinction Standing</span>
+                        </span>
                     </div>
                 </div>
             </div>
 
-            <!-- Signatures & 3D Gold Wax Seal -->
-            <div class="signatures-section">
-                <div class="sig-box">
-                    <div class="sig-drawing" id="sig-director">Festival Directorate</div>
-                    <div class="sig-line"></div>
-                    <div class="sig-title">Festival Director</div>
+            <!-- Section 4: Official Authorization & Signatures -->
+            <div class="authorization-section">
+                <div class="signature-block">
+                    <div class="signature-script">Festival Directorate</div>
+                    <div class="signature-line"></div>
+                    <div class="signature-role">Festival Director</div>
+                    <div class="signature-institution" id="sig-fest-name">VIBRANIUM 2026</div>
                 </div>
 
-                <div class="gold-seal-center" id="gold-wax-seal">
-                    <span class="seal-star">★</span>
-                    <span class="seal-txt">OFFICIAL<br>SEAL</span>
+                <div class="institutional-seal-frame">
+                    <div class="insignia-circle">
+                        <span class="insignia-star">★</span>
+                        <span class="insignia-text-main" id="seal-fest-text">OFFICIAL<br>REGISTRY</span>
+                        <span class="insignia-subtext">VERIFIED</span>
+                    </div>
                 </div>
 
-                <div class="sig-box">
-                    <div class="sig-drawing" id="sig-adjudicator">Chief Adjudicator</div>
-                    <div class="sig-line"></div>
-                    <div class="sig-title">Chief Adjudicator</div>
+                <div class="signature-block">
+                    <div class="signature-script">Chief Adjudicator</div>
+                    <div class="signature-line"></div>
+                    <div class="signature-role">Chief Adjudicator</div>
+                    <div class="signature-institution">Board of Examinations</div>
                 </div>
             </div>
 
-            <!-- Security Footnote -->
-            <div class="security-bar">
-                <div>
-                    <span>CONFERRED: </span><strong id="cert-date-val">2026-11-01</strong>
+            <!-- Section 5: Credential Technical Footer -->
+            <div class="credential-meta-bar">
+                <div class="meta-group">
+                    <span class="meta-label">Conferred Date:</span>
+                    <span class="meta-value" id="cert-date-text">2026-11-01</span>
                 </div>
-                <div>
-                    <span>RECORD HASH: </span><span class="security-sig" id="cert-sig-val">SEC-VBR-00000000</span>
+                <div class="meta-group">
+                    <span class="meta-label">Verification Ref:</span>
+                    <span class="meta-value" id="cert-ref-hash">SEC-VBR-00000000</span>
+                </div>
+                <div class="meta-group">
+                    <span class="meta-label">Record Status:</span>
+                    <span class="meta-value" style="color:var(--success);">Digitally Certified</span>
+                </div>
+            </div>
+        </article>
+
+        <!-- Technical Verification Audit Card -->
+        <div class="verification-details-card">
+            <div class="audit-card-title">
+                <i class="fa-solid fa-fingerprint"></i>
+                <span>Cryptographic Record Verification Details</span>
+            </div>
+            <div class="audit-grid">
+                <div class="audit-item">
+                    <span class="audit-label">Verification Reference</span>
+                    <span class="audit-val" id="audit-ref-text">SEC-VBR-00000000</span>
+                </div>
+                <div class="audit-item">
+                    <span class="audit-label">Authentication Status</span>
+                    <span class="audit-val" id="audit-status-text" style="color:var(--success);">Active &amp; Tamper-Proof</span>
+                </div>
+                <div class="audit-item">
+                    <span class="audit-label">Issuing Authority</span>
+                    <span class="audit-val" id="audit-authority-text">Festival Examination Registry</span>
                 </div>
             </div>
         </div>
 
-        <!-- Action Links -->
-        <div class="action-buttons-stack">
-            <button type="button" class="btn btn-gold" id="btn-share-cert" onclick="shareCertificate()">
-                <i class="fa-solid fa-share-nodes"></i> Share Verified Credential
-            </button>
-            <a href="results.html" id="btn-view-results" class="btn btn-outline-glass">
-                <i class="fa-solid fa-trophy"></i> View Official Event Standings &amp; Tabulation
+        <!-- Action Controls -->
+        <section class="actions-panel">
+            <div class="actions-primary-group">
+                <button type="button" class="btn btn-primary-dark" onclick="window.print()">
+                    <i class="fa-solid fa-print"></i>
+                    <span>Print Verification</span>
+                </button>
+                <button type="button" class="btn btn-outline" id="btn-share-cert" onclick="shareCertificate()">
+                    <i class="fa-solid fa-share-nodes"></i>
+                    <span>Share Certificate</span>
+                </button>
+            </div>
+            <a href="results.html" id="link-view-results" class="link-standings">
+                <span>View Official Event Standings</span>
+                <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.78rem;"></i>
             </a>
-            <button type="button" class="btn btn-outline-glass" onclick="window.print()">
-                <i class="fa-solid fa-print"></i> Print Official Verification Transcript
-            </button>
-        </div>
-    </div>
+        </section>
+    </main>
+
+    <!-- Institutional Footer -->
+    <footer class="footer">
+        <p class="footer-text">
+            This verification portal cross-references the official credential repository. Any alteration or unauthorized issuance of this credential is strictly prohibited. For inquiries regarding tabulated standings, contact the official festival administration.
+        </p>
+    </footer>
 
     <script>
         // ========================================================
-        // DYNAMIC FESTIVAL BRANDING & AUTHENTICITY ENGINE
+        // INSTITUTIONAL VERIFICATION ENGINE
         // ========================================================
         let currentRecord = null;
         let detectedFestId = null;
 
-        (async function initPortal() {
+        (async function initInstitutionalVerification() {
             const params = new URLSearchParams(window.location.search);
 
+            // Read URL parameters (compact ?u=...&c=...&p=...&g=... and verbose fallbacks)
             let uid = (params.get('u') || params.get('uid') || params.get('id') || '').trim();
             let compId = (params.get('c') || params.get('comp') || params.get('cid') || '').trim();
             let pCode = (params.get('p') || params.get('pos') || '').trim();
@@ -861,28 +1080,30 @@
                 positionStr = 'PARTICIPANT';
             }
 
-            applyPlacementStyling(positionStr);
+            // Apply placement typography
+            applyPlacementUI(positionStr);
 
+            // Set immediate values from params
             if (uid) {
                 document.getElementById('cert-uid-text').innerText = uid;
             } else {
-                document.getElementById('chest-badge').style.display = 'none';
+                document.getElementById('participant-id-badge').style.display = 'none';
             }
 
             if (name) document.getElementById('cert-recipient-name').innerText = name.toUpperCase();
-            if (eventName) document.getElementById('cert-event-name').innerText = eventName.toUpperCase();
-            if (catName) document.getElementById('cert-category-name').innerText = catName.toUpperCase();
-            if (teamName) document.getElementById('cert-team-name').innerText = teamName.toUpperCase();
-            if (date) document.getElementById('cert-date-val').innerText = date;
+            if (eventName) document.getElementById('cert-event-name').innerText = eventName;
+            if (catName) document.getElementById('cert-category-name').innerText = catName;
+            if (teamName) document.getElementById('cert-team-name').innerText = teamName;
+            if (date) document.getElementById('cert-date-text').innerText = date;
 
             // Performance Grade
             if (grade && grade !== 'N/A' && grade !== '-') {
-                document.getElementById('grade-val-text').innerText = `${grade} Grade`;
+                document.getElementById('grade-tag-val').innerText = `${grade} Grade Distinction`;
             } else {
-                document.getElementById('cert-grade-box').innerHTML = '<span style="color:var(--text-muted); font-size:0.85rem; font-weight:600;">Distinction Standing</span>';
+                document.getElementById('grade-tag-val').innerText = `Official Distinction Standing`;
             }
 
-            // Fingerprint Signature Hash
+            // Generate tamper-evident cryptographic fingerprint
             let sigRaw = `${uid}|${compId}|${positionStr}|${grade}|${festParam}`;
             let hash = 0;
             for (let i = 0; i < sigRaw.length; i++) {
@@ -890,92 +1111,88 @@
                 hash |= 0;
             }
             const sigCode = Math.abs(hash).toString(36).toUpperCase().padStart(8, '0');
-            document.getElementById('cert-sig-val').innerText = `SEC-VBR-${sigCode}`;
+            const refString = `SEC-VBR-${sigCode}`;
+            document.getElementById('cert-ref-hash').innerText = refString;
+            document.getElementById('audit-ref-text').innerText = refString;
+            document.getElementById('status-auth-timestamp').innerText = `REF: ${sigCode}`;
 
-            // Fetch live festival database records and branding
-            await loadFestivalDetails(uid, compId, festParam);
+            // Sync with backend Supabase database
+            await authenticateAndLoadDetails(uid, compId, festParam);
 
         })();
 
-        function applyPlacementStyling(pos) {
-            const ribbon = document.getElementById('placement-ribbon');
-            const medal = document.getElementById('placement-medal');
-            const title = document.getElementById('placement-title');
-            const sub = document.getElementById('placement-subtitle');
+        function applyPlacementUI(pos) {
+            const title = document.getElementById('standing-title-text');
+            const badge = document.getElementById('standing-badge-pill');
 
-            ribbon.className = 'placement-ribbon-card';
+            badge.className = 'standing-badge';
 
             if (pos.includes('FIRST') || pos.includes('1ST')) {
-                ribbon.classList.add('first');
-                medal.innerText = '🥇';
                 title.innerText = 'FIRST PLACE';
-                sub.innerText = 'Official 1st Standing Distinction';
+                badge.classList.add('first');
+                badge.innerText = 'First Place Standing';
             } else if (pos.includes('SECOND') || pos.includes('2ND')) {
-                ribbon.classList.add('second');
-                medal.innerText = '🥈';
                 title.innerText = 'SECOND PLACE';
-                sub.innerText = 'Official 2nd Standing Distinction';
+                badge.classList.add('second');
+                badge.innerText = 'Second Place Standing';
             } else if (pos.includes('THIRD') || pos.includes('3RD')) {
-                ribbon.classList.add('third');
-                medal.innerText = '🥉';
                 title.innerText = 'THIRD PLACE';
-                sub.innerText = 'Official 3rd Standing Distinction';
+                badge.classList.add('third');
+                badge.innerText = 'Third Place Standing';
             } else {
-                ribbon.classList.add('participant');
-                medal.innerText = '🎖️';
                 title.innerText = 'OFFICIAL PARTICIPATION';
-                sub.innerText = 'Festival Merit Distinction';
+                badge.classList.add('participant');
+                badge.innerText = 'Certificate of Participation';
             }
         }
 
-        async function loadFestivalDetails(uid, compId, urlFestId) {
+        async function authenticateAndLoadDetails(uid, compId, urlFestId) {
             try {
                 if (typeof supabaseClient === 'undefined' || !supabaseClient) return;
 
                 let targetFestId = urlFestId || null;
-                let foundParticipant = null;
-                let foundCompetition = null;
 
-                // 1. Resolve Competition Record (without local tenant locks)
+                // 1. Resolve Competition Record (Without local tenant filters)
                 if (compId) {
-                    const { data: cData } = await supabaseClient
+                    const { data: cData, error: cErr } = await supabaseClient
                         .from('competitions')
                         .select('id, name, fest_id, categories(name)')
                         .eq('id', compId)
                         .maybeSingle();
 
                     if (cData) {
-                        foundCompetition = cData;
                         if (!targetFestId && cData.fest_id) targetFestId = cData.fest_id;
-                        document.getElementById('cert-event-name').innerText = cData.name.toUpperCase();
-                        if (cData.categories?.name) document.getElementById('cert-category-name').innerText = cData.categories.name.toUpperCase();
-                        
-                        const resBtn = document.getElementById('btn-view-results');
-                        if (resBtn) {
-                            resBtn.href = `results.html?tab=results&subtab=individual&comp=${encodeURIComponent(compId)}`;
+                        document.getElementById('cert-event-name').innerText = cData.name;
+                        if (cData.categories?.name) document.getElementById('cert-category-name').innerText = cData.categories.name;
+
+                        const standingsLink = document.getElementById('link-view-results');
+                        if (standingsLink) {
+                            standingsLink.href = `results.html?tab=results&subtab=individual&comp=${encodeURIComponent(compId)}`;
                         }
                     }
                 }
 
-                // 2. Resolve Participant Record (without local tenant locks)
+                // 2. Resolve Participant Record (Without local tenant filters)
                 if (uid) {
-                    const { data: pData } = await supabaseClient
+                    const { data: pData, error: pErr } = await supabaseClient
                         .from('participants')
                         .select('id, name, unique_id, fest_id, teams(name), categories(name)')
                         .eq('unique_id', uid)
                         .maybeSingle();
 
                     if (pData) {
-                        foundParticipant = pData;
                         currentRecord = pData;
                         if (!targetFestId && pData.fest_id) targetFestId = pData.fest_id;
                         document.getElementById('cert-recipient-name').innerText = pData.name.toUpperCase();
-                        if (pData.teams?.name) document.getElementById('cert-team-name').innerText = pData.teams.name.toUpperCase();
-                        if (pData.categories?.name) document.getElementById('cert-category-name').innerText = pData.categories.name.toUpperCase();
+                        if (pData.teams?.name) document.getElementById('cert-team-name').innerText = pData.teams.name;
+                        if (pData.categories?.name) document.getElementById('cert-category-name').innerText = pData.categories.name;
+                    } else if (!uid && !compId) {
+                        // Empty query state
+                        setInvalidState("No credential identifier was supplied for verification.");
+                        return;
                     }
                 }
 
-                // If still not found, check active fest in context or default to zenith fest
                 if (!targetFestId) {
                     targetFestId = (typeof getActiveFestId === 'function') ? getActiveFestId() : (localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
                 }
@@ -985,8 +1202,8 @@
                 let festName = '';
                 let festLogo = '';
 
-                // A. Check settings table for festival specific branding: 'system_branding_<festId>' or 'system_branding'
                 if (targetFestId) {
+                    // Check festival specific setting
                     const { data: sData } = await supabaseClient
                         .from('settings')
                         .select('value')
@@ -995,91 +1212,100 @@
 
                     if (sData && sData.value) {
                         if (sData.value.fest_name) festName = sData.value.fest_name.trim();
-                        if (sData.value.fest_logo && !isPlaceholderLogo(sData.value.fest_logo)) {
+                        if (sData.value.fest_logo && !isSystemPlaceholderLogo(sData.value.fest_logo)) {
                             festLogo = sData.value.fest_logo.trim();
                         }
                     }
                 }
 
-                // B. Query fests table directly for the festival
-                if (targetFestId) {
+                if (targetFestId && (!festName || !festLogo)) {
+                    // Query fests table directly
                     const { data: fData } = await supabaseClient
                         .from('fests')
-                        .select('id, name, logo, theme_color')
+                        .select('id, name, logo')
                         .eq('id', targetFestId)
                         .maybeSingle();
 
                     if (fData) {
                         if (!festName && fData.name) festName = fData.name.trim();
-                        if (!festLogo && fData.logo && !isPlaceholderLogo(fData.logo)) {
+                        if (!festLogo && fData.logo && !isSystemPlaceholderLogo(fData.logo)) {
                             festLogo = fData.logo.trim();
                         }
                     }
                 }
 
-                // C. Fallback to generic system_branding in settings if still not set
                 if (!festName) {
+                    // Default to VIBRANIUM 2026 or generic branding
                     const { data: genBranding } = await supabaseClient
                         .from('settings')
                         .select('value')
                         .eq('id', 'system_branding')
                         .maybeSingle();
 
-                    if (genBranding && genBranding.value) {
-                        if (genBranding.value.fest_name) festName = genBranding.value.fest_name.trim();
-                        if (!festLogo && genBranding.value.fest_logo && !isPlaceholderLogo(genBranding.value.fest_logo)) {
-                            festLogo = genBranding.value.fest_logo.trim();
-                        }
+                    if (genBranding && genBranding.value && genBranding.value.fest_name) {
+                        festName = genBranding.value.fest_name.trim();
                     }
                 }
 
-                // Apply Festival Branding to DOM (strictly Festival, never FestOS branding)
-                if (festName) {
-                    document.getElementById('cert-fest-heading').innerText = festName.toUpperCase();
-                    document.getElementById('fest-name-top').innerText = festName;
-                    document.title = `${festName} | Official Certificate Verification`;
-                    document.getElementById('banner-description-text').innerText = `This certificate is issued and verified in the official registry of ${festName}.`;
-                }
+                // If still empty, maintain default VIBRANIUM 2026
+                if (!festName) festName = 'VIBRANIUM 2026';
 
-                const logoImg = document.getElementById('fest-logo-top');
-                const crestFallback = document.getElementById('fest-crest-fallback');
+                // Apply institutional identity to DOM
+                document.getElementById('fest-title-heading').innerText = festName;
+                document.getElementById('cert-eyebrow-fest').innerText = `${festName.toUpperCase()} • OFFICIAL REGISTRY RECORD`;
+                document.getElementById('sig-fest-name').innerText = festName;
+                document.getElementById('audit-authority-text').innerText = `${festName} Examination Registry`;
+                document.title = `${festName} | Official Certificate Verification`;
+
+                const logoImg = document.getElementById('fest-logo-img');
+                const logoInitials = document.getElementById('fest-logo-initials');
+
                 if (festLogo) {
                     logoImg.src = festLogo;
                     logoImg.style.display = 'block';
-                    crestFallback.style.display = 'none';
+                    logoInitials.style.display = 'none';
                 } else {
                     logoImg.style.display = 'none';
-                    crestFallback.style.display = 'block';
-                    if (festName) {
-                        crestFallback.innerText = getInitials(festName);
-                    }
+                    logoInitials.style.display = 'block';
+                    logoInitials.innerText = getMonogram(festName);
                 }
 
             } catch (err) {
-                console.warn("Festival branding sync note:", err.message);
+                console.warn("Institutional verification sync notice:", err);
             }
         }
 
-        function isPlaceholderLogo(logoStr) {
+        function isSystemPlaceholderLogo(logoStr) {
             if (!logoStr) return true;
             const l = logoStr.toLowerCase();
             return l.includes('festos-logo') || l.includes('festos') || l === 'favicon.png';
         }
 
-        function getInitials(str) {
-            if (!str) return '★';
+        function getMonogram(str) {
+            if (!str) return 'V';
             const words = str.trim().split(/\s+/);
-            if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-            return (words[0][0] + words[1][0]).toUpperCase();
+            if (words.length === 1) return words[0].slice(0, 1).toUpperCase();
+            return (words[0][0] + (words[1] ? words[1][0] : '')).toUpperCase();
         }
 
-        function copyChestNumber() {
+        function setInvalidState(msg) {
+            const panel = document.getElementById('verification-status-panel');
+            panel.className = 'verification-status-panel status-panel-error';
+            document.getElementById('status-icon-box').innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+            document.getElementById('status-title-text').innerText = 'Unverified Credential';
+            document.getElementById('status-desc-text').innerText = msg || 'The certificate record could not be confirmed in the official registry.';
+            document.getElementById('status-auth-timestamp').innerText = 'STATUS: UNVERIFIED';
+            document.getElementById('audit-status-text').innerText = 'Unverified / Record Inactive';
+            document.getElementById('audit-status-text').style.color = 'var(--error)';
+        }
+
+        function copyUniqueId() {
             const uidText = document.getElementById('cert-uid-text').innerText;
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(uidText);
-                const badge = document.getElementById('chest-badge');
+                const badge = document.getElementById('participant-id-badge');
                 const orig = badge.innerHTML;
-                badge.innerHTML = '<i class="fa-solid fa-check" style="color:var(--emerald);"></i> Copied!';
+                badge.innerHTML = '<i class="fa-solid fa-check" style="color:var(--success);"></i> Copied';
                 setTimeout(() => { badge.innerHTML = orig; }, 1800);
             }
         }
@@ -1087,14 +1313,14 @@
         async function shareCertificate() {
             const name = document.getElementById('cert-recipient-name').innerText;
             const event = document.getElementById('cert-event-name').innerText;
-            const pos = document.getElementById('placement-title').innerText;
-            const fest = document.getElementById('cert-fest-heading').innerText;
+            const standing = document.getElementById('standing-title-text').innerText;
+            const fest = document.getElementById('fest-title-heading').innerText;
 
             if (navigator.share) {
                 try {
                     await navigator.share({
-                        title: `${name} - ${pos} Certificate | ${fest}`,
-                        text: `Verify official certificate: ${name} conferred ${pos} in ${event} at ${fest}!`,
+                        title: `${name} - ${standing} | ${fest}`,
+                        text: `Verify official certificate: ${name} conferred ${standing} in ${event} at ${fest}.`,
                         url: window.location.href
                     });
                 } catch(e) {}
@@ -1102,7 +1328,7 @@
                 navigator.clipboard.writeText(window.location.href);
                 const btn = document.getElementById('btn-share-cert');
                 const orig = btn.innerHTML;
-                btn.innerHTML = '<i class="fa-solid fa-check"></i> Verification Link Copied!';
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Link Copied</span>';
                 setTimeout(() => { btn.innerHTML = orig; }, 2000);
             }
         }
