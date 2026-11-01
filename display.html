@@ -1003,7 +1003,10 @@
 
                         const teamId = entry.participant?.team_id;
                         const teamName = allTeams.find(t => String(t.id) === String(teamId))?.name || 'IND';
-                        if (teamId && calculatedTeamScores[teamId] && eligibleForTeam) {
+                        const isCategoryEventExcluded = (typeof festosIsStudentExcludedFromLedger === 'function')
+                            ? festosIsStudentExcludedFromLedger(entry.participant?.id, compData.comp_data)
+                            : false;
+                        if (teamId && calculatedTeamScores[teamId] && eligibleForTeam && !isCategoryEventExcluded) {
                             calculatedTeamScores[teamId].score += (Number(gradePts) + Number(posPts)); 
                         }
 

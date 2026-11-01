@@ -4160,7 +4160,10 @@
                     const eligibleForTeam = allowAllTeam || inTopThree;
 
                     const teamId = entry.participant?.team_id;
-                    if (teamId && calculatedTeamScores[teamId] && eligibleForTeam) { 
+                    const isCategoryEventExcluded = (typeof festosIsStudentExcludedFromLedger === 'function')
+                        ? festosIsStudentExcludedFromLedger(entry.participant?.id, comp)
+                        : false;
+                    if (teamId && calculatedTeamScores[teamId] && eligibleForTeam && !isCategoryEventExcluded) { 
                         calculatedTeamScores[teamId].score += (gradePts + posPts); 
                     }
                 });

@@ -3111,6 +3111,296 @@ function festosEvaluateStudentCategoryLimit(studentId, targetCompId, studentsLis
 }
 
 // =========================================================================
+// 6.1. POINTS LEDGER CATEGORY LIMIT AUDIT & EXCLUSION SYSTEM
+// =========================================================================
+let _cachedLedgerExclusions = null;
+
+async function festosGetLedgerExclusions(forceRefresh = false) {
+    if (_cachedLedgerExclusions && !forceRefresh) return _cachedLedgerExclusions;
+    try {
+        const val = await festosGetSetting('points_ledger_exclusions');
+        _cachedLedgerExclusions = (val && typeof val === 'object') ? val : {};
+        return _cachedLedgerExclusions;
+    } catch (e) {
+        return _cachedLedgerExclusions || {};
+    }
+}
+
+async function festosSaveLedgerExclusions(exclusions) {
+    _cachedLedgerExclusions = exclusions;
+    if (typeof window !== 'undefined') window.cachedLedgerExclusions = exclusions;
+    return await festosSaveSetting('points_ledger_exclusions', exclusions);
+}
+
+function festosIsStudentExcludedFromLedger(studentId, comp, exclusionsObj = null) {
+    if (!studentId) return false;
+    let currentEx = exclusionsObj || _cachedLedgerExclusions || (typeof window !== 'undefined' ? window.cachedLedgerExclusions : null);
+    if (!currentEx) {
+        try {
+            const festId = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : null;
+            const key = 'festos_cfg_' + (festId ? `points_ledger_exclusions_${festId}` : 'points_ledger_exclusions');
+            const raw = localStorage.getItem(key);
+            if (raw) {
+                _cachedLedgerExclusions = JSON.parse(raw);
+                currentEx = _cachedLedgerExclusions;
+            }
+        } catch(e) {}
+    }
+    if (!currentEx) return false;
+    const exclusionData = currentEx[String(studentId)];
+    if (!exclusionData) return false;
+
+    // Student IS in exclusion list!
+    // Check if comp is General Category / Common:
+    if (!comp) return true;
+    const isGeneral = !!(comp.is_common === true || (comp.categories && comp.categories.is_general === true));
+    // RULE: Points in general category are NOT deducted ("EXCEPT GENERAL CATEGORY")
+    if (isGeneral) return false;
+
+    return true; // Exclude category points from team
+}
+
+function festosAuditCategoryLimitViolations(options = {}) {
+    const {
+        participants = [],
+        competitions = [],
+        categories = [],
+        teams = [],
+        assignments = [],
+        judgements = [],
+        limitConfig = {},
+        exclusions = {},
+        pointSettings = {}
+    } = options;
+
+    const excludeGroup = limitConfig.exclude_group_events !== false;
+    const excludeGeneral = limitConfig.exclude_general_competitions !== false;
+
+    // Build fast lookup maps
+    const compMap = new Map();
+    (competitions || []).forEach(c => compMap.set(String(c.id), c));
+
+    const catMap = new Map();
+    (categories || []).forEach(c => catMap.set(String(c.id), c));
+
+    const teamMap = new Map();
+    (teams || []).forEach(t => teamMap.set(String(t.id), t));
+
+    // Group judgements by compId -> participantId -> marks array
+    const compJudgementsMap = {};
+    (judgements || []).forEach(j => {
+        if (!j.competition_id || !j.participant_id || j.awarded_mark == null) return;
+        const cId = String(j.competition_id);
+        const pId = String(j.participant_id);
+        if (!compJudgementsMap[cId]) compJudgementsMap[cId] = {};
+        if (!compJudgementsMap[cId][pId]) compJudgementsMap[cId][pId] = [];
+        compJudgementsMap[cId][pId].push(parseFloat(j.awarded_mark));
+    });
+
+    // Precalculate competition results (scores, positions, grades, points)
+    const compCalculatedResults = {};
+    const th = pointSettings.thresholds || { aplus: 90, a: 70, b: 60, c: 50 };
+    const posTable = pointSettings.pos_points || { p1: 3, p2: 2, p3: 1 };
+
+    Object.entries(compJudgementsMap).forEach(([cId, partsObj]) => {
+        const comp = compMap.get(cId);
+        if (!comp) return;
+
+        const maxMark = comp.max_mark || 100;
+        const limit = comp.max_participants || 1;
+        const sizeCat = limit >= 4 ? 'large' : (limit >= 2 ? 'small' : 'solo');
+        const ptsTable = pointSettings[`points_${sizeCat}`] || { aplus: 8, a: 7, b: 5, c: 3 };
+
+        const partsArr = Object.entries(partsObj).map(([pId, marks]) => {
+            let sorted = marks.slice().sort((a, b) => a - b);
+            if (sorted.length >= 3) sorted = sorted.slice(1, sorted.length - 1);
+            const sum = sorted.reduce((a, b) => a + b, 0);
+            return { id: pId, mark: sum / sorted.length };
+        }).sort((a, b) => b.mark - a.mark);
+
+        let currentRank = 1;
+        let currentDensePos = 0;
+        let prevScore = -1;
+
+        compCalculatedResults[cId] = {};
+
+        partsArr.forEach((p, idx) => {
+            if (p.mark !== prevScore) {
+                currentRank = idx + 1;
+                currentDensePos++;
+            }
+            prevScore = p.mark;
+
+            const percent = (p.mark / maxMark) * 100;
+            let grade = '-';
+            let gradePts = 0;
+            let posPts = 0;
+
+            if (percent >= 50) {
+                if (percent >= th.aplus) { grade = 'A+'; gradePts = Number(ptsTable.aplus) || 0; }
+                else if (percent >= th.a) { grade = 'A'; gradePts = Number(ptsTable.a) || 0; }
+                else if (percent >= th.b) { grade = 'B'; gradePts = Number(ptsTable.b) || 0; }
+                else { grade = 'C'; gradePts = Number(ptsTable.c) || 0; }
+            }
+
+            const inTopThree = (currentDensePos <= 3 || currentRank <= 3);
+            const effectivePos = currentDensePos <= 3 ? currentDensePos : (currentRank <= 3 ? currentRank : 0);
+            if (effectivePos === 1) posPts = Number(posTable.p1) || 0;
+            else if (effectivePos === 2) posPts = Number(posTable.p2) || 0;
+            else if (effectivePos === 3) posPts = Number(posTable.p3) || 0;
+
+            compCalculatedResults[cId][p.id] = {
+                mark: p.mark,
+                percent,
+                grade,
+                gradePts,
+                posPts,
+                totalPts: gradePts + posPts,
+                rank: currentRank,
+                densePos: currentDensePos,
+                inTopThree
+            };
+        });
+    });
+
+    // Map student assignments
+    const studentAssignsMap = new Map();
+    (assignments || []).forEach(a => {
+        const pId = String(a.participant_id);
+        if (!studentAssignsMap.has(pId)) studentAssignsMap.set(pId, new Set());
+        studentAssignsMap.get(pId).add(String(a.competition_id));
+    });
+
+    const violations = [];
+    const allAuditedStudents = [];
+
+    (participants || []).forEach(student => {
+        const pId = String(student.id);
+        const catId = student.category_id ? String(student.category_id) : null;
+        if (!catId) return;
+
+        const studentCat = catMap.get(catId);
+        // If student is in a general category, they don't have category limits
+        if (!studentCat || studentCat.is_general === true) return;
+
+        // Determine category limit set in Categories tab:
+        const catSetting = (limitConfig.categories && limitConfig.categories[catId]) || {};
+        let catLimit = null;
+        if (catSetting.enabled !== false && parseInt(catSetting.limit) > 0) {
+            catLimit = parseInt(catSetting.limit);
+        } else if (limitConfig.enabled === true && parseInt(limitConfig.default_limit) > 0) {
+            catLimit = parseInt(limitConfig.default_limit);
+        } else if (options.defaultLimitIfUnset && parseInt(options.defaultLimitIfUnset) > 0) {
+            catLimit = parseInt(options.defaultLimitIfUnset);
+        }
+
+        if (!catLimit || catLimit <= 0) return; // No limit set for this category
+
+        // Find all competitions participated (assigned or evaluated)
+        const enrolledSet = studentAssignsMap.get(pId) || new Set();
+        const evaluatedSet = new Set();
+        Object.entries(compJudgementsMap).forEach(([cId, parts]) => {
+            if (parts[pId]) evaluatedSet.add(cId);
+        });
+
+        const allCompIds = Array.from(new Set([...enrolledSet, ...evaluatedSet]));
+
+        const categoryComps = [];
+        const generalComps = [];
+        const exemptComps = [];
+
+        allCompIds.forEach(cId => {
+            const comp = compMap.get(cId);
+            if (!comp) return;
+
+            const compCat = catMap.get(String(comp.category_id));
+            const isGeneral = !!(comp.is_common === true || (compCat && compCat.is_general === true));
+            const isGroup = !!comp.is_group;
+
+            const evalData = compCalculatedResults[cId]?.[pId] || {
+                mark: 0,
+                grade: '-',
+                totalPts: 0
+            };
+
+            const compDetail = {
+                id: comp.id,
+                name: comp.name,
+                is_group: isGroup,
+                is_general: isGeneral,
+                category_id: comp.category_id,
+                category_name: compCat?.name || 'Category',
+                mark: typeof evalData.mark === 'number' ? evalData.mark.toFixed(2) : '0.00',
+                grade: evalData.grade,
+                totalPts: evalData.totalPts || 0,
+                rank: evalData.rank || '-'
+            };
+
+            if (isGeneral && excludeGeneral) {
+                generalComps.push(compDetail);
+            } else if (isGroup && excludeGroup) {
+                exemptComps.push(compDetail);
+            } else if (String(comp.category_id) === String(catId)) {
+                categoryComps.push(compDetail);
+            } else {
+                if (compCat && compCat.is_general) generalComps.push(compDetail);
+                else exemptComps.push(compDetail);
+            }
+        });
+
+        const catCompsCount = categoryComps.length;
+        const isViolator = catCompsCount > catLimit;
+        const isExcluded = !!(exclusions && exclusions[pId]);
+
+        const totalCatPoints = categoryComps.reduce((sum, c) => sum + (c.totalPts || 0), 0);
+        const totalGenPoints = generalComps.reduce((sum, c) => sum + (c.totalPts || 0), 0);
+        const totalRawPoints = totalCatPoints + totalGenPoints;
+
+        const record = {
+            participant_id: pId,
+            student_id: pId,
+            student_name: student.name || 'Participant',
+            unique_id: student.unique_id || 'ID',
+            class_name: student.class_name || '',
+            team_id: student.team_id ? String(student.team_id) : '',
+            team_name: (student.teams?.name || (teamMap.get(String(student.team_id))?.name)) || 'INDEPENDENT',
+            category_id: catId,
+            category_name: studentCat.name || 'Category',
+            category_limit: catLimit,
+            actual_category_count: catCompsCount,
+            excess_count: Math.max(0, catCompsCount - catLimit),
+            general_count: generalComps.length,
+            is_violator: isViolator,
+            is_excluded: isExcluded,
+            category_points: totalCatPoints,
+            general_points: totalGenPoints,
+            raw_total_points: totalRawPoints,
+            category_competitions: categoryComps,
+            general_competitions: generalComps,
+            exempt_competitions: exemptComps,
+            reason: isViolator
+                ? `Exceeded category limit of ${catLimit} competition(s) for "${studentCat.name}" (participated in ${catCompsCount} events, ${catCompsCount - catLimit} over limit).`
+                : 'Within category limit.',
+            why_detail: `Student participated in ${catCompsCount} competitions under their category "${studentCat.name}" where the administrator set a maximum limit of ${catLimit} competitions in the Categories tab. In accordance with festival regulations, the ${totalCatPoints} points earned in category competitions are subject to deduction from the Team and Participant Points Ledger. ${totalGenPoints} points earned in General Category competitions are preserved.`
+        };
+
+        if (isViolator) {
+            violations.push(record);
+        }
+        allAuditedStudents.push(record);
+    });
+
+    return {
+        violations,
+        allAuditedStudents,
+        totalViolators: violations.length,
+        totalExcessEvents: violations.reduce((sum, v) => sum + v.excess_count, 0),
+        totalCategoryPointsAtStake: violations.reduce((sum, v) => sum + v.category_points, 0),
+        totalGeneralPointsPreserved: violations.reduce((sum, v) => sum + v.general_points, 0)
+    };
+}
+
+// =========================================================================
 // 5. EMERGENCY BROADCASTS & MASTER NOTIFICATIONS ENGINE
 // =========================================================================
 // Universal Top Banner Host Engine (prevents layout disruption in flexbox dashboards)
@@ -3542,6 +3832,10 @@ if (typeof window !== 'undefined') {
     window.festosGetAdminCategoryLimitConfig = festosGetCategoryLimitConfig;
     window.festosSaveAdminCategoryLimitConfig = festosSaveCategoryLimitConfig;
     window.festosEvaluateStudentCategoryLimit = festosEvaluateStudentCategoryLimit;
+    window.festosGetLedgerExclusions = festosGetLedgerExclusions;
+    window.festosSaveLedgerExclusions = festosSaveLedgerExclusions;
+    window.festosIsStudentExcludedFromLedger = festosIsStudentExcludedFromLedger;
+    window.festosAuditCategoryLimitViolations = festosAuditCategoryLimitViolations;
     window.festosGetTopBannerHost = festosGetTopBannerHost;
     window.festosUpdateTopBannerPadding = festosUpdateTopBannerPadding;
     window.festosCrypto = festosCrypto;

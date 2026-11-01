@@ -9013,15 +9013,46 @@ async function loadParticipantPoints() {
             catsRes,
             compsRes,
             participantsRes,
-            judgementsRes
+            judgementsRes,
+            pcRes,
+            limitConfig,
+            currentExclusions
         ] = await Promise.all([
             loadPointSettings(),
             festQuery(supabaseClient.from('teams').select('*').order('name')),
             festQuery(supabaseClient.from('categories').select('*').order('name')),
             festQuery(supabaseClient.from('competitions').select('*, categories(name, is_general), participant_competitions(count)')),
             festQuery(supabaseClient.from('participants').select('*, teams(name), categories(name)')),
-            festQuery(supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark'))
+            festQuery(supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark')),
+            festQuery(supabaseClient.from('participant_competitions').select('id, participant_id, competition_id')),
+            getCategoryLimitConfig(),
+            (typeof festosGetLedgerExclusions === 'function') ? festosGetLedgerExclusions() : Promise.resolve({})
         ]);
+
+        window.cachedLedgerExclusions = currentExclusions || {};
+        const pcList = pcRes.data || [];
+
+        // Run category limit audit across all participants
+        window.latestCategoryLimitAudit = (typeof festosAuditCategoryLimitViolations === 'function')
+            ? festosAuditCategoryLimitViolations({
+                participants: participantsRes.data || [],
+                competitions: compsRes.data || [],
+                categories: catsRes.data || [],
+                teams: teamsRes.data || [],
+                assignments: pcList,
+                judgements: judgementsRes.data || [],
+                limitConfig: limitConfig || {},
+                exclusions: window.cachedLedgerExclusions,
+                pointSettings: pointSettings || {}
+            })
+            : { violations: [], totalViolators: 0, totalExcessEvents: 0, totalCategoryPointsAtStake: 0 };
+
+        const violationMap = {};
+        (window.latestCategoryLimitAudit?.violations || []).forEach(v => {
+            violationMap[String(v.participant_id)] = v;
+        });
+        window.categoryLimitViolationMap = violationMap;
+        if (typeof updateAuditBadgeCounts === 'function') updateAuditBadgeCounts();
 
         if (teamsRes.data) teamsList = teamsRes.data;
         if (catsRes.data) categoriesList = catsRes.data;
@@ -9142,39 +9173,104 @@ async function loadParticipantPoints() {
                         awardType: comp.award_type // Track award type here
                     });
 
+                    // Check if this student is excluded from Points Ledger for category competitions
+                    const isStudentExcluded = !!(window.cachedLedgerExclusions && window.cachedLedgerExclusions[String(p.id)]);
+                    const compCat = comp.categories || {};
+                    const isGeneralComp = !!(comp.is_common === true || compCat.is_general === true);
+                    const isCategoryEventExcluded = isStudentExcluded && !isGeneralComp;
+
                     // Individual Events: ALSO add to Team Ledger if eligible (all participants or top 3 positions)
                     if (tId && teamResults[tId] && eligibleForTeam) {
-                        teamResults[tId].breakdown.push({
-                            compName: comp.name,
-                            compCat: comp.categories?.name || 'General',
-                            mark: p.mark.toFixed(2), 
-                            maxMark: comp.max_mark || 100,
-                            grade: grade, 
-                            totalPts: totalPts,
-                            participantName: pData?.name || 'Unknown',
-                            type: 'Individual Event',
-                            awardType: comp.award_type // Track award type
-                        });
-                        teamResults[tId].totalPoints += totalPts;
+                        if (isCategoryEventExcluded) {
+                            // LESS/DEDUCT that points in his category (EXCEPT GENERAL CATEGORY) from team points!
+                            if (!teamResults[tId].deductions) teamResults[tId].deductions = [];
+                            teamResults[tId].deductions.push({
+                                studentId: p.id,
+                                studentName: pData?.name || 'Unknown',
+                                uniqueId: pData?.unique_id || 'ID',
+                                compName: comp.name,
+                                compCat: compCat.name || 'Category',
+                                mark: p.mark.toFixed(2),
+                                maxMark: comp.max_mark || 100,
+                                grade: grade,
+                                totalPts: totalPts,
+                                awardType: comp.award_type,
+                                reason: 'Exceeded category limit configured in Categories tab'
+                            });
+                            teamResults[tId].totalDeductions = (teamResults[tId].totalDeductions || 0) + totalPts;
+                        } else {
+                            teamResults[tId].breakdown.push({
+                                compName: comp.name,
+                                compCat: compCat.name || 'General',
+                                mark: p.mark.toFixed(2), 
+                                maxMark: comp.max_mark || 100,
+                                grade: grade, 
+                                totalPts: totalPts,
+                                participantName: pData?.name || 'Unknown',
+                                type: 'Individual Event',
+                                awardType: comp.award_type,
+                                isGeneral: isGeneralComp
+                            });
+                            teamResults[tId].totalPoints += totalPts;
+                        }
                     }
                 }
             });
         });
 
-        // Apply to participant list with Star/Pen calculation
+        // Calculate gross points and final deductions on teams
+        Object.values(teamResults).forEach(t => {
+            t.totalDeductions = t.totalDeductions || 0;
+            t.grossPoints = (t.totalPoints || 0) + t.totalDeductions;
+            if (!t.deductions) t.deductions = [];
+        });
+
+        // Apply to participant list with Star/Pen and Exclusion calculation
         pointsDataList = (participants || []).map(p => {
             const breakdown = compResults[p.id] || [];
-            const totalPoints = breakdown.reduce((sum, b) => sum + b.totalPts, 0);
+            const isExcluded = !!(window.cachedLedgerExclusions && window.cachedLedgerExclusions[String(p.id)]);
+            const isViolator = !!(window.categoryLimitViolationMap && window.categoryLimitViolationMap[String(p.id)]);
             
-            // NEW: Calculate specific award points
-            const starPoints = breakdown.filter(b => b.awardType === 'star').reduce((sum, b) => sum + b.totalPts, 0);
-            const penPoints = breakdown.filter(b => b.awardType === 'pen').reduce((sum, b) => sum + b.totalPts, 0);
+            // Split points into category events vs general category events
+            let catPoints = 0;
+            let genPoints = 0;
+            breakdown.forEach(b => {
+                const targetComp = (comps || []).find(c => c.name === b.compName);
+                const isGeneral = !!(targetComp?.is_common || targetComp?.categories?.is_general || b.isGeneral);
+                b.isGeneral = isGeneral;
+                if (isGeneral) genPoints += b.totalPts;
+                else catPoints += b.totalPts;
+            });
+            const rawTotalPoints = catPoints + genPoints;
+
+            // When excluded: category points are removed from ledger; general category points preserved
+            const netPoints = isExcluded ? genPoints : rawTotalPoints;
+            const deductedPoints = isExcluded ? catPoints : 0;
             
-            return { ...p, totalPoints, starPoints, penPoints, breakdown };
+            // Specific award points (adjusted for exclusion)
+            const starPoints = breakdown.filter(b => b.awardType === 'star' && (!isExcluded || b.isGeneral)).reduce((sum, b) => sum + b.totalPts, 0);
+            const penPoints = breakdown.filter(b => b.awardType === 'pen' && (!isExcluded || b.isGeneral)).reduce((sum, b) => sum + b.totalPts, 0);
+            
+            return {
+                ...p,
+                totalPoints: netPoints,
+                rawTotalPoints,
+                catPoints,
+                genPoints,
+                deductedPoints,
+                starPoints,
+                penPoints,
+                isExcluded,
+                isViolator,
+                exclusionData: window.cachedLedgerExclusions?.[String(p.id)] || null,
+                violationData: window.categoryLimitViolationMap?.[String(p.id)] || null,
+                breakdown
+            };
         });
 
         // Apply to team list and sort highest first
         teamPointsList = Object.values(teamResults).sort((a, b) => b.totalPoints - a.totalPoints);
+        if (typeof updateAuditBadgeCounts === 'function') updateAuditBadgeCounts();
 
         populateDropdownSafe('filterPointsCategory', categoriesList);
         populateDropdownSafe('filterPointsTeam', teamsList);
@@ -9804,12 +9900,26 @@ function renderTeamPointsTable() {
 
     teamPointsList.forEach((t, i) => {
         let rankBadge = i === 0 ? '<i class="fa-solid fa-crown" style="color: #F59E0B; margin-right: 5px;"></i>' : '';
+        let deductionNotice = '';
+        if (t.totalDeductions > 0) {
+            deductionNotice = `
+                <div style="font-size: 0.72rem; color: #DC2626; font-weight: 700; margin-top: 3px; display: flex; align-items: center; gap: 4px;">
+                    <i class="fa-solid fa-arrow-trend-down"></i>
+                    <span>-${t.totalDeductions} PTS Limit Penalty</span>
+                    <span style="color: var(--text-muted); font-weight: 500;">(Gross: ${t.grossPoints} PTS)</span>
+                </div>
+            `;
+        }
+
         tbody.innerHTML += `
             <tr>
                 <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${t.team.id}" ${globalSelections['team-points-tbody']?.has(t.team.id) ? 'checked' : ''} onchange="handleRowSelection('team-points-tbody', this.value, this.checked)"></td>
                 <td style="font-weight: 800; font-size: 1.15rem; color: var(--text-main);">${rankBadge}${t.team.name}</td>
                 <td style="color: var(--text-muted); font-weight: 600;"><i class="fa-solid fa-users" style="margin-right: 5px;"></i>${t.participantCount} Enrolled</td>
-                <td style="font-weight: 900; color: var(--primary); font-size: 1.25rem;">${t.totalPoints} <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">PTS</span></td>
+                <td>
+                    <div style="font-weight: 900; color: var(--primary); font-size: 1.25rem;">${t.totalPoints} <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">PTS</span></div>
+                    ${deductionNotice}
+                </td>
                 <td>
                     <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" title="View Detail Breakdown" onclick="viewTeamPointDetails('${t.team.id}')"><i class="fa-solid fa-list"></i> View Ledger</button>
                 </td>
@@ -9837,17 +9947,48 @@ function viewTeamPointDetails(teamId) {
 
     document.getElementById('listModalTitle').innerText = 'Team Championship Ledger';
     
+    let deductionsTrs = '';
+    if (t.deductions && t.deductions.length > 0) {
+        deductionsTrs = `
+            <tr style="background: #FEF2F2;">
+                <td colspan="4" style="padding: 0.75rem 1rem; border-top: 2px solid #FECACA; font-weight: 800; font-size: 0.8rem; color: #991B1B; text-transform: uppercase;">
+                    <i class="fa-solid fa-ban" style="margin-right: 6px;"></i> Category Limit Violations &amp; Deducted Points (-${t.totalDeductions} PTS)
+                </td>
+            </tr>
+        ` + t.deductions.map(d => `
+            <tr style="background: #FFF5F5;">
+                <td style="padding: 0.65rem 1rem;">
+                    <strong style="color: #991B1B; text-decoration: line-through;">${d.studentName}</strong>
+                    <span class="badge" style="background:#FEE2E2; color:#DC2626; font-size:0.65rem; margin-left:4px; font-weight:800;">EXCLUDED</span>
+                    <br><small style="color: var(--text-muted);">${d.uniqueId} &bull; ${d.reason}</small>
+                </td>
+                <td style="padding: 0.65rem 1rem;">
+                    <span style="text-decoration: line-through; color: #64748B;">${d.compName}</span>
+                    <br><span class="badge" style="background:#FEE2E2; color:#DC2626; font-size:0.65rem;">${d.compCat}</span>
+                </td>
+                <td style="padding: 0.65rem 1rem; text-align: right; color: var(--text-muted); text-decoration: line-through;">${d.mark} / ${d.maxMark}</td>
+                <td style="padding: 0.65rem 1rem; text-align: right; font-weight: 800; color: #DC2626;">-${d.totalPts}</td>
+            </tr>
+        `).join('');
+    }
+
     document.getElementById('listModalTable').innerHTML = `
         <tbody>
             <tr>
                 <td colspan="4" style="padding: 0; border: none; padding-bottom: 1rem;">
-                    <div style="background: var(--bg-main); padding: 1.5rem; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="background: var(--bg-main); padding: 1.5rem; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                         <div>
                             <div style="font-size: 1.4rem; font-weight: 900; line-height: 1.2; color: var(--text-main); text-transform: uppercase;">${t.team.name}</div>
                             <div style="font-family: monospace; color: var(--text-muted); font-size: 0.95rem; font-weight: 600; margin-top: 0.25rem;">${t.participantCount} STUDENTS ENROLLED</div>
+                            ${t.totalDeductions > 0 ? `
+                                <div style="margin-top: 6px; font-size: 0.8rem; font-weight: 700; color: #DC2626; display: flex; align-items: center; gap: 6px;">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                    <span>Gross Points: ${t.grossPoints} &bull; Deductions: -${t.totalDeductions} PTS</span>
+                                </div>
+                            ` : ''}
                         </div>
                         <div style="text-align: right;">
-                            <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">TOTAL SCORE</div>
+                            <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">OFFICIAL STANDINGS SCORE</div>
                             <div style="font-size: 2rem; font-weight: 900; color: var(--primary); line-height: 1;">${t.totalPoints}</div>
                         </div>
                     </div>
@@ -9860,6 +10001,7 @@ function viewTeamPointDetails(teamId) {
                 <th style="padding: 0.75rem 1rem; text-align: right;">Points</th>
             </tr>
             ${trs}
+            ${deductionsTrs}
         </tbody>
     `;
     
@@ -10099,13 +10241,20 @@ function filterPointsTable(resetPage = true) {
     const catFilter = document.getElementById('filterPointsCategory').value;
     const teamFilter = document.getElementById('filterPointsTeam').value;
     const dobFilter = document.getElementById('filterPointsDob').value;
+    const statusFilter = document.getElementById('filterPointsExclusion')?.value || 'all';
     
     filteredPointsList = pointsDataList.filter(p => {
         const matchName = p.name.toLowerCase().includes(query) || (p.unique_id && p.unique_id.toLowerCase().includes(query));
         const matchCat = catFilter === "" || (p.categories?.name || '') === catFilter;
         const matchTeam = teamFilter === "" || (p.teams?.name || '') === teamFilter;
         const matchDob = dobFilter === "" || p.dob === dobFilter;
-return matchName && matchCat && matchTeam && matchDob;
+
+        let matchStatus = true;
+        if (statusFilter === 'active') matchStatus = !p.isExcluded;
+        else if (statusFilter === 'excluded') matchStatus = !!p.isExcluded;
+        else if (statusFilter === 'violators') matchStatus = !!p.isViolator;
+
+        return matchName && matchCat && matchTeam && matchDob && matchStatus;
     });
     
     // Sort highest points first
@@ -10130,14 +10279,45 @@ function renderPointsTable() {
     }
 
     pageData.forEach(p => {
+        let statusBadge = '';
+        if (p.isExcluded) {
+            statusBadge = `<span class="badge" style="background:#FEE2E2; color:#DC2626; border:1px solid #FCA5A5; font-size:0.68rem; font-weight:800; margin-left:6px;"><i class="fa-solid fa-user-slash"></i> EXCLUDED</span>`;
+        } else if (p.isViolator) {
+            statusBadge = `<span class="badge" style="background:#FEF3C7; color:#B45309; border:1px solid #FCD34D; font-size:0.68rem; font-weight:800; margin-left:6px;"><i class="fa-solid fa-triangle-exclamation"></i> OVER LIMIT</span>`;
+        }
+
+        let pointsColHtml = '';
+        if (p.isExcluded) {
+            pointsColHtml = `
+                <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                    <div style="font-weight: 900; color: #DC2626; font-size: 1.1rem;">${p.totalPoints} <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">PTS</span></div>
+                    <div style="font-size: 0.7rem; color: #DC2626; font-weight: 700;">-${p.deductedPoints} PTS removed (${p.genPoints} Gen kept)</div>
+                </div>
+            `;
+        } else {
+            pointsColHtml = `
+                <div style="font-weight: 900; color: var(--primary); font-size: 1.1rem;">${p.totalPoints} <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">PTS</span></div>
+            `;
+        }
+
+        let actionBtns = `<button class="btn btn-outline" style="padding:0.35rem 0.65rem; font-size:0.8rem;" title="View Detail Breakdown" onclick="viewParticipantPointDetails('${p.id}')"><i class="fa-solid fa-list"></i> Details</button>`;
+        if (p.isExcluded) {
+            actionBtns += ` <button class="btn btn-outline" style="padding:0.35rem 0.65rem; font-size:0.8rem; border-color:#10B981; color:#059669; font-weight:700;" title="Restore to Points Ledger" onclick="restoreStudentToLedger('${p.id}')"><i class="fa-solid fa-rotate-left"></i> Restore</button>`;
+        } else if (p.isViolator) {
+            actionBtns += ` <button class="btn btn-outline" style="padding:0.35rem 0.65rem; font-size:0.8rem; border-color:#EF4444; color:#DC2626; font-weight:700;" title="Exclude student from Points Ledger" onclick="excludeStudentFromLedger('${p.id}')"><i class="fa-solid fa-user-slash"></i> Exclude</button>`;
+        }
+
         tbody.innerHTML += `
             <tr>
-<td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}" ${globalSelections['points-tbody']?.has(p.id) ? 'checked' : ''} onchange="handleRowSelection('points-tbody', this.value, this.checked)"></td>                <td style="font-family: monospace; font-weight: 600; color: var(--text-muted);">${p.unique_id}</td>
-                <td style="font-weight: 700;">${p.name}</td>
+                <td class="checkbox-cell"><input type="checkbox" class="row-cb" value="${p.id}" ${globalSelections['points-tbody']?.has(p.id) ? 'checked' : ''} onchange="handleRowSelection('points-tbody', this.value, this.checked)"></td>
+                <td style="font-family: monospace; font-weight: 600; color: var(--text-muted); white-space:nowrap;">${p.unique_id}</td>
+                <td style="font-weight: 700;">${p.name}${statusBadge}</td>
                 <td>${p.teams?.name || 'INDEPENDENT'}</td>
-                <td style="font-weight: 900; color: var(--primary); font-size: 1.1rem;">${p.totalPoints} <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">PTS</span></td>
+                <td>${pointsColHtml}</td>
                 <td>
-                    <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" title="View Detail Breakdown" onclick="viewParticipantPointDetails('${p.id}')"><i class="fa-solid fa-list"></i> View Details</button>
+                    <div style="display:flex; gap:4px; align-items:center; flex-wrap:nowrap;">
+                        ${actionBtns}
+                    </div>
                 </td>
             </tr>
         `;
@@ -10179,15 +10359,24 @@ function viewParticipantPointDetails(pId) {
     const p = pointsDataList.find(x => x.id === pId);
     if (!p) return;
 
-   let trs = p.breakdown.length > 0 ? p.breakdown.map((b, i) => `
-        <tr>
-            <td style="font-weight: 600;">${b.compName}</td>
+   let trs = p.breakdown.length > 0 ? p.breakdown.map((b, i) => {
+        const isExcludedEvent = p.isExcluded && !b.isGeneral;
+        const tag = isExcludedEvent
+            ? '<span class="badge" style="background:#FEE2E2; color:#DC2626; font-size:0.65rem; margin-left:6px; font-weight:800;">DEDUCTED (CATEGORY LIMIT)</span>'
+            : (b.isGeneral ? '<span class="badge" style="background:#EFF6FF; color:#2563EB; font-size:0.65rem; margin-left:6px; font-weight:800;">PRESERVED (GENERAL)</span>' : '');
+
+        return `
+        <tr style="${isExcludedEvent ? 'background:#FFF5F5;' : ''}">
+            <td style="font-weight: 600;">
+                <span style="${isExcludedEvent ? 'text-decoration: line-through; color: #64748B;' : ''}">${b.compName}</span>
+                ${tag}
+            </td>
             <td><span class="badge" style="background:var(--bg-main);">${b.compCat}</span></td>
-            <!-- CHANGE THE NEXT TWO LINES 👇 -->
-            <td style="text-align: right;">${b.mark} / ${b.maxMark}</td>
-            <td style="text-align: right; font-weight: 800; color: var(--primary);">${b.totalPts}</td>
+            <td style="text-align: right; ${isExcludedEvent ? 'text-decoration: line-through; color: #94A3B8;' : ''}">${b.mark} / ${b.maxMark}</td>
+            <td style="text-align: right; font-weight: 800; color: ${isExcludedEvent ? '#DC2626; text-decoration: line-through;' : 'var(--primary);'}">${isExcludedEvent ? '-' + b.totalPts : b.totalPts}</td>
         </tr>
-    `).join('') : `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem;">No evaluated programs yet.</td></tr>`;
+        `;
+   }).join('') : `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem;">No evaluated programs yet.</td></tr>`;
 
     document.getElementById('listModalTitle').innerText = 'Points Breakdown Ledger';
     
@@ -10196,9 +10385,27 @@ function viewParticipantPointDetails(pId) {
         <tbody>
             <tr>
                 <td colspan="4" style="padding: 0; border: none; padding-bottom: 1rem;">
-                    <div style="background: var(--bg-main); padding: 1rem; border-radius: 8px;">
-                        <div style="font-size: 1.25rem; font-weight: 800; line-height: 1.2;">${p.name}</div>
-                        <div style="font-family: monospace; color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">${p.unique_id} | ${(p.teams?.name || 'INDEPENDENT').toUpperCase()}</div>
+                    <div style="background: var(--bg-main); padding: 1.25rem; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <div>
+                                <div style="font-size: 1.25rem; font-weight: 800; line-height: 1.2;">${p.name}</div>
+                                <div style="font-family: monospace; color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">${p.unique_id} | ${(p.teams?.name || 'INDEPENDENT').toUpperCase()} &bull; ${p.categories?.name || 'GENERAL'}</div>
+                            </div>
+                            ${p.isExcluded ? `
+                                <span class="badge" style="background:#FEE2E2; color:#DC2626; border:1px solid #FCA5A5; font-size:0.8rem; font-weight:800; padding:4px 10px;">
+                                    <i class="fa-solid fa-user-slash"></i> EXCLUDED FROM POINTS LEDGER
+                                </span>
+                            ` : (p.isViolator ? `
+                                <span class="badge" style="background:#FEF3C7; color:#B45309; border:1px solid #FCD34D; font-size:0.8rem; font-weight:800; padding:4px 10px;">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> OVER CATEGORY LIMIT
+                                </span>
+                            ` : '')}
+                        </div>
+                        ${p.isExcluded ? `
+                            <div style="margin-top: 10px; background: #FEF2F2; border: 1px solid #FECACA; padding: 8px 12px; border-radius: 6px; font-size: 0.8rem; color: #991B1B;">
+                                <strong>Penalty Applied:</strong> Exceeded category competition limit. ${p.deductedPoints} points from category events deducted from Team score. ${p.genPoints} points from General Category events preserved.
+                            </div>
+                        ` : ''}
                     </div>
                 </td>
             </tr>
@@ -20371,3 +20578,829 @@ window.syncWebsiteWithFestivalIdentity = async function() {
 
     showToast('Auto-synced homepage content with ' + festName + ' branding!', 'success');
 };
+
+
+// =========================================================================
+// STUDENT CATEGORY LIMIT AUDIT, EXCLUSIONS & REPORT ENGINE
+// =========================================================================
+
+function updateAuditBadgeCounts() {
+    const vBadge = document.getElementById('category-violations-badge');
+    const eBadge = document.getElementById('category-exclusions-count-badge');
+    const vCount = window.latestCategoryLimitAudit?.totalViolators || 0;
+    const eCount = Object.keys(window.cachedLedgerExclusions || {}).length;
+    
+    if (vBadge) {
+        vBadge.innerText = vCount;
+        vBadge.style.display = vCount > 0 ? 'inline-block' : 'none';
+    }
+    if (eBadge) {
+        eBadge.innerText = eCount;
+        eBadge.style.display = eCount > 0 ? 'inline-block' : 'none';
+    }
+}
+window.updateAuditBadgeCounts = updateAuditBadgeCounts;
+
+async function openCategoryLimitAuditModal() {
+    // Populate Category filter dropdown
+    const catSelect = document.getElementById('auditFilterCategory');
+    if (catSelect && categoriesList && categoriesList.length > 0) {
+        catSelect.innerHTML = '<option value="">All Categories</option>' +
+            categoriesList.map(c => `<option value="${c.name}">${c.name}${c.is_general ? ' (General)' : ''}</option>`).join('');
+    }
+
+    // Refresh audit data if needed
+    if (!window.latestCategoryLimitAudit || !window.latestCategoryLimitAudit.violations) {
+        await runCategoryLimitAudit();
+    } else {
+        renderCategoryLimitAuditTable();
+    }
+
+    const modal = document.getElementById('categoryLimitAuditModal');
+    if (modal) modal.classList.add('show');
+}
+window.openCategoryLimitAuditModal = openCategoryLimitAuditModal;
+
+function closeCategoryLimitAuditModal() {
+    const modal = document.getElementById('categoryLimitAuditModal');
+    if (modal) modal.classList.remove('show');
+}
+window.closeCategoryLimitAuditModal = closeCategoryLimitAuditModal;
+
+async function runCategoryLimitAudit() {
+    try {
+        const [limitConfig, currentExclusions, pcRes, compsRes, partsRes, catsRes, teamsRes, judgementsRes] = await Promise.all([
+            getCategoryLimitConfig(true),
+            (typeof festosGetLedgerExclusions === 'function') ? festosGetLedgerExclusions(true) : Promise.resolve({}),
+            festQuery(supabaseClient.from('participant_competitions').select('id, participant_id, competition_id')),
+            festQuery(supabaseClient.from('competitions').select('*, categories(name, is_general)')),
+            festQuery(supabaseClient.from('participants').select('*, teams(name), categories(name)')),
+            festQuery(supabaseClient.from('categories').select('*').order('name')),
+            festQuery(supabaseClient.from('teams').select('*').order('name')),
+            festQuery(supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark'))
+        ]);
+
+        window.cachedLedgerExclusions = currentExclusions || {};
+        window.latestCategoryLimitAudit = (typeof festosAuditCategoryLimitViolations === 'function')
+            ? festosAuditCategoryLimitViolations({
+                participants: partsRes.data || [],
+                competitions: compsRes.data || [],
+                categories: catsRes.data || [],
+                teams: teamsRes.data || [],
+                assignments: pcRes.data || [],
+                judgements: judgementsRes.data || [],
+                limitConfig: limitConfig || {},
+                exclusions: window.cachedLedgerExclusions,
+                pointSettings: pointsAdminSettings || {}
+            })
+            : { violations: [], totalViolators: 0, totalExcessEvents: 0, totalCategoryPointsAtStake: 0 };
+
+        const violationMap = {};
+        (window.latestCategoryLimitAudit?.violations || []).forEach(v => {
+            violationMap[String(v.participant_id)] = v;
+        });
+        window.categoryLimitViolationMap = violationMap;
+
+        renderCategoryLimitAuditTable();
+        updateAuditBadgeCounts();
+        showToast('Category limit audit refreshed successfully!', 'success');
+    } catch(err) {
+        console.error('Error running category limit audit:', err);
+        showToast('Failed to run category limit audit: ' + err.message, 'error');
+    }
+}
+window.runCategoryLimitAudit = runCategoryLimitAudit;
+
+function renderCategoryLimitAuditTable() {
+    const audit = window.latestCategoryLimitAudit || { violations: [], totalViolators: 0, totalExcessEvents: 0, totalCategoryPointsAtStake: 0 };
+    const exclusions = window.cachedLedgerExclusions || {};
+    const excludedCount = Object.keys(exclusions).length;
+
+    // Update KPI cards
+    const kpiViolators = document.getElementById('audit-kpi-violators');
+    const kpiExcess = document.getElementById('audit-kpi-excess');
+    const kpiPoints = document.getElementById('audit-kpi-points');
+    const kpiExcluded = document.getElementById('audit-kpi-excluded');
+
+    if (kpiViolators) kpiViolators.innerText = audit.totalViolators || 0;
+    if (kpiExcess) kpiExcess.innerText = audit.totalExcessEvents || 0;
+    if (kpiPoints) kpiPoints.innerText = (audit.totalCategoryPointsAtStake || 0) + ' PTS';
+    if (kpiExcluded) kpiExcluded.innerText = excludedCount;
+
+    // Rules summary label
+    const rulesSummaryEl = document.getElementById('audit-category-rules-summary');
+    if (rulesSummaryEl) {
+        const cfg = window.cachedCategoryLimitConfig || {};
+        const isMaster = cfg.enabled ? `Master Limit: ${cfg.default_limit || 3}` : 'Limits: Per Category';
+        const grpRule = cfg.exclude_group_events === false ? 'Group Comps: Included' : 'Group Comps: Exempt';
+        const genRule = cfg.exclude_general_competitions === false ? 'General Comps: Included' : 'General Comps: Exempt';
+        rulesSummaryEl.innerText = `(${isMaster} | ${grpRule} | ${genRule})`;
+    }
+
+    const tbody = document.getElementById('category-audit-tbody');
+    if (!tbody) return;
+
+    if (!audit.violations || audit.violations.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                    <i class="fa-solid fa-circle-check" style="color: #059669; font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
+                    <strong style="color: var(--text-main); font-size: 1.05rem;">No Category Limit Violations Detected</strong>
+                    <div style="font-size: 0.82rem; margin-top: 4px;">All student registrations and participations comply with configured category limits.</div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    filterAuditTable();
+}
+window.renderCategoryLimitAuditTable = renderCategoryLimitAuditTable;
+
+function filterAuditTable() {
+    const searchVal = (document.getElementById('auditSearchInput')?.value || '').toLowerCase().trim();
+    const catVal = document.getElementById('auditFilterCategory')?.value || '';
+    const statusVal = document.getElementById('auditFilterStatus')?.value || 'all';
+
+    const audit = window.latestCategoryLimitAudit || { violations: [] };
+    const exclusions = window.cachedLedgerExclusions || {};
+
+    const filtered = (audit.violations || []).filter(v => {
+        const isExcluded = !!exclusions[String(v.participant_id)];
+        const matchSearch = !searchVal || 
+            (v.student_name && v.student_name.toLowerCase().includes(searchVal)) ||
+            (v.unique_id && v.unique_id.toLowerCase().includes(searchVal)) ||
+            (v.team_name && v.team_name.toLowerCase().includes(searchVal));
+
+        const matchCat = !catVal || v.category_name === catVal;
+
+        let matchStatus = true;
+        if (statusVal === 'excluded') matchStatus = isExcluded;
+        else if (statusVal === 'not_excluded') matchStatus = !isExcluded;
+
+        return matchSearch && matchCat && matchStatus;
+    });
+
+    const tbody = document.getElementById('category-audit-tbody');
+    if (!tbody) return;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                    No limit violations match your search filters.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map((v, i) => {
+        const isExcluded = !!exclusions[String(v.participant_id)];
+        const bg = (i % 2 === 1) ? 'var(--bg-main)' : 'white';
+
+        return `
+            <tr style="background: ${bg};">
+                <td style="text-align: center; font-weight: 600; color: var(--text-muted); width: 40px;">${i + 1}</td>
+                <td>
+                    <strong style="font-size: 0.95rem; color: var(--text-main); font-weight: 700;">${v.student_name}</strong>
+                    <div style="font-family: monospace; font-size: 0.78rem; color: var(--primary); font-weight: 700;">${v.unique_id}</div>
+                </td>
+                <td>
+                    <span class="badge" style="background: var(--bg-main); border: 1px solid var(--border); font-weight: 600;">${v.team_name}</span>
+                </td>
+                <td>
+                    <div style="font-weight: 700; color: var(--text-main);">${v.category_name}</div>
+                    <div style="font-size: 0.72rem; color: var(--text-muted);">Limit: <strong style="color: var(--primary);">${v.category_limit}</strong> / student</div>
+                </td>
+                <td style="text-align: center;">
+                    <div style="display: inline-flex; align-items: center; gap: 4px; background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; padding: 3px 8px; border-radius: 50px; font-weight: 800; font-size: 0.78rem;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>${v.actual_category_count} Events</span>
+                    </div>
+                    <div style="font-size: 0.7rem; color: #991B1B; font-weight: 700; margin-top: 2px;">+${v.excess_count} Over Limit</div>
+                    ${v.general_count > 0 ? `<div style="font-size: 0.68rem; color: #059669; font-weight: 600;">+${v.general_count} General (Exempt)</div>` : ''}
+                </td>
+                <td style="text-align: right;">
+                    <div style="font-weight: 900; color: #DC2626; font-size: 1rem;">-${v.category_points} PTS</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">From Category</div>
+                    ${v.general_points > 0 ? `<div style="font-size: 0.7rem; color: #059669; font-weight: 700;">+${v.general_points} PTS (General Kept)</div>` : ''}
+                </td>
+                <td style="text-align: center;">
+                    ${isExcluded ? `
+                        <span class="badge" style="background: #FEE2E2; color: #DC2626; border: 1px solid #FCA5A5; font-weight: 800; font-size: 0.72rem; padding: 3px 8px;">
+                            <i class="fa-solid fa-user-slash"></i> EXCLUDED
+                        </span>
+                    ` : `
+                        <span class="badge" style="background: #FEF3C7; color: #B45309; border: 1px solid #FCD34D; font-weight: 800; font-size: 0.72rem; padding: 3px 8px;">
+                            <i class="fa-solid fa-clock"></i> PENDING
+                        </span>
+                    `}
+                </td>
+                <td style="text-align: center;">
+                    <div style="display: flex; gap: 4px; justify-content: center;">
+                        ${isExcluded ? `
+                            <button class="btn btn-outline" style="border-color: #10B981; color: #059669; font-weight: 700; padding: 0.35rem 0.65rem; font-size: 0.78rem;" title="Restore to Points Ledger" onclick="restoreStudentToLedger('${v.participant_id}')">
+                                <i class="fa-solid fa-rotate-left"></i> Restore
+                            </button>
+                        ` : `
+                            <button class="btn btn-danger" style="font-weight: 700; padding: 0.35rem 0.65rem; font-size: 0.78rem;" title="Exclude student from Points Ledger and deduct category points" onclick="excludeStudentFromLedger('${v.participant_id}')">
+                                <i class="fa-solid fa-user-slash"></i> Exclude
+                            </button>
+                        `}
+                        <button class="btn btn-outline" style="padding: 0.35rem 0.55rem; font-size: 0.78rem;" title="View Student Events Breakdown" onclick="viewParticipantPointDetails('${v.participant_id}')">
+                            <i class="fa-solid fa-list-check"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+window.filterAuditTable = filterAuditTable;
+
+async function excludeStudentFromLedger(studentId) {
+    try {
+        const audit = window.latestCategoryLimitAudit || { violations: [] };
+        const violator = (audit.violations || []).find(v => String(v.participant_id) === String(studentId));
+        const student = (pointsDataList || []).find(p => String(p.id) === String(studentId));
+
+        if (!violator && !student) {
+            return showToast('Participant not found!', 'error');
+        }
+
+        const name = violator?.student_name || student?.name || 'Participant';
+        const teamName = violator?.team_name || student?.teams?.name || 'Team';
+        const catPoints = violator ? violator.category_points : (student?.catPoints || 0);
+        const genPoints = violator ? violator.general_points : (student?.genPoints || 0);
+        const catLimit = violator?.category_limit || 3;
+        const actualCount = violator?.actual_category_count || 0;
+        const catName = violator?.category_name || student?.categories?.name || 'Category';
+
+        const currentExclusions = (typeof festosGetLedgerExclusions === 'function')
+            ? await festosGetLedgerExclusions()
+            : (window.cachedLedgerExclusions || {});
+
+        currentExclusions[String(studentId)] = {
+            participant_id: String(studentId),
+            student_name: name,
+            unique_id: violator?.unique_id || student?.unique_id || 'ID',
+            team_id: violator?.team_id || student?.team_id || '',
+            team_name: teamName,
+            category_id: violator?.category_id || student?.category_id || '',
+            category_name: catName,
+            category_limit: catLimit,
+            actual_category_count: actualCount,
+            excess_count: Math.max(0, actualCount - catLimit),
+            points_deducted: catPoints,
+            points_retained_general: genPoints,
+            reason: `Participated in ${actualCount} competitions in category "${catName}", exceeding the limit of ${catLimit} competitions set in the Categories tab.`,
+            why_detail: `Student registered and participated in ${actualCount} competitions belonging to category "${catName}". The administrator established a strict maximum limit of ${catLimit} competitions for this category. In accordance with festival policy, ${catPoints} points earned in category competitions are deducted from Team "${teamName}" across all leaderboards and ledgers. ${genPoints} points earned in General Category competitions are preserved.`,
+            competitions: violator?.all_competitions || (student?.breakdown || []).map(b => ({
+                name: b.compName,
+                category_name: b.compCat,
+                mark: b.mark,
+                points: b.totalPts,
+                is_general: !!b.isGeneral
+            })),
+            excluded_at: new Date().toISOString(),
+            excluded_by: user?.username || 'Admin'
+        };
+
+        if (typeof festosSaveLedgerExclusions === 'function') {
+            await festosSaveLedgerExclusions(currentExclusions);
+        }
+        window.cachedLedgerExclusions = currentExclusions;
+
+        showToast(`Participant "${name}" excluded! -${catPoints} category points deducted from Team ${teamName}.`, 'success');
+
+        await loadParticipantPoints();
+        renderCategoryLimitAuditTable();
+    } catch(err) {
+        showToast('Error excluding participant: ' + err.message, 'error');
+    }
+}
+window.excludeStudentFromLedger = excludeStudentFromLedger;
+
+async function restoreStudentToLedger(studentId) {
+    try {
+        const currentExclusions = (typeof festosGetLedgerExclusions === 'function')
+            ? await festosGetLedgerExclusions()
+            : (window.cachedLedgerExclusions || {});
+
+        const exData = currentExclusions[String(studentId)];
+        const name = exData?.student_name || 'Participant';
+        const teamName = exData?.team_name || 'Team';
+        const restoredPts = exData?.points_deducted || 0;
+
+        delete currentExclusions[String(studentId)];
+
+        if (typeof festosSaveLedgerExclusions === 'function') {
+            await festosSaveLedgerExclusions(currentExclusions);
+        }
+        window.cachedLedgerExclusions = currentExclusions;
+
+        showToast(`Participant "${name}" restored to Points Ledger! +${restoredPts} category points restored to Team ${teamName}.`, 'success');
+
+        await loadParticipantPoints();
+        renderCategoryLimitAuditTable();
+    } catch(err) {
+        showToast('Error restoring participant: ' + err.message, 'error');
+    }
+}
+window.restoreStudentToLedger = restoreStudentToLedger;
+
+async function excludeAllOverLimitStudents() {
+    const audit = window.latestCategoryLimitAudit || { violations: [] };
+    if (!audit.violations || audit.violations.length === 0) {
+        return showToast('No category limit violators to exclude!', 'info');
+    }
+
+    openConfirmModal(
+        `Exclude All ${audit.violations.length} Over-Limit Students?`,
+        `This will exclude all ${audit.violations.length} students who exceeded category limits from the Points Ledger, and deduct their category points (-${audit.totalCategoryPointsAtStake} PTS total) from team scores everywhere. General category points will be kept intact. No database records will be deleted.`,
+        async () => {
+            try {
+                const currentExclusions = (typeof festosGetLedgerExclusions === 'function')
+                    ? await festosGetLedgerExclusions()
+                    : (window.cachedLedgerExclusions || {});
+
+                let count = 0;
+                let totalPts = 0;
+
+                audit.violations.forEach(v => {
+                    currentExclusions[String(v.participant_id)] = {
+                        participant_id: String(v.participant_id),
+                        student_name: v.student_name,
+                        unique_id: v.unique_id,
+                        team_id: v.team_id,
+                        team_name: v.team_name,
+                        category_id: v.category_id,
+                        category_name: v.category_name,
+                        category_limit: v.category_limit,
+                        actual_category_count: v.actual_category_count,
+                        excess_count: v.excess_count,
+                        points_deducted: v.category_points,
+                        points_retained_general: v.general_points,
+                        reason: v.reason,
+                        why_detail: v.why_detail,
+                        competitions: v.all_competitions,
+                        excluded_at: new Date().toISOString(),
+                        excluded_by: user?.username || 'Admin'
+                    };
+                    count++;
+                    totalPts += v.category_points;
+                });
+
+                if (typeof festosSaveLedgerExclusions === 'function') {
+                    await festosSaveLedgerExclusions(currentExclusions);
+                }
+                window.cachedLedgerExclusions = currentExclusions;
+
+                showToast(`Successfully excluded ${count} over-limit students! -${totalPts} PTS deducted from team scores.`, 'success');
+
+                await loadParticipantPoints();
+                renderCategoryLimitAuditTable();
+            } catch(err) {
+                showToast('Error excluding students: ' + err.message, 'error');
+            }
+        },
+        'fa-user-slash',
+        '#EF4444'
+    );
+}
+window.excludeAllOverLimitStudents = excludeAllOverLimitStudents;
+
+async function restoreAllExcludedStudents() {
+    const currentExclusions = window.cachedLedgerExclusions || {};
+    const count = Object.keys(currentExclusions).length;
+    if (count === 0) {
+        return showToast('No excluded students to restore!', 'info');
+    }
+
+    openConfirmModal(
+        `Restore All ${count} Excluded Students?`,
+        `This will re-include all ${count} excluded students back into the Points Ledger and restore all deducted category points back to team scores across the system.`,
+        async () => {
+            try {
+                window.cachedLedgerExclusions = {};
+                if (typeof festosSaveLedgerExclusions === 'function') {
+                    await festosSaveLedgerExclusions({});
+                }
+
+                showToast(`Successfully restored all ${count} participants to the Points Ledger!`, 'success');
+
+                await loadParticipantPoints();
+                renderCategoryLimitAuditTable();
+            } catch(err) {
+                showToast('Error restoring participants: ' + err.message, 'error');
+            }
+        },
+        'fa-rotate-left',
+        '#10B981'
+    );
+}
+window.restoreAllExcludedStudents = restoreAllExcludedStudents;
+
+// =========================================================================
+// OFFICIAL EXCLUDED POINTS & PENALTY REPORT SYSTEM
+// =========================================================================
+
+function openExclusionsReportModal() {
+    renderExclusionsReport();
+    const modal = document.getElementById('categoryExclusionsReportModal');
+    if (modal) modal.classList.add('show');
+}
+window.openExclusionsReportModal = openExclusionsReportModal;
+
+function closeExclusionsReportModal() {
+    const modal = document.getElementById('categoryExclusionsReportModal');
+    if (modal) modal.classList.remove('show');
+}
+window.closeExclusionsReportModal = closeExclusionsReportModal;
+
+function renderExclusionsReport() {
+    const printableArea = document.getElementById('exclusions-report-printable-area');
+    if (!printableArea) return;
+
+    const exclusions = window.cachedLedgerExclusions || {};
+    const exclusionList = Object.values(exclusions);
+    const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
+
+    const branding = (typeof festosBranding !== 'undefined' && festosBranding.getDetails)
+        ? festosBranding.getDetails(activeFid)
+        : { name: 'FESTIVAL OF ARTS & SCIENCE', logo: 'festos-logo.svg' };
+
+    const totalExcluded = exclusionList.length;
+    const totalDeducted = exclusionList.reduce((sum, e) => sum + (e.points_deducted || 0), 0);
+    const totalPreserved = exclusionList.reduce((sum, e) => sum + (e.points_retained_general || 0), 0);
+    const totalExcessEvents = exclusionList.reduce((sum, e) => sum + (e.excess_count || 0), 0);
+
+    // Group deductions by team to show team standings impact
+    const teamImpactMap = {};
+    (teamPointsList || []).forEach(t => {
+        teamImpactMap[t.team.id] = {
+            teamName: t.team.name,
+            grossPoints: t.grossPoints || t.totalPoints,
+            deductions: t.totalDeductions || 0,
+            netPoints: t.totalPoints,
+            excludedStudents: []
+        };
+    });
+
+    exclusionList.forEach(e => {
+        if (e.team_id && teamImpactMap[e.team_id]) {
+            teamImpactMap[e.team_id].excludedStudents.push(e);
+        }
+    });
+
+    const impactedTeams = Object.values(teamImpactMap).filter(t => t.deductions > 0);
+
+    const reportDate = new Date().toLocaleString('en-US', {
+        dateStyle: 'full',
+        timeStyle: 'medium'
+    });
+
+    if (totalExcluded === 0) {
+        printableArea.innerHTML = `
+            <div style="text-align: center; padding: 3rem 1rem;">
+                <div style="width: 60px; height: 60px; border-radius: 50%; background: #ECFDF5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 1rem;">
+                    <i class="fa-solid fa-shield-check"></i>
+                </div>
+                <h3 style="font-size: 1.3rem; font-weight: 800; color: #065F46; margin: 0 0 0.5rem 0;">No Active Points Exclusions</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 480px; margin: 0 auto 1.5rem auto;">
+                    There are currently no students excluded from the Points Ledger. All team scores and participant points remain at their normal evaluated values.
+                </p>
+                <button class="btn btn-primary" onclick="closeExclusionsReportModal(); openCategoryLimitAuditModal();">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Run Category Limit Audit
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    // Build Team Impact Table Rows
+    const teamRowsHtml = impactedTeams.map((t, idx) => `
+        <tr style="background: ${idx % 2 === 1 ? '#F8FAFC' : '#FFFFFF'};">
+            <td style="padding: 8px 12px; font-weight: 700; color: #0F172A; border-bottom: 1px solid #E2E8F0;">${t.teamName}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E2E8F0; text-align: center;">
+                <span class="badge" style="background: #FEE2E2; color: #DC2626; font-weight: 800;">${t.excludedStudents.length} Students</span>
+            </td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E2E8F0; text-align: right; font-weight: 700; color: #64748B;">${t.grossPoints} PTS</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E2E8F0; text-align: right; font-weight: 900; color: #DC2626;">-${t.deductions} PTS</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E2E8F0; text-align: right; font-weight: 900; color: #4F46E5; font-size: 1.05rem;">${t.netPoints} PTS</td>
+        </tr>
+    `).join('');
+
+    // Build Individual Student Cards
+    const studentCardsHtml = exclusionList.map((e, idx) => {
+        const comps = e.competitions || [];
+        const compRows = comps.map((c, cIdx) => {
+            const isGen = !!c.is_general;
+            const actionBadge = isGen
+                ? '<span style="background: #EFF6FF; color: #2563EB; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; border: 1px solid #BFDBFE;">RETAINED (GENERAL CATEGORY)</span>'
+                : '<span style="background: #FEE2E2; color: #DC2626; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; border: 1px solid #FECACA;">DEDUCTED (CATEGORY LIMIT VIOLATION)</span>';
+
+            const ptsDisplay = isGen
+                ? `<span style="color: #2563EB; font-weight: 800;">+${c.points || 0} PTS</span>`
+                : `<span style="color: #DC2626; font-weight: 800; text-decoration: line-through;">-${c.points || 0} PTS</span>`;
+
+            return `
+                <tr style="background: ${cIdx % 2 === 1 ? '#F8FAFC' : '#FFFFFF'}; font-size: 11px;">
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; color: #64748B; width: 30px;">${cIdx + 1}</td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A;">${c.name}</td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; color: #475569;">${c.category_name || e.category_name}</td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; text-align: center; color: #64748B;">${c.mark || '-'}</td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; text-align: center;">${actionBadge}</td>
+                    <td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; text-align: right;">${ptsDisplay}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const excludedDateFormatted = e.excluded_at ? new Date(e.excluded_at).toLocaleString() : 'Official Audit Record';
+
+        return `
+            <div style="background: white; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <!-- Student Header Strip -->
+                <div style="background: linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 100%); padding: 12px 16px; border-bottom: 1px solid #FECDD3; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="background: #BE123C; color: white; font-size: 10px; font-weight: 900; padding: 2px 6px; border-radius: 4px;">#${idx + 1} EXCLUDED</span>
+                            <span style="font-size: 15px; font-weight: 900; color: #881337;">${e.student_name.toUpperCase()}</span>
+                            <span style="font-family: monospace; font-size: 11px; background: white; padding: 1px 6px; border-radius: 4px; border: 1px solid #FECDD3; color: #9F1239; font-weight: 700;">${e.unique_id}</span>
+                        </div>
+                        <div style="font-size: 11px; color: #9F1239; margin-top: 3px; font-weight: 600;">
+                            TEAM: <strong>${e.team_name}</strong> &bull; CATEGORY: <strong>${e.category_name}</strong> (Set Limit: ${e.category_limit})
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 10px; color: #9F1239; font-weight: 800; text-transform: uppercase;">POINTS IMPACT</div>
+                        <div style="font-size: 18px; font-weight: 900; color: #BE123C; line-height: 1;">-${e.points_deducted} PTS</div>
+                        <div style="font-size: 10px; color: #047857; font-weight: 700;">+${e.points_retained_general || 0} PTS (General Kept)</div>
+                    </div>
+                </div>
+
+                <!-- Explanation & Justification Box (WHY) -->
+                <div style="padding: 12px 16px; background: #FFFBEB; border-bottom: 1px solid #FDE68A; font-size: 11.5px; color: #92400E; line-height: 1.5;">
+                    <div style="display: flex; align-items: flex-start; gap: 6px;">
+                        <i class="fa-solid fa-triangle-exclamation" style="color: #D97706; margin-top: 2px;"></i>
+                        <div>
+                            <strong>Audit Finding &amp; Legal Reason:</strong> ${e.why_detail || e.reason}
+                            <div style="font-size: 10px; color: #B45309; margin-top: 4px;">
+                                Excluded on: <strong>${excludedDateFormatted}</strong> &bull; Authorized by: <strong>${e.excluded_by || 'Admin'}</strong> &bull; Database Records Preserved: <strong>YES</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Competitions Breakdown Table -->
+                <div style="padding: 0;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #F1F5F9; font-size: 10px; text-transform: uppercase; color: #475569; letter-spacing: 0.03em;">
+                                <th style="padding: 6px 10px; text-align: left;">#</th>
+                                <th style="padding: 6px 10px; text-align: left;">Competition Participated</th>
+                                <th style="padding: 6px 10px; text-align: left;">Competition Category</th>
+                                <th style="padding: 6px 10px; text-align: center;">Mark</th>
+                                <th style="padding: 6px 10px; text-align: center;">Audit Action</th>
+                                <th style="padding: 6px 10px; text-align: right;">Points</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${compRows || '<tr><td colspan="6" style="padding:10px; text-align:center; color:#64748B;">No event entries found.</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    printableArea.innerHTML = `
+        <div style="font-family: 'Inter', -apple-system, sans-serif; color: #0F172A; max-width: 900px; margin: 0 auto;">
+            <!-- Official Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0F172A; padding-bottom: 14px; margin-bottom: 20px;">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <img src="${branding.logo || 'festos-logo.svg'}" style="height: 52px; object-fit: contain;" onerror="this.style.display='none'">
+                    <div>
+                        <div style="font-size: 10px; font-weight: 900; color: #4F46E5; letter-spacing: 0.08em; text-transform: uppercase;">FESTOS SCRUTINEERING &amp; EXAMINATION BOARD</div>
+                        <h1 style="font-size: 18px; font-weight: 900; color: #0F172A; margin: 2px 0 0 0; text-transform: uppercase;">${branding.name || 'FESTIVAL OF ARTS &amp; TALENTS'}</h1>
+                        <div style="font-size: 11px; font-weight: 600; color: #64748B;">POINTS LEDGER AUDIT &amp; CATEGORY LIMIT EXCLUSIONS REPORT</div>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <span style="background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 900; padding: 4px 10px; border-radius: 4px; border: 1px solid #FECACA; text-transform: uppercase;">
+                        CERTIFIED PENALTY AUDIT
+                    </span>
+                    <div style="font-size: 10px; color: #64748B; margin-top: 5px; font-family: monospace;">DOC: ZENITH-AUDIT-${Date.now().toString().slice(-6)}</div>
+                    <div style="font-size: 10px; color: #64748B;">Date: ${reportDate}</div>
+                </div>
+            </div>
+
+            <!-- Executive Summary Cards Strip -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
+                <div style="background: #FEF2F2; border: 1px solid #FECACA; padding: 12px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 9.5px; font-weight: 800; color: #BE123C; text-transform: uppercase;">STUDENTS EXCLUDED</div>
+                    <div style="font-size: 24px; font-weight: 900; color: #881337; line-height: 1.1; margin-top: 2px;">${totalExcluded}</div>
+                    <div style="font-size: 9.5px; color: #9F1239;">Exceeded category limit</div>
+                </div>
+                <div style="background: #FFFBEB; border: 1px solid #FDE68A; padding: 12px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 9.5px; font-weight: 800; color: #D97706; text-transform: uppercase;">EXCESS ENTRIES</div>
+                    <div style="font-size: 24px; font-weight: 900; color: #92400E; line-height: 1.1; margin-top: 2px;">${totalExcessEvents}</div>
+                    <div style="font-size: 9.5px; color: #B45309;">Over-limit events</div>
+                </div>
+                <div style="background: #FEF2F2; border: 1px solid #FECACA; padding: 12px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 9.5px; font-weight: 800; color: #DC2626; text-transform: uppercase;">CATEGORY PTS DEDUCTED</div>
+                    <div style="font-size: 24px; font-weight: 900; color: #991B1B; line-height: 1.1; margin-top: 2px;">-${totalDeducted}</div>
+                    <div style="font-size: 9.5px; color: #B91C1C;">Removed from teams</div>
+                </div>
+                <div style="background: #ECFDF5; border: 1px solid #A7F3D0; padding: 12px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 9.5px; font-weight: 800; color: #059669; text-transform: uppercase;">GENERAL PTS KEPT</div>
+                    <div style="font-size: 24px; font-weight: 900; color: #065F46; line-height: 1.1; margin-top: 2px;">+${totalPreserved}</div>
+                    <div style="font-size: 9.5px; color: #047857;">General category intact</div>
+                </div>
+            </div>
+
+            <!-- Regulation Statement Box -->
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 10px 14px; margin-bottom: 20px; font-size: 11px; color: #334155; line-height: 1.5;">
+                <strong>Administrative Rule Notice:</strong> This official audit report reflects participants whose registered competition count exceeded the category limits configured by the Festival Administration in the Categories tab. In strict adherence to regulations:
+                (1) Points earned in competitions under the student's category are excluded from the Points Ledger and deducted from their Team Championship points across all public leaderboards, stage HUDs, and printed sheets.
+                (2) Points earned in General/Common Category competitions are exempt and remain intact.
+                (3) <strong>Zero Data Removal:</strong> All underlying participant records, marks, and stage logs remain securely archived in the system database for judicial review.
+            </div>
+
+            <!-- Impact on Team Standings Section -->
+            <div style="margin-bottom: 22px;">
+                <div style="font-size: 12px; font-weight: 800; color: #0F172A; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.04em;">
+                    Impact on Team Standings (Before vs. After Penalty Deductions):
+                </div>
+                <table style="width: 100%; border-collapse: collapse; border: 1px solid #CBD5E1; font-size: 11.5px;">
+                    <thead>
+                        <tr style="background: #0F172A; color: white; text-transform: uppercase; font-size: 10px;">
+                            <th style="padding: 8px 12px; text-align: left;">Team Name</th>
+                            <th style="padding: 8px 12px; text-align: center;">Excluded Students</th>
+                            <th style="padding: 8px 12px; text-align: right;">Gross Points (Before)</th>
+                            <th style="padding: 8px 12px; text-align: right;">Penalties Deducted</th>
+                            <th style="padding: 8px 12px; text-align: right;">Official Net Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${teamRowsHtml || '<tr><td colspan="5" style="padding:12px; text-align:center; color:#64748B;">No team points impacted.</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Detailed Roster of Excluded Students -->
+            <div style="margin-bottom: 24px;">
+                <div style="font-size: 12px; font-weight: 800; color: #0F172A; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.04em;">
+                    Itemized Exclusion Roster &amp; Competition Details:
+                </div>
+                ${studentCardsHtml}
+            </div>
+
+            <!-- Official Signatures Block -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; border-top: 2px solid #E2E8F0; padding-top: 24px; margin-top: 30px;">
+                <div style="text-align: center;">
+                    <div style="border-bottom: 1px dashed #94A3B8; height: 35px; margin-bottom: 6px;"></div>
+                    <div style="font-size: 11px; font-weight: 800; color: #0F172A;">CHIEF SCRUTINEER</div>
+                    <div style="font-size: 9px; color: #64748B;">Audit &amp; Results Validation</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="border-bottom: 1px dashed #94A3B8; height: 35px; margin-bottom: 6px;"></div>
+                    <div style="font-size: 11px; font-weight: 800; color: #0F172A;">CONTROLLER OF EXAMINATIONS</div>
+                    <div style="font-size: 9px; color: #64748B;">Competitions Directorate</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="border-bottom: 1px dashed #94A3B8; height: 35px; margin-bottom: 6px;"></div>
+                    <div style="font-size: 11px; font-weight: 800; color: #0F172A;">FESTIVAL GENERAL SECRETARY</div>
+                    <div style="font-size: 9px; color: #64748B;">Central Steering Committee</div>
+                </div>
+            </div>
+
+            <!-- Verification Footer -->
+            <div style="text-align: center; margin-top: 20px; font-size: 9.5px; color: #94A3B8; border-top: 1px solid #F1F5F9; padding-top: 10px;">
+                Generated securely via FestOS Points &amp; Scrutineering System &bull; Cryptographic Audit Timestamp: ${reportDate}
+            </div>
+        </div>
+    `;
+}
+window.renderExclusionsReport = renderExclusionsReport;
+
+function printExclusionsReport() {
+    renderExclusionsReport();
+    const printable = document.getElementById('exclusions-report-printable-area');
+    if (!printable) return;
+
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+        return window.print();
+    }
+
+    printWin.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Official Points Ledger Exclusion Report</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+            <style>
+                body { margin: 20px; font-family: 'Inter', sans-serif; background: white; color: #0F172A; }
+                @media print {
+                    body { margin: 0; }
+                    @page { margin: 12mm; size: A4 portrait; }
+                }
+            </style>
+        </head>
+        <body>
+            ${printable.innerHTML}
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(() => window.close(), 1000);
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    printWin.document.close();
+}
+window.printExclusionsReport = printExclusionsReport;
+
+async function exportExclusionsReportPDF() {
+    renderExclusionsReport();
+    const printable = document.getElementById('exclusions-report-printable-area');
+    if (!printable) return;
+
+    showToast('Generating official exclusions report PDF...', 'info');
+
+    if (typeof window.festosRenderPDF === 'function') {
+        await window.festosRenderPDF(printable.innerHTML, {
+            orientation: 'portrait',
+            filename: typeof getFestFileName === 'function' ? getFestFileName('Official_Points_Exclusions_Report', 'pdf') : 'Official_Points_Exclusions_Report.pdf',
+            width: 850
+        });
+        showToast('PDF Report generated successfully!', 'success');
+    } else if (typeof html2pdf !== 'undefined') {
+        const opt = {
+            margin: 10,
+            filename: typeof getFestFileName === 'function' ? getFestFileName('Official_Points_Exclusions_Report', 'pdf') : 'Official_Points_Exclusions_Report.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(printable).save().then(() => showToast('PDF Report exported successfully!', 'success'));
+    } else {
+        printExclusionsReport();
+    }
+}
+window.exportExclusionsReportPDF = exportExclusionsReportPDF;
+
+function exportExclusionsReportCSV() {
+    const exclusions = window.cachedLedgerExclusions || {};
+    const exclusionList = Object.values(exclusions);
+
+    if (exclusionList.length === 0) {
+        return showToast('No exclusions data to export!', 'error');
+    }
+
+    const headers = [
+        'SL No',
+        'Participant Name',
+        'Unique ID',
+        'Team Name',
+        'Category Name',
+        'Category Limit',
+        'Total Category Events',
+        'Excess Events',
+        'Category Points Deducted',
+        'General Points Preserved',
+        'Exclusion Reason',
+        'Excluded At',
+        'Excluded By'
+    ];
+
+    const rows = exclusionList.map((e, idx) => [
+        idx + 1,
+        `"${(e.student_name || '').replace(/"/g, '""')}"`,
+        `"${(e.unique_id || '').replace(/"/g, '""')}"`,
+        `"${(e.team_name || '').replace(/"/g, '""')}"`,
+        `"${(e.category_name || '').replace(/"/g, '""')}"`,
+        e.category_limit || 0,
+        e.actual_category_count || 0,
+        e.excess_count || 0,
+        e.points_deducted || 0,
+        e.points_retained_general || 0,
+        `"${(e.reason || '').replace(/"/g, '""')}"`,
+        `"${e.excluded_at || ''}"`,
+        `"${(e.excluded_by || 'Admin').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', typeof getFestFileName === 'function' ? getFestFileName('Official_Points_Exclusions_Report', 'csv') : 'Official_Points_Exclusions_Report.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('CSV Report exported successfully!', 'success');
+}
+window.exportExclusionsReportCSV = exportExclusionsReportCSV;

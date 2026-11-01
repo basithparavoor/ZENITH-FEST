@@ -4147,7 +4147,10 @@ function computeTeamResults() {
                 const studentRes = rankedEntriesMap[String(tp.student.id)];
                 if (sData) {
                     if (studentRes) {
-                        const studentPointsEligible = allowAllTeam || studentRes.inTopThree;
+                        const isCategoryEventExcluded = (typeof festosIsStudentExcludedFromLedger === 'function')
+                            ? festosIsStudentExcludedFromLedger(tp.student.id, comp)
+                            : false;
+                        const studentPointsEligible = (allowAllTeam || studentRes.inTopThree) && !isCategoryEventExcluded;
                         if (studentPointsEligible) {
                             summaryTotalPoints += studentRes.totalPts;
                         }
