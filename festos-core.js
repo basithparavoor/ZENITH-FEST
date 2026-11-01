@@ -3202,6 +3202,9 @@ function festosIsStudentExcludedFromLedger(studentId, comp, exclusionsObj = null
     // RULE: Points in general category are NOT deducted ("EXCEPT GENERAL CATEGORY")
     if (isGeneral) return false;
 
+    // Group events are team awards, exempt from individual student penalties
+    if (comp.is_group) return false;
+
     return true; // Exclude category points from team
 }
 
