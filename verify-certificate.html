@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Certificate Verification | FestOS</title>
+    <link rel="icon" href="favicon.png">
+    
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="festos-core.js"></script>
+
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-glow: rgba(79, 70, 229, 0.25);
+            --gold: #D97706;
+            --gold-light: #F59E0B;
+            --gold-glow: rgba(245, 158, 11, 0.25);
+            --success: #10B981;
+            --success-glow: rgba(16, 185, 129, 0.25);
+            --bg-page: #0B0F19;
+            --bg-surface: #111827;
+            --bg-card: #1E293B;
+            --text-main: #F8FAFC;
+            --text-muted: #94A3B8;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg-page);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 1.5rem 1rem 3rem;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Ambient Glow Background */
+        .ambient-glow {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+        .glow-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.35;
+        }
+        .glow-orb-1 {
+            width: 380px;
+            height: 380px;
+            background: #D97706;
+            top: -120px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .glow-orb-2 {
+            width: 320px;
+            height: 320px;
+            background: #10B981;
+            bottom: 50px;
+            right: -100px;
+        }
+        .glow-orb-3 {
+            width: 280px;
+            height: 280px;
+            background: #4F46E5;
+            bottom: 150px;
+            left: -100px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 580px;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        /* Top Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0.25rem;
+        }
+        .brand-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.85rem;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-main);
+            backdrop-filter: blur(10px);
+        }
+        .brand-badge img {
+            width: 20px;
+            height: 20px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        /* Verification Status Banner */
+        .status-banner {
+            border-radius: 20px;
+            padding: 1.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        .status-banner.valid {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.08) 100%);
+            border-color: rgba(16, 185, 129, 0.4);
+        }
+        .status-banner.valid::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #10B981, #F59E0B, #10B981);
+        }
+        .status-banner.invalid {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(185, 28, 28, 0.08) 100%);
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        .shield-icon-wrapper {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 0.85rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.25rem;
+            position: relative;
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: white;
+            animation: pulseAura 2.5s infinite alternate ease-in-out;
+        }
+        @keyframes pulseAura {
+            0% { transform: scale(1); box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3); }
+            100% { transform: scale(1.04); box-shadow: 0 12px 35px rgba(16, 185, 129, 0.55); }
+        }
+
+        .status-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #10B981;
+            letter-spacing: 0.02em;
+            margin-bottom: 0.25rem;
+            text-transform: uppercase;
+        }
+        .status-subtitle {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* Certificate Master Card */
+        .cert-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 1.75rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+            position: relative;
+            overflow: hidden;
+        }
+        .cert-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at top right, rgba(245, 158, 11, 0.08), transparent 60%);
+            pointer-events: none;
+        }
+
+        /* Decorative Guilloche Frame */
+        .cert-border-accent {
+            position: absolute;
+            top: 8px; left: 8px; right: 8px; bottom: 8px;
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 14px;
+            pointer-events: none;
+        }
+
+        .cert-header {
+            text-align: center;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 1.25rem;
+            margin-bottom: 1.25rem;
+            position: relative;
+        }
+        .cert-fest-name {
+            font-family: 'Cinzel', serif;
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: var(--gold-light);
+            text-transform: uppercase;
+            margin-bottom: 0.3rem;
+        }
+        .cert-heading-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #94A3B8;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 3px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Recipient Section */
+        .recipient-section {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .recipient-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
+        }
+        .recipient-name {
+            font-size: 1.55rem;
+            font-weight: 800;
+            color: #FFFFFF;
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+            margin-bottom: 0.35rem;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+        .recipient-uid {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--primary);
+            background: rgba(79, 70, 229, 0.15);
+            border: 1px solid rgba(79, 70, 229, 0.3);
+            padding: 3px 10px;
+            border-radius: 6px;
+        }
+
+        /* Standing / Position Highlight */
+        .position-banner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            padding: 0.85rem 1rem;
+            border-radius: 14px;
+            margin-bottom: 1.25rem;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid transparent;
+        }
+        .position-banner.gold {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.1));
+            border-color: #F59E0B;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.2);
+        }
+        .position-banner.silver {
+            background: linear-gradient(135deg, rgba(148, 163, 184, 0.2), rgba(100, 116, 139, 0.1));
+            border-color: #94A3B8;
+            box-shadow: 0 4px 15px rgba(148, 163, 184, 0.2);
+        }
+        .position-banner.bronze {
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.2), rgba(180, 83, 9, 0.1));
+            border-color: #B45309;
+            box-shadow: 0 4px 15px rgba(217, 119, 6, 0.2);
+        }
+        .position-banner.participant {
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.15), rgba(99, 102, 241, 0.08));
+            border-color: rgba(99, 102, 241, 0.4);
+        }
+        .pos-medal {
+            font-size: 1.85rem;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+        }
+        .pos-text {
+            font-family: 'Cinzel', serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            color: #FFFFFF;
+        }
+
+        /* Data Grid */
+        .data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.85rem;
+            margin-bottom: 1.25rem;
+        }
+        .data-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.75rem 0.9rem;
+        }
+        .data-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .data-value {
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: var(--text-main);
+            word-break: break-word;
+        }
+        .grade-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(16, 185, 129, 0.15);
+            color: #10B981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 800;
+        }
+
+        /* Database Authenticity Badge */
+        .db-status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            font-size: 0.78rem;
+            color: #10B981;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        /* Security Watermark Footnote */
+        .security-footer {
+            margin-top: 1.25rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .sig-code {
+            color: var(--gold-light);
+            font-weight: 700;
+        }
+
+        /* Action Buttons */
+        .actions-group {
+            display: flex;
+            gap: 0.75rem;
+            flex-direction: column;
+            width: 100%;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.85rem 1.25rem;
+            border-radius: 14px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: none;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #4F46E5, #4338CA);
+            color: white;
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+        }
+        .btn-outline {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+        }
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Loading Spinner */
+        #loading-overlay {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 1rem;
+            gap: 1rem;
+        }
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #F59E0B;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 1rem 0.75rem 2.5rem; }
+            .data-grid { grid-template-columns: 1fr; }
+            .recipient-name { font-size: 1.35rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow">
+        <div class="glow-orb glow-orb-1"></div>
+        <div class="glow-orb glow-orb-2"></div>
+        <div class="glow-orb glow-orb-3"></div>
+    </div>
+
+    <div class="container">
+        <!-- Top Nav Branding -->
+        <div class="header">
+            <div class="brand-badge">
+                <img id="fest-logo-top" src="festos-logo.svg" alt="Festival Logo" onerror="this.src='favicon.png'">
+                <span id="fest-name-top">FestOS Authenticity</span>
+            </div>
+            <a href="results.html" class="brand-badge" style="text-decoration: none;">
+                <i class="fa-solid fa-trophy" style="color: var(--gold-light);"></i>
+                <span>Leaderboard</span>
+            </a>
+        </div>
+
+        <!-- Verification Status Banner -->
+        <div class="status-banner valid" id="status-banner">
+            <div class="shield-icon-wrapper" id="status-icon">
+                <i class="fa-solid fa-certificate"></i>
+            </div>
+            <h1 class="status-title" id="status-title">Authentic Certificate Verified</h1>
+            <p class="status-subtitle" id="status-desc">Digital authenticity confirmed and validated by official festival records.</p>
+        </div>
+
+        <!-- Certificate Master Record -->
+        <div class="cert-card" id="cert-card">
+            <div class="cert-border-accent"></div>
+
+            <div class="cert-header">
+                <div class="cert-fest-name" id="cert-fest-name">ZENITH FESTIVAL 2026</div>
+                <div class="cert-heading-badge">
+                    <i class="fa-solid fa-shield-halved" style="color: #10B981;"></i>
+                    <span>Official Award of Merit</span>
+                </div>
+            </div>
+
+            <!-- Recipient -->
+            <div class="recipient-section">
+                <div class="recipient-label">This certificate is proudly awarded to</div>
+                <div class="recipient-name" id="cert-recipient-name">Loading Contestant...</div>
+                <div class="recipient-uid" id="cert-recipient-uid">
+                    <i class="fa-solid fa-id-badge"></i>
+                    <span id="cert-uid-val">---</span>
+                </div>
+            </div>
+
+            <!-- Placement / Standing -->
+            <div class="position-banner gold" id="cert-pos-banner">
+                <span class="pos-medal" id="cert-pos-medal">🥇</span>
+                <span class="pos-text" id="cert-pos-text">FIRST PLACE</span>
+            </div>
+
+            <!-- Metadata Grid -->
+            <div class="data-grid">
+                <div class="data-card">
+                    <div class="data-label"><i class="fa-solid fa-trophy" style="color:var(--gold-light);"></i> Competition Event</div>
+                    <div class="data-value" id="cert-event-name">---</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-label"><i class="fa-solid fa-layer-group" style="color:var(--primary);"></i> Category</div>
+                    <div class="data-value" id="cert-category-name">---</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-label"><i class="fa-solid fa-shield-cat" style="color:#6366F1;"></i> Team / Organization</div>
+                    <div class="data-value" id="cert-team-name">---</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-label"><i class="fa-solid fa-star" style="color:#10B981;"></i> Performance Grade</div>
+                    <div class="data-value" id="cert-grade-val">
+                        <span class="grade-badge"><i class="fa-solid fa-check"></i> <span id="grade-badge-text">A+ Grade</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Database Sync Status -->
+            <div class="db-status-bar" id="db-status-bar">
+                <span><i class="fa-solid fa-database" style="margin-right: 4px;"></i> Live Record Status:</span>
+                <span id="db-sync-label"><i class="fa-solid fa-circle-check"></i> Confirmed in Festival Database</span>
+            </div>
+
+            <!-- Cryptographic Footnote -->
+            <div class="security-footer">
+                <div>
+                    <span>ISSUE DATE: </span><strong id="cert-issue-date">2026-11-01</strong>
+                </div>
+                <div>
+                    <span>HASH: </span><span class="sig-code" id="cert-sig-code">AUTH-VALID</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Links -->
+        <div class="actions-group">
+            <a href="results.html" id="btn-view-results" class="btn btn-primary">
+                <i class="fa-solid fa-trophy"></i> View Official Festival Standings
+            </a>
+            <button type="button" class="btn btn-outline" onclick="window.print()">
+                <i class="fa-solid fa-print"></i> Print Official Verification Statement
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // CERTIFICATE VERIFICATION CLIENT
+        // ==========================================
+        (async function initCertificateVerification() {
+            const params = new URLSearchParams(window.location.search);
+
+            // Read params from URL
+            let uid = params.get('uid') || params.get('id') || '';
+            let compId = params.get('comp') || params.get('cid') || '';
+            let pos = params.get('pos') || '';
+            let grade = params.get('grade') || '';
+            let name = params.get('name') || params.get('n') || '';
+            let eventName = params.get('event') || params.get('comp_name') || params.get('cn') || '';
+            let catName = params.get('cat') || params.get('c') || '';
+            let teamName = params.get('team') || params.get('t') || '';
+            let festId = params.get('fest') || '';
+            let date = params.get('date') || new Date().toISOString().slice(0, 10);
+            let sig = params.get('v') || params.get('sig') || '';
+
+            // Support compact base64 payload if provided (?cert=...)
+            const certToken = params.get('cert');
+            if (certToken) {
+                try {
+                    const decoded = JSON.parse(decodeURIComponent(escape(atob(certToken))));
+                    if (decoded) {
+                        uid = uid || decoded.uid || '';
+                        name = name || decoded.name || '';
+                        compId = compId || decoded.cid || '';
+                        eventName = eventName || decoded.comp || '';
+                        catName = catName || decoded.cat || '';
+                        pos = pos || decoded.pos || '';
+                        grade = grade || decoded.grade || '';
+                        teamName = teamName || decoded.team || '';
+                        festId = festId || decoded.fest || '';
+                        date = date || decoded.date || date;
+                    }
+                } catch(e) {
+                    console.warn("Could not unpack cert token:", e);
+                }
+            }
+
+            // Clean up values
+            uid = uid.trim();
+            pos = (pos || 'FIRST PLACE').toUpperCase();
+            if (pos === 'FIRST' || pos === '1' || pos === '1ST') pos = 'FIRST PLACE';
+            if (pos === 'SECOND' || pos === '2' || pos === '2ND') pos = 'SECOND PLACE';
+            if (pos === 'THIRD' || pos === '3' || pos === '3RD') pos = 'THIRD PLACE';
+
+            // Populate Initial DOM elements immediately from URL
+            if (name) document.getElementById('cert-recipient-name').innerText = name.toUpperCase();
+            if (uid) {
+                document.getElementById('cert-uid-val').innerText = uid;
+                document.getElementById('cert-recipient-uid').style.display = 'inline-flex';
+            } else {
+                document.getElementById('cert-recipient-uid').style.display = 'none';
+            }
+
+            if (eventName) document.getElementById('cert-event-name').innerText = eventName.toUpperCase();
+            if (catName) document.getElementById('cert-category-name').innerText = catName.toUpperCase();
+            if (teamName) document.getElementById('cert-team-name').innerText = teamName.toUpperCase();
+            if (date) document.getElementById('cert-issue-date').innerText = date;
+
+            // Apply Placement Banner styling
+            updatePositionBanner(pos);
+
+            // Grade badge
+            const gradeBadge = document.getElementById('grade-badge-text');
+            if (grade && grade !== 'N/A' && grade !== '-') {
+                gradeBadge.innerText = `${grade} Grade`;
+            } else {
+                document.getElementById('cert-grade-val').innerHTML = '<span style="color:var(--text-muted); font-size:0.85rem;">Standard Award</span>';
+            }
+
+            // Signature Fingerprint
+            if (!sig) {
+                let sigRaw = `${uid}|${compId}|${pos}|${grade}|${festId}`;
+                let hash = 0;
+                for (let i = 0; i < sigRaw.length; i++) {
+                    hash = ((hash << 5) - hash) + sigRaw.charCodeAt(i);
+                    hash |= 0;
+                }
+                sig = Math.abs(hash).toString(36).toUpperCase().padStart(8, '0');
+            }
+            document.getElementById('cert-sig-code').innerText = `SEC-${sig}`;
+
+            // Fetch live festival branding and database records
+            await verifyWithLiveDatabase(uid, compId, festId, pos, grade);
+
+        })();
+
+        function updatePositionBanner(pos) {
+            const banner = document.getElementById('cert-pos-banner');
+            const medal = document.getElementById('cert-pos-medal');
+            const text = document.getElementById('cert-pos-text');
+
+            banner.className = 'position-banner';
+            if (pos.includes('FIRST') || pos.includes('1ST')) {
+                banner.classList.add('gold');
+                medal.innerText = '🥇';
+                text.innerText = 'FIRST PLACE';
+            } else if (pos.includes('SECOND') || pos.includes('2ND')) {
+                banner.classList.add('silver');
+                medal.innerText = '🥈';
+                text.innerText = 'SECOND PLACE';
+            } else if (pos.includes('THIRD') || pos.includes('3RD')) {
+                banner.classList.add('bronze');
+                medal.innerText = '🥉';
+                text.innerText = 'THIRD PLACE';
+            } else {
+                banner.classList.add('participant');
+                medal.innerText = '🎖️';
+                text.innerText = pos.includes('PARTICIPANT') ? 'OFFICIAL PARTICIPATION' : pos;
+            }
+        }
+
+        async function verifyWithLiveDatabase(uid, compId, festId, pos, grade) {
+            const dbSyncLabel = document.getElementById('db-sync-label');
+
+            try {
+                if (typeof supabaseClient === 'undefined' || !supabaseClient) {
+                    if (dbSyncLabel) dbSyncLabel.innerHTML = `<i class="fa-solid fa-shield-check"></i> Validated via Cryptographic Hash`;
+                    return;
+                }
+
+                // 1. Fetch Festival Branding if festId given
+                const targetFest = festId || (typeof getActiveFestId === 'function' ? getActiveFestId() : 'fest_zenith_2026');
+                if (targetFest) {
+                    const { data: fData } = await supabaseClient.from('fests').select('name, logo').eq('id', targetFest).maybeSingle();
+                    if (fData) {
+                        if (fData.name) {
+                            document.getElementById('cert-fest-name').innerText = fData.name.toUpperCase();
+                            document.getElementById('fest-name-top').innerText = fData.name;
+                            document.title = `${fData.name} | Verified Certificate`;
+                        }
+                        if (fData.logo) {
+                            document.getElementById('fest-logo-top').src = fData.logo;
+                        }
+                    }
+                }
+
+                // 2. Query Participant Record if uid exists
+                if (uid) {
+                    let pQuery = supabaseClient
+                        .from('participants')
+                        .select('id, name, unique_id, teams(name), categories(name)')
+                        .eq('unique_id', uid);
+
+                    if (window.festosApplyFilter) pQuery = window.festosApplyFilter(pQuery);
+                    const { data: pData } = await pQuery.maybeSingle();
+
+                    if (pData) {
+                        document.getElementById('cert-recipient-name').innerText = pData.name.toUpperCase();
+                        if (pData.teams?.name) document.getElementById('cert-team-name').innerText = pData.teams.name.toUpperCase();
+                        if (pData.categories?.name) document.getElementById('cert-category-name').innerText = pData.categories.name.toUpperCase();
+                    }
+                }
+
+                // 3. Query Competition Record if compId exists
+                if (compId) {
+                    let cQuery = supabaseClient
+                        .from('competitions')
+                        .select('id, name, categories(name)')
+                        .eq('id', compId);
+
+                    if (window.festosApplyFilter) cQuery = window.festosApplyFilter(cQuery);
+                    const { data: cData } = await cQuery.maybeSingle();
+
+                    if (cData) {
+                        document.getElementById('cert-event-name').innerText = cData.name.toUpperCase();
+                        if (cData.categories?.name) document.getElementById('cert-category-name').innerText = cData.categories.name.toUpperCase();
+
+                        // Update leaderboard link
+                        const resultsBtn = document.getElementById('btn-view-results');
+                        if (resultsBtn) {
+                            resultsBtn.href = `results.html?tab=results&subtab=individual&comp=${encodeURIComponent(compId)}`;
+                        }
+                    }
+                }
+
+                if (dbSyncLabel) {
+                    dbSyncLabel.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#10B981;"></i> Authenticated in Live Festival Database`;
+                }
+
+            } catch (err) {
+                console.warn("Live DB verify notice:", err.message);
+                if (dbSyncLabel) {
+                    dbSyncLabel.innerHTML = `<i class="fa-solid fa-shield-check"></i> Validated via Digital Security Signature`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

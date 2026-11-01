@@ -10763,18 +10763,706 @@ async function loadAdminAppeals() {
 
 
 
-
-
-
 // ==========================================
-// ADMIN CERTIFICATE GENERATION ENGINE
+// ADMIN CERTIFICATE GENERATION ENGINE (BULK & SINGLE)
 // ==========================================
+
+let isBulkCertAborted = false;
+
+function getPresetCertificateTemplate(presetId = 'PRESET_CERT_GOLD_EXCELLENCE') {
+    const catalog = (window.FestOSPresetEngine && window.FestOSPresetEngine.PRESET_TEMPLATES_CATALOG) || [];
+    let preset = catalog.find(p => p.id === presetId);
+    if (!preset) {
+        preset = catalog.find(p => p.type === 'certificate');
+    }
+    if (preset) {
+        let bg = null;
+        try {
+            if (typeof preset.generateBg === 'function') {
+                bg = preset.generateBg();
+            }
+        } catch (e) {
+            console.warn("Preset bg generation notice:", e);
+        }
+        return {
+            id: preset.id,
+            name: preset.name,
+            type: preset.type,
+            bg_base64: bg,
+            fields: JSON.parse(JSON.stringify(preset.fields || {}))
+        };
+    }
+    return null;
+}
+window.getPresetCertificateTemplate = getPresetCertificateTemplate;
+
+function buildCertificateVerificationUrl(entry, comp, catName) {
+    const origin = window.location.origin;
+    let path = window.location.pathname;
+    const lastSlash = path.lastIndexOf('/');
+    const basePath = lastSlash !== -1 ? path.substring(0, lastSlash) : '';
+
+    // If served over HTTP/HTTPS, produce full absolute URL; fallback to relative/hosted
+    let baseUrl;
+    if (!origin || origin === 'null' || origin.startsWith('file')) {
+        baseUrl = 'verify-certificate.html';
+    } else {
+        baseUrl = `${origin}${basePath}/verify-certificate.html`;
+    }
+
+    const festId = (typeof getActiveFestId === 'function') ? getActiveFestId() : (localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
+    const uid = entry.participant?.unique_id || '';
+    const compId = comp?.id || '';
+    const pos = entry.position || '';
+    const grade = entry.grade || '';
+    const name = entry.participant?.name || '';
+    const compName = comp?.name || '';
+    const cat = catName || comp?.categories?.name || '';
+    const team = entry.participant?.teams?.name || '';
+    const date = new Date().toISOString().slice(0, 10);
+
+    // Compute tamper-evident signature
+    let sigRaw = `${uid}|${compId}|${pos}|${grade}|${festId}`;
+    let hash = 0;
+    for (let i = 0; i < sigRaw.length; i++) {
+        hash = ((hash << 5) - hash) + sigRaw.charCodeAt(i);
+        hash |= 0;
+    }
+    const sig = Math.abs(hash).toString(36).toUpperCase().padStart(8, '0');
+
+    const params = new URLSearchParams();
+    if (uid) params.set('uid', uid);
+    if (compId) params.set('comp', compId);
+    if (pos) params.set('pos', pos);
+    if (grade && grade !== 'N/A' && grade !== '-') params.set('grade', grade);
+    if (name) params.set('name', name);
+    if (compName) params.set('event', compName);
+    if (cat) params.set('cat', cat);
+    if (team) params.set('team', team);
+    if (festId) params.set('fest', festId);
+    params.set('date', date);
+    params.set('v', sig);
+
+    return `${baseUrl}?${params.toString()}`;
+}
+window.buildCertificateVerificationUrl = buildCertificateVerificationUrl;
+
+async function openBulkCertificateModal(scope = 'categories', defaultCompId = null) {
+    const modal = document.getElementById('bulkCertificateModal');
+    if (!modal) return;
+
+    // Reset progress and states
+    const progressBox = document.getElementById('bulk-cert-progress-box');
+    if (progressBox) progressBox.style.display = 'none';
+    const abortBtn = document.getElementById('btn-cancel-bulk-cert');
+    if (abortBtn) abortBtn.style.display = 'none';
+    const downloadBtn = document.getElementById('btn-download-bulk-cert');
+    if (downloadBtn) {
+        downloadBtn.disabled = false;
+        downloadBtn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Generate &amp; Download Certificates';
+    }
+
+    modal.classList.add('show');
+
+    // Ensure data prerequisites
+    try {
+        const prereqs = [];
+        if (!categoriesList || categoriesList.length === 0) prereqs.push(loadCategories());
+        if (!competitionsList || competitionsList.length === 0) prereqs.push(loadCompetitions());
+        if (prereqs.length > 0) await Promise.all(prereqs);
+        await loadPointSettings();
+    } catch (e) {
+        console.warn("Prereq load notice:", e);
+    }
+
+    // Check table selection
+    const selectedIds = getSelectedIds('competitions-tbody');
+    const selectedCountLabel = document.getElementById('bulkCertSelectedCompCount');
+    if (selectedCountLabel) {
+        selectedCountLabel.innerText = `(${selectedIds.length} selected)`;
+    }
+
+    // Setup scope radio
+    const scopeRadios = document.querySelectorAll('input[name="bulk-cert-scope"]');
+    if (scope === 'selected' && selectedIds.length > 0) {
+        scopeRadios.forEach(r => { if (r.value === 'selected') r.checked = true; });
+    } else {
+        scopeRadios.forEach(r => { if (r.value === 'categories') r.checked = true; });
+    }
+
+    // Populate category checkboxes
+    const catContainer = document.getElementById('bulk-cert-category-list');
+    if (catContainer) {
+        catContainer.innerHTML = '';
+        const cats = (categoriesList || []).filter(c => c && c.name);
+        if (cats.length === 0) {
+            catContainer.innerHTML = '<div style="color:var(--text-muted); font-size:0.8rem; padding:0.5rem;">No categories defined yet.</div>';
+        } else {
+            cats.forEach(cat => {
+                const compCount = (competitionsList || []).filter(c => String(c.category_id) === String(cat.id)).length;
+                const label = document.createElement('label');
+                label.className = 'bulk-cert-cat-item';
+                label.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-main); cursor: pointer; transition: all 0.2s;';
+                label.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden;">
+                        <input type="checkbox" class="bulk-cert-cat-cb" value="${cat.id}" checked onchange="updateBulkCertEstimate()" style="accent-color: var(--primary); cursor: pointer;">
+                        <span style="font-weight: 700; font-size: 0.82rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${cat.name}</span>
+                    </div>
+                    <span class="badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); font-size: 0.7rem; font-weight: 800; padding: 2px 6px; border-radius: 999px;">${compCount}</span>
+                `;
+                catContainer.appendChild(label);
+            });
+        }
+    }
+
+    // Load available templates into select
+    await loadBulkCertTemplates();
+
+    // Default positions
+    const pFirst = document.getElementById('bulk-pos-first');
+    const pSecond = document.getElementById('bulk-pos-second');
+    const pThird = document.getElementById('bulk-pos-third');
+    const pPart = document.getElementById('bulk-pos-participant');
+    if (pFirst) pFirst.checked = true;
+    if (pSecond) pSecond.checked = true;
+    if (pThird) pThird.checked = true;
+    if (pPart) pPart.checked = false;
+
+    onBulkCertScopeChanged();
+}
+window.openBulkCertificateModal = openBulkCertificateModal;
+
+function closeBulkCertificateModal() {
+    const modal = document.getElementById('bulkCertificateModal');
+    if (modal) modal.classList.remove('show');
+    isBulkCertAborted = true;
+}
+window.closeBulkCertificateModal = closeBulkCertificateModal;
+
+function onBulkCertScopeChanged() {
+    const scope = document.querySelector('input[name="bulk-cert-scope"]:checked')?.value || 'categories';
+    const catBox = document.getElementById('bulk-cert-categories-container');
+    if (catBox) {
+        if (scope === 'selected') {
+            catBox.style.opacity = '0.5';
+            catBox.style.pointerEvents = 'none';
+        } else {
+            catBox.style.opacity = '1';
+            catBox.style.pointerEvents = 'auto';
+        }
+    }
+    updateBulkCertEstimate();
+}
+window.onBulkCertScopeChanged = onBulkCertScopeChanged;
+
+function bulkCertToggleAllCategories(selectAll = true) {
+    const cbs = document.querySelectorAll('.bulk-cert-cat-cb');
+    cbs.forEach(cb => { cb.checked = selectAll; });
+    updateBulkCertEstimate();
+}
+window.bulkCertToggleAllCategories = bulkCertToggleAllCategories;
+
+function bulkCertSelectPositionPreset(presetName) {
+    const p1 = document.getElementById('bulk-pos-first');
+    const p2 = document.getElementById('bulk-pos-second');
+    const p3 = document.getElementById('bulk-pos-third');
+    const pPart = document.getElementById('bulk-pos-participant');
+
+    if (presetName === 'all_top3') {
+        if (p1) p1.checked = true;
+        if (p2) p2.checked = true;
+        if (p3) p3.checked = true;
+        if (pPart) pPart.checked = false;
+    } else if (presetName === 'first_only') {
+        if (p1) p1.checked = true;
+        if (p2) p2.checked = false;
+        if (p3) p3.checked = false;
+        if (pPart) pPart.checked = false;
+    } else if (presetName === 'top2') {
+        if (p1) p1.checked = true;
+        if (p2) p2.checked = true;
+        if (p3) p3.checked = false;
+        if (pPart) pPart.checked = false;
+    }
+    updateBulkCertEstimate();
+}
+window.bulkCertSelectPositionPreset = bulkCertSelectPositionPreset;
+
+async function loadBulkCertTemplates() {
+    const select = document.getElementById('bulk-cert-template-select');
+    if (!select) return;
+
+    select.innerHTML = `
+        <option value="auto">Auto (Best Festival Certificate Template)</option>
+        <option value="PRESET_CERT_GOLD_EXCELLENCE">Preset: Gold Ornate Merit &amp; Excellence</option>
+        <option value="PRESET_CERT_ROYAL_BLUE">Preset: Royal Blue &amp; Platinum Participation</option>
+    `;
+
+    try {
+        const { data: dbTemplates } = await festQuery(
+            supabaseClient.from('templates').select('id, name, type, fest_id')
+        ).eq('type', 'certificate');
+
+        if (Array.isArray(dbTemplates) && dbTemplates.length > 0) {
+            const grp = document.createElement('optgroup');
+            grp.label = "Custom Festival Templates";
+            dbTemplates.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.innerText = t.name || `Template ${t.id.slice(0, 8)}`;
+                grp.appendChild(opt);
+            });
+            select.appendChild(grp);
+        }
+    } catch (e) {
+        console.warn("Could not query custom templates:", e);
+    }
+}
+window.loadBulkCertTemplates = loadBulkCertTemplates;
+
+async function updateBulkCertEstimate(forceCount = false) {
+    const scope = document.querySelector('input[name="bulk-cert-scope"]:checked')?.value || 'categories';
+    const statsText = document.getElementById('bulk-cert-stats-text');
+    const statsSub = document.getElementById('bulk-cert-stats-sub');
+    if (!statsText || !statsSub) return;
+
+    let targetComps = [];
+    let selectedCatCount = 0;
+
+    if (scope === 'selected') {
+        const selectedIds = getSelectedIds('competitions-tbody');
+        targetComps = (competitionsList || []).filter(c => selectedIds.includes(String(c.id)));
+    } else {
+        const checkedCatEls = document.querySelectorAll('.bulk-cert-cat-cb:checked');
+        const selectedCatIds = Array.from(checkedCatEls).map(el => el.value);
+        selectedCatCount = selectedCatIds.length;
+        targetComps = (competitionsList || []).filter(c => selectedCatIds.includes(String(c.category_id)));
+    }
+
+    const posLabels = [];
+    if (document.getElementById('bulk-pos-first')?.checked) posLabels.push('1st');
+    if (document.getElementById('bulk-pos-second')?.checked) posLabels.push('2nd');
+    if (document.getElementById('bulk-pos-third')?.checked) posLabels.push('3rd');
+    if (document.getElementById('bulk-pos-participant')?.checked) posLabels.push('Participant');
+
+    const posStr = posLabels.length > 0 ? posLabels.join(', ') : 'None selected';
+
+    if (forceCount && targetComps.length > 0) {
+        statsText.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color: var(--primary);"></i> Scanning ${targetComps.length} competitions...`;
+        statsSub.innerText = "Querying recorded judgements from database...";
+
+        try {
+            const compIds = targetComps.map(c => c.id);
+            const { count } = await festQuery(
+                supabaseClient.from('judgements').select('participant_id', { count: 'exact', head: true })
+            ).in('competition_id', compIds);
+
+            statsText.innerText = `${targetComps.length} Competitions Selected • ${posStr}`;
+            statsSub.innerText = `~${count || 0} judgement records found across selected events. Ready to process.`;
+        } catch (e) {
+            statsText.innerText = `${targetComps.length} Competitions Selected • Positions: ${posStr}`;
+            statsSub.innerText = `Scope: ${scope === 'selected' ? 'Checked Table Rows' : `${selectedCatCount} Categories`}`;
+        }
+    } else {
+        statsText.innerText = `${targetComps.length} Competitions Selected • Positions: ${posStr}`;
+        statsSub.innerText = `Scope: ${scope === 'selected' ? 'Checked Table Rows' : `${selectedCatCount} Categories`}. Click "Scan & Count" to audit candidate marks.`;
+    }
+}
+window.updateBulkCertEstimate = updateBulkCertEstimate;
+
+function abortBulkCertificatesDownload() {
+    isBulkCertAborted = true;
+    showToast("Aborting certificate generation...", "info");
+    const abortBtn = document.getElementById('btn-cancel-bulk-cert');
+    if (abortBtn) abortBtn.disabled = true;
+}
+window.abortBulkCertificatesDownload = abortBulkCertificatesDownload;
+
+async function executeBulkCertificatesDownload() {
+    isBulkCertAborted = false;
+
+    // 1. Gather Scope and Target Competitions
+    const scope = document.querySelector('input[name="bulk-cert-scope"]:checked')?.value || 'categories';
+    let targetComps = [];
+
+    if (scope === 'selected') {
+        const selectedIds = getSelectedIds('competitions-tbody');
+        if (!selectedIds || selectedIds.length === 0) {
+            return showToast("Please select at least one competition from the table using checkboxes.", "error");
+        }
+        targetComps = (competitionsList || []).filter(c => selectedIds.includes(String(c.id)));
+    } else {
+        const checkedCatEls = document.querySelectorAll('.bulk-cert-cat-cb:checked');
+        const selectedCatIds = Array.from(checkedCatEls).map(el => el.value);
+        if (selectedCatIds.length === 0) {
+            return showToast("Please select at least one category.", "error");
+        }
+        targetComps = (competitionsList || []).filter(c => selectedCatIds.includes(String(c.category_id)));
+    }
+
+    if (targetComps.length === 0) {
+        return showToast("No competitions found matching your selection.", "error");
+    }
+
+    // 2. Gather Selected Positions (First, Second, Third, Participant)
+    const selectedPositions = [];
+    if (document.getElementById('bulk-pos-first')?.checked) selectedPositions.push('first');
+    if (document.getElementById('bulk-pos-second')?.checked) selectedPositions.push('second');
+    if (document.getElementById('bulk-pos-third')?.checked) selectedPositions.push('third');
+    if (document.getElementById('bulk-pos-participant')?.checked) selectedPositions.push('participant');
+
+    if (selectedPositions.length === 0) {
+        return showToast("Please select at least one position (First, Second, or Third).", "error");
+    }
+
+    const includeSquad = document.getElementById('bulk-cert-include-group-squad')?.checked ?? true;
+    const selectedTplVal = document.getElementById('bulk-cert-template-select')?.value || 'auto';
+
+    // 3. UI Progress Setup
+    const progressBox = document.getElementById('bulk-cert-progress-box');
+    const progressBar = document.getElementById('bulk-cert-progress-bar');
+    const progressStatus = document.getElementById('bulk-cert-progress-status');
+    const progressPercent = document.getElementById('bulk-cert-progress-percent');
+    const progressDetail = document.getElementById('bulk-cert-progress-detail');
+    const downloadBtn = document.getElementById('btn-download-bulk-cert');
+    const abortBtn = document.getElementById('btn-cancel-bulk-cert');
+
+    if (progressBox) progressBox.style.display = 'block';
+    if (downloadBtn) downloadBtn.disabled = true;
+    if (abortBtn) {
+        abortBtn.style.display = 'inline-flex';
+        abortBtn.disabled = false;
+    }
+
+    try {
+        // 4. Resolve Template
+        if (progressStatus) progressStatus.innerText = "Loading Certificate Template...";
+        if (progressPercent) progressPercent.innerText = "5%";
+        if (progressBar) progressBar.style.width = "5%";
+        if (progressDetail) progressDetail.innerText = "Resolving background artwork and typography...";
+
+        let template = null;
+        if (selectedTplVal === 'auto') {
+            template = await fetchBestTemplate('certificate');
+            if (!template || !template.bg_base64) {
+                template = getPresetCertificateTemplate('PRESET_CERT_GOLD_EXCELLENCE');
+            }
+        } else if (selectedTplVal.startsWith('PRESET_')) {
+            template = getPresetCertificateTemplate(selectedTplVal);
+        } else {
+            const { data: dbTpl } = await supabaseClient.from('templates').select('*').eq('id', selectedTplVal).single();
+            template = dbTpl || (await fetchBestTemplate('certificate')) || getPresetCertificateTemplate('PRESET_CERT_GOLD_EXCELLENCE');
+        }
+
+        if (!template || !template.bg_base64) {
+            template = getPresetCertificateTemplate('PRESET_CERT_GOLD_EXCELLENCE');
+        }
+        if (!template || !template.bg_base64) {
+            throw new Error("Unable to load a valid Certificate template or preset.");
+        }
+
+        // 5. Preload Background Image
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = () => resolve(null);
+            img.src = template.bg_base64;
+        });
+
+        // Preload Custom Fonts
+        if (template.customFonts && template.customFonts.length > 0) {
+            for (const fontData of template.customFonts) {
+                try {
+                    const customFont = new FontFace(fontData.family, `url(${fontData.url})`);
+                    const loadedFace = await customFont.load();
+                    document.fonts.add(loadedFace);
+                } catch (e) {
+                    console.warn("Font load warning:", e);
+                }
+            }
+        }
+
+        await loadPointSettings();
+
+        // 6. Gather all qualifying certificate candidates across target competitions
+        if (progressStatus) progressStatus.innerText = "Analyzing Competitions & Standings...";
+        if (progressPercent) progressPercent.innerText = "15%";
+        if (progressBar) progressBar.style.width = "15%";
+
+        const masterCertificateQueue = [];
+        let compsWithCertificates = 0;
+
+        for (let cIdx = 0; cIdx < targetComps.length; cIdx++) {
+            if (isBulkCertAborted) break;
+
+            const comp = targetComps[cIdx];
+            const compProgress = 15 + Math.round((cIdx / targetComps.length) * 35);
+            if (progressPercent) progressPercent.innerText = `${compProgress}%`;
+            if (progressBar) progressBar.style.width = `${compProgress}%`;
+            if (progressDetail) progressDetail.innerText = `Analyzing [${cIdx + 1}/${targetComps.length}] ${comp.name}...`;
+
+            // Fetch judgements for this competition
+            const { data: judgements } = await festQuery(
+                supabaseClient.from('judgements')
+                    .select('participant_id, awarded_mark, participants(id, name, unique_id, team_id, teams(name))')
+            ).eq('competition_id', comp.id);
+
+            if (!judgements || judgements.length === 0) continue;
+
+            // Group judgements by participant_id
+            const pMap = {};
+            judgements.forEach(j => {
+                if (!j.participants) return;
+                const pId = j.participant_id;
+                if (!pMap[pId]) pMap[pId] = { participant: j.participants, marks: [] };
+                pMap[pId].marks.push(parseFloat(j.awarded_mark));
+            });
+
+            // Calculate averages (dropping outliers if >= 3 marks)
+            const allResults = Object.values(pMap).map(p => {
+                let sortedMarks = [...p.marks].sort((a, b) => a - b);
+                if (sortedMarks.length >= 3) {
+                    sortedMarks = sortedMarks.slice(1, sortedMarks.length - 1);
+                }
+                const avg = sortedMarks.reduce((a, b) => a + b, 0) / sortedMarks.length;
+                return { ...p, avgMark: avg };
+            }).sort((a, b) => b.avgMark - a.avgMark);
+
+            if (allResults.length === 0) continue;
+
+            // Rank participants with tie handling
+            let currentRank = 1;
+            let currentDensePos = 0;
+            let previousScore = -1;
+
+            allResults.forEach((r, idx) => {
+                if (r.avgMark !== previousScore) {
+                    currentRank = idx + 1;
+                    currentDensePos++;
+                }
+                previousScore = r.avgMark;
+                r.numericRank = currentRank;
+                r.densePos = currentDensePos;
+
+                const maxM = comp.max_mark || 100;
+                const percent = (r.avgMark / maxM) * 100;
+                let gradeStr = 'N/A';
+                if (percent >= 50) {
+                    if (pointsAdminSettings?.thresholds?.aplus && percent >= pointsAdminSettings.thresholds.aplus) gradeStr = 'A+';
+                    else if (pointsAdminSettings?.thresholds?.a && percent >= pointsAdminSettings.thresholds.a) gradeStr = 'A';
+                    else if (pointsAdminSettings?.thresholds?.b && percent >= pointsAdminSettings.thresholds.b) gradeStr = 'B';
+                    else gradeStr = 'C';
+                }
+                r.grade = gradeStr;
+
+                const effectivePos = currentDensePos <= 3 ? currentDensePos : (currentRank <= 3 ? currentRank : 0);
+                if (effectivePos === 1) {
+                    r.position = 'FIRST PLACE';
+                    r.posKey = 'first';
+                } else if (effectivePos === 2) {
+                    r.position = 'SECOND PLACE';
+                    r.posKey = 'second';
+                } else if (effectivePos === 3) {
+                    r.position = 'THIRD PLACE';
+                    r.posKey = 'third';
+                } else {
+                    r.position = 'PARTICIPANT';
+                    r.posKey = 'participant';
+                }
+            });
+
+            // Filter by user's selected positions (first, second, third, participant)
+            const matchingResults = allResults.filter(r => selectedPositions.includes(r.posKey));
+            if (matchingResults.length === 0) continue;
+
+            compsWithCertificates++;
+
+            // Group event squad expansion
+            if (comp.is_group && includeSquad) {
+                const { data: squadEnrollments } = await festQuery(
+                    supabaseClient.from('participant_competitions')
+                        .select('participant_id, is_leader, participants(id, name, unique_id, team_id, teams(name))')
+                ).eq('competition_id', comp.id);
+
+                matchingResults.forEach(res => {
+                    const teamId = res.participant?.team_id;
+                    const squad = (squadEnrollments || []).filter(se => se.participants && (se.participants.team_id === teamId || se.participant_id === res.participant?.id));
+                    if (squad && squad.length > 0) {
+                        squad.forEach(member => {
+                            masterCertificateQueue.push({
+                                participant: member.participants,
+                                position: res.position,
+                                grade: res.grade,
+                                avgMark: res.avgMark,
+                                comp: comp
+                            });
+                        });
+                    } else {
+                        masterCertificateQueue.push({ ...res, comp: comp });
+                    }
+                });
+            } else {
+                matchingResults.forEach(res => {
+                    masterCertificateQueue.push({ ...res, comp: comp });
+                });
+            }
+        }
+
+        if (isBulkCertAborted) {
+            showToast("Bulk certificate generation was cancelled.", "info");
+            return;
+        }
+
+        if (masterCertificateQueue.length === 0) {
+            throw new Error("No qualifying contestants found for the selected categories and positions. Ensure competitions have judged marks.");
+        }
+
+        // 7. Render certificates onto Canvas & PDF
+        if (progressStatus) progressStatus.innerText = `Rendering ${masterCertificateQueue.length} Certificates to PDF...`;
+
+        const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.naturalWidth || 1600;
+        canvas.height = img.naturalHeight || 1130;
+
+        let pdf = null;
+        let pdfConfig = null;
+        const totalCerts = masterCertificateQueue.length;
+
+        for (let i = 0; i < totalCerts; i++) {
+            if (isBulkCertAborted) break;
+
+            const entry = masterCertificateQueue[i];
+            const comp = entry.comp;
+            const certProgress = 50 + Math.round((i / totalCerts) * 48);
+            if (progressPercent) progressPercent.innerText = `${certProgress}%`;
+            if (progressBar) progressBar.style.width = `${certProgress}%`;
+            if (progressDetail) progressDetail.innerText = `[${i + 1}/${totalCerts}] ${entry.participant?.name || 'Contestant'} - ${entry.position} (${comp.name})`;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+
+            const catName = comp.categories?.name || (categoriesList.find(c => String(c.id) === String(comp.category_id))?.name) || 'GENERAL';
+
+            const mappedData = {
+                'ParticipantName': (entry.participant?.name || 'UNKNOWN').toUpperCase(),
+                'UniqueID': entry.participant?.unique_id || '',
+                'TeamName': (entry.participant?.teams?.name || 'INDEPENDENT').toUpperCase(),
+                'Category': catName.toUpperCase(),
+                'Competition': (comp.name || 'EVENT').toUpperCase(),
+                'Position': entry.position,
+                'Grade': entry.grade,
+                'IssueDate': new Date().toLocaleDateString()
+            };
+
+            // Draw QR Code with Verification Redirect URL (ONLY IN CERTIFICATES)
+            if (template.fields && template.fields['QRCode'] && template.fields['QRCode'].enabled) {
+                const f = template.fields['QRCode'];
+                const qrContainer = document.createElement('div');
+                const certVerifyUrl = buildCertificateVerificationUrl(entry, comp, catName);
+                new QRCode(qrContainer, {
+                    text: certVerifyUrl,
+                    width: f.w || 150,
+                    height: f.h || 150,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+                await new Promise(r => setTimeout(r, 25));
+                const qrCanvas = qrContainer.querySelector('canvas');
+                if (qrCanvas) ctx.drawImage(qrCanvas, f.x, f.y, f.w || 150, f.h || 150);
+            }
+
+            // Draw text and static overlays
+            if (template.fields) {
+                for (const [key, fieldConfig] of Object.entries(template.fields)) {
+                    if (!fieldConfig.enabled || key === 'QRCode' || fieldConfig.isImage) {
+                        if (fieldConfig.isImage && fieldConfig.isStaticElement && fieldConfig.src && fieldConfig.enabled) {
+                            try {
+                                const staticImg = await new Promise((resolve) => {
+                                    const pImg = new Image();
+                                    pImg.crossOrigin = "Anonymous";
+                                    pImg.onload = () => resolve(pImg);
+                                    pImg.onerror = () => resolve(null);
+                                    pImg.src = fieldConfig.src;
+                                });
+                                if (staticImg) ctx.drawImage(staticImg, fieldConfig.x, fieldConfig.y, fieldConfig.w, fieldConfig.h);
+                            } catch (err) {}
+                        }
+                        continue;
+                    }
+
+                    const text = fieldConfig.isCustom ? fieldConfig.displayName : (mappedData[key] || "");
+                    if (!text) continue;
+                    ctx.textAlign = fieldConfig.align || 'left';
+                    ctx.fillStyle = fieldConfig.color || '#000000';
+                    ctx.font = `${fieldConfig.weight || 'bold'} ${fieldConfig.size || 40}px ${fieldConfig.font || 'sans-serif'}`;
+                    renderCanvasText(ctx, text, fieldConfig);
+                }
+            }
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+            if (!pdfConfig) {
+                const baseWidthMm = 297; // A4 Landscape
+                const calculatedHeightMm = (canvas.height * baseWidthMm) / canvas.width;
+                pdfConfig = {
+                    width: baseWidthMm,
+                    height: calculatedHeightMm,
+                    orientation: baseWidthMm > calculatedHeightMm ? 'landscape' : 'portrait'
+                };
+                pdf = new jsPDFClass({ orientation: pdfConfig.orientation, unit: 'mm', format: [pdfConfig.width, pdfConfig.height] });
+            }
+
+            if (i > 0) pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfConfig.width, pdfConfig.height);
+
+            // Yield control briefly so UI updates
+            if (i % 2 === 0) {
+                await new Promise(r => setTimeout(r, 10));
+            }
+        }
+
+        if (pdf) {
+            if (progressPercent) progressPercent.innerText = "100%";
+            if (progressBar) progressBar.style.width = "100%";
+            if (progressStatus) progressStatus.innerText = "Saving PDF Document...";
+
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const fileName = `FestOS_Bulk_Certificates_${dateStr}.pdf`;
+            pdf.save(fileName);
+
+            showToast(`Downloaded ${totalCerts} certificates across ${compsWithCertificates} competitions!`, 'success');
+
+            const statsText = document.getElementById('bulk-cert-stats-text');
+            if (statsText) {
+                statsText.innerHTML = `<span style="color:#10B981;"><i class="fa-solid fa-circle-check"></i> Complete:</span> Generated ${totalCerts} certificates!`;
+            }
+        }
+
+    } catch (err) {
+        console.error("Bulk certificate error:", err);
+        showToast(err.message || "Failed to generate certificates", "error");
+    } finally {
+        if (progressBox) progressBox.style.display = 'none';
+        if (downloadBtn) downloadBtn.disabled = false;
+        if (abortBtn) abortBtn.style.display = 'none';
+    }
+}
+window.executeBulkCertificatesDownload = executeBulkCertificatesDownload;
+
+// Single Competition Certificate Download (Backward Compatible & Enhanced)
 async function bulkDownloadCertificates(compId) {
     showToast("Fetching data and preparing certificates...", "success");
 
     try {
-        // 1. Fetch Certificate Template
-        const template = await fetchBestTemplate('certificate');
+        // 1. Fetch Certificate Template with Fallback to Built-in Preset
+        let template = await fetchBestTemplate('certificate');
+        if (!template || !template.bg_base64) {
+            template = getPresetCertificateTemplate('PRESET_CERT_GOLD_EXCELLENCE');
+        }
         if (!template) throw new Error("No Certificate template found. Please design one in the Poster Templates Studio first.");
 
         // 2. Fetch Competition & Judgements with Registered Count
@@ -10788,15 +11476,15 @@ async function bulkDownloadCertificates(compId) {
 
         const { data: judgements } = await supabaseClient
             .from('judgements')
-            .select('participant_id, awarded_mark, participants(name, unique_id, teams(name))')
+            .select('participant_id, awarded_mark, participants(id, name, unique_id, team_id, teams(name))')
             .eq('competition_id', compId);
             
         if (!judgements || judgements.length === 0) throw new Error("No judgements found for this competition yet.");
 
-        // 3. Group, Average, Drop Outliers (FIXED: Skip deleted participants)
+        // 3. Group, Average, Drop Outliers
         const pMap = {};
         judgements.forEach(j => {
-            if (!j.participants) return; // Prevent crash if participant was deleted
+            if (!j.participants) return;
             
             const pId = j.participant_id;
             if (!pMap[pId]) pMap[pId] = { participant: j.participants, marks: [] };
@@ -10821,7 +11509,6 @@ async function bulkDownloadCertificates(compId) {
         let previousScore = -1;
 
         allResults.forEach((r, idx) => {
-            // Increment rank only if the score differs from the previous
             if (r.avgMark !== previousScore) {
                 currentRank = idx + 1;
                 currentDensePos++;
@@ -10833,19 +11520,18 @@ async function bulkDownloadCertificates(compId) {
             let percent = (r.avgMark / (comp.max_mark || 100)) * 100;
             let gradeStr = 'N/A';
             if (percent >= 50) {
-                if (percent >= pointsAdminSettings.thresholds.aplus) gradeStr = 'A+';
-                else if (percent >= pointsAdminSettings.thresholds.a) gradeStr = 'A';
-                else if (percent >= pointsAdminSettings.thresholds.b) gradeStr = 'B';
+                if (pointsAdminSettings?.thresholds?.aplus && percent >= pointsAdminSettings.thresholds.aplus) gradeStr = 'A+';
+                else if (pointsAdminSettings?.thresholds?.a && percent >= pointsAdminSettings.thresholds.a) gradeStr = 'A';
+                else if (pointsAdminSettings?.thresholds?.b && percent >= pointsAdminSettings.thresholds.b) gradeStr = 'B';
                 else gradeStr = 'C';
             }
             r.grade = gradeStr;
             
-            // Assign textual position based on the calculated rank (supporting multiple participants in positions)
             const effectivePos = currentDensePos <= 3 ? currentDensePos : (currentRank <= 3 ? currentRank : 0);
             r.position = effectivePos === 1 ? 'FIRST PLACE' : effectivePos === 2 ? 'SECOND PLACE' : effectivePos === 3 ? 'THIRD PLACE' : 'PARTICIPANT';
         });
 
-        // 6. Slice Top 3 Based on Rank (This safely captures all tied participants in top 3 positions)
+        // 6. Slice Top 3 Based on Rank
         const results = allResults.filter(r => (r.densePos <= 3 || r.numericRank <= 3));
 
         if (results.length === 0) throw new Error("Could not calculate top standings. No valid participant data.");
@@ -10860,7 +11546,7 @@ async function bulkDownloadCertificates(compId) {
 
             results.forEach(res => {
                 const teamId = res.participant?.team_id;
-                const squad = (squadEnrollments || []).filter(se => se.participants && (se.participants.team_id === teamId || se.participant_id === res.participant_id));
+                const squad = (squadEnrollments || []).filter(se => se.participants && (se.participants.team_id === teamId || se.participant_id === res.participant?.id));
                 if (squad && squad.length > 0) {
                     squad.forEach(member => {
                         finalCertList.push({
@@ -10880,7 +11566,7 @@ async function bulkDownloadCertificates(compId) {
         }
 
         // 7. Generate PDF via Canvas
-        const { jsPDF } = window.jspdf;
+        const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
         let pdf = null;
         let pdfConfig = null;
 
@@ -10903,15 +11589,14 @@ async function bulkDownloadCertificates(compId) {
 
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = img.naturalWidth || 1080; 
-        canvas.height = img.naturalHeight || 1080;
+        canvas.width = img.naturalWidth || 1600; 
+        canvas.height = img.naturalHeight || 1130;
 
         for (let i = 0; i < finalCertList.length; i++) {
             const entry = finalCertList[i];
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0);
 
-            // FIXED: Added fallback placeholders so it never crashes on null data
             const mappedData = {
                 'ParticipantName': (entry.participant?.name || 'UNKNOWN').toUpperCase(),
                 'UniqueID': entry.participant?.unique_id || '',
@@ -10923,18 +11608,27 @@ async function bulkDownloadCertificates(compId) {
                 'IssueDate': new Date().toLocaleDateString()
             };
 
-            // Draw QR Code if enabled in template
-            if (template.fields['QRCode'] && template.fields['QRCode'].enabled) {
+            // Draw QR Code with Verification Redirect URL (ONLY IN CERTIFICATES)
+            if (template.fields && template.fields['QRCode'] && template.fields['QRCode'].enabled) {
                 const f = template.fields['QRCode'];
                 const qrContainer = document.createElement('div');
-                new QRCode(qrContainer, { text: entry.participant.unique_id, width: f.w, height: f.h, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
-                await new Promise(r => setTimeout(r, 50));
+                const catName = (comp.categories?.name || 'GENERAL').toUpperCase();
+                const certVerifyUrl = buildCertificateVerificationUrl(entry, comp, catName);
+                new QRCode(qrContainer, {
+                    text: certVerifyUrl,
+                    width: f.w || 150,
+                    height: f.h || 150,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+                await new Promise(r => setTimeout(r, 30));
                 const qrCanvas = qrContainer.querySelector('canvas');
-                if(qrCanvas) ctx.drawImage(qrCanvas, f.x, f.y, f.w, f.h);
+                if (qrCanvas) ctx.drawImage(qrCanvas, f.x, f.y, f.w || 150, f.h || 150);
             }
 
             // Draw text and static overlays
-            if(template.fields) {
+            if (template.fields) {
                 for (const [key, fieldConfig] of Object.entries(template.fields)) {
                     if (!fieldConfig.enabled || key === 'QRCode' || fieldConfig.isImage) {
                         if (fieldConfig.isImage && fieldConfig.isStaticElement && fieldConfig.src && fieldConfig.enabled) {
@@ -10947,7 +11641,7 @@ async function bulkDownloadCertificates(compId) {
                             } catch (err) {}
                         }
                         continue;
-                   }
+                    }
                     const text = fieldConfig.isCustom ? fieldConfig.displayName : (mappedData[key] || ""); 
                     if (!text) continue;
                     ctx.textAlign = fieldConfig.align || 'left'; 
@@ -10967,11 +11661,11 @@ async function bulkDownloadCertificates(compId) {
                     height: calculatedHeightMm,
                     orientation: baseWidthMm > calculatedHeightMm ? 'landscape' : 'portrait'
                 };
-                pdf = new jsPDF({ orientation: pdfConfig.orientation, unit: 'mm', format: [pdfConfig.width, pdfConfig.height] });
+                pdf = new jsPDFClass({ orientation: pdfConfig.orientation, unit: 'mm', format: [pdfConfig.width, pdfConfig.height] });
             }
             
+            if (i > 0) pdf.addPage();
             pdf.addImage(imgData, 'JPEG', 0, 0, pdfConfig.width, pdfConfig.height);
-            if (i < results.length - 1) pdf.addPage();
         }
 
         pdf.save(`${comp.name.replace(/\s+/g, '_')}_Certificates.pdf`);
@@ -10982,6 +11676,7 @@ async function bulkDownloadCertificates(compId) {
         showToast(e.message, 'error');
     }
 }
+window.bulkDownloadCertificates = bulkDownloadCertificates;
 
 // ==========================================
 // COMPETITION MASTER LOG ENGINE

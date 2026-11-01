@@ -11,6 +11,8 @@
     { "source": "/team-manager", "destination": "/team-manager.html" },
     { "source": "/stage-controller", "destination": "/stage-controller.html" },
     { "source": "/scan", "destination": "/scan.html" },
+    { "source": "/verify", "destination": "/verify-certificate.html" },
+    { "source": "/verify-certificate", "destination": "/verify-certificate.html" },
     { "source": "/announcements", "destination": "/announcements.html" },
     { "source": "/landing", "destination": "/landing.html" }
   ]
