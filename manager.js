@@ -808,12 +808,12 @@ async function openEditPointsModal(compId) {
 
     try {
         // Fetch comp details to check if it's a group
-        const { data: comp } = await window.db.from('competitions').select('is_group').eq('id', compId).single();
+        const { data: comp } = await window.db.from('competitions').select('is_group, fest_id').eq('id', compId).single();
 
         // Fetch all judgements for this competition that have actual marks
         const { data: judgements, error } = await window.db
             .from('judgements')
-            .select('id, participant_id, awarded_mark, participants(name), users(username)')
+            .select('id, participant_id, awarded_mark, fest_id, participants(name), users(username)')
             .eq('competition_id', compId)
             .not('participant_id', 'is', null);
 
@@ -837,10 +837,12 @@ async function openEditPointsModal(compId) {
                 participantName += ' & PARTY';
             }
 
+            const rowFestId = j.fest_id || comp?.fest_id || (window.festosAuth ? window.festosAuth.getCurrentFestId() : '') || '';
+
             modalBody.innerHTML += `
                 <div class="edit-point-item">
                     <label>${participantName} <span style="font-size: 0.75rem; color: var(--text-muted);">${judgeName}</span></label>
-                    <input type="number" class="edit-point-input" data-judgement-id="${j.id}" value="${j.awarded_mark || 0}" step="0.1" min="0">
+                    <input type="number" class="edit-point-input" data-judgement-id="${j.id}" data-fest-id="${rowFestId}" value="${j.awarded_mark || 0}" step="0.1" min="0">
                 </div>
             `;
         });
@@ -997,9 +999,11 @@ async function saveEditedPoints() {
     const updates = [];
 
     inputs.forEach(input => {
+        const val = parseFloat(input.value);
         updates.push({
             id: input.getAttribute('data-judgement-id'),
-            awarded_mark: parseFloat(input.value)
+            fest_id: input.getAttribute('data-fest-id') || (window.festosAuth ? window.festosAuth.getCurrentFestId() : null) || 'fest_zenith_2026',
+            awarded_mark: isNaN(val) ? 0 : val
         });
     });
 
@@ -1010,19 +1014,39 @@ async function saveEditedPoints() {
         saveBtn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Saving...';
 
         try {
-            const { error } = await window.db
-                .from('judgements')
-                .upsert(updates, { onConflict: 'id' });
+            // Update each judgement record directly by its unique id (HTTP PATCH avoids RLS onConflict INSERT check)
+            const updatePromises = updates.map(u => {
+                const payload = {
+                    awarded_mark: u.awarded_mark
+                };
+                if (u.fest_id) payload.fest_id = u.fest_id;
+                return window.db.from('judgements').update(payload).eq('id', u.id);
+            });
 
-            if (error) throw error;
+            const results = await Promise.all(updatePromises);
+            const failed = results.find(r => r.error);
+            if (failed && failed.error) {
+                // Secondary fallback: upsert with explicit fest_id
+                let upsertPayload = updates.map(u => ({
+                    id: u.id,
+                    awarded_mark: u.awarded_mark,
+                    fest_id: u.fest_id
+                }));
+                if (window.festosWithFest) upsertPayload = window.festosWithFest(upsertPayload);
+                const { error: upsertError } = await window.db
+                    .from('judgements')
+                    .upsert(upsertPayload, { onConflict: 'id' });
+                if (upsertError) throw upsertError;
+            }
 
             showToast("Points successfully updated!", "success");
             closeEditModal();
             loadPublishedResults();
+            loadPublishableComps();
             
         } catch (err) {
             console.error("Error saving marks:", err);
-            showToast("Failed to save updates: " + err.message, "error");
+            showToast("Failed to save updates: " + (err.message || err.details || "Database permission error"), "error");
         } finally {
             saveBtn.disabled = false;
             saveBtn.innerHTML = 'Save Changes';
@@ -1072,6 +1096,7 @@ function filterPendingPublish() {
                 <div class="card-meta" style="margin-bottom: 1.5rem;"><i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}</div>
                 <div style="display: flex; gap: 0.5rem; width: 100%; flex-wrap: wrap;">
                     <button class="btn btn-outline" style="flex: 1; min-width: 100px;" onclick="previewConvertedPoints('${comp.id}', ${comp.max_mark || 100}, ${comp.categories?.is_general || false})"><i class="ph ph-eye"></i> Preview</button>
+                    <button class="btn btn-outline" style="flex: 1; min-width: 100px; color: var(--primary); border-color: var(--primary);" onclick="openEditPointsModal('${comp.id}')"><i class="ph ph-pencil-simple"></i> Edit</button>
                     <button class="btn btn-outline" style="flex: 1; min-width: 100px;" onclick="redoJudgement('${comp.id}', this)"><i class="ph ph-arrow-u-up-left"></i> Redo</button>
                     <button class="btn btn-success" style="flex: 2; min-width: 140px;" onclick="publishCompetition('${comp.id}', this)"><i class="ph ph-megaphone-simple"></i> Publish</button>
                 </div>
