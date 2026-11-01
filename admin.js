@@ -11128,6 +11128,7 @@ function buildCertificateVerificationUrl(entry, comp, catName) {
     else if (posUpper.includes('PARTICIPANT')) pCode = 'P';
 
     const grade = (entry.grade && entry.grade !== 'N/A' && entry.grade !== '-') ? entry.grade.trim() : '';
+    const festId = comp?.fest_id || entry.participant?.fest_id || (typeof getActiveFestId === 'function' ? getActiveFestId() : (localStorage.getItem('festos_active_fest_id') || ''));
 
     // Clean, compact params = soft, clean, spacious QR code!
     const params = new URLSearchParams();
@@ -11135,6 +11136,7 @@ function buildCertificateVerificationUrl(entry, comp, catName) {
     if (compId) params.set('c', compId);
     if (pCode) params.set('p', pCode);
     if (grade) params.set('g', grade);
+    if (festId) params.set('f', festId);
 
     return `${baseUrl}?${params.toString()}`;
 }
