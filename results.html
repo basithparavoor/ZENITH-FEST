@@ -1775,9 +1775,6 @@
                 <button class="btn btn-primary" onclick="window.location.reload()" style="font-size: 0.88rem; padding: 0.7rem 1.5rem; width: auto; border-radius: 50px;">
                     <i class="fa-solid fa-rotate-right"></i> Check Status
                 </button>
-                <button class="btn btn-outline" id="offline-admin-bypass-btn" style="display: none; font-size: 0.88rem; padding: 0.7rem 1.5rem; width: auto; border-radius: 50px;" onclick="bypassOfflineGate()">
-                    <i class="fa-solid fa-eye"></i> Preview As Admin
-                </button>
                 <button class="btn btn-outline" id="offline-admin-login-btn" onclick="window.location.href='index.html'" style="font-size: 0.88rem; padding: 0.7rem 1.5rem; width: auto; border-radius: 50px;">
                     <i class="fa-solid fa-user-shield"></i> Admin Login
                 </button>
@@ -2706,7 +2703,7 @@
             const isSiteEnabled = websiteConfig.site_enabled !== false && websiteConfig.is_published !== false;
             
             const urlParams = new URLSearchParams(window.location.search);
-            const isPreview = urlParams.get('preview') === 'true' || sessionStorage.getItem('festos_admin_bypass_offline') === 'true';
+            const isPreview = urlParams.get('preview') === 'true';
 
             if (isSiteEnabled) {
                 if (offlineOverlay) offlineOverlay.style.display = 'none';
@@ -2758,30 +2755,12 @@
                             offMsgEl.innerText = websiteConfig.offline_message || 'The live results and championship standings are currently offline. The festival administrators have temporarily paused public access. Please check back soon or stay tuned for official announcements!';
                         }
 
-                        // Check if an admin is logged in to show bypass preview button
-                        const bypassBtn = document.getElementById('offline-admin-bypass-btn');
-                        if (bypassBtn) {
-                            try {
-                                const userStr = localStorage.getItem('festUser') || localStorage.getItem('festSuperAdmin');
-                                if (userStr) {
-                                    const u = JSON.parse(userStr);
-                                    if (u && (u.role === 'admin' || u.role === 'master_admin' || u.role === 'super_admin' || u.is_super_admin)) {
-                                        bypassBtn.style.display = 'inline-flex';
-                                    }
-                                }
-                            } catch(e) {}
-                        }
+                        
                     }
                 }
             }
         }
         window.checkResultSiteStatus = checkResultSiteStatus;
-
-        function bypassOfflineGate() {
-            sessionStorage.setItem('festos_admin_bypass_offline', 'true');
-            checkResultSiteStatus();
-        }
-        window.bypassOfflineGate = bypassOfflineGate;
 
         // --- Password Gate ---
         function checkPasswordProtection() {
