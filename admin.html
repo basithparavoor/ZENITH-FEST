@@ -15,6 +15,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cinzel:wght@600;700;800;900&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Great+Vibes&family=Inter:wght@400;500;600;700&family=Montserrat:wght@500;600;700;800&family=Pinyon+Script&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -4008,15 +4013,15 @@ canvas {
                         </div>
                     </div>
                     <div class="bulk-actions" style="margin-top: 0.5rem; flex-wrap: wrap;">
-                        <input type="file" id="studio-bg-upload" accept="image/*" style="display: none;" onchange="handleStudioUpload(event)">
+                        <input type="file" id="studio-bg-upload" accept="image/*, application/pdf, .pdf" style="display: none;" onchange="handleStudioUpload(event)">
                         <button class="btn btn-outline" style="border-color: #10B981; color: #059669; font-weight: 700;" onclick="openAiTemplateModal(true)">
                             <i class="fa-solid fa-robot"></i> AI Auto-Template
                         </button>
                         <button class="btn btn-outline" style="border-color: #6366F1; color: #4F46E5; font-weight: 700;" onclick="openPresetTemplatesModal(true)">
                             <i class="fa-solid fa-wand-magic-sparkles"></i> Apply Preset Design
                         </button>
-                        <button class="btn btn-outline" onclick="document.getElementById('studio-bg-upload').click()">
-                            <i class="fa-solid fa-image"></i> Upload Background
+                        <button class="btn btn-outline" onclick="document.getElementById('studio-bg-upload').click()" title="Upload High-Res Image or Vector PDF Background (300 DPI Print Quality)">
+                            <i class="fa-solid fa-file-pdf" style="color: #EF4444;"></i> Upload Image / PDF
                         </button>
                         
                         <input type="file" id="studio-element-upload" accept=".svg, .png, .jpg, .jpeg, .webp" style="display: none;" onchange="handleElementUpload(event)">

@@ -6685,11 +6685,18 @@ const STUDIO_MOCK_DATA = {
 };
 
 const AVAILABLE_FONTS = [
-    { name: 'Inter', value: 'Inter, sans-serif' },
+    { name: 'Cinzel (Classical Roman)', value: "'Cinzel', serif" },
+    { name: 'Playfair Display (Luxury Serif)', value: "'Playfair Display', serif" },
+    { name: 'Great Vibes (Calligraphy Script)', value: "'Great Vibes', cursive" },
+    { name: 'Alex Brush (Formal Script)', value: "'Alex Brush', cursive" },
+    { name: 'Pinyon Script (Classic Script)', value: "'Pinyon Script', cursive" },
+    { name: 'Cormorant Garamond (Fine Serif)', value: "'Cormorant Garamond', serif" },
+    { name: 'Montserrat (Modern Sans)', value: "'Montserrat', sans-serif" },
+    { name: 'Inter (Clean Modern)', value: "Inter, sans-serif" },
     { name: 'Plus Jakarta Sans', value: "'Plus Jakarta Sans', sans-serif" },
-    { name: 'Roboto', value: 'Roboto, sans-serif' },
-    { name: 'Bebas Neue', value: "'Bebas Neue', cursive" },
-    { name: 'Serif', value: "'Times New Roman', Times, serif" }
+    { name: 'Times New Roman', value: "'Times New Roman', Times, serif" },
+    { name: 'Roboto', value: "Roboto, sans-serif" },
+    { name: 'Bebas Neue (Headline Display)', value: "'Bebas Neue', cursive" }
 ];
 
 // Helper: Convert DataURL to Blob safely
@@ -7403,25 +7410,90 @@ function renderPropertiesPanel() {
     `;
 }
 
-function handleStudioUpload(event) {
+function loadPdfJsLibrary() {
+    return new Promise((resolve, reject) => {
+        if (typeof pdfjsLib !== 'undefined') return resolve(window.pdfjsLib);
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        script.onload = () => resolve(window.pdfjsLib);
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}
+window.loadPdfJsLibrary = loadPdfJsLibrary;
+
+async function handleStudioUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     
     studioActiveData.pendingFile = file;
 
+    // Check if uploaded background is a Vector PDF
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    if (isPdf) {
+        showToast("Processing Vector PDF at 300 DPI Print Quality...", "info");
+        try {
+            if (typeof pdfjsLib === 'undefined') {
+                await loadPdfJsLibrary();
+            }
+            if (typeof pdfjsLib !== 'undefined') {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                const arrayBuffer = await file.arrayBuffer();
+                const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                const pdfDoc = await loadingTask.promise;
+                const page = await pdfDoc.getPage(1);
+
+                // Calculate scale for 300 DPI high resolution
+                const unscaled = page.getViewport({ scale: 1.0 });
+                const longestEdge = Math.max(unscaled.width, unscaled.height);
+                // A4 landscape at 300 DPI is ~3508px width
+                const targetWidth = 3508;
+                const renderScale = Math.max(2.5, targetWidth / longestEdge);
+                const viewport = page.getViewport({ scale: renderScale });
+
+                const offCanvas = document.createElement('canvas');
+                offCanvas.width = Math.round(viewport.width);
+                offCanvas.height = Math.round(viewport.height);
+                const offCtx = offCanvas.getContext('2d', { alpha: false });
+
+                offCtx.fillStyle = '#FFFFFF';
+                offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+
+                await page.render({ canvasContext: offCtx, viewport: viewport }).promise;
+
+                const highResDataUrl = offCanvas.toDataURL('image/png');
+                studioActiveData.bg_base64 = highResDataUrl;
+                studioActiveData.bg_is_pdf = true;
+                studioActiveData.bg_pdf_name = file.name;
+
+                studioActiveData.imgObj = new Image();
+                studioActiveData.imgObj.crossOrigin = "Anonymous";
+                studioActiveData.imgObj.onload = () => {
+                    drawStudioCanvas();
+                    showToast(`Vector PDF Background Loaded (${offCanvas.width} × ${offCanvas.height} @ 300 DPI Print Quality)!`, "success");
+                };
+                studioActiveData.imgObj.src = highResDataUrl;
+                return;
+            }
+        } catch (pdfErr) {
+            console.error("PDF.js render error:", pdfErr);
+            showToast("Failed to process PDF: " + (pdfErr.message || "Invalid PDF format"), "error");
+            return;
+        }
+    }
+
     const reader = new FileReader();
     reader.onload = function(e) {
         studioActiveData.bg_base64 = e.target.result; 
+        studioActiveData.bg_is_pdf = false;
         studioActiveData.imgObj = new Image();
-        
-        // ADD THIS LINE:
         studioActiveData.imgObj.crossOrigin = "Anonymous";
-        
         studioActiveData.imgObj.onload = () => drawStudioCanvas();
         studioActiveData.imgObj.src = e.target.result;
     };
     reader.readAsDataURL(file);
 }
+
 function initializeStudioFields() {
     const type = document.getElementById('studio-template-type').value;
     studioActiveData.type = type;
@@ -11008,13 +11080,36 @@ function getPresetCertificateTemplate(presetId = 'PRESET_CERT_GOLD_EXCELLENCE') 
 }
 window.getPresetCertificateTemplate = getPresetCertificateTemplate;
 
+async function ensureFontReadyForCanvas(fontFamily, weight = 'normal', size = 40) {
+    if (!fontFamily) return;
+    try {
+        const cleanName = fontFamily.replace(/['"]/g, '').split(',')[0].trim();
+        const knownGoogleFonts = ['Cinzel', 'Playfair Display', 'Great Vibes', 'Alex Brush', 'Pinyon Script', 'Cormorant Garamond', 'Montserrat', 'Inter', 'Plus Jakarta Sans', 'Roboto', 'Bebas Neue', 'Lora', 'Merriweather'];
+        const matched = knownGoogleFonts.find(gf => gf.toLowerCase() === cleanName.toLowerCase());
+        if (matched) {
+            const linkId = `gfont-${matched.replace(/\s+/g, '-').toLowerCase()}`;
+            if (!document.getElementById(linkId)) {
+                const link = document.createElement('link');
+                link.id = linkId;
+                link.rel = 'stylesheet';
+                link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(matched)}:ital,wght@0,400;0,600;0,700;0,800;1,400;1,700&display=swap`;
+                document.head.appendChild(link);
+            }
+        }
+        const fontSpec = `${weight || 'normal'} ${size || 40}px ${fontFamily}`;
+        await document.fonts.load(fontSpec);
+    } catch (e) {
+        console.warn("Font pre-load notice:", e);
+    }
+}
+window.ensureFontReadyForCanvas = ensureFontReadyForCanvas;
+
 function buildCertificateVerificationUrl(entry, comp, catName) {
     const origin = window.location.origin;
     let path = window.location.pathname;
     const lastSlash = path.lastIndexOf('/');
     const basePath = lastSlash !== -1 ? path.substring(0, lastSlash) : '';
 
-    // If served over HTTP/HTTPS, produce full absolute URL; fallback to relative/hosted
     let baseUrl;
     if (!origin || origin === 'null' || origin.startsWith('file')) {
         baseUrl = 'verify-certificate.html';
@@ -11022,38 +11117,24 @@ function buildCertificateVerificationUrl(entry, comp, catName) {
         baseUrl = `${origin}${basePath}/verify-certificate.html`;
     }
 
-    const festId = (typeof getActiveFestId === 'function') ? getActiveFestId() : (localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
-    const uid = entry.participant?.unique_id || '';
+    const uid = (entry.participant?.unique_id || '').trim();
     const compId = comp?.id || '';
-    const pos = entry.position || '';
-    const grade = entry.grade || '';
-    const name = entry.participant?.name || '';
-    const compName = comp?.name || '';
-    const cat = catName || comp?.categories?.name || '';
-    const team = entry.participant?.teams?.name || '';
-    const date = new Date().toISOString().slice(0, 10);
 
-    // Compute tamper-evident signature
-    let sigRaw = `${uid}|${compId}|${pos}|${grade}|${festId}`;
-    let hash = 0;
-    for (let i = 0; i < sigRaw.length; i++) {
-        hash = ((hash << 5) - hash) + sigRaw.charCodeAt(i);
-        hash |= 0;
-    }
-    const sig = Math.abs(hash).toString(36).toUpperCase().padStart(8, '0');
+    // Compact position: 1, 2, 3, or P
+    let pCode = '1';
+    const posUpper = (entry.position || '').toUpperCase();
+    if (posUpper.includes('SECOND') || posUpper.includes('2ND')) pCode = '2';
+    else if (posUpper.includes('THIRD') || posUpper.includes('3RD')) pCode = '3';
+    else if (posUpper.includes('PARTICIPANT')) pCode = 'P';
 
+    const grade = (entry.grade && entry.grade !== 'N/A' && entry.grade !== '-') ? entry.grade.trim() : '';
+
+    // Clean, compact params = soft, clean, spacious QR code!
     const params = new URLSearchParams();
-    if (uid) params.set('uid', uid);
-    if (compId) params.set('comp', compId);
-    if (pos) params.set('pos', pos);
-    if (grade && grade !== 'N/A' && grade !== '-') params.set('grade', grade);
-    if (name) params.set('name', name);
-    if (compName) params.set('event', compName);
-    if (cat) params.set('cat', cat);
-    if (team) params.set('team', team);
-    if (festId) params.set('fest', festId);
-    params.set('date', date);
-    params.set('v', sig);
+    if (uid) params.set('u', uid);
+    if (compId) params.set('c', compId);
+    if (pCode) params.set('p', pCode);
+    if (grade) params.set('g', grade);
 
     return `${baseUrl}?${params.toString()}`;
 }
@@ -11212,16 +11293,17 @@ async function loadBulkCertTemplates() {
 
     try {
         const { data: dbTemplates } = await festQuery(
-            supabaseClient.from('templates').select('id, name, type, fest_id')
-        ).eq('type', 'certificate');
+            supabaseClient.from('templates').select('id, name, type, fest_id, created_at')
+        ).eq('type', 'certificate').order('created_at', { ascending: false });
 
         if (Array.isArray(dbTemplates) && dbTemplates.length > 0) {
             const grp = document.createElement('optgroup');
-            grp.label = "Custom Festival Templates";
-            dbTemplates.forEach(t => {
+            grp.label = "Custom Festival Templates (Admin Designed)";
+            dbTemplates.forEach((t, idx) => {
                 const opt = document.createElement('option');
                 opt.value = t.id;
-                opt.innerText = t.name || `Template ${t.id.slice(0, 8)}`;
+                opt.innerText = `Custom: ${t.name || 'Certificate Template'}`;
+                if (idx === 0) opt.selected = true; // Auto-select admin's custom template!
                 grp.appendChild(opt);
             });
             select.appendChild(grp);
@@ -11580,7 +11662,7 @@ async function executeBulkCertificatesDownload() {
                     height: f.h || 150,
                     colorDark: "#000000",
                     colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.M
+                    correctLevel: QRCode.CorrectLevel.L
                 });
                 await new Promise(r => setTimeout(r, 25));
                 const qrCanvas = qrContainer.querySelector('canvas');
@@ -11832,7 +11914,7 @@ async function bulkDownloadCertificates(compId) {
                     height: f.h || 150,
                     colorDark: "#000000",
                     colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.M
+                    correctLevel: QRCode.CorrectLevel.L
                 });
                 await new Promise(r => setTimeout(r, 30));
                 const qrCanvas = qrContainer.querySelector('canvas');
