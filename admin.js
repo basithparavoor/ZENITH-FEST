@@ -766,6 +766,11 @@ window.addEventListener('festos_newspaper_config_updated', () => {
 
 async function loadAdminDashboard() {
     try {
+        // Hydrate Result Site status for Header Pill and Dashboard Switch
+        if (typeof loadWebsiteConfig === 'function') {
+            loadWebsiteConfig().catch(() => {});
+        }
+
         if (window.festosHostFestReady) {
             try { await window.festosHostFestReady; } catch (e) {}
         }
@@ -18134,6 +18139,10 @@ function getDefaultWebsiteConfig(festName = '', festSlug = '') {
     const title = festName ? `Welcome to ${festName}` : 'Welcome to the Festival';
     return {
         domain: festSlug || '',
+        site_enabled: true,
+        is_published: true,
+        offline_title: 'Results Portal Currently Offline',
+        offline_message: 'The live results and championship standings are currently offline. The festival administrators have temporarily paused public access. Please check back soon or stay tuned for official announcements!',
         password_protected: false,
         site_password: '',
         pages: {
@@ -18341,6 +18350,16 @@ async function loadWebsiteConfig() {
 
         if (val) {
             websiteConfig = { ...websiteConfig, ...val };
+            if (val.site_enabled !== undefined) {
+                websiteConfig.site_enabled = !!val.site_enabled;
+            } else if (val.is_published !== undefined) {
+                websiteConfig.site_enabled = !!val.is_published;
+            } else {
+                websiteConfig.site_enabled = true;
+            }
+            websiteConfig.is_published = websiteConfig.site_enabled;
+            if (val.offline_title !== undefined) websiteConfig.offline_title = val.offline_title;
+            if (val.offline_message !== undefined) websiteConfig.offline_message = val.offline_message;
             if (val.pages) websiteConfig.pages = { ...websiteConfig.pages, ...val.pages };
             if (val.visibility) websiteConfig.visibility = { ...websiteConfig.visibility, ...val.visibility };
             if (val.theme) websiteConfig.theme = { ...websiteConfig.theme, ...val.theme };
@@ -18617,6 +18636,152 @@ window.handleWebsiteLogoUpload = function(logoKey, inputEl) {
         showToast("Logo uploaded. Click 'Save Theme Changes' to apply.", "success");
     };
     reader.readAsDataURL(file);
+};
+
+// --- Result Site ON / OFF Master Controller ---
+function updateResultSiteStatusUI(isOnline) {
+    // 1. Header Pill
+    const pill = document.getElementById('header-result-site-pill');
+    const pillText = document.getElementById('header-site-status-text');
+    if (pill) {
+        if (isOnline) {
+            pill.classList.remove('offline');
+            pill.classList.add('online');
+            pill.title = 'Result Site is ONLINE (Click to turn OFF)';
+            if (pillText) pillText.innerHTML = 'Result Site: <strong>ON</strong>';
+        } else {
+            pill.classList.remove('online');
+            pill.classList.add('offline');
+            pill.title = 'Result Site is OFFLINE (Click to turn ON)';
+            if (pillText) pillText.innerHTML = 'Result Site: <strong>OFF</strong>';
+        }
+    }
+
+    // 2. Dashboard Card
+    const dashToggle = document.getElementById('dash-site-toggle');
+    const dashDot = document.getElementById('dash-site-dot');
+    const dashText = document.getElementById('dash-site-status-text');
+    if (dashToggle) dashToggle.checked = !!isOnline;
+    if (dashDot) {
+        if (isOnline) {
+            dashDot.style.background = '#10B981';
+            dashDot.classList.remove('offline');
+        } else {
+            dashDot.style.background = '#EF4444';
+            dashDot.classList.add('offline');
+        }
+    }
+    if (dashText) {
+        dashText.innerText = isOnline ? 'ONLINE' : 'OFFLINE';
+        dashText.style.color = isOnline ? 'var(--text-main)' : '#EF4444';
+    }
+
+    // 3. Website Builder Overview Tab
+    const overToggle = document.getElementById('site-status-toggle-overview');
+    const overBadge = document.getElementById('overview-site-status-badge');
+    const overIcon = document.getElementById('overview-site-status-icon');
+    if (overToggle) overToggle.checked = !!isOnline;
+    if (overBadge) {
+        if (isOnline) {
+            overBadge.innerText = 'LIVE / ON';
+            overBadge.style.background = '#DCFCE7';
+            overBadge.style.color = '#16A34A';
+        } else {
+            overBadge.innerText = 'OFFLINE / OFF';
+            overBadge.style.background = '#FEF2F2';
+            overBadge.style.color = '#DC2626';
+        }
+    }
+    if (overIcon) {
+        overIcon.style.color = isOnline ? '#10B981' : '#EF4444';
+    }
+
+    // 4. Website Builder Visibility Tab
+    const visToggle = document.getElementById('vis-site-global-toggle');
+    const visBadge = document.getElementById('vis-site-status-badge');
+    const visCard = document.getElementById('vis-master-site-card');
+    const visIcon = document.getElementById('vis-site-card-icon');
+    const visOfflineBox = document.getElementById('vis-offline-notice-box');
+    if (visToggle) visToggle.checked = !!isOnline;
+    if (visBadge) {
+        if (isOnline) {
+            visBadge.innerText = 'ONLINE / ON';
+            visBadge.style.background = '#DCFCE7';
+            visBadge.style.color = '#16A34A';
+        } else {
+            visBadge.innerText = 'OFFLINE / OFF';
+            visBadge.style.background = '#FEF2F2';
+            visBadge.style.color = '#DC2626';
+        }
+    }
+    if (visCard) visCard.style.borderLeftColor = isOnline ? '#10B981' : '#EF4444';
+    if (visIcon) visIcon.style.color = isOnline ? '#10B981' : '#EF4444';
+    if (visOfflineBox) visOfflineBox.style.display = isOnline ? 'none' : 'block';
+
+    // 5. Form inputs
+    if (document.getElementById('cfg-offline-title')) {
+        document.getElementById('cfg-offline-title').value = websiteConfig.offline_title || '';
+    }
+    if (document.getElementById('cfg-offline-message')) {
+        document.getElementById('cfg-offline-message').value = websiteConfig.offline_message || '';
+    }
+}
+window.updateResultSiteStatusUI = updateResultSiteStatusUI;
+
+async function handleResultSiteToggle(isOnline) {
+    websiteConfig.site_enabled = !!isOnline;
+    websiteConfig.is_published = !!isOnline;
+    
+    updateResultSiteStatusUI(isOnline);
+    
+    // Save to settings immediately
+    await executeWebsiteSave(null);
+    
+    if (isOnline) {
+        showToast('Result Site is now LIVE & public! 🎉', 'success');
+    } else {
+        showToast('Result Site turned OFF (Offline Mode active) 🔒', 'warning');
+    }
+}
+window.handleResultSiteToggle = handleResultSiteToggle;
+
+window.toggleResultSiteGlobal = function() {
+    const current = websiteConfig.site_enabled !== false && websiteConfig.is_published !== false;
+    handleResultSiteToggle(!current);
+};
+
+window.openOfflineNoticeModal = function() {
+    const titleInp = document.getElementById('modal-offline-title');
+    const msgInp = document.getElementById('modal-offline-message');
+    if (titleInp) titleInp.value = websiteConfig.offline_title || 'Results Portal Currently Offline';
+    if (msgInp) msgInp.value = websiteConfig.offline_message || 'The live results and championship standings are currently offline. Please check back soon!';
+    const modal = document.getElementById('offlineNoticeModal');
+    if (modal) modal.classList.add('show');
+};
+
+window.closeOfflineNoticeModal = function() {
+    const modal = document.getElementById('offlineNoticeModal');
+    if (modal) modal.classList.remove('show');
+};
+
+window.saveOfflineNoticeModal = async function() {
+    const t = document.getElementById('modal-offline-title') ? document.getElementById('modal-offline-title').value.trim() : '';
+    const m = document.getElementById('modal-offline-message') ? document.getElementById('modal-offline-message').value.trim() : '';
+    websiteConfig.offline_title = t;
+    websiteConfig.offline_message = m;
+    if (document.getElementById('cfg-offline-title')) document.getElementById('cfg-offline-title').value = t;
+    if (document.getElementById('cfg-offline-message')) document.getElementById('cfg-offline-message').value = m;
+    closeOfflineNoticeModal();
+    await executeWebsiteSave(null);
+    showToast('Offline notice updated.', 'success');
+};
+
+window.saveOfflineNotice = async function(btn) {
+    const t = document.getElementById('cfg-offline-title') ? document.getElementById('cfg-offline-title').value.trim() : '';
+    const m = document.getElementById('cfg-offline-message') ? document.getElementById('cfg-offline-message').value.trim() : '';
+    websiteConfig.offline_title = t;
+    websiteConfig.offline_message = m;
+    await executeWebsiteSave(btn);
 };
 
 // --- Password Protection Modal ---

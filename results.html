@@ -1369,6 +1369,28 @@
             color: var(--text-muted);
         }
 
+        /* Result Site Offline Overlay */
+        #site-offline-overlay {
+            position: fixed; inset: 0; background: var(--bg-light); z-index: 9998;
+            display: none; align-items: center; justify-content: center; padding: 1.5rem;
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        }
+        .offline-card {
+            background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-xl);
+            padding: 3rem 2rem; max-width: 520px; width: 100%; text-align: center; box-shadow: var(--shadow-lg);
+            animation: offlineFadeUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes offlineFadeUp {
+            from { opacity: 0; transform: translateY(16px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        #preview-offline-banner {
+            background: #FEF3C7; border-bottom: 1px solid #F59E0B; color: #92400E;
+            padding: 0.65rem 1rem; font-size: 0.85rem; font-weight: 700; text-align: center;
+            position: sticky; top: 0; z-index: 10000; display: none; align-items: center;
+            justify-content: center; gap: 0.5rem; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+        }
+
         /* Password Overlay Gate */
         #password-gate-overlay {
             position: fixed; inset: 0; background: var(--bg-light); z-index: 9999;
@@ -1717,6 +1739,52 @@
         <div class="orb orb-1"></div>
         <div class="orb orb-2"></div>
         <div class="orb orb-3"></div>
+    </div>
+
+    <!-- Result Site Admin Preview Banner -->
+    <div id="preview-offline-banner">
+        <i class="fa-solid fa-triangle-exclamation" style="color: #D97706; font-size: 1rem;"></i>
+        <span>ADMIN PREVIEW: Result site is currently turned <strong>OFF</strong> for public visitors. Only admins can view this page.</span>
+    </div>
+
+    <!-- Result Site Offline / Closed Overlay -->
+    <div id="site-offline-overlay">
+        <div class="offline-card">
+            <div style="margin-bottom: 1.25rem;">
+                <img id="offline-gate-logo" src="" alt="Festival Logo" style="max-height: 52px; max-width: 180px; object-fit: contain; margin-bottom: 0.5rem; display: none;">
+                <div id="offline-gate-fest-name" style="font-size: 0.85rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em;">Festival Portal</div>
+            </div>
+
+            <div style="width: 72px; height: 72px; border-radius: 50%; background: #FEF2F2; color: #EF4444; display: inline-flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1.5rem auto; box-shadow: 0 8px 20px rgba(239, 68, 68, 0.15);">
+                <i class="fa-solid fa-power-off"></i>
+            </div>
+
+            <div style="display: inline-block; background: #FEF2F2; color: #DC2626; font-size: 0.72rem; font-weight: 800; padding: 0.25rem 0.75rem; border-radius: 50px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; border: 1px solid #FECACA;">
+                Portal Offline
+            </div>
+
+            <h2 id="offline-gate-title" style="font-size: 1.45rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.75rem; letter-spacing: -0.01em;">
+                Results Portal Currently Offline
+            </h2>
+
+            <p id="offline-gate-msg" style="font-size: 0.92rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 2rem;">
+                The live results and championship standings are currently offline. The festival administrators have temporarily paused public access. Please check back soon or stay tuned for official announcements!
+            </p>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="window.location.reload()" style="font-size: 0.88rem; padding: 0.7rem 1.5rem; width: auto; border-radius: 50px;">
+                    <i class="fa-solid fa-rotate-right"></i> Check Status
+                </button>
+                <button class="btn btn-outline" id="offline-admin-bypass-btn" style="display: none; font-size: 0.88rem; padding: 0.7rem 1.5rem; width: auto; border-radius: 50px;" onclick="bypassOfflineGate()">
+                    <i class="fa-solid fa-eye"></i> Preview As Admin
+                </button>
+                <button class="btn btn-outline" id="offline-admin-login-btn" onclick="window.location.href='index.html'" style="font-size: 0.88rem; padding: 0.7rem 1.5rem; width: auto; border-radius: 50px;">
+                    <i class="fa-solid fa-user-shield"></i> Admin Login
+                </button>
+            </div>
+
+            <div id="offline-social-links" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--surface-border); display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;"></div>
+        </div>
     </div>
 
     <!-- Password Gate Overlay -->
@@ -2542,6 +2610,10 @@
         let websiteConfig = {
             domain: '',
             custom_domain: '',
+            site_enabled: true,
+            is_published: true,
+            offline_title: 'Results Portal Currently Offline',
+            offline_message: 'The live results and championship standings are currently offline. The festival administrators have temporarily paused public access. Please check back soon or stay tuned for official announcements!',
             password_protected: false,
             site_password: '',
             theme: {
@@ -2624,6 +2696,92 @@
             };
             requestAnimationFrame(step);
         }
+
+        // --- Result Site Online / Offline Gate ---
+        function checkResultSiteStatus() {
+            const offlineOverlay = document.getElementById('site-offline-overlay');
+            const previewBanner = document.getElementById('preview-offline-banner');
+            const liveBadge = document.querySelector('.live-badge');
+            
+            const isSiteEnabled = websiteConfig.site_enabled !== false && websiteConfig.is_published !== false;
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const isPreview = urlParams.get('preview') === 'true' || sessionStorage.getItem('festos_admin_bypass_offline') === 'true';
+
+            if (isSiteEnabled) {
+                if (offlineOverlay) offlineOverlay.style.display = 'none';
+                if (previewBanner) previewBanner.style.display = 'none';
+                if (liveBadge) {
+                    liveBadge.style.display = 'flex';
+                    liveBadge.innerHTML = '<div class="live-dot-container"><span class="live-ping"></span><span class="live-dot"></span></div> Live';
+                    liveBadge.style.background = '';
+                    liveBadge.style.color = '';
+                    liveBadge.style.borderColor = '';
+                }
+            } else {
+                // Site is turned OFF
+                if (isPreview) {
+                    if (offlineOverlay) offlineOverlay.style.display = 'none';
+                    if (previewBanner) previewBanner.style.display = 'flex';
+                    if (liveBadge) {
+                        liveBadge.style.display = 'flex';
+                        liveBadge.innerHTML = '<i class="fa-solid fa-power-off" style="margin-right: 4px;"></i> Offline (Preview)';
+                        liveBadge.style.background = '#FEF2F2';
+                        liveBadge.style.color = '#EF4444';
+                        liveBadge.style.borderColor = '#FCA5A5';
+                    }
+                } else {
+                    if (offlineOverlay) {
+                        offlineOverlay.style.display = 'flex';
+                        
+                        const offTitleEl = document.getElementById('offline-gate-title');
+                        const offMsgEl = document.getElementById('offline-gate-msg');
+                        const offFestNameEl = document.getElementById('offline-gate-fest-name');
+                        const offFestLogoEl = document.getElementById('offline-gate-logo');
+                        
+                        const festName = (typeof currentFestDetails !== 'undefined' && currentFestDetails && currentFestDetails.name) ? currentFestDetails.name : 'Festival Portal';
+                        if (offFestNameEl) offFestNameEl.innerText = festName;
+                        if (offFestLogoEl) {
+                            const logoSrc = (websiteConfig.theme && websiteConfig.theme.header_logo) || (typeof currentFestDetails !== 'undefined' && currentFestDetails && currentFestDetails.logo);
+                            if (logoSrc) {
+                                offFestLogoEl.src = logoSrc;
+                                offFestLogoEl.style.display = 'inline-block';
+                            } else {
+                                offFestLogoEl.style.display = 'none';
+                            }
+                        }
+                        
+                        if (offTitleEl) {
+                            offTitleEl.innerText = websiteConfig.offline_title || 'Results Portal Currently Offline';
+                        }
+                        if (offMsgEl) {
+                            offMsgEl.innerText = websiteConfig.offline_message || 'The live results and championship standings are currently offline. The festival administrators have temporarily paused public access. Please check back soon or stay tuned for official announcements!';
+                        }
+
+                        // Check if an admin is logged in to show bypass preview button
+                        const bypassBtn = document.getElementById('offline-admin-bypass-btn');
+                        if (bypassBtn) {
+                            try {
+                                const userStr = localStorage.getItem('festUser') || localStorage.getItem('festSuperAdmin');
+                                if (userStr) {
+                                    const u = JSON.parse(userStr);
+                                    if (u && (u.role === 'admin' || u.role === 'master_admin' || u.role === 'super_admin' || u.is_super_admin)) {
+                                        bypassBtn.style.display = 'inline-flex';
+                                    }
+                                }
+                            } catch(e) {}
+                        }
+                    }
+                }
+            }
+        }
+        window.checkResultSiteStatus = checkResultSiteStatus;
+
+        function bypassOfflineGate() {
+            sessionStorage.setItem('festos_admin_bypass_offline', 'true');
+            checkResultSiteStatus();
+        }
+        window.bypassOfflineGate = bypassOfflineGate;
 
         // --- Password Gate ---
         function checkPasswordProtection() {
@@ -3056,6 +3214,14 @@
         function applyWebsiteCustomizerConfig(cfg) {
             if (!cfg) return;
             websiteConfig = { ...websiteConfig, ...cfg };
+            if (cfg.site_enabled !== undefined) {
+                websiteConfig.site_enabled = !!cfg.site_enabled;
+            } else if (cfg.is_published !== undefined) {
+                websiteConfig.site_enabled = !!cfg.is_published;
+            }
+            websiteConfig.is_published = (websiteConfig.site_enabled !== false);
+            if (cfg.offline_title !== undefined) websiteConfig.offline_title = cfg.offline_title;
+            if (cfg.offline_message !== undefined) websiteConfig.offline_message = cfg.offline_message;
             if (cfg.theme) websiteConfig.theme = { ...websiteConfig.theme, ...cfg.theme };
             if (cfg.pages) websiteConfig.pages = { ...websiteConfig.pages, ...cfg.pages };
             if (cfg.visibility) websiteConfig.visibility = { ...websiteConfig.visibility, ...cfg.visibility };
@@ -3176,6 +3342,7 @@
 
             // Password check
             checkPasswordProtection();
+            checkResultSiteStatus();
         }
 
         // Live preview message listener
@@ -3204,6 +3371,8 @@
 
         function renderSocialLinks(contact = {}) {
             const container = document.getElementById('home-social-links');
+            const offlineContainer = document.getElementById('offline-social-links');
+            if (offlineContainer) offlineContainer.innerHTML = '';
             if (!container) return;
             container.innerHTML = '';
 

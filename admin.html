@@ -348,6 +348,85 @@ tr:hover td { background: var(--bg-main); }
 .builder-toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
 .builder-toggle input:checked + .builder-toggle-slider { background-color: #EF4444; }
 .builder-toggle input:checked + .builder-toggle-slider:before { transform: translateX(20px); }
+.builder-toggle-green input:checked + .builder-toggle-slider { background-color: #10B981 !important; }
+
+/* Header Site Status Pill */
+.header-site-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.42rem 0.95rem;
+    border-radius: 50px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    user-select: none;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid transparent;
+    height: 40px;
+    background: #ECFDF5;
+    border-color: #A7F3D0;
+    color: #065F46;
+}
+.header-site-pill:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px -2px rgba(16, 185, 129, 0.2);
+}
+.header-site-pill.online {
+    background: #ECFDF5;
+    border-color: #A7F3D0;
+    color: #065F46;
+}
+.header-site-pill.online:hover {
+    background: #D1FAE5;
+}
+.header-site-pill.offline {
+    background: #FEF2F2;
+    border-color: #FECACA;
+    color: #991B1B;
+}
+.header-site-pill.offline:hover {
+    background: #FEE2E2;
+    box-shadow: 0 4px 8px -2px rgba(239, 68, 68, 0.2);
+}
+.header-site-pill .status-indicator-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+.header-site-pill.online .status-indicator-dot {
+    background: #10B981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+    animation: pillPulse 2s infinite;
+}
+.header-site-pill.offline .status-indicator-dot {
+    background: #EF4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
+    animation: none;
+}
+@keyframes pillPulse {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+    70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@media (max-width: 768px) {
+    .header-site-pill {
+        padding: 0.4rem 0.65rem;
+        font-size: 0.78rem;
+    }
+}
+@media (max-width: 480px) {
+    #header-site-status-text {
+        display: none;
+    }
+    .header-site-pill::after {
+        content: "Site";
+    }
+}
 
 /* Color Palette Circles */
 .color-picker-wrapper { display: flex; flex-direction: column; gap: 0.5rem; align-items: center; }
@@ -2272,6 +2351,11 @@ canvas {
             </div>
             <div style="display: flex; align-items: center; gap: 0.65rem; flex-shrink: 0;">
                 <!-- Desktop Only Quick Data Refresh Button -->
+                <!-- Result Site Status Toggle Pill in Header -->
+                <button type="button" class="header-site-pill online" id="header-result-site-pill" onclick="toggleResultSiteGlobal()" title="Click to toggle Result Site ON/OFF">
+                    <span class="status-indicator-dot"></span>
+                    <span id="header-site-status-text">Result Site: ON</span>
+                </button>
                 <button class="desktop-only-refresh-btn" id="header-refresh-btn" onclick="refreshAdminData(this)" title="Refresh System Data (Ctrl+R / Sync)" style="height: 40px; padding: 0 0.95rem; border-radius: var(--radius-md, 8px); border: 1px solid var(--border); background: white; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; box-shadow: var(--shadow-sm);">
                     <i class="fa-solid fa-arrows-rotate refresh-icon" style="color: var(--primary);"></i>
                     <span>Refresh</span>
@@ -2353,6 +2437,22 @@ canvas {
 
     <!-- Bottom Controls -->
     <div class="builder-controls-footer">
+        <!-- Result Site Master Switch Row -->
+        <div class="builder-controls-row" style="border-bottom: 1px solid var(--border); padding-bottom: 1.25rem; margin-bottom: 1.25rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--text-main); font-weight: 600; font-size: 0.95rem;">
+                <i class="fa-solid fa-power-off" id="overview-site-status-icon" style="color: #10B981; font-size: 1.15rem;"></i>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span>Result Site Status:</span>
+                    <span id="overview-site-status-badge" style="background: #DCFCE7; color: #16A34A; font-size: 0.75rem; padding: 0.2rem 0.65rem; border-radius: 50px; font-weight: 700;">LIVE / ON</span>
+                </div>
+                <label class="builder-toggle builder-toggle-green" style="margin-bottom: 0;" title="Toggle Result Site ON/OFF">
+                    <input type="checkbox" id="site-status-toggle-overview" checked onchange="handleResultSiteToggle(this.checked)">
+                    <span class="builder-toggle-slider"></span>
+                </label>
+            </div>
+            <button class="btn btn-outline" style="border-radius: 50px; font-size: 0.85rem; padding: 0.4rem 1.25rem; min-height: auto; width: auto; font-weight: 600;" onclick="openOfflineNoticeModal()"><i class="fa-solid fa-pen-to-square"></i> Edit Offline Notice</button>
+        </div>
+
         <!-- Password Row -->
         <div class="builder-controls-row" style="border-bottom: 1px solid var(--border); padding-bottom: 1.25rem; margin-bottom: 1.25rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--text-main); font-weight: 500; font-size: 0.95rem;">
@@ -2517,6 +2617,41 @@ canvas {
             <button class="btn btn-primary" style="width: auto;" onclick="saveVisibilityConfig(event)"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
         </div>
         <div class="builder-pane-body">
+            <!-- Master Result Site Global Switch Card -->
+            <div class="builder-card" id="vis-master-site-card" style="background: white; margin-bottom: 1.5rem; border-left: 4px solid #10B981;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h4 style="margin-bottom: 0.25rem; font-weight: 800; font-size: 1.05rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-power-off" id="vis-site-card-icon" style="color: #10B981;"></i> Result Site Public Access (Master ON/OFF)
+                        </h4>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0;">Turn the public live result portal ON (accessible to all) or OFF (offline mode with notice).</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span id="vis-site-status-badge" style="background: #DCFCE7; color: #16A34A; font-size: 0.8rem; padding: 0.25rem 0.85rem; border-radius: 50px; font-weight: 800;">ONLINE / ON</span>
+                        <label class="builder-toggle builder-toggle-green" style="margin: 0;" title="Toggle Result Site ON/OFF">
+                            <input type="checkbox" id="vis-site-global-toggle" checked onchange="handleResultSiteToggle(this.checked)">
+                            <span class="builder-toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Offline Notice Customization Box -->
+                <div id="vis-offline-notice-box" style="margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px dashed var(--border); display: none;">
+                    <div style="font-size: 0.85rem; font-weight: 700; color: #D97706; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Offline Notice Customization (Shown to visitors when site is OFF)
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label style="font-weight: 600; font-size: 0.82rem;">Headline</label>
+                        <input type="text" id="cfg-offline-title" placeholder="Results Portal Currently Offline" style="width: 100%;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label style="font-weight: 600; font-size: 0.82rem;">Message</label>
+                        <textarea id="cfg-offline-message" rows="2" style="width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.75rem; outline: none; font-size: 0.88rem; text-transform: none !important;" placeholder="The live results and championship standings are currently offline. Results will be announced soon."></textarea>
+                    </div>
+                    <button type="button" class="btn btn-outline" style="font-size: 0.82rem; padding: 0.4rem 1.1rem; width: auto; min-height: auto;" onclick="saveOfflineNotice(this)"><i class="fa-solid fa-floppy-disk"></i> Save Offline Notice</button>
+                </div>
+            </div>
+
             <!-- Page Visibility -->
             <div class="builder-card" style="background: white; margin-bottom: 1.5rem;">
                 <h4 style="margin-bottom: 0.25rem; font-weight: 700; font-size: 0.9rem;">Page Section Visibility</h4>
@@ -2881,7 +3016,21 @@ canvas {
                     <h2 style="font-size: 1.6rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem; letter-spacing: -0.02em;">Control Room</h2>
                     <p style="color: var(--text-muted); font-size: 1.2rem; font-weight: 600;" id="dash-greeting">Good evening, ADMIN</p>
                 </div>
-                <button class="btn btn-danger" style="background: #E11D48; border-color: #E11D48; color: #FFFFFF;" onclick="window.location.href='manager.html'"><i class="fa-solid fa-trophy"></i> Publish Results</button>
+                <!-- Dashboard Result Site Quick Card -->
+                    <div class="dash-result-site-card" id="dash-site-status-card" style="display: flex; align-items: center; gap: 0.85rem; background: white; padding: 0.45rem 0.95rem; border-radius: var(--radius-md); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                        <div class="dash-site-info" style="display: flex; align-items: center; gap: 0.55rem;">
+                            <span class="dash-site-dot" id="dash-site-dot" style="width: 9px; height: 9px; border-radius: 50%; background: #10B981; display: inline-block;"></span>
+                            <div>
+                                <div style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.04em; line-height: 1;">Result Site</div>
+                                <div style="font-size: 0.88rem; font-weight: 800; color: var(--text-main); line-height: 1.2;" id="dash-site-status-text">ONLINE</div>
+                            </div>
+                        </div>
+                        <label class="builder-toggle builder-toggle-green" style="margin: 0;" title="Toggle Result Site ON/OFF">
+                            <input type="checkbox" id="dash-site-toggle" checked onchange="handleResultSiteToggle(this.checked)">
+                            <span class="builder-toggle-slider"></span>
+                        </label>
+                    </div>
+                    <button class="btn btn-danger" style="background: #E11D48; border-color: #E11D48; color: #FFFFFF;" onclick="window.location.href='manager.html'"><i class="fa-solid fa-trophy"></i> Publish Results</button>
             </div>
 
             <!-- Top Stat Cards (Pastel colored) -->
@@ -7501,6 +7650,33 @@ canvas {
         <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
             <button class="btn btn-outline" style="width: auto;" onclick="closeSitePasswordModal()">Cancel</button>
             <button class="btn btn-primary" style="width: auto;" onclick="saveSitePassword()">Save Password</button>
+        </div>
+    </div>
+</div>
+
+<!-- Result Site Offline Notice Modal -->
+<div id="offlineNoticeModal" class="modal-overlay" style="z-index: 2100;">
+    <div class="modal" style="max-width: 480px;">
+        <div class="modal-header">
+            <h2 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-power-off" style="color: #EF4444;"></i> Offline Notice Settings
+            </h2>
+            <button class="modal-close" onclick="closeOfflineNoticeModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div style="margin-bottom: 1.25rem;">
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Configure the headline and message shown to the public when the Result Site is turned OFF.</p>
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label>Headline</label>
+                <input type="text" id="modal-offline-title" placeholder="Results Portal Currently Offline" style="text-transform: none !important; width: 100%;">
+            </div>
+            <div class="form-group">
+                <label>Announcement Message</label>
+                <textarea id="modal-offline-message" rows="3" style="text-transform: none !important; width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.75rem; outline: none; font-size: 0.9rem;" placeholder="The live results and championship standings are currently offline. Please check back soon!"></textarea>
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+            <button class="btn btn-outline" style="width: auto;" onclick="closeOfflineNoticeModal()">Cancel</button>
+            <button class="btn btn-primary" style="width: auto;" onclick="saveOfflineNoticeModal()">Save Notice</button>
         </div>
     </div>
 </div>

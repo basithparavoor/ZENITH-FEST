@@ -3115,34 +3115,71 @@ function festosEvaluateStudentCategoryLimit(studentId, targetCompId, studentsLis
 // =========================================================================
 let _cachedLedgerExclusions = null;
 
-async function festosGetLedgerExclusions(forceRefresh = false) {
+async function festosGetLedgerExclusions(forceRefresh = false, targetFestId = null) {
     if (_cachedLedgerExclusions && !forceRefresh) return _cachedLedgerExclusions;
     try {
-        const val = await festosGetSetting('points_ledger_exclusions');
-        _cachedLedgerExclusions = (val && typeof val === 'object') ? val : {};
-        return _cachedLedgerExclusions;
-    } catch (e) {
-        return _cachedLedgerExclusions || {};
+        const fid = targetFestId || (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId ? festosAuth.getCurrentFestId() : null) || (typeof window !== 'undefined' ? (window.activeFestId || window.currentFestId) : null);
+        const val = await festosGetSetting('points_ledger_exclusions', fid, { fresh: forceRefresh });
+        if (val && typeof val === 'object') {
+            _cachedLedgerExclusions = val;
+            if (typeof window !== 'undefined') window.cachedLedgerExclusions = val;
+            return _cachedLedgerExclusions;
+        }
+    } catch (e) {}
+
+    // Fallback: search localStorage
+    if (typeof localStorage !== 'undefined') {
+        try {
+            const fid = targetFestId || (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId ? festosAuth.getCurrentFestId() : null) || (typeof window !== 'undefined' ? (window.activeFestId || window.currentFestId) : null) || localStorage.getItem('festos_last_fest_id') || localStorage.getItem('festos_active_fest_id');
+            let raw = fid ? localStorage.getItem('festos_cfg_points_ledger_exclusions_' + fid) : null;
+            if (!raw) raw = localStorage.getItem('festos_cfg_points_ledger_exclusions');
+            if (!raw) {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && k.includes('points_ledger_exclusions')) {
+                        raw = localStorage.getItem(k);
+                        break;
+                    }
+                }
+            }
+            if (raw) {
+                _cachedLedgerExclusions = JSON.parse(raw);
+                if (typeof window !== 'undefined') window.cachedLedgerExclusions = _cachedLedgerExclusions;
+                return _cachedLedgerExclusions;
+            }
+        } catch(e) {}
     }
+    return _cachedLedgerExclusions || {};
 }
 
-async function festosSaveLedgerExclusions(exclusions) {
+async function festosSaveLedgerExclusions(exclusions, targetFestId = null) {
     _cachedLedgerExclusions = exclusions;
     if (typeof window !== 'undefined') window.cachedLedgerExclusions = exclusions;
-    return await festosSaveSetting('points_ledger_exclusions', exclusions);
+    const fid = targetFestId || (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId ? festosAuth.getCurrentFestId() : null) || (typeof window !== 'undefined' ? (window.activeFestId || window.currentFestId) : null);
+    return await festosSaveSetting('points_ledger_exclusions', exclusions, fid);
 }
 
 function festosIsStudentExcludedFromLedger(studentId, comp, exclusionsObj = null) {
     if (!studentId) return false;
     let currentEx = exclusionsObj || _cachedLedgerExclusions || (typeof window !== 'undefined' ? window.cachedLedgerExclusions : null);
-    if (!currentEx) {
+    if (!currentEx && typeof localStorage !== 'undefined') {
         try {
-            const festId = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) ? festosAuth.getCurrentFestId() : null;
-            const key = 'festos_cfg_' + (festId ? `points_ledger_exclusions_${festId}` : 'points_ledger_exclusions');
-            const raw = localStorage.getItem(key);
+            const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId ? festosAuth.getCurrentFestId() : null) || (typeof window !== 'undefined' ? (window.activeFestId || window.currentFestId) : null) || localStorage.getItem('festos_last_fest_id') || localStorage.getItem('festos_active_fest_id');
+            let raw = fid ? localStorage.getItem('festos_cfg_points_ledger_exclusions_' + fid) : null;
+            if (!raw) raw = localStorage.getItem('festos_cfg_points_ledger_exclusions');
+            if (!raw) {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && k.includes('points_ledger_exclusions')) {
+                        raw = localStorage.getItem(k);
+                        break;
+                    }
+                }
+            }
             if (raw) {
                 _cachedLedgerExclusions = JSON.parse(raw);
                 currentEx = _cachedLedgerExclusions;
+                if (typeof window !== 'undefined') window.cachedLedgerExclusions = currentEx;
             }
         } catch(e) {}
     }
@@ -3153,7 +3190,15 @@ function festosIsStudentExcludedFromLedger(studentId, comp, exclusionsObj = null
     // Student IS in exclusion list!
     // Check if comp is General Category / Common:
     if (!comp) return true;
-    const isGeneral = !!(comp.is_common === true || (comp.categories && comp.categories.is_general === true));
+    const catObj = Array.isArray(comp.categories) ? comp.categories[0] : comp.categories;
+    const catName = catObj?.name ? String(catObj.name).toUpperCase() : '';
+    const isGeneral = !!(
+        comp.is_common === true || 
+        comp.is_general === true || 
+        (catObj && catObj.is_general === true) ||
+        catName.includes('GENERAL') ||
+        catName.includes('COMMON')
+    );
     // RULE: Points in general category are NOT deducted ("EXCEPT GENERAL CATEGORY")
     if (isGeneral) return false;
 
