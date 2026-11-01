@@ -39,11 +39,46 @@ window.toggleFilterDrawer = toggleFilterDrawer;
 // 1. Initialize App and Auth
 async function initializeApp() {
     user = JSON.parse(localStorage.getItem('festUser'));
-
-    // Security Check
-    if (!user || (user.role !== 'judge' && user.role !== 'master_admin' && user.role !== 'admin')) {
+    if (!user) {
         window.location.href = 'index.html';
         return; 
+    }
+
+    const fid = (window.festosAuth && window.festosAuth.getCurrentFestId()) || user.fest_id;
+
+    if (typeof festosMultiRole !== 'undefined') {
+        try {
+            await festosMultiRole.loadRoles(fid);
+        } catch(e) {}
+    }
+
+    const roles = (typeof festosMultiRole !== 'undefined') 
+        ? festosMultiRole.getUserRoles(user) 
+        : (user.roles || [user.role]);
+
+    // Security Check
+    const isAuthorized = user.role === 'judge' || 
+                         user.role === 'master_admin' || 
+                         user.role === 'admin' || 
+                         user.role === 'super_admin' ||
+                         roles.includes('judge') ||
+                         roles.includes('admin') ||
+                         roles.includes('master_admin');
+
+    if (!isAuthorized) {
+        window.location.href = 'index.html';
+        return; 
+    }
+
+    // Align active role to judge if accessing judge panel
+    if (roles.includes('judge') && user.role !== 'judge' && user.role !== 'master_admin' && user.role !== 'admin' && user.role !== 'super_admin') {
+        user.role = 'judge';
+        localStorage.setItem('festUser', JSON.stringify(user));
+    }
+
+    // Mount multi-role toggle button into top bar & bottom nav
+    if (typeof festosMultiRole !== 'undefined') {
+        festosMultiRole.mount();
     }
 
     // Update UI
@@ -55,14 +90,6 @@ async function initializeApp() {
     const judgeName = document.getElementById('judge-name');
     if (judgeName && judgeName !== welcomeMsg) {
         judgeName.innerText = `Welcome, ${user.username || user.email}${roleDisplay}`;
-    }
-
-    if (user.role === 'master_admin' || user.role === 'admin') {
-        const nav = document.getElementById('global-nav');
-        if (nav) {
-            nav.style.width = '240px'; // Expand pill slightly to hold 3 buttons
-            nav.insertAdjacentHTML('afterbegin', `<button class="btn btn-outline" style="color: var(--primary);" onclick="window.location.href='admin.html'" title="Admin Hub"><i class="fa-solid fa-shield-halved"></i></button>`);
-        }
     }
 
     adjustLayoutPadding();

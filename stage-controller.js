@@ -27,21 +27,58 @@ function showToast(message, type = 'success') {
 
 async function initializeApp() {
     user = JSON.parse(localStorage.getItem('festUser'));
-    if (!user || (user.role !== 'stage_controller' && user.role !== 'master_admin' && user.role !== 'admin')) {
-        if (user && user.role === 'announcer') {
+    if (!user) {
+        window.location.href = 'index.html';
+        return;
+    }
+
+    const fid = (window.festosAuth && window.festosAuth.getCurrentFestId()) || user.fest_id;
+
+    // Load multi-roles if multi-role module is present
+    if (typeof festosMultiRole !== 'undefined') {
+        try {
+            await festosMultiRole.loadRoles(fid);
+        } catch(e) {}
+    }
+
+    const roles = (typeof festosMultiRole !== 'undefined') 
+        ? festosMultiRole.getUserRoles(user) 
+        : (user.roles || [user.role]);
+
+    const isAuthorized = user.role === 'stage_controller' || 
+                         user.role === 'master_admin' || 
+                         user.role === 'admin' || 
+                         user.role === 'super_admin' ||
+                         roles.includes('stage_controller') ||
+                         roles.includes('admin') ||
+                         roles.includes('master_admin');
+
+    if (!isAuthorized) {
+        if (user.role === 'announcer' || roles.includes('announcer')) {
             window.location.replace('announcements.html');
+            return;
+        }
+        if (roles.includes('judge')) {
+            window.location.replace('judge.html');
+            return;
+        }
+        if (roles.includes('fest_manager')) {
+            window.location.replace('manager.html');
             return;
         }
         window.location.href = 'index.html';
         return;
     }
-    
-    if (user.role === 'master_admin' || user.role === 'admin') {
-        const navActions = document.querySelector('.nav-actions');
-        if (navActions) {
-            // Added as an icon button to match the rest of the floating pill dock
-            navActions.insertAdjacentHTML('afterbegin', `<button class="btn btn-outline" onclick="window.location.href='admin.html'" style="color: var(--primary);"><i class="fa-solid fa-shield-halved"></i></button>`);
-        }
+
+    // Align active role to stage_controller if accessing as stage_controller
+    if (roles.includes('stage_controller') && user.role !== 'stage_controller' && user.role !== 'master_admin' && user.role !== 'admin' && user.role !== 'super_admin') {
+        user.role = 'stage_controller';
+        localStorage.setItem('festUser', JSON.stringify(user));
+    }
+
+    // Mount multi-role switcher toggle button into header & bottom nav actions
+    if (typeof festosMultiRole !== 'undefined') {
+        festosMultiRole.mount();
     }
     
     const welcomeMsg = document.getElementById('welcome-msg');
@@ -209,6 +246,11 @@ async function loadDashboard() {
     const stages = stagesRes.data || [];
     window.stageControllersMap = stageControllersVal || {};
     window.allStagesList = stages;
+
+    // Refresh role switcher in case user was granted controller rights via stageControllersMap
+    if (typeof festosMultiRole !== 'undefined') {
+        festosMultiRole.mount();
+    }
 
     const filterContainer = document.getElementById('master-filter-container');
     const filterDropdown = document.getElementById('master-stage-filter');

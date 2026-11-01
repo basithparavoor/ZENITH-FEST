@@ -1262,6 +1262,25 @@ const festosMultiRole = {
             roles = [user.role];
         }
 
+        // 4. Admin and Master Admin accounts inherently hold Stage Controller & Admin rights
+        const hasAdminRole = user.role === 'admin' || user.role === 'master_admin' || user.role === 'super_admin' || roles.includes('admin') || roles.includes('master_admin') || roles.includes('super_admin');
+        if (hasAdminRole) {
+            if (!roles.includes('stage_controller')) roles.push('stage_controller');
+            if (!roles.includes('admin') && !roles.includes('master_admin')) {
+                roles.push(user.role === 'master_admin' ? 'master_admin' : 'admin');
+            }
+        }
+
+        // 5. Stage controllers map lookup: if user is assigned as a controller for any stage, grant stage_controller role
+        try {
+            const fid = user.fest_id || (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
+            const scMap = window.stageControllersMap || JSON.parse(localStorage.getItem(`festos_setting_stage_controllers_map_${fid}`) || '{}');
+            const isAssigned = Object.values(scMap || {}).some(arr => Array.isArray(arr) && arr.includes(user.id));
+            if (isAssigned && !roles.includes('stage_controller')) {
+                roles.push('stage_controller');
+            }
+        } catch(e) {}
+
         // Sanitize: lowercase, trim, deduplicate
         const clean = [...new Set(roles.map(r => String(r || '').trim().toLowerCase()).filter(Boolean))];
         return clean;
@@ -1442,6 +1461,17 @@ const festosMultiRole = {
 
         const roles = this.getUserRoles(user);
         if (roles.length <= 1) {
+            // Check if fresh remote roles need to be pulled
+            const fid = user.fest_id || (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
+            const key = this._getStorageKey(fid);
+            if (!this._memRolesMap[key] && typeof this.loadRoles === 'function') {
+                this.loadRoles(fid).then(() => {
+                    const freshRoles = this.getUserRoles(user);
+                    if (freshRoles.length > 1) {
+                        this.mount();
+                    }
+                }).catch(() => {});
+            }
             this.destroy();
             return;
         }
@@ -1451,31 +1481,52 @@ const festosMultiRole = {
         const activeRole = String(user.role || '').trim().toLowerCase();
         const activeMeta = this.ROLES[activeRole] || { name: activeRole.toUpperCase(), color: '#4F46E5', bg: '#EEF2FF' };
 
-        // Clean up any old switcher buttons before re-injecting
-        document.querySelectorAll('.festos-role-btn, #festos-role-switcher-container, #festos-role-floating-pill').forEach(el => el.remove());
+        // Clean up any old dynamic buttons before re-mounting
+        document.querySelectorAll('#festos-role-nav-btn, #festos-role-header-btn, #festos-role-floating-pill').forEach(el => el.remove());
 
         // 1. Mount into Floating Navigation Pill if present (.nav-actions in judge.html & stage-controller.html)
         const navActions = document.querySelector('.nav-actions');
         if (navActions) {
-            const roleBtn = document.createElement('button');
-            roleBtn.type = 'button';
-            roleBtn.className = 'btn btn-outline festos-role-btn';
-            roleBtn.id = 'festos-role-nav-btn';
-            roleBtn.style.color = '#6366F1';
-            roleBtn.title = `Switch Role (Active: ${activeMeta.name})`;
-            roleBtn.innerHTML = `<i class="fa-solid fa-repeat"></i>`;
-            roleBtn.onclick = () => festosMultiRole.openModal();
+            let roleBtn = document.getElementById('festos-role-nav-btn');
+            if (!roleBtn) {
+                roleBtn = document.createElement('button');
+                roleBtn.type = 'button';
+                roleBtn.className = 'btn btn-outline festos-role-btn';
+                roleBtn.id = 'festos-role-nav-btn';
+                roleBtn.style.color = '#6366F1';
+                roleBtn.title = `Switch Role (Active: ${activeMeta.name})`;
+                roleBtn.innerHTML = `<i class="fa-solid fa-repeat"></i>`;
+                roleBtn.onclick = () => festosMultiRole.openModal();
 
-            const logoutBtn = navActions.querySelector('.btn-danger, button[onclick*="logout"]');
-            if (logoutBtn) {
-                navActions.insertBefore(roleBtn, logoutBtn);
-            } else {
-                navActions.appendChild(roleBtn);
+                const logoutBtn = navActions.querySelector('.btn-danger, button[onclick*="logout"]');
+                if (logoutBtn) {
+                    navActions.insertBefore(roleBtn, logoutBtn);
+                } else {
+                    navActions.appendChild(roleBtn);
+                }
             }
             navActions.classList.add('festos-has-role-btn');
         }
 
-        // 2. Mount into Header Bar (admin.html, manager.html, team-manager.html, announcements.html, superadmin.html)
+        // 2. Mount into Top Nav Bar right container (.top-nav-right in stage-controller.html & judge.html)
+        const topNavRight = document.querySelector('.top-nav-right');
+        if (topNavRight) {
+            let topRoleBtn = document.getElementById('festos-role-topnav-btn');
+            if (!topRoleBtn) {
+                topRoleBtn = document.createElement('button');
+                topRoleBtn.type = 'button';
+                topRoleBtn.className = 'header-icon-btn festos-role-btn festos-role-topnav-btn';
+                topRoleBtn.id = 'festos-role-topnav-btn';
+                topRoleBtn.innerHTML = `<i class="fa-solid fa-repeat"></i>`;
+                topNavRight.insertBefore(topRoleBtn, topNavRight.firstChild);
+            }
+            topRoleBtn.title = `Switch Role / Portal (Active: ${activeMeta.name})`;
+            topRoleBtn.style.color = '#6366F1';
+            topRoleBtn.style.display = 'inline-flex';
+            topRoleBtn.onclick = () => festosMultiRole.openModal();
+        }
+
+        // 3. Mount into Header Bar (admin.html, manager.html, team-manager.html, announcements.html, superadmin.html)
         const headerLogoutBtn = document.querySelector('.top-bar button[onclick*="logout"], .header button[onclick*="logout"], .navbar-actions button[onclick*="logout"], .header-actions button[onclick*="logout"], .btn-logout, #btnLogout');
         if (headerLogoutBtn && !headerLogoutBtn.closest('.nav-actions')) {
             const headerBtn = document.createElement('button');
@@ -1579,7 +1630,11 @@ const festosMultiRole = {
     },
 
     destroy() {
-        document.querySelectorAll('.festos-role-btn, #festosRoleModal, #festos-role-switcher-container, #festos-role-floating-pill').forEach(el => el.remove());
+        document.querySelectorAll('#festos-role-nav-btn, #festos-role-header-btn, #festosRoleModal, #festos-role-switcher-container, #festos-role-floating-pill').forEach(el => el.remove());
+        const topBtn = document.getElementById('festos-role-topnav-btn');
+        if (topBtn) topBtn.style.display = 'none';
+        const navActions = document.querySelector('.nav-actions');
+        if (navActions) navActions.classList.remove('festos-has-role-btn');
     },
 
     injectCSS() {
@@ -1728,8 +1783,17 @@ const festosMultiRole = {
             }
             /* Nav actions pill sizing on judge & stage controller */
             .nav-actions.festos-has-role-btn {
-                width: 230px !important;
+                width: auto !important;
+                min-width: 220px !important;
                 max-width: 90vw !important;
+            }
+            .festos-role-topnav-btn {
+                background: #EEF2FF !important;
+                color: #6366F1 !important;
+                border: 1px solid #C7D2FE !important;
+            }
+            .festos-role-topnav-btn:active {
+                transform: scale(0.92);
             }
         `;
         document.head.appendChild(style);

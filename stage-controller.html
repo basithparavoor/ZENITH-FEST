@@ -327,7 +327,9 @@ body, input, button, select, .toast, .card-title {
     bottom: calc(1.5rem + env(safe-area-inset-bottom)); 
     left: 50%; 
     transform: translateX(-50%);
-    width: 160px; /* Constrained width for icon-only layout */
+    width: auto;
+    min-width: 160px;
+    max-width: 90vw;
     background: rgba(255, 255, 255, 0.95); 
     backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
     z-index: 100;
@@ -339,11 +341,12 @@ body, input, button, select, .toast, .card-title {
 }
 .nav-actions .btn { 
     flex: 1; 
+    min-width: 48px;
     min-height: 48px; 
     font-size: 1.25rem; /* Larger font size for icons */
     border-radius: 100px; 
     margin: 0;
-    padding: 0;
+    padding: 0 0.85rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -670,7 +673,10 @@ body, input, button, select, .toast, .card-title {
             <div class="top-nav-center">
                 <span id="welcome-msg" class="welcome-text">WELCOME</span>
             </div>
-            <div class="top-nav-right">
+            <div class="top-nav-right" style="display: flex; align-items: center; gap: 0.5rem;">
+                <button type="button" class="header-icon-btn festos-role-btn festos-role-topnav-btn" id="festos-role-topnav-btn" onclick="festosMultiRole.openModal()" title="Switch Portal Role" style="color: #6366F1; display: none;">
+                    <i class="fa-solid fa-repeat"></i>
+                </button>
                 <button type="button" class="header-icon-btn" id="filter-toggle-btn" onclick="toggleFilterDrawer()" title="Filter & Search Options">
                     <i class="fa-solid fa-sliders"></i>
                     <span id="filter-badge-dot" class="filter-dot" style="display:none;"></span>
