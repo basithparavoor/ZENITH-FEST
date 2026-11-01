@@ -828,6 +828,10 @@
                 }
 
                 const pointVal = window.festosGetSetting ? await window.festosGetSetting('point_system', effectiveFestId) : null;
+                const exclusionsVal = window.festosGetSetting ? await window.festosGetSetting('points_ledger_exclusions', effectiveFestId) : null;
+                if (exclusionsVal && typeof exclusionsVal === 'object') {
+                    window.cachedLedgerExclusions = exclusionsVal;
+                }
                 let set_data = pointVal ? { value: pointVal } : null;
                 if (!set_data && effectiveFestId && typeof supabaseClient !== 'undefined') {
                     const { data: fPoint } = await supabaseClient.from('settings').select('value').eq('id', `point_system_${effectiveFestId}`).maybeSingle();

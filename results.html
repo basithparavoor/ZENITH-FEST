@@ -4019,7 +4019,8 @@
                     cntStagesRes,
                     teamsRes,
                     compsRes,
-                    templatesRes
+                    templatesRes,
+                    ledgerExclusionsVal
                 ] = await Promise.all([
                     (festId && typeof supabaseClient !== 'undefined') ? 
                         supabaseClient.from('fests').select('*').eq('id', festId).maybeSingle() : 
@@ -4034,8 +4035,13 @@
                     stagesCntQuery,
                     teamsQuery,
                     compsQuery,
-                    festId ? supabaseClient.from('templates').select('*').eq('type', 'individual').or(`fest_id.eq.${festId},fest_id.eq.global,fest_id.is.null,fest_id.eq.fest_zenith_2026`) : supabaseClient.from('templates').select('*').eq('type', 'individual')
+                    festId ? supabaseClient.from('templates').select('*').eq('type', 'individual').or(`fest_id.eq.${festId},fest_id.eq.global,fest_id.is.null,fest_id.eq.fest_zenith_2026`) : supabaseClient.from('templates').select('*').eq('type', 'individual'),
+                    window.festosGetSetting ? window.festosGetSetting('points_ledger_exclusions', festId) : null
                 ]);
+
+                if (ledgerExclusionsVal && typeof ledgerExclusionsVal === 'object') {
+                    window.cachedLedgerExclusions = ledgerExclusionsVal;
+                }
 
                 // 4. Apply Festival Entity & Live Details from Superadmin
                 const fData = fDataRes?.data || resolvedFest;
@@ -4329,8 +4335,9 @@
                     const eligibleForTeam = allowAllTeam || inTopThree;
 
                     const teamId = entry.participant?.team_id;
+                    const targetCompData = compData.comp_data || publishedCompetitions.find(c => String(c.id) === String(compId));
                     const isCategoryEventExcluded = (typeof festosIsStudentExcludedFromLedger === 'function')
-                        ? festosIsStudentExcludedFromLedger(entry.participant?.id, comp)
+                        ? festosIsStudentExcludedFromLedger(entry.participant?.id, targetCompData, window.cachedLedgerExclusions)
                         : false;
                     if (teamId && calculatedTeamScores[teamId] && eligibleForTeam && !isCategoryEventExcluded) { 
                         calculatedTeamScores[teamId].score += (gradePts + posPts); 
