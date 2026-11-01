@@ -1225,6 +1225,11 @@ const festosMultiRole = {
 
     getUserRoles(user) {
         if (!user) return [];
+
+        // Master Admin is the root festival administrator and never has or needs a role toggle button
+        if (user.role === 'master_admin') {
+            return ['master_admin'];
+        }
         
         let roles = [];
         // 1. Direct user.roles array
@@ -1262,16 +1267,7 @@ const festosMultiRole = {
             roles = [user.role];
         }
 
-        // 4. Admin and Master Admin accounts inherently hold Stage Controller & Admin rights
-        const hasAdminRole = user.role === 'admin' || user.role === 'master_admin' || user.role === 'super_admin' || roles.includes('admin') || roles.includes('master_admin') || roles.includes('super_admin');
-        if (hasAdminRole) {
-            if (!roles.includes('stage_controller')) roles.push('stage_controller');
-            if (!roles.includes('admin') && !roles.includes('master_admin')) {
-                roles.push(user.role === 'master_admin' ? 'master_admin' : 'admin');
-            }
-        }
-
-        // 5. Stage controllers map lookup: if user is assigned as a controller for any stage, grant stage_controller role
+        // 4. Stage controllers map lookup: if user is assigned as a controller for any stage, grant stage_controller role
         try {
             const fid = user.fest_id || (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
             const scMap = window.stageControllersMap || JSON.parse(localStorage.getItem(`festos_setting_stage_controllers_map_${fid}`) || '{}');
@@ -1418,7 +1414,7 @@ const festosMultiRole = {
             const userStr = localStorage.getItem('festUser');
             if (!userStr) return;
             const user = JSON.parse(userStr);
-            if (!user) return;
+            if (!user || user.role === 'master_admin') return;
 
             const roles = this.getUserRoles(user);
             if (roles.length <= 1) return;
@@ -1454,7 +1450,7 @@ const festosMultiRole = {
         if (typeof document === 'undefined') return;
 
         const user = (typeof festosAuth !== 'undefined') ? festosAuth.getUser() : JSON.parse(localStorage.getItem('festUser') || 'null');
-        if (!user) {
+        if (!user || user.role === 'master_admin') {
             this.destroy();
             return;
         }
@@ -1555,7 +1551,7 @@ const festosMultiRole = {
         if (typeof document === 'undefined') return;
 
         const user = (typeof festosAuth !== 'undefined') ? festosAuth.getUser() : JSON.parse(localStorage.getItem('festUser') || 'null');
-        if (!user) return;
+        if (!user || user.role === 'master_admin') return;
 
         const roles = this.getUserRoles(user);
         if (roles.length <= 1) return;
