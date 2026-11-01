@@ -3919,6 +3919,16 @@
 
                 // 2. Instant 0ms Synchronous Hydration from Local Storage Cache for this resolved festival
                 try {
+                    // 2.0 Synchronous Ledger Exclusions Cache
+                    try {
+                        if (!window.cachedLedgerExclusions) {
+                            const rawEx = (festId ? localStorage.getItem('festos_cfg_points_ledger_exclusions_' + festId) : null) || 
+                                          localStorage.getItem('festos_cfg_points_ledger_exclusions');
+                            if (rawEx) {
+                                window.cachedLedgerExclusions = JSON.parse(rawEx);
+                            }
+                        }
+                    } catch(e) {}
                     // 2.1 Local Website Config Cache
                     const rawWebCfg = (festId ? localStorage.getItem('festos_cfg_website_config_' + festId) : null) || 
                                       localStorage.getItem('festos_cfg_website_config') || 
@@ -3952,6 +3962,9 @@
                             competitionParticipantsMap = r.competitionParticipantsMap || {};
                             totalFestivalComps = r.totalFestivalComps || publishedCompetitions.length;
                             currentTimelineCompsCount = publishedCompetitions.length;
+                            if (r.cachedLedgerExclusions && !window.cachedLedgerExclusions) {
+                                window.cachedLedgerExclusions = r.cachedLedgerExclusions;
+                            }
 
                             const countEl = document.getElementById('published-count-display');
                             if (countEl) countEl.innerText = publishedCompetitions.length;
@@ -4019,7 +4032,7 @@
                     teamsQuery,
                     compsQuery,
                     festId ? supabaseClient.from('templates').select('*').eq('type', 'individual').or(`fest_id.eq.${festId},fest_id.eq.global,fest_id.is.null,fest_id.eq.fest_zenith_2026`) : supabaseClient.from('templates').select('*').eq('type', 'individual'),
-                    window.festosGetSetting ? window.festosGetSetting('points_ledger_exclusions', festId) : null
+                    (typeof festosGetLedgerExclusions === 'function') ? festosGetLedgerExclusions(true, festId) : (window.festosGetSetting ? window.festosGetSetting('points_ledger_exclusions', festId, { fresh: true }) : null)
                 ]);
 
                 if (ledgerExclusionsVal && typeof ledgerExclusionsVal === 'object') {
@@ -4190,6 +4203,7 @@
                                 publishedCompetitions,
                                 globalJudgements,
                                 calculatedTeamScores,
+                                cachedLedgerExclusions: window.cachedLedgerExclusions || null,
                                 competitionParticipantsMap,
                                 totalFestivalComps,
                                 timestamp: Date.now()
@@ -4248,6 +4262,7 @@
         }
 
         function processJudgements(judgements) {
+            allTeams.forEach(t => calculatedTeamScores[t.id] = { id: t.id, name: t.name, score: 0 });
             const compGroups = {};
             
             judgements.forEach(j => {
@@ -4337,6 +4352,16 @@
             container.innerHTML = '';
             const sortedTeams = Object.values(calculatedTeamScores).sort((a, b) => b.score - a.score);
 
+            // Compute deducted penalties per team from active exclusions
+            const teamPenaltiesMap = {};
+            if (window.cachedLedgerExclusions && typeof window.cachedLedgerExclusions === 'object') {
+                Object.values(window.cachedLedgerExclusions).forEach(ex => {
+                    if (ex && ex.team_id && ex.points_deducted) {
+                        teamPenaltiesMap[ex.team_id] = (teamPenaltiesMap[ex.team_id] || 0) + (Number(ex.points_deducted) || 0);
+                    }
+                });
+            }
+
             const count = (currentTimelineCompsCount !== undefined && currentTimelineCompsCount !== null && currentTimelineCompsCount > 0)
                 ? currentTimelineCompsCount 
                 : publishedCompetitions.length;
@@ -4391,7 +4416,7 @@
                     return `
                         <tr>
                             <td style="font-weight: 800; color: ${rank === 1 ? 'var(--gold)' : 'var(--text-main)'}; width: 60px;">${rankIcon}</td>
-                            <td style="font-weight: 700; color: var(--text-main);">${team.name}</td>
+                            <td style="font-weight: 700; color: var(--text-main);">${team.name} ${(teamPenaltiesMap[team.id] > 0) ? `<span title="${teamPenaltiesMap[team.id]} points deducted for category limit violations" style="color: #DC2626; font-size: 0.74rem; font-weight: 700; background: #FEE2E2; border: 1px solid #FECACA; padding: 2px 6px; border-radius: 999px; margin-left: 6px;"><i class="fa-solid fa-triangle-exclamation"></i> -${teamPenaltiesMap[team.id]}</span>` : ''}</td>
                             <td style="text-align: right; font-weight: 800; color: var(--primary); font-size: 1.15rem;">${team.score}</td>
                         </tr>
                     `;
@@ -4425,7 +4450,7 @@
                 container.innerHTML += `
                     <div class="leaderboard-card ${cardClass}" style="animation-delay: ${index * 0.04}s">
                         <div class="rank ${rankClass}">${rankDisplay}</div>
-                        <div class="team-info"><div class="team-name">${team.name}</div></div>
+                        <div class="team-info"><div class="team-name">${team.name}</div>${(teamPenaltiesMap[team.id] > 0) ? `<div style="margin-top: 3px;"><span title="${teamPenaltiesMap[team.id]} points deducted for category limit violations" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; background: #FEE2E2; color: #DC2626; border: 1px solid #FECACA; padding: 1px 6px; border-radius: 999px; font-weight: 700;"><i class="fa-solid fa-triangle-exclamation"></i> -${teamPenaltiesMap[team.id]} Deducted</span></div>` : ''}</div>
                         <div class="team-score-container">
                             <span class="team-score" id="${scoreId}">0</span>
                             <span class="score-label">Points</span>

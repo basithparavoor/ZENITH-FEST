@@ -20984,6 +20984,25 @@ function filterAuditTable() {
 }
 window.filterAuditTable = filterAuditTable;
 
+function invalidateFestResultsCache() {
+    try {
+        const fid = (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId ? festosAuth.getCurrentFestId() : null) || window.activeFestId;
+        if (fid) {
+            localStorage.removeItem('festos_results_cache_' + fid);
+            localStorage.removeItem('festos_display_cache_' + fid);
+            localStorage.removeItem('festos_cfg_points_ledger_exclusions_' + fid);
+        }
+        localStorage.removeItem('festos_results_cache');
+        localStorage.removeItem('festos_display_cache');
+        localStorage.removeItem('festos_cfg_points_ledger_exclusions');
+        if (typeof window !== 'undefined' && window.dispatchEvent) {
+            window.dispatchEvent(new CustomEvent('festos:settingupdated', { detail: { key: 'points_ledger_exclusions', festId: fid } }));
+        }
+        localStorage.setItem('festos_cache_bust', Date.now().toString());
+    } catch(e) {}
+}
+window.invalidateFestResultsCache = invalidateFestResultsCache;
+
 async function excludeStudentFromLedger(studentId) {
     try {
         const audit = window.latestCategoryLimitAudit || { violations: [] };
@@ -21036,6 +21055,7 @@ async function excludeStudentFromLedger(studentId) {
             await festosSaveLedgerExclusions(currentExclusions);
         }
         window.cachedLedgerExclusions = currentExclusions;
+        invalidateFestResultsCache();
 
         showToast(`Participant "${name}" excluded! -${catPoints} category points deducted from Team ${teamName}.`, 'success');
 
@@ -21064,6 +21084,7 @@ async function restoreStudentToLedger(studentId) {
             await festosSaveLedgerExclusions(currentExclusions);
         }
         window.cachedLedgerExclusions = currentExclusions;
+        invalidateFestResultsCache();
 
         showToast(`Participant "${name}" restored to Points Ledger! +${restoredPts} category points restored to Team ${teamName}.`, 'success');
 
@@ -21121,6 +21142,7 @@ async function excludeAllOverLimitStudents() {
                     await festosSaveLedgerExclusions(currentExclusions);
                 }
                 window.cachedLedgerExclusions = currentExclusions;
+                invalidateFestResultsCache();
 
                 showToast(`Successfully excluded ${count} over-limit students! -${totalPts} PTS deducted from team scores.`, 'success');
 
@@ -21152,6 +21174,7 @@ async function restoreAllExcludedStudents() {
                 if (typeof festosSaveLedgerExclusions === 'function') {
                     await festosSaveLedgerExclusions({});
                 }
+                invalidateFestResultsCache();
 
                 showToast(`Successfully restored all ${count} participants to the Points Ledger!`, 'success');
 

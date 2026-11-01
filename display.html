@@ -828,7 +828,7 @@
                 }
 
                 const pointVal = window.festosGetSetting ? await window.festosGetSetting('point_system', effectiveFestId) : null;
-                const exclusionsVal = window.festosGetSetting ? await window.festosGetSetting('points_ledger_exclusions', effectiveFestId) : null;
+                const exclusionsVal = (typeof festosGetLedgerExclusions === 'function') ? await festosGetLedgerExclusions(true, effectiveFestId) : (window.festosGetSetting ? await window.festosGetSetting('points_ledger_exclusions', effectiveFestId, { fresh: true }) : null);
                 if (exclusionsVal && typeof exclusionsVal === 'object') {
                     window.cachedLedgerExclusions = exclusionsVal;
                 }
@@ -1008,7 +1008,7 @@
                         const teamId = entry.participant?.team_id;
                         const teamName = allTeams.find(t => String(t.id) === String(teamId))?.name || 'IND';
                         const isCategoryEventExcluded = (typeof festosIsStudentExcludedFromLedger === 'function')
-                            ? festosIsStudentExcludedFromLedger(entry.participant?.id, compData.comp_data)
+                            ? festosIsStudentExcludedFromLedger(entry.participant?.id, compData.comp_data, window.cachedLedgerExclusions)
                             : false;
                         if (teamId && calculatedTeamScores[teamId] && eligibleForTeam && !isCategoryEventExcluded) {
                             calculatedTeamScores[teamId].score += (Number(gradePts) + Number(posPts)); 

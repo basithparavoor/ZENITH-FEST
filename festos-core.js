@@ -3183,15 +3183,34 @@ function festosIsStudentExcludedFromLedger(studentId, comp, exclusionsObj = null
             }
         } catch(e) {}
     }
-    if (!currentEx) return false;
-    const exclusionData = currentEx[String(studentId)];
+    if (!currentEx || typeof currentEx !== 'object') return false;
+
+    // Robust student lookup supporting exact ID, case-insensitive ID, participant_id, and unique_id
+    let exclusionData = currentEx[String(studentId)];
+    if (!exclusionData) {
+        const sLower = String(studentId).toLowerCase().trim();
+        for (const [k, v] of Object.entries(currentEx)) {
+            if (String(k).toLowerCase().trim() === sLower) {
+                exclusionData = v;
+                break;
+            }
+            if (v && v.participant_id && String(v.participant_id).toLowerCase().trim() === sLower) {
+                exclusionData = v;
+                break;
+            }
+            if (v && v.unique_id && String(v.unique_id).toLowerCase().trim() === sLower) {
+                exclusionData = v;
+                break;
+            }
+        }
+    }
     if (!exclusionData) return false;
 
     // Student IS in exclusion list!
     // Check if comp is General Category / Common:
     if (!comp) return true;
     const catObj = Array.isArray(comp.categories) ? comp.categories[0] : comp.categories;
-    const catName = catObj?.name ? String(catObj.name).toUpperCase() : '';
+    const catName = catObj?.name ? String(catObj.name).toUpperCase() : (comp.category_name ? String(comp.category_name).toUpperCase() : '');
     const isGeneral = !!(
         comp.is_common === true || 
         comp.is_general === true || 
@@ -3203,7 +3222,7 @@ function festosIsStudentExcludedFromLedger(studentId, comp, exclusionsObj = null
     if (isGeneral) return false;
 
     // Group events are team awards, exempt from individual student penalties
-    if (comp.is_group) return false;
+    if (comp.is_group || comp.is_group_event) return false;
 
     return true; // Exclude category points from team
 }
