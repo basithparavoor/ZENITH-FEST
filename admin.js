@@ -9563,121 +9563,181 @@ function viewOnstageParticipantDetails(pId) {
 }
 
 async function exportOnstageParticipantsPDF() {
-    const list = (filteredOnstageParticipants && filteredOnstageParticipants.length > 0) 
-        ? filteredOnstageParticipants 
-        : onstageParticipantsData;
+    try {
+        let list = (filteredOnstageParticipants && filteredOnstageParticipants.length > 0) 
+            ? filteredOnstageParticipants 
+            : onstageParticipantsData;
 
-    if (list.length === 0) {
-        return showToast('No onstage participants to export!', 'error');
-    }
+        // Auto-load if list is empty
+        if (!list || list.length === 0) {
+            showToast('Loading onstage participants for export...', 'info');
+            await loadOnstageParticipantsLedger(true);
+            list = (filteredOnstageParticipants && filteredOnstageParticipants.length > 0) 
+                ? filteredOnstageParticipants 
+                : onstageParticipantsData;
+        }
 
-    showToast('Generating Onstage Participants Ledger PDF...', 'success');
+        if (!list || list.length === 0) {
+            return showToast('No onstage participants to export!', 'error');
+        }
 
-    const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
-    const totalRegistrations = list.reduce((sum, p) => sum + p.registeredCount, 0);
+        showToast('Generating Onstage Participants Ledger PDF...', 'success');
 
-    const rowsPerPage = 20;
-    const totalPages = Math.ceil(list.length / rowsPerPage) || 1;
-    let fullHtml = '';
+        const activeFid = typeof getActiveFestId === 'function' ? getActiveFestId() : (typeof festosAuth !== 'undefined' ? festosAuth.getCurrentFestId() : null);
+        const totalRegistrations = list.reduce((sum, p) => sum + p.registeredCount, 0);
 
-    for (let page = 0; page < totalPages; page++) {
-        const pageRows = list.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
-        const isLastPage = (page === totalPages - 1);
+        // Safe pagination: Page 1 has banner + header (14 rows), subsequent pages (18 rows)
+        const pages = [];
+        let remaining = [...list];
+        let pIndex = 0;
+        while (remaining.length > 0) {
+            const pageSize = (pIndex === 0) ? 14 : 18;
+            pages.push(remaining.slice(0, pageSize));
+            remaining = remaining.slice(pageSize);
+            pIndex++;
+        }
+        const totalPages = pages.length;
 
-        const rowsHtml = pageRows.map((p, idx) => {
-            const slNo = (page * rowsPerPage) + idx + 1;
-            const bg = (idx % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
-            const compListStr = p.competitions.map(c => c.name).join(', ');
+        let fullHtml = '';
 
-            return '<tr style="height: 28px; page-break-inside: avoid; break-inside: avoid;">' +
-                '<td style="padding: 6px 8px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 11px; font-weight: 600; color: #64748B; background: ' + bg + '; width: 35px;">' + slNo + '</td>' +
-                '<td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; background: ' + bg + ';">' +
-                    '<strong style="font-weight: 800; color: #0F172A; font-size: 11.5px;">' + p.name.toUpperCase() + '</strong>' +
-                    '<div style="font-family: monospace; font-size: 9.5px; color: #4F46E5; font-weight: 700;">' + p.unique_id + '</div>' +
-                '</td>' +
-                '<td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-size: 11px; font-weight: 600; color: #334155; background: ' + bg + ';">' + p.teamName.toUpperCase() + '</td>' +
-                '<td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-size: 10.5px; color: #475569; background: ' + bg + ';">' + p.categoryName.toUpperCase() + '</td>' +
-                '<td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-size: 12px; text-align: center; font-weight: 800; color: #059669; background: ' + bg + '; width: 90px;">' +
-                    p.registeredCount + (p.registeredCount === 1 ? ' Time' : ' Times') +
-                '</td>' +
-                '<td style="padding: 6px 10px; border-bottom: 1px solid #E2E8F0; font-size: 10px; color: #475569; background: ' + bg + ';">' +
-                    compListStr +
-                '</td>' +
-            '</tr>';
-        }).join('');
+        for (let page = 0; page < totalPages; page++) {
+            const pageRows = pages[page];
+            const isLastPage = (page === totalPages - 1);
+            let prevRowCount = 0;
+            for (let k = 0; k < page; k++) prevRowCount += pages[k].length;
 
-        const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
-            ? window.festosGetPDFHeaderHTML('ONSTAGE PARTICIPANTS REGISTERED LEDGER', activeFid, {
-                badge: 'PAGE ' + (page + 1) + ' OF ' + totalPages,
-                subtitle: 'OFFICIAL AUDIT &bull; ' + list.length + ' UNIQUE STUDENTS &bull; ' + totalRegistrations + ' TOTAL ENTRIES'
-            })
-            : '<div style="text-align: center; margin-bottom: 15px;">' +
-                '<h1 style="margin: 0; font-size: 18px; color: #059669;">ONSTAGE PARTICIPANTS REGISTERED LEDGER</h1>' +
-                '<p style="margin: 4px 0 0; font-size: 11px; color: #64748B;">Total Unique Students: ' + list.length + ' | Total Onstage Entries: ' + totalRegistrations + '</p>' +
-              '</div>';
+            const rowsHtml = pageRows.map((p, idx) => {
+                const slNo = prevRowCount + idx + 1;
+                const bg = (idx % 2 === 1) ? '#F8FAFC' : '#FFFFFF';
+                const compListStr = p.competitions.map(c => c.name).join(', ');
 
-        const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
-            ? window.festosGetPDFFooterHTML(page + 1, totalPages, 'Onstage Participant Registration Ledger')
-            : '<div style="margin-top:20px; font-size:10px; color:#64748B; text-align:center;">FestOS Verified Document</div>';
+                return '<tr style="height: 26px; page-break-inside: avoid; break-inside: avoid;">' +
+                    '<td style="padding: 5px 6px; border-bottom: 1px solid #E2E8F0; text-align: center; font-size: 10px; font-weight: 600; color: #64748B; background: ' + bg + '; width: 30px;">' + slNo + '</td>' +
+                    '<td style="padding: 5px 8px; border-bottom: 1px solid #E2E8F0; background: ' + bg + '; width: 170px;">' +
+                        '<strong style="font-weight: 800; color: #0F172A; font-size: 11px;">' + p.name.toUpperCase() + '</strong>' +
+                        '<div style="font-family: monospace; font-size: 9px; color: #4F46E5; font-weight: 700;">' + p.unique_id + '</div>' +
+                    '</td>' +
+                    '<td style="padding: 5px 8px; border-bottom: 1px solid #E2E8F0; font-size: 10px; font-weight: 600; color: #334155; background: ' + bg + '; width: 120px;">' + p.teamName.toUpperCase() + '</td>' +
+                    '<td style="padding: 5px 8px; border-bottom: 1px solid #E2E8F0; font-size: 10px; color: #475569; background: ' + bg + '; width: 90px;">' + p.categoryName.toUpperCase() + '</td>' +
+                    '<td style="padding: 5px 8px; border-bottom: 1px solid #E2E8F0; font-size: 11px; text-align: center; font-weight: 800; color: #059669; background: ' + bg + '; width: 75px;">' +
+                        p.registeredCount + (p.registeredCount === 1 ? ' Time' : ' Times') +
+                    '</td>' +
+                    '<td style="padding: 5px 8px; border-bottom: 1px solid #E2E8F0; font-size: 9.5px; color: #334155; line-height: 1.3; background: ' + bg + ';">' +
+                        compListStr +
+                    '</td>' +
+                '</tr>';
+            }).join('');
 
-        fullHtml += '<div class="pdf-page" style="padding: 24px 28px; width: 100%; box-sizing: border-box; background: white; font-family: \'Inter\', sans-serif;">' +
-            headerHtml +
-            (page === 0 ? 
-            '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; background: #ECFDF5; padding: 12px 18px; border-radius: 8px; border: 1px solid #A7F3D0;">' +
-                '<div>' +
-                    '<div style="font-size: 9px; color: #065F46; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">AUDIT SUMMARY</div>' +
-                    '<div style="font-size: 14px; font-weight: 900; color: #065F46; margin-top: 2px;">ONSTAGE PARTICIPANTS REGISTERED LEDGER</div>' +
-                    '<div style="font-size: 10.5px; color: #047857; margin-top: 2px;">De-duplicated student roster with total count of onstage competition registrations</div>' +
-                '</div>' +
-                '<div style="display: flex; gap: 20px; text-align: right;">' +
+            const headerHtml = (typeof window.festosGetPDFHeaderHTML === 'function')
+                ? window.festosGetPDFHeaderHTML('ONSTAGE PARTICIPANTS REGISTERED LEDGER', activeFid, {
+                    badge: 'PAGE ' + (page + 1) + ' OF ' + totalPages,
+                    subtitle: 'OFFICIAL AUDIT &bull; ' + list.length + ' UNIQUE STUDENTS &bull; ' + totalRegistrations + ' TOTAL ENTRIES'
+                })
+                : '<div style="text-align: center; margin-bottom: 12px; border-bottom: 2px solid #059669; padding-bottom: 8px;">' +
+                    '<h1 style="margin: 0; font-size: 16px; color: #065F46; font-weight: 900; letter-spacing: 0.03em;">ONSTAGE PARTICIPANTS REGISTERED LEDGER</h1>' +
+                    '<div style="font-size: 10px; color: #64748B; margin-top: 3px;">TOTAL UNIQUE STUDENTS: ' + list.length + ' &bull; TOTAL ONSTAGE ENTRIES: ' + totalRegistrations + ' &bull; PAGE ' + (page + 1) + ' OF ' + totalPages + '</div>' +
+                  '</div>';
+
+            const footerHtml = (typeof window.festosGetPDFFooterHTML === 'function')
+                ? window.festosGetPDFFooterHTML(page + 1, totalPages, 'Onstage Participant Registration Ledger')
+                : '<div style="margin-top:14px; font-size:9.5px; color:#64748B; text-align:center; border-top: 1px solid #E2E8F0; padding-top: 6px;">FestOS Verified Document &bull; Official Onstage Roster</div>';
+
+            fullHtml += '<div class="pdf-page" style="padding: 20px 24px; width: 100%; box-sizing: border-box; background: white; font-family: Inter, -apple-system, sans-serif;">' +
+                headerHtml +
+                (page === 0 ? 
+                '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; background: #ECFDF5; padding: 10px 14px; border-radius: 6px; border: 1px solid #A7F3D0;">' +
                     '<div>' +
-                        '<div style="font-size: 9px; color: #065F46; font-weight: 800; text-transform: uppercase;">UNIQUE STUDENTS</div>' +
-                        '<div style="font-size: 20px; font-weight: 900; color: #059669; line-height: 1.1;">' + list.length + '</div>' +
+                        '<div style="font-size: 8.5px; color: #065F46; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">AUDIT SUMMARY</div>' +
+                        '<div style="font-size: 13px; font-weight: 900; color: #065F46; margin-top: 1px;">ONSTAGE PARTICIPANTS LEDGER</div>' +
+                        '<div style="font-size: 9.5px; color: #047857; margin-top: 1px;">De-duplicated student roster with total count of onstage competition registrations</div>' +
                     '</div>' +
-                    '<div>' +
-                        '<div style="font-size: 9px; color: #065F46; font-weight: 800; text-transform: uppercase;">TOTAL REGISTRATIONS</div>' +
-                        '<div style="font-size: 20px; font-weight: 900; color: #059669; line-height: 1.1;">' + totalRegistrations + '</div>' +
+                    '<div style="display: flex; gap: 16px; text-align: right;">' +
+                        '<div>' +
+                            '<div style="font-size: 8.5px; color: #065F46; font-weight: 800; text-transform: uppercase;">UNIQUE STUDENTS</div>' +
+                            '<div style="font-size: 18px; font-weight: 900; color: #059669; line-height: 1;">' + list.length + '</div>' +
+                        '</div>' +
+                        '<div>' +
+                            '<div style="font-size: 8.5px; color: #065F46; font-weight: 800; text-transform: uppercase;">TOTAL REGISTRATIONS</div>' +
+                            '<div style="font-size: 18px; font-weight: 900; color: #059669; line-height: 1;">' + totalRegistrations + '</div>' +
+                        '</div>' +
                     '</div>' +
-                '</div>' +
-            '</div>' : '') +
-            '<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #CBD5E1;">' +
-                '<thead>' +
-                    '<tr style="background: #065F46; color: white; text-align: left; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em;">' +
-                        '<th style="padding: 8px 6px; text-align: center; width: 35px;">#</th>' +
-                        '<th style="padding: 8px 10px; width: 170px;">STUDENT NAME & ID</th>' +
-                        '<th style="padding: 8px 10px; width: 130px;">TEAM</th>' +
-                        '<th style="padding: 8px 10px; width: 100px;">CATEGORY</th>' +
-                        '<th style="padding: 8px 10px; width: 90px; text-align: center;">TIMES REG.</th>' +
-                        '<th style="padding: 8px 10px;">ONSTAGE COMPETITIONS</th>' +
-                    '</tr>' +
-                '</thead>' +
-                '<tbody style="font-size: 10.5px; color: #334155;">' +
-                    rowsHtml +
-                '</tbody>' +
-            '</table>' +
-            footerHtml +
-        '</div>' +
-        (isLastPage ? '' : '<div class="html2pdf__page-break"></div>');
-    }
+                '</div>' : '') +
+                '<table style="width: 100%; border-collapse: collapse; margin-bottom: 14px; border: 1px solid #CBD5E1;">' +
+                    '<thead>' +
+                        '<tr style="background: #065F46; color: white; text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em;">' +
+                            '<th style="padding: 7px 6px; text-align: center; width: 30px;">#</th>' +
+                            '<th style="padding: 7px 8px; width: 170px;">STUDENT NAME & ID</th>' +
+                            '<th style="padding: 7px 8px; width: 120px;">TEAM</th>' +
+                            '<th style="padding: 7px 8px; width: 90px;">CATEGORY</th>' +
+                            '<th style="padding: 7px 8px; width: 75px; text-align: center;">TIMES REG.</th>' +
+                            '<th style="padding: 7px 8px;">ONSTAGE COMPETITIONS</th>' +
+                        '</tr>' +
+                    '</thead>' +
+                    '<tbody style="font-size: 10px; color: #334155;">' +
+                        rowsHtml +
+                    '</tbody>' +
+                '</table>' +
+                footerHtml +
+            '</div>' +
+            (isLastPage ? '' : '<div class="html2pdf__page-break"></div>');
+        }
 
-    if (typeof window.festosRenderPDF === 'function') {
-        await window.festosRenderPDF(fullHtml, {
-            orientation: 'landscape',
-            filename: typeof getFestFileName === 'function' ? getFestFileName('Onstage_Participants_Ledger', 'pdf') : 'Onstage_Participants_Ledger.pdf',
-            width: 1100
-        });
-        showToast('Onstage Participants PDF Exported Successfully!');
-    } else {
-        const opt = { 
-            margin: 10, 
-            filename: typeof getFestFileName === 'function' ? getFestFileName('Onstage_Participants_Ledger', 'pdf') : 'Fest_Onstage_Participants_Ledger.pdf', 
-            image: { type: 'jpeg', quality: 0.98 }, 
-            html2canvas: { scale: 2, useCORS: true }, 
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } 
-        };
-        const wrap = document.createElement('div');
-        wrap.innerHTML = fullHtml;
-        html2pdf().set(opt).from(wrap).save().then(() => showToast('PDF Exported Successfully!'));
+        const outFilename = typeof getFestFileName === 'function' ? getFestFileName('Onstage_Participants_Ledger', 'pdf') : 'Onstage_Participants_Ledger.pdf';
+        let renderedSuccessfully = false;
+
+        // 1. Primary Engine: festosRenderPDF
+        if (typeof window.festosRenderPDF === 'function') {
+            try {
+                await window.festosRenderPDF(fullHtml, {
+                    orientation: 'portrait',
+                    filename: outFilename,
+                    width: 800
+                });
+                renderedSuccessfully = true;
+                showToast('Onstage Participants PDF Exported Successfully!', 'success');
+                return;
+            } catch (engineErr) {
+                console.warn('[FestOS PDF] Primary festosRenderPDF engine warning, switching to fallback:', engineErr);
+            }
+        }
+
+        // 2. Fallback Engine: html2pdf bundle
+        if (!renderedSuccessfully && typeof html2pdf !== 'undefined') {
+            try {
+                const opt = { 
+                    margin: [8, 8, 8, 8], 
+                    filename: outFilename, 
+                    image: { type: 'jpeg', quality: 0.98 }, 
+                    html2canvas: { scale: 2, useCORS: true, logging: false }, 
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak: { mode: ['css', 'legacy'] }
+                };
+                const wrap = document.createElement('div');
+                wrap.innerHTML = fullHtml;
+                await html2pdf().set(opt).from(wrap).save();
+                renderedSuccessfully = true;
+                showToast('Onstage Participants PDF Exported Successfully!', 'success');
+                return;
+            } catch (h2Err) {
+                console.warn('[FestOS PDF] html2pdf engine warning:', h2Err);
+            }
+        }
+
+        // 3. Fallback Engine: Universal Print Preview Window
+        if (!renderedSuccessfully) {
+            const printWin = window.open('', '_blank');
+            if (printWin) {
+                printWin.document.write('<!DOCTYPE html><html><head><title>Onstage Participants Ledger</title><style>@page { size: A4 portrait; margin: 10mm; } body { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 10px; color: #0F172A; } table { width: 100%; border-collapse: collapse; margin-top: 10px; } th, td { border: 1px solid #CBD5E1; padding: 5px 8px; font-size: 10px; } th { background: #065F46; color: white; text-align: left; } tr:nth-child(even) { background: #F8FAFC; } .pdf-page { page-break-after: always; break-after: page; } .pdf-page:last-child { page-break-after: auto; break-after: auto; }</style></head><body>' + fullHtml + '<script>window.onload = function() { window.print(); };<\/script></body></html>');
+                printWin.document.close();
+                showToast('Print window opened for PDF export', 'success');
+            } else {
+                showToast('Export failed. Please allow popups in your browser.', 'error');
+            }
+        }
+
+    } catch (err) {
+        console.error('Fatal exportOnstageParticipantsPDF error:', err);
+        showToast('Export failed: ' + err.message, 'error');
     }
 }
 
@@ -9916,6 +9976,16 @@ async function bulkExportTeamPointsPDF() {
 
 // Bulk PDF Report Generator (One Page Per Participant)
 async function bulkExportPointsPDF() {
+    // Smart delegation based on visible view
+    const onstageCont = document.getElementById('onstage-points-container');
+    if (onstageCont && onstageCont.style.display !== 'none') {
+        return exportOnstageParticipantsPDF();
+    }
+    const teamCont = document.getElementById('team-points-container');
+    if (teamCont && teamCont.style.display !== 'none') {
+        return bulkExportTeamPointsPDF();
+    }
+
     const ids = getSelectedIds('points-tbody');
     let targetList = ids.length > 0 ? pointsDataList.filter(p => ids.includes(p.id)) : filteredPointsList;
     
