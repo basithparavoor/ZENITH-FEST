@@ -2356,11 +2356,6 @@ canvas {
             </div>
             <div style="display: flex; align-items: center; gap: 0.65rem; flex-shrink: 0;">
                 <!-- Desktop Only Quick Data Refresh Button -->
-                <!-- Result Site Status Toggle Pill in Header -->
-                <button type="button" class="header-site-pill online" id="header-result-site-pill" onclick="toggleResultSiteGlobal()" title="Click to toggle Result Site ON/OFF">
-                    <span class="status-indicator-dot"></span>
-                    <span id="header-site-status-text">Result Site: ON</span>
-                </button>
                 <button class="desktop-only-refresh-btn" id="header-refresh-btn" onclick="refreshAdminData(this)" title="Refresh System Data (Ctrl+R / Sync)" style="height: 40px; padding: 0 0.95rem; border-radius: var(--radius-md, 8px); border: 1px solid var(--border); background: white; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; box-shadow: var(--shadow-sm);">
                     <i class="fa-solid fa-arrows-rotate refresh-icon" style="color: var(--primary);"></i>
                     <span>Refresh</span>
@@ -3021,20 +3016,6 @@ canvas {
                     <h2 style="font-size: 1.6rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem; letter-spacing: -0.02em;">Control Room</h2>
                     <p style="color: var(--text-muted); font-size: 1.2rem; font-weight: 600;" id="dash-greeting">Good evening, ADMIN</p>
                 </div>
-                <!-- Dashboard Result Site Quick Card -->
-                    <div class="dash-result-site-card" id="dash-site-status-card" style="display: flex; align-items: center; gap: 0.85rem; background: white; padding: 0.45rem 0.95rem; border-radius: var(--radius-md); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-                        <div class="dash-site-info" style="display: flex; align-items: center; gap: 0.55rem;">
-                            <span class="dash-site-dot" id="dash-site-dot" style="width: 9px; height: 9px; border-radius: 50%; background: #10B981; display: inline-block;"></span>
-                            <div>
-                                <div style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.04em; line-height: 1;">Result Site</div>
-                                <div style="font-size: 0.88rem; font-weight: 800; color: var(--text-main); line-height: 1.2;" id="dash-site-status-text">ONLINE</div>
-                            </div>
-                        </div>
-                        <label class="builder-toggle builder-toggle-green" style="margin: 0;" title="Toggle Result Site ON/OFF">
-                            <input type="checkbox" id="dash-site-toggle" checked onchange="handleResultSiteToggle(this.checked)">
-                            <span class="builder-toggle-slider"></span>
-                        </label>
-                    </div>
                     <button class="btn btn-danger" style="background: #E11D48; border-color: #E11D48; color: #FFFFFF;" onclick="window.location.href='manager.html'"><i class="fa-solid fa-trophy"></i> Publish Results</button>
             </div>
 
