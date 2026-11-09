@@ -245,6 +245,17 @@ const festosDomains = {
             if (matched && matched.id) return matched.id;
         }
 
+        // 4. Fallback from active window / storage state matching subdomain
+        if (sub && !['www', 'app', 'admin', 'superadmin', 'api'].includes(sub)) {
+            if (typeof window !== 'undefined' && window.activeFestId && String(window.activeFestId).toLowerCase().includes(sub)) {
+                return window.activeFestId;
+            }
+            try {
+                const act = localStorage.getItem('festos_active_fest_id');
+                if (act && String(act).toLowerCase().includes(sub)) return act;
+            } catch(e) {}
+        }
+
         return null;
     },
 
@@ -356,6 +367,25 @@ const festosDomains = {
                 public_results_slug: fest.public_results_slug || 'results',
                 newspaper_config: fest.newspaper_config || null
             };
+
+            // Pre-cache branding for this festival so dashboards immediately have it!
+            if (fest.name || fest.logo) {
+                const brandObj = {
+                    fest_name: fest.name || 'Festival',
+                    fest_logo: (fest.logo && !fest.logo.includes('festos-logo.svg')) ? fest.logo : '',
+                    display_mode: fest.logo ? 'both' : 'name',
+                    _fest_id: fest.id
+                };
+                try {
+                    localStorage.setItem(`festos_branding_cache_${fest.id}`, JSON.stringify(brandObj));
+                    localStorage.setItem('festBranding', JSON.stringify(brandObj));
+                } catch(e) {}
+
+                // If inside dashboard or non-login page, apply branding right away!
+                if (window.festosBranding && typeof window.festosBranding.apply === 'function' && !window.festosBranding.isLoginPage()) {
+                    window.festosBranding.apply(brandObj);
+                }
+            }
 
             if (window.dispatchEvent) {
                 window.dispatchEvent(new CustomEvent('festos:festresolved', {
@@ -530,7 +560,7 @@ const festosBranding = {
     },
 
     isPlatformPage() {
-        return this.isSuperAdminPage() || this.isLoginPage() || (typeof window !== 'undefined' && window.location && window.location.pathname.toLowerCase().includes('landing'));
+        return this.isSuperAdminPage() || (typeof window !== 'undefined' && window.location && window.location.pathname.toLowerCase().includes('landing'));
     },
 
     getCacheKey(festId) {
@@ -564,6 +594,11 @@ const festosBranding = {
 
     applyFromCache() {
         try {
+            if (this.isLoginPage()) {
+                this.apply({ fest_name: this.DEFAULT_NAME, fest_logo: this.DEFAULT_LOGO, display_mode: 'both' });
+                return;
+            }
+
             if (this.isPlatformPage()) {
                 const cached = localStorage.getItem('festos_super_branding_cache');
                 if (cached) {
@@ -613,15 +648,16 @@ const festosBranding = {
                 return;
             }
 
-            // 3. 0ms Immediate Synchronous Fallback: Lookup in live fests cache strictly for festId
+            // 3. 0ms Immediate Synchronous Fallback: Lookup in live fests cache strictly for festId or subdomain
             if (typeof festosDomains !== 'undefined') {
-                const f = festosDomains.findFest ? festosDomains.findFest(festId) : null;
+                const sub = festosDomains.getSubdomain ? festosDomains.getSubdomain() : '';
+                const f = festosDomains.findFest ? (festosDomains.findFest(festId) || (sub ? festosDomains.findFest(sub) : null)) : null;
                 if (f && (f.name || f.logo)) {
                     this.apply({
                         fest_name: f.name || 'Festival',
                         fest_logo: (f.logo && !f.logo.includes('festos-logo.svg')) ? f.logo : '',
                         display_mode: f.logo ? 'both' : 'name',
-                        _fest_id: festId
+                        _fest_id: f.id || festId
                     });
                 }
             }
@@ -630,8 +666,13 @@ const festosBranding = {
         }
     },
 
-    async fetchAndSubscribe() {
+    async fetchAndSubscribe(targetFestId = null) {
         if (!festosSupabase) return;
+
+        if (this.isLoginPage()) {
+            this.apply({ fest_name: this.DEFAULT_NAME, fest_logo: this.DEFAULT_LOGO, display_mode: 'both' });
+            return;
+        }
 
         if (this.isPlatformPage()) {
             // Super Admin & Login portals: Fetch global software branding added by Super Admin
@@ -671,7 +712,7 @@ const festosBranding = {
         // Must fetch ONLY the current festival's branding (system_branding_<festId> or fests table)
         // NEVER fetch or apply the super admin's 'system_branding'
         try {
-            const festId = festosAuth.getCurrentFestId();
+            const festId = targetFestId || festosAuth.getCurrentFestId();
             if (!festId) return;
 
             const festKey = festosGetSettingKey('system_branding', festId);
@@ -761,10 +802,10 @@ const festosBranding = {
         const isLogin = this.isLoginPage();
         const isSuper = this.isSuperAdminPage();
         const isPlatform = this.isPlatformPage();
-        const currentFestId = isPlatform ? null : festosAuth.getCurrentFestId();
+        const currentFestId = isLogin || isPlatform ? null : festosAuth.getCurrentFestId();
 
         // Strict cross-tenant protection: reject if brandingData explicitly belongs to another festival
-        if (!isPlatform && currentFestId && brandingData._fest_id && brandingData._fest_id !== currentFestId) {
+        if (!isLogin && !isPlatform && currentFestId && brandingData._fest_id && brandingData._fest_id !== currentFestId) {
             console.warn(`[Branding Security] Rejecting brandingData from '${brandingData._fest_id}' on '${currentFestId}' portal.`);
             return;
         }
@@ -773,13 +814,17 @@ const festosBranding = {
         let festLogo = brandingData.fest_logo ? brandingData.fest_logo.trim() : '';
         const displayMode = brandingData.display_mode || 'both';
 
-        if (isPlatform) {
-            // Platform pages (login, superadmin, landing) use Super Admin software branding:
-            // If Super Admin added a custom logo, use it! Otherwise fallback to DEFAULT_LOGO
+        if (isLogin) {
+            // LOGIN PAGE: FestOS BRANDING ONLY (Strict platform guarantee)
+            festName = this.DEFAULT_NAME;
+            festLogo = this.DEFAULT_LOGO;
+        } else if (isPlatform) {
+            // Super Admin portal: Super Admin software branding
             if (!festName) festName = this.DEFAULT_NAME;
             if (!festLogo) festLogo = this.DEFAULT_LOGO;
         } else {
-            // NEVER allow 'festos-logo.svg' on festival pages
+            // DASHBOARDS & FESTIVAL PORTALS:
+            // ALWAYS show that fest's branding as per the domain/fest context
             if (festLogo === 'festos-logo.svg' || festLogo === '/festos-logo.svg') {
                 festLogo = '';
             }
@@ -793,7 +838,7 @@ const festosBranding = {
 
         // 1. Update Title Dynamically
         if (isLogin) {
-            document.title = `${festName} | Secure Login`;
+            document.title = `FestOS | Secure Login`;
         } else if (isSuper) {
             document.title = `${festName} | Super Admin Control Panel`;
         } else {
@@ -804,7 +849,9 @@ const festosBranding = {
         }
 
         // 2. Dynamic Global Favicon Injection (Super Admin, Login, and all portals)
-        if (validLogo) {
+        if (isLogin) {
+            this.updateFavicon(this.DEFAULT_LOGO);
+        } else if (validLogo) {
             this.updateFavicon(festLogo);
         } else if (isPlatform) {
             this.updateFavicon(this.DEFAULT_LOGO);
@@ -824,16 +871,9 @@ const festosBranding = {
 
             let html = '';
             if (isLogin) {
-                // In login page, render the SuperAdmin-configured software logo & name
-                const showLogo = validLogo && (displayMode === 'both' || displayMode === 'logo');
-                const showName = (displayMode === 'both' || displayMode === 'name') || (!validLogo && displayMode === 'logo');
-
-                if (showLogo) {
-                    html += `<img src="${festLogo}" alt="${festName} Logo" class="festos-dynamic-logo" style="height: 44px; width: auto; max-width: 180px; object-fit: contain; margin-right: ${showName ? '10px' : '0'}; display: inline-block; vertical-align: middle;">`;
-                }
-                if (showName) {
-                    html += `<span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">${festName}</span>`;
-                }
+                // In login page, render FestOS branding ONLY
+                html += `<img src="${this.DEFAULT_LOGO}" alt="FestOS Logo" class="festos-dynamic-logo" style="height: 44px; width: auto; max-width: 180px; object-fit: contain; margin-right: 10px; display: inline-block; vertical-align: middle;">`;
+                html += `<span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">FestOS</span>`;
             } else if (isSuper) {
                 const logoSrc = validLogo ? festLogo : this.DEFAULT_LOGO;
                 html += `<img src="${logoSrc}" alt="${festName}" class="festos-dynamic-logo" style="width: 30px; height: 30px; object-fit: contain; margin-right: 8px; vertical-align: middle;">`;
@@ -952,6 +992,10 @@ const festosAuth = {
             if (sub && !['www', 'app', 'admin', 'superadmin', 'api'].includes(sub)) {
                 const matched = festosDomains.findFest ? festosDomains.findFest(sub) : null;
                 if (matched && matched.id) return matched.id;
+                try {
+                    const act = localStorage.getItem('festos_active_fest_id');
+                    if (act && act.toLowerCase().includes(sub)) return act;
+                } catch(e) {}
                 // Optimistic resolution candidate before DB sync finishes
                 return `fest_${sub}`;
             }

@@ -56,7 +56,21 @@ const ROLE_ROUTES = {
         if (userStr) {
             const user = JSON.parse(userStr);
             if (user && user.role) {
-                // If remembered OR simply closed app without logging out, auto-redirect!
+                // Tenant isolation: if on a specific festival subdomain, verify match
+                const host = (window.location.hostname || '').toLowerCase();
+                const base = 'festos.clubad.space';
+                let sub = '';
+                if (host !== base && host.endsWith('.' + base)) sub = host.slice(0, -(base.length + 1));
+                else if (host.endsWith('.localhost')) sub = host.slice(0, -('.localhost'.length));
+                else {
+                    const parts = host.split('.');
+                    if (parts.length >= 3 && !['www','app','admin','superadmin','api'].includes(parts[0])) sub = parts[0];
+                }
+                if (sub && user.fest_id && !user.fest_id.toLowerCase().includes(sub)) {
+                    // Mismatched tenant session: stay on login page
+                    return;
+                }
+
                 const userRole = String(user.role || '').trim().toLowerCase();
                 const targetRoute = ROLE_ROUTES[userRole] || 'admin.html';
                 window.location.replace(targetRoute);
@@ -89,6 +103,20 @@ function checkExistingSession() {
 
     const activeUser = festosAuth ? festosAuth.getUser() : JSON.parse(localStorage.getItem('festUser') || 'null');
     if (activeUser && activeUser.role) {
+        // Tenant isolation: if on a specific festival subdomain, verify match
+        const host = (window.location.hostname || '').toLowerCase();
+        const base = 'festos.clubad.space';
+        let sub = '';
+        if (host !== base && host.endsWith('.' + base)) sub = host.slice(0, -(base.length + 1));
+        else if (host.endsWith('.localhost')) sub = host.slice(0, -('.localhost'.length));
+        else {
+            const parts = host.split('.');
+            if (parts.length >= 3 && !['www','app','admin','superadmin','api'].includes(parts[0])) sub = parts[0];
+        }
+        if (sub && activeUser.fest_id && !activeUser.fest_id.toLowerCase().includes(sub)) {
+            return;
+        }
+
         const userRole = String(activeUser.role || '').trim().toLowerCase();
         const targetRoute = ROLE_ROUTES[userRole] || 'admin.html';
         window.location.replace(targetRoute);
@@ -179,27 +207,35 @@ if (loginForm) {
                 }
 
                 if (!data.fest_id) {
-                    const prefix = (data.username || '').split('_')[0].toLowerCase().trim();
-                    const defaultFestId = (typeof window.festosDefaultFestId === 'function')
-                        ? window.festosDefaultFestId()
-                        : 'fest_zenith_2026';
-                    if (prefix === 'zenith26' || prefix === 'zenith') {
-                        data.fest_id = defaultFestId;
-                    } else if (/^[a-z0-9]{3,20}$/.test(prefix) && prefix !== 'superadmin' && prefix !== 'admin') {
-                        const matchedFest = (window.festosDomains && typeof window.festosDomains.findFest === 'function')
-                            ? window.festosDomains.findFest(prefix)
-                            : null;
-                        if (matchedFest && matchedFest.id) {
-                            data.fest_id = matchedFest.id;
-                        } else {
-                            const candidate = `fest_${prefix}`;
-                            const known = (window.festosDomains && typeof window.festosDomains.hasFest === 'function')
-                                ? window.festosDomains.hasFest(candidate)
-                                : true;
-                            data.fest_id = known ? candidate : defaultFestId;
-                        }
+                    // Check active host/domain festival first
+                    const domainFestId = (typeof festosDomains !== 'undefined' && festosDomains.getHostFestId)
+                        ? festosDomains.getHostFestId()
+                        : null;
+                    if (domainFestId) {
+                        data.fest_id = domainFestId;
                     } else {
-                        data.fest_id = defaultFestId;
+                        const prefix = (data.username || '').split('_')[0].toLowerCase().trim();
+                        const defaultFestId = (typeof window.festosDefaultFestId === 'function')
+                            ? window.festosDefaultFestId()
+                            : 'fest_zenith_2026';
+                        if (prefix === 'zenith26' || prefix === 'zenith') {
+                            data.fest_id = defaultFestId;
+                        } else if (/^[a-z0-9]{3,20}$/.test(prefix) && prefix !== 'superadmin' && prefix !== 'admin') {
+                            const matchedFest = (window.festosDomains && typeof window.festosDomains.findFest === 'function')
+                                ? window.festosDomains.findFest(prefix)
+                                : null;
+                            if (matchedFest && matchedFest.id) {
+                                data.fest_id = matchedFest.id;
+                            } else {
+                                const candidate = `fest_${prefix}`;
+                                const known = (window.festosDomains && typeof window.festosDomains.hasFest === 'function')
+                                    ? window.festosDomains.hasFest(candidate)
+                                    : true;
+                                data.fest_id = known ? candidate : defaultFestId;
+                            }
+                        } else {
+                            data.fest_id = defaultFestId;
+                        }
                     }
                 }
             }
