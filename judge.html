@@ -565,37 +565,325 @@ input, .mark-input { text-transform: none; }
     font-weight: 900;
 }
 
-/* --- OLED DARK HALL MODE --- */
+/* --- OLED DARK AUDITORIUM MODE --- */
 body.dark-hall-mode {
-    background: #000000 !important;
+    --bg-main: #09090B;
+    --bg-surface: #121215;
+    --input-bg: #18181B;
+    --text-main: #F8FAFC;
+    --text-muted: #94A3B8;
+    --border: #27272A;
+    --border-hover: #3F3F46;
+    background: #09090B !important;
+    background-color: #09090B !important;
     color: #F8FAFC !important;
 }
-body.dark-hall-mode .top-nav-bar,
-body.dark-hall-mode .card,
-body.dark-hall-mode .participant-card,
-body.dark-hall-mode .eval-top-card,
+
+/* Navbar & Top Elements */
 body.dark-hall-mode .navbar,
-body.dark-hall-mode .sticky-footer {
-    background: #09090B !important;
+body.dark-hall-mode .top-nav-bar {
+    background: rgba(18, 18, 21, 0.95) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-bottom: 1px solid #27272A !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+}
+body.dark-hall-mode .welcome-text {
+    background: #18181B !important;
+    border: 1px solid #27272A !important;
+    color: #E2E8F0 !important;
+}
+body.dark-hall-mode .header-icon-btn {
+    background: #18181B !important;
+    border: 1px solid #27272A !important;
+    color: #94A3B8 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+body.dark-hall-mode .header-icon-btn:active {
+    background: #27272A !important;
+}
+body.dark-hall-mode .header-icon-btn.active {
+    background: rgba(99, 102, 241, 0.25) !important;
+    border-color: #6366F1 !important;
+    color: #A5B4FC !important;
+}
+body.dark-hall-mode #dark-hall-btn i {
+    color: #FBBF24 !important;
+}
+
+/* Collapsible Filter & Search Card */
+body.dark-hall-mode .filter-card {
+    background: rgba(18, 18, 21, 0.98) !important;
+    backdrop-filter: blur(16px) !important;
+    border: 1px solid #27272A !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6) !important;
+}
+body.dark-hall-mode .deck-filter-row .search-wrap i {
+    color: #94A3B8 !important;
+}
+body.dark-hall-mode .deck-filter-row .search-wrap input {
+    background: #18181B !important;
+    border: 1px solid #27272A !important;
+    color: #F8FAFC !important;
+}
+body.dark-hall-mode .deck-filter-row .search-wrap input::placeholder {
+    color: #64748B !important;
+}
+body.dark-hall-mode .deck-filter-row .search-wrap input:focus {
+    border-color: #6366F1 !important;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25) !important;
+}
+body.dark-hall-mode .deck-filter-row .filter-selects select {
+    background-color: #18181B !important;
+    border: 1px solid #27272A !important;
+    color: #F8FAFC !important;
+}
+
+/* Custom Emerald Dropdown in Dark Mode */
+body.dark-hall-mode .festos-custom-select-trigger {
+    background: #18181B !important;
+    border-color: rgba(16, 185, 129, 0.4) !important;
+    color: #F8FAFC !important;
+}
+body.dark-hall-mode .festos-custom-select-trigger:hover,
+body.dark-hall-mode .festos-custom-select-trigger.open {
+    border-color: #10B981 !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.22) !important;
+}
+body.dark-hall-mode .festos-select-text {
+    color: #F8FAFC !important;
+}
+body.dark-hall-mode #festosFloatingSelectMenu {
+    background: #18181B !important;
+    border: 1px solid #27272A !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7) !important;
+}
+body.dark-hall-mode .festos-select-option {
+    color: #E2E8F0 !important;
+}
+body.dark-hall-mode .festos-select-option:hover,
+body.dark-hall-mode .festos-select-option.focused {
+    background: #27272A !important;
+    color: #FFFFFF !important;
+}
+body.dark-hall-mode .festos-select-option.selected {
+    background: rgba(16, 185, 129, 0.2) !important;
+    color: #34D399 !important;
+}
+
+/* Cards & Typography */
+body.dark-hall-mode .card,
+body.dark-hall-mode .comp-card {
+    background: #121215 !important;
+    border: 1px solid #27272A !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+    color: #F8FAFC !important;
+}
+body.dark-hall-mode .comp-card-title,
+body.dark-hall-mode .comp-card h3 {
+    color: #FFFFFF !important;
+    font-weight: 800 !important;
+}
+body.dark-hall-mode .comp-card-meta,
+body.dark-hall-mode .comp-card p {
+    color: #94A3B8 !important;
+}
+body.dark-hall-mode .comp-card-max-mark,
+body.dark-hall-mode .comp-card p span[style*="font-weight: 800"] {
+    color: #38BDF8 !important;
+    font-weight: 800 !important;
+}
+body.dark-hall-mode .comp-card-stage,
+body.dark-hall-mode .comp-card p span i {
+    color: #A5B4FC !important;
+}
+
+/* Badges on Cards */
+body.dark-hall-mode .comp-card-category {
+    background: rgba(99, 102, 241, 0.18) !important;
+    color: #A5B4FC !important;
+    border: 1px solid rgba(99, 102, 241, 0.35) !important;
+}
+body.dark-hall-mode .comp-card-time {
+    background: #18181B !important;
+    color: #94A3B8 !important;
+    border: 1px solid #27272A !important;
+}
+body.dark-hall-mode .comp-card-overdue {
+    background: rgba(245, 158, 11, 0.16) !important;
+    color: #FCD34D !important;
+    border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+body.dark-hall-mode .comp-card-status {
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Outline Buttons on Dark Cards */
+body.dark-hall-mode .btn-outline {
+    background: #18181B !important;
     border-color: #27272A !important;
-    color: #F4F4F5 !important;
+    color: #F8FAFC !important;
+}
+body.dark-hall-mode .btn-outline:disabled {
+    background: #18181B !important;
+    border-color: #222226 !important;
+    color: #52525B !important;
+    opacity: 0.6;
+}
+
+/* Floating Bottom Navigation Pill */
+body.dark-hall-mode .nav-actions {
+    background: rgba(18, 18, 21, 0.95) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid #27272A !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+}
+body.dark-hall-mode .nav-actions .btn.btn-outline {
+    background: #18181B !important;
+    border: 1px solid #27272A !important;
+    color: #60A5FA !important;
+}
+body.dark-hall-mode .nav-actions .btn.btn-outline:active {
+    background: #27272A !important;
+}
+body.dark-hall-mode .nav-actions .btn.btn-danger {
+    background: #DC2626 !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35) !important;
+}
+
+/* Evaluation View & Participant Rows */
+body.dark-hall-mode .eval-top-card {
+    background: #121215 !important;
+    border: 1px solid #27272A !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+body.dark-hall-mode .eval-top-card h2,
+body.dark-hall-mode #eval-comp-name {
+    color: #FFFFFF !important;
+    font-weight: 800 !important;
+}
+body.dark-hall-mode .eval-top-card p {
+    color: #94A3B8 !important;
+}
+body.dark-hall-mode #eval-max-mark {
+    color: #38BDF8 !important;
+    font-weight: 800 !important;
+}
+body.dark-hall-mode .participant-row {
+    background: #121215 !important;
+    border: 1px solid #27272A !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+}
+body.dark-hall-mode .participant-row:focus-within {
+    border-color: #6366F1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25) !important;
+}
+body.dark-hall-mode .code-letter {
+    background: rgba(99, 102, 241, 0.18) !important;
+    color: #A5B4FC !important;
+    border-color: rgba(99, 102, 241, 0.35) !important;
+}
+body.dark-hall-mode .participant-label {
+    color: #94A3B8 !important;
+}
+body.dark-hall-mode .participant-code {
+    color: #FFFFFF !important;
+    font-weight: 800 !important;
+}
+
+/* Stepper Buttons & Mark Input */
+body.dark-hall-mode .btn-step {
+    background: #18181B !important;
+    border: 1px solid #27272A !important;
+    color: #E4E4E7 !important;
+}
+body.dark-hall-mode .btn-step:hover,
+body.dark-hall-mode .btn-step:active {
+    background: #27272A !important;
+    color: #FFFFFF !important;
+    border-color: #3F3F46 !important;
 }
 body.dark-hall-mode .mark-wrapper {
     background: #18181B !important;
-    border-color: #3F3F46 !important;
+    border: 1.5px solid #3F3F46 !important;
+}
+body.dark-hall-mode .participant-row:focus-within .mark-wrapper {
+    background: #18181B !important;
+    border-color: #6366F1 !important;
 }
 body.dark-hall-mode .mark-input {
-    color: #22D3EE !important;
+    color: #38BDF8 !important;
+    background: transparent !important;
+    font-weight: 800 !important;
 }
-body.dark-hall-mode .btn-step {
-    background: #18181B !important;
-    border-color: #27272A !important;
-    color: #E4E4E7 !important;
+body.dark-hall-mode .mark-input::placeholder {
+    color: #52525B !important;
+}
+body.dark-hall-mode .max-mark-divider {
+    background: #3F3F46 !important;
+}
+body.dark-hall-mode .max-mark-label {
+    color: #94A3B8 !important;
 }
 body.dark-hall-mode .feedback-input {
     background: #18181B !important;
-    border-color: #27272A !important;
+    border: 1px solid #27272A !important;
     color: #F4F4F5 !important;
+}
+body.dark-hall-mode .feedback-input:focus {
+    background: #18181B !important;
+    border-color: #6366F1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+}
+body.dark-hall-mode .feedback-input::placeholder {
+    color: #52525B !important;
+}
+
+/* Sticky Footer */
+body.dark-hall-mode .sticky-footer {
+    background: rgba(18, 18, 21, 0.96) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border-top: 1px solid #27272A !important;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6) !important;
+}
+body.dark-hall-mode .grading-progress-badge {
+    background: #18181B !important;
+    border: 1px solid #27272A !important;
+    color: #94A3B8 !important;
+}
+body.dark-hall-mode .grading-progress-badge span,
+body.dark-hall-mode #grading-count-num {
+    color: #38BDF8 !important;
+    font-weight: 900 !important;
+}
+
+/* Modals & Toasts */
+body.dark-hall-mode .modal-overlay {
+    background: rgba(0, 0, 0, 0.75) !important;
+}
+body.dark-hall-mode .modal-content {
+    background: #121215 !important;
+    border-top: 1px solid #27272A !important;
+    color: #F8FAFC !important;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.7) !important;
+}
+body.dark-hall-mode .modal-content::before {
+    background: #3F3F46 !important;
+}
+body.dark-hall-mode #confirmModalTitle {
+    color: #F8FAFC !important;
+}
+body.dark-hall-mode #confirmModalText {
+    color: #94A3B8 !important;
+}
+body.dark-hall-mode .toast {
+    background: #18181B !important;
+    border: 1px solid #27272A !important;
+    color: #F8FAFC !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
 }
 
 /* --- NATIVE STICKY FOOTER (Submit Button) --- */
@@ -781,7 +1069,7 @@ body.dark-hall-mode .feedback-input {
     <div id="toast-container"></div>
 
     <script src="festos-core.js?v=3.5.2"></script>
-    <script src="judge.js?v=3.5.2"></script>
+    <script src="judge.js?v=4.0.0"></script>
     <script src="custom-pickers.js?v=4.0"></script>
 </body>
 </html>

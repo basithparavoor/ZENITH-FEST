@@ -386,13 +386,13 @@ function renderDashboard(data) {
         const categoryName = comp.categories?.name || 'UNCATEGORIZED';
 
         const overduePill = timeEnded ? `
-            <span style="display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.68rem; font-weight: 800; color: #B45309; background: #FEF3C7; padding: 0.2rem 0.55rem; border-radius: 6px; border: 1px solid #FDE68A;">
+            <span class="comp-card-overdue" style="display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.68rem; font-weight: 800; color: #B45309; background: #FEF3C7; padding: 0.2rem 0.55rem; border-radius: 6px; border: 1px solid #FDE68A;">
                 <i class="fa-solid fa-clock-rotate-left"></i> Overdue
             </span>
         ` : '';
 
         const schedTimeBadge = (comp.schedule && comp.schedule.time) ? `
-            <span style="font-size: 0.72rem; font-weight: 600; color: var(--text-muted); background: var(--bg-main); padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid var(--border); display: inline-flex; align-items: center; gap: 0.3rem;">
+            <span class="comp-card-time" style="font-size: 0.72rem; font-weight: 600; color: var(--text-muted); background: var(--bg-main); padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid var(--border); display: inline-flex; align-items: center; gap: 0.3rem;">
                 <i class="fa-regular fa-clock"></i> ${comp.schedule.time}${comp.schedule.to_time ? ' - ' + comp.schedule.to_time : ''}
             </span>
         ` : '';
@@ -404,21 +404,21 @@ function renderDashboard(data) {
                 <div style="flex: 1;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 0.5rem; flex-wrap: wrap;">
                         <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
-                            <span style="font-size: 0.72rem; font-weight: 800; color: var(--primary); letter-spacing: 0.04em; background: #EEF2FF; padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid rgba(99, 102, 241, 0.15);">${categoryName}</span>
+                            <span class="comp-card-category" style="font-size: 0.72rem; font-weight: 800; color: var(--primary); letter-spacing: 0.04em; background: #EEF2FF; padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid rgba(99, 102, 241, 0.15);">${categoryName}</span>
                             ${schedTimeBadge}
                         </div>
                         <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
                             ${overduePill}
-                            <span style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.72rem; font-weight: 700; color: ${badgeColor}; background: ${badgeBg}; padding: 0.25rem 0.6rem; border-radius: 6px;">
-                                <span style="display: inline-block; width: 6px; height: 6px; background: ${badgeColor}; border-radius: 50%;"></span>
+                            <span class="comp-card-status" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.72rem; font-weight: 700; color: ${badgeColor}; background: ${badgeBg}; padding: 0.25rem 0.6rem; border-radius: 6px;">
+                                <span class="status-dot" style="display: inline-block; width: 6px; height: 6px; background: ${badgeColor}; border-radius: 50%;"></span>
                                 ${statusText}
                             </span>
                         </div>
                     </div>
-                    <h3 style="margin-bottom: 0.25rem; font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; color: var(--text-main); line-height: 1.3;">${comp.name}</h3>
-                    <p style="color: var(--text-muted); font-size: 0.82rem; font-weight: 600;">
-                        MAX SCORE: <span style="color: var(--text-main); font-weight: 800;">${comp.max_mark}</span>
-                        ${comp.stages?.name ? ` &bull; <span style="color: var(--text-muted); font-weight: 700;"><i class="fa-solid fa-microphone-lines" style="font-size: 0.75rem;"></i> ${comp.stages.name}</span>` : ''}
+                    <h3 class="comp-card-title" style="margin-bottom: 0.25rem; font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; color: var(--text-main); line-height: 1.3;">${comp.name}</h3>
+                    <p class="comp-card-meta" style="color: var(--text-muted); font-size: 0.82rem; font-weight: 600;">
+                        MAX SCORE: <span class="comp-card-max-mark" style="color: var(--text-main); font-weight: 800;">${comp.max_mark}</span>
+                        ${comp.stages?.name ? ` &bull; <span class="comp-card-stage" style="color: var(--text-muted); font-weight: 700;"><i class="fa-solid fa-microphone-lines" style="font-size: 0.75rem;"></i> ${comp.stages.name}</span>` : ''}
                     </p>
                 </div>
                 <button class="btn ${isReady ? 'btn-primary' : 'btn-outline'}" ${btnState} onclick="openEvaluation('${comp.id}')" style="margin-top: 0.75rem; width: 100%; min-height: 44px; font-size: 0.85rem; border-radius: 12px;">
