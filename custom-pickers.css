@@ -144,6 +144,7 @@ select[data-festos-enhanced="true"] {
     -webkit-user-select: none;
     box-sizing: border-box;
     width: 100%;
+    max-width: 100%;
     min-height: 44px;
     outline: none;
 }
@@ -168,6 +169,7 @@ select[data-festos-enhanced="true"] {
 
 .festos-select-text {
     flex: 1;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

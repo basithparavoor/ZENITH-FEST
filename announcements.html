@@ -300,6 +300,17 @@
             display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.85rem; min-height: 40px; box-shadow: var(--shadow-sm);
         }
         .btn-logout:hover { background: var(--danger-light); border-color: rgba(239, 68, 68, 0.3); }
+        .btn-logout.btn-primary {
+            background: var(--primary) !important;
+            color: #FFFFFF !important;
+            border-color: var(--primary) !important;
+            text-decoration: none !important;
+        }
+        .btn-logout.btn-primary:hover {
+            background: var(--primary-dark, #2563EB) !important;
+            color: #FFFFFF !important;
+            border-color: var(--primary-dark, #2563EB) !important;
+        }
 
         .container { padding: 2rem 2.5rem; width: 100%; max-width: 1400px; margin: 0 auto; }
         
@@ -1081,11 +1092,24 @@
             .btn-logout i { font-size: 1.15rem; margin: 0; }
             
             /* Admin Hub specific styling (overrides btn-logout if injected) */
-            .header .btn-logout.btn-primary { 
-                background: var(--primary-light) !important; 
-                color: var(--primary) !important; 
-                border-color: rgba(59, 130, 246, 0.2) !important; 
+            .header .btn-logout.btn-primary {
+                background: var(--primary-light) !important;
+                color: var(--primary) !important;
+                border-color: rgba(59, 130, 246, 0.25) !important;
                 box-shadow: none !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                cursor: pointer !important;
+                -webkit-tap-highlight-color: transparent !important;
+                touch-action: manipulation !important;
+                z-index: 60 !important;
+                pointer-events: auto !important;
+                text-decoration: none !important;
+            }
+            .header .btn-logout.btn-primary i {
+                color: var(--primary) !important;
+                pointer-events: none !important;
             }
 
             /* --- REFINED MOBILE BOTTOM NAVBAR (iOS Pill Match) --- */
@@ -1301,6 +1325,251 @@
                 margin-right: 0 !important; 
                 font-size: 1.1rem !important; 
                 font-weight: 800 !important;
+            }
+        
+
+            /* ========================================================= */
+            /* AI STAGE ANNOUNCER PRO - NATIVE MOBILE RESPONSIVE SUITE   */
+            /* ========================================================= */
+            #view-ai-announcer {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                overflow-x: hidden !important;
+                padding: 0 !important;
+            }
+            #view-ai-announcer .ai-deck-card {
+                padding: 1.15rem 0.95rem !important;
+                border-radius: 16px !important;
+                margin-bottom: 1rem !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+            }
+            #view-ai-announcer .ai-header {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 0.85rem !important;
+                padding-bottom: 1rem !important;
+            }
+            #view-ai-announcer .ai-header > div:first-child {
+                display: flex !important;
+                align-items: center !important;
+                gap: 0.75rem !important;
+                width: 100% !important;
+            }
+            #view-ai-announcer .ai-header > div:first-child h2 {
+                font-size: 1.15rem !important;
+            }
+            #view-ai-announcer .ai-header > div:last-child {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                gap: 0.5rem !important;
+            }
+            #view-ai-announcer #tts-visualizer-canvas {
+                flex: 1 !important;
+                max-width: calc(100% - 95px) !important;
+                height: 32px !important;
+            }
+            
+            /* Top bar with human voice buttons and horizontal swipeable presets */
+            #view-ai-announcer .studio-top-bar {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 0.75rem !important;
+                padding: 0.85rem !important;
+                border-radius: 14px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+            }
+            #view-ai-announcer .studio-top-bar > div:first-child {
+                display: flex !important;
+                gap: 0.5rem !important;
+                width: 100% !important;
+            }
+            #view-ai-announcer .studio-top-bar > div:first-child button {
+                flex: 1 !important;
+                font-size: 0.76rem !important;
+                padding: 0.5rem 0.65rem !important;
+                justify-content: center !important;
+                white-space: nowrap !important;
+                min-width: 0 !important;
+            }
+            #view-ai-announcer .studio-top-bar > div:first-child button span {
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                white-space: nowrap !important;
+            }
+            #view-ai-announcer .studio-top-bar > div:last-child {
+                display: flex !important;
+                align-items: center !important;
+                gap: 0.45rem !important;
+                width: 100% !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                scrollbar-width: none !important;
+                padding: 2px 0 4px 0 !important;
+                margin: 0 !important;
+            }
+            #view-ai-announcer .studio-top-bar > div:last-child::-webkit-scrollbar {
+                display: none !important;
+            }
+            #view-ai-announcer .studio-top-bar > div:last-child span {
+                flex-shrink: 0 !important;
+                font-size: 0.72rem !important;
+            }
+            #view-ai-announcer .studio-preset-chip {
+                flex-shrink: 0 !important;
+                white-space: nowrap !important;
+                font-size: 0.76rem !important;
+                padding: 0.35rem 0.75rem !important;
+                border-radius: 999px !important;
+            }
+            
+            /* Audio Parameters Deck (Fluid Mobile Column & No Overflow) */
+            #view-ai-announcer .audio-parameters-grid {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0.95rem !important;
+                padding: 1rem 0.9rem !important;
+                border-radius: 14px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+            }
+            #view-ai-announcer .audio-parameters-grid > div {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                box-sizing: border-box !important;
+            }
+            #view-ai-announcer .tts-slider {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                margin: 6px 0 !important;
+            }
+            #view-ai-announcer .festos-custom-select-trigger {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            #view-ai-announcer .festos-select-text {
+                min-width: 0 !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                white-space: nowrap !important;
+            }
+            
+            /* Active Human Voice Banner */
+            #view-ai-announcer .voice-active-profile-card {
+                padding: 0.85rem !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 0.75rem !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            #view-ai-announcer .voice-active-profile-card > div:last-child {
+                display: flex !important;
+                gap: 0.5rem !important;
+                width: 100% !important;
+            }
+            #view-ai-announcer .voice-active-profile-card > div:last-child button {
+                flex: 1 !important;
+                justify-content: center !important;
+            }
+            
+            /* Template Selectors Container */
+            #view-ai-announcer div[style*="minmax(240px, 1fr)"] {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0.65rem !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            #view-ai-announcer div[style*="minmax(240px, 1fr)"] > div {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                box-sizing: border-box !important;
+            }
+            
+            /* Studio Tools Strip */
+            #view-ai-announcer .studio-tools-container {
+                padding: 0.75rem !important;
+                border-radius: 12px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+                gap: 0.6rem !important;
+            }
+            #view-ai-announcer .studio-tool-row {
+                flex-wrap: wrap !important;
+                gap: 0.35rem !important;
+                width: 100% !important;
+            }
+            #view-ai-announcer .studio-tool-label {
+                width: 100% !important;
+                min-width: 0 !important;
+                font-size: 0.7rem !important;
+                margin-bottom: 2px !important;
+            }
+            #view-ai-announcer .tool-pill-sound,
+            #view-ai-announcer .tool-pill-token,
+            #view-ai-announcer .tool-pill-ai {
+                font-size: 0.74rem !important;
+                padding: 0.3rem 0.55rem !important;
+                border-radius: 6px !important;
+            }
+            
+            /* Main Speech Textarea */
+            #view-ai-announcer .studio-textarea {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                font-size: 15px !important;
+            }
+            
+            /* Action Buttons (Broadcast Hero) */
+            #view-ai-announcer .broadcast-action-bar {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0.65rem !important;
+                width: 100% !important;
+                margin-top: 1rem !important;
+            }
+            #view-ai-announcer .broadcast-btn-hero {
+                width: 100% !important;
+                height: 48px !important;
+                min-height: 48px !important;
+                font-size: 0.95rem !important;
+            }
+            #view-ai-announcer .queue-btn-hero,
+            #view-ai-announcer .stop-btn-hero {
+                width: 100% !important;
+                height: 44px !important;
+                min-height: 44px !important;
+                font-size: 0.9rem !important;
+            }
+            
+            /* Playlist Queue & Broadcast History Grid */
+            #view-ai-announcer div[style*="minmax(320px, 1fr)"] {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 1rem !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
             }
         }
     
@@ -1528,6 +1797,7 @@
                 <h1 id="announcer-page-title" data-no-auto-brand="true" style="margin: 0;">Announcer Portal</h1>
             </div>
             <div style="display: flex; gap: 0.75rem; align-items: center;">
+                <a id="btn-admin-hub" href="admin.html" class="btn-logout btn-primary" title="Return to Admin Hub" style="display: none; text-decoration: none; cursor: pointer;"><i class="fa-solid fa-shield-halved"></i> <span class="logout-text">Admin Hub</span></a>
                 <button class="btn-logout" onclick="logout()" title="Sign Out">
                     <i class="fa-solid fa-right-from-bracket"></i> <span class="logout-text">Sign Out</span>
                 </button>
@@ -2028,23 +2298,44 @@
         }
 
         // --- INJECT ADMIN HUB RETURN BUTTON ---
-        if (user && (user.role === 'master_admin' || user.role === 'admin' || user.role === 'super_admin')) {
-            document.addEventListener("DOMContentLoaded", () => {
-                const headerRight = document.querySelector('.header > div:last-child');
-                
-                if (headerRight) {
-                    const returnBtn = document.createElement('button');
-                    returnBtn.innerHTML = '<i class="fa-solid fa-shield-halved"></i> <span class="logout-text">Admin Hub</span>';
-                    // Added btn-primary class so the mobile CSS specifically targets it for the blue styling
-                    returnBtn.className = 'btn-logout btn-primary'; 
-                    returnBtn.style.color = 'white';
-                    returnBtn.style.background = 'var(--primary)';
-                    returnBtn.style.borderColor = 'var(--primary)';
-                    returnBtn.onclick = () => window.location.href = 'admin.html';
-                    
-                    headerRight.insertBefore(returnBtn, headerRight.firstChild);
+        function setupAdminHubBtn() {
+            const currentUser = (typeof festosAuth !== 'undefined' && festosAuth.getUser)
+                ? (festosAuth.getUser() || festosAuth.getSuperAdmin())
+                : JSON.parse(localStorage.getItem('festUser') || localStorage.getItem('festSuperAdmin') || 'null');
+            
+            if (currentUser && (currentUser.role === 'master_admin' || currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
+                const returnLink = document.getElementById('btn-admin-hub');
+                if (returnLink) {
+                    returnLink.style.display = 'inline-flex';
+                    returnLink.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.location.assign('admin.html');
+                    };
+                } else {
+                    const headerRight = document.querySelector('.header > div:last-child');
+                    if (headerRight) {
+                        const returnBtn = document.createElement('a');
+                        returnBtn.id = 'btn-admin-hub';
+                        returnBtn.href = 'admin.html';
+                        returnBtn.innerHTML = '<i class="fa-solid fa-shield-halved"></i> <span class="logout-text">Admin Hub</span>';
+                        returnBtn.className = 'btn-logout btn-primary';
+                        returnBtn.title = 'Return to Admin Hub';
+                        returnBtn.style.textDecoration = 'none';
+                        returnBtn.onclick = (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.location.assign('admin.html');
+                        };
+                        headerRight.insertBefore(returnBtn, headerRight.firstChild);
+                    }
                 }
-            });
+            }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener("DOMContentLoaded", setupAdminHubBtn);
+        } else {
+            setupAdminHubBtn();
         }
         
         // --- MODAL & AUTH UTILITIES ---
