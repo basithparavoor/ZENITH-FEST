@@ -46,8 +46,16 @@ let modalAssignedIds = [];
 function switchTab(tabId) {
     document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-    document.getElementById(tabId).classList.add('active');
-    event.currentTarget.classList.add('active');
+    const targetSec = document.getElementById(tabId);
+    if (targetSec) targetSec.classList.add('active');
+
+    // Highlight matching nav item in sidebar / mobile bottom bar
+    const targetNav = document.querySelector(`.nav-item[onclick*="'${tabId}'"]`);
+    if (targetNav) {
+        targetNav.classList.add('active');
+    } else if (window.event && window.event.currentTarget && window.event.currentTarget.classList && window.event.currentTarget.classList.contains('nav-item')) {
+        window.event.currentTarget.classList.add('active');
+    }
 
     if (tabId === 'assignments') loadAssignments();
     if (tabId === 'valuation') loadValuations();
@@ -317,9 +325,9 @@ function renderGrid(competitions) {
             const timeObj = new Date(`${comp.schedule.date}T${comp.schedule.time}`);
             const timeStr = isNaN(timeObj) ? (comp.schedule.time || '') : timeObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             const toStr = comp.schedule.to_time ? ` - ${comp.schedule.to_time}` : '';
-            schedBadge = `<div class="card-meta" style="color: var(--primary); font-weight: 700; margin-bottom: 0.65rem;"><i class="ph ph-clock"></i> ${comp.schedule.date} @ ${timeStr}${toStr}</div>`;
+            schedBadge = `<span class="card-meta-chip card-meta-time" style="color: var(--primary); font-weight: 700; background: var(--primary-light);"><i class="ph ph-clock"></i> ${comp.schedule.date} @ ${timeStr}${toStr}</span>`;
         } else {
-            schedBadge = `<div class="card-meta" style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.65rem;"><i class="ph ph-clock"></i> Unscheduled</div>`;
+            schedBadge = `<span class="card-meta-chip" style="color: var(--text-muted);"><i class="ph ph-clock"></i> Unscheduled</span>`;
         }
 
         // Time Ended / Overdue Check
@@ -327,23 +335,20 @@ function renderGrid(competitions) {
         let noticeBanner = '';
         if (comp.status === 'judgement_complete') {
             noticeBanner = `
-                <div style="background: #F5F3FF; border: 1.5px solid #DDD6FE; border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #6D28D9; font-size: 0.82rem; font-weight: 700;">
-                        <i class="ph-fill ph-check-circle" style="font-size: 1.15rem; color: #7C3AED;"></i>
-                        <span>Competition Completed &bull; Judgement Complete</span>
-                    </div>
-                    <span style="font-size: 0.72rem; color: #7C3AED; background: #EDE9FE; padding: 2px 7px; border-radius: 4px; font-weight: 800;">COMPLETED</span>
+                <div style="background: #F5F3FF; border: 1px solid #DDD6FE; border-radius: 8px; padding: 0.45rem 0.75rem; margin-bottom: 0.65rem; display: flex; align-items: center; gap: 0.45rem; color: #6D28D9; font-size: 0.8rem; font-weight: 600;">
+                    <i class="ph-fill ph-check-circle" style="font-size: 1.05rem; color: #7C3AED; flex-shrink: 0;"></i>
+                    <span>Competition Completed &bull; Judgement Complete</span>
                 </div>
             `;
         } else if (timeEnded) {
             noticeBanner = `
-                <div style="background: #FFFBEB; border: 1.5px solid #FDE68A; border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #B45309; font-size: 0.82rem; font-weight: 700;">
-                        <i class="ph-fill ph-clock-countdown" style="font-size: 1.15rem; color: #D97706;"></i>
-                        <span>Scheduled Time Elapsed</span>
+                <div style="background: #FFFBEB; border: 1.5px solid #FDE68A; border-radius: 8px; padding: 0.5rem 0.75rem; margin-bottom: 0.65rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 0.45rem; color: #B45309; font-size: 0.8rem; font-weight: 700;">
+                        <i class="ph-fill ph-clock-countdown" style="font-size: 1.05rem; color: #D97706;"></i>
+                        <span>Time Elapsed</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 0.4rem;">
-                        <span style="font-size: 0.72rem; color: #B45309; background: #FEF3C7; padding: 2px 7px; border-radius: 4px; font-weight: 800;">OVERDUE</span>
+                        <span style="font-size: 0.7rem; color: #B45309; background: #FEF3C7; padding: 2px 6px; border-radius: 4px; font-weight: 800;">OVERDUE</span>
                         <button class="btn btn-sm btn-danger" style="padding: 2px 8px; font-size: 0.72rem; font-weight: 800;" onclick="managerDirectComplete('${comp.id}', this)" title="Stage Controller didn't click End. Force end and push to Manager Queue">
                             <i class="ph-bold ph-stop-circle"></i> End Event
                         </button>
@@ -428,31 +433,31 @@ function renderGrid(competitions) {
             <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
                 <div>
                     <div class="card-header">
-                        <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
-                            <input type="checkbox" class="comp-checkbox" value="${comp.id}" onchange="toggleBulkActions()" style="width: 18px; height: 18px; cursor: pointer; margin-top: 3px;">
+                        <div style="display: flex; gap: 0.75rem; align-items: flex-start; min-width: 0;">
+                            <input type="checkbox" class="comp-checkbox" value="${comp.id}" onchange="toggleBulkActions()" style="width: 18px; height: 18px; cursor: pointer; margin-top: 3px; flex-shrink: 0;">
                             <div class="card-title">${comp.name}</div>
                         </div>
-                        <span class="badge ${badgeClass}" style="${badgeStyle}">${badgeLabel}</span>
+                        <span class="badge ${badgeClass}" style="${badgeStyle}; flex-shrink: 0;">${badgeLabel}</span>
                     </div>
                     
-                    <div class="card-meta" style="margin-bottom: 0.25rem;"><i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}</div>
-                    <div class="card-meta" style="margin-bottom: 0.35rem;"><i class="ph ph-microphone-stage"></i> ${compStage}</div>
-                    ${schedBadge}
+                    <div class="card-meta-chips" style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.65rem;">
+                        <span class="card-meta-chip" style="color: var(--primary); background: var(--primary-light);"><i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}</span>
+                        <span class="card-meta-chip" style="color: #7C3AED; background: #F5F3FF;"><i class="ph ph-microphone-stage"></i> ${compStage}</span>
+                        ${schedBadge}
+                    </div>
                     ${noticeBanner}
                     
-                    <div class="assigned-judges" style="margin-bottom: 1rem;">
-                        <strong>Assigned Judges:</strong><br>
+                    <div class="assigned-judges" style="margin-bottom: 0.85rem;">
+                        <strong style="color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em;">Assigned Judges:</strong>
                         ${assignedJudgesHTML}
                     </div>
                     
                     <div class="judge-assign-box">
                         <div class="judge-select-wrapper">
-                            <i class="ph ph-scales judge-select-icon"></i>
                             <select id="judge-select-${comp.id}" class="judge-assign-select" onchange="onJudgeSelectChange(this)">
                                 <option value="">Select a Judge to Assign...</option>
                                 ${compJudgeOptions}
                             </select>
-                            <i class="ph ph-caret-down judge-select-arrow"></i>
                         </div>
                         <button class="judge-assign-btn" onclick="assignJudge('${comp.id}', this)">
                             <i class="ph-bold ph-user-plus"></i> Assign Judge
@@ -1096,12 +1101,17 @@ function filterPendingPublish() {
                     <div class="card-title">${comp.name}</div>
                     <span class="badge badge-ready">Ready</span>
                 </div>
-                <div class="card-meta" style="margin-bottom: 1.5rem;"><i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}</div>
-                <div style="display: flex; gap: 0.5rem; width: 100%; flex-wrap: wrap;">
-                    <button class="btn btn-outline" style="flex: 1; min-width: 100px;" onclick="previewConvertedPoints('${comp.id}', ${comp.max_mark || 100}, ${comp.categories?.is_general || false})"><i class="ph ph-eye"></i> Preview</button>
-                    <button class="btn btn-outline" style="flex: 1; min-width: 100px; color: var(--primary); border-color: var(--primary);" onclick="openEditPointsModal('${comp.id}')"><i class="ph ph-pencil-simple"></i> Edit</button>
-                    <button class="btn btn-outline" style="flex: 1; min-width: 100px;" onclick="redoJudgement('${comp.id}', this)"><i class="ph ph-arrow-u-up-left"></i> Redo</button>
-                    <button class="btn btn-success" style="flex: 2; min-width: 140px;" onclick="publishCompetition('${comp.id}', this)"><i class="ph ph-megaphone-simple"></i> Publish</button>
+                <div class="card-meta-chips" style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.85rem;">
+                    <span class="card-meta-chip" style="color: var(--primary); background: var(--primary-light);"><i class="ph ph-folders"></i> ${comp.categories?.name || 'Uncategorized'}</span>
+                    ${comp.stages?.name ? `<span class="card-meta-chip" style="color: #7C3AED; background: #F5F3FF;"><i class="ph ph-microphone-stage"></i> ${comp.stages.name}</span>` : ''}
+                </div>
+                <div class="card-publish-actions" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
+                    <div class="publish-card-secondary-actions" style="display: flex; gap: 0.4rem; width: 100%;">
+                        <button class="btn btn-outline" style="flex: 1;" onclick="previewConvertedPoints('${comp.id}', ${comp.max_mark || 100}, ${comp.categories?.is_general || false})"><i class="ph ph-eye"></i> Preview</button>
+                        <button class="btn btn-outline" style="flex: 1; color: var(--primary); border-color: var(--primary);" onclick="openEditPointsModal('${comp.id}')"><i class="ph ph-pencil-simple"></i> Edit</button>
+                        <button class="btn btn-outline" style="flex: 1;" onclick="redoJudgement('${comp.id}', this)"><i class="ph ph-arrow-u-up-left"></i> Redo</button>
+                    </div>
+                    <button class="btn btn-success publish-card-main-action" style="width: 100%; font-weight: 700;" onclick="publishCompetition('${comp.id}', this)"><i class="ph-bold ph-megaphone-simple"></i> Publish Result</button>
                 </div>
             </div>
         `;
@@ -2169,7 +2179,7 @@ async function updateValuationBadgeCount() {
         if (badge) {
             const num = offstageValComps.length;
             if (num > 0) {
-                badge.style.display = 'inline-block';
+                badge.style.display = 'inline-flex';
                 badge.innerText = num;
             } else {
                 badge.style.display = 'none';
@@ -2277,22 +2287,20 @@ function filterValuations() {
         let judgeSectionHtml = '';
         if (!hasJudges) {
             judgeSectionHtml = `
-                <div style="background: #FEF2F2; border: 1.5px dashed #F87171; border-radius: 12px; padding: 1rem; margin-top: 1rem;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #DC2626; font-weight: 800; font-size: 0.88rem; margin-bottom: 0.35rem;">
-                        <i class="ph-bold ph-warning-octagon" style="font-size: 1.25rem;"></i>
-                        <span>JUDGE NOT ASSIGNED</span>
+                <div style="background: #FEF2F2; border: 1.5px dashed #F87171; border-radius: 12px; padding: 0.85rem; margin-top: 0.85rem;">
+                    <div style="display: flex; align-items: center; gap: 0.45rem; color: #DC2626; font-weight: 800; font-size: 0.82rem; margin-bottom: 0.35rem;">
+                        <i class="ph-bold ph-warning-octagon" style="font-size: 1.15rem; flex-shrink: 0;"></i>
+                        <span>JUDGE NOT ASSIGNED &bull; Action Required</span>
                     </div>
-                    <p style="color: #991B1B; font-size: 0.85rem; margin: 0 0 0.85rem 0; line-height: 1.4; font-weight: 500;">
-                        This offstage event has ended and is in valuation. <strong>Please assign a judge to valuate this competition and award marks.</strong>
+                    <p style="color: #991B1B; font-size: 0.78rem; margin: 0 0 0.65rem 0; line-height: 1.35; font-weight: 500;">
+                        Assign a judge to valuate this competition and award marks.
                     </p>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                         <div class="judge-select-wrapper" style="flex: 1; min-width: 180px;">
-                            <i class="ph ph-scales judge-select-icon"></i>
                             <select id="val-judge-select-${comp.id}" class="judge-assign-select" style="min-height: 42px; height: 42px;">
                                 <option value="">-- Choose Judge to Valuate --</option>
                                 ${compValJudgeOptions}
                             </select>
-                            <i class="ph ph-caret-down judge-select-arrow"></i>
                         </div>
                         <button class="btn btn-primary" onclick="assignJudgeForValuation('${comp.id}', this)" style="min-height: 42px; height: 42px; white-space: nowrap; font-weight: 700; padding: 0 1.25rem;">
                             <i class="ph-bold ph-scales"></i> Assign Judge
@@ -2311,22 +2319,20 @@ function filterValuations() {
             `).join('');
 
             judgeSectionHtml = `
-                <div style="background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 1rem; margin-top: 1rem;">
+                <div style="background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 0.85rem; margin-top: 0.85rem;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
-                        <span style="font-weight: 700; font-size: 0.85rem; color: #166534;"><i class="ph-bold ph-scales"></i> Assigned Valuating Judge(s):</span>
-                        <span style="font-size: 0.75rem; background: #DCFCE7; color: #15803D; font-weight: 700; padding: 3px 10px; border-radius: 50px; border: 1px solid #86EFAC;">Awaiting Marks in Judge Portal</span>
+                        <span style="font-weight: 700; font-size: 0.82rem; color: #166534;"><i class="ph-bold ph-scales"></i> Assigned Valuating Judge(s):</span>
+                        <span style="font-size: 0.72rem; background: #DCFCE7; color: #15803D; font-weight: 700; padding: 2px 8px; border-radius: 50px; border: 1px solid #86EFAC;">Awaiting Marks</span>
                     </div>
-                    <div class="judge-tags-container" style="margin-bottom: 0.75rem;">
+                    <div class="judge-tags-container" style="margin-bottom: 0.65rem; margin-top: 0.35rem;">
                         ${judgeTags}
                     </div>
-                    <div style="display: flex; gap: 0.5rem; border-top: 1px dashed #86EFAC; padding-top: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; gap: 0.5rem; border-top: 1px dashed #86EFAC; padding-top: 0.65rem; align-items: center; flex-wrap: wrap;">
                         <div class="judge-select-wrapper" style="flex: 1; min-width: 180px;">
-                            <i class="ph ph-scales judge-select-icon"></i>
                             <select id="val-judge-select-${comp.id}" class="judge-assign-select" style="min-height: 38px; height: 38px; font-size: 0.85rem;">
                                 <option value="">Assign Additional Judge...</option>
                                 ${compValJudgeOptions}
                             </select>
-                            <i class="ph ph-caret-down judge-select-arrow"></i>
                         </div>
                         <button class="btn btn-outline" onclick="assignJudgeForValuation('${comp.id}', this)" style="min-height: 38px; height: 38px; padding: 0 1rem; font-size: 0.85rem; white-space: nowrap; font-weight: 600;">
                             <i class="ph ph-plus"></i> Add

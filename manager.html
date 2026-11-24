@@ -384,19 +384,9 @@
             align-items: center;
         }
 
-        .judge-select-icon {
-            position: absolute;
-            left: 0.95rem;
-            color: #64748B;
-            font-size: 1.15rem;
-            pointer-events: none;
-            z-index: 2;
-            transition: color 0.2s ease;
-        }
+        .judge-select-icon { display: none !important; }
 
-        .judge-select-wrapper:focus-within .judge-select-icon {
-            color: var(--primary);
-        }
+        .judge-select-wrapper:focus-within .judge-select-icon { display: none !important; }
 
         .judge-assign-select {
             width: 100%;
@@ -436,20 +426,9 @@
             color: var(--primary) !important;
         }
 
-        .judge-select-arrow {
-            position: absolute;
-            right: 0.95rem;
-            color: #64748B;
-            font-size: 1rem;
-            pointer-events: none;
-            z-index: 2;
-            transition: transform 0.2s ease, color 0.2s ease;
-        }
+        .judge-select-arrow { display: none !important; }
 
-        .judge-select-wrapper:focus-within .judge-select-arrow {
-            color: var(--primary);
-            transform: rotate(180deg);
-        }
+        .judge-select-wrapper:focus-within .judge-select-arrow { display: none !important; }
 
         .judge-assign-btn {
             width: 100% !important;
@@ -521,366 +500,30 @@
 
 
 
-/* ========================================================================
-           CSS-ONLY NATIVE MOBILE APP SHELL & RESPONSIVE COMPONENT SYSTEM
-           ======================================================================== */
-        @media (max-width: 768px) {
-            body { 
-                flex-direction: column; 
-                background-color: #F8FAFC; 
-                height: 100%;
-                height: 100vh;
-                height: 100dvh;
-                overflow: hidden;
-            }
-            .sidebar-toggle-btn { display: none !important; }
-            
-            /* Native Sticky Top Header */
-            .header { 
-                padding: 1.25rem; 
-                background: var(--bg-surface); 
-                border-bottom: 1px solid var(--border);
-                z-index: 50; 
-                flex-wrap: nowrap;
-            }
-            .header h1 { font-size: 1.35rem; }
-            .header > div { display: flex; gap: 0.75rem; }
-            
-            /* Icon Buttons in Mobile Header */
-            .header .btn { 
-                padding: 0; 
-                width: 44px; 
-                height: 44px; 
-                border-radius: 50%; 
-                background: var(--bg-surface); 
-                border: 1px solid var(--border); 
-                box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
-                display: inline-flex; 
-                justify-content: center; 
-                align-items: center; 
-                color: var(--text-main);
-            }
-            .header .btn span { display: none; }
-            .header .btn i { font-size: 1.3rem; margin: 0; }
-            
-            /* Special styling for the Admin Hub button on mobile */
-            .header .btn.btn-primary { 
-                background: var(--primary-light); 
-                color: var(--primary); 
-                border-color: rgba(59, 130, 246, 0.2); 
-                box-shadow: none;
-            }
-            .header .btn.btn-primary i { color: var(--primary); }
-
-            /* --- REFINED MOBILE BOTTOM NAVBAR (iOS Pill Match) --- */
-            .sidebar { 
-                position: fixed; 
-                bottom: 0; 
-                left: 0; 
-                right: 0; 
-                width: 100%;
-                height: calc(65px + env(safe-area-inset-bottom)) !important;
-                flex-direction: row; 
-                align-items: center; 
-                justify-content: center;
-                padding: 0.25rem 0.5rem calc(0.25rem + env(safe-area-inset-bottom)) 0.5rem !important; 
-                background: rgba(255, 255, 255, 0.98); 
-                backdrop-filter: blur(20px); 
-                -webkit-backdrop-filter: blur(20px);
-                border-top: 1px solid var(--border); 
-                box-shadow: 0 -10px 30px rgba(0,0,0,0.03); 
-                z-index: 100;
-            }
-            
-            .sidebar .brand { display: none !important; } 
-            
-            .nav-items { 
-                flex-direction: row; 
-                gap: 0; 
-                width: 100%; 
-                justify-content: space-around; 
-                align-items: center; 
-                height: 100%;
-            }
-
-            .nav-item { 
-                flex-direction: column; 
-                gap: 2px; 
-                padding: 0.25rem 0; 
-                height: 100%; 
-                flex: 1;
-                font-size: 0.65rem; 
-                text-align: center; 
-                border-radius: 0;
-                justify-content: center; 
-                align-items: center; 
-                margin: 0; 
-                font-weight: 600;
-                background: transparent !important; 
-                border: none !important; 
-                box-shadow: none !important;
-                color: #64748B; 
-                transition: color 0.2s ease;
-            }
-            
-            /* Icon Pill Wrapper */
-            .nav-item i { 
-                width: 48px; 
-                height: 26px; 
-                display: flex; 
-                align-items: center; 
-                justify-content: center;
-                font-size: 1.25rem; 
-                color: #64748B; 
-                margin: 0; 
-                padding: 0;
-                border-radius: 16px; 
-                transition: all 0.2s ease; 
-                background: transparent;
-            }
-            
-            .nav-item.active { 
-                color: var(--primary) !important; 
-                font-weight: 700; 
-            }
-            .nav-item.active i { 
-                background: var(--primary-light); 
-                color: var(--primary); 
-                transform: scale(1.05); 
-            }
-
-            /* --- JUDGE MANAGEMENT MOBILE CARDS --- */
-            #judges .table-container { 
-                border: none !important; 
-                background: transparent !important; 
-                box-shadow: none !important; 
-                overflow: hidden !important; 
-            }
-            
-            /* CRITICAL FIX: Removes the 600px minimum */
-            #judges table { min-width: 0 !important; display: block; width: 100%; }
-            #judges thead, #judges tbody, #judges th, #judges td, #judges tr { display: block; width: 100%; }
-            #judges thead { display: none; } 
-            
-            #judges tr {
-                background: var(--bg-surface); 
-                border-radius: var(--radius-xl); 
-                padding: 1.25rem;
-                margin-bottom: 1rem; 
-                border: 1px solid var(--border); 
-                box-shadow: 0 4px 6px rgba(0,0,0,0.02);
-                display: flex; 
-                flex-direction: column; 
-                gap: 0.5rem;
-            }
-            
-            #judges td { 
-                padding: 0 !important; 
-                border: none !important; 
-                display: flex; 
-                align-items: center; 
-                justify-content: space-between; 
-            }
-            
-            #judges td:nth-child(1) { 
-                font-size: 1.15rem; 
-                color: var(--text-main); 
-                font-weight: 700; 
-                justify-content: flex-start; 
-            }
-            #judges td:nth-child(2) { 
-                justify-content: flex-start; 
-                margin-bottom: 0.5rem; 
-            }
-            
-            /* Action Buttons Container Formatting */
-            #judges td:last-child { 
-                padding-top: 1rem !important; 
-                margin-top: 0.25rem; 
-                border-top: 1px dashed var(--border) !important; 
-                justify-content: flex-start; 
-            }
-            
-            /* Force exactly 5 buttons into a perfect grid row with no wrapping */
-            #judges td:last-child > div { 
-                display: grid !important; 
-                grid-template-columns: repeat(5, 1fr) !important; 
-                gap: 0.4rem !important; 
-                width: 100%; 
-            }
-            
-            #judges td:last-child .btn-icon { 
-                width: 100% !important; 
-                min-width: 0 !important; 
-                height: 44px; 
-                border-radius: 12px; 
-                font-size: 1.25rem; 
-                display: flex; 
-                align-items: center; 
-                justify-content: center;
-                padding: 0;
-            }
-
-            /* --- JUDGE SCHEDULE MODAL RESPONSIVENESS --- */
-            #judgeDetailsModal .modal-content > div:nth-child(2) {
-                border: none !important;
-                background: transparent !important;
-            }
-            #judgeDetailsModal table { min-width: 0 !important; display: block; width: 100%; }
-            #judgeDetailsModal thead { display: none; }
-            #judgeDetailsModal tbody { display: flex; flex-direction: column; gap: 0.75rem; }
-            
-            #judgeDetailsModal tr {
-                display: flex; flex-direction: column; gap: 0.5rem;
-                background: var(--bg-surface); border: 1px solid var(--border);
-                border-radius: var(--radius-md); padding: 1rem;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            }
-            
-            #judgeDetailsModal td { 
-                display: flex; justify-content: space-between; align-items: center; 
-                padding: 0 !important; border: none !important; width: 100%; text-align: right;
-            }
-            
-            /* CSS Pseudo-Labels for Modal Cards */
-            #judgeDetailsModal td::before {
-                font-weight: 600; color: var(--text-muted); font-size: 0.75rem;
-                text-transform: uppercase; letter-spacing: 0.03em;
-            }
-            #judgeDetailsModal td:nth-child(1)::before { content: "Date & Time"; }
-            #judgeDetailsModal td:nth-child(2)::before { content: "Competition"; }
-            #judgeDetailsModal td:nth-child(3)::before { content: "Category"; }
-            #judgeDetailsModal td:nth-child(4)::before { content: "Stage"; }
-            
-            #judgeDetailsModal td > * { flex: 1; text-align: right; justify-content: flex-end; }
-
-
-            /* Main Content Adjustments */
-            .main-content { 
-                width: 100% !important; 
-                min-width: 100% !important; 
-                max-width: 100vw !important; 
-                height: 100% !important;
-                min-height: 0 !important;
-                flex: 1 1 auto !important; 
-                overflow-y: auto !important;
-                overflow-x: hidden !important;
-                -webkit-overflow-scrolling: touch !important;
-                padding-bottom: calc(90px + env(safe-area-inset-bottom)) !important; 
-            }
-            .content-section { padding: 1.25rem; }
-            
-            /* Fix Top Section Header */
-            .section-header { flex-direction: column !important; align-items: flex-start !important; gap: 1rem !important; }
-            .section-header > div { width: 100%; }
-            .section-header h2 { font-size: 1.5rem; margin-bottom: 0.5rem; }
-            .section-header p { font-size: 0.95rem; line-height: 1.4; }
-
-            /* --- FIX PUBLISH TAB HEADER MOBILE LAYOUT --- */
-            #publish .section-header > div:last-child {
-                flex-direction: column !important;
-                align-items: stretch !important;
-                gap: 0.75rem !important;
-            }
-            
-            #live-published-count {
-                width: 100% !important;
-                text-align: center !important;
-                box-sizing: border-box !important;
-                justify-content: center !important;
-                display: flex !important;
-                min-height: 48px !important;
-                align-items: center !important;
-            }
-            
-            /* Toolbar Stacking */
-            .toolbar { 
-                flex-direction: column; 
-                align-items: stretch; 
-                padding: 1.25rem; 
-                border-radius: var(--radius-lg); 
-                gap: 1rem; 
-                background: var(--bg-surface); 
-            }
-            .toolbar-group { 
-                flex-direction: column; 
-                align-items: stretch; 
-                width: 100%; 
-                gap: 1rem; 
-            }
-            
-            /* Exact Button Stacking */
-            .toolbar-actions { 
-                display: grid; 
-                grid-template-columns: 1fr 1fr; 
-                gap: 0.75rem; 
-                width: 100%; 
-            }
-            
-            /* Make Refresh full width ONLY on other tabs, keep Judges buttons side-by-side */
-            .content-section:not(#judges) .toolbar-actions button:nth-child(1) { grid-column: span 2; }
-            #judges .toolbar-actions button:nth-child(1) { grid-column: 1; }
-            
-            .toolbar-actions .btn { width: 100%; min-height: 48px; }
-            
-            /* Inputs Full Bleed & Less Bulky */
-            .search-wrapper, 
-            .search-wrapper input, 
-            .control-input { 
-                width: 100%; 
-                min-height: 48px; 
-                font-size: 16px !important; /* Prevent iOS zoom */
-                border-radius: var(--radius-md) !important; 
-                border-width: 1px !important;
-                background-color: var(--bg-surface);
-            }
-            
-            /* Cards Full Bleed */
-            .card-grid { grid-template-columns: 1fr; gap: 1.25rem; }
-            .card { 
-                padding: 1.5rem; 
-                border-radius: var(--radius-xl); 
-                box-shadow: 0 2px 8px rgba(0,0,0,0.03); 
-            }
-            
-            .form-group .btn { min-height: 48px; }
-            .judge-assign-btn, .judge-assign-select { min-height: 46px !important; height: 46px !important; }
-            
-            /* Publish tab extra buttons fix */
-            [id="publish-grid"] .card > div:last-child { flex-direction: column; gap: 0.75rem !important; }
-            [id="publish-grid"] .btn { width: 100%; min-height: 48px; }
-            
-            /* Mobile Toasts (Above Bottom Nav) */
-            #toast-container { 
-                bottom: calc(95px + env(safe-area-inset-bottom)); 
-                right: 1rem; 
-                left: 1rem; 
-                align-items: stretch; 
-                width: auto; 
-            }
-            .toast { width: 100%; box-sizing: border-box; justify-content: flex-start; }
-            
-            /* Mobile Modals (Bottom Sheet Pattern) */
-            .modal-overlay { align-items: flex-end; padding: 0; }
-            .modal-content { 
-                padding: 2rem 1.5rem calc(2rem + env(safe-area-inset-bottom)) 1.5rem; 
-                border-radius: 28px 28px 0 0; 
-                transform: translateY(100%); 
-                border-bottom: none;
-            }
-            .modal-overlay.active .modal-content { transform: translateY(0); }
-            
-            /* Native modal drag handle */
-            .modal-content::before {
-                content: ''; 
-                display: block; 
-                width: 40px; 
-                height: 5px; 
-                background: var(--border); 
-                border-radius: 10px; 
-                margin: 0 auto 2rem auto;
-            }
+        /* --- CARD META CHIPS --- */
+        .card-meta-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            align-items: center;
+            margin-bottom: 0.75rem;
         }
+        .card-meta-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+        }
+        .card-meta-chip i {
+            font-size: 0.95rem;
+        }
+
+        /* Responsive Nav Labels */
+        .short-label { display: none; }
+        .full-label { display: inline; }
 
         /* --- DESKTOP MODALS (Admin Matched) --- */
         .modal-overlay {
@@ -992,9 +635,505 @@
             box-shadow: 0 0 0 3px var(--primary-ring);
         }
 
+        /* ========================================================================
+           CSS-ONLY NATIVE MOBILE APP SHELL & RESPONSIVE COMPONENT SYSTEM
+           ======================================================================== */
+        @media (max-width: 768px) {
+            body { 
+                flex-direction: column; 
+                background-color: #F8FAFC; 
+                height: 100%;
+                height: 100vh;
+                height: 100dvh;
+                overflow: hidden;
+            }
+            .sidebar-toggle-btn { display: none !important; }
+            
+            /* Native Sticky Top Header (Single-line, ultra crisp) */
+            .header { 
+                padding: 0.65rem 0.9rem !important; 
+                min-height: 54px !important;
+                background: rgba(255, 255, 255, 0.98) !important; 
+                backdrop-filter: blur(16px) !important;
+                -webkit-backdrop-filter: blur(16px) !important;
+                border-bottom: 1px solid var(--border) !important;
+                z-index: 50 !important; 
+                position: sticky !important;
+                top: 0 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                gap: 0.5rem !important;
+            }
+            .header .header-left {
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+                overflow: hidden !important;
+            }
+            .header h1, #manager-page-title { 
+                font-size: 1.12rem !important; 
+                font-weight: 800 !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                letter-spacing: -0.02em !important;
+                margin: 0 !important;
+                line-height: 1.2 !important;
+            }
+            .header-actions { 
+                display: flex !important; 
+                gap: 0.45rem !important; 
+                align-items: center !important;
+                flex-shrink: 0 !important;
+            }
+            
+            /* Icon Buttons in Mobile Header */
+            .header-actions .btn { 
+                padding: 0 !important; 
+                width: 36px !important; 
+                height: 36px !important; 
+                min-height: 36px !important;
+                min-width: 36px !important;
+                margin: 0 !important;
+                border-radius: 50% !important; 
+                background: var(--bg-surface) !important; 
+                border: 1px solid var(--border) !important; 
+                box-shadow: 0 1px 3px rgba(0,0,0,0.03) !important; 
+                display: inline-flex !important; 
+                justify-content: center !important; 
+                align-items: center !important; 
+                color: var(--text-main) !important;
+            }
+            .header-actions .btn span { display: none !important; }
+            .header-actions .btn i { font-size: 1.15rem !important; margin: 0 !important; }
+            
+            /* Special styling for Admin Hub button on mobile */
+            .header-actions .btn.btn-primary { 
+                background: var(--primary-light) !important; 
+                color: var(--primary) !important; 
+                border-color: rgba(59, 130, 246, 0.25) !important; 
+                box-shadow: none !important;
+            }
+            .header-actions .btn.btn-primary i { color: var(--primary) !important; }
 
+            /* --- REFINED MOBILE BOTTOM NAVBAR --- */
+            .sidebar { 
+                position: fixed !important; 
+                bottom: 0 !important; 
+                left: 0 !important; 
+                right: 0 !important; 
+                width: 100% !important;
+                min-width: 100% !important;
+                max-width: 100% !important;
+                height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+                min-height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+                flex-direction: row !important; 
+                align-items: center !important; 
+                justify-content: center !important;
+                padding: 0.25rem 0.25rem calc(0.25rem + env(safe-area-inset-bottom, 0px)) 0.25rem !important; 
+                background: rgba(255, 255, 255, 0.98) !important; 
+                backdrop-filter: blur(20px) !important; 
+                -webkit-backdrop-filter: blur(20px) !important;
+                border-top: 1px solid var(--border) !important; 
+                box-shadow: 0 -4px 20px rgba(0,0,0,0.04) !important; 
+                z-index: 100 !important;
+                overflow: visible !important;
+            }
+            
+            .sidebar .brand { display: none !important; } 
+            
+            .nav-items { 
+                display: flex !important;
+                flex-direction: row !important; 
+                gap: 0 !important; 
+                width: 100% !important; 
+                justify-content: space-around !important; 
+                align-items: center !important; 
+                height: 100% !important;
+            }
 
+            .nav-item { 
+                flex-direction: column !important; 
+                gap: 2px !important; 
+                padding: 0.25rem 0 !important; 
+                height: 100% !important; 
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
+                font-size: 0.68rem !important; 
+                text-align: center !important; 
+                border-radius: 0 !important;
+                justify-content: center !important; 
+                align-items: center !important; 
+                margin: 0 !important; 
+                font-weight: 600 !important;
+                background: transparent !important; 
+                border: none !important; 
+                box-shadow: none !important;
+                color: #64748B !important; 
+                position: relative !important;
+                transition: color 0.15s ease !important;
+                cursor: pointer !important;
+            }
+            
+            /* Icon Pill Wrapper */
+            .nav-item i { 
+                width: 44px !important; 
+                height: 24px !important; 
+                display: flex !important; 
+                align-items: center !important; 
+                justify-content: center !important;
+                font-size: 1.25rem !important; 
+                color: #64748B !important; 
+                margin: 0 auto !important; 
+                padding: 0 !important;
+                border-radius: 12px !important; 
+                transition: all 0.2s ease !important; 
+                background: transparent !important;
+            }
+            
+            .nav-item.active { 
+                color: var(--primary) !important; 
+                font-weight: 700 !important; 
+            }
+            .nav-item.active i { 
+                background: var(--primary-light) !important; 
+                color: var(--primary) !important; 
+                transform: scale(1.05) !important; 
+            }
 
+            .nav-label {
+                display: block !important;
+                width: 100% !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                text-align: center !important;
+                line-height: 1.2 !important;
+            }
+            .short-label { display: inline !important; }
+            .full-label { display: none !important; }
+
+            /* Valuation Counter Badge Floating Over Icon */
+            .nav-item #valuation-counter {
+                position: absolute !important;
+                top: 2px !important;
+                right: calc(50% - 22px) !important;
+                margin-left: 0 !important;
+                min-width: 18px !important;
+                height: 18px !important;
+                padding: 0 4px !important;
+                border-radius: 999px !important;
+                font-size: 0.65rem !important;
+                font-weight: 800 !important;
+                line-height: 14px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                background: #F59E0B !important;
+                color: #FFFFFF !important;
+                border: 2px solid #FFFFFF !important;
+                box-shadow: 0 2px 6px rgba(245, 158, 11, 0.45) !important;
+                z-index: 10 !important;
+            }
+
+            /* Main Content Adjustments */
+            .main-content { 
+                width: 100% !important; 
+                min-width: 100% !important; 
+                max-width: 100vw !important; 
+                height: 100% !important;
+                min-height: 0 !important;
+                flex: 1 1 auto !important; 
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+                padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; 
+            }
+            .content-section { 
+                padding: 0.85rem 0.85rem calc(1.5rem + env(safe-area-inset-bottom, 0px)) 0.85rem !important; 
+                max-width: 100% !important;
+            }
+            
+            /* Section Header */
+            .section-header { 
+                flex-direction: column !important; 
+                align-items: flex-start !important; 
+                gap: 0.35rem !important; 
+                margin-bottom: 0.85rem !important;
+            }
+            .section-header > div { width: 100%; }
+            .section-header h2 { font-size: 1.25rem !important; margin-bottom: 0.2rem !important; }
+            .section-header p { font-size: 0.82rem !important; line-height: 1.35 !important; }
+
+            /* Compact Responsive Toolbar */
+            .toolbar.manager-toolbar { 
+                flex-direction: column !important; 
+                align-items: stretch !important; 
+                padding: 0.85rem !important; 
+                border-radius: 14px !important; 
+                gap: 0.65rem !important; 
+                background: var(--bg-surface) !important; 
+                margin-bottom: 1rem !important;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.03) !important;
+            }
+            .toolbar-filters-grid { 
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 0.5rem !important;
+                width: 100% !important;
+                margin-bottom: 0.5rem !important;
+            }
+            .toolbar-filters-grid .search-wrapper { 
+                grid-column: span 2 !important; 
+                min-width: 0 !important;
+                width: 100% !important;
+            }
+            .toolbar-filters-grid #categoryFilter { 
+                grid-column: span 1 !important; 
+                min-width: 0 !important;
+                width: 100% !important;
+            }
+            .toolbar-filters-grid #stageFilter { 
+                grid-column: span 1 !important; 
+                min-width: 0 !important;
+                width: 100% !important;
+            }
+            .toolbar-filters-grid #statusFilter { 
+                grid-column: span 2 !important; 
+                min-width: 0 !important;
+                width: 100% !important;
+            }
+            
+            .toolbar-bottom-row {
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                width: 100% !important;
+                flex-wrap: wrap !important;
+                gap: 0.5rem !important;
+                border-top: 1px solid var(--border) !important;
+                padding-top: 0.6rem !important;
+            }
+
+            .search-wrapper, 
+            .search-wrapper input, 
+            .control-input,
+            .festos-custom-select-trigger { 
+                min-height: 42px !important; 
+                height: 42px !important;
+                font-size: 0.88rem !important;
+            }
+            
+            /* Cards Full Bleed & Compact Spacing */
+            .card-grid { grid-template-columns: 1fr !important; gap: 0.85rem !important; }
+            .card { 
+                padding: 1rem 1rem !important; 
+                border-radius: 16px !important; 
+                box-shadow: 0 2px 6px rgba(0,0,0,0.03) !important; 
+            }
+            .card:hover { transform: none !important; }
+            .card-header { margin-bottom: 0.5rem !important; gap: 0.5rem !important; }
+            .card-title { font-size: 1.05rem !important; line-height: 1.3 !important; }
+            
+            .card-meta-chips { gap: 0.35rem !important; margin-bottom: 0.55rem !important; }
+            .card-meta-chip { font-size: 0.74rem !important; padding: 0.2rem 0.5rem !important; }
+            
+            .assigned-judges { 
+                padding: 0.65rem 0.75rem !important; 
+                margin-bottom: 0.75rem !important; 
+                border-radius: 10px !important; 
+            }
+            .judge-tags-container { gap: 0.35rem !important; margin-top: 0.35rem !important; }
+            .judge-tag { font-size: 0.78rem !important; padding: 0.25rem 0.45rem 0.25rem 0.65rem !important; }
+            
+            .judge-assign-box { 
+                margin-top: 0.5rem !important; 
+                padding-top: 0.65rem !important; 
+                gap: 0.5rem !important; 
+            }
+            .judge-assign-btn { min-height: 42px !important; height: 42px !important; font-size: 0.88rem !important; }
+
+            /* Fix Dropdown & Caret Overlaps */
+            .judge-select-wrapper .judge-select-icon,
+            .judge-select-wrapper .judge-select-arrow { display: none !important; }
+            .judge-select-wrapper .festos-custom-select-trigger {
+                min-height: 42px !important;
+                height: 42px !important;
+                font-size: 0.88rem !important;
+                padding: 0.5rem 1rem !important;
+            }
+
+            /* Valuation Alert Banner Compact */
+            #valuation-alert-banner {
+                padding: 0.65rem 0.85rem !important;
+                margin-bottom: 0.85rem !important;
+                border-radius: 12px !important;
+                gap: 0.5rem !important;
+            }
+
+            /* Publish Tab Action Buttons Responsive */
+            [id="publish-grid"] .card > div:last-child { 
+                display: flex !important;
+                flex-direction: column !important; 
+                gap: 0.5rem !important; 
+            }
+            .publish-card-secondary-actions {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr 1fr !important;
+                gap: 0.4rem !important;
+                width: 100% !important;
+            }
+            .publish-card-secondary-actions .btn {
+                min-height: 38px !important;
+                height: 38px !important;
+                padding: 0 !important;
+                font-size: 0.78rem !important;
+                justify-content: center !important;
+            }
+            .publish-card-main-action {
+                width: 100% !important;
+                min-height: 42px !important;
+                font-size: 0.88rem !important;
+            }
+            #live-published-count {
+                min-height: 38px !important;
+                padding: 0.4rem 0.85rem !important;
+                font-size: 0.85rem !important;
+            }
+
+            /* --- JUDGE MANAGEMENT MOBILE CARDS --- */
+            #judges .table-container { 
+                border: none !important; 
+                background: transparent !important; 
+                box-shadow: none !important; 
+                overflow: hidden !important; 
+            }
+            #judges table { min-width: 0 !important; display: block; width: 100%; }
+            #judges thead, #judges tbody, #judges th, #judges td, #judges tr { display: block; width: 100%; }
+            #judges thead { display: none; } 
+            #judges tr {
+                background: var(--bg-surface); 
+                border-radius: 16px; 
+                padding: 1rem;
+                margin-bottom: 0.85rem; 
+                border: 1px solid var(--border); 
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                display: flex; 
+                flex-direction: column; 
+                gap: 0.5rem;
+            }
+            #judges td { 
+                padding: 0 !important; 
+                border: none !important; 
+                display: flex; 
+                align-items: center; 
+                justify-content: space-between; 
+            }
+            #judges td:nth-child(1) { 
+                font-size: 1.05rem; 
+                color: var(--text-main); 
+                font-weight: 700; 
+                justify-content: flex-start; 
+            }
+            #judges td:nth-child(2) { 
+                justify-content: flex-start; 
+                margin-bottom: 0.35rem; 
+            }
+            #judges td:last-child { 
+                padding-top: 0.75rem !important; 
+                margin-top: 0.25rem; 
+                border-top: 1px dashed var(--border) !important; 
+                justify-content: flex-start; 
+            }
+            #judges td:last-child > div { 
+                display: grid !important; 
+                grid-template-columns: repeat(5, 1fr) !important; 
+                gap: 0.4rem !important; 
+                width: 100%; 
+            }
+            #judges td:last-child .btn-icon { 
+                width: 100% !important; 
+                min-width: 0 !important; 
+                height: 40px; 
+                border-radius: 10px; 
+                font-size: 1.2rem; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center;
+                padding: 0;
+            }
+
+            /* Judge Details Modal Cards */
+            #judgeDetailsModal .modal-content > div:nth-child(2) {
+                border: none !important;
+                background: transparent !important;
+            }
+            #judgeDetailsModal table { min-width: 0 !important; display: block; width: 100%; }
+            #judgeDetailsModal thead { display: none; }
+            #judgeDetailsModal tbody { display: flex; flex-direction: column; gap: 0.65rem; }
+            #judgeDetailsModal tr {
+                display: flex; flex-direction: column; gap: 0.45rem;
+                background: var(--bg-surface); border: 1px solid var(--border);
+                border-radius: var(--radius-md); padding: 0.85rem;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            }
+            #judgeDetailsModal td { 
+                display: flex; justify-content: space-between; align-items: center; 
+                padding: 0 !important; border: none !important; width: 100%; text-align: right;
+            }
+            #judgeDetailsModal td::before {
+                font-weight: 600; color: var(--text-muted); font-size: 0.72rem;
+                text-transform: uppercase; letter-spacing: 0.03em;
+            }
+            #judgeDetailsModal td:nth-child(1)::before { content: "Date & Time"; }
+            #judgeDetailsModal td:nth-child(2)::before { content: "Competition"; }
+            #judgeDetailsModal td:nth-child(3)::before { content: "Category"; }
+            #judgeDetailsModal td:nth-child(4)::before { content: "Stage"; }
+            #judgeDetailsModal td > * { flex: 1; text-align: right; justify-content: flex-end; }
+
+            /* Mobile Toasts (Above Bottom Nav) */
+            #toast-container { 
+                bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; 
+                right: 0.85rem !important; 
+                left: 0.85rem !important; 
+                align-items: stretch !important; 
+                width: auto !important; 
+            }
+            .toast { width: 100% !important; box-sizing: border-box !important; }
+
+            /* Mobile Modals (Bottom Sheet Pattern) */
+            .modal-overlay { 
+                align-items: flex-end !important; 
+                padding: 0 !important; 
+            }
+            .modal-content { 
+                width: 100% !important;
+                max-width: 100% !important;
+                max-height: 88vh !important;
+                padding: 1.25rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom, 0px)) 1.25rem !important; 
+                border-radius: 24px 24px 0 0 !important; 
+                transform: translateY(100%) !important; 
+                transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                border-bottom: none !important;
+                box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.15) !important;
+                overflow-y: auto !important;
+            }
+            .modal-overlay.active .modal-content { 
+                transform: translateY(0) !important; 
+            }
+            .modal-content::before {
+                content: '' !important; 
+                display: block !important; 
+                width: 36px !important; 
+                height: 4px !important; 
+                background: var(--border) !important; 
+                border-radius: 4px !important; 
+                margin: 0 auto 0.75rem auto !important;
+                flex-shrink: 0 !important;
+            }
+            .modal-header { margin-bottom: 1rem !important; }
+            .modal-header h3 { font-size: 1.15rem !important; }
+        }
 
     </style>
     <link rel="stylesheet" href="custom-pickers.css?v=4.0">
@@ -1096,14 +1235,27 @@
         })();
         </script></div>
     <div class="nav-items">
-        <div class="nav-item active" onclick="switchTab('assignments')" title="Assign Judges"><i class="ph ph-users-three"></i> Assign Judges</div>
+        <div class="nav-item active" onclick="switchTab('assignments')" title="Competition Assignments">
+            <i class="ph ph-users-three"></i>
+            <span class="nav-label"><span class="full-label">Assign Judges</span><span class="short-label">Assign</span></span>
+        </div>
         <div class="nav-item" id="nav-item-valuation" onclick="switchTab('valuation')" title="Offstage Valuations">
-            <i class="ph ph-clipboard-text"></i> Offstage Valuations
+            <i class="ph ph-clipboard-text"></i>
+            <span class="nav-label"><span class="full-label">Offstage Valuations</span><span class="short-label">Valuations</span></span>
             <span id="valuation-counter" style="display: none; background: #F59E0B; color: white; border-radius: 50px; padding: 2px 8px; font-size: 0.72rem; font-weight: 700; margin-left: auto;">0</span>
         </div>
-        <div class="nav-item" onclick="switchTab('publish')" title="Publish Results"><i class="ph ph-megaphone"></i> Publish Results</div>
-        <div class="nav-item" onclick="switchTab('published-results')" title="Published Results"><i class="ph ph-check-square-offset"></i> Published</div>
-        <div class="nav-item" onclick="switchTab('judges')" title="Judge Management"><i class="ph ph-scales"></i> Judge Management</div>
+        <div class="nav-item" onclick="switchTab('publish')" title="Publish Results">
+            <i class="ph ph-megaphone"></i>
+            <span class="nav-label"><span class="full-label">Publish Results</span><span class="short-label">Publish</span></span>
+        </div>
+        <div class="nav-item" onclick="switchTab('published-results')" title="Published Results">
+            <i class="ph ph-check-square-offset"></i>
+            <span class="nav-label"><span class="full-label">Published</span><span class="short-label">Published</span></span>
+        </div>
+        <div class="nav-item" onclick="switchTab('judges')" title="Judge Management">
+            <i class="ph ph-scales"></i>
+            <span class="nav-label"><span class="full-label">Judge Management</span><span class="short-label">Judges</span></span>
+        </div>
     </div>
 </div>
 
@@ -1131,9 +1283,9 @@
                 <p>Manage and allocate judges. Use the filters below to organize your workflow.</p>
             </div>
 
-            <div class="toolbar" style="flex-direction: column; align-items: stretch; gap: 0; padding: 1.5rem;">
+            <div class="toolbar manager-toolbar" style="flex-direction: column; align-items: stretch; gap: 0; padding: 1.5rem;">
                 <!-- Top Row: Search & Filters -->
-                <div style="display: flex; gap: 1rem; width: 100%; flex-wrap: wrap; margin-bottom: 1rem;">
+                <div class="toolbar-filters-grid" style="display: flex; gap: 1rem; width: 100%; flex-wrap: wrap; margin-bottom: 1rem;">
                     <div class="search-wrapper" style="flex: 2; min-width: 250px;">
                         <i class="ph ph-magnifying-glass"></i>
                         <input type="text" id="searchInput" class="control-input" placeholder="Search competitions..." oninput="filterCompetitions()">
@@ -1457,7 +1609,7 @@
 
 
     <script src="festos-core.js?v=4.1"></script>
-    <script src="manager.js?v=4.0.0"></script>
+    <script src="manager.js?v=4.1.0"></script>
     
 <!-- Competition Redo & Status Revert Modal -->
 <style>
