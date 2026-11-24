@@ -808,6 +808,16 @@ select[data-festos-enhanced="true"] {
 }
 
 /* Responsive adjustment */
+@media (max-width: 768px) {
+    .festos-custom-select-trigger {
+        padding: 0.55rem 0.9rem !important;
+        gap: 8px !important;
+        font-size: 0.88rem !important;
+        min-height: 42px !important;
+        height: 42px !important;
+    }
+}
+
 @media (max-width: 480px) {
     .festos-datepicker-card,
     .festos-timepicker-card {

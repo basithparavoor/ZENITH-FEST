@@ -648,6 +648,10 @@
         trigger.setAttribute('aria-expanded', 'false');
 
         // Copy pertinent styling / sizing classes if present
+        if (selectEl.id) {
+            trigger.setAttribute('data-for-id', selectEl.id);
+            trigger.classList.add(`festos-for-${selectEl.id}`);
+        }
         if (selectEl.className) {
             const extraClasses = selectEl.className.split(/\s+/).filter(c => c && c !== 'no-custom-select');
             extraClasses.forEach(c => trigger.classList.add(`festos-from-${c}`));
