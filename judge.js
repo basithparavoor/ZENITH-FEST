@@ -429,7 +429,10 @@ function renderDashboard(data) {
         container.appendChild(card);
     });
 
-    setTimeout(adjustLayoutPadding, 50);
+    setTimeout(() => {
+        adjustLayoutPadding();
+        updateLiveGradingStats();
+    }, 50);
 }
 
 // 3. Open Evaluation Mode
@@ -529,25 +532,34 @@ async function openEvaluation(compId) {
                             ${roleBadge ? `<div style="margin-top: 2px;">${roleBadge}</div>` : ''}
                         </div>
                     </div>
-                    <div class="mark-wrapper">
-                        <input type="number" 
-                               class="mark-input" 
-                               placeholder="00.0" 
-                               min="0" 
-                               max="${currentMaxMark}" 
-                               step="0.5" 
-                               value="${prevMark !== '' ? prevMark : ''}"
-                               inputmode="decimal"
-                               oninput="validateMark(this, ${currentMaxMark})">
-                        <div class="max-mark-divider"></div>
-                        <span class="max-mark-label">${currentMaxMark}</span>
+                    <div class="mark-stepper-wrap">
+                        <button type="button" class="btn-step" onclick="stepJudgeMark(this, -1, ${currentMaxMark})" title="-1 pt">-1</button>
+                        <button type="button" class="btn-step" onclick="stepJudgeMark(this, -0.5, ${currentMaxMark})" title="-0.5 pt">-0.5</button>
+                        <div class="mark-wrapper">
+                            <input type="number" 
+                                   class="mark-input" 
+                                   placeholder="00.0" 
+                                   min="0" 
+                                   max="${currentMaxMark}" 
+                                   step="0.5" 
+                                   value="${prevMark !== '' ? prevMark : ''}"
+                                   inputmode="decimal"
+                                   oninput="validateMark(this, ${currentMaxMark}); updateLiveGradingStats();">
+                            <div class="max-mark-divider"></div>
+                            <span class="max-mark-label">${currentMaxMark}</span>
+                        </div>
+                        <button type="button" class="btn-step" onclick="stepJudgeMark(this, 0.5, ${currentMaxMark})" title="+0.5 pt">+0.5</button>
+                        <button type="button" class="btn-step" onclick="stepJudgeMark(this, 1, ${currentMaxMark})" title="+1 pt">+1</button>
                     </div>
                 </div>
                 <textarea class="feedback-input" rows="2" placeholder="ADD CONSTRUCTIVE FEEDBACK (OPTIONAL)...">${prevFeedback}</textarea>
             </div>
         `;
     });
-    setTimeout(adjustLayoutPadding, 50);
+    setTimeout(() => {
+        adjustLayoutPadding();
+        updateLiveGradingStats();
+    }, 50);
 
     if (evalSyncTimer) clearInterval(evalSyncTimer);
     evalSyncTimer = setInterval(() => {
@@ -903,6 +915,52 @@ function applyGlobalBranding(brandingData) {
 
     // Store globally for PDF Generators
     if (typeof window !== 'undefined') window.systemBranding = brandingData;
+}
+
+// --- TOUCH-FRIENDLY STEPPER & LIVE STATS LOGIC ---
+function stepJudgeMark(btn, delta, maxMark) {
+    const wrapper = btn.closest('.mark-stepper-wrap');
+    const input = wrapper ? wrapper.querySelector('.mark-input') : null;
+    if (!input) return;
+    let val = parseFloat(input.value);
+    if (isNaN(val)) val = 0;
+    val = Math.max(0, Math.min(maxMark, Math.round((val + delta) * 10) / 10));
+    input.value = val > 0 ? (val % 1 === 0 ? val.toString() : val.toFixed(1)) : '0';
+    validateMark(input, maxMark);
+    updateLiveGradingStats();
+}
+
+function updateLiveGradingStats() {
+    const inputs = document.querySelectorAll('#participants-container .mark-input');
+    const badge = document.getElementById('grading-count-num');
+    if (!badge || inputs.length === 0) return;
+
+    let graded = 0;
+    inputs.forEach(inp => {
+        if (inp.value && !isNaN(parseFloat(inp.value)) && parseFloat(inp.value) >= 0) {
+            graded++;
+        }
+    });
+    badge.innerText = `${graded}/${inputs.length}`;
+}
+
+function toggleDarkHallMode() {
+    const isDark = document.body.classList.toggle('dark-hall-mode');
+    const btn = document.getElementById('dark-hall-btn');
+    if (btn) {
+        btn.innerHTML = isDark ? '<i class="fa-solid fa-sun" style="color: #F59E0B;"></i>' : '<i class="fa-solid fa-moon"></i>';
+    }
+    try {
+        localStorage.setItem('festos_judge_dark_mode', isDark ? 'true' : 'false');
+    } catch(e) {}
+}
+
+if (typeof localStorage !== 'undefined' && localStorage.getItem('festos_judge_dark_mode') === 'true') {
+    document.addEventListener('DOMContentLoaded', () => {
+        document.body.classList.add('dark-hall-mode');
+        const btn = document.getElementById('dark-hall-btn');
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-sun" style="color: #F59E0B;"></i>';
+    });
 }
 
 // Boot up

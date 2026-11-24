@@ -12816,11 +12816,11 @@ async function sendDisplayLiveAction(type, extraPayload = {}) {
 
         if (window.festosSaveSetting) {
             await window.festosSaveSetting('display_settings', updatedSettings, festId);
-            await window.festosSaveSetting('display_settings', updatedSettings, null);
         }
-        await supabaseClient.from('settings').upsert({ id: 'display_settings', value: updatedSettings });
         if (festId) {
             await supabaseClient.from('settings').upsert({ id: `display_settings_${festId}`, value: updatedSettings });
+        } else {
+            await supabaseClient.from('settings').upsert({ id: 'display_settings', value: updatedSettings });
         }
     } catch(e) {
         showToast(`Remote action failed: ${e.message}`, 'error');
@@ -12917,11 +12917,11 @@ async function saveDisplaySettings(silent = false) {
     try {
         if (window.festosSaveSetting) {
             await window.festosSaveSetting('display_settings', payload, festId);
-            await window.festosSaveSetting('display_settings', payload, null);
         }
-        await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
         if (festId) {
             await supabaseClient.from('settings').upsert({ id: `display_settings_${festId}`, value: payload });
+        } else {
+            await supabaseClient.from('settings').upsert({ id: 'display_settings', value: payload });
         }
         
         if(!silent) showToast("Display Engine Settings Saved and Synced!", "success");
@@ -18500,39 +18500,24 @@ async function loadWebsiteConfig() {
         
         websiteConfig = getDefaultWebsiteConfig(festName, festSlug);
 
-        // Multi-tier load: Festival-scoped setting first (FORCE FRESH from Supabase to prevent stale cache on other devices)
+        // Multi-tier load: Festival-scoped setting first (strictly scoped)
         let val = null;
         if (window.festosGetSetting) {
             val = await window.festosGetSetting('website_config', fid, { fresh: true });
-            if (!val || !val.gallery || val.gallery.length === 0) {
-                const globalVal = await window.festosGetSetting('website_config', null, { fresh: true });
-                if (globalVal && globalVal.gallery && globalVal.gallery.length > 0) {
-                    if (!val) val = globalVal;
-                    else val.gallery = globalVal.gallery;
-                }
-            }
         }
 
         if (!val) {
             try {
                 const raw = localStorage.getItem('festos_cfg_website_config_' + fid) || 
-                            localStorage.getItem('website_config_' + fid) ||
-                            localStorage.getItem('websiteConfig');
+                            localStorage.getItem('website_config_' + fid);
                 if (raw) val = JSON.parse(raw);
             } catch(e) {}
         }
 
-        if ((!val || !val.gallery || val.gallery.length === 0) && typeof supabaseClient !== 'undefined') {
+        if (!val && typeof supabaseClient !== 'undefined') {
             try {
                 const { data: d1 } = await supabaseClient.from('settings').select('value').eq('id', 'website_config_' + fid).maybeSingle();
                 if (d1 && d1.value) val = d1.value;
-                if (!val || !val.gallery || val.gallery.length === 0) {
-                    const { data: d2 } = await supabaseClient.from('settings').select('value').eq('id', 'website_config').maybeSingle();
-                    if (d2 && d2.value) {
-                        if (!val) val = d2.value;
-                        else val.gallery = d2.value.gallery;
-                    }
-                }
             } catch(e) {}
         }
 
@@ -18730,31 +18715,23 @@ async function executeWebsiteSave(btnElement) {
             });
         }
 
-        // 1. Save locally for 0ms lag
+        // 1. Save locally for 0ms lag (strictly scoped to this festival)
         try {
             localStorage.setItem('festos_cfg_website_config_' + fid, JSON.stringify(websiteConfig));
-            localStorage.setItem('festos_cfg_website_config', JSON.stringify(websiteConfig));
             localStorage.setItem('website_config_' + fid, JSON.stringify(websiteConfig));
-            localStorage.setItem('websiteConfig', JSON.stringify(websiteConfig));
         } catch(e) {}
 
-        // 2. Save via festosSaveSetting (both festival-scoped and global fallback)
+        // 2. Save via festosSaveSetting (strictly scoped)
         if (window.festosSaveSetting) {
             await window.festosSaveSetting('website_config', websiteConfig, fid);
-            await window.festosSaveSetting('website_config', websiteConfig, null);
         }
 
-        // 3. Save directly to Supabase settings table (synced across tenants for seamless cross-device viewing)
+        // 3. Save directly to Supabase settings table (strictly scoped)
         if (typeof supabaseClient !== 'undefined' && supabaseClient) {
             try {
-                const upsertRows = [
-                    { id: 'website_config_' + fid, value: websiteConfig },
-                    { id: 'website_config', value: websiteConfig }
-                ];
-                if (fid !== 'fest_zeitgeist_mvdlia5k') {
-                    upsertRows.push({ id: 'website_config_fest_zeitgeist_mvdlia5k', value: websiteConfig });
-                }
-                await supabaseClient.from('settings').upsert(upsertRows);
+                await supabaseClient.from('settings').upsert([
+                    { id: 'website_config_' + fid, value: websiteConfig }
+                ]);
             } catch(dbErr) {
                 console.warn("Direct Supabase setting save note:", dbErr);
             }

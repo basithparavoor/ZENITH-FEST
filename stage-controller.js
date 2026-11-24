@@ -1291,6 +1291,7 @@ async function onScanSuccess(decodedText) {
             if (activePermit && typeof festosMarkPermitCheckedIn === 'function') {
                 await festosMarkPermitCheckedIn(activePermit.id, codeLetter);
             }
+            playCheckinAudioHaptic();
             showToast(`Success! ${participant.name}${activePermit ? ' (Admin Late Permit)' : ''} assigned: Code ${codeLetter}`);
             loadCheckedInList(activeScanCompId); 
         } else {
@@ -1313,6 +1314,26 @@ function resetScanner() {
 }
 
 function onScanFailure(error) { /* Ignore routine frame failures */ }
+
+function playCheckinAudioHaptic() {
+    try {
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate([40, 50, 40]);
+        }
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.25);
+    } catch(e) {}
+}
 
 // --- STRICT LEADER FILTERING FOR PENDING & DISPLAY ---
 async function loadCheckedInList(compId) {

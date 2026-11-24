@@ -519,6 +519,85 @@ input, .mark-input { text-transform: none; }
 }
 .feedback-input:focus { border-color: var(--primary); background: var(--bg-surface); box-shadow: 0 0 0 2px var(--primary-ring); }
 
+/* --- TOUCH STEPPER CONTROLS --- */
+.mark-stepper-wrap {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+.btn-step {
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 0.35rem 0.55rem;
+    border-radius: 8px;
+    cursor: pointer;
+    user-select: none;
+    touch-action: manipulation;
+    transition: all 0.15s ease;
+}
+.btn-step:hover {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+.btn-step:active {
+    transform: scale(0.92);
+}
+.grading-progress-badge {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+.grading-progress-badge span {
+    color: var(--primary);
+    font-weight: 900;
+}
+
+/* --- OLED DARK HALL MODE --- */
+body.dark-hall-mode {
+    background: #000000 !important;
+    color: #F8FAFC !important;
+}
+body.dark-hall-mode .top-nav-bar,
+body.dark-hall-mode .card,
+body.dark-hall-mode .participant-card,
+body.dark-hall-mode .eval-top-card,
+body.dark-hall-mode .navbar,
+body.dark-hall-mode .sticky-footer {
+    background: #09090B !important;
+    border-color: #27272A !important;
+    color: #F4F4F5 !important;
+}
+body.dark-hall-mode .mark-wrapper {
+    background: #18181B !important;
+    border-color: #3F3F46 !important;
+}
+body.dark-hall-mode .mark-input {
+    color: #22D3EE !important;
+}
+body.dark-hall-mode .btn-step {
+    background: #18181B !important;
+    border-color: #27272A !important;
+    color: #E4E4E7 !important;
+}
+body.dark-hall-mode .feedback-input {
+    background: #18181B !important;
+    border-color: #27272A !important;
+    color: #F4F4F5 !important;
+}
+
 /* --- NATIVE STICKY FOOTER (Submit Button) --- */
 .sticky-footer {
     position: fixed;
@@ -614,6 +693,9 @@ input, .mark-input { text-transform: none; }
                 <span id="welcome-msg" class="welcome-text">WELCOME</span>
             </div>
             <div class="top-nav-right" style="display: flex; align-items: center; gap: 0.5rem;">
+                <button type="button" class="header-icon-btn" id="dark-hall-btn" onclick="toggleDarkHallMode()" title="OLED Dark Auditorium Mode">
+                    <i class="fa-solid fa-moon"></i>
+                </button>
                 <button type="button" class="header-icon-btn festos-role-btn festos-role-topnav-btn" id="festos-role-topnav-btn" onclick="festosMultiRole.openModal()" title="Switch Portal Role" style="color: #6366F1; display: none;">
                     <i class="fa-solid fa-repeat"></i>
                 </button>
@@ -664,7 +746,10 @@ input, .mark-input { text-transform: none; }
             
             <div id="participants-container" class="participant-list"></div>
             
-            <div class="sticky-footer">
+            <div class="sticky-footer" id="judge-sticky-footer" style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <div class="grading-progress-badge">
+                    <span id="grading-count-num">0/0</span> Graded
+                </div>
                 <button class="btn btn-success" onclick="submitJudgement()" id="submit-btn"><i class="fa-solid fa-paper-plane"></i> Submit Final Marks</button>
             </div>
         </main>

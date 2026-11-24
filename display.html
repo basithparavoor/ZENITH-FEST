@@ -391,6 +391,97 @@
         }
         .flash-text { font-size: 6.2rem; font-weight: 800; line-height: 1.15; text-shadow: 0 10px 40px rgba(0,0,0,0.7); animation: pulseAlert 1s infinite alternate; letter-spacing: -0.02em; }
         @keyframes pulseAlert { from { transform: scale(1); opacity: 1; } to { transform: scale(1.04); opacity: 0.85; } }
+        /* --- LIVE STAGE COUNTDOWN TIMER BAR --- */
+        .stage-timer-bar-wrap {
+            position: absolute; top: 0; left: 0; right: 0; height: 8px;
+            background: rgba(0, 0, 0, 0.5); z-index: 500;
+        }
+        .stage-timer-fill {
+            height: 100%; width: 100%;
+            background: linear-gradient(90deg, #06B6D4 0%, #3B82F6 100%);
+            box-shadow: 0 0 15px #06B6D4;
+            transition: width 1s linear, background 0.5s ease;
+        }
+        .stage-timer-badge {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.92); border: 1.5px solid #06B6D4;
+            color: #E0F2FE; padding: 0.35rem 1.25rem; border-radius: 999px;
+            font-size: 0.95rem; font-weight: 800; display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 4px 20px rgba(6, 182, 212, 0.35); backdrop-filter: blur(12px);
+            letter-spacing: 0.5px;
+        }
+        .timer-warning .stage-timer-fill {
+            background: linear-gradient(90deg, #F59E0B 0%, #D97706 100%);
+            box-shadow: 0 0 15px #F59E0B;
+        }
+        .timer-warning .stage-timer-badge {
+            border-color: #F59E0B; color: #FEF3C7;
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+        }
+        .timer-danger .stage-timer-fill {
+            background: linear-gradient(90deg, #EF4444 0%, #DC2626 100%);
+            box-shadow: 0 0 20px #EF4444;
+        }
+        .timer-danger .stage-timer-badge {
+            border-color: #EF4444; color: #FEE2E2;
+            box-shadow: 0 4px 25px rgba(239, 68, 68, 0.6);
+            animation: pulseAlert 0.8s infinite alternate;
+        }
+
+        /* --- DRAMATIC OSCAR/OLYMPIC WINNER REVEAL --- */
+        .winner-reveal-overlay {
+            position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(30, 27, 75, 0.98) 0%, #000000 100%);
+            z-index: 99990; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; color: white; padding: 2rem;
+            animation: fadeIn 0.4s ease;
+        }
+        .reveal-spotlight {
+            position: absolute; top: -20%; left: 50%; transform: translateX(-50%);
+            width: 800px; height: 1200px;
+            background: radial-gradient(ellipse at top, rgba(245, 158, 11, 0.25) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .reveal-countdown {
+            font-size: 14rem; font-weight: 900; color: #F59E0B;
+            text-shadow: 0 0 60px rgba(245, 158, 11, 0.8), 0 10px 40px rgba(0,0,0,0.8);
+            animation: popIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+        }
+        .reveal-card {
+            display: flex; flex-direction: column; align-items: center;
+            animation: popIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            max-width: 900px; width: 100%;
+        }
+        .reveal-trophy-glow {
+            font-size: 7rem; color: #F59E0B;
+            filter: drop-shadow(0 0 40px rgba(245, 158, 11, 0.7));
+            margin-bottom: 1rem;
+            animation: bounceCrown 2s infinite ease-in-out;
+        }
+        .reveal-sub-title {
+            font-size: 1.8rem; font-weight: 800; color: #CBD5E1;
+            text-transform: uppercase; letter-spacing: 2px; margin-bottom: 0.5rem;
+        }
+        .reveal-gold-badge {
+            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+            color: #FFFFFF; font-size: 1.3rem; font-weight: 900;
+            padding: 0.5rem 1.8rem; border-radius: 999px; letter-spacing: 1.5px;
+            margin-bottom: 1.25rem; box-shadow: 0 0 30px rgba(245, 158, 11, 0.5);
+        }
+        .reveal-winner-name {
+            font-size: 4.8rem; font-weight: 900; line-height: 1.1;
+            color: #FFFFFF; text-shadow: 0 8px 30px rgba(0,0,0,0.8);
+            text-transform: uppercase; margin-bottom: 1rem;
+        }
+        .reveal-team-badge {
+            font-size: 2.2rem; font-weight: 800; color: #93C5FD;
+            text-transform: uppercase; margin-bottom: 1.25rem;
+            text-shadow: 0 4px 15px rgba(59, 130, 246, 0.5);
+        }
+        .reveal-score-pill {
+            background: rgba(255, 255, 255, 0.12); border: 2px solid rgba(255, 255, 255, 0.25);
+            padding: 0.6rem 2rem; border-radius: 999px; font-size: 1.6rem; font-weight: 800;
+            color: #F8FAFC; backdrop-filter: blur(16px);
+        }
     </style>
     <link rel="stylesheet" href="premium-forms.css">
 </head>
@@ -407,6 +498,29 @@
         <div class="progress-bar-container"><div class="progress-bar" id="progress"></div></div>
 
         <div id="pinned-badge"><i class="fa-solid fa-thumbtack"></i> <span>SLIDE LOCKED BY DIRECTOR</span></div>
+
+        <!-- Live Ambient Stage Countdown Timer Bar -->
+        <div id="stage-countdown-bar" class="stage-timer-bar-wrap" style="display: none;">
+            <div id="stage-timer-fill" class="stage-timer-fill"></div>
+            <div class="stage-timer-badge" id="stage-timer-badge">
+                <i class="fa-solid fa-stopwatch"></i>
+                <span id="stage-timer-text">ON STAGE: 05:00</span>
+            </div>
+        </div>
+
+        <!-- Dramatic Oscar/Olympics Winner Reveal Screen Overlay -->
+        <div id="winner-reveal-overlay" class="winner-reveal-overlay" style="display: none;" onclick="closeWinnerReveal()">
+            <div class="reveal-spotlight"></div>
+            <div class="reveal-countdown" id="reveal-countdown">3</div>
+            <div class="reveal-card" id="reveal-card" style="display: none;">
+                <div class="reveal-trophy-glow"><i class="fa-solid fa-trophy"></i></div>
+                <div class="reveal-sub-title" id="reveal-comp-name">CHAMPIONSHIP EVENT</div>
+                <div class="reveal-gold-badge">🥇 1ST PLACE WINNER</div>
+                <h1 class="reveal-winner-name" id="reveal-winner-name">WINNER NAME</h1>
+                <div class="reveal-team-badge" id="reveal-team-name">TEAM SQUAD</div>
+                <div class="reveal-score-pill" id="reveal-score">SCORE: 98.5 PTS</div>
+            </div>
+        </div>
 
         <!-- BROADCAST HEADER -->
         <div class="header">
@@ -851,12 +965,12 @@
                     const { data: fData } = await supabaseClient.from('settings').select('value').eq('id', `display_settings_${effectiveFestId}`).maybeSingle();
                     if (fData && fData.value) dispVal = fData.value;
                 }
-                if (!dispVal && typeof supabaseClient !== 'undefined') {
+                if (!dispVal && effectiveFestId && window.festosGetSetting) {
+                    dispVal = await window.festosGetSetting('display_settings', effectiveFestId, { fresh: true });
+                }
+                if (!dispVal && !effectiveFestId && typeof supabaseClient !== 'undefined') {
                     const { data: gData } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
                     if (gData && gData.value) dispVal = gData.value;
-                }
-                if (!dispVal && window.festosGetSetting) {
-                    dispVal = await window.festosGetSetting('display_settings', effectiveFestId, { fresh: true });
                 }
 
                 let customSlidesArray = [];
@@ -1870,6 +1984,9 @@
 
         // --- SUB-100MS SUPABASE REALTIME CHANNEL ---
         let displayRealtimeSub = null;
+        let isRealtimeConnected = false;
+        let lastPollTime = 0;
+
         function setupDisplayRealtimeChannel() {
             if (!supabaseClient || typeof supabaseClient.channel !== 'function') return;
             try {
@@ -1887,7 +2004,8 @@
                     }, (payload) => {
                         const rec = payload.new;
                         if (!rec || !rec.id) return;
-                        if (rec.id === 'display_settings' || (curFestId && rec.id === `display_settings_${curFestId}`)) {
+                        const targetId = curFestId ? `display_settings_${curFestId}` : 'display_settings';
+                        if (rec.id === targetId) {
                             let val = rec.value;
                             if (typeof val === 'string') {
                                 try { val = JSON.parse(val); } catch(e) {}
@@ -1899,16 +2017,25 @@
                     })
                     .subscribe((status) => {
                         if (status === 'SUBSCRIBED') {
+                            isRealtimeConnected = true;
                             console.log('[Display Realtime] Instant sync active via WebSocket');
+                        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                            isRealtimeConnected = false;
                         }
                     });
             } catch(e) {
+                isRealtimeConnected = false;
                 console.warn('[Display Realtime] Setup note:', e);
             }
         }
 
-        // --- FAST POLLING ENGINE (FALLBACK / CONTINUOUS SYNC) ---
+        // --- ADAPTIVE POLLING ENGINE (LIGHTWEIGHT FAILSAFE) ---
         async function pollLiveTriggers() {
+            const now = Date.now();
+            // If realtime WebSocket is active and healthy, poll only once every 30s as a failsafe
+            if (isRealtimeConnected && (now - lastPollTime < 30000)) return;
+            lastPollTime = now;
+
             try {
                 const curFestId = getEffectiveFestId();
                 effectiveFestId = curFestId;
@@ -1917,7 +2044,7 @@
                     const { data: fData } = await supabaseClient.from('settings').select('value').eq('id', `display_settings_${curFestId}`).maybeSingle();
                     if (fData && fData.value) newSettings = fData.value;
                 }
-                if (!newSettings && typeof supabaseClient !== 'undefined') {
+                if (!newSettings && !curFestId && typeof supabaseClient !== 'undefined') {
                     const { data: gData } = await supabaseClient.from('settings').select('value').eq('id', 'display_settings').maybeSingle();
                     if (gData && gData.value) newSettings = gData.value;
                 }
@@ -2346,8 +2473,130 @@
                 document.body.classList.toggle('blackout-active');
             } else if (e.code === 'KeyC') {
                 fireConfetti();
+            } else if (e.code === 'KeyW') {
+                triggerWinnerReveal();
+            } else if (e.code === 'KeyT') {
+                toggleStageTimer();
             }
         });
+
+        // --- 🏆 DRAMATIC OSCAR/OLYMPIC WINNER REVEAL ENGINE ---
+        function triggerWinnerReveal(winnerData = null) {
+            const overlay = document.getElementById('winner-reveal-overlay');
+            const countdownEl = document.getElementById('reveal-countdown');
+            const cardEl = document.getElementById('reveal-card');
+            if (!overlay || !countdownEl || !cardEl) return;
+
+            let winner = winnerData;
+            if (!winner) {
+                const activeSlideEl = activeSlides[currentSlide];
+                const p1Card = activeSlideEl?.querySelector('.v-podium-card.p1');
+                if (p1Card) {
+                    winner = {
+                        compName: activeSlideEl.querySelector('.slide-title')?.innerText?.replace(/RESULTS.*$/i, '').trim() || 'Championship Event',
+                        name: p1Card.querySelector('.v-name')?.innerText || 'Champion',
+                        team: p1Card.querySelector('.v-team')?.innerText || 'Team',
+                        score: p1Card.querySelector('.v-mark-num')?.innerText || '1st Place'
+                    };
+                } else {
+                    winner = {
+                        compName: 'Grand Championship',
+                        name: 'Grand Champion',
+                        team: 'Top Scoring Squad',
+                        score: 'Top Honors'
+                    };
+                }
+            }
+
+            document.getElementById('reveal-comp-name').innerText = winner.compName;
+            document.getElementById('reveal-winner-name').innerText = winner.name;
+            document.getElementById('reveal-team-name').innerText = winner.team;
+            document.getElementById('reveal-score').innerText = isNaN(winner.score) ? winner.score : `FINAL SCORE: ${winner.score} PTS`;
+
+            overlay.style.display = 'flex';
+            cardEl.style.display = 'none';
+            countdownEl.style.display = 'block';
+
+            let count = 3;
+            countdownEl.innerText = count;
+
+            const countdownInterval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownEl.innerText = count;
+                } else {
+                    clearInterval(countdownInterval);
+                    countdownEl.style.display = 'none';
+                    cardEl.style.display = 'flex';
+                    fireConfetti();
+                    const sfx = document.getElementById('sfx-applause');
+                    if (sfx) { sfx.currentTime = 0; sfx.play().catch(() => {}); }
+                }
+            }, 900);
+        }
+
+        function closeWinnerReveal() {
+            const overlay = document.getElementById('winner-reveal-overlay');
+            if (overlay) overlay.style.display = 'none';
+        }
+
+        // --- ⏱️ LIVE AMBIENT STAGE COUNTDOWN TIMER ---
+        let stageTimerInterval = null;
+        let stageTimerSecondsLeft = 300;
+        let stageTimerTotalSeconds = 300;
+
+        function startStageTimer(durationSeconds = 300) {
+            stageTimerTotalSeconds = durationSeconds;
+            stageTimerSecondsLeft = durationSeconds;
+            const bar = document.getElementById('stage-countdown-bar');
+            if (!bar) return;
+            bar.style.display = 'block';
+
+            if (stageTimerInterval) clearInterval(stageTimerInterval);
+            updateStageTimerDisplay();
+
+            stageTimerInterval = setInterval(() => {
+                stageTimerSecondsLeft--;
+                if (stageTimerSecondsLeft <= 0) {
+                    stageTimerSecondsLeft = 0;
+                    clearInterval(stageTimerInterval);
+                    document.getElementById('sfx-alert')?.play()?.catch(() => {});
+                }
+                updateStageTimerDisplay();
+            }, 1000);
+        }
+
+        function updateStageTimerDisplay() {
+            const bar = document.getElementById('stage-countdown-bar');
+            const fill = document.getElementById('stage-timer-fill');
+            const text = document.getElementById('stage-timer-text');
+            if (!bar || !fill || !text) return;
+
+            const pct = Math.max(0, (stageTimerSecondsLeft / stageTimerTotalSeconds) * 100);
+            fill.style.width = pct + '%';
+
+            const mins = Math.floor(stageTimerSecondsLeft / 60);
+            const secs = stageTimerSecondsLeft % 60;
+            text.innerText = `ON STAGE: ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+            bar.classList.remove('timer-warning', 'timer-danger');
+            if (stageTimerSecondsLeft <= 30) {
+                bar.classList.add('timer-danger');
+            } else if (stageTimerSecondsLeft <= 120) {
+                bar.classList.add('timer-warning');
+            }
+        }
+
+        function toggleStageTimer() {
+            const bar = document.getElementById('stage-countdown-bar');
+            if (!bar) return;
+            if (bar.style.display === 'none') {
+                startStageTimer(300);
+            } else {
+                bar.style.display = 'none';
+                if (stageTimerInterval) clearInterval(stageTimerInterval);
+            }
+        }
 
         // --- INSTANT ZERO-LATENCY WINDOW MESSAGE RECEIVER (PREVIEW & REAL-TIME SYNC) ---
         window.addEventListener('message', (event) => {

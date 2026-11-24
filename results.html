@@ -1725,6 +1725,350 @@
                 grid-template-columns: 1fr !important;
             }
         }
+        /* --- 3D VISUAL OLYMPIC PODIUM --- */
+        .podium-3d-container {
+            display: grid;
+            grid-template-columns: 1fr 1.15fr 1fr;
+            gap: 12px;
+            align-items: flex-end;
+            margin: 1.5rem 0 2rem 0;
+            padding: 1.5rem 1rem 0.5rem 1rem;
+            background: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(248,250,252,0.9) 100%);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.06);
+            backdrop-filter: blur(10px);
+        }
+        .podium-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease;
+        }
+        .podium-col:hover {
+            transform: translateY(-6px);
+        }
+        .podium-crown {
+            font-size: 1.8rem;
+            color: #F59E0B;
+            animation: bounceCrown 2s infinite ease-in-out;
+            filter: drop-shadow(0 4px 10px rgba(245, 158, 11, 0.5));
+            margin-bottom: -4px;
+        }
+        @keyframes bounceCrown {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        .podium-crest {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+            position: relative;
+        }
+        .col-gold .podium-crest {
+            background: linear-gradient(135deg, #FEF3C7 0%, #F59E0B 100%);
+            border: 2px solid #FCD34D;
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.4);
+            width: 68px; height: 68px;
+        }
+        .col-silver .podium-crest {
+            background: linear-gradient(135deg, #F1F5F9 0%, #94A3B8 100%);
+            border: 2px solid #CBD5E1;
+            box-shadow: 0 0 18px rgba(148, 163, 184, 0.3);
+        }
+        .col-bronze .podium-crest {
+            background: linear-gradient(135deg, #FFEDD5 0%, #D97706 100%);
+            border: 2px solid #FDBA74;
+            box-shadow: 0 0 18px rgba(217, 119, 6, 0.3);
+        }
+        .podium-icon {
+            font-size: 1.6rem;
+            line-height: 1;
+        }
+        .col-gold .podium-icon { font-size: 2rem; }
+        .podium-team-name {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: var(--text-main);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            max-width: 140px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .col-gold .podium-team-name {
+            font-size: 1.05rem;
+            color: #92400E;
+            font-weight: 900;
+        }
+        .podium-score-pill {
+            font-size: 0.82rem;
+            font-weight: 900;
+            padding: 3px 10px;
+            border-radius: 999px;
+            margin-bottom: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .col-gold .podium-score-pill {
+            background: #FEF3C7;
+            color: #B45309;
+            border: 1px solid #FDE68A;
+            font-size: 0.95rem;
+        }
+        .col-silver .podium-score-pill {
+            background: #F1F5F9;
+            color: #475569;
+            border: 1px solid #E2E8F0;
+        }
+        .col-bronze .podium-score-pill {
+            background: #FFEDD5;
+            color: #9A3412;
+            border: 1px solid #FED7AA;
+        }
+        .podium-pedestal {
+            width: 100%;
+            border-radius: 12px 12px 4px 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 900;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            box-shadow: inset 0 2px 5px rgba(255,255,255,0.4), 0 6px 15px rgba(0,0,0,0.08);
+        }
+        .pedestal-1 {
+            height: 120px;
+            background: linear-gradient(180deg, #F59E0B 0%, #D97706 100%);
+            font-size: 2.2rem;
+        }
+        .pedestal-2 {
+            height: 85px;
+            background: linear-gradient(180deg, #94A3B8 0%, #64748B 100%);
+            font-size: 1.8rem;
+        }
+        .pedestal-3 {
+            height: 65px;
+            background: linear-gradient(180deg, #D97706 0%, #B45309 100%);
+            font-size: 1.5rem;
+        }
+
+        /* --- LIVE BREAKING RESULTS TICKER --- */
+        .live-breaking-ticker {
+            background: linear-gradient(90deg, #1E1B4B 0%, #312E81 100%);
+            color: #FFFFFF;
+            border-radius: var(--radius-md);
+            padding: 0.65rem 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(49, 46, 129, 0.25);
+            animation: fadeIn 0.4s ease;
+            cursor: pointer;
+            border: 1px solid rgba(165, 180, 252, 0.3);
+            transition: transform 0.2s ease;
+        }
+        .live-breaking-ticker:hover {
+            transform: translateY(-2px);
+        }
+        .ticker-dot-pulse {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #10B981;
+            box-shadow: 0 0 10px #10B981;
+            animation: pulseDot 1.5s infinite;
+            flex-shrink: 0;
+        }
+        @keyframes pulseDot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+        .ticker-badge {
+            background: #EF4444;
+            color: white;
+            font-size: 0.68rem;
+            font-weight: 900;
+            padding: 2px 8px;
+            border-radius: 999px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+        .ticker-text {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #E0E7FF;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ticker-cta {
+            background: rgba(255,255,255,0.15);
+            color: #FFFFFF;
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        /* --- QUICK FILTER CHIPS --- */
+        .quick-filter-chips-bar {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 4px 2px 12px 2px;
+            margin-bottom: 1.25rem;
+            scrollbar-width: none;
+        }
+        .quick-filter-chips-bar::-webkit-scrollbar { display: none; }
+        .filter-chip {
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            color: var(--text-muted);
+            padding: 0.45rem 0.95rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .filter-chip:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .filter-chip.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+        }
+
+        /* --- TEAM BREAKDOWN DRAWER / SHEET --- */
+        .drawer-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 10000;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .drawer-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+        .drawer-modal {
+            background: var(--surface);
+            width: 100%;
+            max-width: 600px;
+            max-height: 85vh;
+            border-radius: 24px 24px 0 0;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.25);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: translateY(100%);
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .drawer-overlay.active .drawer-modal {
+            transform: translateY(0);
+        }
+        .drawer-handle {
+            width: 44px;
+            height: 5px;
+            background: var(--surface-border);
+            border-radius: 999px;
+            margin: 12px auto 6px auto;
+            flex-shrink: 0;
+        }
+        .drawer-header {
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--surface-border);
+        }
+        .drawer-body {
+            padding: 1.25rem 1.5rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .drawer-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 1.5rem;
+        }
+        .drawer-stat-card {
+            background: var(--bg-light);
+            border: 1px solid var(--surface-border);
+            border-radius: 12px;
+            padding: 0.85rem;
+            text-align: center;
+        }
+        .drawer-stat-num {
+            font-size: 1.4rem;
+            font-weight: 900;
+            line-height: 1.1;
+        }
+        .drawer-stat-lbl {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+        .drawer-winning-item {
+            background: var(--bg-light);
+            border: 1px solid var(--surface-border);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .drawer-place-badge {
+            font-size: 0.75rem;
+            font-weight: 900;
+            padding: 3px 8px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+        .place-1 { background: #FEF3C7; color: #B45309; }
+        .place-2 { background: #F1F5F9; color: #475569; }
+        .place-3 { background: #FFEDD5; color: #9A3412; }
+
         @media (min-width: 769px) { .mobile-bottom-nav { display: none; } }
     </style>
     <link rel="stylesheet" href="premium-forms.css">
@@ -1995,6 +2339,14 @@
                 <p style="color: var(--text-muted); font-weight: 600; font-size: 0.92rem; text-transform: uppercase;" id="results-portal-subtitle">Official verified standings and winners podium</p>
             </div>
 
+            <!-- Live Breaking Results Ticker -->
+            <div id="live-breaking-ticker" class="live-breaking-ticker" style="display: none;" onclick="jumpToLatestEvent()">
+                <div class="ticker-dot-pulse"></div>
+                <span class="ticker-badge">LIVE BREAKING</span>
+                <span class="ticker-text" id="ticker-headline">Latest Event Published!</span>
+                <span class="ticker-cta"><i class="fa-solid fa-arrow-right"></i> View Result</span>
+            </div>
+
             <!-- Navigation Sub-Tabs & Direct Link Controls -->
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.75rem;">
                 <div class="tabs" style="margin-bottom: 0; flex: 1; min-width: 280px;">
@@ -2062,6 +2414,14 @@
                     <div class="published-count-badge">
                         <i class="fa-solid fa-flag-checkered"></i><span id="published-count-display">0</span> Published
                     </div>
+                </div>
+
+                <!-- Quick Filter Chips -->
+                <div class="quick-filter-chips-bar" id="quick-filter-chips">
+                    <button type="button" class="filter-chip active" data-filter="all" onclick="applyQuickFilter('all', this)"><i class="fa-solid fa-border-all"></i> All Events</button>
+                    <button type="button" class="filter-chip" data-filter="published" onclick="applyQuickFilter('published', this)"><i class="fa-solid fa-circle-check"></i> Published</button>
+                    <button type="button" class="filter-chip" data-filter="solo" onclick="applyQuickFilter('solo', this)"><i class="fa-solid fa-user"></i> Solo</button>
+                    <button type="button" class="filter-chip" data-filter="group" onclick="applyQuickFilter('group', this)"><i class="fa-solid fa-users"></i> Group</button>
                 </div>
                 
                 <div class="competitions-grid" id="competitions-container">
@@ -2400,6 +2760,46 @@
                 <button class="btn" id="btn-download-team" style="margin-top: 1rem; font-size: 0.95rem;">
                     <i class="fa-solid fa-download"></i> DOWNLOAD HIGH-RES GRAPHIC
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interactive Team Breakdown Drawer Modal -->
+    <div class="drawer-overlay" id="team-breakdown-drawer" onclick="if(event.target===this) closeTeamBreakdownDrawer()">
+        <div class="drawer-modal">
+            <div class="drawer-handle"></div>
+            <div class="drawer-header">
+                <div>
+                    <div style="font-size: 0.75rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px;" id="drawer-rank-tag">Rank #1</div>
+                    <h3 style="font-size: 1.25rem; font-weight: 900; color: var(--text-main); margin: 2px 0 0 0; text-transform: uppercase;" id="drawer-team-title">Team Name</h3>
+                </div>
+                <button type="button" class="btn btn-outline" onclick="closeTeamBreakdownDrawer()" style="width: 36px; height: 36px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="drawer-body">
+                <div class="drawer-stats-grid">
+                    <div class="drawer-stat-card">
+                        <div class="drawer-stat-num" style="color: #F59E0B;" id="drawer-gold-cnt">0</div>
+                        <div class="drawer-stat-lbl">🥇 1st Place</div>
+                    </div>
+                    <div class="drawer-stat-card">
+                        <div class="drawer-stat-num" style="color: #64748B;" id="drawer-silver-cnt">0</div>
+                        <div class="drawer-stat-lbl">🥈 2nd Place</div>
+                    </div>
+                    <div class="drawer-stat-card">
+                        <div class="drawer-stat-num" style="color: #D97706;" id="drawer-bronze-cnt">0</div>
+                        <div class="drawer-stat-lbl">🥉 3rd Place</div>
+                    </div>
+                </div>
+
+                <div style="font-size: 0.85rem; font-weight: 800; color: var(--text-main); text-transform: uppercase; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
+                    <span>Winning Events Roster</span>
+                    <span id="drawer-total-events-lbl" style="color: var(--text-muted); font-size: 0.75rem;">0 Events</span>
+                </div>
+                <div id="drawer-roster-list">
+                    <!-- Dynamic Event Items -->
+                </div>
             </div>
         </div>
     </div>
@@ -3005,6 +3405,7 @@
                             if (!publishedCompetitions.some(c => String(c.id) === String(data.id))) {
                                 publishedCompetitions.push(data);
                                 renderCompetitionsGrid();
+                            updateBreakingTicker();
                             }
                             comp = data;
                         }
@@ -3226,12 +3627,10 @@
                 });
             }
 
-            // Cache locally for 0ms boot next visit
+            // Cache locally for 0ms boot next visit (strictly scoped to current festival)
             try {
-                const fid = window.festosAuth ? window.festosAuth.getCurrentFestId() : null;
+                const fid = (currentFestDetails && currentFestDetails.id) || window.activeFestId || (window.festosAuth ? window.festosAuth.getCurrentFestId() : null);
                 if (fid) localStorage.setItem('festos_cfg_website_config_' + fid, JSON.stringify(websiteConfig));
-                localStorage.setItem('festos_cfg_website_config', JSON.stringify(websiteConfig));
-                localStorage.setItem('websiteConfig', JSON.stringify(websiteConfig));
             } catch(e) {}
 
             const theme = websiteConfig.theme || {};
@@ -3919,20 +4318,17 @@
 
                 // 2. Instant 0ms Synchronous Hydration from Local Storage Cache for this resolved festival
                 try {
-                    // 2.0 Synchronous Ledger Exclusions Cache
+                    // 2.0 Synchronous Ledger Exclusions Cache (strictly scoped)
                     try {
                         if (!window.cachedLedgerExclusions) {
-                            const rawEx = (festId ? localStorage.getItem('festos_cfg_points_ledger_exclusions_' + festId) : null) || 
-                                          localStorage.getItem('festos_cfg_points_ledger_exclusions');
+                            const rawEx = festId ? localStorage.getItem('festos_cfg_points_ledger_exclusions_' + festId) : null;
                             if (rawEx) {
                                 window.cachedLedgerExclusions = JSON.parse(rawEx);
                             }
                         }
                     } catch(e) {}
-                    // 2.1 Local Website Config Cache
-                    const rawWebCfg = (festId ? localStorage.getItem('festos_cfg_website_config_' + festId) : null) || 
-                                      localStorage.getItem('festos_cfg_website_config') || 
-                                      localStorage.getItem('websiteConfig');
+                    // 2.1 Local Website Config Cache (strictly scoped to this festival)
+                    const rawWebCfg = festId ? localStorage.getItem('festos_cfg_website_config_' + festId) : null;
                     if (rawWebCfg) {
                         applyWebsiteCustomizerConfig(JSON.parse(rawWebCfg));
                     }
@@ -3977,6 +4373,7 @@
                                 renderLeaderboard();
                             }
                             renderCompetitionsGrid();
+                            updateBreakingTicker();
                         }
                     }
                 } catch (cacheErr) {
@@ -4022,7 +4419,7 @@
                         supabaseClient.from('fests').select('*').eq('id', festId).maybeSingle() : 
                         Promise.resolve({ data: resolvedFest || null }),
                     window.festosGetSetting ? window.festosGetSetting('system_branding', festId) : null,
-                    window.festosGetSetting ? window.festosGetSetting('website_config', festId, { fresh: true }) : null,
+                    window.festosGetSetting ? window.festosGetSetting('website_config', festId) : null,
                     window.festosGetSetting ? window.festosGetSetting('point_system', festId) : null,
                     window.festosGetSetting ? window.festosGetSetting('participant_classes', festId) : null,
                     compsCntQuery,
@@ -4032,7 +4429,7 @@
                     teamsQuery,
                     compsQuery,
                     festId ? supabaseClient.from('templates').select('*').eq('type', 'individual').or(`fest_id.eq.${festId},fest_id.eq.global,fest_id.is.null,fest_id.eq.fest_zenith_2026`) : supabaseClient.from('templates').select('*').eq('type', 'individual'),
-                    (typeof festosGetLedgerExclusions === 'function') ? festosGetLedgerExclusions(true, festId) : (window.festosGetSetting ? window.festosGetSetting('points_ledger_exclusions', festId, { fresh: true }) : null)
+                    (typeof festosGetLedgerExclusions === 'function') ? festosGetLedgerExclusions(false, festId) : (window.festosGetSetting ? window.festosGetSetting('points_ledger_exclusions', festId) : null)
                 ]);
 
                 if (ledgerExclusionsVal && typeof ledgerExclusionsVal === 'object') {
@@ -4088,20 +4485,7 @@
                     document.documentElement.style.setProperty('--primary-glow', fData.theme_color + '25');
                 }
 
-                // 5. Apply Fresh Website Customizer Config with Cross-Device Fallback
-                if ((!webCfgVal || !webCfgVal.gallery || webCfgVal.gallery.length === 0) && typeof supabaseClient !== 'undefined') {
-                    try {
-                        const { data: gData } = await supabaseClient.from('settings').select('value').eq('id', 'website_config').maybeSingle();
-                        if (gData && gData.value) {
-                            if (!webCfgVal) {
-                                webCfgVal = gData.value;
-                            } else if (gData.value.gallery && gData.value.gallery.length > 0) {
-                                webCfgVal.gallery = gData.value.gallery;
-                            }
-                        }
-                    } catch(gErr) {}
-                }
-
+                // 5. Apply Fresh Website Customizer Config strictly for this festival
                 if (webCfgVal) {
                     applyWebsiteCustomizerConfig(webCfgVal);
                 } else {
@@ -4217,6 +4601,7 @@
 
                 populateCategoryFilter();
                 renderCompetitionsGrid();
+                updateBreakingTicker();
 
                 // 11. URL Routing & Dynamic Tab Links
                 refreshDynamicTabLinks();
@@ -4440,6 +4825,51 @@
 
             container.innerHTML = summaryStripHtml;
 
+            // --- 3D VISUAL OLYMPIC PODIUM FOR TOP 3 ---
+            if (sortedTeams.length >= 3) {
+                const t1 = sortedTeams[0];
+                const t2 = sortedTeams[1];
+                const t3 = sortedTeams[2];
+                container.innerHTML += `
+                    <div class="podium-3d-container">
+                        <!-- #2 Silver Pillar -->
+                        <div class="podium-col col-silver" onclick="openTeamBreakdownDrawer('${t2.id}')" title="Click to view full breakdown">
+                            <div class="podium-crest">
+                                <span class="podium-icon">🥈</span>
+                            </div>
+                            <div class="podium-team-name">${escapeHtml(t2.name)}</div>
+                            <div class="podium-score-pill">${t2.score} <small>PTS</small></div>
+                            <div class="podium-pedestal pedestal-2">
+                                <span class="pedestal-num">2</span>
+                            </div>
+                        </div>
+                        <!-- #1 Gold Champion Pillar -->
+                        <div class="podium-col col-gold" onclick="openTeamBreakdownDrawer('${t1.id}')" title="Click to view full breakdown">
+                            <div class="podium-crown"><i class="fa-solid fa-crown"></i></div>
+                            <div class="podium-crest">
+                                <span class="podium-icon">🏆</span>
+                            </div>
+                            <div class="podium-team-name">${escapeHtml(t1.name)}</div>
+                            <div class="podium-score-pill">${t1.score} <small>PTS</small></div>
+                            <div class="podium-pedestal pedestal-1">
+                                <span class="pedestal-num">1</span>
+                            </div>
+                        </div>
+                        <!-- #3 Bronze Pillar -->
+                        <div class="podium-col col-bronze" onclick="openTeamBreakdownDrawer('${t3.id}')" title="Click to view full breakdown">
+                            <div class="podium-crest">
+                                <span class="podium-icon">🥉</span>
+                            </div>
+                            <div class="podium-team-name">${escapeHtml(t3.name)}</div>
+                            <div class="podium-score-pill">${t3.score} <small>PTS</small></div>
+                            <div class="podium-pedestal pedestal-3">
+                                <span class="pedestal-num">3</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
             sortedTeams.forEach((team, index) => {
                 const rank = index + 1;
                 let rankClass = rank <= 3 ? `rank-${rank}` : '';
@@ -4448,7 +4878,7 @@
                 let scoreId = `score-count-${index}`;
 
                 container.innerHTML += `
-                    <div class="leaderboard-card ${cardClass}" style="animation-delay: ${index * 0.04}s">
+                    <div class="leaderboard-card ${cardClass}" onclick="openTeamBreakdownDrawer('${team.id}')" style="animation-delay: ${index * 0.04}s; cursor: pointer;" title="Click to view team breakdown">
                         <div class="rank ${rankClass}">${rankDisplay}</div>
                         <div class="team-info"><div class="team-name">${team.name}</div>${(teamPenaltiesMap[team.id] > 0) ? `<div style="margin-top: 3px;"><span title="${teamPenaltiesMap[team.id]} points deducted for category limit violations" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; background: #FEE2E2; color: #DC2626; border: 1px solid #FECACA; padding: 1px 6px; border-radius: 999px; font-weight: 700;"><i class="fa-solid fa-triangle-exclamation"></i> -${teamPenaltiesMap[team.id]} Deducted</span></div>` : ''}</div>
                         <div class="team-score-container">
@@ -4462,6 +4892,140 @@
                     if (el) animateCounter(el, team.score, 1000 + (index * 80));
                 }, 50);
             });
+        }
+
+        // --- 3D PODIUM & TEAM BREAKDOWN DRAWER LOGIC ---
+        function openTeamBreakdownDrawer(teamId) {
+            if (!teamId) return;
+            const team = (allTeams || []).find(t => String(t.id) === String(teamId)) || Object.values(calculatedTeamScores || {}).find(t => String(t.id) === String(teamId));
+            if (!team) return;
+
+            const drawer = document.getElementById('team-breakdown-drawer');
+            if (!drawer) return;
+
+            const sortedTeams = Object.values(calculatedTeamScores || {}).sort((a, b) => b.score - a.score);
+            const rankIdx = sortedTeams.findIndex(t => String(t.id) === String(teamId));
+            const rank = rankIdx !== -1 ? (rankIdx + 1) : '-';
+
+            const rankTagEl = document.getElementById('drawer-rank-tag');
+            const teamTitleEl = document.getElementById('drawer-team-title');
+            if (rankTagEl) rankTagEl.innerText = `RANK #${rank} • ${team.score || 0} TOTAL POINTS`;
+            if (teamTitleEl) teamTitleEl.innerText = team.name || 'Team Details';
+
+            let goldCount = 0;
+            let silverCount = 0;
+            let bronzeCount = 0;
+            const winningEvents = [];
+
+            (publishedCompetitions || []).forEach(comp => {
+                const results = competitionResults[comp.id] || [];
+                results.forEach(res => {
+                    const participant = res.participants || {};
+                    if (String(participant.team_id) === String(teamId)) {
+                        const pos = res.effectivePos || res.densePos || res.position || 0;
+                        if (pos === 1) goldCount++;
+                        else if (pos === 2) silverCount++;
+                        else if (pos === 3) bronzeCount++;
+
+                        winningEvents.push({
+                            compName: comp.name,
+                            pos: pos,
+                            participantName: participant.name || 'Participant',
+                            mark: res.awarded_mark
+                        });
+                    }
+                });
+            });
+
+            const goldEl = document.getElementById('drawer-gold-cnt');
+            const silverEl = document.getElementById('drawer-silver-cnt');
+            const bronzeEl = document.getElementById('drawer-bronze-cnt');
+            const totalLbl = document.getElementById('drawer-total-events-lbl');
+            if (goldEl) goldEl.innerText = goldCount;
+            if (silverEl) silverEl.innerText = silverCount;
+            if (bronzeEl) bronzeEl.innerText = bronzeCount;
+            if (totalLbl) totalLbl.innerText = `${winningEvents.length} Placements`;
+
+            const rosterContainer = document.getElementById('drawer-roster-list');
+            if (rosterContainer) {
+                if (winningEvents.length === 0) {
+                    rosterContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 2rem 0;">No individual podium finishes registered yet.</p>`;
+                } else {
+                    winningEvents.sort((a, b) => a.pos - b.pos);
+                    rosterContainer.innerHTML = winningEvents.map(ev => {
+                        const placeClass = ev.pos === 1 ? 'place-1' : ev.pos === 2 ? 'place-2' : 'place-3';
+                        const placeLabel = ev.pos === 1 ? '🥇 1ST PLACE' : ev.pos === 2 ? '🥈 2ND PLACE' : '🥉 3RD PLACE';
+                        return `
+                            <div class="drawer-winning-item">
+                                <div>
+                                    <div style="font-weight: 800; font-size: 0.88rem; color: var(--text-main); text-transform: uppercase;">${escapeHtml(ev.compName)}</div>
+                                    <div style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600; margin-top: 2px;">
+                                        <i class="fa-solid fa-user" style="font-size: 0.7rem; opacity: 0.7;"></i> ${escapeHtml(ev.participantName)}
+                                    </div>
+                                </div>
+                                <span class="drawer-place-badge ${placeClass}">${placeLabel}</span>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+
+            drawer.classList.add('active');
+        }
+
+        function closeTeamBreakdownDrawer() {
+            const drawer = document.getElementById('team-breakdown-drawer');
+            if (drawer) drawer.classList.remove('active');
+        }
+
+        // --- LIVE BREAKING RESULTS TICKER ---
+        function updateBreakingTicker() {
+            const ticker = document.getElementById('live-breaking-ticker');
+            const headline = document.getElementById('ticker-headline');
+            if (!ticker || !headline) return;
+
+            if (publishedCompetitions && publishedCompetitions.length > 0) {
+                const latestComp = publishedCompetitions[publishedCompetitions.length - 1];
+                const results = competitionResults[latestComp.id] || [];
+                const winner = results.find(r => (r.effectivePos === 1 || r.densePos === 1 || r.position === 1));
+                const winnerName = winner?.participants?.name;
+                const teamName = winner?.participants?.team_id ? allTeams.find(t => String(t.id) === String(winner.participants.team_id))?.name : null;
+
+                let txt = `${latestComp.name} Results Published!`;
+                if (winnerName) {
+                    txt += ` • 1st: ${winnerName} ${teamName ? `(${teamName})` : ''}`;
+                }
+                headline.innerText = txt;
+                ticker.style.display = 'flex';
+                ticker.dataset.latestCompId = latestComp.id;
+            } else {
+                ticker.style.display = 'none';
+            }
+        }
+
+        function jumpToLatestEvent() {
+            const ticker = document.getElementById('live-breaking-ticker');
+            const latestId = ticker?.dataset?.latestCompId;
+            switchResultsTab('individual', document.getElementById('subtab-btn-individual'));
+            if (latestId) {
+                setTimeout(() => {
+                    const el = document.getElementById(`comp-tile-${latestId}`);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        el.style.boxShadow = '0 0 0 3px var(--primary), 0 10px 25px rgba(59, 130, 246, 0.4)';
+                        setTimeout(() => { el.style.boxShadow = ''; }, 2500);
+                    }
+                }, 200);
+            }
+        }
+
+        // --- QUICK FILTER CHIPS ---
+        let currentQuickFilter = 'all';
+        function applyQuickFilter(filterType, btn) {
+            currentQuickFilter = filterType;
+            document.querySelectorAll('#quick-filter-chips .filter-chip').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            renderCompetitionsGrid();
         }
 
         function populateCategoryFilter() {
@@ -4487,6 +5051,11 @@
                 if (catFilter !== 'all' && catName !== catFilter) return;
                 if (search && !comp.name.toLowerCase().includes(search) && !catName.toLowerCase().includes(search)) return;
                 
+                // Quick filter chips check
+                if (currentQuickFilter === 'solo' && comp.is_group) return;
+                if (currentQuickFilter === 'group' && !comp.is_group) return;
+                if (currentQuickFilter === 'published' && comp.status !== 'published') return;
+
                 count++;
                 const isGroupBadge = comp.is_group ? `<span class="badge" style="background:#EFF6FF; color:#2563EB; font-size:0.68rem; font-weight:700; padding:0.2rem 0.5rem; border-radius:4px; margin-left:0.4rem;">GROUP</span>` : '';
 
@@ -5408,36 +5977,33 @@
             }
         }
 
-        // --- Persist Website Config to LocalStorage and Cloud Database ---
+        // --- Persist Website Config to LocalStorage and Cloud Database (Strictly Scoped) ---
         async function persistWebsiteConfig() {
-            const fid = currentFestDetails.id || window.activeFestId || (window.festosAuth ? window.festosAuth.getCurrentFestId() : '') || 'fest_zenith_2026';
+            const fid = currentFestDetails.id || window.activeFestId || (window.festosAuth ? window.festosAuth.getCurrentFestId() : '');
+            if (!fid) {
+                console.warn('Cannot persist websiteConfig without active festival ID.');
+                return;
+            }
             
-            // 1. Instant LocalStorage Cache
+            // 1. Instant LocalStorage Cache (strictly scoped)
             try {
-                if (fid) {
-                    localStorage.setItem('festos_cfg_website_config_' + fid, JSON.stringify(websiteConfig));
-                    localStorage.setItem('website_config_' + fid, JSON.stringify(websiteConfig));
-                }
-                localStorage.setItem('festos_cfg_website_config', JSON.stringify(websiteConfig));
-                localStorage.setItem('websiteConfig', JSON.stringify(websiteConfig));
+                localStorage.setItem('festos_cfg_website_config_' + fid, JSON.stringify(websiteConfig));
+                localStorage.setItem('website_config_' + fid, JSON.stringify(websiteConfig));
             } catch(e) {
                 console.warn('LocalStorage save error:', e);
             }
 
-            // 2. Persist via festosSaveSetting
+            // 2. Persist via festosSaveSetting (scoped to current festival only)
             if (window.festosSaveSetting) {
                 try {
                     await window.festosSaveSetting('website_config', websiteConfig, fid);
-                    await window.festosSaveSetting('website_config', websiteConfig, null);
                 } catch(e) {}
             }
 
-            // 3. Direct Supabase Settings upsert
+            // 3. Direct Supabase Settings upsert (scoped to current festival only)
             if (typeof supabaseClient !== 'undefined' && supabaseClient) {
                 try {
-                    const records = [{ id: 'website_config', value: websiteConfig }];
-                    if (fid) records.push({ id: 'website_config_' + fid, value: websiteConfig });
-                    await supabaseClient.from('settings').upsert(records);
+                    await supabaseClient.from('settings').upsert([{ id: 'website_config_' + fid, value: websiteConfig }]);
                 } catch(dbErr) {
                     console.warn('Supabase settings upsert note:', dbErr);
                 }

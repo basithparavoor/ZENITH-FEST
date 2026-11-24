@@ -107,22 +107,327 @@ function festLogoOf(fest) {
     return festEmblemOf(fest.name || 'Fest');
 }
 
-// ---- Super Admin Light Theme (Dark Theme Removed) ----
+// ---- Super Admin Titanium Dark / Clean Light Theme System ----
 function applySuperTheme() {
     try {
-        localStorage.removeItem('festos_super_theme');
+        const saved = localStorage.getItem('festos_super_theme') || 'light';
         if (typeof document !== 'undefined') {
-            document.documentElement.removeAttribute('data-theme');
+            if (saved === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+            }
+            updateThemeIcon(saved);
         }
     } catch (e) { /* ignore */ }
 }
 
-function toggleSuperTheme() {
+function toggleSuperDarkTheme() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const next = isDark ? 'light' : 'dark';
+    try {
+        localStorage.setItem('festos_super_theme', next);
+    } catch(e) {}
     applySuperTheme();
+    showToast(`Switched to ${next === 'dark' ? 'Titanium Dark' : 'Clean Light'} Mode`, 'info');
 }
 
-// Apply immediately to ensure clean light theme
+function toggleSuperTheme() {
+    toggleSuperDarkTheme();
+}
+
+function updateThemeIcon(theme) {
+    const icon = document.getElementById('theme-icon');
+    if (icon) {
+        if (theme === 'dark') {
+            icon.className = 'fa-solid fa-sun';
+            icon.style.color = '#F59E0B';
+        } else {
+            icon.className = 'fa-solid fa-moon';
+            icon.style.color = '';
+        }
+    }
+}
+
+// Apply immediately on parse
 applySuperTheme();
+
+// Live Digital Clock HUD
+function initLiveSuperClock() {
+    function tick() {
+        const el = document.getElementById('header-clock-val');
+        if (!el) return;
+        const now = new Date();
+        el.innerText = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    tick();
+    setInterval(tick, 1000);
+}
+
+// Deterministic User Avatar Gradient
+function getDeterministicUserGradient(username) {
+    const palettes = [
+        ['#3B82F6', '#6366F1'],
+        ['#10B981', '#059669'],
+        ['#8B5CF6', '#EC4899'],
+        ['#F59E0B', '#D97706'],
+        ['#06B6D4', '#3B82F6'],
+        ['#E11D48', '#BE123C'],
+        ['#14B8A6', '#0D9488']
+    ];
+    let hash = 0;
+    const str = String(username || 'U');
+    for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+    }
+    const idx = Math.abs(hash) % palettes.length;
+    const [c1, c2] = palettes[idx];
+    return `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)`;
+}
+
+// 1-Click Copy Festival Domain Link
+function copyFestivalLink(domain, nameOrId) {
+    const fest = Array.isArray(globalFests) ? globalFests.find(f => f.id === nameOrId) : null;
+    const name = fest ? fest.name : nameOrId;
+    const url = `https://${domain}`;
+    navigator.clipboard.writeText(url).then(() => {
+        showToast(`Copied portal link for "${name}": ${url}`, 'success');
+    }).catch(() => {
+        showToast('Could not copy link.', 'error');
+    });
+}
+
+// =========================================================================
+// STAFF ONBOARDING CREDENTIALS & SHARING ENGINE
+// =========================================================================
+
+// Generate rich, formatted credentials message for Super Admin
+function generateSuperUserCredentialShareText(user) {
+    if (!user) return '';
+
+    // 1. Resolve Festival Name & Domain
+    const assignedFest = (Array.isArray(globalFests) ? globalFests : []).find(f => f.id === user.fest_id) ||
+        (Array.isArray(globalFests) ? globalFests : []).find(f => user.username && user.username.startsWith(f.slug));
+
+    const festName = assignedFest ? assignedFest.name : 'FestOS Global';
+    const festSlug = assignedFest ? assignedFest.slug : '';
+
+    // 2. Resolve Public Portal Link matching fest domain
+    let loginUrl = '';
+    if (assignedFest && assignedFest.domain) {
+        loginUrl = `https://${assignedFest.domain}`;
+    } else if (festSlug) {
+        loginUrl = `https://${window.location.host}/login.html?fest=${encodeURIComponent(festSlug)}`;
+    } else {
+        loginUrl = `https://${window.location.host}/login.html`;
+    }
+
+    // 3. Resolve Role Display
+    const roleMap = {
+        'master_admin': '👑 Master Admin (Full Festival Control)',
+        'admin': '⚙️ Festival Administrator',
+        'fest_manager': '🎪 Festival Operations Manager',
+        'judge': '⚖️ Official Competition Judge',
+        'stage_controller': '🎙️ Stage Controller / Venue Lead',
+        'announcer': '📢 Festival Announcer',
+        'team_manager': '👥 Team Manager (Squad Lead)'
+    };
+
+    const userRoles = (window.festosMultiRole && festosMultiRole.getUserRoles(user)) || (user.roles || [user.role]);
+    const rolesDisplay = userRoles.map(r => roleMap[r] || r.toUpperCase()).join(' + ');
+
+    let multiRoleNote = '';
+    if (userRoles && userRoles.length > 1) {
+        multiRoleNote = `\n🔄 *Multi-Role Access:* You have ${userRoles.length} active roles! Toggle between your assigned portals anytime using the Switch Role button in the top navigation bar.`;
+    }
+
+    const recipientName = user.name || user.username;
+
+    return `✨ *${festName.toUpperCase()} — PORTAL LOGIN CREDENTIALS* ✨
+
+Dear ${recipientName},
+
+Here are your official login credentials to access the festival operating system:
+
+👤 *Role(s):* ${rolesDisplay}${multiRoleNote}
+🔑 *Username:* ${user.username}
+🔒 *Password:* ${user.password_hash || '(not set)'}
+
+🌐 *Login Portal:*
+${loginUrl}
+
+📱 *Quick Instructions:*
+1. Open the portal link above.
+2. Sign in with your Username and Password.
+3. Access your live schedule, participant submissions, and event controls.
+${userRoles && userRoles.length > 1 ? '4. Switch between your assigned roles using the Role Switcher at the top of the screen.\n' : ''}
+_Please keep these credentials confidential._`;
+}
+window.generateSuperUserCredentialShareText = generateSuperUserCredentialShareText;
+
+// Copy Single User Credentials to Clipboard
+async function copySuperUserCredentials(userIdOrUser) {
+    let user = typeof userIdOrUser === 'object' ? userIdOrUser : (globalUsers || []).find(u => String(u.id) === String(userIdOrUser) || u.username === userIdOrUser);
+    if (!user) {
+        return showToast('User account not found.', 'error');
+    }
+
+    const message = generateSuperUserCredentialShareText(user);
+    try {
+        await navigator.clipboard.writeText(message);
+        showToast(`Credentials for @${user.username} copied to clipboard!`, 'success');
+    } catch(err) {
+        const ta = document.createElement('textarea');
+        ta.value = message;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast(`Credentials for @${user.username} copied to clipboard!`, 'success');
+    }
+}
+window.copySuperUserCredentials = copySuperUserCredentials;
+
+// Share Single User Credentials via WhatsApp
+function shareSuperUserCredentialsWhatsApp(userIdOrUser) {
+    let user = typeof userIdOrUser === 'object' ? userIdOrUser : (globalUsers || []).find(u => String(u.id) === String(userIdOrUser) || u.username === userIdOrUser);
+    if (!user) {
+        return showToast('User account not found.', 'error');
+    }
+
+    const message = generateSuperUserCredentialShareText(user);
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank');
+}
+window.shareSuperUserCredentialsWhatsApp = shareSuperUserCredentialsWhatsApp;
+
+// Compatibility alias for 1-Click Staff Onboarding Credentials Copy
+function copyUserCredentials(username, festSlug, password) {
+    let user = (globalUsers || []).find(u => u.username === username);
+    if (user) {
+        return copySuperUserCredentials(user);
+    }
+    const loginUrl = festSlug ? `https://${window.location.host}/login.html?fest=${encodeURIComponent(festSlug)}` : `https://${window.location.host}/login.html`;
+    const message = `✨ *${(festSlug || 'FESTOS').toUpperCase()} — PORTAL LOGIN CREDENTIALS* ✨\n\nDear ${username},\n\n🔑 *Username:* ${username}\n🔒 *Password:* ${password || '(not set)'}\n\n🌐 *Login Portal:*\n${loginUrl}\n\n_Please keep these credentials confidential._`;
+    navigator.clipboard.writeText(message).then(() => {
+        showToast(`Copied onboarding credentials for "${username}"!`, 'success');
+    }).catch(() => {
+        showToast('Could not copy credentials.', 'error');
+    });
+}
+window.copyUserCredentials = copyUserCredentials;
+
+// Copy Selected Users Credentials in Bulk
+async function copySelectedUsersCredentials() {
+    if (!selectedUserIds || selectedUserIds.size === 0) return showToast('No users selected. Check one or more accounts first.', 'info');
+    const selectedUsers = (globalUsers || []).filter(u => selectedUserIds.has(u.id));
+    if (selectedUsers.length === 0) return;
+
+    const messages = selectedUsers.map(u => generateSuperUserCredentialShareText(u)).join('\n\n========================================\n\n');
+    try {
+        await navigator.clipboard.writeText(messages);
+        showToast(`Copied formatted credentials for ${selectedUsers.length} accounts!`, 'success');
+    } catch(e) {
+        showToast('Failed to copy credentials: ' + e.message, 'error');
+    }
+}
+window.copySelectedUsersCredentials = copySelectedUsersCredentials;
+
+// Password reveal toggle in Super Admin table
+function toggleSuperPassword(id) {
+    const input = document.getElementById(`super-pwd-${id}`);
+    const eye = document.getElementById(`super-eye-${id}`);
+    if (!input || !eye) return;
+    if (input.type === 'password') {
+        input.type = 'text';
+        input.style.color = 'var(--text-main)';
+        eye.className = 'fa-solid fa-eye-slash';
+    } else {
+        input.type = 'password';
+        input.style.color = 'var(--text-muted)';
+        eye.className = 'fa-solid fa-eye';
+    }
+}
+window.toggleSuperPassword = toggleSuperPassword;
+
+function copySuperUserCredentialsFromModal() {
+    if (currentEditingUser) copySuperUserCredentials(currentEditingUser.id);
+}
+window.copySuperUserCredentialsFromModal = copySuperUserCredentialsFromModal;
+
+function shareSuperUserCredentialsWhatsAppFromModal() {
+    if (currentEditingUser) shareSuperUserCredentialsWhatsApp(currentEditingUser.id);
+}
+window.shareSuperUserCredentialsWhatsAppFromModal = shareSuperUserCredentialsWhatsAppFromModal;
+
+// Header Festival Context Dropdown Populate
+function populateHeaderFestSelector() {
+    const sel = document.getElementById('header-fest-select');
+    if (!sel) return;
+    if (!globalFests || globalFests.length === 0) {
+        sel.innerHTML = '<option value="">No Festivals Found</option>';
+        return;
+    }
+    sel.innerHTML = globalFests.map(f => {
+        return `<option value="${f.id}" ${f.id === activeFestId ? 'selected' : ''}>${f.name} (${f.slug})</option>`;
+    }).join('');
+}
+
+// Fast Telemetry Sync Action
+async function triggerSuperFastSync(btn) {
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    }
+    showToast('Flushing caches & refreshing multi-tenant telemetry...', 'info');
+    try {
+        await loadInitialData();
+        renderAllViews();
+        runQuickPing();
+        showToast('Telemetry & cache synchronized successfully!', 'success');
+    } catch(e) {
+        showToast('Sync notice: ' + e.message, 'warning');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
+        }
+    }
+}
+
+// Fast Portal Launcher Strip Renderer for Overview Control Room
+function renderOverviewFastLauncher() {
+    const container = document.getElementById('overview-fast-launcher-strip');
+    if (!container) return;
+    if (!globalFests || globalFests.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; padding:0.5rem 0;">No active festival tenants configured yet.</div>';
+        return;
+    }
+    container.innerHTML = globalFests.map(f => {
+        const domain = festDomainOf(f);
+        const resultsSub = f.public_results_slug || 'results';
+        const isLive = f.status === 'active';
+        return `
+            <div class="launcher-item-chip" style="background:var(--bg-main); border:1px solid var(--border); border-radius:var(--radius-md); padding:0.75rem 1rem; display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:280px; flex:1;">
+                <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                    <span class="pulse-status-dot ${isLive ? 'active' : (f.status === 'upcoming' ? 'upcoming' : 'concluded')}" title="${isLive ? 'Tenant Active & Live' : f.status}"></span>
+                    <img src="${festLogoOf(f)}" style="width:30px; height:30px; border-radius:6px; object-fit:contain; background:#FFF; border:1px solid var(--border); padding:2px;" onerror="this.onerror=null; this.src=festEmblemOf('${(f.name || 'Fest').replace(/'/g, "\\\'")}');">
+                    <div style="min-width:0;">
+                        <div style="font-weight:700; font-size:0.88rem; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${f.name}</div>
+                        <div style="font-size:0.72rem; font-family:var(--font-mono); color:var(--text-muted);">${f.slug} &bull; ${domain}</div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:5px; flex-shrink:0;">
+                    <a href="admin.html?fest=${encodeURIComponent(f.id)}" target="_blank" class="portal-launch-pill pill-admin" title="Launch Festival Admin Console"><i class="fa-solid fa-sliders"></i> Admin</a>
+                    <a href="results.html?fest=${encodeURIComponent(f.id)}" target="_blank" class="portal-launch-pill pill-results" title="View Public Results Portal"><i class="fa-solid fa-chart-column"></i> Results</a>
+                    <a href="display.html?fest=${encodeURIComponent(f.id)}" target="_blank" class="portal-launch-pill pill-display" title="Open Stage Display Screens"><i class="fa-solid fa-tv"></i> Stage</a>
+                    <button class="copy-domain-btn" onclick="copyFestivalLink('${domain}', '${f.id}')" title="Copy Festival Link"><i class="fa-regular fa-copy"></i></button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
 
 // =========================================================================
 // 1. INITIALIZATION & AUTH
@@ -130,7 +435,10 @@ applySuperTheme();
 document.addEventListener('DOMContentLoaded', async () => {
     initAuthAndProfile();
     initCommandPalette();
+    initLiveSuperClock();
+    applySuperTheme();
     await loadInitialData();
+    populateHeaderFestSelector();
     await loadGlobalSoftwareBranding();
     renderAllViews();
     runQuickPing();
@@ -660,6 +968,8 @@ document.addEventListener('keydown', (e) => {
 function renderAllViews() {
     renderOverviewActiveSpotlight();
     renderOverviewAuditStream();
+    renderOverviewFastLauncher();
+    populateHeaderFestSelector();
     renderFestivalsGrid();
     renderBroadcastsTab();
     renderEnquiriesTable();
@@ -737,6 +1047,12 @@ function changeActiveFestContext(festId) {
     const festSlugEl = document.getElementById('dash-active-fest-slug');
     if (festNameEl && activeFest) festNameEl.innerText = activeFest.name;
     if (festSlugEl && activeFest) festSlugEl.innerText = festDomainOf(activeFest);
+    
+    // Sync Header Dropdown
+    const headerSel = document.getElementById('header-fest-select');
+    if (headerSel && headerSel.value !== festId) {
+        headerSel.value = festId;
+    }
 }
 
 // =========================================================================
@@ -1154,13 +1470,25 @@ function renderFestivalsGrid() {
                         <div style="flex:1; min-width:0;">
                             <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
                                 <div class="fest-card-title">${f.name}</div>
-                                <div style="display:flex; gap:4px; align-items:center;">
+                                <div style="display:flex; gap:6px; align-items:center;">
+                                    <span class="pulse-status-dot ${f.status === 'active' ? 'active' : (f.status === 'upcoming' ? 'upcoming' : 'concluded')}" title="${f.status === 'active' ? 'Tenant Online & Active' : f.status}"></span>
                                     ${isConcluded && f.status !== 'archived' ? `<span class="fest-chip" style="background:var(--amber-light); color:var(--amber); border:1px solid rgba(245,158,11,0.3); font-size:0.65rem;"><i class="fa-solid fa-flag-checkered"></i> Concluded</span>` : ''}
                                     <span class="fest-chip chip-${f.status || 'active'}">${f.status || 'active'}</span>
                                 </div>
                             </div>
-                            <a class="fest-domain-badge" href="https://${domain}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Open festival site"><i class="fa-solid fa-globe"></i> ${domain}</a>
+                            <div style="display:flex; align-items:center; gap:6px; margin-top:4px; flex-wrap:wrap;">
+                                <a class="fest-domain-badge" href="https://${domain}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Open festival site"><i class="fa-solid fa-globe"></i> ${domain}</a>
+                                <button class="copy-domain-btn" onclick="event.stopPropagation(); copyFestivalLink('${domain}', '${f.id}');" title="Copy Festival Link"><i class="fa-regular fa-copy"></i> Copy</button>
+                            </div>
                         </div>
+                    </div>
+
+                    <!-- Direct Portal Quick Launch Row -->
+                    <div class="portal-quick-launch-row" onclick="event.stopPropagation()">
+                        <a href="admin.html?fest=${encodeURIComponent(f.id)}" target="_blank" class="portal-launch-pill pill-admin" title="Open Admin Console"><i class="fa-solid fa-sliders"></i> Admin</a>
+                        <a href="results.html?fest=${encodeURIComponent(f.id)}" target="_blank" class="portal-launch-pill pill-results" title="Open Results Portal"><i class="fa-solid fa-chart-column"></i> Results</a>
+                        <a href="display.html?fest=${encodeURIComponent(f.id)}" target="_blank" class="portal-launch-pill pill-display" title="Open Stage Display"><i class="fa-solid fa-tv"></i> Stage</a>
+                        <a href="judge.html?fest=${encodeURIComponent(f.id)}" target="_blank" class="portal-launch-pill" style="background:rgba(245,158,11,0.08); color:#D97706; border-color:rgba(245,158,11,0.2);" title="Open Judge Portal"><i class="fa-solid fa-gavel"></i> Judge</a>
                     </div>
 
                     <div class="fest-meta-list">
@@ -1232,7 +1560,7 @@ function renderFestivalsGrid() {
 
                 return `
                     <tr class="${isSelected ? 'selected' : ''}" style="cursor:pointer;" onclick="openFestWorkspace('${f.id}')">
-                        <td>
+                        <td data-label="Festival & Domain">
                             <div style="display:flex; align-items:center; gap:10px;">
                                 <img src="${festLogoOf(f)}" alt="${f.name}" style="width:34px; height:34px; border-radius:6px; object-fit:contain; border:1px solid var(--border); padding:2px; background:#FFF;" onerror="this.onerror=null; this.src=festEmblemOf('${(f.name || 'Fest').replace(/'/g, "\\'")}');">
                                 <div>
@@ -1241,24 +1569,24 @@ function renderFestivalsGrid() {
                                 </div>
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Slug Prefix">
                             <span style="font-family:var(--font-mono); font-weight:700; background:var(--bg-main); padding:2px 8px; border-radius:4px; font-size:0.8rem;">${f.slug}</span>
                         </td>
-                        <td>
+                        <td data-label="Status">
                             <div style="display:flex; gap:4px; align-items:center;">
                                 <span class="fest-chip chip-${f.status || 'active'}">${f.status || 'active'}</span>
                                 ${isConcluded && f.status !== 'archived' ? `<span class="fest-chip" style="background:var(--amber-light); color:var(--amber); border:1px solid rgba(245,158,11,0.3); font-size:0.65rem;">Concluded</span>` : ''}
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Dates & Venue">
                             <div style="font-size:0.82rem; font-weight:600;">${f.venue || 'Main Venue'}</div>
                             <div style="font-size:0.75rem; color:var(--text-muted);">${f.startDate || 'Dates TBD'}</div>
                         </td>
-                        <td>
+                        <td data-label="Staff & Admins">
                             <span style="font-weight:700; font-size:0.85rem;">${adminCount} Staff</span>
                         </td>
-                        <td style="text-align:right;" onclick="event.stopPropagation()">
-                            <div style="display:inline-flex; gap:6px;">
+                        <td data-label="Quick Actions" class="col-actions" style="text-align:right;" onclick="event.stopPropagation()">
+                            <div style="display:inline-flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
                                 <button class="btn btn-primary" style="padding:4px 9px; font-size:0.75rem;" onclick="launchFestConsole('${f.id}')" title="Open Console">
                                     <i class="fa-solid fa-arrow-up-right-from-square"></i> Console
                                 </button>
@@ -1885,30 +2213,30 @@ function renderEnquiriesTable() {
 
     tbody.innerHTML = filtered.map(e => `
         <tr>
-            <td>
+            <td data-label="Client / Institution">
                 <div style="font-weight:700; color:var(--text-main);">${e.client_name}</div>
                 <div style="font-size:0.8rem; color:var(--text-muted);"><i class="fa-solid fa-building" style="color:var(--primary);"></i> ${e.organization}</div>
             </td>
-            <td>
+            <td data-label="Contact Details">
                 <div style="font-size:0.85rem;"><i class="fa-solid fa-envelope" style="color:var(--cyan);"></i> ${e.email}</div>
                 <div style="font-size:0.8rem; color:var(--text-muted);"><i class="fa-solid fa-phone" style="color:var(--success);"></i> ${e.phone || 'N/A'}</div>
             </td>
-            <td>
+            <td data-label="Fest Date & Scale">
                 <div style="font-size:0.85rem; font-weight:600;"><i class="fa-solid fa-calendar"></i> ${e.fest_date || 'TBD'}</div>
                 <span style="font-size:0.75rem; color:var(--text-muted);">${e.expected_attendees || 'Scale TBD'}</span>
             </td>
-            <td style="max-width:260px;">
+            <td data-label="Client Message" style="max-width:260px;">
                 <p style="font-size:0.82rem; color:var(--text-main); line-height:1.35; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
                     ${e.message || 'No message provided.'}
                 </p>
             </td>
-            <td>
+            <td data-label="Status">
                 <span class="fest-chip ${e.status === 'new' ? 'chip-upcoming' : (e.status === 'contacted' ? 'chip-active' : 'chip-archived')}">
                     ${(e.status || 'new').toUpperCase()}
                 </span>
             </td>
-            <td style="text-align:right;">
-                <div style="display:inline-flex; gap:6px;">
+            <td data-label="Actions" class="col-actions" style="text-align:right;">
+                <div style="display:inline-flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
                     <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem;" onclick="updateEnquiryStatus('${e.id}', 'contacted')" title="Mark Contacted">
                         <i class="fa-solid fa-phone-volume"></i>
                     </button>
@@ -2007,12 +2335,12 @@ function renderUsersTable() {
 
         return `
             <tr class="${isChecked ? 'selected' : ''}">
-                <td style="text-align:center;">
+                <td data-label="Select" style="text-align:center;">
                     <input type="checkbox" class="custom-chk user-chk" value="${u.id}" ${isChecked ? 'checked' : ''} onchange="toggleUserSelection('${u.id}', this.checked)">
                 </td>
-                <td>
+                <td data-label="Username & Fest Code">
                     <div style="display:flex; align-items:center; gap:10px;">
-                        <div class="user-avatar" style="width:30px; height:30px; font-size:0.75rem;">${u.username.substring(0,2).toUpperCase()}</div>
+                        <div class="user-avatar" style="width:34px; height:34px; font-size:0.75rem; background:${getDeterministicUserGradient(u.username)}; box-shadow:0 2px 6px rgba(0,0,0,0.12); flex-shrink:0;">${u.username.substring(0,2).toUpperCase()}</div>
                         <div>
                             <div style="font-weight:700; color:var(--text-main);">${u.username}</div>
                             <span style="font-size:0.72rem; font-family:var(--font-mono); color:var(--primary); background:var(--primary-light); padding:1px 5px; border-radius:3px;">
@@ -2021,10 +2349,10 @@ function renderUsersTable() {
                         </div>
                     </div>
                 </td>
-                <td>
+                <td data-label="Assigned Festival">
                     <span style="font-size:0.85rem; color:var(--text-main); font-weight:700;"><i class="fa-solid fa-crown" style="color:var(--amber); margin-right:4px;"></i> ${festName}</span>
                 </td>
-                <td>
+                <td data-label="Access Role">
                     <div style="display:flex; flex-wrap:wrap; gap:3px;">
                         ${((window.festosMultiRole && festosMultiRole.getUserRoles(u)) || (u.roles || [u.role])).map(r => {
                             const meta = (window.festosMultiRole && festosMultiRole.ROLES[r]) || { name: r, color: 'var(--primary)', bg: 'var(--primary-light)' };
@@ -2035,25 +2363,31 @@ function renderUsersTable() {
                         }).join(' ')}
                     </div>
                 </td>
-                <td>
-                    <div style="display:inline-flex; align-items:center; gap:6px; background:var(--bg-main); border:1px solid var(--border); padding:3px 8px; border-radius:6px; font-family:var(--font-mono); font-size:0.8rem;">
-                        <span>${u.password_hash || '••••••••'}</span>
-                        <button onclick="copyToClipboard('${u.password_hash || ''}')" style="background:none; border:none; color:var(--primary); cursor:pointer; font-size:0.75rem;" title="Copy Password">
-                            <i class="fa-solid fa-copy"></i>
+                <td data-label="Current Password">
+                    <div style="display:inline-flex; align-items:center; gap:6px;">
+                        <input type="password" id="super-pwd-${u.id}" value="${u.password_hash || ''}" readonly style="border:none; background:transparent; width:85px; font-weight:700; color:var(--text-muted); outline:none; pointer-events:none; font-family:var(--font-mono); font-size:0.85rem;">
+                        <button class="btn btn-outline" style="padding:0.22rem 0.5rem; font-size:0.75rem; border-radius:6px;" onclick="toggleSuperPassword('${u.id}')" title="Reveal / Hide Password">
+                            <i class="fa-solid fa-eye" id="super-eye-${u.id}"></i>
                         </button>
                     </div>
                 </td>
-                <td>
+                <td data-label="Password History">
                     <button class="btn btn-outline" style="padding:3px 8px; font-size:0.75rem;" onclick="openPasswordHistoryModal('${u.id}')">
                         <i class="fa-solid fa-clock-rotate-left"></i> ${historyCount} Past Keys
                     </button>
                 </td>
-                <td style="text-align:right;">
-                    <div style="display:inline-flex; gap:6px;">
-                        <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem;" onclick="editUserModal('${u.id}')" title="Edit Role & Festival Assignment">
-                            <i class="fa-solid fa-user-pen"></i> Assign
+                <td data-label="Actions" class="col-actions" style="text-align:right;">
+                    <div style="display:inline-flex; gap:5px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+                        <button class="btn btn-outline" style="padding:0.35rem 0.65rem; color:#4F46E5; border-color:#C7D2FE; background:#EEF2FF; font-size:0.82rem; border-radius:6px;" onclick="copySuperUserCredentials('${u.id}')" title="Copy Full Credentials Message & Portal Link">
+                            <i class="fa-solid fa-copy"></i>
                         </button>
-                        <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem; color:var(--danger);" onclick="triggerDeleteUserDialog('${u.id}', '${u.username}')" title="Delete Account">
+                        <button class="btn btn-outline" style="padding:0.35rem 0.65rem; color:#059669; border-color:#A7F3D0; background:#ECFDF5; font-size:0.82rem; border-radius:6px;" onclick="shareSuperUserCredentialsWhatsApp('${u.id}')" title="Share Credentials via WhatsApp">
+                            <i class="fa-brands fa-whatsapp"></i>
+                        </button>
+                        <button class="btn btn-outline" style="padding:0.35rem 0.65rem; font-size:0.82rem; border-radius:6px;" onclick="editUserModal('${u.id}')" title="Edit Role & Festival Assignment">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button class="btn btn-outline" style="padding:0.35rem 0.65rem; color:var(--danger); border-color:#FECACA; background:#FEF2F2; font-size:0.82rem; border-radius:6px;" onclick="triggerDeleteUserDialog('${u.id}', '${u.username}')" title="Delete Account">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>
@@ -2240,6 +2574,9 @@ function openCreateUserModal() {
     document.getElementById('modal-user-username').value = '';
     document.getElementById('modal-user-password').value = '';
     
+    const shareBox = document.getElementById('user-modal-share-actions');
+    if (shareBox) shareBox.style.display = 'none';
+
     // Default to master_admin checked
     document.querySelectorAll('input[name="saUserRoleCheck"]').forEach(cb => {
         cb.checked = (cb.value === 'master_admin');
@@ -2266,6 +2603,9 @@ function editUserModal(userId) {
     document.getElementById('modal-user-id').value = user.id;
     document.getElementById('modal-user-username').value = user.username;
     document.getElementById('modal-user-password').value = user.password_hash || '';
+
+    const shareBox = document.getElementById('user-modal-share-actions');
+    if (shareBox) shareBox.style.display = 'flex';
 
     // Check all roles user currently holds
     const userRoles = (window.festosMultiRole && festosMultiRole.getUserRoles(user)) || (user.roles || [user.role || 'master_admin']);
@@ -3283,36 +3623,36 @@ function renderBroadcastsTab() {
             const targetFestName = b.target_fest_id === 'all' ? 'All Festivals' : (globalFests.find(f => f.id === b.target_fest_id)?.name || b.target_fest_id);
             return `
                 <tr>
-                    <td>
+                    <td data-label="Severity">
                         <span class="fest-chip chip-${b.severity === 'danger' ? 'danger' : (b.severity === 'warning' ? 'upcoming' : 'active')}" style="font-size:0.7rem;">
                             ${b.severity || 'info'}
                         </span>
                     </td>
-                    <td>
+                    <td data-label="Title & Message">
                         <div style="font-weight:700; color:var(--text-main); font-size:0.88rem;">${b.title}</div>
                         <div style="font-size:0.78rem; color:var(--text-muted); max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${b.message}</div>
                     </td>
-                    <td>
+                    <td data-label="Audience Target">
                         <div style="font-size:0.82rem; font-weight:600;">${b.target_role === 'master_admin' ? 'Master Admins' : 'All Portals'}</div>
                         <div style="font-size:0.74rem; color:var(--text-muted);">${targetFestName}</div>
                     </td>
-                    <td>
+                    <td data-label="Attachment">
                         ${b.attachment && (b.attachment.url || b.attachment.dataUrl) ? `
                             <a href="${b.attachment.url || b.attachment.dataUrl}" download="${b.attachment.name || 'Attachment'}" target="_blank" style="color:var(--primary); font-weight:700; font-size:0.8rem; text-decoration:none;">
                                 <i class="fa-solid fa-paperclip"></i> ${b.attachment.name || 'File'}
                             </a>
                         ` : '<span style="color:var(--text-muted); font-size:0.78rem;">None</span>'}
                     </td>
-                    <td>
+                    <td data-label="Status">
                         <span class="fest-chip ${b.is_active !== false ? 'chip-active' : 'chip-archived'}">
                             ${b.is_active !== false ? 'Active' : 'Inactive'}
                         </span>
                     </td>
-                    <td style="font-size:0.78rem; color:var(--text-muted); white-space:nowrap;">
+                    <td data-label="Created Time" style="font-size:0.78rem; color:var(--text-muted); white-space:nowrap;">
                         ${new Date(b.created_at || Date.now()).toLocaleDateString()} ${new Date(b.created_at || Date.now()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                     </td>
-                    <td style="text-align:right;">
-                        <div style="display:inline-flex; gap:6px;">
+                    <td data-label="Actions" class="col-actions" style="text-align:right;">
+                        <div style="display:inline-flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
                             <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem; color:var(--primary);" onclick="editBroadcast('${b.id}')" title="Edit Notification">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
@@ -3984,12 +4324,12 @@ function renderSuperPresetsTable(list) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>
-                <div style="width: 50px; height: 50px; background: #0F172A; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                <div style="width: 50px; height: 50px; background: #0F172A; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer;" onclick="openSuperTemplateStudio('${preset.id}')" title="Click to open in Poster Studio">
                     ${preset.bg_base64 ? `<img src="${preset.bg_base64}" style="width:100%; height:100%; object-fit:cover;">` : '<i class="fa-solid fa-image" style="color:#64748B;"></i>'}
                 </div>
             </td>
             <td>
-                <div style="font-weight: 800; color: var(--text-main);">${preset.name}</div>
+                <div style="font-weight: 800; color: var(--text-main); cursor: pointer;" onclick="openSuperTemplateStudio('${preset.id}')" title="Click to open in Poster Studio">${preset.name}</div>
                 <small style="color: var(--text-muted); font-family: monospace;">${preset.id}</small>
             </td>
             <td>
@@ -4005,8 +4345,11 @@ function renderSuperPresetsTable(list) {
             </td>
             <td style="text-align: right;">
                 <div style="display: inline-flex; gap: 0.4rem;">
-                    <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;" onclick="openSuperCreatePresetModal('${preset.id}')" title="Configure Template & Festival Access">
-                        <i class="fa-solid fa-sliders"></i> Access & Edit
+                    <button class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; font-weight: 700;" onclick="openSuperTemplateStudio('${preset.id}')" title="Open Poster Studio Canvas Editor">
+                        <i class="fa-solid fa-palette"></i> Access & Edit
+                    </button>
+                    <button class="btn btn-outline" style="padding: 0.4rem 0.65rem; font-size: 0.8rem;" onclick="openSuperCreatePresetModal('${preset.id}')" title="Configure Festival Access Permissions">
+                        <i class="fa-solid fa-shield-halved"></i> Scope
                     </button>
                     ${!preset.is_system_preset ? `
                     <button class="btn btn-outline" style="padding: 0.4rem 0.65rem; font-size: 0.8rem; color: var(--danger); border-color: var(--danger);" onclick="deleteSuperPreset('${preset.id}')" title="Delete Preset">
@@ -4017,6 +4360,13 @@ function renderSuperPresetsTable(list) {
         `;
         tbody.appendChild(tr);
     });
+}
+
+function launchSuperStudioFromModal() {
+    const idInput = document.getElementById('super-preset-id');
+    const presetId = idInput?.value || null;
+    closeModal('superPresetModal');
+    openSuperTemplateStudio(presetId);
 }
 
 function openSuperCreatePresetModal(presetId = null) {
@@ -4216,6 +4566,1055 @@ async function deleteSuperPreset(presetId) {
         alert('Failed to delete preset: ' + err.message);
     }
 }
+
+/* =========================================================================
+   SUPER ADMIN POSTER STUDIO ENGINE
+   ========================================================================= */
+
+const SUPER_AVAILABLE_FONTS = [
+    { name: 'Cinzel (Classical Roman)', value: "'Cinzel', serif" },
+    { name: 'Playfair Display (Luxury Serif)', value: "'Playfair Display', serif" },
+    { name: 'Great Vibes (Calligraphy Script)', value: "'Great Vibes', cursive" },
+    { name: 'Alex Brush (Formal Script)', value: "'Alex Brush', cursive" },
+    { name: 'Pinyon Script (Classic Script)', value: "'Pinyon Script', cursive" },
+    { name: 'Cormorant Garamond (Fine Serif)', value: "'Cormorant Garamond', serif" },
+    { name: 'Montserrat (Modern Sans)', value: "'Montserrat', sans-serif" },
+    { name: 'Inter (Clean Modern)', value: "Inter, sans-serif" },
+    { name: 'Plus Jakarta Sans', value: "'Plus Jakarta Sans', sans-serif" },
+    { name: 'Times New Roman', value: "'Times New Roman', Times, serif" },
+    { name: 'Roboto', value: "Roboto, sans-serif" },
+    { name: 'Bebas Neue (Headline Display)', value: "'Bebas Neue', cursive" }
+];
+
+const SUPER_STUDIO_MOCK_DATA = {
+    'ResultNumber': '#42', 'Category': 'GENERAL', 'Competition': 'DANCE OFF',
+    'Position1Name': 'JOHN DOE', 'Position1Team': 'FALCONS', 'Position1Number': '1',
+    'Position2Name': 'JANE SMITH', 'Position2Team': 'EAGLES', 'Position2Number': '2',
+    'Position3Name': 'MIKE TYSON', 'Position3Team': 'HAWKS', 'Position3Number': '3',
+    'ResultsCountText': 'AFTER 40',
+    'TotalCompetitionsCount': 'FINAL OVERALL',
+    'Rank1Team': 'FALCONS', 'Rank1Points': '450', 'Rank1Number': '1',
+    'Rank2Team': 'EAGLES', 'Rank2Points': '380', 'Rank2Number': '2',
+    'Rank3Team': 'HAWKS', 'Rank3Points': '310', 'Rank3Number': '3',
+    'Rank4Team': 'TIGERS', 'Rank4Points': '280', 'Rank4Number': '4',
+    'Rank5Team': 'LIONS', 'Rank5Points': '250', 'Rank5Number': '5',
+    'Rank6Team': 'PANTHERS', 'Rank6Points': '220', 'Rank6Number': '6',
+    'ParticipantName': 'JOHN DOE', 'UniqueID': 'FEST-26-987654', 'BatchNo': 'BATCH 1',
+    'Position': 'FIRST PLACE', 'Grade': 'A+ GRADE', 'IssueDate': new Date().toLocaleDateString()
+};
+
+let superStudioActiveData = null;
+let superStudioActiveField = null;
+let superStudioUndoStack = [];
+let superStudioRedoStack = [];
+let superIsDraggingLayer = false;
+let superIsResizingLayer = false;
+let superDragOffsetX = 0;
+let superDragOffsetY = 0;
+let superResizeStartX = 0;
+let superResizeStartY = 0;
+let superResizeStartW = 0;
+let superResizeStartH = 0;
+let superStudioCanvasEventsBound = false;
+
+function superStudioSaveHistory() {
+    if (!superStudioActiveData) return;
+    try {
+        const cleanFields = {};
+        Object.keys(superStudioActiveData.fields || {}).forEach(k => {
+            const f = superStudioActiveData.fields[k];
+            if (f) {
+                const { imgObj, ...rest } = f;
+                cleanFields[k] = rest;
+            }
+        });
+        const snapshot = JSON.stringify({
+            fields: cleanFields,
+            bg_base64: superStudioActiveData.bg_base64,
+            type: superStudioActiveData.type,
+            name: superStudioActiveData.name
+        });
+        superStudioUndoStack.push(snapshot);
+        if (superStudioUndoStack.length > 30) superStudioUndoStack.shift();
+        superStudioRedoStack = [];
+        updateSuperStudioHistoryButtons();
+    } catch(e) {}
+}
+
+function updateSuperStudioHistoryButtons() {
+    const btnUndo = document.getElementById('super-studio-btn-undo');
+    const btnRedo = document.getElementById('super-studio-btn-redo');
+    if (btnUndo) btnUndo.disabled = superStudioUndoStack.length === 0;
+    if (btnRedo) btnRedo.disabled = superStudioRedoStack.length === 0;
+}
+
+function superStudioUndo() {
+    if (superStudioUndoStack.length === 0) return;
+    const currentState = JSON.stringify({
+        fields: superStudioActiveData.fields,
+        bg_base64: superStudioActiveData.bg_base64,
+        type: superStudioActiveData.type,
+        name: superStudioActiveData.name
+    });
+    superStudioRedoStack.push(currentState);
+    const prevState = JSON.parse(superStudioUndoStack.pop());
+    superStudioActiveData.fields = prevState.fields;
+    superStudioActiveData.name = prevState.name;
+    if (document.getElementById('super-studio-template-name')) {
+        document.getElementById('super-studio-template-name').value = prevState.name;
+    }
+    updateSuperStudioHistoryButtons();
+    renderSuperStudioLayersPanel();
+    renderSuperStudioPropertiesPanel();
+    drawSuperStudioCanvas();
+}
+
+function superStudioRedo() {
+    if (superStudioRedoStack.length === 0) return;
+    const currentState = JSON.stringify({
+        fields: superStudioActiveData.fields,
+        bg_base64: superStudioActiveData.bg_base64,
+        type: superStudioActiveData.type,
+        name: superStudioActiveData.name
+    });
+    superStudioUndoStack.push(currentState);
+    const nextState = JSON.parse(superStudioRedoStack.pop());
+    superStudioActiveData.fields = nextState.fields;
+    superStudioActiveData.name = nextState.name;
+    if (document.getElementById('super-studio-template-name')) {
+        document.getElementById('super-studio-template-name').value = nextState.name;
+    }
+    updateSuperStudioHistoryButtons();
+    renderSuperStudioLayersPanel();
+    renderSuperStudioPropertiesPanel();
+    drawSuperStudioCanvas();
+}
+
+async function openSuperTemplateStudio(presetIdOrObj = null) {
+    const libView = document.getElementById('super-presets-library-view');
+    const studioView = document.getElementById('super-template-studio-view');
+    if (libView) libView.style.display = 'none';
+    if (studioView) studioView.style.display = 'block';
+
+    let targetPreset = null;
+    if (typeof presetIdOrObj === 'string') {
+        targetPreset = superAdminPresetsCache.find(p => p.id === presetIdOrObj);
+        if (!targetPreset && window.FestOSPresetEngine?.PRESET_TEMPLATES_CATALOG) {
+            targetPreset = window.FestOSPresetEngine.PRESET_TEMPLATES_CATALOG.find(p => p.id === presetIdOrObj);
+        }
+    } else if (presetIdOrObj && typeof presetIdOrObj === 'object') {
+        targetPreset = presetIdOrObj;
+    }
+
+    if (targetPreset) {
+        superStudioActiveData = JSON.parse(JSON.stringify(targetPreset));
+    } else {
+        superStudioActiveData = {
+            id: 'PRESET_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+            name: 'NEW GLOBAL TEMPLATE',
+            type: 'individual',
+            bg_base64: null,
+            fields: {},
+            _access_scope: { is_all: true, allowed_fests: ['*'] }
+        };
+    }
+
+    if (!superStudioActiveData.fields) superStudioActiveData.fields = {};
+    if (!superStudioActiveData._access_scope) {
+        superStudioActiveData._access_scope = superStudioActiveData.fields._access_scope || { is_all: true, allowed_fests: ['*'] };
+    }
+
+    // Populate Top Inputs
+    const nameInput = document.getElementById('super-studio-template-name');
+    const typeSelect = document.getElementById('super-studio-template-type');
+    if (nameInput) nameInput.value = superStudioActiveData.name || '';
+    if (typeSelect) typeSelect.value = superStudioActiveData.type || 'individual';
+
+    updateSuperStudioAccessScopeButton();
+
+    // If template has no background, check if generator is available in catalog
+    if (!superStudioActiveData.bg_base64) {
+        const cat = (window.FestOSPresetEngine?.PRESET_TEMPLATES_CATALOG || []).find(p => p.id === superStudioActiveData.id || p.type === superStudioActiveData.type);
+        if (cat && typeof cat.generateBg === 'function') {
+            superStudioActiveData.bg_base64 = cat.generateBg();
+        }
+    }
+
+    // If template has no fields or is new, initialize default fields for type
+    if (Object.keys(superStudioActiveData.fields).filter(k => !k.startsWith('_')).length === 0) {
+        initializeSuperStudioFields(false);
+    }
+
+    // Load Background Image Object
+    superStudioActiveData.imgObj = new Image();
+    superStudioActiveData.imgObj.crossOrigin = 'Anonymous';
+    superStudioActiveData.imgObj.onload = () => drawSuperStudioCanvas();
+    superStudioActiveData.imgObj.onerror = () => {
+        const fb = new Image();
+        fb.onload = () => {
+            superStudioActiveData.imgObj = fb;
+            drawSuperStudioCanvas();
+        };
+        fb.src = superStudioActiveData.bg_base64;
+    };
+    if (superStudioActiveData.bg_base64) {
+        superStudioActiveData.imgObj.src = superStudioActiveData.bg_base64;
+    }
+
+    // Rehydrate static element images if any
+    Object.keys(superStudioActiveData.fields).forEach(key => {
+        const field = superStudioActiveData.fields[key];
+        if (field && field.isStaticElement && field.src) {
+            field.imgObj = new Image();
+            field.imgObj.crossOrigin = 'Anonymous';
+            field.imgObj.onload = () => drawSuperStudioCanvas();
+            field.imgObj.src = field.src;
+        }
+    });
+
+    superStudioActiveField = null;
+    superStudioUndoStack = [];
+    superStudioRedoStack = [];
+    updateSuperStudioHistoryButtons();
+
+    renderSuperStudioLayersPanel();
+    renderSuperStudioPropertiesPanel();
+    drawSuperStudioCanvas();
+
+    initSuperStudioCanvasEvents();
+}
+
+function closeSuperTemplateStudio() {
+    const libView = document.getElementById('super-presets-library-view');
+    const studioView = document.getElementById('super-template-studio-view');
+    if (studioView) studioView.style.display = 'none';
+    if (libView) libView.style.display = 'block';
+    loadSuperPresets();
+}
+
+function initializeSuperStudioFields(isTypeChange = false) {
+    if (!superStudioActiveData) return;
+    const type = document.getElementById('super-studio-template-type')?.value || superStudioActiveData.type || 'individual';
+    superStudioActiveData.type = type;
+
+    // Check catalog for rich defaults
+    const catalogItem = (window.FestOSPresetEngine?.PRESET_TEMPLATES_CATALOG || []).find(p => p.type === type);
+    if (catalogItem && catalogItem.fields) {
+        const defaultFields = JSON.parse(JSON.stringify(catalogItem.fields));
+        if (superStudioActiveData._access_scope) {
+            defaultFields._access_scope = superStudioActiveData._access_scope;
+        }
+        superStudioActiveData.fields = defaultFields;
+        if (isTypeChange && !superStudioActiveData.bg_base64 && typeof catalogItem.generateBg === 'function') {
+            superStudioActiveData.bg_base64 = catalogItem.generateBg();
+            if (superStudioActiveData.imgObj) superStudioActiveData.imgObj.src = superStudioActiveData.bg_base64;
+        }
+    }
+
+    superStudioActiveField = null;
+    renderSuperStudioLayersPanel();
+    renderSuperStudioPropertiesPanel();
+    drawSuperStudioCanvas();
+}
+
+function drawSuperStudioCanvas() {
+    const canvas = document.getElementById('super-studio-canvas');
+    if (!canvas || !superStudioActiveData) return;
+    const ctx = canvas.getContext('2d');
+
+    const type = superStudioActiveData.type || 'individual';
+    let defaultW = 1080;
+    let defaultH = 1440;
+    if (type === 'certificate') { defaultW = 1600; defaultH = 1130; }
+    else if (type === 'id_card') { defaultW = 900; defaultH = 1300; }
+
+    if (superStudioActiveData.imgObj && superStudioActiveData.imgObj.naturalWidth > 0) {
+        canvas.width = superStudioActiveData.imgObj.naturalWidth;
+        canvas.height = superStudioActiveData.imgObj.naturalHeight;
+        ctx.drawImage(superStudioActiveData.imgObj, 0, 0);
+    } else {
+        canvas.width = defaultW;
+        canvas.height = defaultH;
+        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, '#0F172A');
+        grad.addColorStop(1, '#020617');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#64748B';
+        ctx.font = 'bold 36px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('NO BACKGROUND IMAGE UPLOADED', canvas.width / 2, canvas.height / 2);
+    }
+
+    // Render layers
+    const fields = superStudioActiveData.fields || {};
+    for (const [key, data] of Object.entries(fields)) {
+        if (!data || key.startsWith('_') || data.enabled === false) continue;
+
+        if (data.isImage) {
+            if (data.isStaticElement && data.imgObj && data.imgObj.complete) {
+                ctx.drawImage(data.imgObj, data.x, data.y, data.w, data.h);
+            } else {
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(data.x, data.y, data.w, data.h, data.radius || 12);
+                else ctx.rect(data.x, data.y, data.w, data.h);
+
+                ctx.fillStyle = key.includes('Photo') ? 'rgba(59, 130, 246, 0.25)' : 'rgba(15, 23, 42, 0.35)';
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = 'bold 24px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(data.displayName || key, data.x + (data.w / 2), data.y + (data.h / 2) + 8);
+            }
+
+            // Selection Box and Resize Handle if Active Field
+            if (superStudioActiveField === key) {
+                ctx.strokeStyle = '#3B82F6';
+                ctx.lineWidth = 4;
+                ctx.setLineDash([12, 6]);
+                ctx.strokeRect(data.x - 2, data.y - 2, data.w + 4, data.h + 4);
+                ctx.setLineDash([]);
+
+                const handleSize = 18;
+                ctx.fillStyle = '#FFFFFF';
+                ctx.strokeStyle = '#3B82F6';
+                ctx.lineWidth = 3;
+                ctx.fillRect(data.x + data.w - (handleSize / 2), data.y + data.h - (handleSize / 2), handleSize, handleSize);
+                ctx.strokeRect(data.x + data.w - (handleSize / 2), data.y + data.h - (handleSize / 2), handleSize, handleSize);
+            }
+        } else {
+            ctx.textAlign = data.align || 'left';
+            ctx.fillStyle = data.color || '#FFFFFF';
+            const weight = data.weight || 'bold';
+            const size = data.size || 36;
+            const font = data.font || 'Inter, sans-serif';
+            ctx.font = `${weight} ${size}px ${font}`;
+
+            const textValue = data.isCustom ? (data.displayName || 'Custom Text') : (SUPER_STUDIO_MOCK_DATA[key] || data.displayName || key);
+
+            if (superStudioActiveField === key) {
+                ctx.shadowColor = 'rgba(59, 130, 246, 0.9)';
+                ctx.shadowBlur = 18;
+                ctx.fillText(textValue, data.x, data.y);
+                ctx.shadowBlur = 0;
+
+                const textWidth = ctx.measureText(textValue).width;
+                let startX = data.x;
+                if (data.align === 'center') startX = data.x - (textWidth / 2);
+                else if (data.align === 'right') startX = data.x - textWidth;
+
+                ctx.strokeStyle = '#3B82F6';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(startX - 6, data.y + 8);
+                ctx.lineTo(startX + textWidth + 6, data.y + 8);
+                ctx.stroke();
+            } else {
+                ctx.fillText(textValue, data.x, data.y);
+            }
+        }
+    }
+}
+
+function initSuperStudioCanvasEvents() {
+    if (superStudioCanvasEventsBound) return;
+    const canvas = document.getElementById('super-studio-canvas');
+    if (!canvas) return;
+    superStudioCanvasEventsBound = true;
+
+    function getCoords(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    }
+
+    function onPointerDown(e) {
+        if (!superStudioActiveData) return;
+        const coords = getCoords(e);
+        const mouseX = coords.x;
+        const mouseY = coords.y;
+
+        // 1. Check if clicking on active image resize handle
+        if (superStudioActiveField && superStudioActiveData.fields[superStudioActiveField]?.isImage) {
+            const data = superStudioActiveData.fields[superStudioActiveField];
+            if (!data.locked) {
+                const hitZone = 35;
+                if (mouseX >= data.x + data.w - hitZone && mouseX <= data.x + data.w + hitZone &&
+                    mouseY >= data.y + data.h - hitZone && mouseY <= data.y + data.h + hitZone) {
+                    superStudioSaveHistory();
+                    superIsResizingLayer = true;
+                    superResizeStartW = data.w;
+                    superResizeStartH = data.h;
+                    superResizeStartX = mouseX;
+                    superResizeStartY = mouseY;
+                    if (e.type === 'touchstart') e.preventDefault();
+                    return;
+                }
+            }
+        }
+
+        // 2. Hit detection for layers
+        let hit = null;
+        const keys = Object.keys(superStudioActiveData.fields).filter(k => !k.startsWith('_')).reverse();
+        const ctx = canvas.getContext('2d');
+
+        for (const key of keys) {
+            const data = superStudioActiveData.fields[key];
+            if (!data || data.enabled === false) continue;
+
+            if (data.isImage) {
+                if (mouseX >= data.x && mouseX <= data.x + data.w &&
+                    mouseY >= data.y && mouseY <= data.y + data.h) {
+                    hit = key;
+                    break;
+                }
+            } else {
+                ctx.font = `${data.weight || 'bold'} ${data.size || 36}px ${data.font || 'Inter, sans-serif'}`;
+                const textValue = data.isCustom ? (data.displayName || 'Custom Text') : (SUPER_STUDIO_MOCK_DATA[key] || data.displayName || key);
+                const w = ctx.measureText(textValue).width;
+                const h = data.size || 36;
+                let startX = data.x;
+                if (data.align === 'center') startX -= w / 2;
+                else if (data.align === 'right') startX -= w;
+
+                if (mouseX >= startX - 15 && mouseX <= startX + w + 15 &&
+                    mouseY >= data.y - h - 15 && mouseY <= data.y + (h * 0.2) + 15) {
+                    hit = key;
+                    break;
+                }
+            }
+        }
+
+        if (hit) {
+            selectSuperStudioLayer(hit);
+            const activeLayer = superStudioActiveData.fields[hit];
+            if (!activeLayer.locked) {
+                superStudioSaveHistory();
+                superIsDraggingLayer = true;
+                superDragOffsetX = mouseX - activeLayer.x;
+                superDragOffsetY = mouseY - activeLayer.y;
+            }
+            if (e.type === 'touchstart') e.preventDefault();
+        } else {
+            superStudioActiveField = null;
+            renderSuperStudioLayersPanel();
+            renderSuperStudioPropertiesPanel();
+            drawSuperStudioCanvas();
+        }
+    }
+
+    function onPointerMove(e) {
+        if (!superStudioActiveData) return;
+        if (!superIsDraggingLayer && !superIsResizingLayer) return;
+
+        const coords = getCoords(e);
+        const mouseX = coords.x;
+        const mouseY = coords.y;
+
+        if (superIsResizingLayer && superStudioActiveField) {
+            const data = superStudioActiveData.fields[superStudioActiveField];
+            const deltaX = mouseX - superResizeStartX;
+            const deltaY = mouseY - superResizeStartY;
+
+            let newW = Math.max(40, Math.round(superResizeStartW + deltaX));
+            let newH = Math.max(40, Math.round(superResizeStartH + deltaY));
+
+            if (data.aspectLocked && data.aspectRatio) {
+                newH = Math.round(newW / data.aspectRatio);
+            }
+
+            data.w = newW;
+            data.h = newH;
+
+            const wInput = document.getElementById('super-prop-w');
+            const hInput = document.getElementById('super-prop-h');
+            if (wInput) wInput.value = newW;
+            if (hInput) hInput.value = newH;
+
+            drawSuperStudioCanvas();
+            if (e.type === 'touchmove') e.preventDefault();
+            return;
+        }
+
+        if (superIsDraggingLayer && superStudioActiveField) {
+            const data = superStudioActiveData.fields[superStudioActiveField];
+            data.x = Math.round(mouseX - superDragOffsetX);
+            data.y = Math.round(mouseY - superDragOffsetY);
+
+            const xInput = document.getElementById('super-prop-x');
+            const yInput = document.getElementById('super-prop-y');
+            if (xInput) xInput.value = data.x;
+            if (yInput) yInput.value = data.y;
+
+            drawSuperStudioCanvas();
+            if (e.type === 'touchmove') e.preventDefault();
+        }
+    }
+
+    function onPointerUp() {
+        superIsDraggingLayer = false;
+        superIsResizingLayer = false;
+    }
+
+    canvas.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+
+    canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+    window.addEventListener('touchmove', onPointerMove, { passive: false });
+    window.addEventListener('touchend', onPointerUp);
+}
+
+function renderSuperStudioLayersPanel() {
+    const container = document.getElementById('super-studio-layers-panel');
+    const countBadge = document.getElementById('super-studio-layer-count');
+    if (!container || !superStudioActiveData) return;
+
+    const fields = superStudioActiveData.fields || {};
+    const validKeys = Object.keys(fields).filter(k => !k.startsWith('_')).reverse();
+    if (countBadge) countBadge.innerText = validKeys.length;
+
+    if (validKeys.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size:0.82rem; padding:1rem;">No layers available.</p>';
+        return;
+    }
+
+    let html = '';
+    validKeys.forEach(key => {
+        const data = fields[key];
+        const isActive = superStudioActiveField === key;
+        const isEnabled = data.enabled !== false;
+        const isLocked = data.locked === true;
+        const iconClass = data.isImage ? 'fa-image' : 'fa-font';
+
+        html += `
+            <div class="super-studio-layer-row ${isActive ? 'active' : ''}" onclick="selectSuperStudioLayer('${key}')">
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1; overflow: hidden;">
+                    <i class="fa-solid ${iconClass}" style="color: ${isActive ? 'var(--primary)' : 'var(--text-muted)'}; font-size: 0.85rem; width: 16px;"></i>
+                    <span style="font-size: 0.82rem; font-weight: ${isActive ? '800' : '600'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        ${data.displayName || key}
+                    </span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <button type="button" style="background: none; border: none; cursor: pointer; color: ${isLocked ? 'var(--danger)' : 'var(--text-muted)'}; font-size: 0.82rem; padding: 2px;" onclick="toggleSuperStudioLayerLock(event, '${key}')" title="${isLocked ? 'Unlock Layer' : 'Lock Layer'}">
+                        <i class="fa-solid ${isLocked ? 'fa-lock' : 'fa-lock-open'}"></i>
+                    </button>
+                    <button type="button" style="background: none; border: none; cursor: pointer; color: ${isEnabled ? 'var(--text-main)' : '#94A3B8'}; font-size: 0.82rem; padding: 2px;" onclick="toggleSuperStudioLayerVisibility(event, '${key}')" title="${isEnabled ? 'Hide Layer' : 'Show Layer'}">
+                        <i class="fa-solid ${isEnabled ? 'fa-eye' : 'fa-eye-slash'}"></i>
+                    </button>
+                    ${data.isCustom ? `
+                    <button type="button" style="background: none; border: none; cursor: pointer; color: var(--danger); font-size: 0.82rem; padding: 2px;" onclick="deleteSuperStudioLayer('${key}', event)" title="Delete Layer">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>` : ''}
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function selectSuperStudioLayer(key) {
+    superStudioActiveField = key;
+    renderSuperStudioLayersPanel();
+    renderSuperStudioPropertiesPanel();
+    drawSuperStudioCanvas();
+}
+
+function toggleSuperStudioLayerVisibility(e, key) {
+    if (e) e.stopPropagation();
+    if (!superStudioActiveData?.fields[key]) return;
+    superStudioSaveHistory();
+    superStudioActiveData.fields[key].enabled = superStudioActiveData.fields[key].enabled === false ? true : false;
+    renderSuperStudioLayersPanel();
+    drawSuperStudioCanvas();
+}
+
+function toggleSuperStudioLayerLock(e, key) {
+    if (e) e.stopPropagation();
+    if (!superStudioActiveData?.fields[key]) return;
+    superStudioSaveHistory();
+    superStudioActiveData.fields[key].locked = !superStudioActiveData.fields[key].locked;
+    renderSuperStudioLayersPanel();
+    renderSuperStudioPropertiesPanel();
+}
+
+function deleteSuperStudioLayer(key, e) {
+    if (e) e.stopPropagation();
+    if (!superStudioActiveData?.fields[key]) return;
+    if (!confirm(`Delete layer "${superStudioActiveData.fields[key].displayName || key}"?`)) return;
+    superStudioSaveHistory();
+    delete superStudioActiveData.fields[key];
+    if (superStudioActiveField === key) superStudioActiveField = null;
+    renderSuperStudioLayersPanel();
+    renderSuperStudioPropertiesPanel();
+    drawSuperStudioCanvas();
+}
+
+function renderSuperStudioPropertiesPanel() {
+    const container = document.getElementById('super-studio-properties-panel');
+    const badge = document.getElementById('super-studio-selected-layer-badge');
+    if (!container) return;
+
+    if (!superStudioActiveField || !superStudioActiveData?.fields[superStudioActiveField]) {
+        container.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 1.5rem 0;">Select a layer above or click on the canvas to configure properties.</p>';
+        if (badge) badge.innerText = 'None Selected';
+        return;
+    }
+
+    const data = superStudioActiveData.fields[superStudioActiveField];
+    if (badge) badge.innerText = data.displayName || superStudioActiveField;
+
+    const disabledAttr = data.locked ? 'disabled' : '';
+
+    if (data.isImage) {
+        container.innerHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                <div>
+                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">X Position</label>
+                    <input type="number" id="super-prop-x" class="form-control" value="${data.x}" oninput="updateSuperStudioProperty('x', this.value)" ${disabledAttr}>
+                </div>
+                <div>
+                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Y Position</label>
+                    <input type="number" id="super-prop-y" class="form-control" value="${data.y}" oninput="updateSuperStudioProperty('y', this.value)" ${disabledAttr}>
+                </div>
+                <div>
+                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Width (px)</label>
+                    <input type="number" id="super-prop-w" class="form-control" value="${data.w}" oninput="updateSuperStudioProperty('w', this.value)" ${disabledAttr}>
+                </div>
+                <div>
+                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Height (px)</label>
+                    <input type="number" id="super-prop-h" class="form-control" value="${data.h}" oninput="updateSuperStudioProperty('h', this.value)" ${disabledAttr}>
+                </div>
+                <div style="grid-column: span 2;">
+                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Corner Radius (px)</label>
+                    <input type="number" class="form-control" value="${data.radius || 0}" oninput="updateSuperStudioProperty('radius', this.value)" ${disabledAttr}>
+                </div>
+            </div>
+            ${data.isCustom ? `
+            <button class="btn btn-outline" style="width: 100%; border-color: var(--danger); color: var(--danger); margin-top: 1rem; font-size: 0.8rem;" onclick="deleteSuperStudioLayer('${superStudioActiveField}')">
+                <i class="fa-solid fa-trash"></i> Delete Image Layer
+            </button>` : ''}
+        `;
+    } else {
+        const fontsOptions = SUPER_AVAILABLE_FONTS.map(f => `
+            <option value="${f.value}" ${data.font === f.value ? 'selected' : ''}>${f.name}</option>
+        `).join('');
+
+        container.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                ${data.isCustom ? `
+                <div>
+                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Custom Text Content</label>
+                    <input type="text" class="form-control" value="${data.displayName || ''}" oninput="updateSuperStudioProperty('displayName', this.value)" ${disabledAttr}>
+                </div>` : ''}
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem;">
+                    <div>
+                        <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">X Position</label>
+                        <input type="number" id="super-prop-x" class="form-control" value="${data.x}" oninput="updateSuperStudioProperty('x', this.value)" ${disabledAttr}>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Y Position</label>
+                        <input type="number" id="super-prop-y" class="form-control" value="${data.y}" oninput="updateSuperStudioProperty('y', this.value)" ${disabledAttr}>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem;">
+                    <div>
+                        <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Font Size</label>
+                        <input type="number" class="form-control" value="${data.size || 36}" oninput="updateSuperStudioProperty('size', this.value)" ${disabledAttr}>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Color</label>
+                        <input type="color" class="form-control" value="${data.color || '#FFFFFF'}" oninput="updateSuperStudioProperty('color', this.value)" style="height: 38px; padding: 2px;" ${disabledAttr}>
+                    </div>
+                </div>
+
+                <div>
+                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Font Family</label>
+                    <select class="form-control" onchange="updateSuperStudioProperty('font', this.value)" ${disabledAttr}>
+                        ${fontsOptions}
+                    </select>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem;">
+                    <div>
+                        <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Weight</label>
+                        <select class="form-control" onchange="updateSuperStudioProperty('weight', this.value)" ${disabledAttr}>
+                            <option value="normal" ${data.weight === 'normal' ? 'selected' : ''}>Normal</option>
+                            <option value="bold" ${data.weight === 'bold' ? 'selected' : ''}>Bold</option>
+                            <option value="900" ${data.weight === '900' ? 'selected' : ''}>Black (900)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Alignment</label>
+                        <select class="form-control" onchange="updateSuperStudioProperty('align', this.value)" ${disabledAttr}>
+                            <option value="left" ${data.align === 'left' ? 'selected' : ''}>Left</option>
+                            <option value="center" ${data.align === 'center' ? 'selected' : ''}>Center</option>
+                            <option value="right" ${data.align === 'right' ? 'selected' : ''}>Right</option>
+                        </select>
+                    </div>
+                </div>
+
+                ${data.isCustom ? `
+                <button class="btn btn-outline" style="width: 100%; border-color: var(--danger); color: var(--danger); margin-top: 0.5rem; font-size: 0.8rem;" onclick="deleteSuperStudioLayer('${superStudioActiveField}')">
+                    <i class="fa-solid fa-trash"></i> Delete Text Layer
+                </button>` : ''}
+            </div>
+        `;
+    }
+}
+
+function updateSuperStudioProperty(prop, value) {
+    if (!superStudioActiveField || !superStudioActiveData?.fields[superStudioActiveField]) return;
+    const data = superStudioActiveData.fields[superStudioActiveField];
+    if (data.locked) return;
+
+    superStudioSaveHistory();
+    const isNum = ['x', 'y', 'w', 'h', 'size', 'radius'].includes(prop);
+    data[prop] = isNum ? (parseInt(value, 10) || 0) : value;
+    drawSuperStudioCanvas();
+}
+
+function addSuperStudioTextLayer() {
+    if (!superStudioActiveData) return;
+    superStudioSaveHistory();
+    const key = 'CustomText_' + Date.now();
+    const canvas = document.getElementById('super-studio-canvas');
+    const midX = canvas ? Math.round(canvas.width / 2) : 540;
+    const midY = canvas ? Math.round(canvas.height / 2) : 720;
+
+    superStudioActiveData.fields[key] = {
+        displayName: 'NEW TEXT',
+        x: midX,
+        y: midY,
+        size: 40,
+        color: '#FFFFFF',
+        font: 'Inter, sans-serif',
+        weight: 'bold',
+        align: 'center',
+        enabled: true,
+        isCustom: true
+    };
+
+    selectSuperStudioLayer(key);
+    showToast('New text layer added!', 'success');
+}
+
+async function handleSuperStudioBgUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file || !superStudioActiveData) return;
+
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    if (isPdf) {
+        showToast('Rendering high-res Vector PDF (300 DPI)...', 'info');
+        try {
+            if (typeof pdfjsLib !== 'undefined') {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                const arrayBuffer = await file.arrayBuffer();
+                const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                const pdfDoc = await loadingTask.promise;
+                const page = await pdfDoc.getPage(1);
+
+                const unscaled = page.getViewport({ scale: 1.0 });
+                const longestEdge = Math.max(unscaled.width, unscaled.height);
+                const targetWidth = 3508;
+                const renderScale = Math.max(2.5, targetWidth / longestEdge);
+                const viewport = page.getViewport({ scale: renderScale });
+
+                const offCanvas = document.createElement('canvas');
+                offCanvas.width = Math.round(viewport.width);
+                offCanvas.height = Math.round(viewport.height);
+                const offCtx = offCanvas.getContext('2d', { alpha: false });
+                offCtx.fillStyle = '#FFFFFF';
+                offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+
+                await page.render({ canvasContext: offCtx, viewport: viewport }).promise;
+
+                const highResDataUrl = offCanvas.toDataURL('image/jpeg', 0.94);
+                superStudioSaveHistory();
+                superStudioActiveData.bg_base64 = highResDataUrl;
+                superStudioActiveData.imgObj = new Image();
+                superStudioActiveData.imgObj.onload = () => drawSuperStudioCanvas();
+                superStudioActiveData.imgObj.src = highResDataUrl;
+                showToast('Vector PDF background applied!', 'success');
+                return;
+            }
+        } catch (pdfErr) {
+            console.error('PDF render error:', pdfErr);
+            showToast('PDF render failed: ' + pdfErr.message, 'error');
+        }
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        superStudioSaveHistory();
+        superStudioActiveData.bg_base64 = e.target.result;
+        superStudioActiveData.imgObj = new Image();
+        superStudioActiveData.imgObj.onload = () => drawSuperStudioCanvas();
+        superStudioActiveData.imgObj.src = e.target.result;
+        showToast('Background image updated!', 'success');
+    };
+    reader.readAsDataURL(file);
+}
+
+function handleSuperStudioElementUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file || !superStudioActiveData) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const src = e.target.result;
+        const img = new Image();
+        img.onload = () => {
+            superStudioSaveHistory();
+            const key = 'Element_' + Date.now();
+            const w = Math.min(250, img.naturalWidth || 200);
+            const ratio = (img.naturalWidth && img.naturalHeight) ? (img.naturalWidth / img.naturalHeight) : 1;
+            const h = Math.round(w / ratio);
+
+            superStudioActiveData.fields[key] = {
+                displayName: 'Element ' + (Object.keys(superStudioActiveData.fields).length + 1),
+                x: 100,
+                y: 100,
+                w: w,
+                h: h,
+                src: src,
+                imgObj: img,
+                isImage: true,
+                isStaticElement: true,
+                aspectLocked: true,
+                aspectRatio: ratio,
+                enabled: true,
+                isCustom: true
+            };
+
+            selectSuperStudioLayer(key);
+            showToast('Element badge added!', 'success');
+        };
+        img.src = src;
+    };
+    reader.readAsDataURL(file);
+}
+
+async function handleSuperStudioFontUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+        const fontName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9]/g, '_');
+        const buffer = await file.arrayBuffer();
+        const fontFace = new FontFace(fontName, buffer);
+        const loadedFont = await fontFace.load();
+        document.fonts.add(loadedFont);
+
+        SUPER_AVAILABLE_FONTS.unshift({ name: fontName + ' (Custom)', value: `'${fontName}', sans-serif` });
+        renderSuperStudioPropertiesPanel();
+        showToast(`Font "${fontName}" uploaded & activated!`, 'success');
+    } catch (err) {
+        console.error('Font upload failed:', err);
+        showToast('Failed to load custom font: ' + err.message, 'error');
+    }
+}
+
+function updateSuperStudioAccessScopeButton() {
+    const btnLabel = document.getElementById('super-studio-access-btn-label');
+    if (!btnLabel || !superStudioActiveData) return;
+    const scope = superStudioActiveData._access_scope || { is_all: true };
+    if (scope.is_all !== false) {
+        btnLabel.innerText = 'All Festivals';
+    } else {
+        const count = Array.isArray(scope.allowed_fests) ? scope.allowed_fests.length : 0;
+        btnLabel.innerText = `Restricted (${count} Festivals)`;
+    }
+}
+
+function openSuperStudioAccessModal() {
+    if (!superStudioActiveData) return;
+    const modal = document.getElementById('superStudioAccessModal');
+    if (!modal) return;
+
+    const scope = superStudioActiveData._access_scope || { is_all: true, allowed_fests: ['*'] };
+    const isAll = scope.is_all !== false;
+
+    const radioAll = document.querySelector('input[name="super-studio-scope-mode"][value="all"]');
+    const radioRestricted = document.querySelector('input[name="super-studio-scope-mode"][value="restricted"]');
+    if (isAll && radioAll) radioAll.checked = true;
+    else if (radioRestricted) radioRestricted.checked = true;
+
+    toggleSuperStudioScopeList(!isAll);
+
+    // Populate Checkboxes
+    const listEl = document.getElementById('super-studio-scope-fest-list');
+    if (listEl) {
+        listEl.innerHTML = '';
+        if (superFestsCache.length === 0) {
+            listEl.innerHTML = '<span style="color:var(--text-muted); font-size:0.8rem;">No festivals registered yet.</span>';
+        } else {
+            const allowed = Array.isArray(scope.allowed_fests) ? scope.allowed_fests : [];
+            superFestsCache.forEach(f => {
+                const isChecked = allowed.includes(f.id);
+                listEl.innerHTML += `
+                    <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; font-weight:600; cursor:pointer;">
+                        <input type="checkbox" class="super-studio-scope-cb" value="${f.id}" ${isChecked ? 'checked' : ''} style="accent-color:var(--primary);">
+                        <span>${f.name} <small style="color:var(--text-muted); font-family:monospace;">(${f.id})</small></span>
+                    </label>
+                `;
+            });
+        }
+    }
+
+    modal.classList.add('active');
+    modal.classList.add('show');
+}
+
+function toggleSuperStudioScopeList(show) {
+    const container = document.getElementById('super-studio-scope-fest-list-container');
+    if (container) container.style.display = show ? 'block' : 'none';
+}
+
+function saveSuperStudioAccessScope() {
+    if (!superStudioActiveData) return;
+    const mode = document.querySelector('input[name="super-studio-scope-mode"]:checked')?.value || 'all';
+    const isAll = mode === 'all';
+    const allowed = [];
+
+    if (!isAll) {
+        document.querySelectorAll('.super-studio-scope-cb:checked').forEach(cb => {
+            allowed.push(cb.value);
+        });
+        if (allowed.length === 0) {
+            return alert('Please select at least one festival for restricted scope.');
+        }
+    }
+
+    superStudioActiveData._access_scope = {
+        is_all: isAll,
+        allowed_fests: isAll ? ['*'] : allowed,
+        updated_at: new Date().toISOString()
+    };
+
+    updateSuperStudioAccessScopeButton();
+    closeModal('superStudioAccessModal');
+    showToast('Template festival access scope updated!', 'success');
+}
+
+function openSuperStudioFullView() {
+    const canvas = document.getElementById('super-studio-canvas');
+    if (!canvas) return;
+    const fullImg = document.getElementById('super-studio-fullview-img');
+    const dlLink = document.getElementById('super-studio-fullview-download');
+    const dataUrl = canvas.toDataURL('image/png');
+    if (fullImg) fullImg.src = dataUrl;
+    if (dlLink) {
+        dlLink.href = dataUrl;
+        dlLink.download = `${(superStudioActiveData?.name || 'preset_template').toLowerCase().replace(/\s+/g, '_')}_hd.png`;
+    }
+    const modal = document.getElementById('superStudioFullViewModal');
+    if (modal) {
+        modal.classList.add('active');
+        modal.classList.add('show');
+    }
+}
+
+async function saveSuperStudioTemplate() {
+    if (!superStudioActiveData) return;
+    const nameInput = document.getElementById('super-studio-template-name');
+    const name = nameInput ? nameInput.value.trim() : (superStudioActiveData.name || '');
+    if (!name) return alert('Please enter a Template Name.');
+
+    if (!superStudioActiveData.bg_base64) {
+        return alert('Please upload a background image or PDF for this template.');
+    }
+
+    const typeSelect = document.getElementById('super-studio-template-type');
+    const type = typeSelect ? typeSelect.value : (superStudioActiveData.type || 'individual');
+
+    superStudioActiveData.name = name.toUpperCase();
+    superStudioActiveData.type = type;
+
+    const saveBtn = document.getElementById('btn-save-super-studio');
+    const origHtml = saveBtn ? saveBtn.innerHTML : '';
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving to Cloud...';
+    }
+
+    try {
+        // Strip non-serializable DOM objects (imgObj) from fields
+        const cleanFields = {};
+        Object.keys(superStudioActiveData.fields || {}).forEach(k => {
+            if (k === '_access_scope') return;
+            const field = superStudioActiveData.fields[k];
+            if (field) {
+                const { imgObj, ...rest } = field;
+                cleanFields[k] = rest;
+            }
+        });
+
+        // Store access scope in fields JSON
+        cleanFields._access_scope = superStudioActiveData._access_scope || { is_all: true, allowed_fests: ['*'] };
+
+        const payload = {
+            id: superStudioActiveData.id,
+            name: superStudioActiveData.name,
+            type: superStudioActiveData.type,
+            bg_base64: superStudioActiveData.bg_base64,
+            fields: cleanFields,
+            fest_id: 'global'
+        };
+
+        const { error } = await supabaseClient.from('templates').upsert(payload);
+        if (error) throw error;
+
+        showToast(`Global Preset "${name}" saved to cloud!`, 'success');
+        await loadSuperPresets();
+    } catch (err) {
+        console.error('Failed to save studio template:', err);
+        alert('Failed to save preset: ' + err.message);
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = origHtml;
+        }
+    }
+}
+
+// Window bindings for Poster Studio suite
+window.openSuperTemplateStudio = openSuperTemplateStudio;
+window.closeSuperTemplateStudio = closeSuperTemplateStudio;
+window.launchSuperStudioFromModal = launchSuperStudioFromModal;
+window.initializeSuperStudioFields = initializeSuperStudioFields;
+window.drawSuperStudioCanvas = drawSuperStudioCanvas;
+window.selectSuperStudioLayer = selectSuperStudioLayer;
+window.toggleSuperStudioLayerVisibility = toggleSuperStudioLayerVisibility;
+window.toggleSuperStudioLayerLock = toggleSuperStudioLayerLock;
+window.deleteSuperStudioLayer = deleteSuperStudioLayer;
+window.updateSuperStudioProperty = updateSuperStudioProperty;
+window.addSuperStudioTextLayer = addSuperStudioTextLayer;
+window.handleSuperStudioBgUpload = handleSuperStudioBgUpload;
+window.handleSuperStudioElementUpload = handleSuperStudioElementUpload;
+window.handleSuperStudioFontUpload = handleSuperStudioFontUpload;
+window.superStudioUndo = superStudioUndo;
+window.superStudioRedo = superStudioRedo;
+window.openSuperStudioAccessModal = openSuperStudioAccessModal;
+window.toggleSuperStudioScopeList = toggleSuperStudioScopeList;
+window.saveSuperStudioAccessScope = saveSuperStudioAccessScope;
+window.openSuperStudioFullView = openSuperStudioFullView;
+window.saveSuperStudioTemplate = saveSuperStudioTemplate;
 
 // =========================================================================
 // ENTERPRISE "SUPER ADMIN & DEVELOPER DIAGNOSTICS SUITE"
@@ -4468,14 +5867,14 @@ function renderDbExplorerTable(records) {
     cols.forEach(c => {
         thHtml += `<th>${c}</th>`;
     });
-    thHtml += '<th style="text-align: right; width: 100px;">Actions</th></tr>';
+    thHtml += '<th class="col-actions" style="text-align: right; width: 100px;">Actions</th></tr>';
     thead.innerHTML = thHtml;
 
     // Build rows
     tbody.innerHTML = '';
     records.forEach((row, idx) => {
         const tr = document.createElement('tr');
-        let rowHtml = `<td style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);">${idx + 1}</td>`;
+        let rowHtml = `<td data-label="#" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);">${idx + 1}</td>`;
         cols.forEach(c => {
             let val = row[c];
             let displayVal = '';
@@ -4489,12 +5888,12 @@ function renderDbExplorerTable(records) {
                 const str = String(val);
                 displayVal = str.length > 40 ? str.substring(0, 40) + '...' : str;
             }
-            rowHtml += `<td style="font-size:0.82rem; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${displayVal}</td>`;
+            rowHtml += `<td data-label="${c}" style="font-size:0.82rem; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${displayVal}</td>`;
         });
 
         rowHtml += `
-            <td style="text-align: right;">
-                <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" onclick="openTableRecordModal(${idx})" title="Inspect Row JSON">
+            <td data-label="Actions" class="col-actions" style="text-align: right;">
+                <button class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" onclick="openTableRecordModal(${idx})" title="Inspect Row JSON">
                     <i class="fa-solid fa-eye"></i> Inspect
                 </button>
             </td>
@@ -5027,7 +6426,7 @@ function renderUserSessionsTable(sessions) {
         const lastActiveStr = diffMin <= 1 ? 'Just now' : diffMin < 60 ? `${diffMin}m ago` : `${Math.round(diffMin / 60)}h ago`;
 
         tr.innerHTML = `
-            <td>
+            <td data-label="User / Account">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <div class="user-avatar" style="width:28px; height:28px; font-size:0.75rem; background:linear-gradient(135deg, #3B82F6 0%, #6366F1 100%); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;">
                         ${(sess.username || 'U').substring(0,2).toUpperCase()}
@@ -5035,15 +6434,15 @@ function renderUserSessionsTable(sessions) {
                     <span style="font-weight:700; color:var(--text-main); font-size:0.85rem;">${sess.username}</span>
                 </div>
             </td>
-            <td>${roleBadge}</td>
-            <td><code style="font-size:0.75rem; background:var(--bg-main); padding:2px 6px; border-radius:4px; font-weight:600; color:var(--text-muted);">${sess.fest_id || 'System-Wide'}</code></td>
-            <td style="font-size:0.8rem; color:var(--text-muted);">${new Date(sess.login_time || Date.now()).toLocaleTimeString()}</td>
-            <td>${statusHtml}</td>
-            <td style="font-size:0.8rem; font-family:var(--font-mono); font-weight:600;">${lastActiveStr}</td>
-            <td style="font-size:0.8rem; color:var(--text-muted);">${deviceStr}</td>
-            <td style="text-align: right;">
+            <td data-label="Role & Scope">${roleBadge}</td>
+            <td data-label="Festival Context"><code style="font-size:0.75rem; background:var(--bg-main); padding:2px 6px; border-radius:4px; font-weight:600; color:var(--text-muted);">${sess.fest_id || 'System-Wide'}</code></td>
+            <td data-label="Login Time" style="font-size:0.8rem; color:var(--text-muted);">${new Date(sess.login_time || Date.now()).toLocaleTimeString()}</td>
+            <td data-label="Status">${statusHtml}</td>
+            <td data-label="Last Active" style="font-size:0.8rem; font-family:var(--font-mono); font-weight:600;">${lastActiveStr}</td>
+            <td data-label="Device / Platform" style="font-size:0.8rem; color:var(--text-muted);">${deviceStr}</td>
+            <td data-label="Privileged Action" class="col-actions" style="text-align: right;">
                 ${isOnline && sess.role !== 'super_admin' ? `
-                    <button class="btn btn-outline" style="padding:0.3rem 0.65rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger);" onclick="forceLogoutUserSession('${sess.id}', '${sess.username}')" title="Terminate Session">
+                    <button class="btn btn-outline" style="padding:0.35rem 0.75rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger);" onclick="forceLogoutUserSession('${sess.id}', '${sess.username}')" title="Terminate Session">
                         <i class="fa-solid fa-power-off"></i> Force Logout
                     </button>
                 ` : `
@@ -5331,10 +6730,10 @@ function renderSecurityAuditLogs() {
         const timeStr = log.timestamp ? new Date(log.timestamp).toLocaleString() : new Date().toLocaleString();
 
         tr.innerHTML = `
-            <td style="font-size:0.78rem; font-family:var(--font-mono); color:var(--text-muted); white-space:nowrap;">
+            <td data-label="Timestamp" style="font-size:0.78rem; font-family:var(--font-mono); color:var(--text-muted); white-space:nowrap;">
                 ${timeStr}
             </td>
-            <td>
+            <td data-label="Action & Category">
                 <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                     <i class="fa-solid ${catIcon}" style="color:var(--primary); font-size:0.8rem;"></i>
                     <span style="font-weight:700; color:var(--text-main); font-size:0.85rem;">${log.action}</span>
@@ -5342,17 +6741,17 @@ function renderSecurityAuditLogs() {
                     ${log.signature || log.verified ? `<span class="badge" style="font-size:0.65rem; background:rgba(16,185,129,0.12); color:#10B981; border:1px solid rgba(16,185,129,0.3); font-family:var(--font-mono); display:inline-flex; align-items:center; gap:3px;" title="Cryptographic Signature: ${log.signature || 'HMAC-SHA256 Verified'}"><i class="fa-solid fa-certificate"></i> Signed</span>` : ''}
                 </div>
             </td>
-            <td>
+            <td data-label="User Account">
                 <span style="font-weight:600; font-size:0.85rem; color:var(--text-main);">${log.user || log.username || 'System'}</span>
             </td>
-            <td>
+            <td data-label="Severity">
                 <span class="${sevClass}" ${sevStyle}>${sevUpper}</span>
             </td>
-            <td style="font-size:0.75rem; color:var(--text-muted); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            <td data-label="Client Context / URL" style="font-size:0.75rem; color:var(--text-muted); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                 ${log.url || '/superadmin.html'}
             </td>
-            <td style="text-align: right;">
-                <button class="btn btn-outline" style="padding:0.3rem 0.65rem; font-size:0.75rem;" onclick="openAuditDetailModal('${log.id}')" title="View Forensic Payload JSON">
+            <td data-label="Forensic Payload" class="col-actions" style="text-align: right;">
+                <button class="btn btn-outline" style="padding:0.35rem 0.75rem; font-size:0.75rem;" onclick="openAuditDetailModal('${log.id}')" title="View Forensic Payload JSON">
                     <i class="fa-solid fa-code"></i> View Diff
                 </button>
             </td>

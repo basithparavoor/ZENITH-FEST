@@ -82,9 +82,26 @@ const ROLE_ROUTES = {
     }
 })();
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     checkExistingSession();
     loadSavedUsername();
+
+    // Dynamically apply branding for the current domain's festival
+    try {
+        if (typeof festosDomains !== 'undefined' && typeof festosDomains.resolveCurrentFest === 'function') {
+            const fest = await festosDomains.resolveCurrentFest();
+            if (fest && typeof festosBranding !== 'undefined' && typeof festosBranding.apply === 'function') {
+                festosBranding.apply({
+                    fest_name: fest.name,
+                    fest_logo: fest.logo,
+                    theme_color: fest.theme_color,
+                    _fest_id: fest.id
+                });
+            }
+        }
+    } catch (e) {
+        console.warn('[FestOS Login] Domain fest branding init notice:', e);
+    }
 });
 
 function loadSavedUsername() {
@@ -159,34 +176,19 @@ if (loginForm) {
         if (errorBox) errorBox.style.display = 'none';
 
         try {
-            // Super Admin hardcoded root bypass or Database Lookup
-            if (username.toLowerCase() === 'superadmin' && password === 'superadmin123') {
-                const superAdminUser = {
-                    id: 'sa_root_01',
-                    username: 'SuperAdmin',
-                    role: 'super_admin'
-                };
-                if (typeof festosAuth !== 'undefined') {
-                    festosAuth.setSuperAdmin(superAdminUser);
-                    festosAuth.setUser(superAdminUser, rememberMe);
-                } else {
-                    localStorage.setItem('festSuperAdmin', JSON.stringify(superAdminUser));
-                    localStorage.setItem('festUser', JSON.stringify(superAdminUser));
-                }
-                submitBtn.textContent = 'Success!';
-                submitBtn.style.background = '#10b981';
-                setTimeout(() => window.location.href = 'superadmin.html', 150);
-                return;
+            // Secure server-side authentication RPC (Zero-Knowledge password exchange)
+            const { data: authResult, error: authError } = await supabaseClient
+                .rpc('festos_authenticate_user', {
+                    p_username: username,
+                    p_password: password
+                });
+
+            if (authError) throw new Error(authError.message || 'Authentication service error');
+            if (!authResult || !authResult.success) {
+                throw new Error(authResult?.message || 'Invalid username or password');
             }
 
-            const { data, error } = await supabaseClient
-                .from('users')
-                .select('*')
-                .eq('username', username)
-                .single();
-
-            if (error || !data) throw new Error('Account not found. Please check your username.');
-            if (data.password_hash !== password) throw new Error('Incorrect password. Please try again.');
+            const data = authResult.user;
 
             // Multi-tenant festival scoping & strict tenant validation
             if (data.role === 'super_admin') {

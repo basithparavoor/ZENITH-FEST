@@ -31,6 +31,21 @@ if (typeof window !== 'undefined') {
     }
 }
 
+// Universal XSS Sanitizer for dynamic UI injection
+function festosEscapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+if (typeof window !== 'undefined') {
+    window.escapeHtml = window.escapeHtml || festosEscapeHtml;
+    window.festosEscapeHtml = festosEscapeHtml;
+}
+
 // =========================================================================
 // 0. FESTIVAL DOMAIN / SUBDOMAIN RESOLUTION
 // =========================================================================
@@ -381,8 +396,8 @@ const festosDomains = {
                     localStorage.setItem('festBranding', JSON.stringify(brandObj));
                 } catch(e) {}
 
-                // If inside dashboard or non-login page, apply branding right away!
-                if (window.festosBranding && typeof window.festosBranding.apply === 'function' && !window.festosBranding.isLoginPage()) {
+                // If inside dashboard or festival portal (including domain login), apply branding right away!
+                if (window.festosBranding && typeof window.festosBranding.apply === 'function') {
                     window.festosBranding.apply(brandObj);
                 }
             }
@@ -445,6 +460,12 @@ const festosDomains = {
 
         // 3. Fallback: only fallback to primary fest if we are NOT on a specific tenant subdomain
         if (!sub || ['www', 'app', 'admin', 'superadmin', 'api'].includes(sub)) {
+            // When on the root base domain login portal without a festival target, do not fallback to primary fest.
+            // This ensures festos.clubad.space displays standard FestOS platform branding.
+            if (window.festosBranding && typeof window.festosBranding.isLoginPage === 'function' && window.festosBranding.isLoginPage() && !urlQuery) {
+                return null;
+            }
+
             const list = this.getFestList();
             if (list && list.length > 0) {
                 const primary = list[0];
@@ -504,7 +525,7 @@ function festosIsLegacyFest(festId) {
 // 1. DYNAMIC AUTO-REBRANDING ENGINE
 // =========================================================================
 
-// Universal Cross-Tenant Branding Sanitation Policy
+// Universal Cross-Tenant Branding & Cache Sanitation Policy
 function festosPurgeCrossTenantBranding(targetFestId = null) {
     try {
         const checkKeys = ['festBranding', 'festos_branding_cache_active'];
@@ -521,6 +542,19 @@ function festosPurgeCrossTenantBranding(targetFestId = null) {
                 }
             }
         });
+        // Purge un-namespaced legacy keys that can cross-contaminate between festivals
+        ['websiteConfig', 'festos_cfg_website_config', 'festos_cfg_points_ledger_exclusions'].forEach(k => {
+            try { localStorage.removeItem(k); } catch(e) {}
+        });
+        if (targetFestId && typeof localStorage !== 'undefined') {
+            // Purge results cache belonging to any other festival
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('festos_results_cache_') && key !== ('festos_results_cache_' + targetFestId)) {
+                    localStorage.removeItem(key);
+                }
+            }
+        }
         if (typeof sessionStorage !== 'undefined') {
             const sRaw = sessionStorage.getItem('festBranding');
             if (sRaw) {
@@ -570,6 +604,79 @@ const festosBranding = {
         return festId ? `festos_branding_cache_${festId}` : 'festos_branding_cache_active';
     },
 
+    festEmblemOf(name, color) {
+        const initial = (name || 'F').trim().charAt(0).toUpperCase();
+        const primaryColor = color || '#4F46E5';
+        return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${encodeURIComponent(primaryColor)}"/><stop offset="100%" stop-color="%237C3AED"/></linearGradient></defs><rect width="80" height="80" rx="16" fill="url(%23g)"/><text x="50%" y="54%" font-family="system-ui, -apple-system, sans-serif" font-size="34" font-weight="800" fill="white" dominant-baseline="middle" text-anchor="middle">${initial}</text></svg>`;
+    },
+
+    adjustColor(hex, percent) {
+        if (!hex || typeof hex !== 'string' || !hex.startsWith('#')) return hex;
+        let num = parseInt(hex.replace('#', ''), 16);
+        let amt = Math.round(2.55 * percent);
+        let R = (num >> 16) + amt;
+        let G = (num >> 8 & 0x00FF) + amt;
+        let B = (num & 0x0000FF) + amt;
+        return '#' + (0x1000000 + (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 + (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 + (B < 255 ? (B < 1 ? 0 : B) : 255)).toString(16).slice(1);
+    },
+
+    hexToRgba(hex, alpha = 1) {
+        if (!hex || typeof hex !== 'string') return `rgba(79, 70, 229, ${alpha})`;
+        let c = hex.replace('#', '');
+        if (c.length === 3) c = c.split('').map(x => x + x).join('');
+        if (c.length !== 6) return `rgba(79, 70, 229, ${alpha})`;
+        const r = parseInt(c.slice(0, 2), 16);
+        const g = parseInt(c.slice(2, 4), 16);
+        const b = parseInt(c.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    },
+
+    getResolvedDomainFest() {
+        if (typeof festosDomains === 'undefined') return null;
+
+        const host = festosDomains.getHostname();
+        const sub = festosDomains.getSubdomain();
+
+        let urlQuery = null;
+        if (typeof window !== 'undefined' && window.location && window.location.search) {
+            const params = new URLSearchParams(window.location.search);
+            urlQuery = params.get('fest') || params.get('fest_id') || params.get('domain') || params.get('slug');
+        }
+
+        // 1. Direct check against cached window.currentFestDetails if it actually matches host, sub or query
+        if (typeof window !== 'undefined' && window.currentFestDetails && window.currentFestDetails.id) {
+            const cFest = window.currentFestDetails;
+            if (urlQuery) {
+                const q = urlQuery.toLowerCase().trim();
+                if (cFest.id.toLowerCase() === q || (cFest.slug && cFest.slug.toLowerCase() === q) || (cFest.domain && festosDomains.normalizeDomain(cFest.domain) === festosDomains.normalizeDomain(q))) {
+                    return cFest;
+                }
+            } else if (sub && !['www', 'app', 'admin', 'superadmin', 'api'].includes(sub)) {
+                if (cFest.id.toLowerCase().includes(sub) || (cFest.slug && cFest.slug.toLowerCase() === sub) || (cFest.domain && festosDomains.normalizeDomain(cFest.domain).includes(sub))) {
+                    return cFest;
+                }
+            } else if (host && cFest.domain && festosDomains.normalizeDomain(cFest.domain) === festosDomains.normalizeDomain(host)) {
+                return cFest;
+            }
+        }
+
+        // 2. Synchronous resolution via festosDomains index / list
+        const list = festosDomains.getFestList();
+        if (list && list.length > 0) {
+            const matched = festosDomains.matchFestInList(list, host, sub, urlQuery);
+            if (matched) return matched;
+        }
+
+        // 3. Fallback check from hostFestId
+        const hostFestId = festosDomains.getHostFestId();
+        if (hostFestId) {
+            const found = festosDomains.findFest(hostFestId);
+            if (found) return found;
+        }
+
+        return null;
+    },
+
     init() {
         // Clear any placeholder software branding cache on festival pages
         try {
@@ -595,6 +702,26 @@ const festosBranding = {
     applyFromCache() {
         try {
             if (this.isLoginPage()) {
+                const domainFest = this.getResolvedDomainFest();
+                if (domainFest) {
+                    let cached = localStorage.getItem(`festos_branding_cache_${domainFest.id}`) || 
+                                 localStorage.getItem('festos_cfg_system_branding_' + domainFest.id);
+                    if (cached) {
+                        try {
+                            const data = JSON.parse(cached);
+                            this.apply(data);
+                            return;
+                        } catch(e) {}
+                    }
+                    this.apply({
+                        fest_name: domainFest.name || 'Festival',
+                        fest_logo: (domainFest.logo && !domainFest.logo.includes('festos-logo.svg')) ? domainFest.logo : '',
+                        display_mode: domainFest.logo ? 'both' : 'name',
+                        theme_color: domainFest.theme_color || '',
+                        _fest_id: domainFest.id
+                    });
+                    return;
+                }
                 this.apply({ fest_name: this.DEFAULT_NAME, fest_logo: this.DEFAULT_LOGO, display_mode: 'both' });
                 return;
             }
@@ -670,6 +797,37 @@ const festosBranding = {
         if (!festosSupabase) return;
 
         if (this.isLoginPage()) {
+            const domainFest = this.getResolvedDomainFest();
+            if (domainFest) {
+                try {
+                    const festKey = `system_branding_${domainFest.id}`;
+                    const { data } = await festosSupabase
+                        .from('settings')
+                        .select('value')
+                        .eq('id', festKey)
+                        .maybeSingle();
+
+                    if (data && data.value && (data.value.fest_name || data.value.fest_logo)) {
+                        const brandData = { ...data.value, _fest_id: domainFest.id };
+                        if (domainFest.theme_color && !brandData.theme_color) {
+                            brandData.theme_color = domainFest.theme_color;
+                        }
+                        localStorage.setItem(`festos_branding_cache_${domainFest.id}`, JSON.stringify(brandData));
+                        this.apply(brandData);
+                    } else {
+                        this.apply({
+                            fest_name: domainFest.name || 'Festival',
+                            fest_logo: (domainFest.logo && !domainFest.logo.includes('festos-logo.svg')) ? domainFest.logo : '',
+                            display_mode: domainFest.logo ? 'both' : 'name',
+                            theme_color: domainFest.theme_color || '',
+                            _fest_id: domainFest.id
+                        });
+                    }
+                } catch(e) {
+                    console.warn('[FestOS Branding] Domain login branding fetch notice:', e);
+                }
+                return;
+            }
             this.apply({ fest_name: this.DEFAULT_NAME, fest_logo: this.DEFAULT_LOGO, display_mode: 'both' });
             return;
         }
@@ -802,7 +960,8 @@ const festosBranding = {
         const isLogin = this.isLoginPage();
         const isSuper = this.isSuperAdminPage();
         const isPlatform = this.isPlatformPage();
-        const currentFestId = isLogin || isPlatform ? null : festosAuth.getCurrentFestId();
+        const domainFest = isLogin ? this.getResolvedDomainFest() : null;
+        const currentFestId = (isLogin && domainFest) ? domainFest.id : (isLogin || isPlatform ? null : festosAuth.getCurrentFestId());
 
         // Strict cross-tenant protection: reject if brandingData explicitly belongs to another festival
         if (!isLogin && !isPlatform && currentFestId && brandingData._fest_id && brandingData._fest_id !== currentFestId) {
@@ -815,9 +974,16 @@ const festosBranding = {
         const displayMode = brandingData.display_mode || 'both';
 
         if (isLogin) {
-            // LOGIN PAGE: FestOS BRANDING ONLY (Strict platform guarantee)
-            festName = this.DEFAULT_NAME;
-            festLogo = this.DEFAULT_LOGO;
+            if (domainFest) {
+                if (!festName) festName = domainFest.name || 'Festival';
+                if (!festLogo && domainFest.logo && !domainFest.logo.includes('festos-logo.svg')) {
+                    festLogo = domainFest.logo;
+                }
+            } else {
+                // ROOT PLATFORM LOGIN: FestOS BRANDING ONLY
+                festName = this.DEFAULT_NAME;
+                festLogo = this.DEFAULT_LOGO;
+            }
         } else if (isPlatform) {
             // Super Admin portal: Super Admin software branding
             if (!festName) festName = this.DEFAULT_NAME;
@@ -838,7 +1004,7 @@ const festosBranding = {
 
         // 1. Update Title Dynamically
         if (isLogin) {
-            document.title = `FestOS | Secure Login`;
+            document.title = domainFest ? `${festName} | Secure Login` : `FestOS | Secure Login`;
         } else if (isSuper) {
             document.title = `${festName} | Super Admin Control Panel`;
         } else {
@@ -850,7 +1016,12 @@ const festosBranding = {
 
         // 2. Dynamic Global Favicon Injection (Super Admin, Login, and all portals)
         if (isLogin) {
-            this.updateFavicon(this.DEFAULT_LOGO);
+            if (domainFest) {
+                const effectiveFavicon = validLogo ? festLogo : this.festEmblemOf(festName, brandingData.theme_color || domainFest.theme_color);
+                this.updateFavicon(effectiveFavicon);
+            } else {
+                this.updateFavicon(this.DEFAULT_LOGO);
+            }
         } else if (validLogo) {
             this.updateFavicon(festLogo);
         } else if (isPlatform) {
@@ -871,9 +1042,14 @@ const festosBranding = {
 
             let html = '';
             if (isLogin) {
-                // In login page, render FestOS branding ONLY
-                html += `<img src="${this.DEFAULT_LOGO}" alt="FestOS Logo" class="festos-dynamic-logo" style="height: 44px; width: auto; max-width: 180px; object-fit: contain; margin-right: 10px; display: inline-block; vertical-align: middle;">`;
-                html += `<span class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">FestOS</span>`;
+                if (domainFest) {
+                    const effectiveLogo = validLogo ? festLogo : this.festEmblemOf(festName, brandingData.theme_color || domainFest.theme_color);
+                    html += `<img id="login-brand-img" src="${effectiveLogo}" alt="${festName} Logo" class="festos-dynamic-logo" style="height: 48px; width: auto; max-width: 180px; object-fit: contain; margin-right: 10px; display: inline-block; vertical-align: middle; border-radius: 8px;">`;
+                    html += `<span id="login-brand-name" class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">${festName}</span>`;
+                } else {
+                    html += `<img id="login-brand-img" src="${this.DEFAULT_LOGO}" alt="FestOS Logo" class="festos-dynamic-logo" style="height: 44px; width: auto; max-width: 180px; object-fit: contain; margin-right: 10px; display: inline-block; vertical-align: middle;">`;
+                    html += `<span id="login-brand-name" class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">FestOS</span>`;
+                }
             } else if (isSuper) {
                 const logoSrc = validLogo ? festLogo : this.DEFAULT_LOGO;
                 html += `<img src="${logoSrc}" alt="${festName}" class="festos-dynamic-logo" style="width: 30px; height: 30px; object-fit: contain; margin-right: 8px; vertical-align: middle;">`;
@@ -906,6 +1082,42 @@ const festosBranding = {
                 container.style.justifyContent = 'center';
             }
         });
+
+        // 4. Update login page-specific immersive elements (subtitles, theme colors, inputs)
+        if (isLogin) {
+            const subTitleEl = document.getElementById('login-subtitle') || document.querySelector('.header p');
+            if (subTitleEl) {
+                subTitleEl.textContent = domainFest 
+                    ? `Welcome to ${festName} • Staff & Admin Portal` 
+                    : 'Enter your credentials to continue';
+            }
+
+            const themeColor = brandingData.theme_color || (domainFest && domainFest.theme_color) || '';
+            if (themeColor) {
+                document.documentElement.style.setProperty('--primary', themeColor);
+                document.documentElement.style.setProperty('--primary-hover', this.adjustColor(themeColor, -15));
+                document.documentElement.style.setProperty('--primary-glow', this.hexToRgba(themeColor, 0.4));
+            } else if (!domainFest) {
+                document.documentElement.style.setProperty('--primary', '#4F46E5');
+                document.documentElement.style.setProperty('--primary-hover', '#4338CA');
+                document.documentElement.style.setProperty('--primary-glow', 'rgba(79, 70, 229, 0.4)');
+            }
+
+            const usernameInput = document.getElementById('username');
+            if (usernameInput) {
+                if (domainFest && domainFest.slug) {
+                    usernameInput.placeholder = `Username (e.g. ${domainFest.slug}_...)`;
+                } else if (!domainFest) {
+                    usernameInput.placeholder = 'Username';
+                }
+            }
+
+            if (domainFest && domainFest.id) {
+                try {
+                    localStorage.setItem('festos_active_fest_id', domainFest.id);
+                } catch(e) {}
+            }
+        }
 
         // Store active branding in global window & synchronize active fest cache
         if (brandingData && currentFestId) {

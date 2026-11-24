@@ -9,9 +9,10 @@
     <!-- External Libraries & Fonts matching Admin Page -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cinzel:wght@600;700;800;900&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Great+Vibes&family=Inter:wght@400;500;600;700&family=Montserrat:wght@500;600;700;800&family=Pinyon+Script&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Roboto:wght@400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     
     <style>
 
@@ -63,6 +64,308 @@
     
     --font-mono: 'JetBrains Mono', monospace;
     --transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* =========================================================================
+   TITANIUM DARK THEME SYSTEM & REFINED PALETTE
+   ========================================================================= */
+:root[data-theme="dark"] {
+    --bg-main: #0B0F19;
+    --bg-surface: #111827;
+    --text-main: #F9FAFB;
+    --text-muted: #9CA3AF;
+    --border: #1F2937;
+    --border-hover: #374151;
+    --primary-light: rgba(59, 130, 246, 0.18);
+    --primary-ring: rgba(59, 130, 246, 0.3);
+    --success-light: rgba(16, 185, 129, 0.18);
+    --danger-light: rgba(239, 68, 68, 0.18);
+    --amber-light: rgba(245, 158, 11, 0.18);
+    --cyan-light: rgba(6, 182, 212, 0.18);
+    --violet-light: rgba(139, 92, 246, 0.18);
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme="dark"] .sidebar {
+    background: #111827;
+    border-right-color: #1F2937;
+}
+
+:root[data-theme="dark"] .header {
+    background: rgba(17, 24, 39, 0.88);
+    border-bottom-color: #1F2937;
+}
+
+:root[data-theme="dark"] .table-responsive,
+:root[data-theme="dark"] .table-container,
+:root[data-theme="dark"] .admin-table,
+:root[data-theme="dark"] table {
+    background: #111827;
+    border-color: #1F2937;
+}
+
+:root[data-theme="dark"] .admin-table th,
+:root[data-theme="dark"] th {
+    background: #0B0F19;
+    color: #9CA3AF;
+    border-bottom-color: #1F2937;
+}
+
+:root[data-theme="dark"] .admin-table td,
+:root[data-theme="dark"] td {
+    border-bottom-color: #1F2937;
+    color: #F3F4F6;
+}
+
+:root[data-theme="dark"] .admin-table tbody tr:hover,
+:root[data-theme="dark"] tr:hover td {
+    background: #1A2234;
+}
+
+:root[data-theme="dark"] .cmd-palette-modal,
+:root[data-theme="dark"] .cmd-footer {
+    background: #111827;
+    border-color: #1F2937;
+}
+
+:root[data-theme="dark"] .cmd-input {
+    color: #F9FAFB;
+}
+
+:root[data-theme="dark"] .cmd-row:hover,
+:root[data-theme="dark"] .cmd-row.active-row {
+    background: #1E293B;
+}
+
+:root[data-theme="dark"] .cmd-row-icon {
+    background: #1E293B;
+}
+
+:root[data-theme="dark"] .stats-flex-row,
+:root[data-theme="dark"] .controls-bar {
+    background: #111827 !important;
+    border-color: #1F2937 !important;
+}
+
+:root[data-theme="dark"] .form-control,
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+    background: #1A2234;
+    border-color: #374151;
+    color: #F9FAFB;
+}
+
+:root[data-theme="dark"] .modal-card,
+:root[data-theme="dark"] .modal {
+    background: #111827;
+    color: #F9FAFB;
+    border-color: #1F2937;
+}
+
+:root[data-theme="dark"] .fest-card {
+    background: #111827;
+    border-color: #1F2937;
+}
+
+:root[data-theme="dark"] .fest-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme="dark"] .fest-card-logo {
+    background: #1E293B;
+    border-color: #374151;
+}
+
+:root[data-theme="dark"] .filter-chip-btn {
+    background: #111827;
+    border-color: #1F2937;
+    color: #9CA3AF;
+}
+
+:root[data-theme="dark"] .filter-chip-btn.active {
+    background: var(--primary);
+    color: #FFF;
+}
+
+:root[data-theme="dark"] .log-entry {
+    background: #161F30;
+    border-color: #1F2937;
+}
+
+:root[data-theme="dark"] .super-kpi-card,
+:root[data-theme="dark"] .resource-meter-card,
+:root[data-theme="dark"] .feature-card,
+:root[data-theme="dark"] .workspace-card {
+    background: #111827;
+    border-color: #1F2937;
+}
+
+/* --- Interactive UI Enhancements --- */
+.header-fest-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    padding: 5px 12px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition);
+}
+.header-fest-selector:hover {
+    border-color: var(--primary);
+}
+.header-select-input {
+    border: none;
+    background: transparent;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-main);
+    outline: none;
+    cursor: pointer;
+    max-width: 170px;
+}
+.clock-hud-pill {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.theme-toggle-btn,
+.header-icon-action-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.theme-toggle-btn:hover,
+.header-icon-action-btn:hover {
+    background: var(--primary-light);
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* Pulsing Status Dot */
+.pulse-status-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+    position: relative;
+    flex-shrink: 0;
+}
+.pulse-status-dot.active {
+    background: #10B981;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    animation: statusPulse 1.8s infinite;
+}
+.pulse-status-dot.upcoming {
+    background: #F59E0B;
+}
+.pulse-status-dot.concluded {
+    background: #6B7280;
+}
+@keyframes statusPulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* Portal Quick Launch Pills */
+.portal-quick-launch-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+    flex-wrap: wrap;
+}
+.portal-launch-pill {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: var(--transition);
+    border: 1px solid transparent;
+}
+.portal-launch-pill.pill-admin {
+    background: rgba(59, 130, 246, 0.08);
+    color: #2563EB;
+    border-color: rgba(59, 130, 246, 0.2);
+}
+.portal-launch-pill.pill-admin:hover {
+    background: #2563EB;
+    color: white;
+}
+.portal-launch-pill.pill-results {
+    background: rgba(16, 185, 129, 0.08);
+    color: #059669;
+    border-color: rgba(16, 185, 129, 0.2);
+}
+.portal-launch-pill.pill-results:hover {
+    background: #059669;
+    color: white;
+}
+.portal-launch-pill.pill-display {
+    background: rgba(139, 92, 246, 0.08);
+    color: #7C3AED;
+    border-color: rgba(139, 92, 246, 0.2);
+}
+.portal-launch-pill.pill-display:hover {
+    background: #7C3AED;
+    color: white;
+}
+.copy-domain-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    padding: 3px 7px;
+    border-radius: 6px;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.copy-domain-btn:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+/* Fast Launcher Strip */
+.fast-launcher-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 12px;
+}
+.kpi-interactive-card {
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease;
+}
+.kpi-interactive-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
 }
 
 /* Base Reset matching Admin exactly (No 14px shrink) */
@@ -853,25 +1156,49 @@ main {
 .badge-danger { background: var(--danger-light); color: var(--danger); }
 .badge-amber { background: var(--amber-light); color: var(--amber); }
 
-/* Tables matching Admin exactly */
+/* Tables matching Admin with Optimized Padding & Sticky Actions */
 .table-responsive, .table-container {
     width: 100%;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     background: white;
     border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
+    position: relative;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+
+.table-responsive::-webkit-scrollbar,
+.table-container::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+}
+.table-responsive::-webkit-scrollbar-track,
+.table-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+.table-responsive::-webkit-scrollbar-thumb,
+.table-container::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 999px;
+}
+.table-responsive::-webkit-scrollbar-thumb:hover,
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.7);
 }
 
 .admin-table, table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     text-align: left;
 }
 
 .admin-table th, th {
-    padding: 1rem 1.5rem;
-    font-weight: 600;
+    padding: 0.85rem 1.15rem;
+    font-weight: 700;
     color: var(--text-muted);
     font-size: 0.75rem;
     text-transform: uppercase;
@@ -882,12 +1209,16 @@ main {
 }
 
 .admin-table td, td {
-    padding: 1rem 1.5rem;
+    padding: 0.85rem 1.15rem;
     border-bottom: 1px solid var(--border);
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     font-weight: 500;
     color: var(--text-main);
     vertical-align: middle;
+}
+
+.admin-table tbody tr {
+    transition: background-color 0.15s ease;
 }
 
 .admin-table tbody tr:hover, tr:hover td {
@@ -896,6 +1227,76 @@ main {
 
 .admin-table tbody tr:last-child td, tr:last-child td {
     border-bottom: none;
+}
+
+/* Sticky Action Column so actions are never truncated or pushed off-screen */
+.admin-table th.col-actions,
+.admin-table td.col-actions,
+.admin-table th:last-child,
+.admin-table td:last-child {
+    position: sticky;
+    right: 0;
+    background: #FFFFFF;
+    z-index: 2;
+    box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.07);
+    white-space: nowrap;
+    text-align: right;
+}
+
+.admin-table th.col-actions,
+.admin-table th:last-child {
+    background: var(--bg-main) !important;
+    z-index: 3;
+}
+
+.admin-table tbody tr:hover td.col-actions,
+.admin-table tbody tr:hover td:last-child,
+.admin-table tbody tr.selected td:last-child {
+    background: var(--bg-main) !important;
+}
+
+/* Dark mode overrides for table & sticky columns */
+:root[data-theme="dark"] .table-responsive,
+:root[data-theme="dark"] .table-container,
+:root[data-theme="dark"] .admin-table,
+:root[data-theme="dark"] table {
+    background: #111827;
+    border-color: #1F2937;
+}
+
+:root[data-theme="dark"] .admin-table th,
+:root[data-theme="dark"] th {
+    background: #0B0F19;
+    color: #9CA3AF;
+    border-bottom-color: #1F2937;
+}
+
+:root[data-theme="dark"] .admin-table td,
+:root[data-theme="dark"] td {
+    border-bottom-color: #1F2937;
+    color: #F3F4F6;
+}
+
+:root[data-theme="dark"] .admin-table tbody tr:hover,
+:root[data-theme="dark"] tr:hover td {
+    background: #1A2234 !important;
+}
+
+:root[data-theme="dark"] .admin-table th.col-actions,
+:root[data-theme="dark"] .admin-table th:last-child {
+    background: #0B0F19 !important;
+    box-shadow: -8px 0 14px -4px rgba(0, 0, 0, 0.45) !important;
+}
+
+:root[data-theme="dark"] .admin-table td.col-actions,
+:root[data-theme="dark"] .admin-table td:last-child {
+    background: #111827 !important;
+    box-shadow: -8px 0 14px -4px rgba(0, 0, 0, 0.45) !important;
+}
+
+:root[data-theme="dark"] .admin-table tbody tr:hover td.col-actions,
+:root[data-theme="dark"] .admin-table tbody tr:hover td:last-child {
+    background: #1A2234 !important;
 }
 
 .checkbox-cell {
@@ -1774,8 +2175,182 @@ input:checked + .slider:before { transform: translateX(22px); }
     .action-bar .btn { width: 100%; min-height: 48px; justify-content: center; }
     .bulk-actions-toolbar { flex-direction: column; align-items: stretch; background: transparent; border: none; padding: 0; box-shadow: none; gap: 0.75rem; width: 100%; }
     
-    .controls-bar { flex-direction: column; padding: 1rem; border-radius: var(--radius-lg); gap: 0.75rem; margin-bottom: 1.5rem; background: white; }
-    .search-box, .filter-box, .controls-bar input, .controls-bar select, .filter-select { width: 100%; min-width: 100%; min-height: 48px; font-size: 16px !important; }
+    .controls-bar { 
+        display: flex !important;
+        flex-direction: column !important; 
+        padding: 0.85rem !important; 
+        border-radius: var(--radius-lg) !important; 
+        gap: 0.65rem !important; 
+        margin-bottom: 1rem !important; 
+        background: white; 
+    }
+    .search-box, .filter-box, .controls-bar input, .controls-bar select, .filter-select { 
+        width: 100% !important; 
+        min-width: 100% !important; 
+        min-height: 44px !important; 
+        font-size: 15px !important; 
+    }
+    .controls-bar > div:not(.search-box) {
+        display: flex !important;
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        gap: 6px !important;
+        padding-bottom: 2px !important;
+        flex-wrap: nowrap !important;
+    }
+    .session-filter-btn {
+        flex-shrink: 0 !important;
+        padding: 0.45rem 0.85rem !important;
+        font-size: 0.78rem !important;
+    }
+
+    /* Subtab bar on mobile: Smooth horizontal swipe with snap */
+    .super-subtab-bar {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        -webkit-overflow-scrolling: touch !important;
+        scroll-snap-type: x mandatory !important;
+        padding: 6px !important;
+        margin-bottom: 1rem !important;
+        border-radius: var(--radius-lg) !important;
+    }
+    .super-subtab-btn {
+        flex-shrink: 0 !important;
+        scroll-snap-align: start !important;
+        padding: 0.6rem 0.95rem !important;
+        font-size: 0.82rem !important;
+    }
+
+    /* Multi-Filter chips row on mobile */
+    .filter-chips-row {
+        gap: 6px !important;
+        margin-bottom: 1rem !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        flex-wrap: nowrap !important;
+    }
+    .filter-chip-btn {
+        flex-shrink: 0 !important;
+        padding: 0.45rem 0.85rem !important;
+        font-size: 0.78rem !important;
+    }
+
+    /* =========================================================================
+       RESPONSIVE MOBILE DATA VIEW (Cards instead of impossible 8-column scroll)
+       ========================================================================= */
+    .table-responsive:not(.table-force-scroll) {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+    }
+
+    .table-responsive:not(.table-force-scroll) .admin-table,
+    .table-responsive:not(.table-force-scroll) .admin-table thead,
+    .table-responsive:not(.table-force-scroll) .admin-table tbody,
+    .table-responsive:not(.table-force-scroll) .admin-table tr,
+    .table-responsive:not(.table-force-scroll) .admin-table td {
+        display: block !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .table-responsive:not(.table-force-scroll) .admin-table thead {
+        display: none !important;
+    }
+
+    .table-responsive:not(.table-force-scroll) .admin-table tbody tr {
+        background: var(--bg-surface, #FFFFFF) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 16px !important;
+        padding: 1rem 1.15rem !important;
+        margin-bottom: 0.85rem !important;
+        box-shadow: var(--shadow-sm) !important;
+        position: relative !important;
+    }
+
+    .table-responsive:not(.table-force-scroll) .admin-table tbody tr:hover {
+        background: var(--bg-surface, #FFFFFF) !important;
+        box-shadow: var(--shadow-md) !important;
+    }
+
+    .table-responsive:not(.table-force-scroll) .admin-table td {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 0.55rem 0 !important;
+        border: none !important;
+        border-bottom: 1px dashed var(--border) !important;
+        text-align: right !important;
+        font-size: 0.85rem !important;
+        min-height: 38px !important;
+        position: static !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+
+    .table-responsive:not(.table-force-scroll) .admin-table td:last-child {
+        border-bottom: none !important;
+        padding-top: 0.85rem !important;
+        padding-bottom: 0.2rem !important;
+        justify-content: flex-end !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .table-responsive:not(.table-force-scroll) .admin-table td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        font-size: 0.72rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        text-align: left;
+        margin-right: 0.85rem;
+        flex-shrink: 0;
+    }
+
+    .table-responsive:not(.table-force-scroll) .admin-table td[data-label="Select"] {
+        padding-bottom: 0.4rem !important;
+        border-bottom: 1px solid var(--border) !important;
+        justify-content: flex-start !important;
+        gap: 8px !important;
+    }
+    .table-responsive:not(.table-force-scroll) .admin-table td[data-label="Select"]::before {
+        content: "Select Account";
+    }
+
+    /* Actions row on mobile card */
+    .table-responsive:not(.table-force-scroll) .admin-table td[data-label="Quick Actions"],
+    .table-responsive:not(.table-force-scroll) .admin-table td[data-label="Privileged Action"],
+    .table-responsive:not(.table-force-scroll) .admin-table td[data-label="Forensic Payload"],
+    .table-responsive:not(.table-force-scroll) .admin-table td[data-label="Actions"] {
+        display: flex !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+    .table-responsive:not(.table-force-scroll) .admin-table td[data-label="Quick Actions"]::before,
+    .table-responsive:not(.table-force-scroll) .admin-table td[data-label="Privileged Action"]::before,
+    .table-responsive:not(.table-force-scroll) .admin-table td[data-label="Forensic Payload"]::before,
+    .table-responsive:not(.table-force-scroll) .admin-table td[data-label="Actions"]::before {
+        content: "Actions";
+    }
+
+    /* Dark mode for mobile data cards */
+    :root[data-theme="dark"] .table-responsive:not(.table-force-scroll) .admin-table tbody tr {
+        background: #111827 !important;
+        border-color: #1F2937 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+    }
+    :root[data-theme="dark"] .table-responsive:not(.table-force-scroll) .admin-table td {
+        border-bottom-color: #1F2937 !important;
+    }
 
     .modal-overlay { align-items: flex-end; padding: 0; background: rgba(0, 0, 0, 0.6); z-index: 2000; }
     .modal-card, .modal { 
@@ -1788,6 +2363,173 @@ input:checked + .slider:before { transform: translateX(22px); }
     .modal-overlay.active .modal { transform: translateY(0); }
     .modal-footer { flex-direction: column; gap: 0.75rem; margin-top: 1.5rem; }
     .modal-footer .btn { width: 100%; min-height: 48px; margin: 0; }
+}
+
+/* =========================================================================
+   SUPER ADMIN POSTER STUDIO SUITE
+   ========================================================================= */
+#super-template-studio-view {
+    animation: fadeUp 0.3s ease forwards;
+}
+
+.super-studio-header-bar {
+    background: white;
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+}
+
+:root[data-theme="dark"] .super-studio-header-bar {
+    background: #1E293B;
+    border-color: #334155;
+}
+
+.super-studio-grid {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+@media (max-width: 1024px) {
+    .super-studio-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.super-studio-canvas-card {
+    background: #090D16;
+    border: 1px solid #1E293B;
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    min-height: 580px;
+    height: 72vh;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    overflow: hidden;
+}
+
+.super-studio-canvas-badge {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(6px);
+    color: #F8FAFC;
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    pointer-events: none;
+    z-index: 10;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.super-studio-canvas-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#super-studio-canvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    cursor: move;
+    background: #FFFFFF;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+    border-radius: 4px;
+}
+
+.super-studio-panel-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+}
+
+:root[data-theme="dark"] .super-studio-panel-card {
+    background: #111827;
+    border-color: #1F2937;
+}
+
+.super-studio-panel-header {
+    padding: 0.85rem 1.15rem;
+    background: var(--bg-main);
+    border-bottom: 1px solid var(--border);
+    font-weight: 800;
+    font-size: 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-main);
+}
+
+:root[data-theme="dark"] .super-studio-panel-header {
+    background: #0B1120;
+    border-bottom-color: #1F2937;
+    color: #E2E8F0;
+}
+
+.super-studio-layer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 4px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+:root[data-theme="dark"] .super-studio-layer-row {
+    background: #1E293B;
+    border-color: #334155;
+    color: #F1F5F9;
+}
+
+.super-studio-layer-row:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+:root[data-theme="dark"] .super-studio-layer-row:hover {
+    background: rgba(59, 130, 246, 0.15);
+}
+
+.super-studio-layer-row.active {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 1px var(--primary);
+}
+
+:root[data-theme="dark"] .super-studio-layer-row.active {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: #60A5FA;
 }
 
 </style>
@@ -1875,20 +2617,51 @@ input:checked + .slider:before { transform: translateX(22px); }
                 <h1 id="top-page-title" data-no-auto-brand="true">Super Admin Control Panel</h1>
             </div>
 
-            <div class="header-actions" style="display: flex; align-items: center; gap: 8px;">
+            <div class="header-actions" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <!-- Quick Festival Context Switcher -->
+                <div class="header-fest-selector" id="header-fest-selector-wrapper" title="Active Festival Context">
+                    <i class="fa-solid fa-crown" style="color: var(--amber); font-size: 0.88rem;"></i>
+                    <select id="header-fest-select" onchange="changeActiveFestContext(this.value)" class="header-select-input">
+                        <option value="">Loading fests...</option>
+                    </select>
+                </div>
+
+                <!-- Omnisearch Palette Button -->
                 <button class="cmd-palette-btn" onclick="openCommandPalette()" title="Press Ctrl+K to Omnisearch">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <span>Omnisearch...</span>
                     <kbd>Ctrl+K</kbd>
                 </button>
-                <div class="mini-hud-pill latency-good" id="header-latency-pill" title="Supabase Database Ping Latency">
+
+                <!-- Live Clock HUD -->
+                <div class="mini-hud-pill clock-hud-pill" id="header-clock-pill" title="Live System Time">
+                    <i class="fa-regular fa-clock"></i>
+                    <span id="header-clock-val">--:--:--</span>
+                </div>
+
+                <!-- Database Ping Latency -->
+                <div class="mini-hud-pill latency-good" id="header-latency-pill" title="Supabase Cloud Query Ping">
                     <i class="fa-solid fa-bolt"></i>
                     <span id="header-latency-val">-- ms</span>
                 </div>
+
+                <!-- Realtime Sync Pill -->
                 <div class="mini-hud-pill" id="header-ws-pill" title="Realtime Sync Channel">
                     <div class="status-dot"></div>
                     <span id="header-ws-text">Sync Live</span>
                 </div>
+
+                <!-- Titanium Dark / Light Mode Switcher -->
+                <button class="theme-toggle-btn" id="super-theme-toggle-btn" onclick="toggleSuperDarkTheme()" title="Toggle Titanium Dark / Clean Light Mode">
+                    <i class="fa-solid fa-moon" id="theme-icon"></i>
+                </button>
+
+                <!-- Fast Telemetry Refresh -->
+                <button class="header-icon-action-btn" onclick="triggerSuperFastSync(this)" title="Fast Sync & Cache Flush">
+                    <i class="fa-solid fa-rotate"></i>
+                </button>
+
+                <!-- Create Fest Action -->
                 <button class="btn btn-primary" onclick="openCreateFestModal()">
                     <i class="fa-solid fa-plus"></i> <span class="btn-text">New Fest</span>
                 </button>
@@ -1917,35 +2690,62 @@ input:checked + .slider:before { transform: translateX(22px); }
                     </div>
                 </div>
 
-                <!-- Top Stat Cards (Pastel colored - EXACT MATCH with admin.html) -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-                    <!-- Rose -->
-                    <div style="background: linear-gradient(135deg, #FFE4E6 0%, #FECDD3 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
-                        <i class="fa-solid fa-crown" style="color: #E11D48; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                <!-- Top Stat Cards (Interactive KPI Cards) -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 1.75rem;">
+                    <!-- Rose - Festivals -->
+                    <div class="kpi-interactive-card" onclick="switchSuperTab('tab-festivals')" title="Click to view Festivals Hub" style="background: linear-gradient(135deg, #FFE4E6 0%, #FECDD3 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); position: relative;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <i class="fa-solid fa-crown" style="color: #E11D48; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                            <i class="fa-solid fa-arrow-up-right-from-square" style="color: #BE123C; font-size: 0.85rem; opacity: 0.7;"></i>
+                        </div>
                         <div style="font-size: 2rem; font-weight: 800; color: #881337; line-height: 1.2;" id="stat-fests-count">0</div>
                         <div style="font-size: 0.85rem; font-weight: 600; color: #BE123C; margin-bottom: 0.5rem;"><span id="stat-active-fests-count">0</span> active tenants</div>
-                        <div style="font-size: 0.75rem; font-weight: 700; color: #9F1239; text-transform: uppercase;">Festivals Hub</div>
+                        <div style="font-size: 0.75rem; font-weight: 700; color: #9F1239; text-transform: uppercase;">Festivals Hub &bull; Jump &rarr;</div>
                     </div>
-                    <!-- Sky Blue -->
-                    <div style="background: linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
-                        <i class="fa-solid fa-users" style="color: #0284C7; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                    <!-- Sky Blue - Participants -->
+                    <div class="kpi-interactive-card" onclick="switchSuperTab('tab-festivals')" title="Click to view Festival Programs" style="background: linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); position: relative;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <i class="fa-solid fa-users" style="color: #0284C7; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                            <i class="fa-solid fa-arrow-up-right-from-square" style="color: #0369A1; font-size: 0.85rem; opacity: 0.7;"></i>
+                        </div>
                         <div style="font-size: 2rem; font-weight: 800; color: #0C4A6E; line-height: 1.2;" id="stat-participants-count">0</div>
                         <div style="font-size: 0.85rem; font-weight: 600; color: #0369A1; margin-bottom: 0.5rem;"><span id="stat-comp-count-kpi">0</span> programmes across tenants</div>
-                        <div style="font-size: 0.75rem; font-weight: 700; color: #075985; text-transform: uppercase;">Total Participants</div>
+                        <div style="font-size: 0.75rem; font-weight: 700; color: #075985; text-transform: uppercase;">Total Participants &bull; View &rarr;</div>
                     </div>
-                    <!-- Purple -->
-                    <div style="background: linear-gradient(135deg, #F3E8FF 0%, #E9D5FF 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
-                        <i class="fa-solid fa-user-shield" style="color: #7E22CE; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                    <!-- Purple - Master Admins -->
+                    <div class="kpi-interactive-card" onclick="switchSuperTab('tab-admins')" title="Click to manage Master Admins & Staff" style="background: linear-gradient(135deg, #F3E8FF 0%, #E9D5FF 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); position: relative;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <i class="fa-solid fa-user-shield" style="color: #7E22CE; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                            <i class="fa-solid fa-arrow-up-right-from-square" style="color: #6B21A8; font-size: 0.85rem; opacity: 0.7;"></i>
+                        </div>
                         <div style="font-size: 2rem; font-weight: 800; color: #4C1D95; line-height: 1.2;" id="stat-admins-count">0</div>
                         <div style="font-size: 0.85rem; font-weight: 600; color: #6B21A8; margin-bottom: 0.5rem;">Registered organizers &amp; staff</div>
-                        <div style="font-size: 0.75rem; font-weight: 700; color: #581C87; text-transform: uppercase;">Master Admins</div>
+                        <div style="font-size: 0.75rem; font-weight: 700; color: #581C87; text-transform: uppercase;">Master Admins &bull; Manage &rarr;</div>
                     </div>
-                    <!-- Emerald -->
-                    <div style="background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
-                        <i class="fa-solid fa-envelope-open-text" style="color: #059669; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                    <!-- Emerald - Client Inquiries -->
+                    <div class="kpi-interactive-card" onclick="switchSuperTab('tab-enquiries')" title="Click to view Client Support Inquiries" style="background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); position: relative;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <i class="fa-solid fa-envelope-open-text" style="color: #059669; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                            <i class="fa-solid fa-arrow-up-right-from-square" style="color: #047857; font-size: 0.85rem; opacity: 0.7;"></i>
+                        </div>
                         <div style="font-size: 2rem; font-weight: 800; color: #064E3B; line-height: 1.2;" id="stat-enquiries-count">0</div>
                         <div style="font-size: 0.85rem; font-weight: 600; color: #047857; margin-bottom: 0.5rem;">Lead inquiries received</div>
-                        <div style="font-size: 0.75rem; font-weight: 700; color: #065F46; text-transform: uppercase;">Client Inquiries</div>
+                        <div style="font-size: 0.75rem; font-weight: 700; color: #065F46; text-transform: uppercase;">Client Inquiries &bull; View &rarr;</div>
+                    </div>
+                </div>
+
+                <!-- Fast Portal Launcher Strip Ribbon -->
+                <div class="quick-launch-ribbon-card" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; margin-bottom: 2rem; box-shadow: var(--shadow-sm);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-bolt" style="color: var(--amber); font-size: 1.1rem;"></i>
+                            <span style="font-weight: 800; font-size: 1rem; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">Fast Portal Launcher</span>
+                            <span class="badge badge-primary" style="font-size: 0.7rem; font-weight: 700;">1-Click Direct Launch</span>
+                        </div>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);"><i class="fa-solid fa-globe" style="margin-right: 4px;"></i> Active festival domains &amp; portals</span>
+                    </div>
+                    <div id="overview-fast-launcher-strip" class="fast-launcher-strip">
+                        <!-- Populated dynamically -->
                     </div>
                 </div>
 
@@ -2153,7 +2953,7 @@ input:checked + .slider:before { transform: translateX(22px); }
                                 <th>Status</th>
                                 <th>Dates & Venue</th>
                                 <th>Staff & Admins</th>
-                                <th style="text-align: right;">Quick Actions</th>
+                                <th class="col-actions" style="text-align: right;">Quick Actions</th>
                             </tr>
                         </thead>
                         <tbody id="festivals-table-tbody">
@@ -2219,7 +3019,7 @@ input:checked + .slider:before { transform: translateX(22px); }
                                     <th>Attachment</th>
                                     <th>Status</th>
                                     <th>Created Time</th>
-                                    <th style="text-align: right;">Actions</th>
+                                    <th class="col-actions" style="text-align: right;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="broadcasts-history-tbody">
@@ -2269,7 +3069,7 @@ input:checked + .slider:before { transform: translateX(22px); }
                                 <th>Fest Date & Scale</th>
                                 <th>Client Message</th>
                                 <th>Status</th>
-                                <th style="text-align: right;">Actions</th>
+                                <th class="col-actions" style="text-align: right;">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="enquiries-table-tbody">
@@ -2321,6 +3121,9 @@ input:checked + .slider:before { transform: translateX(22px); }
                         <span id="bulk-selected-count">0</span> Accounts Selected
                     </div>
                     <div class="bulk-btn-group">
+                        <button class="btn btn-outline" style="background: var(--bg-surface); color: #4F46E5; border-color: #C7D2FE;" onclick="copySelectedUsersCredentials()" title="Copy Formatted Credentials for All Selected Accounts">
+                            <i class="fa-solid fa-copy"></i> Copy Credentials
+                        </button>
                         <button class="btn btn-outline" style="background: var(--bg-surface);" onclick="openBulkReassignModal()">
                             <i class="fa-solid fa-crown" style="color:var(--amber);"></i> Reassign Fest
                         </button>
@@ -2348,7 +3151,7 @@ input:checked + .slider:before { transform: translateX(22px); }
                                 <th>Access Role</th>
                                 <th>Current Password</th>
                                 <th>Password History</th>
-                                <th style="text-align: right;">Actions</th>
+                                <th class="col-actions" style="text-align: right;">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="users-table-tbody">
@@ -2492,61 +3295,177 @@ input:checked + .slider:before { transform: translateX(22px); }
             <!-- TAB: GLOBAL PRESET TEMPLATES & ACCESS CONTROL -->
             <!-- ========================================================= -->
             <section class="content-section" id="tab-templates">
-                <div class="action-bar" style="margin-bottom: 1.5rem;">
-                    <div>
-                        <span class="badge badge-primary" style="font-size: 0.75rem; margin-bottom: 0.25rem; display: inline-flex; align-items: center; gap: 0.35rem;">
-                            <i class="fa-solid fa-shapes"></i> SAAS MULTI-TENANT ASSETS
-                        </span>
-                        <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem;">Global Template Presets & Access Control</h2>
-                        <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0;">Create master templates for the Presets Gallery and decide which festivals have permission to use them.</p>
+                <!-- LIBRARY VIEW -->
+                <div id="super-presets-library-view">
+                    <div class="action-bar" style="margin-bottom: 1.5rem;">
+                        <div>
+                            <span class="badge badge-primary" style="font-size: 0.75rem; margin-bottom: 0.25rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+                                <i class="fa-solid fa-shapes"></i> SAAS MULTI-TENANT ASSETS
+                            </span>
+                            <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem;">Global Template Presets &amp; Access Control</h2>
+                            <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0;">Create and customize master templates in Poster Studio and govern festival access scope.</p>
+                        </div>
+                        <div class="bulk-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn btn-outline" onclick="loadSuperPresets()" title="Refresh Presets"><i class="fa-solid fa-rotate"></i> Refresh</button>
+                            <button class="btn btn-primary" onclick="openSuperTemplateStudio()"><i class="fa-solid fa-palette"></i> New Template in Studio</button>
+                            <button class="btn btn-outline" onclick="openSuperCreatePresetModal()" title="Add / Configure Preset"><i class="fa-solid fa-plus"></i> Quick Create</button>
+                        </div>
                     </div>
-                    <div class="bulk-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                        <button class="btn btn-outline" onclick="loadSuperPresets()" title="Refresh Presets"><i class="fa-solid fa-rotate"></i> Refresh</button>
-                        <button class="btn btn-primary" onclick="openSuperCreatePresetModal()"><i class="fa-solid fa-plus"></i> Create Global Preset</button>
+
+                    <!-- Stats summary -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                        <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem;">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Total Presets</div>
+                            <div style="font-size: 1.75rem; font-weight: 800; color: var(--primary);" id="super-presets-stat-total">8</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Active across platform</div>
+                        </div>
+                        <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem;">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">ID Badge Presets</div>
+                            <div style="font-size: 1.75rem; font-weight: 800; color: #4F46E5;" id="super-presets-stat-id">2</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Lanyard &amp; CR80 Pocket</div>
+                        </div>
+                        <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem;">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Result Posters</div>
+                            <div style="font-size: 1.75rem; font-weight: 800; color: #D97706;" id="super-presets-stat-posters">4</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Podium, Leaderboard, Final</div>
+                        </div>
+                        <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem;">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Certificates</div>
+                            <div style="font-size: 1.75rem; font-weight: 800; color: #059669;" id="super-presets-stat-certs">2</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Merit &amp; Participation</div>
+                        </div>
+                    </div>
+
+                    <!-- Presets Table -->
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px;">Preview</th>
+                                    <th>Template Name</th>
+                                    <th>Sector</th>
+                                    <th>Dimensions</th>
+                                    <th>Festival Access Scope</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="super-presets-tbody">
+                                <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading global presets...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
-                <!-- Stats summary -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-                    <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem;">
-                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Total Presets</div>
-                        <div style="font-size: 1.75rem; font-weight: 800; color: var(--primary);" id="super-presets-stat-total">8</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted);">Active across platform</div>
-                    </div>
-                    <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem;">
-                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">ID Badge Presets</div>
-                        <div style="font-size: 1.75rem; font-weight: 800; color: #4F46E5;" id="super-presets-stat-id">2</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted);">Lanyard & CR80 Pocket</div>
-                    </div>
-                    <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem;">
-                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Result Posters</div>
-                        <div style="font-size: 1.75rem; font-weight: 800; color: #D97706;" id="super-presets-stat-posters">4</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted);">Podium, Leaderboard, Final</div>
-                    </div>
-                    <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem;">
-                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Certificates</div>
-                        <div style="font-size: 1.75rem; font-weight: 800; color: #059669;" id="super-presets-stat-certs">2</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted);">Merit & Participation</div>
-                    </div>
-                </div>
+                <!-- POSTER STUDIO VIEW FOR SUPER ADMIN -->
+                <div id="super-template-studio-view" style="display: none;">
+                    <!-- Studio Top Navigation & Action Bar -->
+                    <div class="super-studio-header-bar">
+                        <div style="display: flex; gap: 1rem; align-items: center; flex: 1; flex-wrap: wrap;">
+                            <button class="btn btn-outline" onclick="closeSuperTemplateStudio()" style="padding: 0.5rem; border-radius: 50%; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;" title="Back to Presets Library">
+                                <i class="fa-solid fa-arrow-left"></i>
+                            </button>
+                            <div style="display: flex; flex-direction: column; flex: 1.2; min-width: 220px;">
+                                <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Global Preset Name</label>
+                                <input type="text" id="super-studio-template-name" placeholder="e.g. LUXURY GOLD CHAMPIONSHIP POSTER" style="border: none; border-bottom: 2px solid var(--border); font-size: 1.1rem; font-weight: 700; outline: none; padding: 0.25rem 0; background: transparent; color: var(--text-main);">
+                            </div>
+                            <div style="display: flex; flex-direction: column; flex: 1; min-width: 180px;">
+                                <label style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Sector / Category</label>
+                                <select id="super-studio-template-type" onchange="initializeSuperStudioFields(true)" style="padding: 0.45rem 0.75rem; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-main); color: var(--text-main); font-weight: 600; font-size: 0.88rem;">
+                                    <option value="individual">Individual Event Winner Poster</option>
+                                    <option value="team">Team Standings Leaderboard</option>
+                                    <option value="final">Final Championship Overall</option>
+                                    <option value="id_card">Participant ID Badge</option>
+                                    <option value="certificate">Merit / Participation Certificate</option>
+                                </select>
+                            </div>
+                        </div>
 
-                <!-- Presets Table -->
-                <div class="table-responsive">
-                    <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 80px;">Preview</th>
-                                <th>Template Name</th>
-                                <th>Sector</th>
-                                <th>Dimensions</th>
-                                <th>Festival Access Scope</th>
-                                <th style="text-align: right;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="super-presets-tbody">
-                            <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading global presets...</td></tr>
-                        </tbody>
-                    </table>
+                        <!-- Studio Tools Toolbar -->
+                        <div class="bulk-actions" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                            <!-- Access Scope pill button -->
+                            <button class="btn btn-outline" id="super-studio-access-btn" onclick="openSuperStudioAccessModal()" title="Festival Access Scope" style="border-color: #6366F1; color: #4F46E5; font-weight: 700; font-size: 0.82rem;">
+                                <i class="fa-solid fa-shield-halved"></i> <span id="super-studio-access-btn-label">All Festivals</span>
+                            </button>
+
+                            <!-- Hidden file uploads -->
+                            <input type="file" id="super-studio-bg-upload" accept="image/*, application/pdf, .pdf" style="display: none;" onchange="handleSuperStudioBgUpload(event)">
+                            <button class="btn btn-outline" onclick="document.getElementById('super-studio-bg-upload').click()" title="Upload Image or High-Res PDF Background (300 DPI)" style="font-size: 0.82rem;">
+                                <i class="fa-solid fa-file-pdf" style="color: #EF4444;"></i> Change BG / PDF
+                            </button>
+
+                            <input type="file" id="super-studio-element-upload" accept=".svg, .png, .jpg, .jpeg, .webp" style="display: none;" onchange="handleSuperStudioElementUpload(event)">
+                            <button class="btn btn-outline" onclick="document.getElementById('super-studio-element-upload').click()" title="Add Badge / Element / Shape" style="font-size: 0.82rem;">
+                                <i class="fa-solid fa-shapes" style="color: #3B82F6;"></i> Add Element
+                            </button>
+
+                            <button class="btn btn-outline" onclick="addSuperStudioTextLayer()" title="Add Custom Text Layer" style="font-size: 0.82rem;">
+                                <i class="fa-solid fa-font" style="color: #10B981;"></i> Add Text
+                            </button>
+
+                            <input type="file" id="super-studio-font-upload" accept=".ttf, .otf, .woff, .woff2" style="display: none;" onchange="handleSuperStudioFontUpload(event)">
+                            <button class="btn btn-outline" onclick="document.getElementById('super-studio-font-upload').click()" title="Upload Custom Font (.ttf, .otf, .woff)" style="font-size: 0.82rem;">
+                                <i class="fa-solid fa-file-import" style="color: #8B5CF6;"></i> Add Font
+                            </button>
+
+                            <!-- Undo / Redo controls -->
+                            <div style="display: flex; gap: 0.25rem; border-left: 1px solid var(--border); padding-left: 0.5rem; margin-left: 0.25rem;">
+                                <button class="btn btn-outline" id="super-studio-btn-undo" onclick="superStudioUndo()" style="padding: 0.45rem 0.65rem;" disabled title="Undo">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                </button>
+                                <button class="btn btn-outline" id="super-studio-btn-redo" onclick="superStudioRedo()" style="padding: 0.45rem 0.65rem;" disabled title="Redo">
+                                    <i class="fa-solid fa-rotate-right"></i>
+                                </button>
+                            </div>
+
+                            <button class="btn btn-dark" onclick="openSuperStudioFullView()" style="font-size: 0.82rem;" title="View Full Size Image">
+                                <i class="fa-solid fa-expand"></i> Full Size
+                            </button>
+
+                            <button class="btn btn-success" id="btn-save-super-studio" onclick="saveSuperStudioTemplate()" style="font-size: 0.85rem; font-weight: 700;">
+                                <i class="fa-solid fa-floppy-disk"></i> Save Global Preset
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 2-Column Editor Grid: Left (Layers & Properties), Right (Canvas) -->
+                    <div class="super-studio-grid">
+                        <!-- Left Column: Layers and Properties -->
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            <!-- Active Layers Card -->
+                            <div class="super-studio-panel-card" style="max-height: 38vh;">
+                                <div class="super-studio-panel-header">
+                                    <span><i class="fa-solid fa-layer-group" style="margin-right: 6px; color: var(--primary);"></i> Active Layers</span>
+                                    <span id="super-studio-layer-count" style="background: rgba(59, 130, 246, 0.15); color: var(--primary); font-size: 0.72rem; padding: 2px 7px; border-radius: 999px;">0</span>
+                                </div>
+                                <div id="super-studio-layers-panel" style="overflow-y: auto; padding: 0.6rem; flex: 1; display: flex; flex-direction: column; gap: 3px; max-height: 280px;">
+                                    <p style="text-align: center; color: var(--text-muted); font-size: 0.82rem; padding: 1rem;">Loading layers...</p>
+                                </div>
+                            </div>
+
+                            <!-- Layer Properties Card -->
+                            <div class="super-studio-panel-card" style="flex: 1;">
+                                <div class="super-studio-panel-header">
+                                    <span><i class="fa-solid fa-sliders" style="margin-right: 6px; color: var(--primary);"></i> Layer Properties</span>
+                                    <span id="super-studio-selected-layer-badge" style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: none;">None Selected</span>
+                                </div>
+                                <div id="super-studio-properties-panel" style="padding: 1.15rem; overflow-y: auto; max-height: 400px;">
+                                    <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 1.5rem 0;">
+                                        Select a layer above or click on the canvas to configure properties.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Interactive Canvas Area -->
+                        <div class="super-studio-canvas-card">
+                            <div class="super-studio-canvas-badge">
+                                <i class="fa-solid fa-hand-pointer" style="color: #60A5FA;"></i> Click or drag elements to position &bull; Scroll to inspect
+                            </div>
+                            <div class="super-studio-canvas-wrapper" id="super-studio-canvas-container">
+                                <canvas id="super-studio-canvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -2968,7 +3887,7 @@ input:checked + .slider:before { transform: translateX(22px); }
                                     <th>Status</th>
                                     <th>Last Active</th>
                                     <th>Device / Platform</th>
-                                    <th style="text-align: right;">Privileged Action</th>
+                                    <th class="col-actions" style="text-align: right;">Privileged Action</th>
                                 </tr>
                             </thead>
                             <tbody id="user-sessions-tbody">
@@ -3031,7 +3950,7 @@ input:checked + .slider:before { transform: translateX(22px); }
                                     <th>User Account</th>
                                     <th>Severity</th>
                                     <th>Client Context / URL</th>
-                                    <th style="text-align: right;">Forensic Payload</th>
+                                    <th class="col-actions" style="text-align: right;">Forensic Payload</th>
                                 </tr>
                             </thead>
                             <tbody id="audit-logs-tbody">
@@ -3241,6 +4160,18 @@ input:checked + .slider:before { transform: translateX(22px); }
             <form id="user-form" onsubmit="event.preventDefault(); saveUserSubmit();">
                 <div class="modal-body">
                     <input type="hidden" id="modal-user-id">
+
+                    <!-- Quick Share Actions when editing an existing user -->
+                    <div id="user-modal-share-actions" style="display:none; margin-bottom: 1.25rem; padding: 0.85rem 1rem; background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: var(--radius-md); justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.65rem;">
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.85rem; color: #3730A3;"><i class="fa-solid fa-share-nodes"></i> Share Login Credentials</div>
+                            <div style="font-size: 0.75rem; color: #4338CA;">Formatted message with portal domain, username, role &amp; password.</div>
+                        </div>
+                        <div style="display: flex; gap: 0.45rem;">
+                            <button type="button" class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.78rem; font-weight: 700; color: #4F46E5; border-color: #C7D2FE; background: white;" onclick="copySuperUserCredentialsFromModal()"><i class="fa-solid fa-copy"></i> Copy</button>
+                            <button type="button" class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.78rem; font-weight: 700; color: #059669; border-color: #A7F3D0; background: white;" onclick="shareSuperUserCredentialsWhatsAppFromModal()"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+                        </div>
+                    </div>
                     
                     <div class="form-group">
                         <label>Assign to Festival *</label>
@@ -3768,11 +4699,89 @@ input:checked + .slider:before { transform: translateX(22px); }
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline" onclick="closeModal('superPresetModal')">Cancel</button>
-                <button type="button" class="btn btn-primary" id="btn-save-super-preset" onclick="saveSuperPreset()">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> Save &amp; Publish Preset
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                <button type="button" class="btn btn-outline" id="btn-modal-open-studio" onclick="launchSuperStudioFromModal()" style="border-color: #6366F1; color: #4F46E5; font-weight: 700;">
+                    <i class="fa-solid fa-palette"></i> Open in Poster Studio
                 </button>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('superPresetModal')">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="btn-save-super-preset" onclick="saveSuperPreset()">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Save &amp; Publish Preset
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL: SUPER STUDIO FESTIVAL ACCESS SCOPE -->
+    <!-- ========================================================= -->
+    <div class="modal-overlay" id="superStudioAccessModal">
+        <div class="modal-card" style="max-width: 580px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i> Festival Access Permission</h3>
+                <button type="button" onclick="closeModal('superStudioAccessModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    Configure whether this preset is universally accessible by all festivals or restricted to selected festivals.
+                </p>
+
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; padding: 0.65rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-main);">
+                        <input type="radio" name="super-studio-scope-mode" value="all" checked onchange="toggleSuperStudioScopeList(false)" style="accent-color: var(--primary);">
+                        <div>
+                            <div><strong>All Festivals (Global)</strong></div>
+                            <div style="font-size: 0.78rem; color: var(--text-muted); font-weight: normal;">Every festival admin can pick and use this template preset.</div>
+                        </div>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; padding: 0.65rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-main);">
+                        <input type="radio" name="super-studio-scope-mode" value="restricted" onchange="toggleSuperStudioScopeList(true)" style="accent-color: var(--primary);">
+                        <div>
+                            <div><strong>Specific Festivals Only</strong></div>
+                            <div style="font-size: 0.78rem; color: var(--text-muted); font-weight: normal;">Only selected festivals will see this preset in their studio gallery.</div>
+                        </div>
+                    </label>
+                </div>
+
+                <div id="super-studio-scope-fest-list-container" style="display: none; padding-top: 0.75rem; border-top: 1px dashed var(--border);">
+                    <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem;">Select Authorized Festivals:</div>
+                    <div id="super-studio-scope-fest-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; max-height: 180px; overflow-y: auto; padding: 4px;">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('superStudioAccessModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveSuperStudioAccessScope()">
+                    <i class="fa-solid fa-check"></i> Apply Scope
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL: SUPER STUDIO FULL SIZE PREVIEW -->
+    <!-- ========================================================= -->
+    <div class="modal-overlay" id="superStudioFullViewModal">
+        <div class="modal-card" style="max-width: 900px; width: 95vw;">
+            <div class="modal-header">
+                <h3 id="super-studio-fullview-title"><i class="fa-solid fa-expand" style="color: var(--primary);"></i> High-Res Preset Preview</h3>
+                <button type="button" onclick="closeModal('superStudioFullViewModal')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <div style="background: #090D16; border-radius: var(--radius-lg); padding: 1.25rem; display: flex; align-items: center; justify-content: center; max-height: 70vh; overflow: auto;">
+                    <img id="super-studio-fullview-img" style="max-height: 65vh; max-width: 100%; object-fit: contain; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between;">
+                <button type="button" class="btn btn-outline" onclick="closeModal('superStudioFullViewModal')">Close</button>
+                <a id="super-studio-fullview-download" download="global_preset_preview.png" class="btn btn-primary">
+                    <i class="fa-solid fa-download"></i> Download PNG
+                </a>
             </div>
         </div>
     </div>
