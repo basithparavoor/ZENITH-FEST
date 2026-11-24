@@ -110,6 +110,9 @@ const SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
 const supabaseClient = window.supabaseClient || (window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null);
 window.supabaseClient = supabaseClient;
 window.festosSupabase = supabaseClient;
+if (typeof festosRefreshSupabaseHeaders === 'function') {
+    festosRefreshSupabaseHeaders();
+}
 
 // Initialize available fests for studio engines & tabs
 try {
@@ -17976,7 +17979,11 @@ async function saveJudgeAssignments() {
                 if (fid) row.fest_id = fid;
                 return (typeof festPayload === 'function') ? festPayload(row) : row;
             });
-            await supabaseClient.from('judgements').insert(inserts);
+            const { error: insErr } = await supabaseClient.from('judgements').insert(inserts);
+            if (insErr) {
+                console.error('[Judge Assignments Error]', insErr);
+                throw new Error(insErr.message || 'Failed to update judge assignments in database');
+            }
         }
         
         showToast('Judge assignments updated successfully!');

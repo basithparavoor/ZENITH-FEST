@@ -2165,18 +2165,38 @@ function festosGetAuthHeaders() {
     const headers = {
         'x-client-info': 'festos-web/2026.1'
     };
-    if (typeof festosAuth !== 'undefined') {
-        const fid = festosAuth.getCurrentFestId ? festosAuth.getCurrentFestId() : null;
-        if (fid) {
-            headers['x-fest-id'] = fid;
-        }
-        const superAdmin = festosAuth.getSuperAdmin ? festosAuth.getSuperAdmin() : null;
-        const user = festosAuth.getUser ? festosAuth.getUser() : null;
-        if (superAdmin || (user && (user.role === 'super_admin' || user.role === 'master_admin'))) {
-            headers['x-festos-role'] = 'super_admin';
-            headers['x-role'] = 'super_admin';
-            headers['x-festos-auth'] = 'super_admin_verified';
-        }
+    let fid = null;
+    if (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) {
+        fid = festosAuth.getCurrentFestId();
+    }
+    if (!fid && typeof getActiveFestId === 'function') {
+        fid = getActiveFestId();
+    }
+    if (!fid && typeof localStorage !== 'undefined') {
+        try {
+            const u = JSON.parse(localStorage.getItem('festUser') || '{}');
+            fid = u.fest_id || localStorage.getItem('festos_active_fest_id') || localStorage.getItem('festos_last_fest_id');
+        } catch(e) {}
+    }
+    if (!fid && typeof window !== 'undefined' && typeof window.festosDefaultFestId === 'function') {
+        fid = window.festosDefaultFestId();
+    }
+    if (fid) {
+        headers['x-fest-id'] = fid;
+    }
+
+    let superAdmin = (typeof festosAuth !== 'undefined' && festosAuth.getSuperAdmin) ? festosAuth.getSuperAdmin() : null;
+    let user = (typeof festosAuth !== 'undefined' && festosAuth.getUser) ? festosAuth.getUser() : null;
+    if (!user && typeof localStorage !== 'undefined') {
+        try {
+            user = JSON.parse(localStorage.getItem('festUser') || 'null');
+            superAdmin = JSON.parse(localStorage.getItem('festSuperAdmin') || 'null');
+        } catch(e) {}
+    }
+    if (superAdmin || (user && (user.role === 'super_admin' || user.role === 'master_admin'))) {
+        headers['x-festos-role'] = 'super_admin';
+        headers['x-role'] = 'super_admin';
+        headers['x-festos-auth'] = 'super_admin_verified';
     }
     return headers;
 }
@@ -2194,6 +2214,49 @@ function festosRefreshSupabaseHeaders() {
         }
     } catch (e) {}
 }
+
+// Universal Fetch Interceptor to ensure every Supabase REST API request carries x-fest-id & auth headers
+(function setupFestosFetchInterceptor() {
+    if (typeof window === 'undefined' || !window.fetch || window._festosFetchIntercepted) return;
+    window._festosFetchIntercepted = true;
+    const _originalFetch = window.fetch;
+
+    window.fetch = function(resource, init) {
+        try {
+            const url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : '');
+            if (url && (url.includes('.supabase.co') || url.includes('/rest/v1/'))) {
+                init = init || {};
+                const authHeaders = festosGetAuthHeaders();
+
+                if (typeof Request !== 'undefined' && resource instanceof Request) {
+                    init.headers = new Headers(init.headers || resource.headers);
+                    for (const [k, v] of Object.entries(authHeaders)) {
+                        if (!init.headers.has(k)) {
+                            init.headers.set(k, v);
+                        }
+                    }
+                } else if (typeof Headers !== 'undefined' && init.headers instanceof Headers) {
+                    for (const [k, v] of Object.entries(authHeaders)) {
+                        if (!init.headers.has(k)) {
+                            init.headers.set(k, v);
+                        }
+                    }
+                } else if (Array.isArray(init.headers)) {
+                    for (const [k, v] of Object.entries(authHeaders)) {
+                        if (!init.headers.some(h => h[0].toLowerCase() === k.toLowerCase())) {
+                            init.headers.push([k, v]);
+                        }
+                    }
+                } else {
+                    init.headers = Object.assign({}, authHeaders, init.headers || {});
+                }
+            }
+        } catch (e) {
+            console.warn('[FestOS Interceptor Notice]', e);
+        }
+        return _originalFetch.call(this, resource, init);
+    };
+})();
 
 // =========================================================================
 // 3. SYSTEM LOGGING & AUTO-DIAGNOSTICS ENGINE

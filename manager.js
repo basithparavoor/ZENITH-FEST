@@ -6,6 +6,9 @@ const supabaseClient = window.supabaseClient || (window.supabase ? window.supaba
 if (typeof window !== 'undefined') window.supabaseClient = supabaseClient;
 
 window.db = supabaseClient;
+if (typeof festosRefreshSupabaseHeaders === 'function') {
+    festosRefreshSupabaseHeaders();
+}
 
 // Auth check
 const user = JSON.parse(localStorage.getItem('festUser'));
@@ -1749,7 +1752,11 @@ async function saveJudgeAssignments() {
         if(modalAssignedIds.length > 0) {
             let inserts = modalAssignedIds.map(compId => ({ competition_id: compId, judge_id: judgeId }));
             if (window.festosWithFest) inserts = window.festosWithFest(inserts);
-            await supabaseClient.from('judgements').insert(inserts);
+            const { error: insErr } = await supabaseClient.from('judgements').insert(inserts);
+            if (insErr) {
+                console.error('[Manager Judge Assignment Error]', insErr);
+                throw new Error(insErr.message || 'Failed to update judge assignments in database');
+            }
         }
         
         showToast('Judge assignments updated successfully!');
