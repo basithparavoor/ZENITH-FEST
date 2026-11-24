@@ -21757,3 +21757,355 @@ function exportExclusionsReportCSV() {
     showToast('CSV Report exported successfully!', 'success');
 }
 window.exportExclusionsReportCSV = exportExclusionsReportCSV;
+
+
+// =========================================================================
+// FESTOS ADMIN OMNISEARCH COMMAND PALETTE (CTRL+K) & SHORTCUTS ENGINE
+// =========================================================================
+let adminOmnisearchSelectedIndex = 0;
+let adminOmnisearchFilteredResults = [];
+
+function openAdminOmnisearch() {
+    const modal = document.getElementById('adminOmnisearchModal');
+    if (!modal) return;
+    modal.classList.add('show');
+    const input = document.getElementById('admin-omnisearch-input');
+    if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 60);
+    }
+    onAdminOmnisearchInput('');
+}
+
+function closeAdminOmnisearch() {
+    const modal = document.getElementById('adminOmnisearchModal');
+    if (modal) {
+        modal.classList.remove('show');
+    }
+}
+
+function toggleAdminOmnisearch() {
+    const modal = document.getElementById('adminOmnisearchModal');
+    if (modal && modal.classList.contains('show')) {
+        closeAdminOmnisearch();
+    } else {
+        openAdminOmnisearch();
+    }
+}
+
+// Global Keyboard Shortcuts Listener
+document.addEventListener('keydown', (e) => {
+    // Ctrl+K or Cmd+K: Open/Close Omnisearch
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        toggleAdminOmnisearch();
+        return;
+    }
+
+    const modal = document.getElementById('adminOmnisearchModal');
+    const isOpen = modal && modal.classList.contains('show');
+
+    // Escape: Close Omnisearch
+    if (e.key === 'Escape') {
+        if (isOpen) {
+            e.preventDefault();
+            closeAdminOmnisearch();
+            return;
+        }
+    }
+
+    // Omnisearch Navigation when open
+    if (isOpen) {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            navigateAdminOmnisearch(1);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            navigateAdminOmnisearch(-1);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            executeCurrentAdminOmnisearchItem();
+        }
+    } else {
+        // Quick Sync: Alt+R or Ctrl+Shift+R
+        if ((e.altKey && (e.key === 'r' || e.key === 'R')) || 
+            (e.ctrlKey && e.shiftKey && (e.key === 'r' || e.key === 'R'))) {
+            e.preventDefault();
+            const btn = document.getElementById('header-refresh-btn');
+            if (btn && typeof refreshAdminData === 'function') refreshAdminData(btn);
+        }
+    }
+});
+
+function onAdminOmnisearchInput(query) {
+    const q = (query || '').toLowerCase().trim();
+    const resultsContainer = document.getElementById('admin-omnisearch-results');
+    if (!resultsContainer) return;
+
+    adminOmnisearchFilteredResults = [];
+    adminOmnisearchSelectedIndex = 0;
+
+    // 1. Navigation Pages
+    const adminPages = [
+        { type: 'page', title: 'Dashboard', sub: 'Overview KPIs, charts, registrations, live stats', icon: 'fa-house', badge: 'PAGE', action: () => switchTab('dashboard') },
+        { type: 'page', title: 'Competitions', sub: 'Manage programs, codes, categories, stage assignments', icon: 'fa-trophy', badge: 'MODULE', action: () => switchTab('competitions') },
+        { type: 'page', title: 'Participants', sub: 'Student directory, chest numbers, team affiliations', icon: 'fa-users', badge: 'REGISTRY', action: () => switchTab('participants') },
+        { type: 'page', title: 'Categories', sub: 'Configure event divisions (Junior, Senior, General)', icon: 'fa-layer-group', badge: 'CONFIG', action: () => switchTab('categories') },
+        { type: 'page', title: 'Teams & Houses', sub: 'Configure team houses, groups, codes, colors', icon: 'fa-people-group', badge: 'TEAMS', action: () => switchTab('teams') },
+        { type: 'page', title: 'Stages & Venues', sub: 'Auditoriums, halls, rooms, live stages', icon: 'fa-location-dot', badge: 'VENUES', action: () => switchTab('stages') },
+        { type: 'page', title: 'Assign Students', sub: 'Enroll participants into competitions & check limits', icon: 'fa-user-check', badge: 'ENROLL', action: () => switchTab('assignments') },
+        { type: 'page', title: 'Direct Valuation', sub: 'Enter scores, marks, and grades directly per event', icon: 'fa-calculator', badge: 'SCORING', action: () => switchTab('direct-valuation') },
+        { type: 'page', title: 'Points Ledger', sub: 'Live championship leaderboard, points breakdown', icon: 'fa-chart-line', badge: 'LEADERBOARD', action: () => switchTab('participant-points') },
+        { type: 'page', title: 'Appeals & Grievances', sub: 'Review submitted complaints and re-evaluation requests', icon: 'fa-scale-balanced', badge: 'APPEALS', action: () => switchTab('admin-appeals') },
+        { type: 'page', title: 'Late Entry Permits', sub: 'Grant special permissions and resolve scheduling conflicts', icon: 'fa-ticket', badge: 'PERMITS', action: () => switchTab('conflict-permits') },
+        { type: 'page', title: 'Point System Settings', sub: 'Configure 1st, 2nd, 3rd place weights and team points', icon: 'fa-sliders', badge: 'RULES', action: () => switchTab('point-settings') },
+        { type: 'page', title: 'Display Control', sub: 'Operate onstage screens, tickers, and live TV displays', icon: 'fa-tv', badge: 'SCREENS', action: () => switchTab('display-control') },
+        { type: 'page', title: 'Event Schedule', sub: 'Timeline scheduler, agenda planner, clash detector', icon: 'fa-calendar-days', badge: 'SCHEDULE', action: () => switchTab('schedule-mgmt') },
+        { type: 'page', title: 'Branding & UI', sub: 'Festival logo, primary theme colors, typography', icon: 'fa-palette', badge: 'THEME', action: () => switchTab('branding-settings') },
+        { type: 'page', title: 'Poster Studio & Templates', sub: 'Vector PDF canvas designer, winner flyers, print graphics', icon: 'fa-image', badge: 'STUDIO', action: () => switchTab('poster-templates') },
+        { type: 'page', title: 'Website Customizer', sub: 'Configure public results portal, visibility, domain', icon: 'fa-globe', badge: 'PUBLIC WEB', action: () => switchTab('website-builder') },
+        { type: 'page', title: 'Daily AI Newspaper', sub: 'AI news reporter, gazette print layouts, breaking news', icon: 'fa-newspaper', badge: 'AI NEWS', action: () => switchTab('ai-newspaper') },
+        { type: 'page', title: 'Data Center', sub: 'Verify data consistency, missing links, audit integrity', icon: 'fa-server', badge: 'HEALTH', action: () => switchTab('data-center') },
+        { type: 'page', title: 'User & Staff Accounts', sub: 'Manage master admin, stage manager, and staff logins', icon: 'fa-user-shield', badge: 'SECURITY', action: () => switchTab('users') },
+        { type: 'page', title: 'Judge Management', sub: 'Judge scoring credentials, secret PINs, assigned panels', icon: 'fa-gavel', badge: 'JUDGES', action: () => switchTab('judges') }
+    ];
+
+    // 2. Quick Actions
+    const quickActions = [
+        { type: 'action', title: 'Add New Competition', sub: 'Open competition creation dialog', icon: 'fa-plus', badge: 'ACTION', action: () => { switchTab('competitions'); if (typeof openCompetitionModal === 'function') openCompetitionModal(); } },
+        { type: 'action', title: 'Register New Participant', sub: 'Add a student with chest number and team', icon: 'fa-user-plus', badge: 'ACTION', action: () => { switchTab('participants'); if (typeof openParticipantModal === 'function') openParticipantModal(); } },
+        { type: 'action', title: 'Add New Team / House', sub: 'Register a new team or house group', icon: 'fa-users-gear', badge: 'ACTION', action: () => { switchTab('teams'); if (typeof openTeamModal === 'function') openTeamModal(); } },
+        { type: 'action', title: 'Add New Stage / Venue', sub: 'Register a stage or auditorium', icon: 'fa-map-pin', badge: 'ACTION', action: () => { switchTab('stages'); if (typeof openStageModal === 'function') openStageModal(); } },
+        { type: 'action', title: 'Add New Category', sub: 'Create a new division category', icon: 'fa-folder-plus', badge: 'ACTION', action: () => { switchTab('categories'); if (typeof openCategoryModal === 'function') openCategoryModal(); } },
+        { type: 'action', title: 'Add Staff Account', sub: 'Create admin, team manager, or judge account', icon: 'fa-shield-halved', badge: 'ACTION', action: () => { switchTab('users'); if (typeof openUserModal === 'function') openUserModal(); } },
+        { type: 'action', title: 'Register Judge', sub: 'Create a judge profile with secret scoring PIN', icon: 'fa-stamp', badge: 'ACTION', action: () => { switchTab('judges'); if (typeof openJudgeModal === 'function') openJudgeModal(); } },
+        { type: 'action', title: 'Schedule Competition on Stage', sub: 'Set start time, venue, and sequence', icon: 'fa-clock', badge: 'ACTION', action: () => { switchTab('schedule-mgmt'); if (typeof openScheduleModal === 'function') openScheduleModal(); } },
+        { type: 'action', title: 'Print ID Badges / Cards', sub: 'Bulk generate and print participant cards', icon: 'fa-id-card', badge: 'ACTION', action: () => { switchTab('participants'); if (typeof openBulkBadgeModal === 'function') openBulkBadgeModal(); } },
+        { type: 'action', title: 'Print Certificates', sub: 'Generate certified winner & merit certificates', icon: 'fa-certificate', badge: 'ACTION', action: () => { switchTab('participants'); if (typeof openBulkCertificateModal === 'function') openBulkCertificateModal(); } },
+        { type: 'action', title: 'Refresh System Data', sub: 'Sync latest updates and scores from cloud database', icon: 'fa-rotate', badge: 'SYNC', action: () => { const btn = document.getElementById('header-refresh-btn'); if (btn && typeof refreshAdminData === 'function') refreshAdminData(btn); } },
+        { type: 'action', title: 'Toggle Sidebar Navigation', sub: 'Expand or collapse the sidebar navigation menu', icon: 'fa-bars', badge: 'Ctrl+B', action: () => toggleSidebar() }
+    ];
+
+    // 3. Cross-Portals
+    const crossPortals = [
+        { type: 'portal', title: 'Judge Scoring Portal', sub: 'Digital evaluation and scoring dashboard for judges', icon: 'fa-gavel', badge: 'PORTAL', action: () => window.open('judge.html', '_blank') },
+        { type: 'portal', title: 'Stage Controller Portal', sub: 'Stage callouts, participant readiness, mic management', icon: 'fa-microphone', badge: 'PORTAL', action: () => window.open('stage-controller.html', '_blank') },
+        { type: 'portal', title: 'Team Manager Hub', sub: 'Participant registration and team roster portal', icon: 'fa-briefcase', badge: 'PORTAL', action: () => window.open('manager.html', '_blank') },
+        { type: 'portal', title: 'Announcer & Sound Console', sub: 'Stage announcements, live alerts, call sheets', icon: 'fa-bullhorn', badge: 'PORTAL', action: () => window.open('announcements.html', '_blank') },
+        { type: 'portal', title: 'Master Reports & Printouts', sub: 'PDF master sheets, scoresheets, program dossiers', icon: 'fa-file-pdf', badge: 'PORTAL', action: () => window.open('program_report.html', '_blank') },
+        { type: 'portal', title: 'Public Live Results Portal', sub: 'Live scoreboards, published standings for attendees', icon: 'fa-square-poll-vertical', badge: 'PORTAL', action: () => window.open('results.html', '_blank') },
+        { type: 'portal', title: 'Stage Display Screens', sub: 'Full-screen projector output, winners reveal, telecast', icon: 'fa-tv', badge: 'PORTAL', action: () => window.open('display.html', '_blank') }
+    ];
+
+    // 4. Keyboard Shortcuts Reference
+    const shortcutsHelp = [
+        { type: 'shortcut', title: 'Omnisearch Command Palette', sub: 'Open or close this global Omnisearch modal from anywhere', icon: 'fa-keyboard', badge: 'Ctrl + K', action: () => {} },
+        { type: 'shortcut', title: 'Toggle Sidebar Menu', sub: 'Collapse sidebar to give full width to workspace', icon: 'fa-keyboard', badge: 'Ctrl + B', action: () => toggleSidebar() },
+        { type: 'shortcut', title: 'Sync & Refresh Cloud Data', sub: 'Fetch freshest registrations, marks, and state', icon: 'fa-keyboard', badge: 'Alt + R', action: () => { const btn = document.getElementById('header-refresh-btn'); if (btn && typeof refreshAdminData === 'function') refreshAdminData(btn); } },
+        { type: 'shortcut', title: 'Save Spreadsheet Changes', sub: 'Fast-save batch cell edits when in Sheet View', icon: 'fa-keyboard', badge: 'Ctrl + S', action: () => { if (typeof saveCompSheetChanges === 'function') saveCompSheetChanges(); } },
+        { type: 'shortcut', title: 'Navigate Omnisearch Items', sub: 'Cycle through search results smoothly', icon: 'fa-keyboard', badge: '↑ / ↓', action: () => {} },
+        { type: 'shortcut', title: 'Select & Execute Option', sub: 'Launch highlighted page or trigger action', icon: 'fa-keyboard', badge: 'Enter', action: () => {} },
+        { type: 'shortcut', title: 'Close Palette / Dialog', sub: 'Exit Omnisearch or any open modal', icon: 'fa-keyboard', badge: 'Esc', action: () => closeAdminOmnisearch() }
+    ];
+
+    // Filter Navigation Pages
+    const matchingPages = adminPages.filter(p => !q || p.title.toLowerCase().includes(q) || p.sub.toLowerCase().includes(q));
+
+    // Filter Quick Actions
+    const matchingActions = quickActions.filter(a => !q || a.title.toLowerCase().includes(q) || a.sub.toLowerCase().includes(q));
+
+    // Filter Cross-Portals
+    const matchingPortals = crossPortals.filter(p => !q || p.title.toLowerCase().includes(q) || p.sub.toLowerCase().includes(q));
+
+    // Filter Shortcuts Help (show if typing 'key', 'short', 'help', '?', or if empty)
+    const showShortcuts = !q || q.includes('short') || q.includes('key') || q.includes('ctrl') || q.includes('help') || q === '?';
+    const matchingShortcuts = showShortcuts ? shortcutsHelp.filter(s => !q || q === '?' || s.title.toLowerCase().includes(q) || s.sub.toLowerCase().includes(q) || s.badge.toLowerCase().includes(q)) : [];
+
+    // Filter Live Competitions
+    let matchingCompetitions = [];
+    if (q && Array.isArray(competitionsList) && competitionsList.length > 0) {
+        matchingCompetitions = competitionsList.filter(c => {
+            const name = (c.name || '').toLowerCase();
+            const code = (c.code || '').toLowerCase();
+            const category = (c.category || '').toLowerCase();
+            const stage = (c.stage || '').toLowerCase();
+            return name.includes(q) || code.includes(q) || category.includes(q) || stage.includes(q);
+        }).slice(0, 5).map(c => ({
+            type: 'competition',
+            title: c.name || 'Unnamed Competition',
+            sub: `${c.code ? '[' + c.code + '] ' : ''}${c.category || 'General'} • ${c.stage || 'Stage Unset'} • ${c.status || 'Upcoming'}`,
+            icon: 'fa-trophy',
+            badge: 'COMPETITION',
+            action: () => {
+                switchTab('competitions');
+                const inp = document.getElementById('searchCompInput');
+                if (inp) {
+                    inp.value = c.name || c.code;
+                    if (typeof filterCompetitions === 'function') filterCompetitions(true);
+                }
+            }
+        }));
+    }
+
+    // Filter Live Participants
+    let matchingParticipants = [];
+    if (q && Array.isArray(participantsList) && participantsList.length > 0) {
+        matchingParticipants = participantsList.filter(p => {
+            const name = (p.name || '').toLowerCase();
+            const uid = (p.unique_id || '').toLowerCase();
+            const team = (p.team_name || p.team || '').toLowerCase();
+            return name.includes(q) || uid.includes(q) || team.includes(q);
+        }).slice(0, 5).map(p => ({
+            type: 'participant',
+            title: p.name || 'Unnamed Participant',
+            sub: `Chest #${p.unique_id || 'N/A'} • Team: ${p.team_name || p.team || 'None'} • ${p.category_name || p.category || ''}`,
+            icon: 'fa-user',
+            badge: 'PARTICIPANT',
+            action: () => {
+                switchTab('participants');
+                const inp = document.getElementById('searchPartInput');
+                if (inp) {
+                    inp.value = p.name || p.unique_id;
+                    if (typeof filterParticipants === 'function') filterParticipants(true);
+                }
+            }
+        }));
+    }
+
+    // Filter Live Teams
+    let matchingTeams = [];
+    if (q && Array.isArray(teamsList) && teamsList.length > 0) {
+        matchingTeams = teamsList.filter(t => {
+            const name = (t.name || '').toLowerCase();
+            const code = (t.code || '').toLowerCase();
+            return name.includes(q) || code.includes(q);
+        }).slice(0, 4).map(t => ({
+            type: 'team',
+            title: t.name || 'Unnamed Team',
+            sub: `Team Code: ${t.code || 'N/A'} • Members: ${(participantsList || []).filter(p => p.team_id === t.id || p.team_name === t.name).length}`,
+            icon: 'fa-people-group',
+            badge: 'TEAM',
+            action: () => switchTab('teams')
+        }));
+    }
+
+    // Filter Live Stages
+    let matchingStages = [];
+    if (q && Array.isArray(stagesList) && stagesList.length > 0) {
+        matchingStages = stagesList.filter(s => {
+            const name = (s.name || '').toLowerCase();
+            const loc = (s.location || '').toLowerCase();
+            return name.includes(q) || loc.includes(q);
+        }).slice(0, 4).map(s => ({
+            type: 'stage',
+            title: s.name || 'Unnamed Stage',
+            sub: `Location: ${s.location || 'Main Arena'} • Active Competitions: ${(competitionsList || []).filter(c => c.stage_id === s.id || c.stage === s.name).length}`,
+            icon: 'fa-location-dot',
+            badge: 'STAGE',
+            action: () => switchTab('stages')
+        }));
+    }
+
+    let html = '';
+
+    // Render helper
+    const renderGroup = (label, items) => {
+        if (!items || items.length === 0) return;
+        html += '<div class="admin-cmd-group-title"><span>' + label + '</span><span>' + items.length + ' options</span></div>';
+        items.forEach(item => {
+            const idx = adminOmnisearchFilteredResults.length;
+            adminOmnisearchFilteredResults.push(item);
+            const isSelected = idx === adminOmnisearchSelectedIndex;
+            html += `
+                <div class="admin-cmd-item ${isSelected ? 'selected' : ''}" data-idx="${idx}" onclick="executeAdminOmnisearchItem(${idx})">
+                    <div class="admin-cmd-item-left">
+                        <div class="admin-cmd-item-icon">
+                            <i class="fa-solid ${item.icon || 'fa-circle-dot'}"></i>
+                        </div>
+                        <div style="min-width: 0; flex: 1;">
+                            <div class="admin-cmd-item-title">${item.title}</div>
+                            <div class="admin-cmd-item-sub">${item.sub}</div>
+                        </div>
+                    </div>
+                    <span class="admin-cmd-badge">${item.badge}</span>
+                </div>
+            `;
+        });
+    };
+
+    if (q) {
+        // Search query mode: show live matches first
+        if (matchingCompetitions.length > 0) renderGroup('Competitions & Programs', matchingCompetitions);
+        if (matchingParticipants.length > 0) renderGroup('Participants Registry', matchingParticipants);
+        if (matchingTeams.length > 0) renderGroup('Teams & Houses', matchingTeams);
+        if (matchingStages.length > 0) renderGroup('Stages & Venues', matchingStages);
+        if (matchingActions.length > 0) renderGroup('Quick Actions', matchingActions);
+        if (matchingPages.length > 0) renderGroup('Admin Pages & Tabs', matchingPages);
+        if (matchingPortals.length > 0) renderGroup('Cross-Portal Navigation', matchingPortals);
+        if (matchingShortcuts.length > 0) renderGroup('Keyboard Shortcuts Reference', matchingShortcuts);
+    } else {
+        // Initial empty mode: show quick actions, shortcuts, and core pages
+        renderGroup('Popular Quick Actions', matchingActions.slice(0, 5));
+        renderGroup('Keyboard Shortcuts Reference', matchingShortcuts.slice(0, 4));
+        renderGroup('Admin Modules & Pages', matchingPages);
+        renderGroup('Cross-Portal Navigation', matchingPortals);
+    }
+
+    if (adminOmnisearchFilteredResults.length === 0) {
+        html = `
+            <div class="admin-cmd-empty">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <div style="font-weight: 700; font-size: 1rem; color: var(--text-main); margin-bottom: 4px;">No matching options found</div>
+                <div style="font-size: 0.85rem;">Try searching for a page name, student, competition, or type '?' for keyboard shortcuts.</div>
+            </div>
+        `;
+    }
+
+    resultsContainer.innerHTML = html;
+}
+
+function navigateAdminOmnisearch(direction) {
+    if (adminOmnisearchFilteredResults.length === 0) return;
+    adminOmnisearchSelectedIndex += direction;
+    if (adminOmnisearchSelectedIndex < 0) {
+        adminOmnisearchSelectedIndex = adminOmnisearchFilteredResults.length - 1;
+    } else if (adminOmnisearchSelectedIndex >= adminOmnisearchFilteredResults.length) {
+        adminOmnisearchSelectedIndex = 0;
+    }
+
+    const items = document.querySelectorAll('.admin-cmd-item');
+    items.forEach((item, idx) => {
+        const isSelected = idx === adminOmnisearchSelectedIndex;
+        item.classList.toggle('selected', isSelected);
+        if (isSelected) {
+            item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    });
+}
+
+function executeCurrentAdminOmnisearchItem() {
+    if (adminOmnisearchFilteredResults.length === 0) return;
+    executeAdminOmnisearchItem(adminOmnisearchSelectedIndex);
+}
+
+function executeAdminOmnisearchItem(index) {
+    const item = adminOmnisearchFilteredResults[index];
+    if (!item) return;
+    closeAdminOmnisearch();
+    if (typeof item.action === 'function') {
+        try {
+            item.action();
+        } catch(err) {
+            console.error('Error executing omnisearch action:', err);
+        }
+    }
+}
+
+// Expose Omnisearch globally
+window.openAdminOmnisearch = openAdminOmnisearch;
+window.closeAdminOmnisearch = closeAdminOmnisearch;
+window.toggleAdminOmnisearch = toggleAdminOmnisearch;
+window.onAdminOmnisearchInput = onAdminOmnisearchInput;
+window.navigateAdminOmnisearch = navigateAdminOmnisearch;
+window.executeAdminOmnisearchItem = executeAdminOmnisearchItem;
+window.executeCurrentAdminOmnisearchItem = executeCurrentAdminOmnisearchItem;
