@@ -4428,7 +4428,11 @@
                     stagesCntQuery,
                     teamsQuery,
                     compsQuery,
-                    festId ? supabaseClient.from('templates').select('*').eq('type', 'individual').or(`fest_id.eq.${festId},fest_id.eq.global,fest_id.is.null,fest_id.eq.fest_zenith_2026`) : supabaseClient.from('templates').select('*').eq('type', 'individual'),
+                    festId ? (
+                        (window.festosIsLegacyFest && window.festosIsLegacyFest(festId))
+                            ? supabaseClient.from('templates').select('*').eq('type', 'individual').or(`fest_id.eq.${festId},fest_id.is.null`)
+                            : supabaseClient.from('templates').select('*').eq('type', 'individual').eq('fest_id', festId)
+                    ) : supabaseClient.from('templates').select('*').eq('type', 'individual'),
                     (typeof festosGetLedgerExclusions === 'function') ? festosGetLedgerExclusions(false, festId) : (window.festosGetSetting ? window.festosGetSetting('points_ledger_exclusions', festId) : null)
                 ]);
 
@@ -5100,16 +5104,15 @@
                 const targetFestId = currentFestDetails.id || window.activeFestId || (window.festosAuth ? window.festosAuth.getCurrentFestId() : null);
                 let tplQuery = supabaseClient.from('templates').select('*').eq('type', type);
                 if (targetFestId) {
-                    tplQuery = tplQuery.or(`fest_id.eq.${targetFestId},fest_id.eq.global,fest_id.is.null,fest_id.eq.fest_zenith_2026`);
+                    if (window.festosIsLegacyFest && window.festosIsLegacyFest(targetFestId)) {
+                        tplQuery = tplQuery.or(`fest_id.eq.${targetFestId},fest_id.is.null`);
+                    } else {
+                        tplQuery = tplQuery.eq('fest_id', targetFestId);
+                    }
                 }
                 const { data: rawTpls } = await tplQuery;
-                const templates = (rawTpls || []).sort((a, b) => {
-                    const aMatch = a.fest_id === targetFestId;
-                    const bMatch = b.fest_id === targetFestId;
-                    if (aMatch && !bMatch) return -1;
-                    if (!aMatch && bMatch) return 1;
-                    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-                });
+                const isLegacyTarget = targetFestId && window.festosIsLegacyFest && window.festosIsLegacyFest(targetFestId);
+                const templates = (rawTpls || []).filter(t => !targetFestId || t.fest_id === targetFestId || (isLegacyTarget && !t.fest_id));
                 
                 const canvas = document.createElement('canvas'); 
                 const ctx = canvas.getContext('2d');

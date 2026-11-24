@@ -1139,15 +1139,30 @@
 
                 const templateType = (type === 'standings' || type === 'team') ? 'team' : 'individual';
                 
-                // 1. Fetch custom studio template if available
-                const { data: templates } = await supabaseClient
+                // 1. Fetch custom studio template strictly for this festival if available
+                const currentFestId = (typeof window.getActiveFestId === 'function') 
+                    ? window.getActiveFestId() 
+                    : (window.festosAuth ? window.festosAuth.getCurrentFestId() : (localStorage.getItem('festos_active_fest_id') || ''));
+                const isLegacyFest = currentFestId && window.festosIsLegacyFest && window.festosIsLegacyFest(currentFestId);
+
+                let tplQ = supabaseClient
                     .from('templates')
                     .select('*')
                     .or(`type.eq.${templateType},type.eq.${type}`)
-                    .order('created_at', { ascending: false })
-                    .limit(1);
+                    .order('created_at', { ascending: false });
 
-                const template = (templates && templates.length > 0) ? templates[0] : null;
+                if (currentFestId) {
+                    if (isLegacyFest) {
+                        tplQ = tplQ.or(`fest_id.eq.${currentFestId},fest_id.is.null`);
+                    } else {
+                        tplQ = tplQ.eq('fest_id', currentFestId);
+                    }
+                }
+
+                const { data: templates } = await tplQ;
+                const template = (templates && templates.length > 0) 
+                    ? (templates.find(t => !currentFestId || t.fest_id === currentFestId || (isLegacyFest && !t.fest_id)) || null)
+                    : null;
 
                 const canvas = document.getElementById('poster-canvas');
                 const ctx = canvas.getContext('2d');

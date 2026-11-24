@@ -197,10 +197,18 @@
     // 1. FETCH STUDIO ID TEMPLATES (Added in Studio ONLY)
     // -------------------------------------------------------------------------
     async function fetchStudioIdTemplates() {
+        // Reset cache to enforce clean, per-festival isolation
+        studioTemplatesCache = {};
+
+        const activeFid = (typeof window.getActiveFestId === 'function') 
+            ? window.getActiveFestId() 
+            : (window.festosAuth?.getCurrentFestId?.() || localStorage.getItem('festos_active_fest_id') || '');
+        const isLegacy = window.festosIsLegacyFest ? window.festosIsLegacyFest(activeFid) : false;
+
         try {
-            // First check if savedTemplates is already loaded in admin.js
+            // 1. Check local savedTemplates (strictly filtered to active festival)
             const localSaved = window.savedTemplates || [];
-            const localIdCards = localSaved.filter(t => t.type === 'id_card');
+            const localIdCards = localSaved.filter(t => t.type === 'id_card' && (t.fest_id === activeFid || (isLegacy && !t.fest_id)));
             if (localIdCards.length > 0) {
                 localIdCards.forEach(t => { studioTemplatesCache[t.id] = t; });
             }
@@ -209,19 +217,21 @@
             if (!client) return Object.values(studioTemplatesCache);
 
             let q = client.from('templates').select('*').eq('type', 'id_card');
-            if (typeof festQuery === 'function') q = festQuery(q);
-            else if (typeof festosApplyFilter === 'function') q = festosApplyFilter(q);
-            let { data, error } = await q;
+            if (typeof festQuery === 'function') q = festQuery(q, activeFid);
+            else if (typeof festosApplyFilter === 'function') q = festosApplyFilter(q, activeFid);
+            else if (isLegacy) q = q.or(`fest_id.eq.${activeFid},fest_id.is.null`);
+            else if (activeFid) q = q.eq('fest_id', activeFid);
 
-            // Fallback: fetch without strict fest filter if empty or error
-            if ((!data || data.length === 0) || error) {
-                const fb = await client.from('templates').select('*').eq('type', 'id_card');
-                if (fb.data && fb.data.length > 0) data = fb.data;
-            }
+            const { data, error } = await q;
 
-            if (Array.isArray(data) && data.length > 0) {
-                data.forEach(t => { studioTemplatesCache[t.id] = t; });
-                return Object.values(studioTemplatesCache);
+            // DO NOT fallback to fetching all templates across other festivals!
+            // If data is empty, this festival simply has no uploaded template yet.
+            if (!error && Array.isArray(data) && data.length > 0) {
+                data.forEach(t => { 
+                    if (t.fest_id === activeFid || (isLegacy && !t.fest_id)) {
+                        studioTemplatesCache[t.id] = t; 
+                    }
+                });
             }
         } catch (e) {
             console.warn('Notice: Could not load Studio ID templates:', e);
@@ -609,7 +619,7 @@
         }
 
         if (!template) {
-            throw new Error('No Studio ID Card Template found. Please create one in the Studio first.');
+            throw new Error('No Studio ID Card Template found for this festival. Please create or install one in the Studio first.');
         }
 
         const includeCutMarks = options.includeCutMarks !== false;

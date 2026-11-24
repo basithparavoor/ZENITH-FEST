@@ -6311,30 +6311,45 @@ function getDynamicPdfConfig(canvas, baseWidthMm = 63.5) {
 }
 window.generateParticipantIDCanvas = generateParticipantIDCanvas;
 window.getDynamicPdfConfig = getDynamicPdfConfig;
-// Helper: Multi-tenant resilient template resolver
+// Helper: Multi-tenant strictly scoped template resolver
 async function fetchBestTemplate(type) {
-    const activeFid = (typeof getActiveFestId === 'function') ? getActiveFestId() : (localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
+    const activeFid = (typeof getActiveFestId === 'function') 
+        ? getActiveFestId() 
+        : (window.festosAuth?.getCurrentFestId?.() || localStorage.getItem('festos_active_fest_id') || '');
+    if (!activeFid) return null;
+
+    const isLegacy = window.festosIsLegacyFest ? window.festosIsLegacyFest(activeFid) : false;
+
+    // 1. Check in-memory savedTemplates (strictly filtered to active festival)
     if (Array.isArray(savedTemplates) && savedTemplates.length > 0) {
-        const matching = savedTemplates.filter(t => t.type === type);
-        if (matching.length > 0) {
-            const festTpl = matching.find(t => t.fest_id === activeFid);
-            if (festTpl) return festTpl;
-            return matching[0];
-        }
+        const festTpl = savedTemplates.find(t => t.type === type && (t.fest_id === activeFid || (isLegacy && !t.fest_id)));
+        if (festTpl) return festTpl;
     }
+
+    // 2. Query Supabase strictly for this festival
     try {
-        const orClause = `fest_id.eq.${activeFid},fest_id.eq.global,fest_id.is.null,fest_id.eq.fest_zenith_2026`;
-        const { data } = await supabaseClient.from('templates').select('*').eq('type', type).or(orClause).order('created_at', { ascending: false });
-        if (Array.isArray(data) && data.length > 0) {
-            const festTpl = data.find(t => t.fest_id === activeFid);
-            if (festTpl) return festTpl;
-            return data[0];
+        let q = supabaseClient.from('templates').select('*').eq('type', type).order('created_at', { ascending: false });
+        if (typeof festQuery === 'function') {
+            q = festQuery(q, activeFid);
+        } else if (typeof festosApplyFilter === 'function') {
+            q = festosApplyFilter(q, activeFid);
+        } else if (isLegacy) {
+            q = q.or(`fest_id.eq.${activeFid},fest_id.is.null`);
+        } else {
+            q = q.eq('fest_id', activeFid);
         }
-        const { data: anyData } = await supabaseClient.from('templates').select('*').eq('type', type).limit(1);
-        if (Array.isArray(anyData) && anyData.length > 0) return anyData[0];
+
+        const { data, error } = await q;
+        if (!error && Array.isArray(data) && data.length > 0) {
+            const festTpl = data.find(t => t.fest_id === activeFid || (isLegacy && !t.fest_id));
+            if (festTpl) return festTpl;
+        }
     } catch(e) {
         console.warn("fetchBestTemplate notice:", e);
     }
+
+    // Strictly return null if this festival does not have an uploaded template of this type.
+    // NEVER fall back to another festival's template!
     return null;
 }
 window.fetchBestTemplate = fetchBestTemplate;
@@ -6841,15 +6856,18 @@ window.ensureTemplateBgUploaded = ensureTemplateBgUploaded;
 
 // --- 1. LIBRARY INIT ---
 async function loadTemplatesList() {
-    const activeFid = (typeof getActiveFestId === 'function') ? getActiveFestId() : (localStorage.getItem('festos_active_fest_id') || 'fest_zenith_2026');
+    const activeFid = (typeof getActiveFestId === 'function') 
+        ? getActiveFestId() 
+        : (window.festosAuth?.getCurrentFestId?.() || localStorage.getItem('festos_active_fest_id') || '');
+    const isLegacy = window.festosIsLegacyFest ? window.festosIsLegacyFest(activeFid) : false;
 
-    // 1. Instant hydration from localStorage cache (0ms perceived load)
+    // 1. Instant hydration strictly from active festival cache (0ms perceived load)
     try {
-        const cachedRaw = localStorage.getItem(`festos_tpl_cache_${activeFid}`) || localStorage.getItem('festos_tpl_cache_all');
+        const cachedRaw = localStorage.getItem(`festos_tpl_cache_${activeFid}`);
         if (cachedRaw) {
             const cached = JSON.parse(cachedRaw);
             if (Array.isArray(cached) && cached.length > 0) {
-                savedTemplates = cached;
+                savedTemplates = cached.filter(t => t.fest_id === activeFid || (isLegacy && !t.fest_id));
                 renderTemplateLibrary();
             }
         }
@@ -6858,13 +6876,19 @@ async function loadTemplatesList() {
     }
 
     try {
-        // Multi-tenant query: fetch festival-specific templates, global presets, legacy/null templates, or default fallback
-        const orClause = `fest_id.eq.${activeFid},fest_id.eq.global,fest_id.is.null,fest_id.eq.fest_zenith_2026`;
-        let { data: templates, error } = await supabaseClient
-            .from('templates')
-            .select('*')
-            .or(orClause)
-            .order('created_at', { ascending: false });
+        // Multi-tenant query: fetch ONLY this festival's templates
+        let q = supabaseClient.from('templates').select('*').order('created_at', { ascending: false });
+        if (typeof festQuery === 'function') {
+            q = festQuery(q, activeFid);
+        } else if (typeof festosApplyFilter === 'function') {
+            q = festosApplyFilter(q, activeFid);
+        } else if (isLegacy) {
+            q = q.or(`fest_id.eq.${activeFid},fest_id.is.null`);
+        } else if (activeFid) {
+            q = q.eq('fest_id', activeFid);
+        }
+
+        let { data: templates, error } = await q;
 
         if (error && (error.code === '42703' || error.message?.includes('column templates.fest_id does not exist'))) {
             console.warn("templates.fest_id column not present yet in Supabase, running fallback query...");
@@ -6879,16 +6903,8 @@ async function loadTemplatesList() {
                 showToast("Failed to load templates from cloud", "error");
             }
         } else if (Array.isArray(templates)) {
-            // Sort: prioritize current festival templates first, then newer templates
-            templates.sort((a, b) => {
-                const aCurrent = a.fest_id === activeFid;
-                const bCurrent = b.fest_id === activeFid;
-                if (aCurrent && !bCurrent) return -1;
-                if (!aCurrent && bCurrent) return 1;
-                return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-            });
-
-            savedTemplates = templates;
+            // Strictly scope to current festival
+            savedTemplates = templates.filter(t => t.fest_id === activeFid || (isLegacy && !t.fest_id));
 
             // Persist to local storage cache for instant next-load
             try {
@@ -6940,8 +6956,7 @@ function renderTemplateLibrary() {
 
     filtered.forEach((tpl) => {
         let tag = tpl.type === 'id_card' ? 'ID Card' : tpl.type === 'team' ? 'Team' : tpl.type === 'final' ? 'Final' : tpl.type === 'certificate' ? 'Certificate' : 'Individual';
-        const isCurrentFest = tpl.fest_id === activeFid;
-        const scopeBadge = isCurrentFest ? '' : `<span style="position: absolute; top: 10px; left: 10px; background: rgba(15, 23, 42, 0.85); color: #FCD34D; padding: 0.25rem 0.6rem; border-radius: 50px; font-size: 0.65rem; font-weight: 700; border: 1px solid rgba(245, 158, 11, 0.4);"><i class="fa-solid fa-globe"></i> Default</span>`;
+        const scopeBadge = '';
         const activeFieldsCount = tpl.fields ? Object.keys(tpl.fields).filter(k => !k.startsWith('__') && tpl.fields[k] && tpl.fields[k].enabled).length : 0;
 
         grid.innerHTML += `
