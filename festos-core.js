@@ -1105,11 +1105,7 @@ const festosBranding = {
 
             const usernameInput = document.getElementById('username');
             if (usernameInput) {
-                if (domainFest && domainFest.slug) {
-                    usernameInput.placeholder = `Username (e.g. ${domainFest.slug}_...)`;
-                } else if (!domainFest) {
-                    usernameInput.placeholder = 'Username';
-                }
+                usernameInput.placeholder = 'Username';
             }
 
             if (domainFest && domainFest.id) {

@@ -13,6 +13,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        document.documentElement.removeAttribute('data-theme');
+        try { localStorage.removeItem('festos_super_theme'); } catch(e) {}
+    </script>
     
     <style>
 
@@ -356,8 +360,88 @@
 /* Fast Launcher Strip */
 .fast-launcher-strip {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 14px;
+}
+.launcher-item-chip {
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.launcher-item-chip:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    border-color: rgba(59, 130, 246, 0.35);
+}
+.launcher-chip-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.launcher-chip-tenant {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+.launcher-chip-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    object-fit: contain;
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    padding: 2px;
+    flex-shrink: 0;
+}
+.launcher-chip-titles {
+    min-width: 0;
+    flex: 1;
+}
+.launcher-chip-name {
+    font-weight: 800;
+    font-size: 0.92rem;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.25;
+}
+.launcher-chip-domain {
+    font-size: 0.72rem;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+.launcher-chip-slug {
+    font-weight: 700;
+    color: var(--primary);
+}
+.launcher-chip-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+}
+.launcher-chip-actions .portal-launch-pill {
+    justify-content: center;
+    padding: 6px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 6px;
+    text-align: center;
 }
 .kpi-interactive-card {
     cursor: pointer;
@@ -783,14 +867,13 @@ input[type="password"], input[type="file"], .file-input, textarea[style*="text-t
 
 .header h1, #top-page-title {
     font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     font-weight: 700;
     color: var(--text-main);
     letter-spacing: -0.02em;
     margin: 0;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    flex-shrink: 0;
 }
 
 .header-actions {
@@ -1227,6 +1310,37 @@ main {
 
 .admin-table tbody tr:last-child td, tr:last-child td {
     border-bottom: none;
+}
+
+.admin-table th:first-child,
+.admin-table td:first-child {
+    padding-left: 1.25rem;
+}
+
+/* Specific Table Minimum Widths for smooth horizontal scrolling without column collision */
+#festivals-table-container .admin-table {
+    min-width: 1080px;
+}
+
+#db-explorer-table {
+    min-width: 1180px;
+}
+
+#submodule-user-sessions .admin-table {
+    min-width: 1160px;
+}
+
+#submodule-audit-logs .admin-table {
+    min-width: 1080px;
+}
+
+#users-table-container .admin-table {
+    min-width: 920px;
+}
+
+#tab-broadcasts .admin-table,
+#tab-enquiries .admin-table {
+    min-width: 920px;
 }
 
 /* Sticky Action Column so actions are never truncated or pushed off-screen */
@@ -2618,14 +2732,6 @@ input:checked + .slider:before { transform: translateX(22px); }
             </div>
 
             <div class="header-actions" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <!-- Quick Festival Context Switcher -->
-                <div class="header-fest-selector" id="header-fest-selector-wrapper" title="Active Festival Context">
-                    <i class="fa-solid fa-crown" style="color: var(--amber); font-size: 0.88rem;"></i>
-                    <select id="header-fest-select" onchange="changeActiveFestContext(this.value)" class="header-select-input">
-                        <option value="">Loading fests...</option>
-                    </select>
-                </div>
-
                 <!-- Omnisearch Palette Button -->
                 <button class="cmd-palette-btn" onclick="openCommandPalette()" title="Press Ctrl+K to Omnisearch">
                     <i class="fa-solid fa-magnifying-glass"></i>
@@ -2650,11 +2756,6 @@ input:checked + .slider:before { transform: translateX(22px); }
                     <div class="status-dot"></div>
                     <span id="header-ws-text">Sync Live</span>
                 </div>
-
-                <!-- Titanium Dark / Light Mode Switcher -->
-                <button class="theme-toggle-btn" id="super-theme-toggle-btn" onclick="toggleSuperDarkTheme()" title="Toggle Titanium Dark / Clean Light Mode">
-                    <i class="fa-solid fa-moon" id="theme-icon"></i>
-                </button>
 
                 <!-- Fast Telemetry Refresh -->
                 <button class="header-icon-action-btn" onclick="triggerSuperFastSync(this)" title="Fast Sync & Cache Flush">
@@ -2953,7 +3054,7 @@ input:checked + .slider:before { transform: translateX(22px); }
                                 <th>Status</th>
                                 <th>Dates & Venue</th>
                                 <th>Staff & Admins</th>
-                                <th class="col-actions" style="text-align: right;">Quick Actions</th>
+                                <th class="col-actions" style="text-align: right; min-width: 230px; width: 230px; position: sticky; right: 0; background: var(--bg-main); z-index: 3; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08);">Quick Actions</th>
                             </tr>
                         </thead>
                         <tbody id="festivals-table-tbody">
@@ -3151,7 +3252,7 @@ input:checked + .slider:before { transform: translateX(22px); }
                                 <th>Access Role</th>
                                 <th>Current Password</th>
                                 <th>Password History</th>
-                                <th class="col-actions" style="text-align: right;">Actions</th>
+                                <th class="col-actions" style="text-align: right; min-width: 175px; width: 175px; position: sticky; right: 0; background: var(--bg-main); z-index: 3; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08);">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="users-table-tbody">
@@ -3887,7 +3988,7 @@ input:checked + .slider:before { transform: translateX(22px); }
                                     <th>Status</th>
                                     <th>Last Active</th>
                                     <th>Device / Platform</th>
-                                    <th class="col-actions" style="text-align: right;">Privileged Action</th>
+                                    <th class="col-actions" style="text-align: right; min-width: 140px; width: 140px; position: sticky; right: 0; background: var(--bg-main); z-index: 3; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08);">Privileged Action</th>
                                 </tr>
                             </thead>
                             <tbody id="user-sessions-tbody">
@@ -3950,7 +4051,7 @@ input:checked + .slider:before { transform: translateX(22px); }
                                     <th>User Account</th>
                                     <th>Severity</th>
                                     <th>Client Context / URL</th>
-                                    <th class="col-actions" style="text-align: right;">Forensic Payload</th>
+                                    <th class="col-actions" style="text-align: right; min-width: 130px; width: 130px; position: sticky; right: 0; background: var(--bg-main); z-index: 3; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08);">Forensic Payload</th>
                                 </tr>
                             </thead>
                             <tbody id="audit-logs-tbody">

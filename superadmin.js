@@ -107,46 +107,26 @@ function festLogoOf(fest) {
     return festEmblemOf(fest.name || 'Fest');
 }
 
-// ---- Super Admin Titanium Dark / Clean Light Theme System ----
+// ---- Super Admin Clean Light Theme Enforcement ----
 function applySuperTheme() {
     try {
-        const saved = localStorage.getItem('festos_super_theme') || 'light';
         if (typeof document !== 'undefined') {
-            if (saved === 'dark') {
-                document.documentElement.setAttribute('data-theme', 'dark');
-            } else {
-                document.documentElement.removeAttribute('data-theme');
-            }
-            updateThemeIcon(saved);
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.removeItem('festos_super_theme');
         }
     } catch (e) { /* ignore */ }
 }
 
 function toggleSuperDarkTheme() {
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const next = isDark ? 'light' : 'dark';
-    try {
-        localStorage.setItem('festos_super_theme', next);
-    } catch(e) {}
     applySuperTheme();
-    showToast(`Switched to ${next === 'dark' ? 'Titanium Dark' : 'Clean Light'} Mode`, 'info');
 }
 
 function toggleSuperTheme() {
-    toggleSuperDarkTheme();
+    applySuperTheme();
 }
 
-function updateThemeIcon(theme) {
-    const icon = document.getElementById('theme-icon');
-    if (icon) {
-        if (theme === 'dark') {
-            icon.className = 'fa-solid fa-sun';
-            icon.style.color = '#F59E0B';
-        } else {
-            icon.className = 'fa-solid fa-moon';
-            icon.style.color = '';
-        }
-    }
+function updateThemeIcon() {
+    // Theme toggle removed from header
 }
 
 // Apply immediately on parse
@@ -409,20 +389,22 @@ function renderOverviewFastLauncher() {
         const resultsSub = f.public_results_slug || 'results';
         const isLive = f.status === 'active';
         return `
-            <div class="launcher-item-chip" style="background:var(--bg-main); border:1px solid var(--border); border-radius:var(--radius-md); padding:0.75rem 1rem; display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:280px; flex:1;">
-                <div style="display:flex; align-items:center; gap:10px; min-width:0;">
-                    <span class="pulse-status-dot ${isLive ? 'active' : (f.status === 'upcoming' ? 'upcoming' : 'concluded')}" title="${isLive ? 'Tenant Active & Live' : f.status}"></span>
-                    <img src="${festLogoOf(f)}" style="width:30px; height:30px; border-radius:6px; object-fit:contain; background:#FFF; border:1px solid var(--border); padding:2px;" onerror="this.onerror=null; this.src=festEmblemOf('${(f.name || 'Fest').replace(/'/g, "\\\'")}');">
-                    <div style="min-width:0;">
-                        <div style="font-weight:700; font-size:0.88rem; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${f.name}</div>
-                        <div style="font-size:0.72rem; font-family:var(--font-mono); color:var(--text-muted);">${f.slug} &bull; ${domain}</div>
+            <div class="launcher-item-chip">
+                <div class="launcher-chip-header">
+                    <div class="launcher-chip-tenant">
+                        <span class="pulse-status-dot ${isLive ? 'active' : (f.status === 'upcoming' ? 'upcoming' : 'concluded')}" title="${isLive ? 'Tenant Active & Live' : f.status}"></span>
+                        <img src="${festLogoOf(f)}" class="launcher-chip-logo" onerror="this.onerror=null; this.src=festEmblemOf('${(f.name || 'Fest').replace(/'/g, "\\\'")}');">
+                        <div class="launcher-chip-titles">
+                            <div class="launcher-chip-name" title="${f.name}">${f.name}</div>
+                            <div class="launcher-chip-domain"><span class="launcher-chip-slug">${f.slug}</span> &bull; <span>${domain}</span></div>
+                        </div>
                     </div>
+                    <button class="copy-domain-btn" onclick="copyFestivalLink('${domain}', '${f.id}')" title="Copy Festival Link"><i class="fa-regular fa-copy"></i></button>
                 </div>
-                <div style="display:flex; align-items:center; gap:5px; flex-shrink:0;">
+                <div class="launcher-chip-actions">
                     <a href="admin.html?fest=${encodeURIComponent(f.id)}" target="_blank" class="portal-launch-pill pill-admin" title="Launch Festival Admin Console"><i class="fa-solid fa-sliders"></i> Admin</a>
                     <a href="results.html?fest=${encodeURIComponent(f.id)}" target="_blank" class="portal-launch-pill pill-results" title="View Public Results Portal"><i class="fa-solid fa-chart-column"></i> Results</a>
                     <a href="display.html?fest=${encodeURIComponent(f.id)}" target="_blank" class="portal-launch-pill pill-display" title="Open Stage Display Screens"><i class="fa-solid fa-tv"></i> Stage</a>
-                    <button class="copy-domain-btn" onclick="copyFestivalLink('${domain}', '${f.id}')" title="Copy Festival Link"><i class="fa-regular fa-copy"></i></button>
                 </div>
             </div>
         `;
@@ -1585,9 +1567,9 @@ function renderFestivalsGrid() {
                         <td data-label="Staff & Admins">
                             <span style="font-weight:700; font-size:0.85rem;">${adminCount} Staff</span>
                         </td>
-                        <td data-label="Quick Actions" class="col-actions" style="text-align:right;" onclick="event.stopPropagation()">
-                            <div style="display:inline-flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
-                                <button class="btn btn-primary" style="padding:4px 9px; font-size:0.75rem;" onclick="launchFestConsole('${f.id}')" title="Open Console">
+                        <td data-label="Quick Actions" class="col-actions" style="text-align:right; min-width: 230px; width: 230px; position: sticky; right: 0; background: #FFFFFF; z-index: 2; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08);" onclick="event.stopPropagation()">
+                            <div style="display:inline-flex; gap:6px; flex-wrap:nowrap; justify-content:flex-end;">
+                                <button class="btn btn-primary" style="padding:4px 9px; font-size:0.75rem; white-space:nowrap;" onclick="launchFestConsole('${f.id}')" title="Open Console">
                                     <i class="fa-solid fa-arrow-up-right-from-square"></i> Console
                                 </button>
                                 <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem;" onclick="exportFestBackup('${f.id}')" title="Backup JSON">
@@ -2376,8 +2358,8 @@ function renderUsersTable() {
                         <i class="fa-solid fa-clock-rotate-left"></i> ${historyCount} Past Keys
                     </button>
                 </td>
-                <td data-label="Actions" class="col-actions" style="text-align:right;">
-                    <div style="display:inline-flex; gap:5px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+                <td data-label="Actions" class="col-actions" style="text-align:right; min-width: 175px; width: 175px; position: sticky; right: 0; background: #FFFFFF; z-index: 2; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08);">
+                    <div style="display:inline-flex; gap:5px; align-items:center; flex-wrap:nowrap; justify-content:flex-end;">
                         <button class="btn btn-outline" style="padding:0.35rem 0.65rem; color:#4F46E5; border-color:#C7D2FE; background:#EEF2FF; font-size:0.82rem; border-radius:6px;" onclick="copySuperUserCredentials('${u.id}')" title="Copy Full Credentials Message & Portal Link">
                             <i class="fa-solid fa-copy"></i>
                         </button>
@@ -5857,43 +5839,48 @@ function renderDbExplorerTable(records) {
         return;
     }
 
-    // Determine top 6-8 keys for column headers
+    // Determine top keys for column headers
     const allKeys = new Set();
-    records.slice(0, 10).forEach(r => Object.keys(r).forEach(k => allKeys.add(k)));
-    const cols = Array.from(allKeys).slice(0, 7);
+    records.slice(0, 15).forEach(r => Object.keys(r).forEach(k => allKeys.add(k)));
+    const cols = Array.from(allKeys).slice(0, 8);
 
-    // Build header
-    let thHtml = '<tr><th style="width: 45px;">#</th>';
+    // Build header with clear min-widths and non-overlapping sticky action
+    let thHtml = '<tr><th style="width: 50px; min-width: 50px; text-align: center;">#</th>';
     cols.forEach(c => {
-        thHtml += `<th>${c}</th>`;
+        thHtml += `<th style="white-space: nowrap; min-width: 130px; text-transform: uppercase;">${c}</th>`;
     });
-    thHtml += '<th class="col-actions" style="text-align: right; width: 100px;">Actions</th></tr>';
+    thHtml += '<th class="col-actions" style="text-align: right; width: 110px; min-width: 110px; position: sticky; right: 0; background: var(--bg-main); z-index: 3; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08);">Actions</th></tr>';
     thead.innerHTML = thHtml;
 
     // Build rows
     tbody.innerHTML = '';
     records.forEach((row, idx) => {
         const tr = document.createElement('tr');
-        let rowHtml = `<td data-label="#" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);">${idx + 1}</td>`;
+        let rowHtml = `<td data-label="#" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); text-align: center; min-width: 50px;">${idx + 1}</td>`;
         cols.forEach(c => {
             let val = row[c];
             let displayVal = '';
+            let rawStr = '';
             if (val === null || val === undefined) {
                 displayVal = '<span style="color:#94A3B8; font-style:italic;">null</span>';
+                rawStr = 'null';
             } else if (typeof val === 'object') {
+                rawStr = JSON.stringify(val);
                 displayVal = '<span class="badge" style="background:var(--bg-main); font-family:var(--font-mono); font-size:0.7rem;">[JSON]</span>';
             } else if (typeof val === 'boolean') {
+                rawStr = String(val);
                 displayVal = val ? '<span class="badge badge-success">true</span>' : '<span class="badge" style="background:#F1F5F9; color:#64748B;">false</span>';
             } else {
-                const str = String(val);
-                displayVal = str.length > 40 ? str.substring(0, 40) + '...' : str;
+                rawStr = String(val);
+                displayVal = rawStr.length > 50 ? rawStr.substring(0, 50) + '...' : rawStr;
             }
-            rowHtml += `<td data-label="${c}" style="font-size:0.82rem; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${displayVal}</td>`;
+            const escapedRaw = rawStr.replace(/"/g, '&quot;');
+            rowHtml += `<td data-label="${c}" title="${escapedRaw}" style="font-size:0.82rem; min-width: 130px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${displayVal}</td>`;
         });
 
         rowHtml += `
-            <td data-label="Actions" class="col-actions" style="text-align: right;">
-                <button class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" onclick="openTableRecordModal(${idx})" title="Inspect Row JSON">
+            <td data-label="Actions" class="col-actions" style="text-align: right; width: 110px; min-width: 110px; position: sticky; right: 0; background: #FFFFFF; z-index: 2; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08);">
+                <button class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; white-space: nowrap;" onclick="openTableRecordModal(${idx})" title="Inspect Row JSON">
                     <i class="fa-solid fa-eye"></i> Inspect
                 </button>
             </td>
@@ -6426,27 +6413,27 @@ function renderUserSessionsTable(sessions) {
         const lastActiveStr = diffMin <= 1 ? 'Just now' : diffMin < 60 ? `${diffMin}m ago` : `${Math.round(diffMin / 60)}h ago`;
 
         tr.innerHTML = `
-            <td data-label="User / Account">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <div class="user-avatar" style="width:28px; height:28px; font-size:0.75rem; background:linear-gradient(135deg, #3B82F6 0%, #6366F1 100%); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;">
+            <td data-label="User / Account" style="min-width: 190px;">
+                <div style="display:flex; align-items:center; gap:10px; padding-left:2px;">
+                    <div class="user-avatar" style="width:30px; height:30px; min-width:30px; min-height:30px; flex-shrink:0; font-size:0.75rem; background:linear-gradient(135deg, #3B82F6 0%, #6366F1 100%); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;">
                         ${(sess.username || 'U').substring(0,2).toUpperCase()}
                     </div>
-                    <span style="font-weight:700; color:var(--text-main); font-size:0.85rem;">${sess.username}</span>
+                    <span style="font-weight:700; color:var(--text-main); font-size:0.85rem; white-space:nowrap;">${sess.username}</span>
                 </div>
             </td>
-            <td data-label="Role & Scope">${roleBadge}</td>
-            <td data-label="Festival Context"><code style="font-size:0.75rem; background:var(--bg-main); padding:2px 6px; border-radius:4px; font-weight:600; color:var(--text-muted);">${sess.fest_id || 'System-Wide'}</code></td>
-            <td data-label="Login Time" style="font-size:0.8rem; color:var(--text-muted);">${new Date(sess.login_time || Date.now()).toLocaleTimeString()}</td>
-            <td data-label="Status">${statusHtml}</td>
-            <td data-label="Last Active" style="font-size:0.8rem; font-family:var(--font-mono); font-weight:600;">${lastActiveStr}</td>
-            <td data-label="Device / Platform" style="font-size:0.8rem; color:var(--text-muted);">${deviceStr}</td>
-            <td data-label="Privileged Action" class="col-actions" style="text-align: right;">
+            <td data-label="Role & Scope" style="white-space:nowrap;">${roleBadge}</td>
+            <td data-label="Festival Context" style="white-space:nowrap;"><code style="font-size:0.75rem; background:var(--bg-main); padding:2px 6px; border-radius:4px; font-weight:600; color:var(--text-muted);">${sess.fest_id || 'System-Wide'}</code></td>
+            <td data-label="Login Time" style="font-size:0.8rem; color:var(--text-muted); white-space:nowrap;">${new Date(sess.login_time || Date.now()).toLocaleTimeString()}</td>
+            <td data-label="Status" style="white-space:nowrap;">${statusHtml}</td>
+            <td data-label="Last Active" style="font-size:0.8rem; font-family:var(--font-mono); font-weight:600; white-space:nowrap;">${lastActiveStr}</td>
+            <td data-label="Device / Platform" style="font-size:0.8rem; color:var(--text-muted); white-space:nowrap;">${deviceStr}</td>
+            <td data-label="Privileged Action" class="col-actions" style="text-align: right; min-width: 140px; width: 140px; position: sticky; right: 0; background: #FFFFFF; z-index: 2; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08);">
                 ${isOnline && sess.role !== 'super_admin' ? `
-                    <button class="btn btn-outline" style="padding:0.35rem 0.75rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger);" onclick="forceLogoutUserSession('${sess.id}', '${sess.username}')" title="Terminate Session">
+                    <button class="btn btn-outline" style="padding:0.35rem 0.75rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger); white-space:nowrap;" onclick="forceLogoutUserSession('${sess.id}', '${sess.username}')" title="Terminate Session">
                         <i class="fa-solid fa-power-off"></i> Force Logout
                     </button>
                 ` : `
-                    <span style="font-size:0.75rem; color:var(--text-muted); font-style:italic;"><i class="fa-solid fa-shield" style="color:#F59E0B; margin-right:3px;"></i> Protected</span>
+                    <span style="font-size:0.75rem; color:var(--text-muted); font-style:italic; white-space:nowrap;"><i class="fa-solid fa-shield" style="color:#F59E0B; margin-right:3px;"></i> Protected</span>
                 `}
             </td>
         `;
@@ -6750,8 +6737,8 @@ function renderSecurityAuditLogs() {
             <td data-label="Client Context / URL" style="font-size:0.75rem; color:var(--text-muted); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                 ${log.url || '/superadmin.html'}
             </td>
-            <td data-label="Forensic Payload" class="col-actions" style="text-align: right;">
-                <button class="btn btn-outline" style="padding:0.35rem 0.75rem; font-size:0.75rem;" onclick="openAuditDetailModal('${log.id}')" title="View Forensic Payload JSON">
+            <td data-label="Forensic Payload" class="col-actions" style="text-align: right; min-width: 120px; width: 120px; position: sticky; right: 0; background: #FFFFFF; z-index: 2; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08);">
+                <button class="btn btn-outline" style="padding:0.35rem 0.75rem; font-size:0.75rem; white-space:nowrap;" onclick="openAuditDetailModal('${log.id}')" title="View Forensic Payload JSON">
                     <i class="fa-solid fa-code"></i> View Diff
                 </button>
             </td>
