@@ -4044,30 +4044,47 @@ canvas {
                 </p>
 
                 <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <!-- Filter Participant by Team and Category -->
+                    <div style="background: var(--bg-main); padding: 0.85rem 1rem; border-radius: 12px; border: 1px solid var(--border);">
+                        <label style="display: block; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Filter Participants</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <select id="permitFilterTeam" onchange="filterPermitParticipantDropdown()" style="width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.82rem; background: var(--bg-surface); color: var(--text-main);">
+                                <option value="">All Teams</option>
+                            </select>
+                            <select id="permitFilterCategory" onchange="filterPermitParticipantDropdown()" style="width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.82rem; background: var(--bg-surface); color: var(--text-main);">
+                                <option value="">All Categories</option>
+                            </select>
+                        </div>
+                        <div class="search-box" style="position: relative; width: 100%;">
+                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: var(--text-muted);"></i>
+                            <input type="text" id="permitFilterSearch" placeholder="Search participant name or chest ID..." oninput="filterPermitParticipantDropdown()" style="width: 100%; padding: 7px 10px 7px 30px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.82rem; background: var(--bg-surface); color: var(--text-main); outline: none;">
+                        </div>
+                    </div>
+
                     <!-- 1. Participant Selection -->
                     <div>
-                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem;">1. SELECT PARTICIPANT</label>
+                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem;">1. SELECT PARTICIPANT *</label>
                         <select id="permitParticipantSelect" onchange="onPermitParticipantChanged()" style="width: 100%; padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-main);">
                             <option value="">-- Choose Participant --</option>
                         </select>
                     </div>
 
-                    <!-- 2. From Competition (Ongoing Registered Event) -->
+                    <!-- 2. From Competition (Current Registered Event) -->
                     <div>
-                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem;">2. FROM COMPETITION (CURRENT/REGISTERED)</label>
+                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem;">2. FROM COMPETITION (CURRENT EVENT) *</label>
                         <select id="permitFromCompSelect" style="width: 100%; padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-main);">
-                            <option value="">-- Choose Ongoing Registered Competition --</option>
+                            <option value="">-- Choose Participant First --</option>
                         </select>
-                        <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; display: block;">The event the student is currently performing in or registered for.</span>
+                        <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; display: block;">The event the student is currently performing in or delayed by.</span>
                     </div>
 
                     <!-- 3. To Competition (Target Event Allowed for Late Check-in) -->
                     <div>
-                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem;">3. TO COMPETITION (ALLOW LATE CHECK-IN)</label>
+                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem;">3. TO COMPETITION (ALLOW LATE CHECK-IN) *</label>
                         <select id="permitToCompSelect" style="width: 100%; padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-main);">
-                            <option value="">-- Choose Target Competition --</option>
+                            <option value="">-- Choose Participant First --</option>
                         </select>
-                        <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; display: block;">The stage controller of this event will be allowed to scan them after the event has started.</span>
+                        <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; display: block;">The stage controller of this event will be authorized to scan and check them in late.</span>
                     </div>
 
                     <!-- 4. Notes / Reason -->
@@ -8669,7 +8686,7 @@ function toggleCustomGridFields() {
 <script src="id-badge-engine.js?v=3.8.2"></script>
 <script src="preset-templates-engine.js"></script>
 <script src="ai-template-generator.js"></script>
-<script src="admin.js?v=4.2.0"></script>
+<script src="admin.js?v=4.3.0"></script>
     <script src="newspaper-engine.js"></script>
     <script src="custom-pickers.js?v=4.0"></script>
 

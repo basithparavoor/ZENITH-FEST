@@ -8277,27 +8277,76 @@ function renderConflictPermitsTable() {
     }).join('');
 }
 
-function populatePermitParticipantDropdown() {
+function populatePermitFilterDropdowns() {
+    const teamFilter = document.getElementById('permitFilterTeam');
+    if (teamFilter) {
+        const teams = Array.isArray(teamsList) && teamsList.length > 0 ? teamsList : [];
+        const currentVal = teamFilter.value;
+        teamFilter.innerHTML = `<option value="">All Teams</option>` +
+            teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        if (currentVal) teamFilter.value = currentVal;
+    }
+
+    const catFilter = document.getElementById('permitFilterCategory');
+    if (catFilter) {
+        const cats = Array.isArray(categoriesList) && categoriesList.length > 0 ? categoriesList : [];
+        const currentVal = catFilter.value;
+        catFilter.innerHTML = `<option value="">All Categories</option>` +
+            cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        if (currentVal) catFilter.value = currentVal;
+    }
+}
+
+function filterPermitParticipantDropdown() {
     const pSelect = document.getElementById('permitParticipantSelect');
     if (!pSelect) return;
-    const list = Array.isArray(globalPermitParticipants) ? globalPermitParticipants : [];
-    pSelect.innerHTML = `<option value="">-- Select Participant (${list.length}) --</option>` +
-        list.map(p => {
+
+    const teamId = document.getElementById('permitFilterTeam')?.value || '';
+    const catId = document.getElementById('permitFilterCategory')?.value || '';
+    const searchQ = (document.getElementById('permitFilterSearch')?.value || '').toLowerCase().trim();
+
+    const all = Array.isArray(globalPermitParticipants) ? globalPermitParticipants : [];
+    const filtered = all.filter(p => {
+        if (teamId) {
+            const pTeamId = p.team_id || p.teams?.id;
+            if (String(pTeamId) !== String(teamId)) return false;
+        }
+        if (catId) {
+            const pCatId = p.category_id || p.categories?.id;
+            if (String(pCatId) !== String(catId)) return false;
+        }
+        if (searchQ) {
+            const nameMatch = (p.name || '').toLowerCase().includes(searchQ);
+            const idMatch = (p.unique_id || '').toLowerCase().includes(searchQ);
+            if (!nameMatch && !idMatch) return false;
+        }
+        return true;
+    });
+
+    const currentVal = pSelect.value;
+    pSelect.innerHTML = `<option value="">-- Choose Participant (${filtered.length}) --</option>` +
+        filtered.map(p => {
             const team = p.teams?.name ? ` [${p.teams.name}]` : '';
-            const uId = p.unique_id ? ` (#${p.unique_id})` : '';
-            return `<option value="${p.id}">${p.name}${uId}${team}</option>`;
+            const cat = p.categories?.name ? ` (${p.categories.name})` : '';
+            const uId = p.unique_id ? ` #${p.unique_id}` : '';
+            return `<option value="${p.id}">${p.name}${uId}${cat}${team}</option>`;
         }).join('');
+
+    // If currently selected participant is in the filtered list, maintain selection
+    if (currentVal && filtered.some(p => String(p.id) === String(currentVal))) {
+        pSelect.value = currentVal;
+    } else {
+        pSelect.value = '';
+        onPermitParticipantChanged();
+    }
+}
+
+function populatePermitParticipantDropdown() {
+    filterPermitParticipantDropdown();
 }
 
 function populatePermitCompetitionDropdown() {
-    const toSelect = document.getElementById('permitToCompSelect');
-    if (!toSelect) return;
-    const list = Array.isArray(globalPermitCompetitions) ? globalPermitCompetitions : [];
-    toSelect.innerHTML = `<option value="">-- Select Target Competition (Allow Late Check-in) --</option>` +
-        list.map(c => {
-            const st = c.status ? ` [${(c.status || '').toUpperCase()}]` : '';
-            return `<option value="${c.id}">${c.name}${st}</option>`;
-        }).join('');
+    // Left as stub for backward-compatibility if called externally
 }
 
 async function openGrantConflictPermitModal() {
@@ -8310,30 +8359,36 @@ async function openGrantConflictPermitModal() {
 
     const notesInput = document.getElementById('permitNotesInput');
     if (notesInput) notesInput.value = '';
+    const searchInput = document.getElementById('permitFilterSearch');
+    if (searchInput) searchInput.value = '';
+    const teamFilter = document.getElementById('permitFilterTeam');
+    if (teamFilter) teamFilter.value = '';
+    const catFilter = document.getElementById('permitFilterCategory');
+    if (catFilter) catFilter.value = '';
 
     const pSelect = document.getElementById('permitParticipantSelect');
     const fromSelect = document.getElementById('permitFromCompSelect');
     const toSelect = document.getElementById('permitToCompSelect');
 
     if (fromSelect) fromSelect.innerHTML = `<option value="">-- Choose Participant First --</option>`;
+    if (toSelect) toSelect.innerHTML = `<option value="">-- Choose Participant First --</option>`;
+
+    populatePermitFilterDropdowns();
 
     // Fast-path: immediate population from in-memory cache if available
     if (Array.isArray(window.participantsList) && window.participantsList.length > 0) {
         globalPermitParticipants = window.participantsList;
-        populatePermitParticipantDropdown();
+        filterPermitParticipantDropdown();
     } else if (pSelect) {
         pSelect.innerHTML = `<option value="">Loading participants...</option>`;
     }
 
     if (Array.isArray(window.competitionsList) && window.competitionsList.length > 0) {
         globalPermitCompetitions = window.competitionsList;
-        populatePermitCompetitionDropdown();
-    } else if (toSelect) {
-        toSelect.innerHTML = `<option value="">Loading competitions...</option>`;
     }
 
     try {
-        let pQuery = supabaseClient.from('participants').select('id, name, unique_id, team_id, teams(name)').order('name');
+        let pQuery = supabaseClient.from('participants').select('id, name, unique_id, team_id, category_id, teams(id, name), categories(id, name)').order('name');
         let cQuery = supabaseClient.from('competitions').select('id, name, status, stage_id, stages(name)').order('name');
         let regQuery = supabaseClient.from('participant_competitions').select('participant_id, competition_id');
 
@@ -8362,16 +8417,13 @@ async function openGrantConflictPermitModal() {
 
         globalPermitRegistrations = regRes.data || [];
 
-        populatePermitParticipantDropdown();
-        populatePermitCompetitionDropdown();
+        populatePermitFilterDropdowns();
+        filterPermitParticipantDropdown();
 
     } catch (e) {
         console.warn("Background fetch warning for permits modal:", e);
         if (globalPermitParticipants && globalPermitParticipants.length > 0) {
-            populatePermitParticipantDropdown();
-        }
-        if (globalPermitCompetitions && globalPermitCompetitions.length > 0) {
-            populatePermitCompetitionDropdown();
+            filterPermitParticipantDropdown();
         }
     }
 }
@@ -8388,14 +8440,16 @@ function closeGrantConflictPermitModal() {
 function onPermitParticipantChanged() {
     const pId = document.getElementById('permitParticipantSelect')?.value;
     const fromSelect = document.getElementById('permitFromCompSelect');
-    if (!fromSelect) return;
+    const toSelect = document.getElementById('permitToCompSelect');
+    if (!fromSelect || !toSelect) return;
 
     if (!pId) {
         fromSelect.innerHTML = `<option value="">-- Choose Participant First --</option>`;
+        toSelect.innerHTML = `<option value="">-- Choose Participant First --</option>`;
         return;
     }
 
-    // Find competitions this student is registered for
+    // Find ONLY competitions this selected participant is registered for
     const registeredCompIds = new Set(
         (globalPermitRegistrations || [])
             .filter(r => String(r.participant_id) === String(pId))
@@ -8403,21 +8457,21 @@ function onPermitParticipantChanged() {
     );
 
     const registeredComps = (globalPermitCompetitions || []).filter(c => registeredCompIds.has(String(c.id)));
-    const otherComps = (globalPermitCompetitions || []).filter(c => !registeredCompIds.has(String(c.id)));
 
-    let html = `<option value="">-- Choose Registered / Current Competition --</option>`;
-    if (registeredComps.length > 0) {
-        html += `<optgroup label="Registered Events for this Participant">` +
-            registeredComps.map(c => `<option value="${c.id}">${c.name} [${(c.status || 'pending').toUpperCase()}]</option>`).join('') +
-            `</optgroup>`;
-    }
-    if (otherComps.length > 0) {
-        html += `<optgroup label="Other Competitions">` +
-            otherComps.map(c => `<option value="${c.id}">${c.name} [${(c.status || 'pending').toUpperCase()}]</option>`).join('') +
-            `</optgroup>`;
+    if (registeredComps.length === 0) {
+        fromSelect.innerHTML = `<option value="">No registered competitions found for this participant</option>`;
+        toSelect.innerHTML = `<option value="">No registered competitions found for this participant</option>`;
+        return;
     }
 
-    fromSelect.innerHTML = html;
+    const optionsHtml = registeredComps.map(c => {
+        const stage = c.stages?.name ? ` [${c.stages.name}]` : '';
+        const st = c.status ? ` (${c.status.toUpperCase()})` : '';
+        return `<option value="${c.id}">${c.name}${stage}${st}</option>`;
+    }).join('');
+
+    fromSelect.innerHTML = `<option value="">-- Choose From Competition (${registeredComps.length}) --</option>` + optionsHtml;
+    toSelect.innerHTML = `<option value="">-- Choose To Competition (${registeredComps.length}) --</option>` + optionsHtml;
 }
 
 async function submitGrantConflictPermit() {
