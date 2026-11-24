@@ -795,7 +795,7 @@ async function loadAdminDashboard() {
             festQuery(supabaseClient.from('categories').select('*', { count: 'exact', head: true })),
             festQuery(supabaseClient.from('teams').select('*', { count: 'exact', head: true })),
             festQuery(supabaseClient.from('participant_competitions').select('*', { count: 'exact', head: true })),
-            festQuery(supabaseClient.from('competitions').select('id, name, status, award_type, is_group, max_mark, max_participants, categories(name), stages(name)')),
+            festQuery(supabaseClient.from('competitions').select('id, name, status, award_type, is_group, max_mark, max_participants, categories(id, name, is_general), stages(name)')),
             window.festosGetSetting ? window.festosGetSetting('master_schedule') : supabaseClient.from('settings').select('value').eq('id', 'master_schedule').maybeSingle().then(r => r.data?.value),
             festQuery(supabaseClient.from('teams').select('id, name')),
             festQuery(supabaseClient.from('judgements').select('participant_id, competition_id, awarded_mark')),
@@ -938,10 +938,16 @@ async function loadAdminDashboard() {
                 
                 // CRITICAL FIX: Ignore group events when calculating individual scores
                 if (!comp.is_group) {
+                    const compCat = comp.categories || {};
+                    const isGeneralEvent = !!(comp.is_common === true || compCat.is_general === true || (compCat.name && compCat.name.toLowerCase().trim() === 'general'));
                     if (partScores[p.id]) {
-                        partScores[p.id].score += totalPts;
-                        if (comp.award_type === 'star') partScores[p.id].star += totalPts;
-                        if (comp.award_type === 'pen') partScores[p.id].pen += totalPts;
+                        // General events are removed from individual points tally
+                        if (!isGeneralEvent) {
+                            partScores[p.id].score += totalPts;
+                            const award = String(comp.award_type || '').toLowerCase().trim();
+                            if (award === 'star') partScores[p.id].star += totalPts;
+                            if (award === 'pen') partScores[p.id].pen += totalPts;
+                        }
                     }
                 }
             });
@@ -9371,21 +9377,22 @@ async function loadParticipantPoints() {
                 } else {
                     // Individual Events: Add to Participant Ledger
                     if(!compResults[p.id]) compResults[p.id] = [];
+                    // Check if this student is excluded from Points Ledger for category competitions
+                    const isStudentExcluded = !!(window.cachedLedgerExclusions && window.cachedLedgerExclusions[String(p.id)]);
+                    const compCat = comp.categories || {};
+                    const isGeneralComp = !!(comp.is_common === true || compCat.is_general === true || (compCat.name && compCat.name.toLowerCase().trim() === 'general'));
+                    const isCategoryEventExcluded = isStudentExcluded && !isGeneralComp;
+
                     compResults[p.id].push({
                         compName: comp.name, 
-                        compCat: comp.categories?.name || 'General',
+                        compCat: comp.categories?.name || (isGeneralComp ? 'General' : 'Category'),
                         mark: p.mark.toFixed(2), 
                         maxMark: comp.max_mark || 100, 
                         grade: grade, 
                         totalPts: totalPts,
-                        awardType: comp.award_type // Track award type here
+                        awardType: (comp.award_type || 'none').toLowerCase().trim(),
+                        isGeneral: isGeneralComp
                     });
-
-                    // Check if this student is excluded from Points Ledger for category competitions
-                    const isStudentExcluded = !!(window.cachedLedgerExclusions && window.cachedLedgerExclusions[String(p.id)]);
-                    const compCat = comp.categories || {};
-                    const isGeneralComp = !!(comp.is_common === true || compCat.is_general === true);
-                    const isCategoryEventExcluded = isStudentExcluded && !isGeneralComp;
 
                     // Individual Events: ALSO add to Team Ledger if eligible (all participants or top 3 positions)
                     if (tId && teamResults[tId] && eligibleForTeam) {
@@ -9443,25 +9450,31 @@ async function loadParticipantPoints() {
             let catPoints = 0;
             let genPoints = 0;
             breakdown.forEach(b => {
-                const targetComp = (comps || []).find(c => c.name === b.compName);
-                const isGeneral = !!(targetComp?.is_common || targetComp?.categories?.is_general || b.isGeneral);
+                const targetComp = (comps || []).find(c => c.name === b.compName || c.id === b.compId);
+                const compCatObj = targetComp?.categories || {};
+                const isGeneral = !!(targetComp?.is_common === true || compCatObj.is_general === true || (compCatObj.name && compCatObj.name.toLowerCase().trim() === 'general') || b.isGeneral);
                 b.isGeneral = isGeneral;
                 if (isGeneral) genPoints += b.totalPts;
                 else catPoints += b.totalPts;
             });
-            const rawTotalPoints = catPoints + genPoints;
 
-            // When excluded: category points are removed from ledger; general category points preserved
-            const netPoints = isExcluded ? genPoints : rawTotalPoints;
+            // REQUIREMENT 1: Remove General events points calculation from Points Ledger
+            // REQUIREMENT 3: Uncategorised (to star/pen) competitions are calculated in all points (catPoints), but NOT General events
+            const totalPoints = isExcluded ? 0 : catPoints;
+            const rawTotalPoints = catPoints;
             const deductedPoints = isExcluded ? catPoints : 0;
             
-            // Specific award points (adjusted for exclusion)
-            const starPoints = breakdown.filter(b => b.awardType === 'star' && (!isExcluded || b.isGeneral)).reduce((sum, b) => sum + b.totalPts, 0);
-            const penPoints = breakdown.filter(b => b.awardType === 'pen' && (!isExcluded || b.isGeneral)).reduce((sum, b) => sum + b.totalPts, 0);
+            // REQUIREMENT 3: Strictly only explicitly categorized 'star' or 'pen' awards count towards Star/Pen points
+            // Uncategorised competitions ('none', null, empty) must NOT count. General events never count.
+            const isStar = b => String(b.awardType || '').toLowerCase().trim() === 'star' && !b.isGeneral;
+            const isPen = b => String(b.awardType || '').toLowerCase().trim() === 'pen' && !b.isGeneral;
+
+            const starPoints = breakdown.filter(b => isStar(b) && !isExcluded).reduce((sum, b) => sum + b.totalPts, 0);
+            const penPoints = breakdown.filter(b => isPen(b) && !isExcluded).reduce((sum, b) => sum + b.totalPts, 0);
             
             return {
                 ...p,
-                totalPoints: netPoints,
+                totalPoints,
                 rawTotalPoints,
                 catPoints,
                 genPoints,
@@ -9482,6 +9495,8 @@ async function loadParticipantPoints() {
 
         populateDropdownSafe('filterPointsCategory', categoriesList);
         populateDropdownSafe('filterPointsTeam', teamsList);
+        populateDropdownSafe('filterSpecialCategory', categoriesList);
+        populateDropdownSafe('filterSpecialTeam', teamsList);
         filterPointsTable(true);
         renderTeamPointsTable();
         
@@ -10046,53 +10061,93 @@ async function exportOnstageParticipantsPDF() {
 }
 
 
-// SPECIAL AWARD LEDGER RENDERER
-function renderSpecialLedger(type) {
+// SPECIAL AWARD LEDGER RENDERER & FILTERS
+let currentSpecialAwardType = 'star';
+
+function filterSpecialLedger() {
     const tbody = document.getElementById('special-points-tbody');
-    if(!tbody) return;
+    if (!tbody) return;
     tbody.innerHTML = '';
 
-    // Determine the correct data key based on the button clicked
+    const type = currentSpecialAwardType || 'star';
     const filterKey = type === 'star' ? 'starPoints' : 'penPoints';
-    
-    // Filter participants who actually have points for this specific award
-    const contenders = pointsDataList.filter(p => p[filterKey] > 0);
-    
-    // Sort by those specific points descending
-    contenders.sort((a, b) => b[filterKey] - a[filterKey]);
+    const pointsColor = type === 'star' ? '#D97706' : '#4338CA';
+
+    const searchQ = (document.getElementById('searchSpecialInput')?.value || '').toLowerCase().trim();
+    const catFilter = document.getElementById('filterSpecialCategory')?.value || '';
+    const teamFilter = document.getElementById('filterSpecialTeam')?.value || '';
 
     // Update table header text
-    document.getElementById('special-pts-header').innerText = type === 'star' ? 'Star Points' : 'Pen Points';
+    const headerEl = document.getElementById('special-pts-header');
+    if (headerEl) headerEl.innerText = type === 'star' ? 'Star Points' : 'Pen Points';
+
+    // Filter participants who actually have points for this specific award and match criteria
+    let contenders = (pointsDataList || []).filter(p => {
+        if ((p[filterKey] || 0) <= 0) return false;
+        
+        if (searchQ) {
+            const nameMatch = (p.name || '').toLowerCase().includes(searchQ);
+            const idMatch = (p.unique_id || '').toLowerCase().includes(searchQ);
+            if (!nameMatch && !idMatch) return false;
+        }
+        if (catFilter) {
+            const pCatId = p.category_id || p.categories?.id;
+            const pCatName = p.categories?.name || '';
+            if (String(pCatId) !== String(catFilter) && pCatName !== catFilter) return false;
+        }
+        if (teamFilter) {
+            const pTeamId = p.team_id || p.teams?.id;
+            const pTeamName = p.teams?.name || '';
+            if (String(pTeamId) !== String(teamFilter) && pTeamName !== teamFilter) return false;
+        }
+        return true;
+    });
+
+    // Sort by specific points descending
+    contenders.sort((a, b) => (b[filterKey] || 0) - (a[filterKey] || 0));
 
     if (contenders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">No points awarded yet for this category.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2.5rem; color: var(--text-muted); font-weight: 500;">No ${type === 'star' ? 'Star' : 'Pen'} contenders found matching selected filters.</td></tr>`;
         return;
     }
 
     contenders.forEach((p, index) => {
         let rankBadge = '';
-        if(index === 0) rankBadge = '<i class="fa-solid fa-crown" style="color: #F59E0B; font-size: 1.25rem;"></i>';
-        else if(index === 1) rankBadge = '<i class="fa-solid fa-medal" style="color: #94A3B8; font-size: 1.25rem;"></i>';
-        else if(index === 2) rankBadge = '<i class="fa-solid fa-medal" style="color: #B45309; font-size: 1.25rem;"></i>';
-        else rankBadge = `<span style="font-weight: 800; font-size: 1.1rem; color: var(--text-muted);">#${index + 1}</span>`;
+        if (index === 0) rankBadge = '<i class="fa-solid fa-crown" style="color: #F59E0B; font-size: 1.25rem;" title="1st Place"></i>';
+        else if (index === 1) rankBadge = '<i class="fa-solid fa-medal" style="color: #94A3B8; font-size: 1.25rem;" title="2nd Place"></i>';
+        else if (index === 2) rankBadge = '<i class="fa-solid fa-medal" style="color: #B45309; font-size: 1.25rem;" title="3rd Place"></i>';
+        else rankBadge = `<span style="font-weight: 800; font-size: 1.05rem; color: var(--text-muted);">#${index + 1}</span>`;
 
-        const pointsColor = type === 'star' ? '#D97706' : '#4338CA';
-        
+        const catName = p.categories?.name || 'GENERAL';
+        const teamName = p.teams?.name || 'INDEPENDENT';
+
         tbody.innerHTML += `
             <tr>
                 <td style="text-align: center;">${rankBadge}</td>
                 <td>
-                    <strong style="font-size: 1.05rem;">${p.name}</strong><br>
+                    <strong style="font-size: 1.05rem; color: var(--text-main);">${p.name}</strong><br>
                     <small style="font-family: monospace; color: var(--text-muted);">${p.unique_id}</small>
                 </td>
-                <td><span class="badge" style="background:var(--bg-main); color:var(--text-main); border: 1px solid var(--border);">${p.teams?.name || 'INDEPENDENT'}</span></td>
-                <td style="font-weight: 900; color: ${pointsColor}; font-size: 1.25rem;">${p[filterKey]}</td>
                 <td>
-                    <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" title="View Detail Breakdown" onclick="viewParticipantPointDetails('${p.id}')"><i class="fa-solid fa-list"></i> View Details</button>
+                    <span class="badge" style="background: #EEF2FF; color: #4F46E5; border: 1px solid #C7D2FE; font-weight: 700; font-size: 0.78rem;">${catName}</span>
+                </td>
+                <td>
+                    <span class="badge" style="background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border); font-weight: 600;">${teamName}</span>
+                </td>
+                <td style="font-weight: 900; color: ${pointsColor}; font-size: 1.3rem; text-align: right;">${p[filterKey]}</td>
+                <td style="text-align: center;">
+                    <button class="btn btn-outline" style="padding: 0.4rem 0.85rem; font-size: 0.82rem;" title="View Detail Breakdown" onclick="viewParticipantPointDetails('${p.id}')">
+                        <i class="fa-solid fa-list"></i> View Details
+                    </button>
                 </td>
             </tr>
         `;
     });
+}
+
+function renderSpecialLedger(type) {
+    currentSpecialAwardType = type || 'star';
+    filterSpecialLedger();
 }
 
 // Render Team Table
@@ -10569,19 +10624,35 @@ function viewParticipantPointDetails(pId) {
 
    let trs = p.breakdown.length > 0 ? p.breakdown.map((b, i) => {
         const isExcludedEvent = p.isExcluded && !b.isGeneral;
-        const tag = isExcludedEvent
-            ? '<span class="badge" style="background:#FEE2E2; color:#DC2626; font-size:0.65rem; margin-left:6px; font-weight:800;">DEDUCTED (CATEGORY LIMIT)</span>'
-            : (b.isGeneral ? '<span class="badge" style="background:#EFF6FF; color:#2563EB; font-size:0.65rem; margin-left:6px; font-weight:800;">PRESERVED (GENERAL)</span>' : '');
+        let tag = '';
+        if (isExcludedEvent) {
+            tag = '<span class="badge" style="background:#FEE2E2; color:#DC2626; font-size:0.65rem; margin-left:6px; font-weight:800;">DEDUCTED (CATEGORY LIMIT)</span>';
+        } else if (b.isGeneral) {
+            tag = '<span class="badge" style="background:#F1F5F9; color:#64748B; font-size:0.65rem; margin-left:6px; font-weight:800;">GENERAL EVENT (EXCLUDED FROM LEDGER)</span>';
+        } else if (b.awardType === 'star') {
+            tag = '<span class="badge" style="background:#FEF3C7; color:#D97706; font-size:0.65rem; margin-left:6px; font-weight:800;">⭐ STAR FEST</span>';
+        } else if (b.awardType === 'pen') {
+            tag = '<span class="badge" style="background:#EEF2FF; color:#4338CA; font-size:0.65rem; margin-left:6px; font-weight:800;">🖋️ PEN FEST</span>';
+        }
+
+        let ptsHtml = '';
+        if (isExcludedEvent) {
+            ptsHtml = `<span style="color:#DC2626; text-decoration:line-through;">-${b.totalPts}</span>`;
+        } else if (b.isGeneral) {
+            ptsHtml = `<span style="color:#94A3B8; text-decoration:line-through;">${b.totalPts}</span> <span style="font-weight:700; color:#64748B;">(0 PTS)</span>`;
+        } else {
+            ptsHtml = `<span style="font-weight:800; color:var(--primary);">${b.totalPts}</span>`;
+        }
 
         return `
-        <tr style="${isExcludedEvent ? 'background:#FFF5F5;' : ''}">
+        <tr style="${isExcludedEvent ? 'background:#FFF5F5;' : (b.isGeneral ? 'background:#F8FAFC;' : '')}">
             <td style="font-weight: 600;">
-                <span style="${isExcludedEvent ? 'text-decoration: line-through; color: #64748B;' : ''}">${b.compName}</span>
+                <span style="${(isExcludedEvent || b.isGeneral) ? 'color: #64748B;' : ''}">${b.compName}</span>
                 ${tag}
             </td>
             <td><span class="badge" style="background:var(--bg-main);">${b.compCat}</span></td>
-            <td style="text-align: right; ${isExcludedEvent ? 'text-decoration: line-through; color: #94A3B8;' : ''}">${b.mark} / ${b.maxMark}</td>
-            <td style="text-align: right; font-weight: 800; color: ${isExcludedEvent ? '#DC2626; text-decoration: line-through;' : 'var(--primary);'}">${isExcludedEvent ? '-' + b.totalPts : b.totalPts}</td>
+            <td style="text-align: right; ${(isExcludedEvent || b.isGeneral) ? 'text-decoration: line-through; color: #94A3B8;' : ''}">${b.mark} / ${b.maxMark}</td>
+            <td style="text-align: right;">${ptsHtml}</td>
         </tr>
         `;
    }).join('') : `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem;">No evaluated programs yet.</td></tr>`;
@@ -10611,7 +10682,7 @@ function viewParticipantPointDetails(pId) {
                         </div>
                         ${p.isExcluded ? `
                             <div style="margin-top: 10px; background: #FEF2F2; border: 1px solid #FECACA; padding: 8px 12px; border-radius: 6px; font-size: 0.8rem; color: #991B1B;">
-                                <strong>Penalty Applied:</strong> Exceeded category competition limit. ${p.deductedPoints} points from category events deducted from Team score. ${p.genPoints} points from General Category events preserved.
+                                <strong>Penalty Applied:</strong> Exceeded category competition limit. ${p.deductedPoints} points from category events deducted from ledger. General events are also excluded from points ledger.
                             </div>
                         ` : ''}
                     </div>

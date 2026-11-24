@@ -4746,19 +4746,40 @@ canvas {
             </div>
 
             <!-- SPECIAL AWARD LEDGER TABLE -->
-            <div class="table-container" id="special-points-container" style="display: none;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Participant Details</th>
-                            <th>Team</th>
-                            <th id="special-pts-header">Points</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="special-points-tbody"></tbody>
-                </table>
+            <div id="special-points-container" style="display: none;">
+                <!-- Filter bar specifically for Star & Pen Contenders -->
+                <div class="controls-bar" id="special-filters" style="margin-bottom: 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                    <div class="search-box" style="flex: 1; min-width: 220px;">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="searchSpecialInput" placeholder="Search contender name or ID..." onkeyup="filterSpecialLedger()">
+                    </div>
+                    <div class="filter-box" style="min-width: 180px;">
+                        <select id="filterSpecialCategory" onchange="filterSpecialLedger()">
+                            <option value="">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="filter-box" style="min-width: 180px;">
+                        <select id="filterSpecialTeam" onchange="filterSpecialLedger()">
+                            <option value="">All Teams</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 70px; text-align: center;">Rank</th>
+                                <th>Participant Details</th>
+                                <th>Category</th>
+                                <th>Team</th>
+                                <th id="special-pts-header" style="text-align: right;">Points</th>
+                                <th style="text-align: center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="special-points-tbody"></tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- ONSTAGE REGISTERED PARTICIPANTS TABLE -->
@@ -8648,7 +8669,7 @@ function toggleCustomGridFields() {
 <script src="id-badge-engine.js?v=3.8.2"></script>
 <script src="preset-templates-engine.js"></script>
 <script src="ai-template-generator.js"></script>
-<script src="admin.js?v=4.0.0"></script>
+<script src="admin.js?v=4.1.0"></script>
     <script src="newspaper-engine.js"></script>
     <script src="custom-pickers.js?v=4.0"></script>
 
