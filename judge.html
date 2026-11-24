@@ -90,12 +90,22 @@ body, input, button, select, .toast, .card-title, .section-title {
 }
 
 /* --- MOBILE APP SHELL (TOP NAVBAR) --- */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 52px;
+    z-index: 1000;
+}
+
+.top-nav-bar,
 .navbar > div:first-child {
     position: fixed; 
     top: 0; left: 0; right: 0; 
     background: rgba(255, 255, 255, 0.94); 
     backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-    z-index: 100;
+    z-index: 1000;
     padding: 0.5rem 1rem;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
     border-bottom: 1px solid rgba(226, 232, 240, 0.8);
@@ -475,11 +485,11 @@ input, .mark-input { text-transform: none; }
 .mark-wrapper { 
     display: flex; 
     align-items: center; 
-    gap: 0.35rem; 
+    gap: 0.4rem; 
     background: var(--bg-main); 
-    padding: 0.3rem 0.55rem; 
-    border-radius: 10px; 
-    border: 1px solid var(--border);
+    padding: 0.35rem 0.65rem; 
+    border-radius: 12px; 
+    border: 1.5px solid var(--border);
     transition: var(--transition);
     flex-shrink: 0;
 }
@@ -488,8 +498,8 @@ input, .mark-input { text-transform: none; }
     border-color: var(--primary);
 }
 .mark-input { 
-    width: 52px; 
-    height: 36px;
+    width: 60px; 
+    height: 38px;
     padding: 0 0.25rem; 
     border: none; 
     background: transparent;
@@ -497,7 +507,7 @@ input, .mark-input { text-transform: none; }
     text-align: center; 
     outline: none; 
     color: var(--primary);
-    font-size: 16px; /* Prevent iOS zoom */
+    font-size: 1.15rem;
 }
 .mark-input::placeholder { color: #CBD5E1; font-weight: 500; }
 .max-mark-divider { width: 1.5px; height: 20px; background: var(--border); }
@@ -519,33 +529,14 @@ input, .mark-input { text-transform: none; }
 }
 .feedback-input:focus { border-color: var(--primary); background: var(--bg-surface); box-shadow: 0 0 0 2px var(--primary-ring); }
 
-/* --- TOUCH STEPPER CONTROLS --- */
+/* --- STEPPER CONTROLS (HIDDEN) --- */
 .mark-stepper-wrap {
     display: flex;
     align-items: center;
-    gap: 5px;
-    flex-shrink: 0;
+    gap: 0;
 }
 .btn-step {
-    background: var(--bg-main);
-    border: 1px solid var(--border);
-    color: var(--text-main);
-    font-size: 0.75rem;
-    font-weight: 800;
-    padding: 0.35rem 0.55rem;
-    border-radius: 8px;
-    cursor: pointer;
-    user-select: none;
-    touch-action: manipulation;
-    transition: all 0.15s ease;
-}
-.btn-step:hover {
-    background: var(--primary-light);
-    border-color: var(--primary);
-    color: var(--primary);
-}
-.btn-step:active {
-    transform: scale(0.92);
+    display: none !important;
 }
 .grading-progress-badge {
     background: var(--bg-surface);
@@ -580,13 +571,27 @@ body.dark-hall-mode {
 }
 
 /* Navbar & Top Elements */
-body.dark-hall-mode .navbar,
-body.dark-hall-mode .top-nav-bar {
+body.dark-hall-mode .navbar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 52px !important;
+    z-index: 1000 !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+body.dark-hall-mode .top-nav-bar,
+body.dark-hall-mode .navbar > div:first-child {
     background: rgba(18, 18, 21, 0.95) !important;
     backdrop-filter: blur(20px) !important;
     -webkit-backdrop-filter: blur(20px) !important;
     border-bottom: 1px solid #27272A !important;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+    z-index: 1000 !important;
 }
 body.dark-hall-mode .welcome-text {
     background: #18181B !important;
@@ -795,15 +800,7 @@ body.dark-hall-mode .participant-code {
 
 /* Stepper Buttons & Mark Input */
 body.dark-hall-mode .btn-step {
-    background: #18181B !important;
-    border: 1px solid #27272A !important;
-    color: #E4E4E7 !important;
-}
-body.dark-hall-mode .btn-step:hover,
-body.dark-hall-mode .btn-step:active {
-    background: #27272A !important;
-    color: #FFFFFF !important;
-    border-color: #3F3F46 !important;
+    display: none !important;
 }
 body.dark-hall-mode .mark-wrapper {
     background: #18181B !important;
@@ -817,6 +814,7 @@ body.dark-hall-mode .mark-input {
     color: #38BDF8 !important;
     background: transparent !important;
     font-weight: 800 !important;
+    font-size: 1.15rem !important;
 }
 body.dark-hall-mode .mark-input::placeholder {
     color: #52525B !important;

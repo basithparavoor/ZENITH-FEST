@@ -10,10 +10,9 @@ let globalJudgeComps = []; // NEW: Caches the fetched competitions for filtering
 
 // Dynamic Layout Padding Adjustment
 function adjustLayoutPadding() {
-    const navbar = document.querySelector('.navbar > div:first-child') || document.querySelector('.navbar');
-    if (navbar) {
-        document.body.style.paddingTop = `${navbar.offsetHeight + 15}px`;
-    }
+    const navChild = document.querySelector('.top-nav-bar') || document.querySelector('.navbar > div:first-child') || document.querySelector('.navbar');
+    const navHeight = navChild ? navChild.offsetHeight : 52;
+    document.body.style.paddingTop = `${Math.max(navHeight, 52) + 16}px`;
 }
 window.addEventListener('resize', adjustLayoutPadding);
 
@@ -532,24 +531,18 @@ async function openEvaluation(compId) {
                             ${roleBadge ? `<div style="margin-top: 2px;">${roleBadge}</div>` : ''}
                         </div>
                     </div>
-                    <div class="mark-stepper-wrap">
-                        <button type="button" class="btn-step" onclick="stepJudgeMark(this, -1, ${currentMaxMark})" title="-1 pt">-1</button>
-                        <button type="button" class="btn-step" onclick="stepJudgeMark(this, -0.5, ${currentMaxMark})" title="-0.5 pt">-0.5</button>
-                        <div class="mark-wrapper">
-                            <input type="number" 
-                                   class="mark-input" 
-                                   placeholder="00.0" 
-                                   min="0" 
-                                   max="${currentMaxMark}" 
-                                   step="0.5" 
-                                   value="${prevMark !== '' ? prevMark : ''}"
-                                   inputmode="decimal"
-                                   oninput="validateMark(this, ${currentMaxMark}); updateLiveGradingStats();">
-                            <div class="max-mark-divider"></div>
-                            <span class="max-mark-label">${currentMaxMark}</span>
-                        </div>
-                        <button type="button" class="btn-step" onclick="stepJudgeMark(this, 0.5, ${currentMaxMark})" title="+0.5 pt">+0.5</button>
-                        <button type="button" class="btn-step" onclick="stepJudgeMark(this, 1, ${currentMaxMark})" title="+1 pt">+1</button>
+                    <div class="mark-wrapper">
+                        <input type="number" 
+                               class="mark-input" 
+                               placeholder="00.0" 
+                               min="0" 
+                               max="${currentMaxMark}" 
+                               step="0.5" 
+                               value="${prevMark !== '' ? prevMark : ''}"
+                               inputmode="decimal"
+                               oninput="validateMark(this, ${currentMaxMark}); updateLiveGradingStats();">
+                        <div class="max-mark-divider"></div>
+                        <span class="max-mark-label">${currentMaxMark}</span>
                     </div>
                 </div>
                 <textarea class="feedback-input" rows="2" placeholder="ADD CONSTRUCTIVE FEEDBACK (OPTIONAL)...">${prevFeedback}</textarea>
@@ -633,7 +626,7 @@ async function syncEvaluationParticipants(manual = false) {
                                    max="${currentMaxMark}" 
                                    step="0.5" 
                                    inputmode="decimal"
-                                   oninput="validateMark(this, ${currentMaxMark})">
+                                   oninput="validateMark(this, ${currentMaxMark}); updateLiveGradingStats();">
                             <div class="max-mark-divider"></div>
                             <span class="max-mark-label">${currentMaxMark}</span>
                         </div>
