@@ -849,31 +849,44 @@ input[type="password"], input[type="file"], .file-input, textarea[style*="text-t
 }
 
 .header {
-    background: rgba(255, 255, 255, 0.85);
-    padding: 1.25rem 2.5rem;
+    background: rgba(255, 255, 255, 0.92);
+    padding: 0.75rem 1.75rem;
+    min-height: 64px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: sticky;
     top: 0;
     z-index: 20;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     border-bottom: 1px solid var(--border);
-    gap: 1rem;
+    gap: 1.25rem;
     flex-wrap: nowrap;
     flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .header h1, #top-page-title {
     font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 1.4rem;
+    font-size: 1.22rem;
     font-weight: 700;
     color: var(--text-main);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.015em;
     margin: 0;
     white-space: nowrap;
-    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.25;
 }
 
 .header-actions {
@@ -883,52 +896,105 @@ input[type="password"], input[type="file"], .file-input, textarea[style*="text-t
     flex-shrink: 0;
 }
 
-/* Omnisearch & HUD Controls */
+/* Modern Compact Omnisearch Bar */
 .cmd-palette-btn {
     background: #FFFFFF;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 0.65rem 1.15rem;
+    border: 1.5px solid var(--border);
+    border-radius: 9999px;
+    height: 38px;
+    padding: 0 0.95rem;
     display: inline-flex;
     align-items: center;
     gap: 8px;
     color: var(--text-muted);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 500;
     cursor: pointer;
-    transition: var(--transition);
-    min-height: 42px;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .cmd-palette-btn:hover {
     border-color: var(--primary);
     color: var(--primary);
-    background: var(--primary-light);
+    background: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
 }
 
 .cmd-palette-btn kbd {
-    background: var(--bg-main);
+    background: var(--bg-main, #F8FAFC);
     border: 1px solid var(--border);
-    padding: 2px 7px;
-    border-radius: var(--radius-sm);
+    padding: 1px 6px;
+    border-radius: 6px;
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: -0.2px;
+}
+
+/* Unified Telemetry HUD Capsule */
+.header-telemetry-hud {
+    background: #FFFFFF;
+    border: 1.5px solid var(--border);
+    border-radius: 9999px;
+    height: 38px;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.82rem;
     font-weight: 600;
     color: var(--text-muted);
+    user-select: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    white-space: nowrap;
+}
+
+.telemetry-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.telemetry-sep {
+    width: 1px;
+    height: 14px;
+    background: var(--border);
+}
+
+.telemetry-item.latency-item {
+    color: var(--success);
+}
+.telemetry-item.latency-item.latency-good {
+    color: var(--success);
+}
+.telemetry-item.latency-item.latency-fair {
+    color: var(--amber);
+}
+.telemetry-item.latency-item.latency-poor {
+    color: var(--danger);
+}
+
+@media (max-width: 1250px) {
+    .telemetry-item.clock-item,
+    .telemetry-sep.clock-sep {
+        display: none !important;
+    }
 }
 
 .mini-hud-pill {
     background: white;
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    padding: 0.65rem 1.15rem;
-    font-size: 0.88rem;
+    padding: 0.5rem 0.95rem;
+    font-size: 0.85rem;
     font-weight: 600;
     display: inline-flex;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
     color: var(--text-muted);
-    min-height: 42px;
     user-select: none;
 }
 
@@ -2260,7 +2326,8 @@ input:checked + .slider:before { transform: translateX(22px); }
     }
     .header .cmd-palette-btn kbd,
     .header .cmd-palette-btn span,
-    .header .mini-hud-pill {
+    .header .mini-hud-pill,
+    .header .header-telemetry-hud {
         display: none !important;
     }
     .header .cmd-palette-btn {
@@ -2724,46 +2791,46 @@ input:checked + .slider:before { transform: translateX(22px); }
     <div class="main-content">
         <!-- Clean Header -->
         <header class="header">
-            <div style="display: flex; align-items: center; gap: 0.85rem; min-width: 0;">
+            <div class="header-left">
                 <button class="menu-toggle mobile-toggle" onclick="toggleMobileSidebar()" aria-label="Toggle Sidebar" title="Toggle Sidebar (Ctrl+B)">
                     <i class="fa-solid fa-bars"></i>
                 </button>
                 <h1 id="top-page-title" data-no-auto-brand="true">Super Admin Control Panel</h1>
             </div>
 
-            <div class="header-actions" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <div class="header-actions">
                 <!-- Omnisearch Palette Button -->
                 <button class="cmd-palette-btn" onclick="openCommandPalette()" title="Press Ctrl+K to Omnisearch">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <span>Omnisearch...</span>
+                    <span class="cmd-palette-text">Search...</span>
                     <kbd>Ctrl+K</kbd>
                 </button>
 
-                <!-- Live Clock HUD -->
-                <div class="mini-hud-pill clock-hud-pill" id="header-clock-pill" title="Live System Time">
-                    <i class="fa-regular fa-clock"></i>
-                    <span id="header-clock-val">--:--:--</span>
-                </div>
-
-                <!-- Database Ping Latency -->
-                <div class="mini-hud-pill latency-good" id="header-latency-pill" title="Supabase Cloud Query Ping">
-                    <i class="fa-solid fa-bolt"></i>
-                    <span id="header-latency-val">-- ms</span>
-                </div>
-
-                <!-- Realtime Sync Pill -->
-                <div class="mini-hud-pill" id="header-ws-pill" title="Realtime Sync Channel">
-                    <div class="status-dot"></div>
-                    <span id="header-ws-text">Sync Live</span>
+                <!-- Unified Live System Telemetry HUD Capsule -->
+                <div class="header-telemetry-hud" id="header-telemetry-hud" title="Live System Telemetry: Realtime Sync, Cloud Ping & Server Time">
+                    <div class="telemetry-item ws-item" id="header-ws-pill" title="Realtime Sync Status">
+                        <span class="status-dot"></span>
+                        <span id="header-ws-text">Sync Live</span>
+                    </div>
+                    <span class="telemetry-sep"></span>
+                    <div class="telemetry-item latency-item latency-good" id="header-latency-pill" title="Supabase Database Ping">
+                        <i class="fa-solid fa-bolt" style="font-size: 0.75rem;"></i>
+                        <span id="header-latency-val">-- ms</span>
+                    </div>
+                    <span class="telemetry-sep clock-sep"></span>
+                    <div class="telemetry-item clock-item" id="header-clock-pill" title="Live System Time">
+                        <i class="fa-regular fa-clock" style="font-size: 0.75rem;"></i>
+                        <span id="header-clock-val">--:--:--</span>
+                    </div>
                 </div>
 
                 <!-- Fast Telemetry Refresh -->
-                <button class="header-icon-action-btn" onclick="triggerSuperFastSync(this)" title="Fast Sync & Cache Flush">
+                <button class="header-icon-action-btn" onclick="triggerSuperFastSync(this)" title="Fast Sync & Cache Flush" style="width: 38px; height: 38px; border-radius: 50%;">
                     <i class="fa-solid fa-rotate"></i>
                 </button>
 
                 <!-- Create Fest Action -->
-                <button class="btn btn-primary" onclick="openCreateFestModal()">
+                <button class="btn btn-primary" onclick="openCreateFestModal()" style="height: 38px; border-radius: 9999px; padding: 0 1.15rem; font-size: 0.85rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
                     <i class="fa-solid fa-plus"></i> <span class="btn-text">New Fest</span>
                 </button>
             </div>
