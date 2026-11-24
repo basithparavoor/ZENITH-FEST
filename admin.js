@@ -1016,14 +1016,15 @@ window.switchDashTopView = function(type) {
         candListEl.innerHTML = sortedParts.map((c, i) => {
             let rClass = i===0 ? 'r1' : i===1 ? 'r2' : i===2 ? 'r3' : 'other';
             return `
-            <div class="top-cand-row">
+            <div class="top-cand-row" onclick="viewParticipantPointDetails('${c.id}', '${type}')" style="cursor: pointer;" title="View ${type === 'star' ? 'Star' : (type === 'pen' ? 'Pen' : 'Total')} points breakdown">
                 <div style="display: flex; align-items: center;">
                     <div class="cand-rank ${rClass}">${i+1}</div>
                     <span style="font-weight: 600; font-size: 0.9rem; text-transform: uppercase;">${c.name}</span>
                 </div>
                 <span style="font-weight: 800; color: ${ptsColor}; font-size: 1.05rem;">${c[sortKey]}</span>
             </div>
-        `}).join('');
+            `;
+        }).join('');
     } else {
         const typeName = type === 'all' ? 'total' : type;
         candListEl.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 2rem 1rem;">No ${typeName} points awarded yet.</p>`;
@@ -9384,6 +9385,7 @@ async function loadParticipantPoints() {
                     const isCategoryEventExcluded = isStudentExcluded && !isGeneralComp;
 
                     compResults[p.id].push({
+                        compId: comp.id,
                         compName: comp.name, 
                         compCat: comp.categories?.name || (isGeneralComp ? 'General' : 'Category'),
                         mark: p.mark.toFixed(2), 
@@ -9450,10 +9452,15 @@ async function loadParticipantPoints() {
             let catPoints = 0;
             let genPoints = 0;
             breakdown.forEach(b => {
-                const targetComp = (comps || []).find(c => c.name === b.compName || c.id === b.compId);
+                const targetComp = (comps || []).find(c => c.id === b.compId) || (comps || []).find(c => c.name === b.compName);
                 const compCatObj = targetComp?.categories || {};
                 const isGeneral = !!(targetComp?.is_common === true || compCatObj.is_general === true || (compCatObj.name && compCatObj.name.toLowerCase().trim() === 'general') || b.isGeneral);
                 b.isGeneral = isGeneral;
+
+                // Strictly synchronize award_type directly from the competition definition
+                const rawAward = targetComp?.award_type || b.awardType || 'none';
+                b.awardType = String(rawAward).toLowerCase().trim();
+
                 if (isGeneral) genPoints += b.totalPts;
                 else catPoints += b.totalPts;
             });
@@ -10136,7 +10143,7 @@ function filterSpecialLedger() {
                 </td>
                 <td style="font-weight: 900; color: ${pointsColor}; font-size: 1.3rem; text-align: right;">${p[filterKey]}</td>
                 <td style="text-align: center;">
-                    <button class="btn btn-outline" style="padding: 0.4rem 0.85rem; font-size: 0.82rem;" title="View Detail Breakdown" onclick="viewParticipantPointDetails('${p.id}')">
+                    <button class="btn btn-outline" style="padding: 0.4rem 0.85rem; font-size: 0.82rem;" title="View Detail Breakdown" onclick="viewParticipantPointDetails('${p.id}', '${type}')">
                         <i class="fa-solid fa-list"></i> View Details
                     </button>
                 </td>
@@ -10617,47 +10624,128 @@ function renderPointsPagination() {
     `;
 }
 
-// In-App Modal Detail View
-function viewParticipantPointDetails(pId) {
+// In-App Modal Detail View (Award-Context Aware: 'all', 'star', or 'pen')
+function viewParticipantPointDetails(pId, awardContext = 'all') {
     const p = pointsDataList.find(x => x.id === pId);
     if (!p) return;
 
-   let trs = p.breakdown.length > 0 ? p.breakdown.map((b, i) => {
+    const isStarView = awardContext === 'star';
+    const isPenView = awardContext === 'pen';
+
+    let modalTitle = 'Points Breakdown Ledger';
+    let modalSubtitle = '';
+    let totalLabel = 'TOTAL POINTS:';
+    let totalScore = p.totalPoints;
+    let totalColor = 'var(--primary)';
+
+    if (isStarView) {
+        modalTitle = '⭐ Star of the Fest Points Breakdown';
+        modalSubtitle = 'Showing Star Award points calculation. Standard and Pen events are excluded from Star points.';
+        totalLabel = 'TOTAL STAR POINTS:';
+        totalScore = p.starPoints;
+        totalColor = '#D97706';
+    } else if (isPenView) {
+        modalTitle = '🖋️ Pen of the Fest Points Breakdown';
+        modalSubtitle = 'Showing Pen Award points calculation. Standard and Star events are excluded from Pen points.';
+        totalLabel = 'TOTAL PEN POINTS:';
+        totalScore = p.penPoints;
+        totalColor = '#4338CA';
+    }
+
+    let trs = p.breakdown.length > 0 ? p.breakdown.map((b, i) => {
         const isExcludedEvent = p.isExcluded && !b.isGeneral;
+        const award = String(b.awardType || 'none').toLowerCase().trim();
+        const isStarEvent = award === 'star' && !b.isGeneral;
+        const isPenEvent = award === 'pen' && !b.isGeneral;
+
         let tag = '';
-        if (isExcludedEvent) {
-            tag = '<span class="badge" style="background:#FEE2E2; color:#DC2626; font-size:0.65rem; margin-left:6px; font-weight:800;">DEDUCTED (CATEGORY LIMIT)</span>';
-        } else if (b.isGeneral) {
-            tag = '<span class="badge" style="background:#F1F5F9; color:#64748B; font-size:0.65rem; margin-left:6px; font-weight:800;">GENERAL EVENT (EXCLUDED FROM LEDGER)</span>';
-        } else if (b.awardType === 'star') {
-            tag = '<span class="badge" style="background:#FEF3C7; color:#D97706; font-size:0.65rem; margin-left:6px; font-weight:800;">⭐ STAR FEST</span>';
-        } else if (b.awardType === 'pen') {
-            tag = '<span class="badge" style="background:#EEF2FF; color:#4338CA; font-size:0.65rem; margin-left:6px; font-weight:800;">🖋️ PEN FEST</span>';
+        let ptsHtml = '';
+        let rowBg = '';
+
+        if (isStarView) {
+            // Context: Star Contenders View
+            if (isExcludedEvent) {
+                tag = '<span class="badge" style="background:#FEE2E2; color:#DC2626; font-size:0.65rem; margin-left:6px; font-weight:800;">DEDUCTED (CATEGORY LIMIT)</span>';
+                ptsHtml = `<span style="color:#DC2626; text-decoration:line-through;">-${b.totalPts}</span>`;
+                rowBg = '#FFF5F5';
+            } else if (b.isGeneral) {
+                tag = '<span class="badge" style="background:#F1F5F9; color:#64748B; font-size:0.65rem; margin-left:6px; font-weight:700;">GENERAL (0 PTS IN STAR)</span>';
+                ptsHtml = `<span style="color:#94A3B8; text-decoration:line-through;">${b.totalPts}</span> <span style="font-weight:700; color:#64748B;">(0 PTS)</span>`;
+                rowBg = '#F8FAFC';
+            } else if (isStarEvent) {
+                tag = '<span class="badge" style="background:#FEF3C7; color:#D97706; font-size:0.68rem; margin-left:6px; font-weight:800; border:1px solid #FCD34D;"><i class="fa-solid fa-star"></i> STAR EVENT</span>';
+                ptsHtml = `<span style="font-weight:900; color:#D97706; font-size:1.05rem;">+${b.totalPts} PTS</span>`;
+                rowBg = '#FFFBEB';
+            } else if (isPenEvent) {
+                tag = '<span class="badge" style="background:#EEF2FF; color:#4338CA; font-size:0.65rem; margin-left:6px; font-weight:700;">PEN EVENT (0 PTS IN STAR)</span>';
+                ptsHtml = `<span style="color:#94A3B8; text-decoration:line-through;">${b.totalPts}</span> <span style="font-weight:700; color:#64748B;">(0 PTS)</span>`;
+                rowBg = '#F8FAFC';
+            } else {
+                tag = '<span class="badge" style="background:#F1F5F9; color:#64748B; font-size:0.65rem; margin-left:6px; font-weight:700;">STANDARD EVENT (0 PTS IN STAR)</span>';
+                ptsHtml = `<span style="color:#94A3B8; text-decoration:line-through;">${b.totalPts}</span> <span style="font-weight:700; color:#64748B;">(0 PTS)</span>`;
+                rowBg = '#F8FAFC';
+            }
+        } else if (isPenView) {
+            // Context: Pen Contenders View
+            if (isExcludedEvent) {
+                tag = '<span class="badge" style="background:#FEE2E2; color:#DC2626; font-size:0.65rem; margin-left:6px; font-weight:800;">DEDUCTED (CATEGORY LIMIT)</span>';
+                ptsHtml = `<span style="color:#DC2626; text-decoration:line-through;">-${b.totalPts}</span>`;
+                rowBg = '#FFF5F5';
+            } else if (b.isGeneral) {
+                tag = '<span class="badge" style="background:#F1F5F9; color:#64748B; font-size:0.65rem; margin-left:6px; font-weight:700;">GENERAL (0 PTS IN PEN)</span>';
+                ptsHtml = `<span style="color:#94A3B8; text-decoration:line-through;">${b.totalPts}</span> <span style="font-weight:700; color:#64748B;">(0 PTS)</span>`;
+                rowBg = '#F8FAFC';
+            } else if (isPenEvent) {
+                tag = '<span class="badge" style="background:#EEF2FF; color:#4338CA; font-size:0.68rem; margin-left:6px; font-weight:800; border:1px solid #C7D2FE;"><i class="fa-solid fa-pen-nib"></i> PEN EVENT</span>';
+                ptsHtml = `<span style="font-weight:900; color:#4338CA; font-size:1.05rem;">+${b.totalPts} PTS</span>`;
+                rowBg = '#EEF2FF';
+            } else if (isStarEvent) {
+                tag = '<span class="badge" style="background:#FEF3C7; color:#D97706; font-size:0.65rem; margin-left:6px; font-weight:700;">STAR EVENT (0 PTS IN PEN)</span>';
+                ptsHtml = `<span style="color:#94A3B8; text-decoration:line-through;">${b.totalPts}</span> <span style="font-weight:700; color:#64748B;">(0 PTS)</span>`;
+                rowBg = '#F8FAFC';
+            } else {
+                tag = '<span class="badge" style="background:#F1F5F9; color:#64748B; font-size:0.65rem; margin-left:6px; font-weight:700;">STANDARD EVENT (0 PTS IN PEN)</span>';
+                ptsHtml = `<span style="color:#94A3B8; text-decoration:line-through;">${b.totalPts}</span> <span style="font-weight:700; color:#64748B;">(0 PTS)</span>`;
+                rowBg = '#F8FAFC';
+            }
+        } else {
+            // Context: Individual Points Ledger ("All Points")
+            if (isExcludedEvent) {
+                tag = '<span class="badge" style="background:#FEE2E2; color:#DC2626; font-size:0.65rem; margin-left:6px; font-weight:800;">DEDUCTED (CATEGORY LIMIT)</span>';
+                ptsHtml = `<span style="color:#DC2626; text-decoration:line-through;">-${b.totalPts}</span>`;
+                rowBg = '#FFF5F5';
+            } else if (b.isGeneral) {
+                tag = '<span class="badge" style="background:#F1F5F9; color:#64748B; font-size:0.65rem; margin-left:6px; font-weight:700;">GENERAL EVENT (EXCLUDED FROM LEDGER)</span>';
+                ptsHtml = `<span style="color:#94A3B8; text-decoration:line-through;">${b.totalPts}</span> <span style="font-weight:700; color:#64748B;">(0 PTS)</span>`;
+                rowBg = '#F8FAFC';
+            } else if (isStarEvent) {
+                tag = '<span class="badge" style="background:#FEF3C7; color:#D97706; font-size:0.65rem; margin-left:6px; font-weight:800;">⭐ STAR FEST</span>';
+                ptsHtml = `<span style="font-weight:800; color:var(--primary);">${b.totalPts}</span>`;
+            } else if (isPenEvent) {
+                tag = '<span class="badge" style="background:#EEF2FF; color:#4338CA; font-size:0.65rem; margin-left:6px; font-weight:800;">🖋️ PEN FEST</span>';
+                ptsHtml = `<span style="font-weight:800; color:var(--primary);">${b.totalPts}</span>`;
+            } else {
+                tag = '<span class="badge" style="background:#F1F5F9; color:#475569; font-size:0.65rem; margin-left:6px; font-weight:700;">STANDARD EVENT</span>';
+                ptsHtml = `<span style="font-weight:800; color:var(--primary);">${b.totalPts}</span>`;
+            }
         }
 
-        let ptsHtml = '';
-        if (isExcludedEvent) {
-            ptsHtml = `<span style="color:#DC2626; text-decoration:line-through;">-${b.totalPts}</span>`;
-        } else if (b.isGeneral) {
-            ptsHtml = `<span style="color:#94A3B8; text-decoration:line-through;">${b.totalPts}</span> <span style="font-weight:700; color:#64748B;">(0 PTS)</span>`;
-        } else {
-            ptsHtml = `<span style="font-weight:800; color:var(--primary);">${b.totalPts}</span>`;
-        }
+        const isDimmed = (isStarView && !isStarEvent) || (isPenView && !isPenEvent) || isExcludedEvent || b.isGeneral;
 
         return `
-        <tr style="${isExcludedEvent ? 'background:#FFF5F5;' : (b.isGeneral ? 'background:#F8FAFC;' : '')}">
+        <tr style="${rowBg ? 'background:' + rowBg + ';' : ''}">
             <td style="font-weight: 600;">
-                <span style="${(isExcludedEvent || b.isGeneral) ? 'color: #64748B;' : ''}">${b.compName}</span>
+                <span style="${isDimmed ? 'color: #64748B;' : 'color: var(--text-main);'}">${b.compName}</span>
                 ${tag}
             </td>
             <td><span class="badge" style="background:var(--bg-main);">${b.compCat}</span></td>
-            <td style="text-align: right; ${(isExcludedEvent || b.isGeneral) ? 'text-decoration: line-through; color: #94A3B8;' : ''}">${b.mark} / ${b.maxMark}</td>
+            <td style="text-align: right; ${isDimmed ? 'text-decoration: line-through; color: #94A3B8;' : ''}">${b.mark} / ${b.maxMark}</td>
             <td style="text-align: right;">${ptsHtml}</td>
         </tr>
         `;
    }).join('') : `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem;">No evaluated programs yet.</td></tr>`;
 
-    document.getElementById('listModalTitle').innerText = 'Points Breakdown Ledger';
+    document.getElementById('listModalTitle').innerText = modalTitle;
     
     // Fix: Wrapped the header div inside a valid table row/cell structure
     document.getElementById('listModalTable').innerHTML = `
@@ -10669,16 +10757,12 @@ function viewParticipantPointDetails(pId) {
                             <div>
                                 <div style="font-size: 1.25rem; font-weight: 800; line-height: 1.2;">${p.name}</div>
                                 <div style="font-family: monospace; color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">${p.unique_id} | ${(p.teams?.name || 'INDEPENDENT').toUpperCase()} &bull; ${p.categories?.name || 'GENERAL'}</div>
+                                ${modalSubtitle ? `<div style="font-size: 0.8rem; color: ${totalColor}; font-weight: 600; margin-top: 0.35rem;"><i class="fa-solid fa-circle-info"></i> ${modalSubtitle}</div>` : ''}
                             </div>
-                            ${p.isExcluded ? `
-                                <span class="badge" style="background:#FEE2E2; color:#DC2626; border:1px solid #FCA5A5; font-size:0.8rem; font-weight:800; padding:4px 10px;">
-                                    <i class="fa-solid fa-user-slash"></i> EXCLUDED FROM POINTS LEDGER
-                                </span>
-                            ` : (p.isViolator ? `
-                                <span class="badge" style="background:#FEF3C7; color:#B45309; border:1px solid #FCD34D; font-size:0.8rem; font-weight:800; padding:4px 10px;">
-                                    <i class="fa-solid fa-triangle-exclamation"></i> OVER CATEGORY LIMIT
-                                </span>
-                            ` : '')}
+                            <div style="text-align: right;">
+                                <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Award Standing</div>
+                                <div style="font-size: 1.35rem; font-weight: 900; color: ${totalColor};">${totalScore} PTS</div>
+                            </div>
                         </div>
                         ${p.isExcluded ? `
                             <div style="margin-top: 10px; background: #FEF2F2; border: 1px solid #FECACA; padding: 8px 12px; border-radius: 6px; font-size: 0.8rem; color: #991B1B;">
@@ -10696,8 +10780,8 @@ function viewParticipantPointDetails(pId) {
             </tr>
             ${trs}
             <tr style="border-top: 2px solid var(--border); background: #f8fafc;">
-                <td colspan="3" style="padding: 1rem; text-align: right; font-weight: 800; font-size: 0.9rem;">TOTAL POINTS:</td>
-                <td style="padding: 1rem; text-align: right; font-weight: 900; color: var(--primary); font-size: 1.15rem;">${p.totalPoints}</td>
+                <td colspan="3" style="padding: 1rem; text-align: right; font-weight: 800; font-size: 0.95rem;">${totalLabel}</td>
+                <td style="padding: 1rem; text-align: right; font-weight: 900; color: ${totalColor}; font-size: 1.25rem;">${totalScore} PTS</td>
             </tr>
         </tbody>
     `;
