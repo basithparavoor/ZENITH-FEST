@@ -1,7 +1,7 @@
 /**
  * ============================================================================
- * FESTOS ULTRA-PREMIUM CUSTOM DATE & TIME PICKER CONTROLLER
- * Faithful recreation of Material Emerald Calendar & Radial Clock Pickers
+ * FESTOS ULTRA-PREMIUM CUSTOM PICKERS & SELECT CONTROLLER
+ * Faithful recreation of Material Emerald Calendar, Time Picker & Custom Dropdowns
  * ============================================================================
  */
 
@@ -13,17 +13,24 @@
         'July', 'August', 'September', 'October', 'November', 'December'
     ];
 
-    const DAYS_HEADER = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const MONTHS_SHORT = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
 
-    // State
+    const DAYS_HEADER = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+    // State for Date Picker
     const DP_STATE = {
         activeInput: null,
         currentYear: new Date().getFullYear(),
         currentMonth: new Date().getMonth(), // 0 - 11
         selectedDate: new Date(),
-        isOpen: false
+        isOpen: false,
+        activePopover: null // 'month' or 'year' or null
     };
 
+    // State for Time Picker
     const TP_STATE = {
         activeInput: null,
         mode: 'hour', // 'hour' or 'minute'
@@ -34,8 +41,16 @@
         isDragging: false
     };
 
+    // State for Custom Select Dropdown
+    const SELECT_STATE = {
+        activeTrigger: null,
+        activeSelect: null,
+        isOpen: false
+    };
+
     // Shared DOM containers
     let backdropEl = null;
+    let floatingSelectMenuEl = null;
 
     function initBackdrop() {
         if (backdropEl) return;
@@ -55,6 +70,44 @@
         document.body.appendChild(backdropEl);
     }
 
+    function initFloatingSelectMenu() {
+        if (floatingSelectMenuEl) return;
+        floatingSelectMenuEl = document.createElement('div');
+        floatingSelectMenuEl.id = 'festosFloatingSelectMenu';
+        floatingSelectMenuEl.setAttribute('role', 'listbox');
+        document.body.appendChild(floatingSelectMenuEl);
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!SELECT_STATE.isOpen) return;
+            if (SELECT_STATE.activeTrigger && SELECT_STATE.activeTrigger.contains(e.target)) return;
+            if (floatingSelectMenuEl.contains(e.target)) return;
+            closeSelectMenu();
+        }, true);
+
+        // Reposition or close on window scroll / resize
+        window.addEventListener('resize', () => {
+            if (SELECT_STATE.isOpen) closeSelectMenu();
+        }, { passive: true });
+
+        window.addEventListener('scroll', (e) => {
+            if (SELECT_STATE.isOpen && !floatingSelectMenuEl.contains(e.target)) {
+                closeSelectMenu();
+            }
+        }, { passive: true, capture: true });
+
+        // Close on Esc key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (SELECT_STATE.isOpen) {
+                    closeSelectMenu();
+                } else if (DP_STATE.isOpen || TP_STATE.isOpen) {
+                    closeAllPickers();
+                }
+            }
+        });
+    }
+
     function closeAllPickers() {
         if (backdropEl) {
             backdropEl.classList.remove('show');
@@ -63,15 +116,17 @@
         TP_STATE.isOpen = false;
         DP_STATE.activeInput = null;
         TP_STATE.activeInput = null;
+        DP_STATE.activePopover = null;
     }
 
     // =========================================================================
-    // 1. DATE PICKER CONTROLLER
+    // 1. DATE PICKER CONTROLLER (Matching Attached Image 1)
     // =========================================================================
     function openDatePicker(inputEl) {
         initBackdrop();
         DP_STATE.activeInput = inputEl;
         DP_STATE.isOpen = true;
+        DP_STATE.activePopover = null;
 
         let initialDate = new Date();
         if (inputEl && inputEl.value) {
@@ -102,13 +157,8 @@
         const selM = DP_STATE.selectedDate.getMonth();
         const selD = DP_STATE.selectedDate.getDate();
 
-        const today = new Date();
-        const todayY = today.getFullYear();
-        const todayM = today.getMonth();
-        const todayD = today.getDate();
-
-        // Compute days
-        const firstDayIdx = new Date(DP_STATE.currentYear, DP_STATE.currentMonth, 1).getDay(); // 0 is Sun
+        // Calculate days grid
+        const firstDayIdx = new Date(DP_STATE.currentYear, DP_STATE.currentMonth, 1).getDay(); // 0 = SUN
         const daysInCurrentMonth = new Date(DP_STATE.currentYear, DP_STATE.currentMonth + 1, 0).getDate();
         const daysInPrevMonth = new Date(DP_STATE.currentYear, DP_STATE.currentMonth, 0).getDate();
 
@@ -117,8 +167,14 @@
         // Previous month fill days
         for (let i = firstDayIdx - 1; i >= 0; i--) {
             const dayNum = daysInPrevMonth - i;
+            const padNum = String(dayNum).padStart(2, '0');
             const isSun = (firstDayIdx - 1 - i) % 7 === 0;
-            daysHtml += `<div class="festos-dp-day-cell other-month ${isSun ? 'sun' : ''}" onclick="window.festosPickOtherMonthDate(-1, ${dayNum})">${dayNum}</div>`;
+            daysHtml += `
+                <div class="festos-dp-day-cell other-month ${isSun ? 'sun' : ''}" 
+                     onclick="window.festosPickOtherMonthDate(-1, ${dayNum})">
+                    ${padNum}
+                </div>
+            `;
         }
 
         // Current month days
@@ -126,66 +182,163 @@
             const dayOfWeek = (firstDayIdx + d - 1) % 7;
             const isSun = dayOfWeek === 0;
             const isSelected = (DP_STATE.currentYear === selY && DP_STATE.currentMonth === selM && d === selD);
-            const isToday = (DP_STATE.currentYear === todayY && DP_STATE.currentMonth === todayM && d === todayD);
+            const padNum = String(d).padStart(2, '0');
 
             let extraClasses = '';
             if (isSelected) extraClasses += ' selected';
             if (isSun) extraClasses += ' sun';
 
-            daysHtml += `<div class="festos-dp-day-cell ${extraClasses}" onclick="window.festosSelectDay(${d})">${d}</div>`;
+            daysHtml += `
+                <div class="festos-dp-day-cell ${extraClasses}" 
+                     onclick="window.festosSelectDay(${d})"
+                     ondblclick="window.festosConfirmDate()">
+                    ${padNum}
+                </div>
+            `;
         }
 
-        // Next month fill days to complete grid
+        // Next month fill days
         const totalRendered = firstDayIdx + daysInCurrentMonth;
         const remaining = (7 - (totalRendered % 7)) % 7;
         for (let n = 1; n <= remaining; n++) {
+            const padNum = String(n).padStart(2, '0');
             const isSun = (totalRendered + n - 1) % 7 === 0;
-            daysHtml += `<div class="festos-dp-day-cell other-month ${isSun ? 'sun' : ''}" onclick="window.festosPickOtherMonthDate(1, ${n})">${n}</div>`;
+            daysHtml += `
+                <div class="festos-dp-day-cell other-month ${isSun ? 'sun' : ''}" 
+                     onclick="window.festosPickOtherMonthDate(1, ${n})">
+                    ${padNum}
+                </div>
+            `;
         }
 
-        const monthsOptions = MONTHS.map((m, idx) => `
-            <option value="${idx}" ${idx === DP_STATE.currentMonth ? 'selected' : ''}>${m}</option>
-        `).join('');
+        // Month popover items
+        const monthPopoverHtml = MONTHS_SHORT.map((mShort, idx) => {
+            const isSel = idx === DP_STATE.currentMonth;
+            return `
+                <div class="festos-dp-popover-item ${isSel ? 'selected' : ''}" onclick="window.festosSetMonth(${idx})">
+                    <span>${mShort}</span>
+                    ${isSel ? '<svg class="festos-select-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
+                </div>
+            `;
+        }).join('');
+
+        // Year popover items (current year - 12 to current year + 12)
+        const yearsList = [];
+        const baseYear = DP_STATE.currentYear;
+        for (let y = baseYear - 12; y <= baseYear + 12; y++) {
+            yearsList.push(y);
+        }
+
+        const yearPopoverHtml = yearsList.map(y => {
+            const isSel = y === DP_STATE.currentYear;
+            return `
+                <div class="festos-dp-popover-item ${isSel ? 'selected' : ''}" onclick="window.festosSetYear(${y})">
+                    <span>${y}</span>
+                    ${isSel ? '<svg class="festos-select-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
+                </div>
+            `;
+        }).join('');
+
+        const selectedDayFormatted = String(DP_STATE.selectedDate.getDate()).padStart(2, '0');
+        const currentMonthName = MONTHS_SHORT[DP_STATE.currentMonth];
 
         host.innerHTML = `
             <div class="festos-datepicker-card">
-                <!-- Header: < Month Year > -->
-                <div class="festos-dp-header">
-                    <button type="button" class="festos-dp-nav-btn" onclick="window.festosChangeMonth(-1)" title="Previous Month">
-                        <i class="fa-solid fa-chevron-left"></i>
-                    </button>
-                    <select class="festos-dp-month-select" onchange="window.festosSetMonth(this.value)">
-                        ${monthsOptions}
-                    </select>
-                    <input type="number" class="festos-dp-year-input" value="${DP_STATE.currentYear}" min="1900" max="2100" onchange="window.festosSetYear(this.value)">
-                    <button type="button" class="festos-dp-nav-btn" onclick="window.festosChangeMonth(1)" title="Next Month">
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </button>
+                <!-- Top Bar: Select Date & Month/Year Pills on Left, Badge on Right -->
+                <div class="festos-dp-top-bar">
+                    <div class="festos-dp-header-left">
+                        <h3 class="festos-dp-title">Select Date</h3>
+                        <div class="festos-dp-selectors">
+                            <!-- Month Pill Button -->
+                            <div class="festos-dp-pill-wrap">
+                                <button type="button" class="festos-dp-pill-btn ${DP_STATE.activePopover === 'month' ? 'active' : ''}" onclick="window.festosToggleMonthPopover(event)">
+                                    <span>${currentMonthName}</span>
+                                    <svg viewBox="0 0 24 24" class="festos-dp-chevron"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                </button>
+                                <div class="festos-dp-popover" id="festosDpMonthPopover" style="display: ${DP_STATE.activePopover === 'month' ? 'block' : 'none'};">
+                                    ${monthPopoverHtml}
+                                </div>
+                            </div>
+
+                            <!-- Year Pill Button -->
+                            <div class="festos-dp-pill-wrap">
+                                <button type="button" class="festos-dp-pill-btn ${DP_STATE.activePopover === 'year' ? 'active' : ''}" onclick="window.festosToggleYearPopover(event)">
+                                    <span>${DP_STATE.currentYear}</span>
+                                    <svg viewBox="0 0 24 24" class="festos-dp-chevron"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                </button>
+                                <div class="festos-dp-popover" id="festosDpYearPopover" style="display: ${DP_STATE.activePopover === 'year' ? 'block' : 'none'};">
+                                    ${yearPopoverHtml}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Side: 3D Glossy Calendar Badge (Image 1) -->
+                    <div class="festos-dp-header-right">
+                        <div class="festos-dp-badge">
+                            <span class="festos-badge-ring ring-left"></span>
+                            <span class="festos-badge-ring ring-right"></span>
+                            <span class="festos-dp-badge-day" id="festosDpBadgeDay">${selectedDayFormatted}</span>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Days of Week Header -->
+                <!-- Weekdays Header Row -->
                 <div class="festos-dp-weekdays">
-                    ${DAYS_HEADER.map((name, i) => `<div class="festos-dp-weekday ${i === 0 ? 'sun' : ''}">${name}</div>`).join('')}
+                    ${DAYS_HEADER.map((dName, i) => `<div class="festos-dp-weekday ${i === 0 ? 'sun' : ''}">${dName}</div>`).join('')}
                 </div>
 
-                <!-- Calendar Grid -->
+                <!-- Days of Month Grid -->
                 <div class="festos-dp-days-grid">
                     ${daysHtml}
                 </div>
 
-                <!-- Today & Clear Footer -->
-                <div class="festos-dp-footer">
-                    <button type="button" class="festos-dp-clear-btn" onclick="window.festosClearDate()" title="Clear date selection">
-                        <i class="fa-solid fa-trash-can"></i> Clear
-                    </button>
-                    <button type="button" class="festos-dp-today-btn" onclick="window.festosPickToday()">Today</button>
-                </div>
+                <!-- Full-Width Green Confirm Button -->
+                <button type="button" class="festos-dp-confirm-btn" onclick="window.festosConfirmDate()">
+                    Confirm
+                </button>
             </div>
         `;
     }
 
-    window.festosChangeMonth = function(delta) {
-        DP_STATE.currentMonth += delta;
+    window.festosToggleMonthPopover = function(e) {
+        if (e) e.stopPropagation();
+        DP_STATE.activePopover = DP_STATE.activePopover === 'month' ? null : 'month';
+        renderDatePicker();
+    };
+
+    window.festosToggleYearPopover = function(e) {
+        if (e) e.stopPropagation();
+        DP_STATE.activePopover = DP_STATE.activePopover === 'year' ? null : 'year';
+        renderDatePicker();
+        if (DP_STATE.activePopover === 'year') {
+            const popover = document.getElementById('festosDpYearPopover');
+            const selectedItem = popover ? popover.querySelector('.selected') : null;
+            if (popover && selectedItem) {
+                popover.scrollTop = selectedItem.offsetTop - 60;
+            }
+        }
+    };
+
+    window.festosSetMonth = function(mIdx) {
+        DP_STATE.currentMonth = parseInt(mIdx, 10);
+        DP_STATE.activePopover = null;
+        renderDatePicker();
+    };
+
+    window.festosSetYear = function(yVal) {
+        DP_STATE.currentYear = parseInt(yVal, 10);
+        DP_STATE.activePopover = null;
+        renderDatePicker();
+    };
+
+    window.festosSelectDay = function(day) {
+        DP_STATE.selectedDate = new Date(DP_STATE.currentYear, DP_STATE.currentMonth, day);
+        renderDatePicker();
+    };
+
+    window.festosPickOtherMonthDate = function(monthDelta, day) {
+        DP_STATE.currentMonth += monthDelta;
         if (DP_STATE.currentMonth < 0) {
             DP_STATE.currentMonth = 11;
             DP_STATE.currentYear -= 1;
@@ -193,51 +346,12 @@
             DP_STATE.currentMonth = 0;
             DP_STATE.currentYear += 1;
         }
+        DP_STATE.selectedDate = new Date(DP_STATE.currentYear, DP_STATE.currentMonth, day);
         renderDatePicker();
     };
 
-    window.festosSetMonth = function(mIndex) {
-        DP_STATE.currentMonth = parseInt(mIndex, 10);
-        renderDatePicker();
-    };
-
-    window.festosSetYear = function(yearVal) {
-        const y = parseInt(yearVal, 10);
-        if (!isNaN(y) && y >= 1900 && y <= 2100) {
-            DP_STATE.currentYear = y;
-            renderDatePicker();
-        }
-    };
-
-    window.festosSelectDay = function(day) {
-        const chosen = new Date(DP_STATE.currentYear, DP_STATE.currentMonth, day);
-        DP_STATE.selectedDate = chosen;
-        applySelectedDate(chosen);
-    };
-
-    window.festosPickOtherMonthDate = function(monthDelta, day) {
-        window.festosChangeMonth(monthDelta);
-        window.festosSelectDay(day);
-    };
-
-    window.festosPickToday = function() {
-        const today = new Date();
-        DP_STATE.currentYear = today.getFullYear();
-        DP_STATE.currentMonth = today.getMonth();
-        DP_STATE.selectedDate = today;
-        applySelectedDate(today);
-    };
-
-    window.festosClearDate = function() {
-        if (DP_STATE.activeInput) {
-            DP_STATE.activeInput.value = '';
-            DP_STATE.activeInput.dispatchEvent(new Event('input', { bubbles: true }));
-            DP_STATE.activeInput.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        closeAllPickers();
-    };
-
-    function applySelectedDate(dateObj) {
+    window.festosConfirmDate = function() {
+        const dateObj = DP_STATE.selectedDate;
         const y = dateObj.getFullYear();
         const m = String(dateObj.getMonth() + 1).padStart(2, '0');
         const d = String(dateObj.getDate()).padStart(2, '0');
@@ -247,13 +361,16 @@
             DP_STATE.activeInput.value = dateStr;
             DP_STATE.activeInput.dispatchEvent(new Event('input', { bubbles: true }));
             DP_STATE.activeInput.dispatchEvent(new Event('change', { bubbles: true }));
+            if (typeof DP_STATE.activeInput.onchange === 'function') {
+                DP_STATE.activeInput.onchange();
+            }
         }
 
         closeAllPickers();
-    }
+    };
 
     // =========================================================================
-    // 2. TIME PICKER CONTROLLER (Radial Clock Matching Image 2)
+    // 2. TIME PICKER CONTROLLER (Matching Emerald Card & Clock Badge)
     // =========================================================================
     function openTimePicker(inputEl) {
         initBackdrop();
@@ -261,7 +378,6 @@
         TP_STATE.isOpen = true;
         TP_STATE.mode = 'hour';
 
-        // Parse initial value if present (e.g., "14:30" or "09:15" or "11:45 PM")
         let h = 11;
         let m = 45;
         let p = 'PM';
@@ -301,21 +417,17 @@
         if (!host) return;
 
         const isHour = TP_STATE.mode === 'hour';
-        const displayHour = String(TP_STATE.hour);
+        const displayHour = String(TP_STATE.hour).padStart(2, '0');
         const displayMin = String(TP_STATE.minute).padStart(2, '0');
 
-        // Clock calculations
-        // Center of 220px wrap is (110, 110)
-        // Radius of circle is 80px
-        const wrapRadius = 110;
-        const numberRadius = 80;
+        const wrapRadius = 105;
+        const numberRadius = 76;
 
         let numbersHtml = '';
         let handAngle = 0;
 
         if (isHour) {
-            // 12 hours: 1 to 12
-            handAngle = (TP_STATE.hour % 12) * 30; // 30 deg per hour
+            handAngle = (TP_STATE.hour % 12) * 30;
             for (let i = 1; i <= 12; i++) {
                 const angleRad = (i * 30 - 90) * (Math.PI / 180);
                 const x = wrapRadius + numberRadius * Math.cos(angleRad);
@@ -330,8 +442,7 @@
                 `;
             }
         } else {
-            // Minutes: 0, 5, 10, ... 55
-            handAngle = TP_STATE.minute * 6; // 6 deg per minute
+            handAngle = TP_STATE.minute * 6;
             for (let i = 0; i < 60; i += 5) {
                 const angleRad = (i * 6 - 90) * (Math.PI / 180);
                 const x = wrapRadius + numberRadius * Math.cos(angleRad);
@@ -347,13 +458,25 @@
             }
         }
 
-        const currentActiveVal = isHour ? displayHour : displayMin;
+        const currentActiveVal = isHour ? String(TP_STATE.hour) : displayMin;
 
         host.innerHTML = `
             <div class="festos-timepicker-card">
-                <div class="festos-tp-header-label">SELECT TIME</div>
+                <!-- Top Bar -->
+                <div class="festos-tp-top-bar">
+                    <div class="festos-dp-header-left">
+                        <h3 class="festos-dp-title">Select Time</h3>
+                        <span style="font-size: 0.85rem; font-weight: 600; color: #64748b;">Set hour, minute & period</span>
+                    </div>
+                    <div class="festos-tp-badge">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </div>
+                </div>
 
-                <!-- Digital Time Row -->
+                <!-- Digital Time Row & AM/PM Switcher -->
                 <div class="festos-tp-display-row">
                     <div class="festos-tp-digits-box">
                         <button type="button" class="festos-tp-digit-btn ${isHour ? 'active' : ''}" onclick="window.festosSetTimeMode('hour')">
@@ -380,16 +503,10 @@
                     ${numbersHtml}
                 </div>
 
-                <!-- Actions: Clear on left, Cancel & OK on right -->
-                <div class="festos-tp-footer">
-                    <button type="button" class="festos-tp-action-btn festos-tp-clear-btn" onclick="window.festosClearTime()" title="Clear time selection">
-                        <i class="fa-solid fa-trash-can"></i> CLEAR
-                    </button>
-                    <div class="festos-tp-right-actions">
-                        <button type="button" class="festos-tp-action-btn" onclick="window.festosCancelTime()">CANCEL</button>
-                        <button type="button" class="festos-tp-action-btn" onclick="window.festosConfirmTime()">OK</button>
-                    </div>
-                </div>
+                <!-- Full-Width Green Confirm Button -->
+                <button type="button" class="festos-dp-confirm-btn" onclick="window.festosConfirmTime()">
+                    Confirm
+                </button>
             </div>
         `;
     }
@@ -406,7 +523,6 @@
 
     window.festosSelectClockHour = function(h) {
         TP_STATE.hour = h;
-        // Auto-switch to minutes mode for seamless UX
         setTimeout(() => {
             TP_STATE.mode = 'minute';
             renderTimePicker();
@@ -419,7 +535,6 @@
         renderTimePicker();
     };
 
-    // Interactive Dragging on Clock Dial
     window.festosStartClockDrag = function(e) {
         TP_STATE.isDragging = true;
         festosUpdateClockByCoords(e);
@@ -465,7 +580,6 @@
         const deltaX = clientX - centerX;
         const deltaY = clientY - centerY;
 
-        // Angle in radians from 12 o'clock
         let angle = Math.atan2(deltaY, deltaX) + Math.PI / 2;
         if (angle < 0) angle += 2 * Math.PI;
 
@@ -484,19 +598,6 @@
         renderTimePicker();
     }
 
-    window.festosClearTime = function() {
-        if (TP_STATE.activeInput) {
-            TP_STATE.activeInput.value = '';
-            TP_STATE.activeInput.dispatchEvent(new Event('input', { bubbles: true }));
-            TP_STATE.activeInput.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        closeAllPickers();
-    };
-
-    window.festosCancelTime = function() {
-        closeAllPickers();
-    };
-
     window.festosConfirmTime = function() {
         let hour24 = TP_STATE.hour;
         if (TP_STATE.period === 'PM' && hour24 < 12) {
@@ -513,13 +614,280 @@
             TP_STATE.activeInput.value = time24Str;
             TP_STATE.activeInput.dispatchEvent(new Event('input', { bubbles: true }));
             TP_STATE.activeInput.dispatchEvent(new Event('change', { bubbles: true }));
+            if (typeof TP_STATE.activeInput.onchange === 'function') {
+                TP_STATE.activeInput.onchange();
+            }
         }
 
         closeAllPickers();
     };
 
     // =========================================================================
-    // 3. UNIVERSAL BINDING ENGINE
+    // 3. CUSTOM DROPDOWN SYSTEM (Matching Attached Image 2)
+    // =========================================================================
+    function enhanceAllSelects(root = document) {
+        initFloatingSelectMenu();
+
+        const selects = root.querySelectorAll('select:not(.no-custom-select):not([multiple])');
+        selects.forEach(selectEl => {
+            if (selectEl.dataset.festosEnhanced === 'true') return;
+            enhanceSingleSelect(selectEl);
+        });
+    }
+
+    function enhanceSingleSelect(selectEl) {
+        if (!selectEl || selectEl.dataset.festosEnhanced === 'true') return;
+        selectEl.dataset.festosEnhanced = 'true';
+
+        // Create custom trigger element
+        const trigger = document.createElement('div');
+        trigger.className = 'festos-custom-select-trigger';
+        trigger.setAttribute('tabindex', '0');
+        trigger.setAttribute('role', 'combobox');
+        trigger.setAttribute('aria-haspopup', 'listbox');
+        trigger.setAttribute('aria-expanded', 'false');
+
+        // Copy pertinent styling / sizing classes if present
+        if (selectEl.className) {
+            const extraClasses = selectEl.className.split(/\s+/).filter(c => c && c !== 'no-custom-select');
+            extraClasses.forEach(c => trigger.classList.add(`festos-from-${c}`));
+        }
+
+        // Apply width and display style from select
+        if (selectEl.style.width) {
+            trigger.style.width = selectEl.style.width;
+        }
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'festos-select-text';
+        trigger.appendChild(textSpan);
+
+        const chevronSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        chevronSvg.setAttribute('viewBox', '0 0 24 24');
+        chevronSvg.setAttribute('class', 'festos-select-chevron');
+        chevronSvg.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
+        trigger.appendChild(chevronSvg);
+
+        // Update trigger text function
+        function updateTriggerText() {
+            const selectedOpt = selectEl.options[selectEl.selectedIndex];
+            if (selectedOpt) {
+                textSpan.textContent = selectedOpt.textContent || selectedOpt.text;
+                if (!selectedOpt.value && selectedOpt.textContent.startsWith('—')) {
+                    textSpan.classList.add('placeholder');
+                } else {
+                    textSpan.classList.remove('placeholder');
+                }
+            } else {
+                textSpan.textContent = selectEl.placeholder || 'Select...';
+                textSpan.classList.add('placeholder');
+            }
+            if (selectEl.disabled) {
+                trigger.classList.add('disabled');
+            } else {
+                trigger.classList.remove('disabled');
+            }
+        }
+
+        // Attach hook for descriptor
+        selectEl._festosUpdateTrigger = updateTriggerText;
+        selectEl._festosTriggerEl = trigger;
+
+        updateTriggerText();
+
+        // Insert trigger immediately after select
+        selectEl.parentNode.insertBefore(trigger, selectEl.nextSibling);
+
+        // Click on trigger opens/toggles floating menu
+        trigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (selectEl.disabled) return;
+            toggleSelectMenu(trigger, selectEl);
+        });
+
+        // Keyboard navigation on trigger
+        trigger.addEventListener('keydown', (e) => {
+            if (selectEl.disabled) return;
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                toggleSelectMenu(trigger, selectEl);
+            }
+        });
+
+        // Sync on native changes
+        selectEl.addEventListener('change', updateTriggerText);
+        selectEl.addEventListener('input', updateTriggerText);
+
+        // Observe DOM mutations on select (options added / removed dynamically)
+        const observer = new MutationObserver(() => {
+            updateTriggerText();
+            if (SELECT_STATE.isOpen && SELECT_STATE.activeSelect === selectEl) {
+                populateFloatingMenu(selectEl);
+            }
+        });
+
+        observer.observe(selectEl, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['disabled', 'selected']
+        });
+    }
+
+    function toggleSelectMenu(triggerEl, selectEl) {
+        if (SELECT_STATE.isOpen && SELECT_STATE.activeSelect === selectEl) {
+            closeSelectMenu();
+        } else {
+            openSelectMenu(triggerEl, selectEl);
+        }
+    }
+
+    function openSelectMenu(triggerEl, selectEl) {
+        initFloatingSelectMenu();
+        closeSelectMenu(); // Close any other open dropdown
+
+        SELECT_STATE.activeTrigger = triggerEl;
+        SELECT_STATE.activeSelect = selectEl;
+        SELECT_STATE.isOpen = true;
+
+        triggerEl.classList.add('open');
+        triggerEl.setAttribute('aria-expanded', 'true');
+
+        populateFloatingMenu(selectEl);
+        positionFloatingMenu(triggerEl);
+
+        floatingSelectMenuEl.classList.add('show');
+    }
+
+    function closeSelectMenu() {
+        if (floatingSelectMenuEl) {
+            floatingSelectMenuEl.classList.remove('show');
+        }
+        if (SELECT_STATE.activeTrigger) {
+            SELECT_STATE.activeTrigger.classList.remove('open');
+            SELECT_STATE.activeTrigger.setAttribute('aria-expanded', 'false');
+        }
+        SELECT_STATE.activeTrigger = null;
+        SELECT_STATE.activeSelect = null;
+        SELECT_STATE.isOpen = false;
+    }
+
+    function populateFloatingMenu(selectEl) {
+        if (!floatingSelectMenuEl) return;
+        floatingSelectMenuEl.innerHTML = '';
+
+        const selectedIndex = selectEl.selectedIndex;
+
+        Array.from(selectEl.children).forEach(child => {
+            if (child.tagName === 'OPTGROUP') {
+                const groupHeader = document.createElement('div');
+                groupHeader.className = 'festos-select-optgroup';
+                groupHeader.textContent = child.label || child.getAttribute('label') || '';
+                floatingSelectMenuEl.appendChild(groupHeader);
+
+                Array.from(child.children).forEach(opt => {
+                    renderOptionItem(opt, selectEl, selectedIndex);
+                });
+            } else if (child.tagName === 'OPTION') {
+                renderOptionItem(child, selectEl, selectedIndex);
+            }
+        });
+    }
+
+    function renderOptionItem(optionEl, selectEl, selectedIndex) {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'festos-select-option';
+        itemEl.setAttribute('role', 'option');
+
+        const isSelected = (optionEl.index === selectedIndex);
+        if (isSelected) {
+            itemEl.classList.add('selected');
+        }
+
+        const labelSpan = document.createElement('span');
+        labelSpan.textContent = optionEl.textContent || optionEl.text;
+        itemEl.appendChild(labelSpan);
+
+        if (isSelected) {
+            const checkSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            checkSvg.setAttribute('viewBox', '0 0 24 24');
+            checkSvg.setAttribute('class', 'festos-select-check');
+            checkSvg.innerHTML = '<polyline points="20 6 9 17 4 12"></polyline>';
+            itemEl.appendChild(checkSvg);
+        }
+
+        itemEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (optionEl.disabled) return;
+
+            selectEl.selectedIndex = optionEl.index;
+            selectEl.value = optionEl.value;
+
+            // Dispatch events
+            selectEl.dispatchEvent(new Event('input', { bubbles: true }));
+            selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+
+            if (typeof selectEl.onchange === 'function') {
+                selectEl.onchange();
+            }
+
+            if (selectEl._festosUpdateTrigger) {
+                selectEl._festosUpdateTrigger();
+            }
+
+            closeSelectMenu();
+        });
+
+        floatingSelectMenuEl.appendChild(itemEl);
+    }
+
+    function positionFloatingMenu(triggerEl) {
+        if (!floatingSelectMenuEl || !triggerEl) return;
+
+        const rect = triggerEl.getBoundingClientRect();
+        const menuWidth = Math.max(rect.width, 180);
+
+        floatingSelectMenuEl.style.width = `${menuWidth}px`;
+        floatingSelectMenuEl.style.left = `${rect.left + window.scrollX}px`;
+
+        // Calculate if menu fits below or should flip above
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const estimatedHeight = 240;
+
+        if (spaceBelow < estimatedHeight && rect.top > estimatedHeight) {
+            // Place above trigger
+            floatingSelectMenuEl.style.top = 'auto';
+            floatingSelectMenuEl.style.bottom = `${window.innerHeight - rect.top - window.scrollY + 6}px`;
+        } else {
+            // Place below trigger
+            floatingSelectMenuEl.style.bottom = 'auto';
+            floatingSelectMenuEl.style.top = `${rect.bottom + window.scrollY + 6}px`;
+        }
+    }
+
+    // Intercept property descriptor of HTMLSelectElement.prototype.value so programmatic updates sync automatically
+    try {
+        const origSelectDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+        if (origSelectDescriptor && origSelectDescriptor.set) {
+            Object.defineProperty(HTMLSelectElement.prototype, 'value', {
+                set: function(val) {
+                    origSelectDescriptor.set.call(this, val);
+                    if (this._festosUpdateTrigger) {
+                        this._festosUpdateTrigger();
+                    }
+                },
+                get: function() {
+                    return origSelectDescriptor.get.call(this);
+                }
+            });
+        }
+    } catch (e) {
+        // Fallback for environments with strict descriptor policies
+    }
+
+    // =========================================================================
+    // 4. UNIVERSAL BINDING & AUTO-ENHANCEMENT ENGINE
     // =========================================================================
     function bindInputsToCustomPickers() {
         // Intercept clicks on all date and time inputs across document
@@ -541,18 +909,39 @@
             }
         }, true);
 
-        // Also prevent mobile native keyboard or native pickers from overriding
+        // Prevent native mobile keyboard from popping up on custom pickers
         document.addEventListener('focusin', (e) => {
             if (e.target.matches('input[type="date"], input[type="time"]')) {
-                e.target.blur(); // Dismiss native mobile wheel picker
+                e.target.blur();
             }
         }, true);
+
+        // Run initial select enhancement
+        enhanceAllSelects(document.body);
+
+        // Continuously enhance dynamically injected selects (e.g., modals, ajax tables, tab switches)
+        const bodyObserver = new MutationObserver((mutations) => {
+            let shouldCheck = false;
+            for (const m of mutations) {
+                if (m.addedNodes.length > 0) {
+                    shouldCheck = true;
+                    break;
+                }
+            }
+            if (shouldCheck) {
+                enhanceAllSelects(document.body);
+            }
+        });
+
+        bodyObserver.observe(document.body, { childList: true, subtree: true });
     }
 
-    // Expose API
+    // Expose Global API
     window.festosOpenDatePicker = openDatePicker;
     window.festosOpenTimePicker = openTimePicker;
     window.festosClosePickers = closeAllPickers;
+    window.festosEnhanceSelects = enhanceAllSelects;
+    window.festosEnhanceSingleSelect = enhanceSingleSelect;
 
     // Boot hook
     if (document.readyState === 'loading') {

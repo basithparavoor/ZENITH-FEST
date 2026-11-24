@@ -1,9 +1,296 @@
 /* ==========================================================================
-   FESTOS ULTRA-PREMIUM CUSTOM DATE & TIME PICKER SYSTEM
-   Crafted to pixel-perfection matching Material Emerald Calendar & Radial Clock
+   FESTOS ULTRA-PREMIUM CUSTOM PICKERS & SELECT SYSTEM
+   Pixel-perfect implementation matching Emerald Calendar, Time Picker & Custom Dropdowns
    ========================================================================== */
 
-/* Modal Backdrop */
+:root {
+    --festos-primary: #10b981;
+    --festos-primary-dark: #059669;
+    --festos-primary-deep: #047857;
+    --festos-primary-light: #ecfdf5;
+    --festos-primary-border: #a7f3d0;
+    --festos-text-dark: #0f172a;
+    --festos-text-sub: #334155;
+    --festos-text-muted: #64748b;
+    --festos-text-light: #cbd5e1;
+    --festos-bg-card: #ffffff;
+    --festos-radius-modal: 28px;
+    --festos-radius-pill: 9999px;
+    --festos-radius-badge: 18px;
+    --festos-radius-menu: 18px;
+}
+
+/* ==========================================================================
+   1. UNIVERSAL NATIVE FORM CONTROLS STYLING (MATCHING THE EMERALD PILL THEME)
+   ========================================================================== */
+
+/* Universal Select Fallback / Base Styling */
+select:not(.no-custom-select) {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: #ffffff !important;
+    border: 1.5px solid var(--festos-primary) !important;
+    border-radius: var(--festos-radius-pill) !important;
+    padding: 0.65rem 2.4rem 0.65rem 1.25rem !important;
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
+    color: var(--festos-text-dark) !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 1.15rem center !important;
+    background-size: 15px 15px !important;
+    outline: none !important;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    cursor: pointer !important;
+}
+
+select:not(.no-custom-select):hover {
+    border-color: var(--festos-primary-dark) !important;
+}
+
+select:not(.no-custom-select):focus {
+    border-color: var(--festos-primary-dark) !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.22) !important;
+}
+
+/* Universal Date & Time Inputs */
+input[type="date"],
+input[type="time"],
+input.custom-datepicker-trigger,
+input.custom-timepicker-trigger {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: #ffffff !important;
+    border: 1.5px solid var(--festos-primary) !important;
+    border-radius: var(--festos-radius-pill) !important;
+    padding: 0.65rem 1.25rem !important;
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
+    color: var(--festos-text-dark) !important;
+    outline: none !important;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    cursor: pointer !important;
+}
+
+input[type="date"]:hover,
+input[type="time"]:hover,
+input.custom-datepicker-trigger:hover,
+input.custom-timepicker-trigger:hover {
+    border-color: var(--festos-primary-dark) !important;
+}
+
+input[type="date"]:focus,
+input[type="time"]:focus,
+input.custom-datepicker-trigger:focus,
+input.custom-timepicker-trigger:focus {
+    border-color: var(--festos-primary-dark) !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.22) !important;
+}
+
+/* Hide native browser picker indicator icons to keep custom triggers clean */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+    opacity: 0.6;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    filter: invert(48%) sepia(85%) saturate(450%) hue-rotate(115deg) brightness(95%) contrast(88%);
+}
+
+/* ==========================================================================
+   2. CUSTOM DROPDOWN (MATCHING ATTACHED IMAGE 2)
+   ========================================================================== */
+
+/* Hidden original select when enhanced */
+select[data-festos-enhanced="true"] {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Wrapper */
+.festos-custom-select-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    vertical-align: middle;
+}
+
+/* Trigger Button */
+.festos-custom-select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #ffffff;
+    border: 1.5px solid var(--festos-primary);
+    border-radius: var(--festos-radius-pill);
+    padding: 0.65rem 1.25rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--festos-text-dark);
+    cursor: pointer;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 44px;
+    outline: none;
+}
+
+.festos-custom-select-trigger:hover {
+    border-color: var(--festos-primary-dark);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12);
+}
+
+.festos-custom-select-trigger.open,
+.festos-custom-select-trigger:focus-visible {
+    border-color: var(--festos-primary-dark);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.22);
+}
+
+.festos-custom-select-trigger.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.festos-select-text {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+}
+
+.festos-select-text.placeholder {
+    color: var(--festos-text-muted);
+}
+
+/* Chevron */
+.festos-select-chevron {
+    width: 16px;
+    height: 16px;
+    stroke: var(--festos-primary);
+    stroke-width: 2.5;
+    fill: none;
+    flex-shrink: 0;
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.festos-custom-select-trigger.open .festos-select-chevron {
+    transform: rotate(180deg);
+}
+
+/* Floating Dropdown Menu Card (Image 2) */
+#festosFloatingSelectMenu {
+    position: absolute;
+    z-index: 1000000;
+    background: #ffffff;
+    border-radius: var(--festos-radius-menu);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.09), 0 4px 12px rgba(0, 0, 0, 0.04);
+    padding: 7px;
+    max-height: 280px;
+    overflow-y: auto;
+    box-sizing: border-box;
+    display: none;
+    animation: festosMenuIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: inherit;
+}
+
+#festosFloatingSelectMenu.show {
+    display: block;
+}
+
+@keyframes festosMenuIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Custom Scrollbar for Menu */
+#festosFloatingSelectMenu::-webkit-scrollbar {
+    width: 6px;
+}
+#festosFloatingSelectMenu::-webkit-scrollbar-track {
+    background: transparent;
+}
+#festosFloatingSelectMenu::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+}
+#festosFloatingSelectMenu::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Dropdown Option Items */
+.festos-select-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #1e293b;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+    user-select: none;
+}
+
+.festos-select-option:hover {
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+/* Selected Option Highlight (Soft Green + Green Text + Checkmark) */
+.festos-select-option.selected {
+    background: var(--festos-primary-light) !important;
+    color: var(--festos-primary-dark) !important;
+    font-weight: 700 !important;
+}
+
+/* Checkmark Icon */
+.festos-select-check {
+    width: 18px;
+    height: 18px;
+    stroke: var(--festos-primary-dark);
+    stroke-width: 2.5;
+    fill: none;
+    flex-shrink: 0;
+}
+
+/* Optgroup Header */
+.festos-select-optgroup {
+    padding: 8px 14px 4px 14px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--festos-text-muted);
+}
+
+/* ==========================================================================
+   3. MODAL BACKDROP (FOR DATE & TIME PICKERS)
+   ========================================================================== */
 .festos-picker-backdrop {
     position: fixed;
     top: 0;
@@ -19,8 +306,10 @@
     justify-content: center;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s;
+    transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.24s;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    padding: 16px;
+    box-sizing: border-box;
 }
 
 .festos-picker-backdrop.show {
@@ -28,16 +317,17 @@
     visibility: visible;
 }
 
-/* Base Modal Container */
 .festos-picker-modal {
-    background: #ffffff;
-    border-radius: 24px;
-    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    background: var(--festos-bg-card);
+    border-radius: var(--festos-radius-modal);
+    box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.05);
     transform: scale(0.92) translateY(12px);
     transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
-    overflow: hidden;
+    overflow: visible;
     user-select: none;
     -webkit-user-select: none;
+    position: relative;
+    max-width: 95vw;
 }
 
 .festos-picker-backdrop.show .festos-picker-modal {
@@ -45,356 +335,424 @@
 }
 
 /* ==========================================================================
-   1. DATE PICKER (Calendar Matching Image 1)
+   4. DATE PICKER (MATCHING ATTACHED IMAGE 1)
    ========================================================================== */
 .festos-datepicker-card {
-    width: 340px;
-    padding: 1.5rem 1.4rem 1.25rem 1.4rem;
+    width: 350px;
+    padding: 24px 22px 22px 22px;
     box-sizing: border-box;
+    background: #ffffff;
+    border-radius: var(--festos-radius-modal);
 }
 
-/* Calendar Header */
-.festos-dp-header {
+/* Top Header Bar */
+.festos-dp-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 22px;
+    gap: 12px;
+}
+
+.festos-dp-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+}
+
+.festos-dp-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--festos-text-dark);
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin: 0;
+}
+
+/* Month and Year Pill Dropdowns */
+.festos-dp-selectors {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+}
+
+.festos-dp-pill-wrap {
+    position: relative;
+}
+
+.festos-dp-pill-btn {
+    background: #ffffff;
+    border: 1.5px solid var(--festos-primary-border);
+    border-radius: var(--festos-radius-pill);
+    padding: 5px 14px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--festos-primary-dark);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    outline: none;
+}
+
+.festos-dp-pill-btn:hover {
+    border-color: var(--festos-primary);
+    background: var(--festos-primary-light);
+    transform: translateY(-1px);
+}
+
+.festos-dp-pill-btn.active {
+    border-color: var(--festos-primary);
+    background: var(--festos-primary-light);
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.festos-dp-chevron {
+    width: 14px;
+    height: 14px;
+    stroke: var(--festos-primary-dark);
+    stroke-width: 2.5;
+    fill: none;
+    transition: transform 0.2s;
+}
+
+.festos-dp-pill-btn.active .festos-dp-chevron {
+    transform: rotate(180deg);
+}
+
+/* Popover for Month / Year Selection */
+.festos-dp-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.12);
+    padding: 6px;
+    z-index: 100;
+    max-height: 220px;
+    overflow-y: auto;
+    min-width: 120px;
+    animation: festosMenuIn 0.15s ease;
+}
+
+.festos-dp-popover-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 1.4rem;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--festos-text-sub);
+    cursor: pointer;
+    transition: background 0.12s;
 }
 
-.festos-dp-nav-btn {
-    width: 44px;
-    height: 38px;
-    border-radius: 10px;
-    background: #16a34a; /* Emerald green matching Image 1 */
-    color: #ffffff;
-    border: none;
-    cursor: pointer;
+.festos-dp-popover-item:hover {
+    background: #f8fafc;
+    color: var(--festos-text-dark);
+}
+
+.festos-dp-popover-item.selected {
+    background: var(--festos-primary-light) !important;
+    color: var(--festos-primary-dark) !important;
+    font-weight: 700 !important;
+}
+
+/* Right Side: 3D Glossy Calendar Badge with Binder Rings (Image 1) */
+.festos-dp-badge {
+    width: 58px;
+    height: 58px;
+    border-radius: var(--festos-radius-badge);
+    background: linear-gradient(135deg, var(--festos-primary) 0%, var(--festos-primary-dark) 100%);
+    box-shadow: 0 10px 22px rgba(16, 185, 129, 0.38);
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1rem;
-    font-weight: 700;
-    transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
-    box-shadow: 0 4px 10px rgba(22, 163, 74, 0.28);
+    flex-shrink: 0;
 }
 
-.festos-dp-nav-btn:hover {
-    background: #15803d;
-    transform: translateY(-1px);
-    box-shadow: 0 6px 14px rgba(22, 163, 74, 0.38);
-}
-
-.festos-dp-nav-btn:active {
-    transform: scale(0.96);
-}
-
-.festos-dp-month-select {
-    flex: 1.3;
-    height: 38px;
-    border-radius: 10px;
-    border: 1.5px solid #e2e8f0;
+.festos-badge-ring {
+    position: absolute;
+    top: -5px;
+    width: 6px;
+    height: 11px;
     background: #ffffff;
-    padding: 0 12px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: #1e293b;
-    cursor: pointer;
-    text-align: center;
-    outline: none;
-    transition: border-color 0.18s, box-shadow 0.18s;
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
-.festos-dp-month-select:focus {
-    border-color: #16a34a;
-    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+.festos-badge-ring.ring-left {
+    left: 14px;
 }
 
-.festos-dp-year-input {
-    flex: 1.1;
-    height: 38px;
-    border-radius: 10px;
-    border: 1.5px solid #e2e8f0;
-    background: #ffffff;
-    padding: 0 10px;
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #1e293b;
-    text-align: center;
-    outline: none;
-    transition: border-color 0.18s, box-shadow 0.18s;
+.festos-badge-ring.ring-right {
+    right: 14px;
 }
 
-.festos-dp-year-input:focus {
-    border-color: #16a34a;
-    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+.festos-dp-badge-day {
+    font-size: 1.65rem;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1;
+    letter-spacing: -0.5px;
 }
 
-/* Day Names Row */
+/* Weekday Column Headers (SUN in Green, others in Slate) */
 .festos-dp-weekdays {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     text-align: center;
-    margin-bottom: 0.75rem;
+    margin-bottom: 12px;
 }
 
 .festos-dp-weekday {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #64748b;
-    padding: 4px 0;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--festos-text-sub);
+    letter-spacing: 0.04em;
+    padding: 2px 0;
 }
 
 .festos-dp-weekday.sun {
-    color: #f43f5e; /* Soft red for Sunday as in Image 1 */
+    color: var(--festos-primary);
 }
 
-/* Days Grid */
+/* Calendar Days Grid */
 .festos-dp-days-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 7px;
-    margin-bottom: 1.25rem;
+    gap: 6px;
+    row-gap: 8px;
+    margin-bottom: 22px;
 }
 
 .festos-dp-day-cell {
-    aspect-ratio: 1;
+    height: 38px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
-    font-size: 0.92rem;
-    font-weight: 600;
-    color: #1e293b;
-    background: #f8fafc;
-    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--festos-text-dark);
     cursor: pointer;
     transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.festos-dp-day-cell:hover:not(.disabled) {
-    background: #dcfce7;
-    color: #15803d;
-    border-color: #86efac;
-    transform: scale(1.08);
-}
-
-/* Muted / Other Month */
-.festos-dp-day-cell.other-month {
-    color: #cbd5e1;
     background: transparent;
-    border-color: transparent;
+    user-select: none;
 }
 
 .festos-dp-day-cell.sun {
-    color: #f43f5e;
-}
-.festos-dp-day-cell.sun.other-month {
-    color: #fda4af;
+    color: var(--festos-primary);
 }
 
-/* Selected Date Circle (Solid Green) */
+.festos-dp-day-cell:hover:not(.other-month):not(.selected) {
+    background: var(--festos-primary-light);
+    color: var(--festos-primary-dark);
+    transform: scale(1.08);
+}
+
+/* Previous / Next Month Trailing Days (Light Muted) */
+.festos-dp-day-cell.other-month {
+    color: var(--festos-text-light);
+}
+
+.festos-dp-day-cell.other-month.sun {
+    color: #93c5fd40;
+}
+
+/* Active Selected Day (Pill / Circle in Vibrant Green with Glow Shadow) */
 .festos-dp-day-cell.selected {
-    background: #16a34a !important;
+    background: linear-gradient(135deg, var(--festos-primary) 0%, var(--festos-primary-dark) 100%) !important;
     color: #ffffff !important;
     font-weight: 800 !important;
-    border-color: #16a34a !important;
-    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.42);
-    transform: scale(1.05);
+    border-radius: 14px;
+    box-shadow: 0 8px 18px rgba(16, 185, 129, 0.45);
+    transform: scale(1.06);
 }
 
-/* Highlighted / Active Event Days (Soft Emerald Green matching Image 1) */
-.festos-dp-day-cell.highlighted {
-    background: #4ade80;
+/* Full Width Green "Confirm" Pill Button (Image 1) */
+.festos-dp-confirm-btn {
+    width: 100%;
+    height: 48px;
+    border-radius: var(--festos-radius-pill);
+    background: linear-gradient(135deg, var(--festos-primary) 0%, var(--festos-primary-dark) 100%);
     color: #ffffff;
+    font-size: 1rem;
     font-weight: 700;
-    border-color: #22c55e;
-}
-
-/* Today & Clear Footer Buttons */
-.festos-dp-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    padding-top: 0.75rem;
-    border-top: 1px solid #f1f5f9;
-}
-
-.festos-dp-clear-btn {
-    background: transparent;
-    color: #64748b;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 0.5rem 1rem;
-    font-size: 0.88rem;
-    font-weight: 700;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.18s;
-}
-
-.festos-dp-clear-btn:hover {
-    background: #fee2e2;
-    color: #ef4444;
-    border-color: #fca5a5;
-    transform: translateY(-1px);
-}
-
-.festos-dp-today-btn {
-    background: #16a34a;
-    color: #ffffff;
     border: none;
-    border-radius: 12px;
-    padding: 0.55rem 1.6rem;
-    font-size: 0.92rem;
-    font-weight: 700;
     cursor: pointer;
-    flex: 1;
-    text-align: center;
-    transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
-    box-shadow: 0 3px 10px rgba(22, 163, 74, 0.3);
+    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35);
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    outline: none;
 }
 
-.festos-dp-today-btn:hover {
-    background: #15803d;
+.festos-dp-confirm-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 5px 14px rgba(22, 163, 74, 0.4);
+    box-shadow: 0 10px 24px rgba(16, 185, 129, 0.45);
+}
+
+.festos-dp-confirm-btn:active {
+    transform: scale(0.98);
 }
 
 /* ==========================================================================
-   2. TIME PICKER (Radial Clock Matching Image 2)
+   5. TIME PICKER (MATCHING SAME EMERALD CARD & BADGE AESTHETIC)
    ========================================================================== */
 .festos-timepicker-card {
-    width: 320px;
-    background: #edf5ea; /* Soft light sage/mint matching Image 2 */
-    border-radius: 28px;
-    padding: 1.5rem 1.3rem 1.25rem 1.3rem;
+    width: 350px;
+    padding: 24px 22px 22px 22px;
     box-sizing: border-box;
+    background: #ffffff;
+    border-radius: var(--festos-radius-modal);
 }
 
-/* Title */
-.festos-tp-header-label {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: #64748b;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-bottom: 0.85rem;
+/* Top Bar */
+.festos-tp-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    gap: 12px;
 }
 
-/* Digital Time Display Row */
+.festos-tp-badge {
+    width: 58px;
+    height: 58px;
+    border-radius: var(--festos-radius-badge);
+    background: linear-gradient(135deg, var(--festos-primary) 0%, var(--festos-primary-dark) 100%);
+    box-shadow: 0 10px 22px rgba(16, 185, 129, 0.38);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.festos-tp-badge svg {
+    width: 28px;
+    height: 28px;
+    stroke: #ffffff;
+    stroke-width: 2.2;
+    fill: none;
+}
+
+/* Digital Time Row */
 .festos-tp-display-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    margin-bottom: 20px;
     gap: 12px;
-    margin-bottom: 1.4rem;
 }
 
 .festos-tp-digits-box {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .festos-tp-digit-btn {
-    width: 68px;
-    height: 64px;
+    width: 72px;
+    height: 60px;
     border-radius: 16px;
-    background: #f1f5f9;
-    border: 2px solid transparent;
-    color: #1e293b;
-    font-size: 2.1rem;
+    border: 1.5px solid var(--festos-primary-border);
+    background: #ffffff;
+    font-size: 2rem;
     font-weight: 800;
+    color: var(--festos-primary-dark);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.18s ease;
+    outline: none;
 }
 
 .festos-tp-digit-btn.active {
-    background: #86efac; /* Soft green highlight matching Image 2 */
-    color: #064e3b;
-    border-color: #22c55e;
-    box-shadow: 0 4px 14px rgba(34, 197, 94, 0.25);
+    background: var(--festos-primary-light);
+    border-color: var(--festos-primary);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
 }
 
 .festos-tp-colon {
     font-size: 2rem;
     font-weight: 800;
-    color: #0f172a;
-    line-height: 1;
+    color: var(--festos-text-dark);
+    padding: 0 2px;
 }
 
 /* AM / PM Toggle Box */
 .festos-tp-ampm-box {
     display: flex;
     flex-direction: column;
-    background: #e2e8f0;
-    border-radius: 12px;
-    overflow: hidden;
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: #f1f5f9;
+    border-radius: 14px;
+    padding: 4px;
+    gap: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .festos-tp-ampm-btn {
-    padding: 7px 14px;
+    padding: 6px 14px;
     font-size: 0.85rem;
     font-weight: 800;
     border: none;
+    border-radius: 10px;
     background: transparent;
-    color: #64748b;
+    color: var(--festos-text-muted);
     cursor: pointer;
     transition: all 0.15s;
+    outline: none;
 }
 
 .festos-tp-ampm-btn.active {
-    background: #a7f3d0; /* Soft mint matching Image 2 */
-    color: #064e3b;
+    background: var(--festos-primary);
+    color: #ffffff;
+    box-shadow: 0 3px 8px rgba(16, 185, 129, 0.3);
 }
 
-/* Radial Clock Face Container */
+/* Radial Clock Face */
 .festos-tp-clock-wrap {
-    width: 220px;
-    height: 220px;
-    margin: 0 auto 1.25rem auto;
+    width: 210px;
+    height: 210px;
+    margin: 0 auto 20px auto;
     position: relative;
     border-radius: 50%;
-    background: #e3ede0; /* Soft light clock surface */
-    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.06);
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.04);
     user-select: none;
     touch-action: none;
 }
 
-/* Pivot Dot */
 .festos-tp-clock-pivot {
     position: absolute;
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #15803d;
+    background: var(--festos-primary-dark);
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 5;
 }
 
-/* Clock Pointer Hand */
 .festos-tp-clock-hand {
     position: absolute;
     bottom: 50%;
     left: calc(50% - 1.5px);
     width: 3px;
-    height: 80px;
-    background: #15803d;
+    height: 75px;
+    background: var(--festos-primary);
     transform-origin: bottom center;
     border-radius: 2px;
     z-index: 3;
@@ -402,7 +760,6 @@
     transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Selected Knob Badge */
 .festos-tp-hand-knob {
     position: absolute;
     top: -16px;
@@ -410,29 +767,28 @@
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: #15803d;
+    background: var(--festos-primary);
     color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 0.95rem;
     font-weight: 800;
-    box-shadow: 0 3px 8px rgba(21, 128, 61, 0.4);
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4);
     z-index: 6;
 }
 
-/* Clock Numbers */
 .festos-tp-clock-number {
     position: absolute;
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--festos-text-dark);
     transform: translate(-50%, -50%);
     cursor: pointer;
     z-index: 4;
@@ -440,7 +796,8 @@
 }
 
 .festos-tp-clock-number:hover {
-    background: rgba(21, 128, 61, 0.15);
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--festos-primary-dark);
 }
 
 .festos-tp-clock-number.active {
@@ -448,58 +805,15 @@
     font-weight: 800;
 }
 
-/* Action Footer */
-.festos-tp-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    padding-top: 0.6rem;
-}
-
-.festos-tp-right-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.festos-tp-action-btn {
-    background: transparent;
-    border: none;
-    color: #15803d;
-    font-size: 0.92rem;
-    font-weight: 800;
-    cursor: pointer;
-    padding: 6px 12px;
-    border-radius: 8px;
-    letter-spacing: 0.04em;
-    transition: background 0.15s, color 0.15s;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.festos-tp-action-btn:hover {
-    background: rgba(21, 128, 61, 0.12);
-}
-
-.festos-tp-clear-btn {
-    color: #ef4444;
-}
-
-.festos-tp-clear-btn:hover {
-    background: rgba(239, 68, 68, 0.12);
-    color: #dc2626;
-}
-
 /* Responsive adjustment */
 @media (max-width: 480px) {
-    .festos-datepicker-card {
-        width: 320px;
-        padding: 1.25rem 1rem;
-    }
+    .festos-datepicker-card,
     .festos-timepicker-card {
-        width: 300px;
-        padding: 1.25rem 1rem;
+        width: 320px;
+        padding: 20px 16px 18px 16px;
+    }
+    .festos-dp-day-cell {
+        height: 34px;
+        font-size: 0.88rem;
     }
 }
