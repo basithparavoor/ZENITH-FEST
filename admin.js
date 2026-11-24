@@ -12631,14 +12631,14 @@ function updateDisplayRemoteStatusUI() {
     if (pauseBtn) {
         if (displayState.is_paused) {
             pauseBtn.innerHTML = '<i class="fa-solid fa-play" style="margin-right:0.4rem;"></i> Resume';
-            pauseBtn.style.color = '#34D399';
-            pauseBtn.style.borderColor = 'rgba(52, 211, 153, 0.4)';
-            pauseBtn.style.background = 'rgba(52, 211, 153, 0.12)';
+            pauseBtn.style.color = '#059669';
+            pauseBtn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+            pauseBtn.style.background = '#ECFDF5';
         } else {
             pauseBtn.innerHTML = '<i class="fa-solid fa-pause" style="margin-right:0.4rem;"></i> Pause';
-            pauseBtn.style.color = '#FBBF24';
-            pauseBtn.style.borderColor = 'rgba(251, 191, 36, 0.3)';
-            pauseBtn.style.background = 'rgba(251, 191, 36, 0.08)';
+            pauseBtn.style.color = '#D97706';
+            pauseBtn.style.borderColor = 'rgba(245, 158, 11, 0.35)';
+            pauseBtn.style.background = 'rgba(245, 158, 11, 0.08)';
         }
     }
 
@@ -12650,22 +12650,22 @@ function updateDisplayRemoteStatusUI() {
             blackoutBtn.style.background = '#EF4444';
         } else {
             blackoutBtn.innerHTML = '<i class="fa-solid fa-moon" style="margin-right:0.4rem;"></i> Blackout';
-            blackoutBtn.style.color = '#F87171';
-            blackoutBtn.style.borderColor = 'rgba(248, 113, 113, 0.3)';
-            blackoutBtn.style.background = 'rgba(248, 113, 113, 0.08)';
+            blackoutBtn.style.color = '#DC2626';
+            blackoutBtn.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+            blackoutBtn.style.background = 'rgba(239, 68, 68, 0.06)';
         }
     }
 
     if (badge) {
         if (displayState.blackout) {
-            badge.style.background = 'rgba(239, 68, 68, 0.2)';
-            badge.style.color = '#FCA5A5';
-            badge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+            badge.style.background = '#FEF2F2';
+            badge.style.color = '#DC2626';
+            badge.style.borderColor = '#FECACA';
             badge.innerHTML = '<span style="width:8px; height:8px; background:#EF4444; border-radius:50%; box-shadow:0 0 8px #EF4444;"></span><span>STAGE BLACKOUT ACTIVE</span>';
         } else if (displayState.pinned_slide) {
-            badge.style.background = 'rgba(59, 130, 246, 0.2)';
-            badge.style.color = '#93C5FD';
-            badge.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+            badge.style.background = '#EFF6FF';
+            badge.style.color = '#2563EB';
+            badge.style.borderColor = '#BFDBFE';
             let label = displayState.pinned_slide.replace('slide-','').toUpperCase();
             if (displayState.pinned_slide === 'slide-schedule') label = 'SCHEDULES ONLY';
             else if (displayState.pinned_slide === 'slide-leaderboard') {
@@ -12680,17 +12680,17 @@ function updateDisplayRemoteStatusUI() {
                 const catSuffix = catName ? ` (${catName.toUpperCase()})` : '';
                 label = c ? `RESULT: ${c.name.toUpperCase()}${catSuffix}` : 'RESULT PODIUM';
             }
-            badge.innerHTML = `<span style="width:8px; height:8px; background:#3B82F6; border-radius:50%; box-shadow:0 0 8px #3B82F6;"></span><span>PINNED: ${label}</span>`;
+            badge.innerHTML = `<span style="width:8px; height:8px; background:#2563EB; border-radius:50%; box-shadow:0 0 8px #2563EB;"></span><span>PINNED: ${label}</span>`;
         } else if (displayState.is_paused) {
-            badge.style.background = 'rgba(245, 158, 11, 0.2)';
-            badge.style.color = '#FCD34D';
-            badge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+            badge.style.background = '#FFFBEB';
+            badge.style.color = '#D97706';
+            badge.style.borderColor = '#FDE68A';
             badge.innerHTML = '<span style="width:8px; height:8px; background:#F59E0B; border-radius:50%; box-shadow:0 0 8px #F59E0B;"></span><span>ROTATION PAUSED</span>';
         } else {
-            badge.style.background = 'rgba(16, 185, 129, 0.15)';
-            badge.style.color = '#34D399';
-            badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
-            badge.innerHTML = '<span style="width:8px; height:8px; background:#34D399; border-radius:50%; box-shadow:0 0 8px #34D399;"></span><span>LIVE ROTATION ACTIVE</span>';
+            badge.style.background = '#ECFDF5';
+            badge.style.color = '#059669';
+            badge.style.borderColor = '#A7F3D0';
+            badge.innerHTML = '<span style="width:8px; height:8px; background:#10B981; border-radius:50%; box-shadow:0 0 8px #10B981;"></span><span>LIVE ROTATION ACTIVE</span>';
         }
     }
 }
