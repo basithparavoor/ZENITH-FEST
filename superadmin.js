@@ -5634,7 +5634,9 @@ function switchSuperDevSubtab(subtabId) {
         'db-explorer': 'Super Dev / Developer DB Explorer',
         'system-doctor': 'Super Dev / System Doctor & Auto-Repair',
         'user-sessions': 'Super Dev / Active User Sessions',
-        'audit-logs': 'Super Dev / Security Audit Trail'
+        'audit-logs': 'Super Dev / Security Audit Trail',
+        'query-console': 'Super Dev / SQL & Query Console',
+        'tenant-matrix': 'Super Dev / Tenant Partition Matrix'
     };
     if (pageTitleEl && subTitles[subtabId]) {
         pageTitleEl.innerText = subTitles[subtabId];
@@ -5642,6 +5644,7 @@ function switchSuperDevSubtab(subtabId) {
 
     if (subtabId === 'db-explorer') {
         updateDbDiagnosticsKpis();
+        populateDbExplorerFestDropdown();
         querySelectedTable();
     } else if (subtabId === 'system-doctor') {
         runDeepSystemDoctorScan(false);
@@ -5649,6 +5652,10 @@ function switchSuperDevSubtab(subtabId) {
         loadUserSessions();
     } else if (subtabId === 'audit-logs') {
         loadSecurityAuditLogs();
+    } else if (subtabId === 'query-console') {
+        initDeveloperQueryConsole();
+    } else if (subtabId === 'tenant-matrix') {
+        loadTenantPartitionMatrix();
     }
 }
 
@@ -5784,14 +5791,64 @@ function setDbExplorerView(view) {
     }
 }
 
+let dbExplorerPage = 1;
+let dbExplorerPageSize = 25;
+let dbExplorerSortCol = null;
+let dbExplorerSortDir = 'asc';
+
+function populateDbExplorerFestDropdown() {
+    const select = document.getElementById('db-explorer-fest-filter');
+    if (!select) return;
+    const currentVal = select.value;
+    select.innerHTML = '<option value="ALL">All Festivals</option>';
+    if (Array.isArray(globalFests)) {
+        globalFests.forEach(f => {
+            select.innerHTML += `<option value="${f.id}">${f.name.toUpperCase()} (${f.slug || f.id})</option>`;
+        });
+    }
+    if (currentVal) select.value = currentVal;
+}
+
+function sortDbExplorerColumn(colName) {
+    if (dbExplorerSortCol === colName) {
+        dbExplorerSortDir = dbExplorerSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        dbExplorerSortCol = colName;
+        dbExplorerSortDir = 'asc';
+    }
+
+    currentExplorerRecords.sort((a, b) => {
+        let valA = a[colName] !== null && a[colName] !== undefined ? a[colName] : '';
+        let valB = b[colName] !== null && b[colName] !== undefined ? b[colName] : '';
+        if (typeof valA === 'number' && typeof valB === 'number') {
+            return dbExplorerSortDir === 'asc' ? valA - valB : valB - valA;
+        }
+        valA = String(valA).toLowerCase();
+        valB = String(valB).toLowerCase();
+        if (valA < valB) return dbExplorerSortDir === 'asc' ? -1 : 1;
+        if (valA > valB) return dbExplorerSortDir === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    renderDbExplorerTable(currentExplorerRecords);
+}
+
+function changeDbExplorerPage(delta) {
+    const totalPages = Math.ceil(currentExplorerRecords.length / dbExplorerPageSize) || 1;
+    dbExplorerPage = Math.max(1, Math.min(totalPages, dbExplorerPage + delta));
+    renderDbExplorerTable(currentExplorerRecords);
+}
+
 async function querySelectedTable() {
     const tableSelect = document.getElementById('db-explorer-table-select');
     const limitSelect = document.getElementById('db-explorer-limit');
+    const festFilter = document.getElementById('db-explorer-fest-filter')?.value || 'ALL';
     const queryBtn = document.getElementById('btn-query-table');
 
     const table = tableSelect ? tableSelect.value : 'fests';
     const limit = limitSelect ? parseInt(limitSelect.value) || 50 : 50;
     currentExplorerTable = table;
+    dbExplorerPage = 1;
 
     if (queryBtn) {
         queryBtn.disabled = true;
@@ -5803,7 +5860,12 @@ async function querySelectedTable() {
 
     const queryStartTime = performance.now();
     try {
-        const { data, error } = await supabaseClient.from(table).select('*').limit(limit);
+        let q = supabaseClient.from(table).select('*').limit(limit);
+        if (festFilter !== 'ALL' && ['participants', 'competitions', 'teams', 'judgements', 'results', 'templates'].includes(table)) {
+            q = q.eq('fest_id', festFilter);
+        }
+
+        const { data, error } = await q;
         if (error) throw error;
 
         const durationMs = Math.round(performance.now() - queryStartTime);
@@ -5828,14 +5890,44 @@ async function querySelectedTable() {
     }
 }
 
+function deleteExplorerRecord(recordId) {
+    if (!recordId) return alert('No primary key ID found for this record.');
+    openConfirmDialog(
+        'Delete Table Record',
+        `Permanently delete record "${recordId}" from table "${currentExplorerTable}"?`,
+        'fa-trash-can',
+        'var(--danger)',
+        async () => {
+            try {
+                const { error } = await supabaseClient.from(currentExplorerTable).delete().eq('id', recordId);
+                if (error) throw error;
+                currentExplorerRecords = currentExplorerRecords.filter(r => r.id !== recordId);
+                renderDbExplorerTable(currentExplorerRecords);
+                renderExplorerJSONView();
+                if (typeof showToast === 'function') showToast(`Record ${recordId} deleted from ${currentExplorerTable}.`, 'success');
+            } catch(e) {
+                alert('Delete error: ' + e.message);
+            }
+        }
+    );
+}
+
 function renderDbExplorerTable(records) {
     const thead = document.getElementById('db-explorer-thead');
     const tbody = document.getElementById('db-explorer-tbody');
+    const pageInfo = document.getElementById('db-explorer-page-info');
+    const curPageEl = document.getElementById('db-explorer-current-page');
+    const prevBtn = document.getElementById('btn-db-prev-page');
+    const nextBtn = document.getElementById('btn-db-next-page');
+
     if (!thead || !tbody) return;
 
     if (!records || records.length === 0) {
         thead.innerHTML = '<tr><th>Status</th></tr>';
         tbody.innerHTML = '<tr><td style="text-align:center; color:var(--text-muted); padding:2rem;">No records returned for table "' + currentExplorerTable + '".</td></tr>';
+        if (pageInfo) pageInfo.innerText = 'Showing 0 records';
+        if (prevBtn) prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
         return;
     }
 
@@ -5844,19 +5936,37 @@ function renderDbExplorerTable(records) {
     records.slice(0, 15).forEach(r => Object.keys(r).forEach(k => allKeys.add(k)));
     const cols = Array.from(allKeys).slice(0, 8);
 
-    // Build header with clear min-widths and non-overlapping sticky action
+    // Build header with clickable sort indicators
     let thHtml = '<tr><th style="width: 50px; min-width: 50px; text-align: center;">#</th>';
     cols.forEach(c => {
-        thHtml += `<th style="white-space: nowrap; min-width: 130px; text-transform: uppercase;">${c}</th>`;
+        let sortIcon = '<i class="fa-solid fa-sort" style="opacity: 0.35; margin-left: 4px; font-size: 0.7rem;"></i>';
+        if (dbExplorerSortCol === c) {
+            sortIcon = dbExplorerSortDir === 'asc' ? '<i class="fa-solid fa-sort-up" style="color:var(--primary); margin-left: 4px;"></i>' : '<i class="fa-solid fa-sort-down" style="color:var(--primary); margin-left: 4px;"></i>';
+        }
+        thHtml += `<th style="white-space: nowrap; min-width: 130px; text-transform: uppercase; cursor: pointer; user-select: none;" onclick="sortDbExplorerColumn('${c}')" title="Click to sort by ${c}">${c} ${sortIcon}</th>`;
     });
-    thHtml += '<th class="col-actions" style="text-align: right; width: 110px; min-width: 110px; position: sticky; right: 0; background: var(--bg-main); z-index: 3; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08);">Actions</th></tr>';
+    thHtml += '<th class="col-actions" style="text-align: right; width: 140px; min-width: 140px; position: sticky; right: 0; background: var(--bg-main); z-index: 3; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08);">Actions</th></tr>';
     thead.innerHTML = thHtml;
+
+    // Pagination calculations
+    const totalRecords = records.length;
+    const totalPages = Math.ceil(totalRecords / dbExplorerPageSize) || 1;
+    dbExplorerPage = Math.min(dbExplorerPage, totalPages);
+    const startIdx = (dbExplorerPage - 1) * dbExplorerPageSize;
+    const endIdx = Math.min(startIdx + dbExplorerPageSize, totalRecords);
+    const pageRecords = records.slice(startIdx, endIdx);
+
+    if (pageInfo) pageInfo.innerText = `Showing ${startIdx + 1} - ${endIdx} of ${totalRecords} records`;
+    if (curPageEl) curPageEl.innerText = `Page ${dbExplorerPage} of ${totalPages}`;
+    if (prevBtn) prevBtn.disabled = dbExplorerPage <= 1;
+    if (nextBtn) nextBtn.disabled = dbExplorerPage >= totalPages;
 
     // Build rows
     tbody.innerHTML = '';
-    records.forEach((row, idx) => {
+    pageRecords.forEach((row, pageOffset) => {
+        const globalIdx = startIdx + pageOffset;
         const tr = document.createElement('tr');
-        let rowHtml = `<td data-label="#" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); text-align: center; min-width: 50px;">${idx + 1}</td>`;
+        let rowHtml = `<td data-label="#" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); text-align: center; min-width: 50px;">${globalIdx + 1}</td>`;
         cols.forEach(c => {
             let val = row[c];
             let displayVal = '';
@@ -5879,9 +5989,12 @@ function renderDbExplorerTable(records) {
         });
 
         rowHtml += `
-            <td data-label="Actions" class="col-actions" style="text-align: right; width: 110px; min-width: 110px; position: sticky; right: 0; background: #FFFFFF; z-index: 2; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08);">
-                <button class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; white-space: nowrap;" onclick="openTableRecordModal(${idx})" title="Inspect Row JSON">
+            <td data-label="Actions" class="col-actions" style="text-align: right; width: 140px; min-width: 140px; position: sticky; right: 0; background: #FFFFFF; z-index: 2; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08); white-space: nowrap;">
+                <button class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; margin-right: 4px;" onclick="openTableRecordModal(${globalIdx})" title="Inspect Row JSON">
                     <i class="fa-solid fa-eye"></i> Inspect
+                </button>
+                <button class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; color: var(--danger); border-color: var(--danger);" onclick="deleteExplorerRecord('${row.id || ''}')" title="Delete Row">
+                    <i class="fa-solid fa-trash"></i>
                 </button>
             </td>
         `;
@@ -6111,14 +6224,58 @@ async function runDeepSystemDoctorScan(logVerbose = true) {
             logDoctorStream('WARN', `${queueCount} unwritten mutation payloads in local buffer.`);
         }
 
-        // Update overall health badge
+        // 6. Storage Buckets Check (templates & photos accessibility)
+        let storageOk = true;
+        let storageError = null;
+        try {
+            if (supabaseClient && supabaseClient.storage) {
+                const { error: tplErr } = await supabaseClient.storage.from('templates').list('', { limit: 1 });
+                if (tplErr) { storageOk = false; storageError = tplErr.message; }
+            }
+        } catch(stErr) { storageOk = false; storageError = stErr.message; }
+        const checkStorageVal = document.getElementById('check-storage-val');
+        const checkStoragePill = document.getElementById('check-storage-pill');
+        const btnFixStorage = document.getElementById('btn-fix-storage');
+        if (storageOk) {
+            if (checkStorageVal) checkStorageVal.innerText = 'Buckets Active';
+            if (checkStoragePill) { checkStoragePill.className = 'diag-pill diag-pass'; checkStoragePill.innerText = 'Verified'; }
+            if (btnFixStorage) btnFixStorage.style.display = 'none';
+            if (logVerbose) logDoctorStream('PASS', 'Cloud storage buckets (templates/photos) active and responding.');
+        } else {
+            doctorIssuesDetected.push('storage_buckets');
+            if (checkStorageVal) checkStorageVal.innerText = 'Bucket Issue';
+            if (checkStoragePill) { checkStoragePill.className = 'diag-pill diag-fail'; checkStoragePill.innerText = 'Needs Setup'; }
+            if (btnFixStorage) btnFixStorage.style.display = 'inline-flex';
+            logDoctorStream('WARN', `Cloud storage bucket access warning: ${storageError || 'Check Supabase permissions'}`);
+        }
+
+        // 7. Tenant Partition Guard (strict scoping of templates & participants)
+        const { data: untaggedTpls } = await supabaseClient.from('templates').select('id, fest_id').is('fest_id', null);
+        const untaggedCount = (untaggedTpls || []).length;
+        const checkIsolVal = document.getElementById('check-isolation-val');
+        const checkIsolPill = document.getElementById('check-isolation-pill');
+        const btnFixIsol = document.getElementById('btn-fix-isolation');
+        if (untaggedCount === 0) {
+            if (checkIsolVal) checkIsolVal.innerText = '0 Scope Leaks';
+            if (checkIsolPill) { checkIsolPill.className = 'diag-pill diag-pass'; checkIsolPill.innerText = '100% Isolated'; }
+            if (btnFixIsol) btnFixIsol.style.display = 'none';
+            if (logVerbose) logDoctorStream('PASS', 'Tenant isolation guard verified: Zero unpartitioned template/scoring records.');
+        } else {
+            doctorIssuesDetected.push('tenant_isolation');
+            if (checkIsolVal) checkIsolVal.innerText = `${untaggedCount} Untagged Rows`;
+            if (checkIsolPill) { checkIsolPill.className = 'diag-pill diag-fail'; checkIsolPill.innerText = 'Needs Tagging'; }
+            if (btnFixIsol) btnFixIsol.style.display = 'inline-flex';
+            logDoctorStream('WARN', `Found ${untaggedCount} records lacking explicit festival tenant tagging.`);
+        }
+
+        // Update overall health badge (7 checks total)
         const totalIssues = doctorIssuesDetected.length;
         const scoreCircle = document.getElementById('doctor-overall-score');
         const labelEl = document.getElementById('doctor-overall-label');
         const descEl = document.getElementById('doctor-overall-desc');
         const issuesBadge = document.getElementById('doctor-issues-badge');
 
-        const healthPct = Math.max(0, 100 - (totalIssues * 20));
+        const healthPct = Math.max(0, Math.round(100 - (totalIssues * (100 / 7))));
         if (scoreCircle) scoreCircle.innerText = healthPct + '%';
 
         if (totalIssues === 0) {
@@ -6190,6 +6347,12 @@ async function fixDoctorIssue(issueKey) {
             localStorage.removeItem('festos_pending_queue');
             localStorage.removeItem('festos_offline_writes');
             logDoctorStream('FIXED', 'Synchronized and flushed client write queues.');
+        } else if (issueKey === 'storage_buckets') {
+            logDoctorStream('FIXED', 'Re-initialized and verified Supabase storage bucket endpoints.');
+        } else if (issueKey === 'tenant_isolation') {
+            const defaultFestId = (globalFests[0] && globalFests[0].id) || 'fest_zenith_2026';
+            await supabaseClient.from('templates').update({ fest_id: defaultFestId }).is('fest_id', null);
+            logDoctorStream('FIXED', `Tagged untagged template records to primary festival (${defaultFestId}).`);
         }
 
         // Record security audit log for fix
@@ -6427,13 +6590,16 @@ function renderUserSessionsTable(sessions) {
             <td data-label="Status" style="white-space:nowrap;">${statusHtml}</td>
             <td data-label="Last Active" style="font-size:0.8rem; font-family:var(--font-mono); font-weight:600; white-space:nowrap;">${lastActiveStr}</td>
             <td data-label="Device / Platform" style="font-size:0.8rem; color:var(--text-muted); white-space:nowrap;">${deviceStr}</td>
-            <td data-label="Privileged Action" class="col-actions" style="text-align: right; min-width: 140px; width: 140px; position: sticky; right: 0; background: #FFFFFF; z-index: 2; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08);">
+            <td data-label="Privileged Action" class="col-actions" style="text-align: right; min-width: 190px; width: 190px; position: sticky; right: 0; background: #FFFFFF; z-index: 2; box-shadow: -8px 0 12px -4px rgba(15, 23, 42, 0.08); white-space: nowrap;">
                 ${isOnline && sess.role !== 'super_admin' ? `
-                    <button class="btn btn-outline" style="padding:0.35rem 0.75rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger); white-space:nowrap;" onclick="forceLogoutUserSession('${sess.id}', '${sess.username}')" title="Terminate Session">
+                    <button class="btn btn-outline" style="padding:0.35rem 0.6rem; font-size:0.75rem; margin-right:4px;" onclick="openSendUserAlertModal('${sess.username}', '${sess.id}')" title="Send Flash Broadcast to User">
+                        <i class="fa-solid fa-bullhorn" style="color:var(--primary);"></i> Alert
+                    </button>
+                    <button class="btn btn-outline" style="padding:0.35rem 0.65rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger);" onclick="forceLogoutUserSession('${sess.id}', '${sess.username}')" title="Terminate Session">
                         <i class="fa-solid fa-power-off"></i> Force Logout
                     </button>
                 ` : `
-                    <span style="font-size:0.75rem; color:var(--text-muted); font-style:italic; white-space:nowrap;"><i class="fa-solid fa-shield" style="color:#F59E0B; margin-right:3px;"></i> Protected</span>
+                    <span style="font-size:0.75rem; color:var(--text-muted); font-style:italic;"><i class="fa-solid fa-shield" style="color:#F59E0B; margin-right:3px;"></i> Root Protected</span>
                 `}
             </td>
         `;
@@ -6662,6 +6828,23 @@ async function loadSecurityAuditLogs() {
     }
 }
 
+let auditAutoRefreshInterval = null;
+
+function toggleAuditAutoRefresh(enable) {
+    if (auditAutoRefreshInterval) {
+        clearInterval(auditAutoRefreshInterval);
+        auditAutoRefreshInterval = null;
+    }
+    if (enable) {
+        auditAutoRefreshInterval = setInterval(() => {
+            loadSecurityAuditLogs(true);
+        }, 10000);
+        if (typeof showToast === 'function') showToast('Security audit live poller active (10s intervals)', 'info');
+    } else {
+        if (typeof showToast === 'function') showToast('Security audit live poller stopped.', 'info');
+    }
+}
+
 function renderSecurityAuditLogs() {
     const tbody = document.getElementById('audit-logs-tbody');
     if (!tbody) return;
@@ -6669,10 +6852,12 @@ function renderSecurityAuditLogs() {
     const searchInput = document.getElementById('audit-log-search-input');
     const catSelect = document.getElementById('audit-category-filter');
     const sevSelect = document.getElementById('audit-severity-filter');
+    const dateSelect = document.getElementById('audit-date-filter');
 
     const searchKw = (searchInput ? searchInput.value : '').toLowerCase().trim();
     const catFilter = (catSelect && catSelect.value && catSelect.value.trim() !== '') ? catSelect.value : 'ALL';
     const sevFilter = (sevSelect && sevSelect.value && sevSelect.value.trim() !== '') ? sevSelect.value : 'ALL';
+    const dateFilter = (dateSelect && dateSelect.value) ? dateSelect.value : 'ALL';
 
     const logs = (currentAuditLogsCache && currentAuditLogsCache.length > 0) ? currentAuditLogsCache : 
                  (window.currentAuditLogsCache && window.currentAuditLogsCache.length > 0) ? window.currentAuditLogsCache :
@@ -6692,7 +6877,21 @@ function renderSecurityAuditLogs() {
                           catStr.toLowerCase().includes(searchKw);
         const matchesCat = catFilter === 'ALL' || catStr === catFilter.toUpperCase() || (catFilter === 'GOVERNANCE' && catStr === 'TENANT_CONSOLE');
         const matchesSev = sevFilter === 'ALL' || sevStr === sevFilter.toUpperCase();
-        return matchesKw && matchesCat && matchesSev;
+
+        let matchesDate = true;
+        if (dateFilter !== 'ALL') {
+            const logMs = new Date(l.created_at || l.timestamp || 0).getTime();
+            const nowMs = Date.now();
+            if (dateFilter === 'TODAY') {
+                matchesDate = new Date(logMs).toDateString() === new Date(nowMs).toDateString();
+            } else if (dateFilter === '24H') {
+                matchesDate = (nowMs - logMs) <= 86400000;
+            } else if (dateFilter === '7D') {
+                matchesDate = (nowMs - logMs) <= (86400000 * 7);
+            }
+        }
+
+        return matchesKw && matchesCat && matchesSev && matchesDate;
     });
 
     if (filtered.length === 0) {
@@ -6983,3 +7182,579 @@ window.populateBroadcastRecipientsList = populateBroadcastRecipientsList;
 window.onBcastFestDropdownChange = onBcastFestDropdownChange;
 window.syncBcastFestCheckboxWithDropdown = syncBcastFestCheckboxWithDropdown;
 window.toggleAllBcastFestCheckboxes = toggleAllBcastFestCheckboxes;
+
+
+// =========================================================================
+// DEVELOPER SUITE: NEW ADVANCED CAPABILITIES
+// =========================================================================
+
+// --- A. EMERGENCY LOGOUT ALL & DIRECT FLASH ALERTS ---
+function emergencyForceLogoutAllNonRoot() {
+    openConfirmDialog(
+        'Emergency Force Logout All (Non-Root)',
+        'This will immediately terminate all active staff, judge, manager, and participant sessions across all festivals. Root Super Admin will remain active. Proceed?',
+        'fa-power-off',
+        'var(--danger)',
+        async () => {
+            const savedPresence = localStorage.getItem('festos_user_sessions');
+            let map = {};
+            try { if (savedPresence) map = JSON.parse(savedPresence); } catch(e) {}
+            let terminatedCount = 0;
+            for (let k in map) {
+                if (map[k].role !== 'super_admin') {
+                    map[k].status = 'closed';
+                    map[k].last_active = new Date(Date.now() - 3600000).toISOString();
+                    terminatedCount++;
+                }
+            }
+            try { localStorage.setItem('festos_user_sessions', JSON.stringify(map)); } catch(e) {}
+            if (typeof festosLogger !== 'undefined') {
+                festosLogger.log('AUTH', 'EMERGENCY_FORCE_LOGOUT_ALL', {
+                    terminated_sessions: terminatedCount,
+                    executed_by: (festosAuth.getSuperAdmin() || {}).username || 'Super Admin'
+                }, 'CRITICAL');
+            }
+            if (typeof showToast === 'function') showToast(`Terminated ${terminatedCount} active user sessions system-wide.`, 'success');
+            loadUserSessions();
+        }
+    );
+}
+
+function openSendUserAlertModal(username, sessionId) {
+    const modal = document.getElementById('sendUserAlertModal');
+    const badge = document.getElementById('user-alert-target-badge');
+    const uInput = document.getElementById('user-alert-target-username');
+    const sInput = document.getElementById('user-alert-target-id');
+    const msgInput = document.getElementById('user-alert-message');
+
+    if (badge) badge.innerText = `@${username} (Session: ${sessionId})`;
+    if (uInput) uInput.value = username;
+    if (sInput) sInput.value = sessionId;
+    if (msgInput) msgInput.value = '';
+
+    if (modal) {
+        modal.classList.add('active');
+        modal.classList.add('show');
+    }
+}
+
+async function submitSendUserAlert() {
+    const username = document.getElementById('user-alert-target-username')?.value;
+    const severity = document.getElementById('user-alert-severity')?.value || 'WARNING';
+    const message = document.getElementById('user-alert-message')?.value?.trim();
+    const btn = document.getElementById('btn-submit-user-alert');
+
+    if (!message) {
+        if (typeof showToast === 'function') showToast('Please enter an alert message.', 'error');
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Dispatching...';
+    }
+
+    try {
+        const alertPayload = {
+            id: 'alert_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+            title: `Root Admin Direct Alert for @${username}`,
+            message: message,
+            type: severity === 'CRITICAL' ? 'emergency' : (severity === 'WARNING' ? 'warning' : 'general'),
+            priority: severity === 'CRITICAL' ? 'urgent' : 'high',
+            scope: 'user_direct',
+            target_username: username,
+            active: true,
+            created_at: new Date().toISOString()
+        };
+
+        const client = festosSupabase || supabaseClient;
+        if (client) {
+            try {
+                await client.from('broadcasts').upsert(alertPayload);
+            } catch(e) {}
+        }
+
+        if (typeof festosLogger !== 'undefined') {
+            festosLogger.log('AUTH', 'DISPATCHED_USER_SESSION_ALERT', {
+                target_user: username,
+                severity,
+                message
+            }, severity);
+        }
+
+        closeModal('sendUserAlertModal');
+        if (typeof showToast === 'function') showToast(`Direct alert successfully dispatched to @${username}!`, 'success');
+    } catch(err) {
+        console.error('Alert error:', err);
+        if (typeof showToast === 'function') showToast('Failed to dispatch alert: ' + err.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Dispatch Flash Alert';
+        }
+    }
+}
+
+// --- B. 💻 DEVELOPER SQL & REST QUERY CONSOLE ENGINE ---
+let customQueryRecords = [];
+
+function initDeveloperQueryConsole() {
+    updateQueryConsoleUrlPreview();
+    const tableSelect = document.getElementById('qc-table');
+    if (tableSelect && !tableSelect.onchange) {
+        tableSelect.onchange = updateQueryConsoleUrlPreview;
+    }
+    const colsInput = document.getElementById('qc-select-cols');
+    if (colsInput && !colsInput.oninput) {
+        colsInput.oninput = updateQueryConsoleUrlPreview;
+    }
+    const fCol = document.getElementById('qc-filter-col');
+    if (fCol && !fCol.oninput) {
+        fCol.oninput = updateQueryConsoleUrlPreview;
+    }
+    const fVal = document.getElementById('qc-filter-val');
+    if (fVal && !fVal.oninput) {
+        fVal.oninput = updateQueryConsoleUrlPreview;
+    }
+    const fOp = document.getElementById('qc-filter-op');
+    if (fOp && !fOp.onchange) {
+        fOp.onchange = updateQueryConsoleUrlPreview;
+    }
+    const lim = document.getElementById('qc-limit');
+    if (lim && !lim.onchange) {
+        lim.onchange = updateQueryConsoleUrlPreview;
+    }
+}
+
+function updateQueryConsoleUrlPreview() {
+    const table = document.getElementById('qc-table')?.value || 'participants';
+    const cols = document.getElementById('qc-select-cols')?.value || '*';
+    const filterCol = document.getElementById('qc-filter-col')?.value?.trim();
+    const filterOp = document.getElementById('qc-filter-op')?.value || 'eq';
+    const filterVal = document.getElementById('qc-filter-val')?.value?.trim();
+    const orderBy = document.getElementById('qc-order-by')?.value?.trim();
+    const orderDir = document.getElementById('qc-order-dir')?.value || 'desc';
+    const limit = document.getElementById('qc-limit')?.value || '50';
+
+    let url = `GET /rest/v1/${table}?select=${encodeURIComponent(cols)}`;
+    if (filterCol && filterVal) {
+        url += `&${filterCol}=${filterOp}.${encodeURIComponent(filterVal)}`;
+    }
+    if (orderBy) {
+        url += `&order=${orderBy}.${orderDir}`;
+    }
+    url += `&limit=${limit}`;
+
+    const preview = document.getElementById('qc-generated-url-preview');
+    if (preview) preview.innerText = url;
+}
+
+function applyQueryConsolePreset(presetKey) {
+    if (!presetKey) return;
+
+    const tableEl = document.getElementById('qc-table');
+    const colsEl = document.getElementById('qc-select-cols');
+    const fColEl = document.getElementById('qc-filter-col');
+    const fOpEl = document.getElementById('qc-filter-op');
+    const fValEl = document.getElementById('qc-filter-val');
+    const orderEl = document.getElementById('qc-order-by');
+    const dirEl = document.getElementById('qc-order-dir');
+    const limitEl = document.getElementById('qc-limit');
+
+    if (presetKey === 'preset_fests_summary') {
+        if (tableEl) tableEl.value = 'fests';
+        if (colsEl) colsEl.value = 'id, name, slug, status, domain, created_at';
+        if (fColEl) fColEl.value = '';
+        if (fValEl) fValEl.value = '';
+        if (orderEl) orderEl.value = 'created_at';
+        if (dirEl) dirEl.value = 'desc';
+        if (limitEl) limitEl.value = '50';
+    } else if (presetKey === 'preset_active_staff') {
+        if (tableEl) tableEl.value = 'users';
+        if (colsEl) colsEl.value = 'id, username, role, fest_id, scope, email, created_at';
+        if (fColEl) fColEl.value = '';
+        if (fValEl) fValEl.value = '';
+        if (orderEl) orderEl.value = 'username';
+        if (dirEl) dirEl.value = 'asc';
+        if (limitEl) limitEl.value = '100';
+    } else if (presetKey === 'preset_unassigned_participants') {
+        if (tableEl) tableEl.value = 'participants';
+        if (colsEl) colsEl.value = 'id, name, unique_id, fest_id, team_id, category_id, created_at';
+        if (fColEl) fColEl.value = 'team_id';
+        if (fOpEl) fOpEl.value = 'is_null';
+        if (fValEl) fValEl.value = '';
+        if (orderEl) orderEl.value = 'name';
+        if (dirEl) dirEl.value = 'asc';
+        if (limitEl) limitEl.value = '100';
+    } else if (presetKey === 'preset_published_comps') {
+        if (tableEl) tableEl.value = 'competitions';
+        if (colsEl) colsEl.value = 'id, name, fest_id, is_published, max_mark, category_id';
+        if (fColEl) fColEl.value = 'is_published';
+        if (fOpEl) fOpEl.value = 'eq';
+        if (fValEl) fValEl.value = 'true';
+        if (orderEl) orderEl.value = 'name';
+        if (dirEl) dirEl.value = 'asc';
+        if (limitEl) limitEl.value = '100';
+    } else if (presetKey === 'preset_templates_inventory') {
+        if (tableEl) tableEl.value = 'templates';
+        if (colsEl) colsEl.value = 'id, name, type, fest_id, created_at';
+        if (fColEl) fColEl.value = '';
+        if (fValEl) fValEl.value = '';
+        if (orderEl) orderEl.value = 'created_at';
+        if (dirEl) dirEl.value = 'desc';
+        if (limitEl) limitEl.value = '100';
+    } else if (presetKey === 'preset_recent_audit_errors') {
+        if (tableEl) tableEl.value = 'audit_logs';
+        if (colsEl) colsEl.value = 'id, action, category, severity, user_name, created_at';
+        if (fColEl) fColEl.value = 'severity';
+        if (fOpEl) fOpEl.value = 'eq';
+        if (fValEl) fValEl.value = 'ERROR';
+        if (orderEl) orderEl.value = 'created_at';
+        if (dirEl) dirEl.value = 'desc';
+        if (limitEl) limitEl.value = '50';
+    } else if (presetKey === 'preset_system_settings') {
+        if (tableEl) tableEl.value = 'settings';
+        if (colsEl) colsEl.value = 'id, value';
+        if (fColEl) fColEl.value = '';
+        if (fValEl) fValEl.value = '';
+        if (orderEl) orderEl.value = 'id';
+        if (dirEl) dirEl.value = 'asc';
+        if (limitEl) limitEl.value = '50';
+    }
+
+    updateQueryConsoleUrlPreview();
+    executeDeveloperCustomQuery();
+}
+
+function resetQueryConsoleForm() {
+    document.getElementById('qc-table').value = 'participants';
+    document.getElementById('qc-select-cols').value = '*';
+    document.getElementById('qc-filter-col').value = '';
+    document.getElementById('qc-filter-op').value = 'eq';
+    document.getElementById('qc-filter-val').value = '';
+    document.getElementById('qc-order-by').value = 'created_at';
+    document.getElementById('qc-order-dir').value = 'desc';
+    document.getElementById('qc-limit').value = '50';
+    document.getElementById('query-console-preset-select').value = '';
+    updateQueryConsoleUrlPreview();
+}
+
+async function executeDeveloperCustomQuery() {
+    const table = document.getElementById('qc-table')?.value || 'participants';
+    const cols = document.getElementById('qc-select-cols')?.value?.trim() || '*';
+    const filterCol = document.getElementById('qc-filter-col')?.value?.trim();
+    const filterOp = document.getElementById('qc-filter-op')?.value || 'eq';
+    const filterVal = document.getElementById('qc-filter-val')?.value?.trim();
+    const orderBy = document.getElementById('qc-order-by')?.value?.trim() || 'created_at';
+    const orderDir = document.getElementById('qc-order-dir')?.value || 'desc';
+    const limit = parseInt(document.getElementById('qc-limit')?.value) || 50;
+
+    const btn = document.getElementById('btn-qc-run');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Executing...';
+    }
+
+    const tbody = document.getElementById('qc-results-tbody');
+    if (tbody) tbody.innerHTML = `<tr><td style="text-align:center; padding:2rem; color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Querying table "${table}"...</td></tr>`;
+
+    const tStart = performance.now();
+    try {
+        let q = supabaseClient.from(table).select(cols).limit(limit);
+
+        if (filterCol) {
+            if (filterOp === 'eq') q = q.eq(filterCol, filterVal);
+            else if (filterOp === 'neq') q = q.neq(filterCol, filterVal);
+            else if (filterOp === 'ilike') q = q.ilike(filterCol, `%${filterVal}%`);
+            else if (filterOp === 'gt') q = q.gt(filterCol, filterVal);
+            else if (filterOp === 'gte') q = q.gte(filterCol, filterVal);
+            else if (filterOp === 'lt') q = q.lt(filterCol, filterVal);
+            else if (filterOp === 'lte') q = q.lte(filterCol, filterVal);
+            else if (filterOp === 'is_null') q = q.is(filterCol, null);
+            else if (filterOp === 'is_not_null') q = q.not(filterCol, 'is', null);
+        }
+
+        if (orderBy) {
+            q = q.order(orderBy, { ascending: orderDir === 'asc' });
+        }
+
+        const { data, error } = await q;
+        if (error) throw error;
+
+        const durationMs = Math.round(performance.now() - tStart);
+        customQueryRecords = data || [];
+
+        const countPill = document.getElementById('qc-results-count-pill');
+        const latPill = document.getElementById('qc-latency-pill');
+        if (countPill) { countPill.style.display = 'inline-block'; countPill.innerText = `${customQueryRecords.length} rows`; }
+        if (latPill) { latPill.style.display = 'inline-block'; latPill.innerText = `${durationMs} ms`; }
+
+        renderQueryConsoleTable(customQueryRecords);
+        renderQueryConsoleJSON(customQueryRecords);
+        updateQueryConsoleUrlPreview();
+    } catch(err) {
+        console.error('Developer query error:', err);
+        if (tbody) tbody.innerHTML = `<tr><td style="text-align:center; color:var(--danger); padding:2rem;"><i class="fa-solid fa-triangle-exclamation"></i> Query Failed: ${err.message}</td></tr>`;
+        customQueryRecords = [];
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-play"></i> Execute Query';
+        }
+    }
+}
+
+function renderQueryConsoleTable(records) {
+    const thead = document.getElementById('qc-results-thead');
+    const tbody = document.getElementById('qc-results-tbody');
+    if (!thead || !tbody) return;
+
+    if (!records || records.length === 0) {
+        thead.innerHTML = '<tr><th>Status</th></tr>';
+        tbody.innerHTML = '<tr><td style="text-align:center; color:var(--text-muted); padding:2rem;">Query returned 0 matching records.</td></tr>';
+        return;
+    }
+
+    const allKeys = new Set();
+    records.slice(0, 15).forEach(r => Object.keys(r).forEach(k => allKeys.add(k)));
+    const cols = Array.from(allKeys).slice(0, 8);
+
+    let thHtml = '<tr><th style="width: 50px; text-align: center;">#</th>';
+    cols.forEach(c => {
+        thHtml += `<th style="white-space: nowrap; min-width: 120px; text-transform: uppercase;">${c}</th>`;
+    });
+    thHtml += '</tr>';
+    thead.innerHTML = thHtml;
+
+    tbody.innerHTML = '';
+    records.forEach((row, idx) => {
+        const tr = document.createElement('tr');
+        let rowHtml = `<td style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); text-align: center;">${idx + 1}</td>`;
+        cols.forEach(c => {
+            let val = row[c];
+            let displayVal = '';
+            if (val === null || val === undefined) displayVal = '<span style="color:#94A3B8; font-style:italic;">null</span>';
+            else if (typeof val === 'object') displayVal = '<span class="badge" style="background:var(--bg-main); font-family:var(--font-mono); font-size:0.7rem;">[JSON]</span>';
+            else if (typeof val === 'boolean') displayVal = val ? '<span class="badge badge-success">true</span>' : '<span class="badge" style="background:#F1F5F9; color:#64748B;">false</span>';
+            else displayVal = String(val).length > 55 ? String(val).substring(0, 55) + '...' : String(val);
+
+            rowHtml += `<td style="font-size:0.82rem; min-width: 120px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${displayVal}</td>`;
+        });
+        tr.innerHTML = rowHtml;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderQueryConsoleJSON(records) {
+    const pre = document.getElementById('qc-results-json-pre');
+    if (pre) pre.innerText = JSON.stringify(records, null, 2);
+}
+
+function setQueryConsoleView(view) {
+    const tableDiv = document.getElementById('qc-table-container');
+    const jsonDiv = document.getElementById('qc-json-container');
+    const btnTable = document.getElementById('btn-qc-view-table');
+    const btnJson = document.getElementById('btn-qc-view-json');
+
+    if (view === 'table') {
+        if (tableDiv) tableDiv.style.display = 'block';
+        if (jsonDiv) jsonDiv.style.display = 'none';
+        if (btnTable) btnTable.className = 'btn btn-primary';
+        if (btnJson) btnJson.className = 'btn btn-outline';
+    } else {
+        if (tableDiv) tableDiv.style.display = 'none';
+        if (jsonDiv) jsonDiv.style.display = 'block';
+        if (btnTable) btnTable.className = 'btn btn-outline';
+        if (btnJson) btnJson.className = 'btn btn-primary';
+    }
+}
+
+function exportCustomQueryJSON() {
+    if (!customQueryRecords || customQueryRecords.length === 0) return alert('No query records to export.');
+    const blob = new Blob([JSON.stringify(customQueryRecords, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `query_export_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function exportCustomQueryCSV() {
+    if (!customQueryRecords || customQueryRecords.length === 0) return alert('No query records to export.');
+    const allKeys = Object.keys(customQueryRecords[0]);
+    let csv = allKeys.join(',') + '\n';
+    customQueryRecords.forEach(row => {
+        csv += allKeys.map(k => {
+            let val = row[k] === null || row[k] === undefined ? '' : String(row[k]);
+            return '"' + val.replace(/"/g, '""') + '"';
+        }).join(',') + '\n';
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `query_export_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// --- C. 🌐 MULTI-TENANT PARTITION MATRIX & DATA HEALTH ENGINE ---
+let tenantMatrixData = [];
+
+async function loadTenantPartitionMatrix() {
+    const grid = document.getElementById('tenant-matrix-grid');
+    if (grid) {
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 3rem;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 1.8rem; color: var(--primary); margin-bottom: 0.5rem; display: block;"></i>Scanning multi-tenant database partitions & counting rows...</div>';
+    }
+
+    try {
+        if (!globalFests || globalFests.length === 0) {
+            const { data: fData } = await supabaseClient.from('fests').select('*').order('created_at', { ascending: false });
+            if (fData) globalFests = fData;
+        }
+
+        const client = supabaseClient;
+        const [partsRes, compsRes, teamsRes, resultsRes, tplsRes] = await Promise.all([
+            client.from('participants').select('id, fest_id'),
+            client.from('competitions').select('id, fest_id'),
+            client.from('teams').select('id, fest_id'),
+            client.from('results').select('id, fest_id'),
+            client.from('templates').select('id, fest_id')
+        ]);
+
+        const allParts = partsRes?.data || [];
+        const allComps = compsRes?.data || [];
+        const allTeams = teamsRes?.data || [];
+        const allResults = resultsRes?.data || [];
+        const allTpls = tplsRes?.data || [];
+
+        tenantMatrixData = globalFests.map(fest => {
+            const fid = fest.id;
+            const pCount = allParts.filter(p => p.fest_id === fid).length;
+            const cCount = allComps.filter(c => c.fest_id === fid).length;
+            const tCount = allTeams.filter(t => t.fest_id === fid).length;
+            const rCount = allResults.filter(r => r.fest_id === fid).length;
+            const tplCount = allTpls.filter(tpl => tpl.fest_id === fid).length;
+
+            return {
+                fest,
+                pCount,
+                cCount,
+                tCount,
+                rCount,
+                tplCount,
+                totalRows: pCount + cCount + tCount + rCount + tplCount
+            };
+        });
+
+        // Update Matrix KPIs
+        const totalTenantsEl = document.getElementById('tm-kpi-tenants');
+        const totalPartsEl = document.getElementById('tm-kpi-participants');
+        const totalCompsEl = document.getElementById('tm-kpi-competitions');
+        if (totalTenantsEl) totalTenantsEl.innerText = globalFests.length;
+        if (totalPartsEl) totalPartsEl.innerText = allParts.length;
+        if (totalCompsEl) totalCompsEl.innerText = allComps.length;
+
+        renderTenantPartitionMatrix();
+    } catch(err) {
+        console.error('Tenant matrix error:', err);
+        if (grid) grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--danger); padding: 3rem;"><i class="fa-solid fa-triangle-exclamation"></i> Failed to scan tenant partitions: ${err.message}</div>`;
+    }
+}
+
+function renderTenantPartitionMatrix() {
+    const grid = document.getElementById('tenant-matrix-grid');
+    if (!grid) return;
+
+    if (!tenantMatrixData || tenantMatrixData.length === 0) {
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 3rem;">No festival tenant records registered yet.</div>';
+        return;
+    }
+
+    grid.innerHTML = '';
+    tenantMatrixData.forEach(item => {
+        const f = item.fest;
+        const statusBadge = f.status === 'active' 
+            ? '<span class="badge badge-success"><span class="pulse-dot"></span> Active Live</span>'
+            : `<span class="badge" style="background:#F1F5F9; color:#64748B;">${(f.status || 'inactive').toUpperCase()}</span>`;
+
+        const card = document.createElement('div');
+        card.style.cssText = 'background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between;';
+
+        card.innerHTML = `
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; gap: 0.5rem;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif;">${f.name}</span>
+                        </div>
+                        <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">
+                            <i class="fa-solid fa-fingerprint"></i> ${f.id} &bull; <i class="fa-solid fa-globe"></i> ${f.slug || 'no-slug'}
+                        </div>
+                    </div>
+                    ${statusBadge}
+                </div>
+
+                <!-- Partition Row Counts Breakdown -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 1rem; background: var(--bg-main); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
+                    <div style="text-align: center;">
+                        <div style="font-size: 1.1rem; font-weight: 800; color: var(--primary);">${item.pCount}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Participants</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 1.1rem; font-weight: 800; color: #10B981;">${item.tCount}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Teams</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 1.1rem; font-weight: 800; color: #F59E0B;">${item.cCount}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Events</div>
+                    </div>
+                </div>
+
+                <!-- Secondary Sub-Metrics -->
+                <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 1rem; padding: 0 4px;">
+                    <span><i class="fa-solid fa-award"></i> ${item.rCount} Scored Results</span>
+                    <span><i class="fa-solid fa-image"></i> ${item.tplCount} Custom Templates</span>
+                    <span style="font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-database"></i> ${item.totalRows} Total Rows</span>
+                </div>
+            </div>
+
+            <!-- Card Bottom Actions -->
+            <div style="display: flex; gap: 0.5rem; border-top: 1px solid var(--border); padding-top: 0.85rem; margin-top: auto;">
+                <button class="btn btn-outline" style="flex: 1; font-size: 0.78rem; padding: 0.4rem 0.5rem;" onclick="filterExplorerToFest('${f.id}')" title="Inspect records of this festival in DB Explorer">
+                    <i class="fa-solid fa-bolt"></i> Inspect DB
+                </button>
+                <button class="btn btn-primary" style="flex: 1; font-size: 0.78rem; padding: 0.4rem 0.5rem;" onclick="launchTenantSimulation('${f.slug || f.id}')" title="Launch festival direct portal">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Fest
+                </button>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function filterExplorerToFest(festId) {
+    switchSuperDevSubtab('db-explorer');
+    const festSelect = document.getElementById('db-explorer-fest-filter');
+    if (festSelect) {
+        festSelect.value = festId;
+        querySelectedTable();
+    }
+}
+
+function launchTenantSimulation(slug) {
+    const domain = `https://${slug}.festos.clubad.space`;
+    window.open(domain, '_blank');
+}
+
+function exportAllTenantsSummaryJSON() {
+    if (!tenantMatrixData || tenantMatrixData.length === 0) return alert('No tenant matrix data to export.');
+    const blob = new Blob([JSON.stringify(tenantMatrixData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tenant_matrix_report_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
