@@ -244,6 +244,11 @@ const festosDomains = {
 
     // Synchronous resolution from cached index and cached fest list
     getHostFestId() {
+        // 0. Dedicated native festival build override
+        if (typeof window !== 'undefined' && window.FESTOS_NATIVE_FEST && window.FESTOS_NATIVE_FEST.id) {
+            return window.FESTOS_NATIVE_FEST.id;
+        }
+
         const host = this.getHostname();
         const sub = this.getSubdomain();
 
@@ -442,6 +447,14 @@ const festosDomains = {
 
     // Guaranteed async resolution: fetches live fests table and identifies the exact fest
     async resolveCurrentFest(forceRefresh = false) {
+        // 0. Dedicated native festival build override
+        if (typeof window !== 'undefined' && window.FESTOS_NATIVE_FEST && window.FESTOS_NATIVE_FEST.id) {
+            const list = this.getFestList();
+            const matched = list.find(f => f && (f.id === window.FESTOS_NATIVE_FEST.id || f.slug === window.FESTOS_NATIVE_FEST.slug)) || window.FESTOS_NATIVE_FEST;
+            this.applyResolvedFest(matched);
+            return matched;
+        }
+
         const host = this.getHostname();
         const sub = this.getSubdomain();
 
@@ -2587,15 +2600,24 @@ const festosAppUpdate = {
         const festName = cfg.festName || 'Festival';
         const latestVersion = (cfg.fest?.version || cfg.global?.version || 'v4.2.0');
         const cleanVersion = String(latestVersion).replace(/^v/i, 'v');
-        const cleanFilename = `${festName.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_')}_${cleanVersion}.apk`;
+        const cleanFestCode = festName.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/[\s\-]+/g, '_');
+        const cleanFilename = `${cleanFestCode}_${cleanVersion}.apk`;
+        const slug = (cfg.fest?.slug || festName.toLowerCase().replace(/[^a-z0-9]/g, ''));
         const rawUrl = (cfg.fest?.apk_url && cfg.fest.apk_url.trim()) ? cfg.fest.apk_url : '';
 
-        // Priority candidate download sources
+        // Priority candidate download sources: Dedicated festival APK first!
         const candidateUrls = [];
-        if (rawUrl && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) && rawUrl !== '/download-apk' && rawUrl !== 'VIBRANIUM.apk' && rawUrl !== 'festos-app.apk') {
+        if (rawUrl && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) && !rawUrl.includes('/download-apk')) {
             candidateUrls.push(rawUrl);
         }
-        // Guaranteed static root APK files deployed in web root
+        // Festival-dedicated APK packages
+        candidateUrls.push(`/${cleanFestCode}.apk`);
+        candidateUrls.push(`${cleanFestCode}.apk`);
+        candidateUrls.push(`/${cleanFilename}`);
+        candidateUrls.push(`${cleanFilename}`);
+        candidateUrls.push(`/${slug}.apk`);
+        candidateUrls.push(`${slug}.apk`);
+        // Guaranteed root fallback
         candidateUrls.push('/festos-app.apk');
         candidateUrls.push('/VIBRANIUM.apk');
         candidateUrls.push('festos-app.apk');
@@ -2603,7 +2625,7 @@ const festosAppUpdate = {
         // Dynamic endpoint fallback
         candidateUrls.push(`/download-apk?fest=${encodeURIComponent(fid)}&name=${encodeURIComponent(festName)}&version=${encodeURIComponent(cleanVersion.replace(/^v/, ''))}`);
 
-        let targetUrl = '/festos-app.apk';
+        let targetUrl = `/${cleanFestCode}.apk`;
         for (const url of candidateUrls) {
             try {
                 if (url.startsWith('http://') || url.startsWith('https://')) {

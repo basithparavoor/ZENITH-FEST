@@ -85,7 +85,6 @@ const ROLE_ROUTES = {
 document.addEventListener('DOMContentLoaded', async () => {
     checkExistingSession();
     loadSavedUsername();
-    initFestivalSwitcher();
 
     // Dynamically apply branding for the current domain's festival
     try {
@@ -104,76 +103,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.warn('[FestOS Login] Domain fest branding init notice:', e);
     }
 });
-
-async function initFestivalSwitcher() {
-    const selectorWrap = document.getElementById('festos-workspace-selector-wrap');
-    const selectEl = document.getElementById('festos-workspace-select');
-    if (!selectorWrap || !selectEl) return;
-
-    const host = (window.location.hostname || '').toLowerCase();
-    const base = (window.festosDomains && window.festosDomains.BASE) || 'festos.clubad.space';
-    const sub = (window.festosDomains && typeof window.festosDomains.getSubdomain === 'function')
-        ? window.festosDomains.getSubdomain()
-        : '';
-    const isNative = Boolean(window.isNativeApp || (window.Capacitor && window.Capacitor.isNativePlatform()) || host === 'localhost' || host === '127.0.0.1');
-
-    // Show festival switcher if in native app, on localhost, or on root platform domain (no tenant subdomain)
-    if (isNative || !sub || ['www', 'app', 'admin', 'superadmin', 'api'].includes(sub)) {
-        selectorWrap.style.display = 'block';
-
-        let fests = (window.festosDomains && typeof window.festosDomains.getFestList === 'function')
-            ? window.festosDomains.getFestList()
-            : [];
-
-        if (!fests || fests.length === 0) {
-            try {
-                const client = window.festosSupabase || window.supabaseClient;
-                if (client) {
-                    const { data } = await client.from('fests')
-                        .select('id, name, slug, domain, logo, theme_color, status')
-                        .order('name');
-                    if (data && data.length > 0) {
-                        fests = data;
-                        if (window.festosDomains && window.festosDomains.setFestList) {
-                            window.festosDomains.setFestList(data);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.warn('[FestOS Login] Error fetching fests list for switcher:', e);
-            }
-        }
-
-        if (fests && fests.length > 0) {
-            const activeId = localStorage.getItem('festos_active_fest_id') || localStorage.getItem('festos_selected_fest_id') || fests[0].id;
-            selectEl.innerHTML = fests.map(f => {
-                const isSelected = (f.id === activeId || f.slug === activeId) ? 'selected' : '';
-                return `<option value="${f.id}" ${isSelected}>${festosEscapeHtml(f.name || f.slug || f.id)}</option>`;
-            }).join('');
-
-            // Apply selected festival branding right away
-            const currentSelected = fests.find(f => f.id === activeId || f.slug === activeId) || fests[0];
-            if (currentSelected && window.festosDomains && window.festosDomains.applyResolvedFest) {
-                window.festosDomains.applyResolvedFest(currentSelected);
-            }
-
-            selectEl.addEventListener('change', () => {
-                const chosenId = selectEl.value;
-                const chosen = fests.find(f => f.id === chosenId);
-                if (chosen) {
-                    localStorage.setItem('festos_active_fest_id', chosen.id);
-                    localStorage.setItem('festos_selected_fest_id', chosen.id);
-                    if (window.festosDomains && window.festosDomains.applyResolvedFest) {
-                        window.festosDomains.applyResolvedFest(chosen);
-                    }
-                    if (window.festosAppUpdate && typeof window.festosAppUpdate.refreshUI === 'function') {
-                        window.festosAppUpdate.refreshUI();
-                    }
-                }
-            });
-        }
-    }
-}
 
 function loadSavedUsername() {
     const savedUser = localStorage.getItem('festSavedUsername');
@@ -277,13 +206,6 @@ if (loginForm) {
                             data.fest_id = tmRecord.fest_id;
                         }
                     } catch(e) {}
-                }
-
-                if (!data.fest_id) {
-                    const workspaceSelect = document.getElementById('festos-workspace-select');
-                    if (workspaceSelect && workspaceSelect.value) {
-                        data.fest_id = workspaceSelect.value;
-                    }
                 }
 
                 if (!data.fest_id) {
