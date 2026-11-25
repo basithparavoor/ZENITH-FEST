@@ -13,7 +13,7 @@
     
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="festos-core.js?v=4.3.0"></script>
+    <script src="festos-core.js?v=4.3.1"></script>
     
     <!-- jsPDF & AutoTable for PDF Generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1661,7 +1661,7 @@
 
     </style>
     <link rel="stylesheet" href="premium-forms.css">
-    <link rel="stylesheet" href="custom-pickers.css?v=4.0">
+    <link rel="stylesheet" href="custom-pickers.css?v=4.1">
 </head>
 <body>
 
@@ -1807,15 +1807,15 @@
         <div class="container" style="padding: 1.5rem 2rem; max-width: 1440px;">
             
             <!-- Unified Top Filter & Action Bar -->
-            <div class="filter-bar" id="global-filters" style="display: flex; gap: 0.85rem; margin-bottom: 1.25rem; flex-wrap: wrap; align-items: center; justify-content: space-between; background: #FFFFFF; border: 1.5px solid #E2E8F0; padding: 0.75rem 1rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div class="filter-bar" id="global-filters" style="display: flex; gap: 0.85rem; margin-bottom: 1.25rem; flex-wrap: wrap; align-items: center; justify-content: space-between; background: var(--bg-surface); border: 1.5px solid var(--border); padding: 0.75rem 1rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="display: flex; gap: 0.75rem; flex: 1; min-width: 280px; flex-wrap: wrap;">
                     <div class="filter-box" style="flex: 1; min-width: 140px;">
-                        <select id="filter-stage" onchange="applyFilters()" style="width: 100%; padding: 0.55rem 2rem 0.55rem 0.85rem; font-size: 0.85rem; border-radius: 8px; border: 1.5px solid #CBD5E1; background-color: #FFFFFF; color: #0F172A; font-weight: 600;">
+                        <select id="filter-stage" onchange="applyFilters()" style="width: 100%; padding: 0.55rem 2rem 0.55rem 0.85rem; font-size: 0.85rem; border-radius: 8px; border: 1.5px solid var(--border); background-color: var(--input-bg, var(--bg-surface)); color: var(--text-main); font-weight: 600;">
                             <option value="all" selected>All Stages</option>
                         </select>
                     </div>
                     <div class="filter-box" style="flex: 1; min-width: 140px;">
-                        <select id="filter-category" onchange="applyFilters()" style="width: 100%; padding: 0.55rem 2rem 0.55rem 0.85rem; font-size: 0.85rem; border-radius: 8px; border: 1.5px solid #CBD5E1; background-color: #FFFFFF; color: #0F172A; font-weight: 600;">
+                        <select id="filter-category" onchange="applyFilters()" style="width: 100%; padding: 0.55rem 2rem 0.55rem 0.85rem; font-size: 0.85rem; border-radius: 8px; border: 1.5px solid var(--border); background-color: var(--input-bg, var(--bg-surface)); color: var(--text-main); font-weight: 600;">
                             <option value="all" selected>All Categories</option>
                         </select>
                     </div>

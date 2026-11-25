@@ -829,3 +829,126 @@ select[data-festos-enhanced="true"] {
         font-size: 0.88rem;
     }
 }
+
+/* ==========================================================================
+   DARK HALL MODE / OLED THEME OVERRIDES
+   ========================================================================== */
+body.dark-hall-mode select:not(.no-custom-select),
+html.dark-hall-mode select:not(.no-custom-select) {
+    background-color: #18181B !important;
+    border-color: #27272A !important;
+    color: #F8FAFC !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+}
+
+body.dark-hall-mode input[type="date"],
+body.dark-hall-mode input[type="time"],
+body.dark-hall-mode input.custom-datepicker-trigger,
+body.dark-hall-mode input.custom-timepicker-trigger {
+    background-color: #18181B !important;
+    border-color: #27272A !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-hall-mode .festos-custom-select-trigger,
+html.dark-hall-mode .festos-custom-select-trigger {
+    background: #18181B !important;
+    border: 1.5px solid #27272A !important;
+    color: #F8FAFC !important;
+    box-shadow: none !important;
+}
+
+body.dark-hall-mode .festos-custom-select-trigger:hover,
+body.dark-hall-mode .festos-custom-select-trigger.open,
+body.dark-hall-mode .festos-custom-select-trigger:focus-visible,
+html.dark-hall-mode .festos-custom-select-trigger:hover,
+html.dark-hall-mode .festos-custom-select-trigger.open,
+html.dark-hall-mode .festos-custom-select-trigger:focus-visible {
+    border-color: #3B82F6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+}
+
+body.dark-hall-mode .festos-select-text,
+html.dark-hall-mode .festos-select-text {
+    color: #F8FAFC !important;
+}
+
+body.dark-hall-mode .festos-select-chevron,
+html.dark-hall-mode .festos-select-chevron {
+    stroke: #94A3B8 !important;
+}
+
+body.dark-hall-mode #festosFloatingSelectMenu,
+body.dark-hall-mode .festos-floating-menu,
+html.dark-hall-mode #festosFloatingSelectMenu,
+html.dark-hall-mode .festos-floating-menu {
+    background: #18181B !important;
+    border: 1px solid #27272A !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8) !important;
+}
+
+body.dark-hall-mode .festos-select-option,
+html.dark-hall-mode .festos-select-option {
+    color: #E2E8F0 !important;
+}
+
+body.dark-hall-mode .festos-select-option:hover,
+body.dark-hall-mode .festos-select-option.focused,
+html.dark-hall-mode .festos-select-option:hover,
+html.dark-hall-mode .festos-select-option.focused {
+    background: #27272A !important;
+    color: #FFFFFF !important;
+}
+
+body.dark-hall-mode .festos-select-option.selected,
+html.dark-hall-mode .festos-select-option.selected {
+    background: rgba(59, 130, 246, 0.2) !important;
+    color: #60A5FA !important;
+    font-weight: 700 !important;
+}
+
+body.dark-hall-mode .festos-datepicker-card,
+body.dark-hall-mode .festos-timepicker-card,
+html.dark-hall-mode .festos-datepicker-card,
+html.dark-hall-mode .festos-timepicker-card {
+    background: #121215 !important;
+    border: 1px solid #27272A !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-hall-mode .festos-dp-header-month,
+html.dark-hall-mode .festos-dp-header-month {
+    color: #FFFFFF !important;
+}
+
+body.dark-hall-mode .festos-dp-day-cell,
+html.dark-hall-mode .festos-dp-day-cell {
+    color: #CBD5E1 !important;
+}
+
+body.dark-hall-mode .festos-dp-day-cell:hover,
+html.dark-hall-mode .festos-dp-day-cell:hover {
+    background: #27272A !important;
+    color: #FFFFFF !important;
+}
+
+body.dark-hall-mode .festos-tp-header,
+html.dark-hall-mode .festos-tp-header {
+    background: #18181B !important;
+    border: 1px solid #27272A !important;
+}
+
+body.dark-hall-mode .festos-tp-digits-box,
+html.dark-hall-mode .festos-tp-digits-box {
+    background: #121215 !important;
+}
+
+body.dark-hall-mode .festos-tp-clock-face,
+html.dark-hall-mode .festos-tp-clock-face {
+    background: #18181B !important;
+}
+
+body.dark-hall-mode .festos-tp-clock-number,
+html.dark-hall-mode .festos-tp-clock-number {
+    color: #E2E8F0 !important;
+}

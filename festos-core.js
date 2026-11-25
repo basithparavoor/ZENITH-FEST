@@ -3115,9 +3115,11 @@ const festosDarkMode = {
             }
             body.dark-hall-mode .nav-group .nav-main.active,
             body.dark-hall-mode .sidebar-nav .sidebar-item.active,
-            body.dark-hall-mode .builder-nav-item.active {
+            body.dark-hall-mode .builder-nav-item.active,
+            body.dark-hall-mode .sidebar-item.active {
                 background: rgba(59, 130, 246, 0.2) !important;
                 color: #60A5FA !important;
+                border-color: rgba(59, 130, 246, 0.4) !important;
             }
             body.dark-hall-mode .nav-sub {
                 background: #0D0D10 !important;
@@ -3155,9 +3157,12 @@ const festosDarkMode = {
             body.dark-hall-mode .content-card,
             body.dark-hall-mode .comp-card,
             body.dark-hall-mode .participant-card,
-            body.dark-hall-mode .eval-top-card {
+            body.dark-hall-mode .eval-top-card,
+            body.dark-hall-mode #global-filters,
+            body.dark-hall-mode div[style*="background: white"],
+            body.dark-hall-mode div[style*="background:white"] {
                 background: #121215 !important;
-                border: 1px solid #27272A !important;
+                border-color: #27272A !important;
                 color: #F8FAFC !important;
                 box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
             }
@@ -3177,16 +3182,146 @@ const festosDarkMode = {
                 color: #94A3B8 !important;
             }
 
-            /* Form Elements & Inputs */
+            /* Specific Fix: Admin Dashboard Top Pastel Cards in Dark Mode */
+            body.dark-hall-mode div[style*="#FFE4E6"],
+            body.dark-hall-mode div[style*="#FECDD3"] {
+                background: #121215 !important;
+                border: 1px solid rgba(244, 63, 94, 0.35) !important;
+            }
+            body.dark-hall-mode div[style*="#FFE4E6"] div,
+            body.dark-hall-mode div[style*="#FECDD3"] div {
+                color: #FDA4AF !important;
+            }
+            body.dark-hall-mode div[style*="#FFE4E6"] i,
+            body.dark-hall-mode div[style*="#FECDD3"] i {
+                color: #FB7185 !important;
+            }
+            body.dark-hall-mode div[style*="#E0F2FE"],
+            body.dark-hall-mode div[style*="#BAE6FD"] {
+                background: #121215 !important;
+                border: 1px solid rgba(56, 189, 248, 0.35) !important;
+            }
+            body.dark-hall-mode div[style*="#E0F2FE"] div,
+            body.dark-hall-mode div[style*="#BAE6FD"] div {
+                color: #BAE6FD !important;
+            }
+            body.dark-hall-mode div[style*="#E0F2FE"] i,
+            body.dark-hall-mode div[style*="#BAE6FD"] i {
+                color: #38BDF8 !important;
+            }
+            body.dark-hall-mode div[style*="#F3E8FF"],
+            body.dark-hall-mode div[style*="#E9D5FF"] {
+                background: #121215 !important;
+                border: 1px solid rgba(192, 132, 252, 0.35) !important;
+            }
+            body.dark-hall-mode div[style*="#F3E8FF"] div,
+            body.dark-hall-mode div[style*="#E9D5FF"] div {
+                color: #E9D5FF !important;
+            }
+            body.dark-hall-mode div[style*="#F3E8FF"] i,
+            body.dark-hall-mode div[style*="#E9D5FF"] i {
+                color: #C084FC !important;
+            }
+            body.dark-hall-mode div[style*="#D1FAE5"],
+            body.dark-hall-mode div[style*="#A7F3D0"] {
+                background: #121215 !important;
+                border: 1px solid rgba(52, 211, 153, 0.35) !important;
+            }
+            body.dark-hall-mode div[style*="#D1FAE5"] div,
+            body.dark-hall-mode div[style*="#A7F3D0"] div {
+                color: #A7F3D0 !important;
+            }
+            body.dark-hall-mode div[style*="#D1FAE5"] i,
+            body.dark-hall-mode div[style*="#A7F3D0"] i {
+                color: #34D399 !important;
+            }
+            body.dark-hall-mode #dash-greeting {
+                color: #94A3B8 !important;
+            }
+
+            /* Specific Fix: Team Manager Dashboard Cards & Stats */
+            body.dark-hall-mode #dashboard-deadline-banner {
+                background: rgba(239, 68, 68, 0.15) !important;
+                color: #F87171 !important;
+                border: 1px solid rgba(239, 68, 68, 0.35) !important;
+            }
+            body.dark-hall-mode #tm-manager-names {
+                color: #60A5FA !important;
+            }
+            body.dark-hall-mode .stat-card {
+                background: #121215 !important;
+                border: 1px solid #27272A !important;
+            }
+            body.dark-hall-mode .stat-card h3 {
+                color: #94A3B8 !important;
+            }
+            body.dark-hall-mode #stat-total-students {
+                color: #38BDF8 !important;
+            }
+            body.dark-hall-mode #stat-total-enrolled {
+                color: #C084FC !important;
+            }
+            body.dark-hall-mode #stat-completed-events {
+                color: #34D399 !important;
+            }
+            body.dark-hall-mode #stat-team-points {
+                color: #FBBF24 !important;
+            }
+
+            /* Custom Select Triggers & Dropdown Menus in Dark Mode */
+            body.dark-hall-mode .festos-custom-select-trigger {
+                background: #18181B !important;
+                border: 1.5px solid #27272A !important;
+                color: #F8FAFC !important;
+                box-shadow: none !important;
+            }
+            body.dark-hall-mode .festos-custom-select-trigger:hover,
+            body.dark-hall-mode .festos-custom-select-trigger.open,
+            body.dark-hall-mode .festos-custom-select-trigger:focus-visible {
+                border-color: #3B82F6 !important;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+            }
+            body.dark-hall-mode .festos-select-text {
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode .festos-select-chevron {
+                stroke: #94A3B8 !important;
+            }
+            body.dark-hall-mode #festosFloatingSelectMenu,
+            body.dark-hall-mode .festos-floating-menu {
+                background: #18181B !important;
+                border: 1px solid #27272A !important;
+                box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8) !important;
+            }
+            body.dark-hall-mode .festos-select-option {
+                color: #E2E8F0 !important;
+            }
+            body.dark-hall-mode .festos-select-option:hover,
+            body.dark-hall-mode .festos-select-option.focused {
+                background: #27272A !important;
+                color: #FFFFFF !important;
+            }
+            body.dark-hall-mode .festos-select-option.selected {
+                background: rgba(59, 130, 246, 0.2) !important;
+                color: #60A5FA !important;
+            }
+
+            /* Standard Form Elements & Inputs */
             body.dark-hall-mode input:not([type="checkbox"]):not([type="radio"]),
             body.dark-hall-mode select,
             body.dark-hall-mode textarea,
             body.dark-hall-mode .form-control,
+            body.dark-hall-mode .control-input,
             body.dark-hall-mode .filter-box select,
             body.dark-hall-mode .search-input,
-            body.dark-hall-mode .stage-select-box select {
+            body.dark-hall-mode .stage-select-box select,
+            body.dark-hall-mode #filter-stage,
+            body.dark-hall-mode #filter-category,
+            body.dark-hall-mode #categoryFilter,
+            body.dark-hall-mode #stageFilter,
+            body.dark-hall-mode #statusFilter {
                 background-color: #18181B !important;
-                border: 1px solid #27272A !important;
+                border: 1.5px solid #27272A !important;
                 color: #F8FAFC !important;
             }
             body.dark-hall-mode input::placeholder,
@@ -3198,6 +3333,26 @@ const festosDarkMode = {
             body.dark-hall-mode textarea:focus {
                 border-color: #3B82F6 !important;
                 box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
+            }
+            body.dark-hall-mode option {
+                background-color: #18181B !important;
+                color: #F8FAFC !important;
+            }
+
+            /* Search Wrappers */
+            body.dark-hall-mode .search-wrapper,
+            body.dark-hall-mode .search-wrap {
+                background: #18181B !important;
+                border-color: #27272A !important;
+            }
+            body.dark-hall-mode .search-wrapper i,
+            body.dark-hall-mode .search-wrap i {
+                color: #94A3B8 !important;
+            }
+            body.dark-hall-mode .search-wrapper input,
+            body.dark-hall-mode .search-wrap input {
+                background: transparent !important;
+                color: #F8FAFC !important;
             }
 
             /* Tables */
@@ -3249,6 +3404,15 @@ const festosDarkMode = {
                 color: #FFFFFF !important;
                 border-color: #3B82F6 !important;
             }
+            body.dark-hall-mode .btn-pdf-small {
+                background: rgba(99, 102, 241, 0.2) !important;
+                border: 1px solid rgba(99, 102, 241, 0.4) !important;
+                color: #A5B4FC !important;
+            }
+            body.dark-hall-mode .btn-pdf-small:hover {
+                background: rgba(99, 102, 241, 0.35) !important;
+                color: #FFFFFF !important;
+            }
 
             /* Modals & Overlays */
             body.dark-hall-mode .modal-overlay {
@@ -3265,6 +3429,65 @@ const festosDarkMode = {
             body.dark-hall-mode .modal-header,
             body.dark-hall-mode .modal-footer {
                 border-color: #27272A !important;
+            }
+
+            /* Specific Fix: App Update & Download Modal in Dark Mode */
+            body.dark-hall-mode .festos-app-modal-card {
+                background: #121215 !important;
+                border: 1px solid #27272A !important;
+                box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8) !important;
+            }
+            body.dark-hall-mode .festos-app-modal-header {
+                border-bottom: 1px solid #27272A !important;
+            }
+            body.dark-hall-mode .festos-app-modal-title {
+                color: #FFFFFF !important;
+            }
+            body.dark-hall-mode .festos-app-modal-subtitle {
+                color: #94A3B8 !important;
+            }
+            body.dark-hall-mode .festos-app-modal-close {
+                color: #94A3B8 !important;
+            }
+            body.dark-hall-mode .festos-app-modal-close:hover {
+                color: #FFFFFF !important;
+                background: #27272A !important;
+            }
+            body.dark-hall-mode .festos-app-version-card {
+                background: #18181B !important;
+                border: 1px solid #27272A !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode .festos-app-pill-label {
+                color: #94A3B8 !important;
+            }
+            body.dark-hall-mode .festos-app-notes-box {
+                background: #18181B !important;
+                border: 1px solid #27272A !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode .festos-app-notes-box strong {
+                color: #FFFFFF !important;
+            }
+            body.dark-hall-mode .festos-app-notes-list li {
+                color: #E2E8F0 !important;
+            }
+            body.dark-hall-mode .festos-app-qr-section {
+                background: #18181B !important;
+                border: 1px solid #27272A !important;
+                color: #94A3B8 !important;
+            }
+            body.dark-hall-mode .festos-app-qr-section p {
+                color: #94A3B8 !important;
+            }
+            body.dark-hall-mode .festos-app-qr-img {
+                background: #FFFFFF !important;
+                padding: 6px !important;
+                border-radius: 8px !important;
+            }
+            body.dark-hall-mode .festos-app-modal-footer {
+                background: #121215 !important;
+                border-top: 1px solid #27272A !important;
             }
 
             /* Omnisearch Palette */
