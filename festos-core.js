@@ -3537,12 +3537,57 @@ const festosDarkMode = {
                 color: #F8FAFC !important;
                 box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
             }
-            body.dark-hall-mode .dash-stat-label,
-            body.dark-hall-mode .dash-stat-sub {
+            body.dark-hall-mode .dash-stat-pod {
+                background: #18181B !important;
+                border-color: #27272A !important;
+            }
+            body.dark-hall-mode .dash-stat-pod.pod-live {
+                background: linear-gradient(135deg, rgba(225, 29, 72, 0.08) 0%, #18181B 100%) !important;
+                border-color: rgba(225, 29, 72, 0.25) !important;
+            }
+            body.dark-hall-mode .dash-stat-pod.pod-results {
+                background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, #18181B 100%) !important;
+                border-color: rgba(16, 185, 129, 0.25) !important;
+            }
+            body.dark-hall-mode .dash-stat-pod.pod-today {
+                background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, #18181B 100%) !important;
+                border-color: rgba(99, 102, 241, 0.25) !important;
+            }
+            body.dark-hall-mode .dash-stat-label {
                 color: #94A3B8 !important;
             }
             body.dark-hall-mode .dash-stat-value {
                 color: #FFFFFF !important;
+            }
+            body.dark-hall-mode .dash-stat-icon-wrapper.icon-rose {
+                background: rgba(225, 29, 72, 0.18) !important;
+                color: #FB7185 !important;
+            }
+            body.dark-hall-mode .dash-stat-icon-wrapper.icon-emerald {
+                background: rgba(16, 185, 129, 0.18) !important;
+                color: #34D399 !important;
+            }
+            body.dark-hall-mode .dash-stat-icon-wrapper.icon-indigo {
+                background: rgba(99, 102, 241, 0.18) !important;
+                color: #A5B4FC !important;
+            }
+            body.dark-hall-mode .dash-stat-pill.pill-rose {
+                background: rgba(225, 29, 72, 0.2) !important;
+                color: #FDA4AF !important;
+            }
+            body.dark-hall-mode .dash-stat-pill.pill-emerald {
+                background: rgba(16, 185, 129, 0.2) !important;
+                color: #6EE7B7 !important;
+            }
+            body.dark-hall-mode .dash-stat-pill.pill-indigo {
+                background: rgba(99, 102, 241, 0.2) !important;
+                color: #C7D2FE !important;
+            }
+            body.dark-hall-mode .dash-stat-action-hint {
+                color: #64748B !important;
+            }
+            body.dark-hall-mode .dash-stat-sub {
+                color: #94A3B8 !important;
             }
             body.dark-hall-mode .dash-stat-divider {
                 background: #27272A !important;

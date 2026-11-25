@@ -999,35 +999,83 @@ tr:hover td { background: var(--bg-main); }
     
 /* Mobile Dashboard Stats Card Responsive Fix */
     .dashboard-stats-card {
-        padding: 0.85rem 0.35rem !important;
-        gap: 0.15rem !important;
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        padding: 0.65rem 0.45rem !important;
+        gap: 0.45rem !important;
         overflow: visible !important;
         width: 100% !important;
         box-sizing: border-box !important;
+    }
+    .dash-stat-pod {
+        padding: 0.55rem 0.35rem !important;
+        border-radius: 10px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        justify-content: center !important;
+        gap: 0.2rem !important;
+        min-width: 0 !important;
+    }
+    .dash-stat-pod-header {
+        flex-direction: column !important;
+        align-items: center !important;
+        margin-bottom: 0.15rem !important;
+        gap: 0.25rem !important;
+        width: 100% !important;
+    }
+    .dash-stat-icon-wrapper {
+        width: 26px !important;
+        height: 26px !important;
+        font-size: 0.78rem !important;
+        border-radius: 6px !important;
+    }
+    .dash-stat-label {
+        font-size: 0.62rem !important;
+        letter-spacing: 0.01em !important;
+        margin-bottom: 0 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 100% !important;
+    }
+    .dash-stat-body {
+        align-items: center !important;
+        gap: 0.15rem !important;
+        width: 100% !important;
+    }
+    .dash-stat-value {
+        font-size: 1.25rem !important;
+        line-height: 1.15 !important;
+    }
+    .dash-stat-sub-row {
+        justify-content: center !important;
+        width: 100% !important;
+    }
+    .dash-stat-pill {
+        padding: 2px 5px !important;
+        font-size: 0.6rem !important;
+        gap: 0.2rem !important;
+    }
+    .dash-stat-pill .dash-stat-sub {
+        font-size: 0.6rem !important;
+        white-space: nowrap !important;
+        line-height: 1 !important;
+    }
+    .dash-stat-action-hint {
+        display: none !important;
     }
     .dash-stat-item {
         padding: 0 2px !important;
         flex: 1 !important;
         min-width: 0 !important;
     }
-    .dash-stat-label {
-        font-size: 0.65rem !important;
-        letter-spacing: 0.01em !important;
-        margin-bottom: 0.15rem !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        max-width: 100% !important;
-    }
     .dash-stat-val-group {
         flex-direction: column !important;
         align-items: center !important;
         gap: 0 !important;
         width: 100% !important;
-    }
-    .dash-stat-value {
-        font-size: 1.2rem !important;
-        line-height: 1.15 !important;
     }
     .dash-stat-sub {
         font-size: 0.6rem !important;
@@ -1036,10 +1084,9 @@ tr:hover td { background: var(--bg-main); }
         text-transform: uppercase !important;
         letter-spacing: 0 !important;
         color: var(--text-muted) !important;
-        overflow: visible !important;
     }
     .dash-stat-divider {
-        height: 32px !important;
+        display: none !important;
     }
 
     .action-bar { flex-direction: column; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; width: 100%; text-align: left; }
@@ -2539,36 +2586,292 @@ tr:hover td { background: var(--bg-main); }
     }
 }
 
-/* Dashboard Quick Stats Card */
+/* Dashboard Quick Stats Card - PC Executive Grid */
 .dashboard-stats-card {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    background: var(--bg-surface);
-    padding: 1.25rem 1.5rem;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
-    width: 100%;
-    box-sizing: border-box;
-    overflow: hidden;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 1.25rem !important;
+    background: var(--bg-surface) !important;
+    padding: 1.25rem !important;
+    border-radius: var(--radius-lg) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--shadow-sm) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    align-items: stretch !important;
 }
+
+.dash-stat-pod {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 1.15rem 1.25rem;
+    border-radius: 14px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    min-width: 0;
+    text-decoration: none;
+    user-select: none;
+}
+
+.dash-stat-pod:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px -3px rgba(0, 0, 0, 0.08);
+}
+
+.dash-stat-pod.pod-live {
+    background: linear-gradient(135deg, #FFF1F2 0%, #FFFFFF 100%);
+    border-color: #FECDD3;
+}
+.dash-stat-pod.pod-live:hover {
+    border-color: #FB7185;
+    box-shadow: 0 10px 24px -4px rgba(225, 29, 72, 0.16);
+}
+
+.dash-stat-pod.pod-results {
+    background: linear-gradient(135deg, #ECFDF5 0%, #FFFFFF 100%);
+    border-color: #A7F3D0;
+}
+.dash-stat-pod.pod-results:hover {
+    border-color: #34D399;
+    box-shadow: 0 10px 24px -4px rgba(16, 185, 129, 0.16);
+}
+
+.dash-stat-pod.pod-today {
+    background: linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 100%);
+    border-color: #C7D2FE;
+}
+.dash-stat-pod.pod-today:hover {
+    border-color: #818CF8;
+    box-shadow: 0 10px 24px -4px rgba(99, 102, 241, 0.16);
+}
+
+.dash-stat-pod-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.dash-stat-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.dash-stat-icon-wrapper {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+    transition: transform 0.25s ease;
+}
+.dash-stat-pod:hover .dash-stat-icon-wrapper {
+    transform: scale(1.08);
+}
+
+.dash-stat-icon-wrapper.icon-rose {
+    background: #FFE4E6;
+    color: #E11D48;
+}
+
+.dash-stat-icon-wrapper.icon-emerald {
+    background: #D1FAE5;
+    color: #059669;
+}
+
+.dash-stat-icon-wrapper.icon-indigo {
+    background: #E0E7FF;
+    color: #4F46E5;
+}
+
+.dash-stat-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.dash-stat-value-wrap {
+    display: flex;
+    align-items: baseline;
+}
+
+.dash-stat-value {
+    font-size: 2.15rem;
+    font-weight: 800;
+    color: #0F172A;
+    line-height: 1;
+    letter-spacing: -0.02em;
+}
+
+.dash-stat-sub-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.dash-stat-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.dash-stat-pill.pill-rose {
+    background: rgba(225, 29, 72, 0.1);
+    color: #BE123C;
+}
+
+.dash-stat-pill.pill-emerald {
+    background: rgba(5, 150, 105, 0.1);
+    color: #047857;
+}
+
+.dash-stat-pill.pill-indigo {
+    background: rgba(79, 70, 229, 0.1);
+    color: #4338CA;
+}
+
+.dash-stat-pill .dash-stat-sub {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    color: inherit;
+}
+
+.dash-stat-action-hint {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #94A3B8;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    opacity: 0.8;
+    transition: all 0.2s ease;
+}
+
+.dash-stat-pod:hover .dash-stat-action-hint {
+    opacity: 1;
+    color: var(--primary, #3B82F6);
+    transform: translateX(3px);
+}
+
+.pulse-live-dot {
+    width: 6px;
+    height: 6px;
+    background: #E11D48;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7);
+    animation: livePulse 1.8s infinite;
+}
+
+@keyframes livePulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(225, 29, 72, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+}
+
+/* Dark Mode Overrides */
 body.dark-hall-mode .dashboard-stats-card {
     background: #121215 !important;
     border-color: #27272A !important;
     color: #F8FAFC !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
 }
-body.dark-hall-mode .dash-stat-label,
-body.dark-hall-mode .dash-stat-sub {
+
+body.dark-hall-mode .dash-stat-pod {
+    background: #18181B !important;
+    border-color: #27272A !important;
+}
+
+body.dark-hall-mode .dash-stat-pod.pod-live {
+    background: linear-gradient(135deg, rgba(225, 29, 72, 0.08) 0%, #18181B 100%) !important;
+    border-color: rgba(225, 29, 72, 0.25) !important;
+}
+body.dark-hall-mode .dash-stat-pod.pod-live:hover {
+    border-color: rgba(225, 29, 72, 0.5) !important;
+    box-shadow: 0 10px 24px -4px rgba(225, 29, 72, 0.25) !important;
+}
+
+body.dark-hall-mode .dash-stat-pod.pod-results {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, #18181B 100%) !important;
+    border-color: rgba(16, 185, 129, 0.25) !important;
+}
+body.dark-hall-mode .dash-stat-pod.pod-results:hover {
+    border-color: rgba(16, 185, 129, 0.5) !important;
+    box-shadow: 0 10px 24px -4px rgba(16, 185, 129, 0.25) !important;
+}
+
+body.dark-hall-mode .dash-stat-pod.pod-today {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, #18181B 100%) !important;
+    border-color: rgba(99, 102, 241, 0.25) !important;
+}
+body.dark-hall-mode .dash-stat-pod.pod-today:hover {
+    border-color: rgba(99, 102, 241, 0.5) !important;
+    box-shadow: 0 10px 24px -4px rgba(99, 102, 241, 0.25) !important;
+}
+
+body.dark-hall-mode .dash-stat-label {
     color: #94A3B8 !important;
 }
+
 body.dark-hall-mode .dash-stat-value {
     color: #FFFFFF !important;
 }
-body.dark-hall-mode .dash-stat-divider {
-    background: #27272A !important;
+
+body.dark-hall-mode .dash-stat-icon-wrapper.icon-rose {
+    background: rgba(225, 29, 72, 0.18) !important;
+    color: #FB7185 !important;
 }
+
+body.dark-hall-mode .dash-stat-icon-wrapper.icon-emerald {
+    background: rgba(16, 185, 129, 0.18) !important;
+    color: #34D399 !important;
+}
+
+body.dark-hall-mode .dash-stat-icon-wrapper.icon-indigo {
+    background: rgba(99, 102, 241, 0.18) !important;
+    color: #A5B4FC !important;
+}
+
+body.dark-hall-mode .dash-stat-pill.pill-rose {
+    background: rgba(225, 29, 72, 0.2) !important;
+    color: #FDA4AF !important;
+}
+
+body.dark-hall-mode .dash-stat-pill.pill-emerald {
+    background: rgba(16, 185, 129, 0.2) !important;
+    color: #6EE7B7 !important;
+}
+
+body.dark-hall-mode .dash-stat-pill.pill-indigo {
+    background: rgba(99, 102, 241, 0.2) !important;
+    color: #C7D2FE !important;
+}
+
+body.dark-hall-mode .dash-stat-action-hint {
+    color: #64748B !important;
+}
+body.dark-hall-mode .dash-stat-pod:hover .dash-stat-action-hint {
+    color: #93C5FD !important;
+}
+
 .dash-stat-item {
     flex: 1;
     display: flex;
@@ -2578,15 +2881,6 @@ body.dark-hall-mode .dash-stat-divider {
     padding: 0 0.75rem;
     min-width: 0;
 }
-.dash-stat-label {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: 0.25rem;
-    white-space: nowrap;
-}
 .dash-stat-val-group {
     display: flex;
     align-items: baseline;
@@ -2594,22 +2888,13 @@ body.dark-hall-mode .dash-stat-divider {
     gap: 0.35rem;
     flex-wrap: wrap;
 }
-.dash-stat-value {
-    font-size: 1.35rem;
-    font-weight: 800;
-    color: var(--text-main);
-    line-height: 1.1;
-}
 .dash-stat-sub {
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--text-muted);
 }
 .dash-stat-divider {
-    width: 1px;
-    height: 40px;
-    background: var(--border);
-    flex-shrink: 0;
+    display: none;
 }
 
 .card {
@@ -2798,7 +3083,7 @@ canvas {
 </style>
     <link rel="stylesheet" href="premium-forms.css">
     <link rel="stylesheet" href="newspaper-studio.css">
-    <link rel="stylesheet" href="custom-pickers.css?v=4.3.8">
+    <link rel="stylesheet" href="custom-pickers.css?v=4.3.9">
 </head>
 <body>
 
@@ -3726,29 +4011,66 @@ canvas {
                     </div>
                 </div>
 
-                <!-- Stats flex row -->
+                <!-- Stats pods row -->
                 <div class="card dashboard-stats-card">
-                    <div class="dash-stat-item">
-                        <div class="dash-stat-label">Live Stage</div>
-                        <div class="dash-stat-val-group">
-                            <span class="dash-stat-value" id="dash-live-stage-count">0</span>
-                            <span class="dash-stat-sub">running</span>
+                    <div class="dash-stat-pod pod-live" onclick="switchTab('stages')" role="button" tabindex="0" title="View Live Stages & Venues">
+                        <div class="dash-stat-pod-header">
+                            <span class="dash-stat-label">Live Stage</span>
+                            <div class="dash-stat-icon-wrapper icon-rose">
+                                <i class="fa-solid fa-tower-broadcast"></i>
+                            </div>
+                        </div>
+                        <div class="dash-stat-body">
+                            <div class="dash-stat-value-wrap">
+                                <span class="dash-stat-value" id="dash-live-stage-count">0</span>
+                            </div>
+                            <div class="dash-stat-sub-row">
+                                <span class="dash-stat-pill pill-rose">
+                                    <span class="pulse-live-dot"></span>
+                                    <span class="dash-stat-sub">running</span>
+                                </span>
+                                <span class="dash-stat-action-hint">Manage <i class="fa-solid fa-arrow-right"></i></span>
+                            </div>
                         </div>
                     </div>
-                    <div class="dash-stat-divider"></div>
-                    <div class="dash-stat-item">
-                        <div class="dash-stat-label">Results</div>
-                        <div class="dash-stat-val-group">
-                            <span class="dash-stat-value" id="pb-pub-val-top">0</span>
-                            <span class="dash-stat-sub">published</span>
+                    <div class="dash-stat-pod pod-results" onclick="switchTab('direct-valuation')" role="button" tabindex="0" title="View Published Results & Valuations">
+                        <div class="dash-stat-pod-header">
+                            <span class="dash-stat-label">Results</span>
+                            <div class="dash-stat-icon-wrapper icon-emerald">
+                                <i class="fa-solid fa-trophy"></i>
+                            </div>
+                        </div>
+                        <div class="dash-stat-body">
+                            <div class="dash-stat-value-wrap">
+                                <span class="dash-stat-value" id="pb-pub-val-top">0</span>
+                            </div>
+                            <div class="dash-stat-sub-row">
+                                <span class="dash-stat-pill pill-emerald">
+                                    <i class="fa-solid fa-circle-check"></i>
+                                    <span class="dash-stat-sub">published</span>
+                                </span>
+                                <span class="dash-stat-action-hint">Declare <i class="fa-solid fa-arrow-right"></i></span>
+                            </div>
                         </div>
                     </div>
-                    <div class="dash-stat-divider"></div>
-                    <div class="dash-stat-item">
-                        <div class="dash-stat-label">Today</div>
-                        <div class="dash-stat-val-group">
-                            <span class="dash-stat-value" id="dash-program-count-today">0</span>
-                            <span class="dash-stat-sub">scheduled</span>
+                    <div class="dash-stat-pod pod-today" onclick="switchTab('schedule-mgmt')" role="button" tabindex="0" title="View Master Event Schedule">
+                        <div class="dash-stat-pod-header">
+                            <span class="dash-stat-label">Today</span>
+                            <div class="dash-stat-icon-wrapper icon-indigo">
+                                <i class="fa-solid fa-calendar-day"></i>
+                            </div>
+                        </div>
+                        <div class="dash-stat-body">
+                            <div class="dash-stat-value-wrap">
+                                <span class="dash-stat-value" id="dash-program-count-today">0</span>
+                            </div>
+                            <div class="dash-stat-sub-row">
+                                <span class="dash-stat-pill pill-indigo">
+                                    <i class="fa-solid fa-clock"></i>
+                                    <span class="dash-stat-sub">scheduled</span>
+                                </span>
+                                <span class="dash-stat-action-hint">Timeline <i class="fa-solid fa-arrow-right"></i></span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -9174,14 +9496,14 @@ function toggleCustomGridFields() {
 <div id="toast-container"></div>
 
 
-<script src="festos-core.js?v=4.3.8"></script>
+<script src="festos-core.js?v=4.3.9"></script>
 <script src="mobile-native.js"></script>
 <script src="id-badge-engine.js?v=3.8.2"></script>
 <script src="preset-templates-engine.js"></script>
 <script src="ai-template-generator.js"></script>
-<script src="admin.js?v=4.3.8"></script>
+<script src="admin.js?v=4.3.9"></script>
     <script src="newspaper-engine.js"></script>
-    <script src="custom-pickers.js?v=4.3.8"></script>
+    <script src="custom-pickers.js?v=4.3.9"></script>
 
 <!-- ========================================================= -->
 <!-- SLIDE-OVER NOTIFICATION CENTER DRAWER (SUITABLE FOR ALL DEVICES) -->
