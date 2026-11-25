@@ -1467,6 +1467,62 @@ tr:hover td { background: var(--bg-main); }
     #stages-tbody td:nth-of-type(3)::before { content: "Comps Linked"; }
     
     #teams-tbody td:nth-of-type(2)::before { content: "Registry Count"; }
+
+    /* Fix: Mobile Teams & Stages Card Overrides */
+    #teams-tbody td:first-child,
+    #stages-tbody td:first-child {
+        display: block !important;
+        text-align: left !important;
+        width: 100% !important;
+        padding: 0.25rem 0 0.75rem 0 !important;
+        border-bottom: 1px solid var(--border) !important;
+    }
+    #teams-tbody td:first-child > div,
+    #stages-tbody td:first-child > div {
+        display: block !important;
+        text-align: left !important;
+        width: 100% !important;
+    }
+    #teams-tbody td:first-child::before,
+    #stages-tbody td:first-child::before {
+        display: none !important;
+    }
+    #teams-tbody .manager-accounts-wrap {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 6px !important;
+        width: 100% !important;
+        margin-top: 6px !important;
+    }
+    #teams-tbody .manager-account-pill {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        flex-wrap: wrap !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        gap: 6px !important;
+        padding: 5px 8px !important;
+    }
+    #teams-tbody td:last-child,
+    #stages-tbody td:last-child {
+        width: 100% !important;
+        padding-top: 0.5rem !important;
+        border-bottom: none !important;
+    }
+    #teams-tbody td:last-child > div,
+    #stages-tbody td:last-child > div {
+        width: 100% !important;
+        display: flex !important;
+        gap: 0.5rem !important;
+    }
+    #teams-tbody td:last-child .btn,
+    #stages-tbody td:last-child .btn {
+        flex: 1 !important;
+        justify-content: center !important;
+        min-height: 40px !important;
+    }
     
     #users-tbody td:nth-of-type(2)::before { content: "Role Clearance"; }
     #users-tbody td:nth-of-type(3)::before { content: "Credential"; }
@@ -4237,7 +4293,7 @@ canvas {
                     <p style="color: var(--text-muted); font-size: 0.9rem;">Bypass the judging process. Directly enter final marks to push to the Publisher.</p>
                 </div>
             </div>
-            <div class="controls-bar" style="background: var(--primary-light); border: 1px solid var(--primary-ring); padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.5rem;">
+            <div class="controls-bar" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.25rem; box-shadow: var(--shadow-sm);">
                 <div class="filter-box" style="flex: 1; min-width: 200px;">
                     <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">1. FILTER BY CATEGORY</label>
                     <select id="dvCategory" onchange="loadDVCompetitions()" style="width: 100%; border-color: var(--primary); background-color: white;">
@@ -4332,7 +4388,7 @@ canvas {
 
             <!-- VIEW 2: BULK ASSIGNER -->
             <div id="assign-view-bulk" style="display: none;">
-                <div class="controls-bar" style="background: var(--primary-light); border: 1px solid var(--primary-ring); padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-end;">
+                <div class="controls-bar" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: flex-end; box-shadow: var(--shadow-sm);">
                     <div class="filter-box" style="flex: 1; min-width: 200px;">
                         <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">1. SELECT CATEGORY</label>
                         <select id="assignWorkCategory" onchange="loadAssignWorkspaceCompetitions()" style="width: 100%; border-color: var(--primary); background-color: white;">
@@ -6593,13 +6649,23 @@ canvas {
                 justify-content: center;
             }
             .theme-chip-grid {
-                grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
-                gap: 0.4rem;
+                grid-template-columns: repeat(4, 1fr) !important;
+                gap: 0.35rem !important;
             }
             .theme-chip {
-                padding: 0.4rem 0.5rem;
-                font-size: 0.7rem;
-                justify-content: center;
+                padding: 0.45rem 0.25rem !important;
+                font-size: 0.68rem !important;
+                justify-content: center !important;
+                text-align: center !important;
+                border-radius: 8px !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+            @media (max-width: 380px) {
+                .theme-chip-grid {
+                    grid-template-columns: repeat(2, 1fr) !important;
+                }
             }
             #display-control .grid-2 {
                 grid-template-columns: 1fr !important;
@@ -6608,7 +6674,7 @@ canvas {
     </style>
 
     <!-- 🎮 STAGE DIRECTOR REMOTE CONTROL DECK (TOP PRIORITY) -->
-        <div class="card" style="background: white; color: var(--text-main); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); margin-bottom: 1.75rem;">
+        <div class="card" style="background: var(--bg-surface); color: var(--text-main); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); margin-bottom: 1.75rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <div style="background: var(--primary-light, #EFF6FF); color: var(--primary, #3B82F6); width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; border: 1px solid rgba(59, 130, 246, 0.2);"><i class="fa-solid fa-gamepad"></i></div>
@@ -6697,13 +6763,13 @@ canvas {
     <div class="disp-main-grid">
         <div style="display: flex; flex-direction: column; gap: 1.5rem;">
             <!-- THEME, MOTION & VISUAL CUSTOMIZATION CARD -->
-            <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.5rem;">
-                    <div>
-                        <h3 style="margin: 0; font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-palette" style="color: var(--primary);"></i> Theme & Motion Graphics</h3>
-                        <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">Ambient backgrounds, typography, and live physics (Direct Auto-Apply)</p>
+            <div class="card" style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+                    <div style="flex: 1 1 200px; min-width: 0;">
+                        <h3 style="margin: 0; font-weight: 700; color: var(--text-main); font-size: 1.15rem;"><i class="fa-solid fa-palette" style="color: var(--primary);"></i> Theme & Motion Graphics</h3>
+                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.3;">Ambient backgrounds, typography, and live physics</p>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                         <span id="disp-autosync-pill" style="font-size: 0.76rem; font-weight: 700; color: #10B981; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); padding: 0.35rem 0.75rem; border-radius: 9999px; display: inline-flex; align-items: center; gap: 0.4rem; transition: all 0.3s ease;">
                             <span style="width: 7px; height: 7px; background: #10B981; border-radius: 50%; box-shadow: 0 0 6px #10B981;"></span> AUTO-APPLY LIVE
                         </span>
@@ -6832,13 +6898,13 @@ canvas {
             </div>
 
             <!-- CUSTOM SLIDES HUB CARD -->
-            <div class="card" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <div class="card" style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
                     <div>
                         <h3 style="font-weight: 700; color: var(--text-main); margin: 0;"><i class="fa-solid fa-images" style="color: var(--primary);"></i> Custom Slides Hub</h3>
                         <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">Sponsor shoutouts, announcements, and poster graphics</p>
                     </div>
-                    <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;" onclick="openCustomSlideModal()">
+                    <button class="btn btn-outline" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; flex-shrink: 0;" onclick="openCustomSlideModal()">
                         <i class="fa-solid fa-plus"></i> New Slide
                     </button>
                 </div>
@@ -6849,7 +6915,7 @@ canvas {
         </div>
 
         <!-- RIGHT COLUMN: LIVE OUTPUT PREVIEW -->
-        <div class="card disp-preview-card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; background: #0F172A; border-radius: var(--radius-lg); border: 4px solid #D1D5DB; box-shadow: var(--shadow-lg); height: fit-content; position: sticky; top: 1rem;">
+        <div class="card disp-preview-card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; background: #0F172A; border-radius: var(--radius-lg); border: 2px solid var(--border); box-shadow: var(--shadow-lg); height: fit-content; position: sticky; top: 1rem; max-width: 100%; box-sizing: border-box;">
             <div style="background: #1F2937; padding: 0.75rem 1rem; color: white; font-size: 0.85rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
                 <span><i class="fa-solid fa-tv" style="margin-right: 0.5rem;"></i> LIVE OUTPUT PREVIEW</span>
                 <span style="color: var(--success); font-size: 0.75rem;"><i class="fa-solid fa-circle-dot fa-fade" style="margin-right: 0.25rem;"></i> INSTANT SYNC</span>
@@ -8810,12 +8876,12 @@ function toggleCustomGridFields() {
 <div id="toast-container"></div>
 
 
-<script src="festos-core.js?v=4.3.3"></script>
+<script src="festos-core.js?v=4.3.4"></script>
 <script src="mobile-native.js"></script>
 <script src="id-badge-engine.js?v=3.8.2"></script>
 <script src="preset-templates-engine.js"></script>
 <script src="ai-template-generator.js"></script>
-<script src="admin.js?v=4.3.0"></script>
+<script src="admin.js?v=4.3.1"></script>
     <script src="newspaper-engine.js"></script>
     <script src="custom-pickers.js?v=4.0"></script>
 

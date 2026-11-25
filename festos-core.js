@@ -3445,6 +3445,53 @@ const festosDarkMode = {
                 border-color: #27272A !important;
             }
 
+            /* Specific Fix: Direct Valuation & Custom Controls in Dark Mode */
+            body.dark-hall-mode {
+                --primary-light: rgba(59, 130, 246, 0.12) !important;
+                --primary-ring: rgba(59, 130, 246, 0.3) !important;
+            }
+            body.dark-hall-mode #direct-valuation .controls-bar,
+            body.dark-hall-mode #assign-view-bulk .controls-bar,
+            body.dark-hall-mode .controls-bar[style*="var(--primary-light)"],
+            body.dark-hall-mode div[style*="var(--primary-light)"] {
+                background: #121215 !important;
+                border-color: #27272A !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode #direct-valuation .controls-bar label,
+            body.dark-hall-mode #assign-view-bulk .controls-bar label {
+                color: #93C5FD !important;
+            }
+            body.dark-hall-mode .manager-account-pill {
+                background: rgba(16, 185, 129, 0.12) !important;
+                border-color: rgba(16, 185, 129, 0.3) !important;
+                color: #34D399 !important;
+            }
+            body.dark-hall-mode .manager-account-pill code {
+                color: #6EE7B7 !important;
+                background: rgba(0, 0, 0, 0.25) !important;
+            }
+            body.dark-hall-mode .manager-account-pill .btn {
+                background: #18181B !important;
+                border-color: #27272A !important;
+                color: #A7F3D0 !important;
+            }
+            body.dark-hall-mode .theme-chip {
+                background: #18181B !important;
+                border-color: #27272A !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode .theme-chip:hover {
+                background: rgba(59, 130, 246, 0.2) !important;
+                border-color: #3B82F6 !important;
+                color: #60A5FA !important;
+            }
+            body.dark-hall-mode .theme-chip.active {
+                background: #2563EB !important;
+                border-color: #3B82F6 !important;
+                color: #FFFFFF !important;
+            }
+
             /* Specific Fix: App Update & Download Modal in Dark Mode */
             body.dark-hall-mode .festos-app-modal-card {
                 background: #121215 !important;

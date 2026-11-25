@@ -2711,9 +2711,9 @@ async function loadStagesAndTeams() {
                         <span style="font-size: 0.72rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
                             <i class="fa-solid fa-users-gear" style="color:#059669;"></i> Team Managers (${mgrAccounts.length}):
                         </span>
-                        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; align-items: center;">
+                        <div class="manager-accounts-wrap" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; align-items: center; width: 100%;">
                             ${mgrAccounts.map(u => `
-                                <span style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 6px; font-size: 0.75rem; font-weight: 700; color: #059669;">
+                                <span class="manager-account-pill" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 6px; font-size: 0.75rem; font-weight: 700; color: #059669; max-width: 100%; box-sizing: border-box; flex-wrap: wrap;">
                                     <i class="fa-solid fa-user-check"></i> <strong style="text-transform:none;">${escapeSheetHtml(u.username)}</strong> : <code style="color:#047857; text-transform:none;">${escapeSheetHtml(u.password_hash || '')}</code>
                                     <button type="button" class="btn btn-outline" style="padding: 1px 5px; font-size: 0.7rem; border-color: #A7F3D0; color: #4F46E5; background: white;" onclick="copyUserCredentials('${u.id}')" title="Copy Credentials & Link for ${escapeSheetHtml(u.username)}"><i class="fa-solid fa-copy"></i></button>
                                     <button type="button" class="btn btn-outline" style="padding: 1px 5px; font-size: 0.7rem; border-color: #A7F3D0; color: #059669; background: white;" onclick="shareUserCredentialsWhatsApp('${u.id}')" title="Share Credentials via WhatsApp"><i class="fa-brands fa-whatsapp"></i></button>
