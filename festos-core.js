@@ -273,7 +273,23 @@ const festosDomains = {
             if (matched && matched.id) return matched.id;
         }
 
-        // 4. Fallback from active window / storage state matching subdomain
+        // 4. Stored active/selected festival for Native App, Localhost, or generic domain
+        const isNative = typeof window !== 'undefined' && Boolean(window.isNativeApp || (window.Capacitor && window.Capacitor.isNativePlatform()) || host === 'localhost' || host === '127.0.0.1');
+        if (isNative || !sub || ['www', 'app', 'admin', 'superadmin', 'api'].includes(sub)) {
+            try {
+                const stored = localStorage.getItem('festos_active_fest_id') || localStorage.getItem('festos_selected_fest_id');
+                if (stored) {
+                    if (list && list.length > 0) {
+                        const storedMatch = list.find(f => f && (f.id === stored || f.slug === stored || `fest_${f.slug}` === stored));
+                        if (storedMatch) return storedMatch.id;
+                    } else {
+                        return stored;
+                    }
+                }
+            } catch(e) {}
+        }
+
+        // 5. Fallback from active window / storage state matching subdomain
         if (sub && !['www', 'app', 'admin', 'superadmin', 'api'].includes(sub)) {
             if (typeof window !== 'undefined' && window.activeFestId && String(window.activeFestId).toLowerCase().includes(sub)) {
                 return window.activeFestId;
@@ -378,6 +394,7 @@ const festosDomains = {
         if (!fest || !fest.id) return;
         const prev = localStorage.getItem('festos_active_fest_id');
         localStorage.setItem('festos_active_fest_id', fest.id);
+        localStorage.setItem('festos_selected_fest_id', fest.id);
 
         if (typeof window !== 'undefined') {
             window.activeFestId = fest.id;
@@ -471,15 +488,26 @@ const festosDomains = {
             }
         }
 
-        // 3. Fallback: only fallback to primary fest if we are NOT on a specific tenant subdomain
-        if (!sub || ['www', 'app', 'admin', 'superadmin', 'api'].includes(sub)) {
-            // When on the root base domain login portal without a festival target, do not fallback to primary fest.
-            // This ensures festos.clubad.space displays standard FestOS platform branding.
-            if (window.festosBranding && typeof window.festosBranding.isLoginPage === 'function' && window.festosBranding.isLoginPage() && !urlQuery) {
+        // 3. Fallback: Check stored active/selected festival for Native App, Localhost, or generic domain
+        const isNative = typeof window !== 'undefined' && Boolean(window.isNativeApp || (window.Capacitor && window.Capacitor.isNativePlatform()) || host === 'localhost' || host === '127.0.0.1');
+        const list = this.getFestList();
+
+        if (isNative || !sub || ['www', 'app', 'admin', 'superadmin', 'api'].includes(sub)) {
+            const storedId = localStorage.getItem('festos_active_fest_id') || localStorage.getItem('festos_selected_fest_id');
+            if (storedId && list && list.length > 0) {
+                const storedMatch = list.find(f => f && (f.id === storedId || f.slug === storedId || `fest_${f.slug}` === storedId));
+                if (storedMatch) {
+                    this.applyResolvedFest(storedMatch);
+                    return storedMatch;
+                }
+            }
+
+            // When on the root base domain login portal without a festival target and NOT on native app, do not fallback to primary fest.
+            // This ensures festos.clubad.space displays standard FestOS platform branding while native mobile app gets an active festival.
+            if (!isNative && window.festosBranding && typeof window.festosBranding.isLoginPage === 'function' && window.festosBranding.isLoginPage() && !urlQuery) {
                 return null;
             }
 
-            const list = this.getFestList();
             if (list && list.length > 0) {
                 const primary = list[0];
                 this.applyResolvedFest(primary);
@@ -2564,18 +2592,18 @@ const festosAppUpdate = {
 
         // Priority candidate download sources
         const candidateUrls = [];
-        if (rawUrl && rawUrl !== '/download-apk' && rawUrl !== 'VIBRANIUM.apk' && rawUrl !== 'festos-app.apk') {
+        if (rawUrl && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) && rawUrl !== '/download-apk' && rawUrl !== 'VIBRANIUM.apk' && rawUrl !== 'festos-app.apk') {
             candidateUrls.push(rawUrl);
         }
-        // 1. Dynamic endpoint
-        candidateUrls.push(`/download-apk?fest=${encodeURIComponent(fid)}&name=${encodeURIComponent(festName)}&version=${encodeURIComponent(cleanVersion.replace(/^v/, ''))}`);
-        // 2. Static root APK files deployed in web root
+        // Guaranteed static root APK files deployed in web root
         candidateUrls.push('/festos-app.apk');
         candidateUrls.push('/VIBRANIUM.apk');
         candidateUrls.push('festos-app.apk');
         candidateUrls.push('VIBRANIUM.apk');
+        // Dynamic endpoint fallback
+        candidateUrls.push(`/download-apk?fest=${encodeURIComponent(fid)}&name=${encodeURIComponent(festName)}&version=${encodeURIComponent(cleanVersion.replace(/^v/, ''))}`);
 
-        let targetUrl = candidateUrls[0];
+        let targetUrl = '/festos-app.apk';
         for (const url of candidateUrls) {
             try {
                 if (url.startsWith('http://') || url.startsWith('https://')) {

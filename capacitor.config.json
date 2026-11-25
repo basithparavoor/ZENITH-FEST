@@ -1,6 +1,6 @@
 {
   "appId": "com.festos.zenithfest",
-  "appName": "VIBRANIUM",
+  "appName": "FestOS",
   "webDir": "www",
   "bundledWebRuntime": false,
   "server": {

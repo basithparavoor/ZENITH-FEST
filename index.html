@@ -496,6 +496,75 @@
             color: #0F172A !important;
         }
 
+        /* Dynamic Festival Workspace Selector */
+        .workspace-selector-card {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            border-radius: 14px;
+            padding: 0.65rem 0.85rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+            transition: all 0.25s ease;
+        }
+        .workspace-selector-card:hover {
+            border-color: #CBD5E1;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+        }
+        .workspace-selector-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.35rem;
+        }
+        .workspace-selector-tag {
+            font-size: 0.62rem;
+            font-weight: 800;
+            color: #64748B;
+            letter-spacing: 0.06em;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .workspace-select-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .workspace-icon {
+            position: absolute;
+            left: 10px;
+            font-size: 0.85rem;
+            color: #6366F1;
+            pointer-events: none;
+        }
+        .workspace-select {
+            width: 100%;
+            padding: 0.5rem 2rem 0.5rem 2rem;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #0F172A;
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 9px;
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            transition: all 0.2s ease;
+        }
+        .workspace-select:focus {
+            border-color: #6366F1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+        .workspace-chevron {
+            position: absolute;
+            right: 12px;
+            font-size: 0.75rem;
+            color: #94A3B8;
+            pointer-events: none;
+        }
+
     </style>
 </head>
 <body>
@@ -519,6 +588,22 @@
         </div>
 
         <div id="error-message"></div>
+
+        <!-- Dynamic Festival Workspace Selector for Native App / Multi-Tenant Base -->
+        <div id="festos-workspace-selector-wrap" style="display: none; margin-bottom: 1.25rem;">
+            <div class="workspace-selector-card">
+                <div class="workspace-selector-header">
+                    <span class="workspace-selector-tag"><i class="fa-solid fa-shapes"></i> FESTIVAL WORKSPACE</span>
+                </div>
+                <div class="workspace-select-wrapper">
+                    <i class="fa-solid fa-landmark workspace-icon"></i>
+                    <select id="festos-workspace-select" class="workspace-select" aria-label="Select Festival Workspace">
+                        <option value="">Loading Festivals...</option>
+                    </select>
+                    <i class="fa-solid fa-chevron-down workspace-chevron"></i>
+                </div>
+            </div>
+        </div>
 
         <form id="loginForm">
             <div class="input-group stagger-2">
@@ -574,7 +659,7 @@
         </div>
     </div>
 
-    <script src="festos-core.js?v=4.4.2"></script>
+    <script src="festos-core.js?v=4.4.3"></script>
     <script src="mobile-native.js"></script>
     <script src="login.js"></script>
 </body>

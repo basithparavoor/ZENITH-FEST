@@ -9,7 +9,7 @@
     window.isNativeApp = window.Capacitor && window.Capacitor.isNativePlatform();
 
     if (window.isNativeApp) {
-        console.log('📱 VIBRANIUM running inside Native Mobile App container (Capacitor)');
+        console.log('📱 FestOS running inside Native Mobile App container (Capacitor)');
 
         document.addEventListener('DOMContentLoaded', async () => {
             try {
@@ -35,8 +35,8 @@
 
                         // Create High-Priority Notification Channel (Importance 5 = Heads-up banner + Sound + Vibrate)
                         await LocalNotifications.createChannel({
-                            id: 'vibranium_alerts',
-                            name: 'VIBRANIUM Alerts & Announcements',
+                            id: 'festos_alerts',
+                            name: 'FestOS Alerts & Announcements',
                             description: 'Instant stage calls, results, and administrator notifications',
                             importance: 5, // MAX / HIGH: Displays full heads-up banner on top of screen like WhatsApp
                             visibility: 1, // VISIBILITY_PUBLIC: Visible on lockscreen
@@ -108,7 +108,10 @@
             }
         }
 
-        const notifTitle = title || 'VIBRANIUM';
+        const activeFestName = (typeof window.festosBranding !== 'undefined' && typeof window.festosBranding.getFestName === 'function')
+            ? window.festosBranding.getFestName()
+            : 'FestOS';
+        const notifTitle = title || activeFestName;
         const notifBody = body || 'New festival announcement received';
 
         // 1. WhatsApp-style double haptic buzz
@@ -127,7 +130,7 @@
                             id: notifId,
                             title: notifTitle,
                             body: notifBody,
-                            channelId: 'vibranium_alerts',
+                            channelId: 'festos_alerts',
                             smallIcon: 'ic_launcher_round',
                             iconColor: '#0D2B45',
                             sound: 'default',

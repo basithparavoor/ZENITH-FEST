@@ -43,6 +43,8 @@
     { "source": "/verify", "destination": "/verify-certificate.html" },
     { "source": "/verify-certificate", "destination": "/verify-certificate.html" },
     { "source": "/announcements", "destination": "/announcements.html" },
-    { "source": "/landing", "destination": "/landing.html" }
+    { "source": "/landing", "destination": "/landing.html" },
+    { "source": "/download-apk", "destination": "/festos-app.apk" },
+    { "source": "/download-apk/(.*)", "destination": "/festos-app.apk" }
   ]
 }
