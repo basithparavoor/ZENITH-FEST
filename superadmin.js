@@ -580,7 +580,7 @@ async function loadInitialData() {
             }
         }
 
-        // Attach newspaper_config for each festival if stored in settings table
+        // Attach newspaper_config & app_config for each festival if stored in settings table
         if (festosSupabase && globalFests.length > 0) {
             try {
                 const { data: npRows } = await festosSupabase
@@ -596,8 +596,31 @@ async function loadInitialData() {
                         }
                     });
                 }
+
+                const { data: appRows } = await festosSupabase
+                    .from('settings')
+                    .select('id, value')
+                    .ilike('id', 'app_config_%');
+                if (appRows && Array.isArray(appRows)) {
+                    appRows.forEach(r => {
+                        const targetId = r.id.replace('app_config_', '');
+                        const targetFest = globalFests.find(f => f.id === targetId);
+                        if (targetFest) {
+                            targetFest.app_config = r.value;
+                        }
+                    });
+                }
+
+                const { data: gAppCfg } = await festosSupabase
+                    .from('settings')
+                    .select('value')
+                    .eq('id', 'festos_global_app_config')
+                    .maybeSingle();
+                if (gAppCfg && gAppCfg.value) {
+                    try { localStorage.setItem('festos_global_app_config', JSON.stringify(gAppCfg.value)); } catch(e) {}
+                }
             } catch(npErr) {
-                console.warn('Newspaper config fetch notice:', npErr);
+                console.warn('Config fetch notice:', npErr);
             }
         }
 
@@ -864,7 +887,10 @@ function switchSuperTab(tabId) {
     if (tabId === 'tab-broadcasts') renderBroadcastsTab();
     if (tabId === 'tab-enquiries') renderEnquiriesTable();
     if (tabId === 'tab-admins') renderUsersTable();
-    if (tabId === 'tab-global-branding') loadGlobalSoftwareBranding();
+    if (tabId === 'tab-global-branding') {
+        loadGlobalSoftwareBranding();
+        loadGlobalAppConfig();
+    }
     if (tabId === 'tab-templates') loadSuperPresets();
     if (tabId === 'tab-super-dev') initSuperDevSuite();
 }
@@ -1500,6 +1526,9 @@ function renderFestivalsGrid() {
                         <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem; color:${f.newspaper_config?.enabled !== false ? '#059669' : '#94a3b8'}; border-color:${f.newspaper_config?.enabled !== false ? 'rgba(5,150,105,0.4)' : 'rgba(148,163,184,0.4)'}; background:${f.newspaper_config?.enabled !== false ? 'rgba(5,150,105,0.08)' : 'transparent'};" onclick="quickToggleFestivalNewspaper('${f.id}')" title="AI Newspaper: ${f.newspaper_config?.enabled !== false ? 'Enabled (Click to turn OFF)' : 'Disabled (Click to turn ON)'}">
                             <i class="fa-solid fa-newspaper"></i> ${f.newspaper_config?.enabled !== false ? 'News: ON' : 'News: OFF'}
                         </button>
+                        <button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem; color:${f.app_config?.enabled !== false ? '#10B981' : '#94a3b8'}; border-color:${f.app_config?.enabled !== false ? 'rgba(16,185,129,0.4)' : 'rgba(148,163,184,0.4)'}; background:${f.app_config?.enabled !== false ? 'rgba(16,185,129,0.08)' : 'transparent'};" onclick="quickToggleFestivalAppDownload('${f.id}')" title="App Download: ${f.app_config?.enabled !== false ? 'Enabled (Click to turn OFF)' : 'Disabled (Click to turn ON)'}">
+                            <i class="fa-brands fa-android"></i> ${f.app_config?.enabled !== false ? 'App: ON' : 'App: OFF'}
+                        </button>
                         <button class="btn btn-primary" style="padding:4px 10px; font-size:0.75rem;" onclick="launchFestConsole('${f.id}')" title="Launch Festival Admin Console in New Tab">
                             <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Console
                         </button>
@@ -1877,6 +1906,19 @@ function openCreateFestModal() {
     currentFestNewspaperDates = [];
     renderFestNewspaperChips();
     toggleNewspaperConfigVisibility(true);
+
+    const appEn = document.getElementById('modal-fest-app-enabled');
+    if (appEn) appEn.checked = true;
+    const appName = document.getElementById('modal-fest-app-name');
+    if (appName) appName.value = '';
+    const appVer = document.getElementById('modal-fest-app-version');
+    if (appVer) appVer.value = 'v4.2.0';
+    const appApk = document.getElementById('modal-fest-app-apk-url');
+    if (appApk) appApk.value = '';
+    const appNotes = document.getElementById('modal-fest-app-notes');
+    if (appNotes) appNotes.value = '';
+    toggleFestAppConfigVisibility(true);
+
     updateModalFestLogoPreview('');
     openModal('festModal');
     refreshModalDomainPreview();
@@ -1908,6 +1950,20 @@ function editFestival(festId) {
     currentFestNewspaperDates = Array.isArray(npCfg.allowed_dates) ? [...npCfg.allowed_dates] : [];
     renderFestNewspaperChips();
     toggleNewspaperConfigVisibility(npCfg.enabled !== false);
+
+    const appCfg = fest.app_config || {};
+    const appEn = document.getElementById('modal-fest-app-enabled');
+    if (appEn) appEn.checked = (appCfg.enabled !== false);
+    const appName = document.getElementById('modal-fest-app-name');
+    if (appName) appName.value = appCfg.name || `${fest.name} Official App`;
+    const appVer = document.getElementById('modal-fest-app-version');
+    if (appVer) appVer.value = appCfg.version || 'v4.2.0';
+    const appApk = document.getElementById('modal-fest-app-apk-url');
+    if (appApk) appApk.value = appCfg.apk_url || '';
+    const appNotes = document.getElementById('modal-fest-app-notes');
+    if (appNotes) appNotes.value = appCfg.notes || '';
+    toggleFestAppConfigVisibility(appCfg.enabled !== false);
+
     openModal('festModal');
     refreshModalDomainPreview();
 }
@@ -1929,6 +1985,19 @@ async function saveFestivalSubmit() {
         enabled: newspaperEnabled,
         generation_time: newspaperTime,
         allowed_dates: [...currentFestNewspaperDates]
+    };
+
+    const appEnabled = document.getElementById('modal-fest-app-enabled') ? document.getElementById('modal-fest-app-enabled').checked : true;
+    const appName = document.getElementById('modal-fest-app-name')?.value.trim() || `${name} Official App`;
+    const appVersion = document.getElementById('modal-fest-app-version')?.value.trim() || 'v4.2.0';
+    const appApkUrl = document.getElementById('modal-fest-app-apk-url')?.value.trim() || '';
+    const appNotes = document.getElementById('modal-fest-app-notes')?.value.trim() || '';
+    const app_config = {
+        enabled: appEnabled,
+        name: appName,
+        version: appVersion,
+        apk_url: appApkUrl,
+        notes: appNotes
     };
 
     if (!name || !slug) return alert('Festival name and unique slug are required.');
@@ -1956,6 +2025,7 @@ async function saveFestivalSubmit() {
                 end_date: endDate,
                 logo,
                 newspaper_config,
+                app_config,
                 updated_at: new Date().toISOString()
             };
             if (index !== -1) {
@@ -1980,6 +2050,7 @@ async function saveFestivalSubmit() {
                 end_date: endDate,
                 logo: logo || 'festos-logo.svg',
                 newspaper_config,
+                app_config,
                 created_at: new Date().toISOString()
             };
             globalFests.push(newFest);
@@ -1993,6 +2064,7 @@ async function saveFestivalSubmit() {
                 localStorage.setItem('festos_multi_fests', JSON.stringify(globalFests));
                 localStorage.setItem('festMetadata_' + savedFestId, JSON.stringify(currentFestObj));
                 localStorage.setItem('festos_cfg_newspaper_config_' + savedFestId, JSON.stringify(newspaper_config));
+                localStorage.setItem('festos_cfg_app_settings_' + savedFestId, JSON.stringify(app_config));
                 if (typeof festosDomains !== 'undefined' && festosDomains.setFestList) {
                     festosDomains.setFestList(globalFests);
                     if (festosDomains.buildIndex && festosDomains.setIndex) {
@@ -2000,7 +2072,9 @@ async function saveFestivalSubmit() {
                     }
                 }
                 window.dispatchEvent(new CustomEvent('festos_newspaper_config_updated', { detail: { festId: savedFestId, config: newspaper_config } }));
+                window.dispatchEvent(new CustomEvent('festos_app_config_updated', { detail: { festId: savedFestId, config: app_config } }));
                 window.dispatchEvent(new StorageEvent('storage', { key: 'festos_cfg_newspaper_config_' + savedFestId }));
+                window.dispatchEvent(new StorageEvent('storage', { key: 'festos_cfg_app_settings_' + savedFestId }));
             } catch(e) {}
         }
 
@@ -2047,6 +2121,10 @@ async function saveFestivalSubmit() {
                     await festosSupabase.from('settings').upsert({
                         id: 'newspaper_config_' + savedFestId,
                         value: newspaper_config
+                    });
+                    await festosSupabase.from('settings').upsert({
+                        id: 'app_config_' + savedFestId,
+                        value: app_config
                     });
                 } catch(e) {}
             }
@@ -2097,6 +2175,217 @@ async function quickToggleFestivalNewspaper(festId) {
             value: f.newspaper_config
         }).catch(err => console.warn('Background newspaper setting sync error:', err));
     }
+}
+
+// =========================================================================
+// MOBILE APP & APK MANAGEMENT (SUPER ADMIN)
+// =========================================================================
+function toggleFestAppConfigVisibility(show) {
+    const el = document.getElementById('modal-fest-app-settings-body');
+    if (el) el.style.display = show ? 'block' : 'none';
+}
+
+async function quickToggleFestivalAppDownload(festId) {
+    const f = globalFests.find(x => x.id === festId);
+    if (!f) return;
+    if (!f.app_config) f.app_config = { enabled: true, name: `${f.name} Official App`, version: 'v4.2.0', apk_url: '', notes: '' };
+    
+    const newState = !(f.app_config.enabled !== false);
+    f.app_config.enabled = newState;
+    f.updated_at = new Date().toISOString();
+
+    // 1. Instant local persistence (0ms)
+    try {
+        localStorage.setItem('festos_multi_fests', JSON.stringify(globalFests));
+        localStorage.setItem('festMetadata_' + festId, JSON.stringify(f));
+        localStorage.setItem('festos_cfg_app_settings_' + festId, JSON.stringify(f.app_config));
+        window.dispatchEvent(new CustomEvent('festos_app_config_updated', { detail: { festId, config: f.app_config } }));
+        window.dispatchEvent(new StorageEvent('storage', { key: 'festos_cfg_app_settings_' + festId }));
+    } catch(e) {}
+
+    renderFestivalsGrid();
+    renderFestAppAccessTable();
+    showToast(`App Download ${newState ? 'Enabled' : 'Disabled'} for "${f.name}"!`, newState ? 'success' : 'info');
+
+    // 2. Background remote sync
+    if (festosSupabase) {
+        try {
+            await festosSupabase.from('settings').upsert({
+                id: 'app_config_' + festId,
+                value: f.app_config
+            });
+            await syncFestsToDatabase();
+        } catch(err) {
+            console.warn('Background app config sync error:', err);
+        }
+    }
+}
+
+async function loadGlobalAppConfig() {
+    let cfg = null;
+    try {
+        cfg = JSON.parse(localStorage.getItem('festos_global_app_config') || 'null');
+    } catch(e) {}
+    if (festosSupabase) {
+        try {
+            const { data } = await festosSupabase.from('settings').select('value').eq('id', 'festos_global_app_config').maybeSingle();
+            if (data && data.value) cfg = data.value;
+        } catch(e) {}
+    }
+    cfg = cfg || {
+        enabled: true,
+        version: 'v4.2.0',
+        apk_url: '/download-apk',
+        release_notes: 'Instant stage notifications, real-time scorecard evaluations, and live stage HUD sync.'
+    };
+    try { localStorage.setItem('festos_global_app_config', JSON.stringify(cfg)); } catch(e) {}
+
+    const chk = document.getElementById('gb-app-enabled');
+    if (chk) chk.checked = (cfg.enabled !== false);
+    const badge = document.getElementById('gb-app-status-badge');
+    if (badge) {
+        badge.style.background = cfg.enabled !== false ? '#DCFCE7' : '#FEF3C7';
+        badge.style.color = cfg.enabled !== false ? '#166534' : '#92400E';
+        badge.innerHTML = cfg.enabled !== false ? '<i class="fa-solid fa-circle-check"></i> Downloads Active' : '<i class="fa-solid fa-circle-xmark"></i> Downloads Disabled';
+    }
+    const ver = document.getElementById('gb-app-version');
+    if (ver) ver.value = cfg.version || 'v4.2.0';
+    const apk = document.getElementById('gb-app-apk-url');
+    if (apk) apk.value = cfg.apk_url || '/download-apk';
+    const notes = document.getElementById('gb-app-notes');
+    if (notes) notes.value = cfg.release_notes || '';
+
+    renderFestAppAccessTable();
+    return cfg;
+}
+
+function onToggleGlobalAppDownload(isChecked) {
+    const badge = document.getElementById('gb-app-status-badge');
+    if (badge) {
+        badge.style.background = isChecked ? '#DCFCE7' : '#FEF3C7';
+        badge.style.color = isChecked ? '#166534' : '#92400E';
+        badge.innerHTML = isChecked ? '<i class="fa-solid fa-circle-check"></i> Downloads Active' : '<i class="fa-solid fa-circle-xmark"></i> Downloads Disabled';
+    }
+    saveGlobalAppConfigSubmit();
+}
+
+async function saveGlobalAppConfigSubmit() {
+    const enabled = document.getElementById('gb-app-enabled')?.checked !== false;
+    const version = document.getElementById('gb-app-version')?.value.trim() || 'v4.2.0';
+    const apkUrl = document.getElementById('gb-app-apk-url')?.value.trim() || '/download-apk';
+    const notes = document.getElementById('gb-app-notes')?.value.trim() || '';
+
+    const config = {
+        enabled,
+        version,
+        apk_url: apkUrl,
+        release_notes: notes,
+        updated_at: new Date().toISOString()
+    };
+
+    try {
+        localStorage.setItem('festos_global_app_config', JSON.stringify(config));
+        if (festosSupabase) {
+            const { error } = await festosSupabase.from('settings').upsert({
+                id: 'festos_global_app_config',
+                value: config
+            });
+            if (error) throw error;
+        }
+        festosLogger.log('SETTINGS', `Global App configuration updated (Version: ${version}, Enabled: ${enabled})`, config, 'INFO');
+        showToast('Mobile App configuration saved successfully!', 'success');
+        loadGlobalAppConfig();
+    } catch(e) {
+        showToast('Failed to save app configuration: ' + e.message, 'error');
+    }
+}
+
+function renderFestAppAccessTable() {
+    const tbody = document.getElementById('fest-app-access-table-tbody');
+    if (!tbody) return;
+
+    if (!globalFests || globalFests.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No festivals found.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = globalFests.map(f => {
+        const appCfg = f.app_config || {};
+        const isEnabled = (appCfg.enabled !== false);
+        const appName = appCfg.name || `${f.name} Official App`;
+        const appVer = appCfg.version || 'v4.2.0';
+        const apkUrl = appCfg.apk_url || `/download-apk?fest=${f.id}`;
+
+        return `
+            <tr>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <img src="${festLogoOf(f)}" alt="" style="width: 28px; height: 28px; border-radius: 6px; object-fit: contain; border: 1px solid var(--border); padding: 2px;">
+                        <strong>${f.name}</strong>
+                    </div>
+                </td>
+                <td style="color: #475569; font-weight: 600;">${appName}</td>
+                <td><span style="font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; color: #10B981; background: #ECFDF5; padding: 2px 8px; border-radius: 4px;">${appVer}</span></td>
+                <td><code style="font-size: 0.75rem; color: #64748B;">${apkUrl}</code></td>
+                <td>
+                    <span class="badge" style="background: ${isEnabled ? '#DCFCE7' : '#FEE2E2'}; color: ${isEnabled ? '#166534' : '#991B1B'}; font-weight: 700;">
+                        ${isEnabled ? '<i class="fa-solid fa-check"></i> Enabled' : '<i class="fa-solid fa-xmark"></i> Disabled'}
+                    </span>
+                </td>
+                <td style="text-align: right;">
+                    <button type="button" class="btn btn-outline" style="padding: 4px 10px; font-size: 0.75rem; border-color: ${isEnabled ? '#FCA5A5' : '#86EFAC'}; color: ${isEnabled ? '#DC2626' : '#16A34A'};" onclick="quickToggleFestivalAppDownload('${f.id}')">
+                        ${isEnabled ? 'Disable App' : 'Enable App'}
+                    </button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 10px; font-size: 0.75rem; margin-left: 4px;" onclick="editFestival('${f.id}')" title="Configure App Branding">
+                        <i class="fa-solid fa-gear"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function broadcastAppUpdateToAllPortals() {
+    const version = document.getElementById('gb-app-version')?.value.trim() || 'v4.2.0';
+    const notes = document.getElementById('gb-app-notes')?.value.trim() || 'New app update available with real-time stage notifications & instant results.';
+    const apkUrl = document.getElementById('gb-app-apk-url')?.value.trim() || '/download-apk';
+
+    const bcast = {
+        id: 'bcast_app_' + Date.now(),
+        type: 'apk',
+        title: `Official App Update ${version}`,
+        message: notes,
+        severity: 'success',
+        target_role: 'all',
+        target_fest_id: 'all',
+        allowed_fests: ['*'],
+        is_banner: true,
+        is_active: true,
+        is_apk: true,
+        apk_version: version,
+        apk_url: apkUrl,
+        created_at: new Date().toISOString()
+    };
+
+    globalBroadcasts.unshift(bcast);
+    try { localStorage.setItem('festos_cached_broadcasts', JSON.stringify(globalBroadcasts)); } catch(e) {}
+
+    if (festosSupabase) {
+        try {
+            await festosSupabase.from('broadcasts').upsert(bcast);
+            await festosSupabase.from('settings').upsert({
+                id: 'system_broadcast_active',
+                value: globalBroadcasts.filter(b => b.is_active !== false)
+            });
+        } catch(e) {}
+    }
+
+    if (window.festosBroadcasts) {
+        festosBroadcasts.activeBroadcasts = globalBroadcasts.filter(b => b.is_active !== false);
+        festosBroadcasts.renderActiveBanner();
+    }
+
+    showToast(`App update ${version} broadcasted across all user portals!`, 'success');
 }
 
 function triggerDeleteFestDialog(festId, festName) {

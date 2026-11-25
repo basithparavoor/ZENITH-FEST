@@ -20781,13 +20781,20 @@ let globalFestivalNotifications = [];
 let currentNotificationFilter = 'all';
 
 window.festosDownloadApkDirect = function(targetUrl) {
-    let url = targetUrl && targetUrl !== '#' && targetUrl.trim() ? targetUrl : '/VIBRANIUM.apk';
+    if (window.festosAppUpdate && typeof window.festosAppUpdate.startDownload === 'function') {
+        window.festosAppUpdate.startDownload();
+        return;
+    }
+    const branding = (typeof festosGetActiveBranding === 'function') ? festosGetActiveBranding() : (window.systemBranding || {});
+    const festName = branding.fest_name || 'Festival';
+    const cleanFilename = `${festName.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_')}_App.apk`;
+    let url = targetUrl && targetUrl !== '#' && targetUrl.trim() ? targetUrl : `/download-apk?name=${encodeURIComponent(festName)}`;
     if (!url.startsWith('http') && !url.startsWith('/')) {
         url = '/' + url;
     }
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'VIBRANIUM.apk';
+    a.download = cleanFilename;
     a.target = '_blank';
     document.body.appendChild(a);
     a.click();
@@ -20795,7 +20802,7 @@ window.festosDownloadApkDirect = function(targetUrl) {
         try { a.remove(); } catch(e) {}
     }, 250);
     if (typeof showToast === 'function') {
-        showToast('Downloading VIBRANIUM.apk...', 'success');
+        showToast(`Downloading ${cleanFilename}...`, 'success');
     }
 };
 

@@ -52,27 +52,67 @@ const server = http.createServer((req, res) => {
         pathname = '/index.html';
     }
 
-    // Direct APK download route
+    // Direct APK download route with Festival-specific branding
     const lowerPath = pathname.toLowerCase();
-    if (lowerPath === '/download-apk' || lowerPath === '/vibranium.apk' || lowerPath === '/festos-app.apk') {
-        const candidateApks = [
+    if (lowerPath === '/download-apk' || lowerPath === '/vibranium.apk' || lowerPath === '/festos-app.apk' || lowerPath.startsWith('/download-apk/')) {
+        const festParam = parsedUrl.searchParams.get('fest') || '';
+        const nameParam = parsedUrl.searchParams.get('name') || '';
+        const verParam = parsedUrl.searchParams.get('version') || '';
+
+        // Formulate festival-branded APK filename
+        let downloadName = 'FestOS-App';
+        if (nameParam && nameParam.trim()) {
+            downloadName = nameParam.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_');
+        } else if (festParam && festParam.trim()) {
+            downloadName = festParam.replace(/[^a-zA-Z0-9_\-]/g, '').trim();
+        }
+        const versionTag = verParam ? `_${verParam.startsWith('v') ? verParam : 'v' + verParam}` : '';
+        const attachmentFilename = `${downloadName}${versionTag}.apk`;
+
+        const candidateApks = [];
+        if (festParam) {
+            candidateApks.push(
+                path.join(ROOT_DIR, 'apks', `${festParam}.apk`),
+                path.join(ROOT_DIR, 'dist', 'apks', `${festParam}.apk`)
+            );
+        }
+        candidateApks.push(
             path.join(ROOT_DIR, 'VIBRANIUM.apk'),
             path.join(ROOT_DIR, 'dist', 'VIBRANIUM.apk'),
             path.join(ROOT_DIR, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'VIBRANIUM.apk'),
             path.join(ROOT_DIR, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
             path.join(ROOT_DIR, 'festos-app.apk')
-        ];
+        );
+
         const apkFile = candidateApks.find(p => fs.existsSync(p));
         if (apkFile) {
             const stat = fs.statSync(apkFile);
             res.writeHead(200, {
                 'Content-Type': 'application/vnd.android.package-archive',
-                'Content-Disposition': 'attachment; filename="VIBRANIUM.apk"',
-                'Content-Length': stat.size
+                'Content-Disposition': `attachment; filename="${attachmentFilename}"`,
+                'Content-Length': stat.size,
+                'Cache-Control': 'no-cache'
             });
             fs.createReadStream(apkFile).pipe(res);
             return;
+        } else {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('APK file is currently being packaged. Please try again shortly or contact Super Admin.');
+            return;
         }
+    }
+
+    // App Version & Live Update Config Endpoint
+    if (lowerPath === '/api/app-config' || lowerPath === '/api/app-version') {
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
+        res.end(JSON.stringify({
+            status: 'online',
+            latest_version: 'v4.2.0',
+            app_download_enabled: true,
+            apk_url: '/download-apk',
+            updated_at: new Date().toISOString()
+        }));
+        return;
     }
 
     // Direct Desktop Application zip download route

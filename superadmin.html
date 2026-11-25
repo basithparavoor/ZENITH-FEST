@@ -3457,6 +3457,108 @@ input:checked + .slider:before { transform: translateX(22px); }
                         </div>
                     </div>
                 </div>
+
+                <!-- ========================================================= -->
+                <!-- SECTION: MOBILE APP & APK DOWNLOAD MANAGEMENT -->
+                <!-- ========================================================= -->
+                <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; box-shadow: var(--shadow-sm); margin-top: 1.5rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(16, 185, 129, 0.15); display: flex; align-items: center; justify-content: center; color: #10B981; font-size: 1.35rem;">
+                                <i class="fa-brands fa-android"></i>
+                            </div>
+                            <div>
+                                <h3 style="font-size: 1.2rem; font-weight: 800; color: var(--text-main); margin: 0; font-family: 'Plus Jakarta Sans', sans-serif;">
+                                    Mobile App &amp; APK Download Control Center
+                                </h3>
+                                <p style="font-size: 0.82rem; color: var(--text-muted); margin: 2px 0 0 0;">
+                                    Enable/Disable app downloads, manage festival-specific branded APKs, release updates, and broadcast update alerts.
+                                </p>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-outline" onclick="loadGlobalAppConfig()" title="Refresh Config">
+                                <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="saveGlobalAppConfigSubmit()">
+                                <i class="fa-solid fa-floppy-disk"></i> Save App Config
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="broadcastAppUpdateToAllPortals()">
+                                <i class="fa-solid fa-bullhorn"></i> Broadcast Update Alert
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Global Controls Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+                        <!-- Global Master Switch Card -->
+                        <div style="background: var(--bg-main); border: 1.5px solid var(--border); border-radius: 14px; padding: 1.25rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                                <div>
+                                    <div style="font-weight: 800; font-size: 0.95rem; color: var(--text-main);">Platform App Download Status</div>
+                                    <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">
+                                        Master toggle to enable or disable APK downloads across all portals &amp; login screens.
+                                    </div>
+                                </div>
+                                <label class="switch" style="position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink: 0; margin-left: 10px;">
+                                    <input type="checkbox" id="gb-app-enabled" checked onchange="onToggleGlobalAppDownload(this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div style="margin-top: 0.75rem; display: flex; align-items: center; gap: 8px;">
+                                <span class="badge" id="gb-app-status-badge" style="background: #DCFCE7; color: #166534; font-weight: 800; padding: 4px 10px; border-radius: 999px;">
+                                    <i class="fa-solid fa-circle-check"></i> Downloads Active
+                                </span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">Shown on all user portals</span>
+                            </div>
+                        </div>
+
+                        <!-- App Version & Engine Card -->
+                        <div style="background: var(--bg-main); border: 1.5px solid var(--border); border-radius: 14px; padding: 1.25rem;">
+                            <div class="form-group" style="margin-bottom: 0.75rem;">
+                                <label style="font-size: 0.8rem; font-weight: 700;">Global Release Version</label>
+                                <input type="text" class="form-control" id="gb-app-version" value="v4.2.0" placeholder="e.g. v4.2.0" style="font-weight: 700; color: #10B981;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.8rem; font-weight: 700;">Server APK Route / URL</label>
+                                <input type="text" class="form-control" id="gb-app-apk-url" value="/download-apk" placeholder="/download-apk">
+                            </div>
+                        </div>
+
+                        <!-- Release Notes / What's New Card -->
+                        <div style="background: var(--bg-main); border: 1.5px solid var(--border); border-radius: 14px; padding: 1.25rem;">
+                            <label style="font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; display: block;">Release Notes / In-App Update Message</label>
+                            <textarea class="form-control" id="gb-app-notes" rows="3" placeholder="Describe new capabilities..." style="font-size: 0.8rem;">Instant stage notifications, real-time scorecard evaluations, and live stage HUD sync.</textarea>
+                        </div>
+                    </div>
+
+                    <!-- Festival-Specific App Access & Branding Table -->
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <div style="font-weight: 800; font-size: 0.95rem; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-crown" style="color: #F59E0B;"></i> Festival-Specific Apps &amp; Branding Controls
+                            </div>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">Each festival can have its own dedicated app name, custom version, or disabled state.</span>
+                        </div>
+                        <div class="table-responsive" style="border: 1px solid var(--border); border-radius: 12px; background: white;">
+                            <table class="admin-table" style="margin: 0; width: 100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Festival Name</th>
+                                        <th>Branded App Name</th>
+                                        <th>App Version</th>
+                                        <th>Download Route</th>
+                                        <th>App Download Status</th>
+                                        <th style="text-align: right;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="fest-app-access-table-tbody">
+                                    <!-- Populated dynamically via renderFestAppAccessTable() -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <!-- ========================================================= -->
@@ -4601,6 +4703,49 @@ input:checked + .slider:before { transform: translateX(22px); }
                             <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">Allowed Generation Dates:</div>
                             <div id="modal-fest-newspaper-chips-container" style="display: flex; flex-wrap: wrap; gap: 6px; min-height: 32px; padding: 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-main);">
                                 <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic; align-self: center;">No date restrictions (Allowed on all festival dates)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ========================================== -->
+                    <!-- FESTIVAL MOBILE APP & BRANDING CONFIG -->
+                    <!-- ========================================== -->
+                    <div class="app-config-box" style="margin-top: 1.25rem; border: 1px solid var(--border); border-radius: 12px; background: rgba(16, 185, 129, 0.03); padding: 1rem; border-left: 4px solid var(--success);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.15); display: flex; align-items: center; justify-content: center; color: var(--success);">
+                                    <i class="fa-brands fa-android"></i>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);">Festival Mobile App &amp; Download Portal</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Enable/Disable and customize dedicated Android APK for this festival</div>
+                                </div>
+                            </div>
+                            <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                                <input type="checkbox" id="modal-fest-app-enabled" checked onchange="toggleFestAppConfigVisibility(this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div id="modal-fest-app-settings-body" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--border);">
+                            <div class="form-row">
+                                <div class="form-group" style="margin-bottom: 0.75rem;">
+                                    <label style="font-size: 0.8rem; font-weight: 600;">Custom Mobile App Name</label>
+                                    <input type="text" class="form-control" id="modal-fest-app-name" placeholder="e.g. Zenith Fest App">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0.75rem;">
+                                    <label style="font-size: 0.8rem; font-weight: 600;">App Version Tag</label>
+                                    <input type="text" class="form-control" id="modal-fest-app-version" placeholder="e.g. v4.2.0">
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0.75rem;">
+                                <label style="font-size: 0.8rem; font-weight: 600;">Custom APK Download Link / Path</label>
+                                <input type="text" class="form-control" id="modal-fest-app-apk-url" placeholder="Leave empty for default /download-apk?fest=...">
+                                <small style="color: var(--text-muted); font-size: 0.72rem;">Default downloads universal engine packaged with this festival's branding name.</small>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.8rem; font-weight: 600;">Festival App Update Notes / Notice</label>
+                                <textarea class="form-control" id="modal-fest-app-notes" rows="2" placeholder="e.g. Stage calls, instant scores &amp; official certificates for this festival."></textarea>
                             </div>
                         </div>
                     </div>

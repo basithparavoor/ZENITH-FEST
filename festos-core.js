@@ -2048,6 +2048,708 @@ const festosMultiRole = {
     }
 };
 
+// ============================================================================
+// UNIVERSAL FESTIVAL APP UPDATE & DOWNLOAD ENGINE
+// Supports: In-App Updates, Festival-Specific Branding, Super Admin Enable/Disable,
+// and Universal Navigation Integration across all user portals.
+// ============================================================================
+const festosAppUpdate = {
+    _configCache: null,
+    _installedVersion: null,
+    _hasUpdate: false,
+
+    async getInstalledVersion() {
+        if (this._installedVersion) return this._installedVersion;
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App && typeof window.Capacitor.Plugins.App.getInfo === 'function') {
+            try {
+                const info = await window.Capacitor.Plugins.App.getInfo();
+                if (info && info.version) {
+                    this._installedVersion = String(info.version).startsWith('v') ? info.version : ('v' + info.version);
+                    return this._installedVersion;
+                }
+            } catch(e) {}
+        }
+        const stored = localStorage.getItem('festos_app_installed_version') || (window.isNativeApp ? 'v3.5.0' : null);
+        this._installedVersion = stored;
+        return stored;
+    },
+
+    isVersionOutdated(installed, latest) {
+        if (!installed || !latest) return false;
+        const clean = v => String(v).replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
+        const iParts = clean(installed);
+        const lParts = clean(latest);
+        for (let i = 0; i < Math.max(iParts.length, lParts.length); i++) {
+            const iVal = iParts[i] || 0;
+            const lVal = lParts[i] || 0;
+            if (lVal > iVal) return true;
+            if (lVal < iVal) return false;
+        }
+        return false;
+    },
+
+    async loadConfig(forceFresh = false) {
+        let fid = null;
+        try {
+            if (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) {
+                fid = festosAuth.getCurrentFestId();
+            }
+        } catch(e) {}
+        if (!fid || fid === 'all') {
+            fid = localStorage.getItem('festos_active_fest_id') || 'all';
+        }
+
+        let globalCfg = null;
+        let festCfg = null;
+
+        try {
+            globalCfg = JSON.parse(localStorage.getItem('festos_global_app_config') || 'null');
+            if (fid && fid !== 'all') {
+                festCfg = JSON.parse(localStorage.getItem(`festos_cfg_app_settings_${fid}`) || 'null');
+            }
+        } catch(e) {}
+
+        if (forceFresh || !globalCfg) {
+            try {
+                if (typeof festosGetSetting === 'function') {
+                    const gVal = await festosGetSetting('festos_global_app_config', null, { fresh: forceFresh });
+                    if (gVal) {
+                        globalCfg = gVal;
+                        try { localStorage.setItem('festos_global_app_config', JSON.stringify(gVal)); } catch(e) {}
+                    }
+                    if (fid && fid !== 'all') {
+                        const fVal = await festosGetSetting(`festos_cfg_app_settings_${fid}`, fid, { fresh: forceFresh });
+                        if (fVal) {
+                            festCfg = fVal;
+                            try { localStorage.setItem(`festos_cfg_app_settings_${fid}`, JSON.stringify(fVal)); } catch(e) {}
+                        }
+                    }
+                }
+            } catch(e) {}
+        }
+
+        globalCfg = globalCfg || {
+            enabled: true,
+            version: 'v4.2.0',
+            apk_url: '/download-apk',
+            release_notes: 'Instant stage callouts, real-time scorecard evaluations, and live stage HUD sync.'
+        };
+
+        let branding = {};
+        try {
+            if (typeof festosGetActiveBranding === 'function') {
+                branding = festosGetActiveBranding(fid);
+            } else if (window.systemBranding) {
+                branding = window.systemBranding;
+            }
+        } catch(e) {}
+
+        const festName = branding.fest_name || 'FestOS Festival';
+        const festLogo = branding.fest_logo || 'festos-logo.svg';
+
+        festCfg = festCfg || {
+            enabled: true,
+            name: `${festName} Official Mobile App`,
+            version: globalCfg.version || 'v4.2.0',
+            apk_url: `/download-apk?fest=${fid}&name=${encodeURIComponent(festName)}&version=${(globalCfg.version || '4.2.0').replace(/^v/, '')}`,
+            notes: globalCfg.release_notes
+        };
+
+        this._configCache = {
+            global: globalCfg,
+            fest: festCfg,
+            fid,
+            festName,
+            festLogo
+        };
+        return this._configCache;
+    },
+
+    isDownloadEnabled() {
+        if (!this._configCache) return true;
+        if (this._configCache.global && this._configCache.global.enabled === false) return false;
+        if (this._configCache.fest && this._configCache.fest.enabled === false) return false;
+        return true;
+    },
+
+    async init() {
+        if (typeof document === 'undefined') return;
+        try {
+            await this.loadConfig();
+            this.injectCSS();
+
+            const isEnabled = this.isDownloadEnabled();
+            if (!isEnabled) {
+                const existing = document.querySelectorAll('.festos-app-update-nav-btn, .festos-app-update-banner');
+                existing.forEach(el => el.style.display = 'none');
+                return;
+            }
+
+            const installed = await this.getInstalledVersion();
+            const latest = this._configCache.fest?.version || this._configCache.global?.version || 'v4.2.0';
+            this._hasUpdate = this.isVersionOutdated(installed, latest);
+
+            this.mountNavButton();
+
+            if (this._hasUpdate && window.isNativeApp) {
+                this.showNativeUpdatePrompt();
+            }
+        } catch(e) {
+            console.warn('[festosAppUpdate] init error:', e);
+        }
+    },
+
+    mountNavButton() {
+        if (typeof document === 'undefined' || !this.isDownloadEnabled()) return;
+        const cfg = this._configCache || {};
+        const isUpdate = this._hasUpdate;
+        const updateDotHtml = isUpdate ? '<span class="festos-app-update-dot" title="Update Available"></span>' : '';
+
+        // 1. Top Nav Right (stage-controller.html & judge.html)
+        const topNavRight = document.querySelector('.top-nav-right');
+        if (topNavRight && !document.getElementById('festos-app-topnav-btn')) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.id = 'festos-app-topnav-btn';
+            btn.className = 'header-icon-btn festos-app-update-nav-btn';
+            btn.title = `Festival Mobile App & Updates (${cfg.festName || 'FestOS'})`;
+            btn.innerHTML = `<i class="fa-solid fa-mobile-screen-button" style="color: #10B981;"></i>${updateDotHtml}`;
+            btn.onclick = () => festosAppUpdate.openModal();
+            topNavRight.insertBefore(btn, topNavRight.firstChild);
+        }
+
+        // 2. Header Actions in manager.html & admin.html
+        const headerActions = document.querySelector('.header-actions');
+        if (headerActions && !document.getElementById('festos-app-mgr-btn')) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.id = 'festos-app-mgr-btn';
+            btn.className = 'btn btn-outline festos-app-update-nav-btn';
+            btn.style.cssText = 'position: relative; border-color: #A7F3D0; color: #059669; background: #ECFDF5; margin-right: 0.5rem; flex-shrink: 0;';
+            btn.title = `Festival App & Updates (${cfg.festName || 'FestOS'})`;
+            btn.innerHTML = `<i class="fa-solid fa-mobile-screen-button"></i> <span>App ${isUpdate ? 'Update' : ''}</span>${updateDotHtml}`;
+            btn.onclick = () => festosAppUpdate.openModal();
+            headerActions.insertBefore(btn, headerActions.firstChild);
+        }
+
+        // 3. Admin Top Bar (admin.html right near notification bell)
+        const headerNotify = document.getElementById('header-notify-btn');
+        if (headerNotify && !document.getElementById('header-app-update-btn')) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.id = 'header-app-update-btn';
+            btn.className = 'header-notify-btn festos-app-update-nav-btn';
+            btn.style.cssText = 'position: relative; width: 42px; height: 42px; border-radius: 50%; border: 1px solid #A7F3D0; background: #ECFDF5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; cursor: pointer; margin-right: 0.5rem; flex-shrink: 0;';
+            btn.title = `Festival Mobile App & Updates (${cfg.festName || 'FestOS'})`;
+            btn.innerHTML = `<i class="fa-solid fa-mobile-screen-button"></i>${updateDotHtml}`;
+            btn.onclick = () => festosAppUpdate.openModal();
+            headerNotify.parentNode.insertBefore(btn, headerNotify);
+        }
+
+        // 4. Scanner HUD Actions (scan.html)
+        const hudActions = document.querySelector('.hud-actions');
+        if (hudActions && !document.getElementById('festos-app-hud-btn')) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.id = 'festos-app-hud-btn';
+            btn.className = 'hud-btn festos-app-update-nav-btn';
+            btn.style.cssText = 'position: relative; color: #10B981;';
+            btn.title = `Mobile App & Updates (${cfg.festName || 'FestOS'})`;
+            btn.innerHTML = `<i class="fa-solid fa-mobile-screen-button"></i>${updateDotHtml}`;
+            btn.onclick = () => festosAppUpdate.openModal();
+            hudActions.insertBefore(btn, hudActions.firstChild);
+        }
+
+        // 5. Spectator Light Header (spectator.html)
+        const spectatorLiveTag = document.querySelector('.header .live-tag');
+        if (spectatorLiveTag && !document.getElementById('festos-app-spectator-btn')) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.id = 'festos-app-spectator-btn';
+            btn.className = 'festos-app-update-nav-btn';
+            btn.style.cssText = 'position: relative; background: rgba(16, 185, 129, 0.12); border: 1px solid #10B981; color: #059669; border-radius: 9999px; padding: 4px 12px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin-left: auto; margin-right: 8px; flex-shrink: 0;';
+            btn.title = `Download Official App (${cfg.festName || 'FestOS'})`;
+            btn.innerHTML = `<i class="fa-brands fa-android"></i> <span>Get App</span>${updateDotHtml}`;
+            btn.onclick = () => festosAppUpdate.openModal();
+            spectatorLiveTag.parentNode.insertBefore(btn, spectatorLiveTag);
+        }
+
+        // 6. Public Navbar (results.html)
+        const desktopNavLinks = document.getElementById('desktop-nav-links');
+        if (desktopNavLinks && !document.getElementById('festos-app-results-link')) {
+            const a = document.createElement('a');
+            a.id = 'festos-app-results-link';
+            a.className = 'nav-link festos-app-update-nav-btn';
+            a.href = '#';
+            a.style.cssText = 'position: relative; color: #059669; font-weight: 800; display: inline-flex; align-items: center; gap: 5px;';
+            a.innerHTML = `<i class="fa-brands fa-android" style="color: #16A34A;"></i> <span>App</span>${updateDotHtml}`;
+            a.onclick = (e) => { e.preventDefault(); festosAppUpdate.openModal(); };
+            desktopNavLinks.appendChild(a);
+        }
+
+        // 7. Announcer Portal (announcements.html)
+        const announcerHeaderRight = document.querySelector('.header > div:last-child');
+        if (announcerHeaderRight && !document.getElementById('festos-app-announcer-btn')) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.id = 'festos-app-announcer-btn';
+            btn.className = 'btn-logout festos-app-update-nav-btn';
+            btn.style.cssText = 'position: relative; color: #059669; border-color: #A7F3D0; background: #ECFDF5; margin-right: 0.4rem;';
+            btn.title = `Festival Mobile App & Updates (${cfg.festName || 'FestOS'})`;
+            btn.innerHTML = `<i class="fa-solid fa-mobile-screen-button"></i> <span class="logout-text">App</span>${updateDotHtml}`;
+            btn.onclick = () => festosAppUpdate.openModal();
+            announcerHeaderRight.insertBefore(btn, announcerHeaderRight.firstChild);
+        }
+
+        // 8. Team Manager (team-manager.html)
+        const teamLogout = document.querySelector('button[onclick*="logout"]');
+        if (teamLogout && !document.getElementById('festos-app-team-btn') && !teamLogout.closest('.nav-actions')) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.id = 'festos-app-team-btn';
+            btn.className = 'btn btn-outline festos-app-update-nav-btn';
+            btn.style.cssText = 'position: relative; padding: 0.5rem; min-height: 40px; min-width: 40px; display: flex; align-items: center; justify-content: center; color: #059669; border-color: #A7F3D0; margin-right: 0.5rem; flex-shrink: 0;';
+            btn.title = `Festival App & Updates (${cfg.festName || 'FestOS'})`;
+            btn.innerHTML = `<i class="fa-solid fa-mobile-screen-button"></i>${updateDotHtml}`;
+            btn.onclick = () => festosAppUpdate.openModal();
+            teamLogout.parentNode.insertBefore(btn, teamLogout);
+        }
+    },
+
+    showNativeUpdatePrompt() {
+        if (document.getElementById('festos-native-update-prompt')) return;
+        const banner = document.createElement('div');
+        banner.id = 'festos-native-update-prompt';
+        banner.className = 'festos-app-update-banner';
+        banner.innerHTML = `
+            <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
+                <div style="width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="fa-solid fa-rocket" style="color:white; font-size:0.9rem;"></i>
+                </div>
+                <div style="min-width:0; flex:1;">
+                    <strong style="font-weight:800;">New Update Available!</strong>
+                    <span style="opacity:0.95; margin-left:4px;">${this._configCache?.festName || 'FestOS'} App ${this._configCache?.fest?.version || 'v4.2.0'} is ready to install.</span>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button onclick="festosAppUpdate.openModal()" style="background:white; color:#059669; border:none; padding:5px 12px; border-radius:6px; font-weight:800; font-size:0.78rem; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+                    Update Now
+                </button>
+                <button onclick="document.getElementById('festos-native-update-prompt').remove()" style="background:transparent; border:none; color:white; font-size:1.1rem; cursor:pointer; padding:2px 6px;" title="Dismiss">&times;</button>
+            </div>
+        `;
+        const host = (typeof festosGetTopBannerHost === 'function') ? festosGetTopBannerHost() : document.body;
+        if (host) {
+            host.prepend(banner);
+            if (typeof festosUpdateTopBannerPadding === 'function') festosUpdateTopBannerPadding();
+        }
+    },
+
+    async openModal() {
+        if (typeof document === 'undefined') return;
+        this.injectCSS();
+        await this.loadConfig();
+
+        const cfg = this._configCache || {};
+        const fid = cfg.fid || 'all';
+        const festName = cfg.festName || 'FestOS Festival';
+        const festLogo = cfg.festLogo || 'festos-logo.svg';
+        const latestVersion = (cfg.fest?.version || cfg.global?.version || 'v4.2.0');
+        const installed = await this.getInstalledVersion();
+        const isNative = Boolean(window.isNativeApp || (window.Capacitor && window.Capacitor.isNativePlatform()));
+        const isOutdated = this.isVersionOutdated(installed, latestVersion);
+
+        const rawUrl = (cfg.fest?.apk_url && cfg.fest.apk_url.trim()) ? cfg.fest.apk_url : '/download-apk';
+        let directApkUrl = rawUrl;
+        if (directApkUrl === '/download-apk' || directApkUrl === 'VIBRANIUM.apk') {
+            directApkUrl = `/download-apk?fest=${encodeURIComponent(fid)}&name=${encodeURIComponent(festName)}&version=${encodeURIComponent(latestVersion.replace(/^v/, ''))}`;
+        }
+        const fullDownloadUrl = (directApkUrl.startsWith('http') || directApkUrl.startsWith('https')) 
+            ? directApkUrl 
+            : `${window.location.origin}${directApkUrl.startsWith('/') ? '' : '/'}${directApkUrl}`;
+
+        const cleanFilename = `${festName.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_')}_${latestVersion}.apk`;
+        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(fullDownloadUrl)}`;
+
+        let modalEl = document.getElementById('festosAppUpdateModal');
+        if (!modalEl) {
+            modalEl = document.createElement('div');
+            modalEl.id = 'festosAppUpdateModal';
+            modalEl.className = 'modal-overlay festos-app-modal-overlay';
+            document.body.appendChild(modalEl);
+        }
+
+        modalEl.innerHTML = `
+            <div class="modal-card festos-app-modal-card">
+                <div class="festos-app-modal-top-accent"></div>
+                <div class="festos-app-modal-header">
+                    <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                        <img src="${festLogo}" alt="Logo" class="festos-app-modal-logo" onerror="this.onerror=null; this.src='festos-logo.svg';">
+                        <div style="min-width: 0;">
+                            <h3 class="festos-app-modal-title">${festName}</h3>
+                            <div class="festos-app-modal-subtitle">Official Android Mobile Application</div>
+                        </div>
+                    </div>
+                    <button type="button" class="festos-app-modal-close" onclick="festosAppUpdate.closeModal()">&times;</button>
+                </div>
+
+                <div class="festos-app-modal-body">
+                    <!-- Version & Status Badge Box -->
+                    <div class="festos-app-version-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <div>
+                                <span class="festos-app-pill-label">Release Version</span>
+                                <div style="font-size: 1.15rem; font-weight: 800; color: #0F172A; display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                                    <i class="fa-brands fa-android" style="color: #10B981;"></i> ${latestVersion}
+                                </div>
+                            </div>
+                            <div>
+                                ${isNative ? (
+                                    isOutdated ? 
+                                    `<span class="festos-app-status-badge warn"><i class="fa-solid fa-circle-arrow-up"></i> Update Available (Installed: ${installed})</span>` :
+                                    `<span class="festos-app-status-badge pass"><i class="fa-solid fa-circle-check"></i> Installed & Up to Date</span>`
+                                ) : (
+                                    `<span class="festos-app-status-badge info"><i class="fa-solid fa-shield-halved"></i> Verified Build • ~14 MB</span>`
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- What's New / Highlights -->
+                    <div class="festos-app-notes-box">
+                        <div style="font-size: 0.82rem; font-weight: 700; color: #1E293B; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-sparkles" style="color: #6366F1;"></i> What's Included & Features:
+                        </div>
+                        <ul class="festos-app-notes-list">
+                            <li><i class="fa-solid fa-check" style="color: #10B981;"></i> Dedicated high-speed branding for <strong>${festName}</strong></li>
+                            <li><i class="fa-solid fa-check" style="color: #10B981;"></i> Instant stage calls & WhatsApp-style heads-up notifications</li>
+                            <li><i class="fa-solid fa-check" style="color: #10B981;"></i> Offline evaluation syncing, QR desk scanning & live results</li>
+                            <li><i class="fa-solid fa-check" style="color: #10B981;"></i> Direct package installer update without data loss</li>
+                        </ul>
+                    </div>
+
+                    <!-- Direct Action Buttons -->
+                    <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 10px;">
+                        <button type="button" class="btn btn-success festos-app-action-btn" onclick="festosAppUpdate.startDownload()">
+                            <i class="fa-solid fa-cloud-arrow-down" style="font-size: 1.15rem;"></i>
+                            <span>${isNative ? (isOutdated ? 'Install App Update Now' : 'Download / Reinstall APK') : ('Download APK (' + cleanFilename + ')')}</span>
+                        </button>
+                    </div>
+
+                    <!-- Scan to Download QR Code for Desktop Viewers -->
+                    <div class="festos-app-qr-section">
+                        <div style="font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 8px;">
+                            <i class="fa-solid fa-qrcode" style="color: #10B981;"></i> Scan with Smartphone Camera to Download Directly:
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 15px; flex-wrap: wrap; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px;">
+                            <img src="${qrCodeUrl}" alt="Scan QR" class="festos-app-qr-img">
+                            <div style="font-size: 0.78rem; color: #64748B; max-width: 220px; line-height: 1.4; text-align: left;">
+                                Point your camera at the QR code on your phone screen to start downloading the high-speed APK file immediately.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="festos-app-modal-footer">
+                    <button type="button" class="btn btn-outline" id="festos-app-check-btn" onclick="festosAppUpdate.checkForUpdates(true)">
+                        <i class="fa-solid fa-arrows-rotate"></i> Check for Updates
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="festosAppUpdate.closeModal()">
+                        Close
+                    </button>
+                </div>
+            </div>
+        `;
+
+        modalEl.style.display = 'flex';
+        setTimeout(() => modalEl.classList.add('show'), 10);
+    },
+
+    closeModal() {
+        const modalEl = document.getElementById('festosAppUpdateModal');
+        if (modalEl) {
+            modalEl.classList.remove('show');
+            setTimeout(() => { modalEl.style.display = 'none'; }, 200);
+        }
+    },
+
+    startDownload() {
+        const cfg = this._configCache || {};
+        const fid = cfg.fid || 'all';
+        const festName = cfg.festName || 'Festival';
+        const latestVersion = (cfg.fest?.version || cfg.global?.version || 'v4.2.0');
+        const rawUrl = (cfg.fest?.apk_url && cfg.fest.apk_url.trim()) ? cfg.fest.apk_url : '/download-apk';
+
+        let targetUrl = rawUrl;
+        if (targetUrl === '/download-apk' || targetUrl === 'VIBRANIUM.apk') {
+            targetUrl = `/download-apk?fest=${encodeURIComponent(fid)}&name=${encodeURIComponent(festName)}&version=${encodeURIComponent(latestVersion.replace(/^v/, ''))}`;
+        }
+
+        const cleanFilename = `${festName.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_')}_${latestVersion}.apk`;
+
+        const a = document.createElement('a');
+        a.href = targetUrl;
+        a.download = cleanFilename;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            try { a.remove(); } catch(e) {}
+        }, 300);
+
+        try {
+            localStorage.setItem('festos_app_installed_version', latestVersion);
+            this._installedVersion = latestVersion;
+            this._hasUpdate = false;
+        } catch(e) {}
+
+        if (typeof showToast === 'function') {
+            showToast(`Downloading ${cleanFilename}...`, 'success');
+        }
+    },
+
+    async checkForUpdates(manual = true) {
+        const btn = document.getElementById('festos-app-check-btn');
+        const origHtml = btn ? btn.innerHTML : null;
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking server...';
+        }
+
+        try {
+            await this.loadConfig(true);
+            const installed = await this.getInstalledVersion();
+            const latest = this._configCache.fest?.version || this._configCache.global?.version || 'v4.2.0';
+            this._hasUpdate = this.isVersionOutdated(installed, latest);
+
+            if (this._hasUpdate) {
+                if (manual && typeof showToast === 'function') {
+                    showToast(`New update available: ${latest}!`, 'success');
+                }
+            } else {
+                if (manual && typeof showToast === 'function') {
+                    showToast(`You are on the latest version (${installed || latest}).`, 'info');
+                }
+            }
+            this.openModal();
+        } catch(e) {
+            if (manual && typeof showToast === 'function') {
+                showToast('Unable to check for updates right now.', 'warning');
+            }
+        } finally {
+            if (btn && origHtml) {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
+        }
+    },
+
+    injectCSS() {
+        if (typeof document === 'undefined' || document.getElementById('festos-app-update-css')) return;
+        const style = document.createElement('style');
+        style.id = 'festos-app-update-css';
+        style.textContent = `
+            .festos-app-update-dot {
+                position: absolute;
+                top: 4px;
+                right: 4px;
+                width: 8px;
+                height: 8px;
+                background: #10B981;
+                border: 1.5px solid white;
+                border-radius: 50%;
+                animation: festosPulseGreen 1.8s infinite;
+            }
+            @keyframes festosPulseGreen {
+                0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+                70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+                100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+            }
+            .festos-app-update-banner {
+                background: linear-gradient(135deg, #059669 0%, #10B981 100%);
+                color: #FFFFFF;
+                padding: 8px 16px;
+                box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+                border-bottom: 1px solid rgba(255,255,255,0.25);
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                font-size: 0.85rem;
+                animation: festosSlideDown 0.3s ease-out;
+                box-sizing: border-box;
+                line-height: 1.4;
+                flex-shrink: 0;
+            }
+            .festos-app-modal-overlay {
+                position: fixed; inset: 0;
+                background: rgba(15, 23, 42, 0.6);
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+                z-index: 10000;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                opacity: 0;
+                transition: opacity 0.2s ease;
+                padding: 1rem;
+                box-sizing: border-box;
+            }
+            .festos-app-modal-overlay.show { opacity: 1; }
+            .festos-app-modal-card {
+                background: white;
+                width: 100%;
+                max-width: 480px;
+                border-radius: 20px;
+                box-shadow: 0 20px 45px rgba(0,0,0,0.25);
+                overflow: hidden;
+                position: relative;
+                transform: scale(0.95);
+                transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+                border: 1px solid rgba(226, 232, 240, 0.8);
+            }
+            .festos-app-modal-overlay.show .festos-app-modal-card { transform: scale(1); }
+            .festos-app-modal-top-accent {
+                height: 5px;
+                background: linear-gradient(90deg, #10B981 0%, #3B82F6 100%);
+            }
+            .festos-app-modal-header {
+                padding: 1.25rem 1.5rem 0.75rem 1.5rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                border-bottom: 1px solid #F1F5F9;
+            }
+            .festos-app-modal-logo {
+                width: 44px;
+                height: 44px;
+                border-radius: 10px;
+                object-fit: contain;
+                padding: 4px;
+                border: 1px solid #E2E8F0;
+                background: #F8FAFC;
+                flex-shrink: 0;
+            }
+            .festos-app-modal-title {
+                font-family: 'Plus Jakarta Sans', sans-serif;
+                font-weight: 800;
+                font-size: 1.15rem;
+                color: #0F172A;
+                margin: 0;
+                line-height: 1.2;
+            }
+            .festos-app-modal-subtitle {
+                font-size: 0.76rem;
+                color: #64748B;
+                font-weight: 600;
+                margin-top: 2px;
+            }
+            .festos-app-modal-close {
+                background: none; border: none; font-size: 1.5rem;
+                color: #94A3B8; cursor: pointer; padding: 4px 8px; line-height: 1;
+                border-radius: 6px;
+            }
+            .festos-app-modal-close:hover { color: #0F172A; background: #F1F5F9; }
+            .festos-app-modal-body {
+                padding: 1.25rem 1.5rem;
+                max-height: 70vh;
+                overflow-y: auto;
+            }
+            .festos-app-version-card {
+                background: #F8FAFC;
+                border: 1px solid #E2E8F0;
+                border-radius: 12px;
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+            .festos-app-pill-label {
+                font-size: 0.72rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                color: #64748B;
+            }
+            .festos-app-status-badge {
+                padding: 4px 10px;
+                border-radius: 9999px;
+                font-size: 0.75rem;
+                font-weight: 700;
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+            }
+            .festos-app-status-badge.pass { background: #DCFCE7; color: #166534; border: 1px solid #86EFAC; }
+            .festos-app-status-badge.warn { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; }
+            .festos-app-status-badge.info { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+            .festos-app-notes-box {
+                background: #FFFFFF;
+                border: 1px solid #E2E8F0;
+                border-radius: 12px;
+                padding: 0.85rem 1rem;
+                margin-bottom: 0.75rem;
+            }
+            .festos-app-notes-list {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+                font-size: 0.8rem;
+                color: #334155;
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+            .festos-app-notes-list li {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .festos-app-action-btn {
+                width: 100%;
+                min-height: 48px;
+                font-size: 0.95rem;
+                font-weight: 800;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+                color: white;
+                border: none;
+                box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+                cursor: pointer;
+                transition: transform 0.15s ease, box-shadow 0.15s ease;
+            }
+            .festos-app-action-btn:active { transform: scale(0.98); }
+            .festos-app-qr-section {
+                margin-top: 1rem;
+                text-align: center;
+            }
+            .festos-app-qr-img {
+                width: 100px;
+                height: 100px;
+                border-radius: 8px;
+                border: 1px solid #CBD5E1;
+                padding: 4px;
+                background: white;
+            }
+            .festos-app-modal-footer {
+                padding: 0.85rem 1.5rem;
+                background: #F8FAFC;
+                border-top: 1px solid #E2E8F0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 8px;
+            }
+            @media (max-width: 600px) {
+                .festos-app-qr-section { display: none; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+};
+
 // Auto-run early role alignment and UI mount
 if (typeof window !== 'undefined') {
     festosMultiRole.autoAlignPageRole();
@@ -4100,6 +4802,9 @@ if (typeof document !== 'undefined') {
         } catch (e) {}
         festosBranding.init();
         festosBroadcasts.init();
+        if (typeof festosAppUpdate !== 'undefined' && festosAppUpdate.init) {
+            festosAppUpdate.init();
+        }
     };
 
     if (document.readyState === 'loading') {
@@ -4224,6 +4929,7 @@ if (typeof window !== 'undefined') {
     window.festosGetAuthHeaders = festosGetAuthHeaders;
     window.festosRefreshSupabaseHeaders = festosRefreshSupabaseHeaders;
     window.festosMultiRole = festosMultiRole;
+    window.festosAppUpdate = festosAppUpdate;
 }
 
 
