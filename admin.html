@@ -808,17 +808,138 @@ tr:hover td { background: var(--bg-main); }
     }
 
     .header { 
-        padding: 1rem 1.25rem; border-bottom: none; 
-        background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); 
-        position: sticky; top: 0; z-index: 90; box-shadow: var(--shadow-sm); 
-        flex-wrap: nowrap; width: 100%;
+        padding: 0.6rem 0.85rem !important; 
+        min-height: 54px !important;
+        border-bottom: 1px solid var(--border) !important; 
+        background: rgba(255, 255, 255, 0.95) !important; 
+        backdrop-filter: blur(16px) !important; 
+        -webkit-backdrop-filter: blur(16px) !important;
+        position: sticky !important; 
+        top: 0 !important; 
+        z-index: 90 !important; 
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important; 
+        flex-wrap: nowrap !important; 
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 0.5rem !important;
+        box-sizing: border-box !important;
     }
-    .header h1 { font-size: 1.15rem; }
-    .header .btn-outline { 
-        border: none; background: var(--bg-main); border-radius: 50%; 
-        width: 40px; height: 40px; padding: 0; font-size: 0; min-height: 40px; flex-shrink: 0; 
+    .header .header-left,
+    .header > div:first-child {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.55rem !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
     }
-    .header .btn-outline i { font-size: 1.1rem; margin: 0; color: var(--danger); }
+    .header .menu-toggle {
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        min-height: 36px !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 1.05rem !important;
+        border-radius: 10px !important;
+        flex-shrink: 0 !important;
+        border: 1px solid var(--border) !important;
+        background: var(--bg-surface) !important;
+        color: var(--text-main) !important;
+    }
+    .header h1,
+    #page-title { 
+        font-size: 1.12rem !important; 
+        font-weight: 800 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        letter-spacing: -0.02em !important;
+        margin: 0 !important;
+        line-height: 1.2 !important;
+        color: var(--text-main) !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+    .header-right-actions,
+    .header-actions,
+    .header > div:last-child { 
+        display: flex !important; 
+        gap: 0.35rem !important; 
+        align-items: center !important; 
+        flex-shrink: 0 !important; 
+    }
+    
+    /* Mobile Header Action Buttons: 36px compact circles */
+    .admin-omnisearch-btn,
+    .header-notify-btn,
+    .festos-darkmode-btn,
+    .festos-app-update-nav-btn,
+    .header-icon-btn {
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        min-height: 36px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        font-size: 0.95rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex-shrink: 0 !important;
+        box-shadow: none !important;
+    }
+    .header-notify-btn .notify-badge {
+        top: -2px !important;
+        right: -2px !important;
+        min-width: 16px !important;
+        height: 16px !important;
+        font-size: 0.62rem !important;
+        padding: 0 4px !important;
+    }
+    .festos-app-update-dot {
+        top: 2px !important;
+        right: 2px !important;
+        width: 8px !important;
+        height: 8px !important;
+    }
+    /* Move Sign Out to the sidebar drawer on mobile to eliminate header congestion */
+    .header .header-logout-btn,
+    .header .btn-outline[onclick*="logout"] { 
+        display: none !important; 
+    }
+
+    @media (max-width: 380px) {
+        .header {
+            padding: 0.5rem 0.6rem !important;
+            gap: 0.35rem !important;
+        }
+        .header .menu-toggle,
+        .admin-omnisearch-btn,
+        .header-notify-btn,
+        .festos-darkmode-btn,
+        .festos-app-update-nav-btn,
+        .header-icon-btn {
+            width: 33px !important;
+            height: 33px !important;
+            min-width: 33px !important;
+            min-height: 33px !important;
+            font-size: 0.88rem !important;
+        }
+        .header-right-actions,
+        .header-actions,
+        .header > div:last-child {
+            gap: 0.25rem !important;
+        }
+        .header h1,
+        #page-title {
+            font-size: 1.02rem !important;
+        }
+    }
     
     /* 4. AGGRESSIVE GRID OVERRIDES */
     .grid-2, 
@@ -2646,15 +2767,23 @@ canvas {
             <a href="announcements.html" class="nav-main" style="text-decoration: none;"><div style="display:flex; align-items:center; gap:1rem;"><i class="fa-solid fa-bullhorn icon-left"></i> Announcer Portal</div></a>
             <a href="program_report.html" class="nav-main" style="text-decoration: none;"><div style="display:flex; align-items:center; gap:1rem;"><i class="fa-solid fa-file-pdf icon-left"></i> Master Reports</div></a>
         </div>
+
+        <!-- Sidebar Footer Action (Always accessible on mobile) -->
+        <div class="sidebar-footer" style="margin-top: auto; padding: 1.25rem 1rem 1rem 1rem; border-top: 1px solid var(--border);">
+            <button class="btn btn-outline sidebar-logout-btn" onclick="logout()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.65rem; border-radius: 12px; padding: 0.75rem 1rem; color: #EF4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.05); font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease;">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Sign Out</span>
+            </button>
+        </div>
     </div>
 
     <div class="main-content">
         <div class="header">
-            <div style="display: flex; align-items: center; gap: 1rem; flex: 1; min-width: 0;">
+            <div class="header-left" style="display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0;">
                 <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle Sidebar" title="Toggle Sidebar (Ctrl+B)"><i class="fa-solid fa-bars"></i></button>
                 <h1 id="page-title" data-no-auto-brand="true" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0;">Workspace Overview</h1>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.65rem; flex-shrink: 0;">
+            <div class="header-right-actions" style="display: flex; align-items: center; gap: 0.45rem; flex-shrink: 0;">
                 <!-- Omnisearch Palette Button -->
                 <button class="admin-omnisearch-btn" id="header-omnisearch-btn" onclick="openAdminOmnisearch()" title="Omnisearch All Options, Pages & Shortcuts (Ctrl+K)">
                     <i class="fa-solid fa-magnifying-glass"></i>
@@ -2671,7 +2800,7 @@ canvas {
                     <i class="fa-solid fa-bell"></i>
                     <span class="notify-badge" id="header-notify-badge" style="display: none; position: absolute; top: -3px; right: -3px; background: #EF4444; color: white; border-radius: 999px; min-width: 19px; height: 19px; padding: 0 5px; font-size: 0.7rem; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4);">0</span>
                 </button>
-                <button class="btn btn-outline" onclick="logout()" style="flex-shrink: 0;"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+                <button class="btn btn-outline header-logout-btn" onclick="logout()" style="flex-shrink: 0;"><i class="fa-solid fa-right-from-bracket"></i> <span class="logout-text">Sign Out</span></button>
             </div>
         </div>
 
@@ -8681,7 +8810,7 @@ function toggleCustomGridFields() {
 <div id="toast-container"></div>
 
 
-<script src="festos-core.js?v=4.3.1"></script>
+<script src="festos-core.js?v=4.3.2"></script>
 <script src="mobile-native.js"></script>
 <script src="id-badge-engine.js?v=3.8.2"></script>
 <script src="preset-templates-engine.js"></script>

@@ -3520,6 +3520,42 @@ const festosDarkMode = {
                 border: 1px solid #27272A !important;
                 color: #60A5FA !important;
             }
+
+            /* Universal Mobile Header Optimization across all pages */
+            @media (max-width: 768px) {
+                .festos-darkmode-btn,
+                .festos-app-update-nav-btn {
+                    width: 36px !important;
+                    height: 36px !important;
+                    min-width: 36px !important;
+                    min-height: 36px !important;
+                    padding: 0 !important;
+                    font-size: 0.95rem !important;
+                    border-radius: 50% !important;
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    flex-shrink: 0 !important;
+                }
+                .festos-app-update-nav-btn span:not(.festos-app-update-dot) {
+                    display: none !important;
+                }
+                body.dark-hall-mode .sidebar-logout-btn {
+                    background: rgba(239, 68, 68, 0.12) !important;
+                    border-color: rgba(239, 68, 68, 0.3) !important;
+                    color: #F87171 !important;
+                }
+            }
+            @media (max-width: 380px) {
+                .festos-darkmode-btn,
+                .festos-app-update-nav-btn {
+                    width: 33px !important;
+                    height: 33px !important;
+                    min-width: 33px !important;
+                    min-height: 33px !important;
+                    font-size: 0.88rem !important;
+                }
+            }
         `;
         document.head.appendChild(style);
     }
