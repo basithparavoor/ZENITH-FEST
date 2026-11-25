@@ -2444,8 +2444,8 @@ const festosAppUpdate = {
             ? directApkUrl 
             : `${window.location.origin}${directApkUrl.startsWith('/') ? '' : '/'}${directApkUrl}`;
 
-        const cleanFilename = `${festName.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_')}_${latestVersion}.apk`;
-        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(fullDownloadUrl)}`;
+        const cleanVersion = String(latestVersion).replace(/^v/i, 'v');
+        const cleanFilename = `${festName.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_')}_${cleanVersion}.apk`;
 
         let modalEl = document.getElementById('festosAppUpdateModal');
         if (!modalEl) {
@@ -2459,69 +2459,73 @@ const festosAppUpdate = {
             <div class="modal-card festos-app-modal-card">
                 <div class="festos-app-modal-top-accent"></div>
                 <div class="festos-app-modal-header">
-                    <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                    <div style="display: flex; align-items: center; gap: 14px; min-width: 0;">
                         <img src="${festLogo}" alt="Logo" class="festos-app-modal-logo" onerror="this.onerror=null; this.src='festos-logo.svg';">
                         <div style="min-width: 0;">
-                            <h3 class="festos-app-modal-title">${festName}</h3>
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <h3 class="festos-app-modal-title">${festName}</h3>
+                                <span class="festos-app-verified-tag"><i class="fa-solid fa-circle-check"></i> Official</span>
+                            </div>
                             <div class="festos-app-modal-subtitle">Official Android Mobile Application</div>
                         </div>
                     </div>
-                    <button type="button" class="festos-app-modal-close" onclick="festosAppUpdate.closeModal()">&times;</button>
+                    <button type="button" class="festos-app-modal-close" onclick="festosAppUpdate.closeModal()" title="Close">&times;</button>
                 </div>
 
                 <div class="festos-app-modal-body">
-                    <!-- Version & Status Badge Box -->
-                    <div class="festos-app-version-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                            <div>
-                                <span class="festos-app-pill-label">Release Version</span>
-                                <div style="font-size: 1.15rem; font-weight: 800; color: #0F172A; display: flex; align-items: center; gap: 8px; margin-top: 2px;">
-                                    <i class="fa-brands fa-android" style="color: #10B981;"></i> ${latestVersion}
-                                </div>
-                            </div>
-                            <div>
-                                ${isNative ? (
-                                    isOutdated ? 
-                                    `<span class="festos-app-status-badge warn"><i class="fa-solid fa-circle-arrow-up"></i> Update Available (Installed: ${installed})</span>` :
-                                    `<span class="festos-app-status-badge pass"><i class="fa-solid fa-circle-check"></i> Installed & Up to Date</span>`
-                                ) : (
-                                    `<span class="festos-app-status-badge info"><i class="fa-solid fa-shield-halved"></i> Verified Build • ~14 MB</span>`
-                                )}
-                            </div>
+                    <!-- Global Spec Strip -->
+                    <div class="festos-app-spec-strip">
+                        <div class="festos-spec-item">
+                            <span class="festos-spec-lbl">RELEASE</span>
+                            <span class="festos-spec-val"><i class="fa-brands fa-android" style="color: #10B981;"></i> ${cleanVersion}</span>
+                        </div>
+                        <div class="festos-spec-sep"></div>
+                        <div class="festos-spec-item">
+                            <span class="festos-spec-lbl">PACKAGE</span>
+                            <span class="festos-spec-val"><i class="fa-solid fa-file-zipper" style="color: #6366F1;"></i> ~14 MB</span>
+                        </div>
+                        <div class="festos-spec-sep"></div>
+                        <div class="festos-spec-item">
+                            <span class="festos-spec-lbl">SYSTEM</span>
+                            <span class="festos-spec-val"><i class="fa-solid fa-shield-halved" style="color: #0284C7;"></i> Verified APK</span>
                         </div>
                     </div>
 
-                    <!-- What's New / Highlights -->
-                    <div class="festos-app-notes-box">
-                        <div style="font-size: 0.82rem; font-weight: 700; color: #1E293B; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-                            <i class="fa-solid fa-sparkles" style="color: #6366F1;"></i> What's Included & Features:
+                    ${isNative ? `
+                        <div class="festos-app-status-box ${isOutdated ? 'warn' : 'pass'}">
+                            <i class="fa-solid ${isOutdated ? 'fa-circle-arrow-up' : 'fa-circle-check'}"></i>
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.85rem;">${isOutdated ? 'New Version Available' : 'Application Up to Date'}</div>
+                                <div style="font-size: 0.76rem; opacity: 0.85;">Installed: ${installed} • Latest: ${cleanVersion}</div>
+                            </div>
                         </div>
-                        <ul class="festos-app-notes-list">
-                            <li><i class="fa-solid fa-check" style="color: #10B981;"></i> Dedicated high-speed branding for <strong>${festName}</strong></li>
-                            <li><i class="fa-solid fa-check" style="color: #10B981;"></i> Instant stage calls & WhatsApp-style heads-up notifications</li>
-                            <li><i class="fa-solid fa-check" style="color: #10B981;"></i> Offline evaluation syncing, QR desk scanning & live results</li>
-                            <li><i class="fa-solid fa-check" style="color: #10B981;"></i> Direct package installer update without data loss</li>
+                    ` : ''}
+
+                    <!-- Key Features & Inclusions -->
+                    <div class="festos-app-features-card">
+                        <div class="festos-app-features-hdr">
+                            <i class="fa-solid fa-sparkles" style="color: #10B981;"></i> Standard Features & Services
+                        </div>
+                        <ul class="festos-app-features-list">
+                            <li><i class="fa-solid fa-check"></i> High-speed festival portal & instant stage call alerts</li>
+                            <li><i class="fa-solid fa-check"></i> Offline valuation, score entry & automatic cloud sync</li>
+                            <li><i class="fa-solid fa-check"></i> Fast desk QR registration & student chest badge scanning</li>
+                            <li><i class="fa-solid fa-check"></i> Direct championship points ledger & real-time results</li>
                         </ul>
                     </div>
 
-                    <!-- Direct Action Buttons -->
-                    <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 10px;">
-                        <button type="button" class="btn btn-success festos-app-action-btn" onclick="festosAppUpdate.startDownload()">
-                            <i class="fa-solid fa-cloud-arrow-down" style="font-size: 1.15rem;"></i>
-                            <span>${isNative ? (isOutdated ? 'Install App Update Now' : 'Download / Reinstall APK') : ('Download APK (' + cleanFilename + ')')}</span>
-                        </button>
-                    </div>
-
-                    <!-- Scan to Download QR Code for Desktop Viewers -->
-                    <div class="festos-app-qr-section">
-                        <div style="font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 8px;">
-                            <i class="fa-solid fa-qrcode" style="color: #10B981;"></i> Scan with Smartphone Camera to Download Directly:
-                        </div>
-                        <div style="display: flex; align-items: center; justify-content: center; gap: 15px; flex-wrap: wrap; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px;">
-                            <img src="${qrCodeUrl}" alt="Scan QR" class="festos-app-qr-img">
-                            <div style="font-size: 0.78rem; color: #64748B; max-width: 220px; line-height: 1.4; text-align: left;">
-                                Point your camera at the QR code on your phone screen to start downloading the high-speed APK file immediately.
+                    <!-- Direct Action Primary Button -->
+                    <div style="margin-top: 1.15rem;">
+                        <button type="button" class="festos-app-primary-btn" onclick="festosAppUpdate.startDownload()">
+                            <i class="fa-solid ${isNative ? (isOutdated ? 'fa-arrows-rotate' : 'fa-download') : 'fa-cloud-arrow-down'}"></i>
+                            <div style="display: flex; flex-direction: column; align-items: flex-start; text-align: left; line-height: 1.25;">
+                                <span style="font-size: 1rem; font-weight: 800;">${isNative ? (isOutdated ? 'Install App Update Now' : 'Reinstall Latest Version') : 'Direct Download APK'}</span>
+                                <small style="font-size: 0.74rem; font-weight: 600; opacity: 0.9;">${cleanFilename}</small>
                             </div>
+                        </button>
+                        <div class="festos-direct-hint">
+                            <i class="fa-solid fa-shield-halved" style="color: #10B981;"></i>
+                            <span>Official signed package. Safe, verified, and immediate direct download.</span>
                         </div>
                     </div>
                 </div>
@@ -2731,83 +2735,139 @@ const festosAppUpdate = {
                 max-height: 70vh;
                 overflow-y: auto;
             }
-            .festos-app-version-card {
+            .festos-app-verified-tag {
+                font-size: 0.7rem;
+                font-weight: 700;
+                color: #059669;
+                background: #ECFDF5;
+                border: 1px solid #A7F3D0;
+                padding: 2px 8px;
+                border-radius: 9999px;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+            }
+            .festos-app-spec-strip {
+                display: grid;
+                grid-template-columns: 1fr auto 1fr auto 1fr;
+                align-items: center;
                 background: #F8FAFC;
                 border: 1px solid #E2E8F0;
-                border-radius: 12px;
-                padding: 1rem;
+                border-radius: 14px;
+                padding: 0.75rem 1rem;
                 margin-bottom: 1rem;
+                text-align: center;
             }
-            .festos-app-pill-label {
-                font-size: 0.72rem;
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: 0.04em;
+            .festos-spec-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 2px;
+            }
+            .festos-spec-lbl {
+                font-size: 0.62rem;
+                font-weight: 800;
                 color: #64748B;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
             }
-            .festos-app-status-badge {
-                padding: 4px 10px;
-                border-radius: 9999px;
-                font-size: 0.75rem;
-                font-weight: 700;
+            .festos-spec-val {
+                font-size: 0.85rem;
+                font-weight: 800;
+                color: #0F172A;
                 display: inline-flex;
                 align-items: center;
                 gap: 5px;
             }
-            .festos-app-status-badge.pass { background: #DCFCE7; color: #166534; border: 1px solid #86EFAC; }
-            .festos-app-status-badge.warn { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; }
-            .festos-app-status-badge.info { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
-            .festos-app-notes-box {
+            .festos-spec-sep {
+                width: 1px;
+                height: 26px;
+                background: #CBD5E1;
+            }
+            .festos-app-status-box {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 0.75rem 1rem;
+                border-radius: 12px;
+                margin-bottom: 1rem;
+            }
+            .festos-app-status-box.warn { background: #FEF3C7; border: 1px solid #FCD34D; color: #92400E; }
+            .festos-app-status-box.pass { background: #DCFCE7; border: 1px solid #86EFAC; color: #166534; }
+            .festos-app-features-card {
                 background: #FFFFFF;
                 border: 1px solid #E2E8F0;
-                border-radius: 12px;
-                padding: 0.85rem 1rem;
-                margin-bottom: 0.75rem;
+                border-radius: 14px;
+                padding: 1rem 1.15rem;
+                margin-bottom: 0.5rem;
             }
-            .festos-app-notes-list {
+            .festos-app-features-hdr {
+                font-size: 0.76rem;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                color: #475569;
+                margin-bottom: 0.65rem;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .festos-app-features-list {
                 list-style: none;
                 margin: 0;
                 padding: 0;
-                font-size: 0.8rem;
-                color: #334155;
                 display: flex;
                 flex-direction: column;
-                gap: 6px;
+                gap: 7px;
             }
-            .festos-app-notes-list li {
+            .festos-app-features-list li {
+                font-size: 0.82rem;
+                font-weight: 600;
+                color: #334155;
                 display: flex;
                 align-items: center;
                 gap: 8px;
             }
-            .festos-app-action-btn {
+            .festos-app-features-list li i {
+                color: #10B981;
+                font-size: 0.85rem;
+                flex-shrink: 0;
+            }
+            .festos-app-primary-btn {
                 width: 100%;
-                min-height: 48px;
-                font-size: 0.95rem;
-                font-weight: 800;
-                border-radius: 12px;
+                min-height: 52px;
+                padding: 0.75rem 1.25rem;
+                border-radius: 14px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                gap: 8px;
+                gap: 12px;
                 background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-                color: white;
+                color: #FFFFFF;
                 border: none;
-                box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+                box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
                 cursor: pointer;
-                transition: transform 0.15s ease, box-shadow 0.15s ease;
+                transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             }
-            .festos-app-action-btn:active { transform: scale(0.98); }
-            .festos-app-qr-section {
-                margin-top: 1rem;
+            .festos-app-primary-btn i {
+                font-size: 1.35rem;
+            }
+            .festos-app-primary-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 22px rgba(16, 185, 129, 0.45);
+                background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            }
+            .festos-app-primary-btn:active { transform: scale(0.98); }
+            .festos-direct-hint {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                font-size: 0.74rem;
+                font-weight: 600;
+                color: #64748B;
+                margin-top: 0.65rem;
                 text-align: center;
-            }
-            .festos-app-qr-img {
-                width: 100px;
-                height: 100px;
-                border-radius: 8px;
-                border: 1px solid #CBD5E1;
-                padding: 4px;
-                background: white;
             }
             .festos-app-modal-footer {
                 padding: 1rem 1.5rem;
@@ -3749,37 +3809,36 @@ const festosDarkMode = {
                 color: #FFFFFF !important;
                 background: #27272A !important;
             }
-            body.dark-hall-mode .festos-app-version-card {
+            body.dark-hall-mode .festos-app-spec-strip {
                 background: #18181B !important;
                 border: 1px solid #27272A !important;
-                color: #F8FAFC !important;
             }
-            body.dark-hall-mode .festos-app-pill-label {
+            body.dark-hall-mode .festos-spec-lbl {
                 color: #94A3B8 !important;
             }
-            body.dark-hall-mode .festos-app-notes-box {
-                background: #18181B !important;
-                border: 1px solid #27272A !important;
+            body.dark-hall-mode .festos-spec-val {
                 color: #F8FAFC !important;
             }
-            body.dark-hall-mode .festos-app-notes-box strong {
-                color: #FFFFFF !important;
+            body.dark-hall-mode .festos-spec-sep {
+                background: #27272A !important;
             }
-            body.dark-hall-mode .festos-app-notes-list li {
+            body.dark-hall-mode .festos-app-features-card {
+                background: #18181B !important;
+                border: 1px solid #27272A !important;
+            }
+            body.dark-hall-mode .festos-app-features-hdr {
+                color: #94A3B8 !important;
+            }
+            body.dark-hall-mode .festos-app-features-list li {
                 color: #E2E8F0 !important;
             }
-            body.dark-hall-mode .festos-app-qr-section {
-                background: #18181B !important;
-                border: 1px solid #27272A !important;
+            body.dark-hall-mode .festos-direct-hint {
                 color: #94A3B8 !important;
             }
-            body.dark-hall-mode .festos-app-qr-section p {
-                color: #94A3B8 !important;
-            }
-            body.dark-hall-mode .festos-app-qr-img {
-                background: #FFFFFF !important;
-                padding: 6px !important;
-                border-radius: 8px !important;
+            body.dark-hall-mode .festos-app-verified-tag {
+                background: rgba(16, 185, 129, 0.15) !important;
+                border-color: rgba(16, 185, 129, 0.3) !important;
+                color: #6EE7B7 !important;
             }
             body.dark-hall-mode .festos-app-modal-footer {
                 background: #121215 !important;
