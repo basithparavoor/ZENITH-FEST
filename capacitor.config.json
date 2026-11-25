@@ -1,6 +1,6 @@
 {
-  "appId": "com.festos.elysium26",
-  "appName": "ELYSIUM-26",
+  "appId": "com.festos.zenithfest",
+  "appName": "FestOS",
   "webDir": "www",
   "bundledWebRuntime": false,
   "server": {

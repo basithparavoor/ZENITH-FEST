@@ -1059,6 +1059,10 @@ const festosBranding = {
         // 1. Update Title Dynamically
         if (isLogin) {
             document.title = domainFest ? `${festName} | Secure Login` : `FestOS | Secure Login`;
+            const loginBadgeLabel = document.getElementById('login-app-download-label');
+            if (loginBadgeLabel && validName && festName !== this.DEFAULT_NAME) {
+                loginBadgeLabel.textContent = `Download ${festName} APK`;
+            }
         } else if (isSuper) {
             document.title = `${festName} | Super Admin Control Panel`;
         } else {
@@ -2143,14 +2147,35 @@ const festosAppUpdate = {
     },
 
     async loadConfig(forceFresh = false) {
-        let fid = null;
-        try {
-            if (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) {
-                fid = festosAuth.getCurrentFestId();
-            }
-        } catch(e) {}
+        // Priority 1: Domain-based festival identification
+        let domainFest = null;
+        if (typeof festosBranding !== 'undefined' && typeof festosBranding.getResolvedDomainFest === 'function') {
+            domainFest = festosBranding.getResolvedDomainFest();
+        } else if (typeof festosDomains !== 'undefined' && typeof festosDomains.resolveCurrentFest === 'function') {
+            domainFest = await festosDomains.resolveCurrentFest();
+        }
+
+        let fid = domainFest ? domainFest.id : null;
+        if (!fid && typeof window !== 'undefined' && window.activeFestId) {
+            fid = window.activeFestId;
+        }
+        if (!fid && typeof festosDomains !== 'undefined' && typeof festosDomains.getHostFestId === 'function') {
+            fid = festosDomains.getHostFestId();
+        }
+        if (!fid) {
+            try {
+                if (typeof festosAuth !== 'undefined' && festosAuth.getCurrentFestId) {
+                    fid = festosAuth.getCurrentFestId();
+                }
+            } catch(e) {}
+        }
         if (!fid || fid === 'all') {
             fid = localStorage.getItem('festos_active_fest_id') || 'all';
+        }
+
+        // If domainFest was not resolved earlier, find it from cached fests list
+        if (!domainFest && fid && typeof festosDomains !== 'undefined' && typeof festosDomains.getFestList === 'function') {
+            domainFest = festosDomains.getFestList().find(f => f && (f.id === fid || f.slug === fid));
         }
 
         let globalCfg = null;
@@ -2189,23 +2214,36 @@ const festosAppUpdate = {
             release_notes: 'Instant stage callouts, real-time scorecard evaluations, and live stage HUD sync.'
         };
 
-        let branding = {};
-        try {
-            if (typeof festosGetActiveBranding === 'function') {
-                branding = festosGetActiveBranding(fid);
-            } else if (window.systemBranding) {
-                branding = window.systemBranding;
-            }
-        } catch(e) {}
+        let festName = domainFest ? (domainFest.name || '').trim() : '';
+        let festLogo = domainFest ? (domainFest.logo || '').trim() : '';
 
-        const festName = branding.fest_name || 'FestOS Festival';
-        const festLogo = branding.fest_logo || 'festos-logo.svg';
+        if (!festName || !festLogo) {
+            let branding = {};
+            try {
+                if (typeof festosGetActiveBranding === 'function') {
+                    branding = festosGetActiveBranding(fid);
+                } else if (window.systemBranding) {
+                    branding = window.systemBranding;
+                }
+            } catch(e) {}
+
+            festName = festName || branding.fest_name || 'Festival';
+            festLogo = festLogo || branding.fest_logo || 'festos-logo.svg';
+        }
+
+        // Dedicated fallback logos for well-known festivals if logo is empty or generic
+        if (festName.toUpperCase().includes('VIBRANIUM') && (!festLogo || festLogo.includes('festos-logo.svg'))) {
+            festLogo = 'vibranium-logo.png';
+        }
+
+        const cleanFestCode = festName.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/[\s\-]+/g, '_');
+        const dedicatedApkUrl = `/${cleanFestCode}.apk`;
 
         festCfg = festCfg || {
             enabled: true,
             name: `${festName} Official Mobile App`,
             version: globalCfg.version || 'v4.2.0',
-            apk_url: `/download-apk?fest=${fid}&name=${encodeURIComponent(festName)}&version=${(globalCfg.version || '4.2.0').replace(/^v/, '')}`,
+            apk_url: dedicatedApkUrl,
             notes: globalCfg.release_notes
         };
 
@@ -2244,6 +2282,12 @@ const festosAppUpdate = {
             this._hasUpdate = this.isVersionOutdated(installed, latest);
 
             this.mountNavButton();
+
+            // Update the download badge on the login page with the exact festival name
+            const labelEl = document.getElementById('login-app-download-label');
+            if (labelEl && this._configCache && this._configCache.festName) {
+                labelEl.textContent = `Download ${this._configCache.festName} APK`;
+            }
 
             // Safety retries in case dynamic portal scripts finish rendering headers slightly after bootstrap
             setTimeout(() => {
