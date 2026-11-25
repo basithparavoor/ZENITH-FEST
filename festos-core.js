@@ -7,10 +7,13 @@
  * 4. Multi-Tenant Festival Context & Feature Flag Matrix Evaluator
  */
 
-// Fast-apply dark mode to avoid any FOUC before DOMContentLoaded
+// Fast-apply dark mode to avoid any FOUC before DOMContentLoaded (Never on results page)
 if (typeof window !== 'undefined') {
     try {
-        if (localStorage.getItem('festos_dark_mode') === 'true' || localStorage.getItem('festos_judge_dark_mode') === 'true') {
+        const _p = (window.location.pathname || '').toLowerCase();
+        const _pg = _p.split('/').pop().split('?')[0];
+        const _isResults = _pg === 'results.html' || _pg.includes('results');
+        if (!_isResults && (localStorage.getItem('festos_dark_mode') === 'true' || localStorage.getItem('festos_judge_dark_mode') === 'true')) {
             document.documentElement.classList.add('dark-hall-mode');
             if (document.body) document.body.classList.add('dark-hall-mode');
         }
@@ -2841,13 +2844,32 @@ const festosDarkMode = {
     STORAGE_KEY: 'festos_dark_mode',
     LEGACY_JUDGE_KEY: 'festos_judge_dark_mode',
 
+    isResultsPage() {
+        if (typeof window === 'undefined') return false;
+        const p = (window.location.pathname || '').toLowerCase();
+        const pg = p.split('/').pop().split('?')[0];
+        if (pg === 'results.html' || pg.includes('results')) return true;
+        if (typeof document !== 'undefined' && (document.getElementById('site-offline-overlay') || document.getElementById('preview-offline-banner'))) return true;
+        return false;
+    },
+
     isDark() {
+        if (this.isResultsPage()) return false;
         if (typeof localStorage === 'undefined') return false;
         return localStorage.getItem(this.STORAGE_KEY) === 'true' || localStorage.getItem(this.LEGACY_JUDGE_KEY) === 'true';
     },
 
     init() {
         if (typeof document === 'undefined') return;
+        // Results page is strictly kept in default light theme without theme toggle
+        if (this.isResultsPage()) {
+            document.documentElement.classList.remove('dark-hall-mode');
+            if (document.body) document.body.classList.remove('dark-hall-mode');
+            const toggleBtn = document.getElementById('festos-darkmode-toggle-btn');
+            if (toggleBtn) toggleBtn.remove();
+            return;
+        }
+
         this.injectCSS();
         
         // Apply persisted state
@@ -2864,6 +2886,11 @@ const festosDarkMode = {
 
     applyState(isDark) {
         if (typeof document === 'undefined') return;
+        if (this.isResultsPage()) {
+            document.body.classList.remove('dark-hall-mode');
+            document.documentElement.classList.remove('dark-hall-mode');
+            return;
+        }
         if (isDark) {
             document.body.classList.add('dark-hall-mode');
             document.documentElement.classList.add('dark-hall-mode');
@@ -2991,20 +3018,7 @@ const festosDarkMode = {
             return;
         }
 
-        // 7. Results Page (results.html)
-        const desktopNavLinks = document.getElementById('desktop-nav-links');
-        if (desktopNavLinks) {
-            const a = document.createElement('a');
-            a.id = 'festos-darkmode-toggle-btn';
-            a.className = 'nav-link festos-darkmode-btn';
-            a.href = '#';
-            a.title = isDark ? 'Switch to Light Mode' : 'Switch to OLED Dark Auditorium Mode';
-            a.style.cssText = 'position: relative; color: var(--text-main); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0.5rem;';
-            a.innerHTML = iconHtml;
-            a.onclick = (e) => { e.preventDefault(); festosDarkMode.toggle(); };
-            desktopNavLinks.appendChild(a);
-            return;
-        }
+        // 7. Results Page (results.html) - EXCLUDED: No dark mode or theme toggle on results page
 
         // 8. Spectator Page (spectator.html)
         const spectatorLiveTag = document.querySelector('.header .live-tag');
