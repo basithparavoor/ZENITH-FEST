@@ -1706,6 +1706,9 @@ document.head.appendChild(style);
 // ==========================================
 document.addEventListener("DOMContentLoaded", () => {
     fetchAndApplyBranding();
+    if (window.festosAppUpdate && typeof window.festosAppUpdate.mountNavButton === 'function') {
+        window.festosAppUpdate.mountNavButton();
+    }
 });
 
 async function fetchAndApplyBranding() {

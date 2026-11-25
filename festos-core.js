@@ -2191,6 +2191,18 @@ const festosAppUpdate = {
 
             this.mountNavButton();
 
+            // Safety retries in case dynamic portal scripts finish rendering headers slightly after bootstrap
+            setTimeout(() => {
+                if (!document.getElementById('festos-app-header-btn')) {
+                    this.mountNavButton();
+                }
+            }, 300);
+            setTimeout(() => {
+                if (!document.getElementById('festos-app-header-btn')) {
+                    this.mountNavButton();
+                }
+            }, 1000);
+
             if (this._hasUpdate && window.isNativeApp) {
                 this.showNativeUpdatePrompt();
             }
@@ -2272,12 +2284,12 @@ const festosAppUpdate = {
             return;
         }
 
-        // 4. Judge & Stage Controller (judge.html, stage-controller.html)
-        const topNavRight = document.querySelector('.top-nav-right');
+        // 4. Stage Controller & Judge (stage-controller.html, judge.html)
+        const topNavRight = document.querySelector('.top-nav-right, .top-nav-bar > div:last-child');
         if (topNavRight) {
             const btn = createNavBtn(
                 'header-icon-btn',
-                'position: relative; color: #10B981; flex-shrink: 0;',
+                'position: relative; width: 38px; height: 38px; border-radius: 10px; border: 1px solid #A7F3D0; background: #ECFDF5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 1.05rem; cursor: pointer; flex-shrink: 0;',
                 `<i class="fa-solid fa-mobile-screen-button" style="color: #10B981;"></i>${updateDotHtml}`
             );
             topNavRight.insertBefore(btn, topNavRight.firstChild);
@@ -2285,13 +2297,13 @@ const festosAppUpdate = {
         }
 
         // 5. Announcer Portal (announcements.html)
-        if (document.getElementById('announcer-page-title')) {
-            const announcerHeaderRight = document.querySelector('.header > div:last-child');
+        if (document.getElementById('announcer-page-title') || window.location.pathname.includes('announcements')) {
+            const announcerHeaderRight = document.querySelector('.header > div:last-child, .header .header-right, .header > div:not(.header-left)');
             if (announcerHeaderRight) {
                 const btn = createNavBtn(
                     'btn-logout',
-                    'position: relative; color: #059669; border-color: #A7F3D0; background: #ECFDF5;',
-                    `<i class="fa-solid fa-mobile-screen-button"></i> <span class="logout-text">App</span>${updateDotHtml}`
+                    'position: relative; color: #059669; border: 1.5px solid #A7F3D0; background: #ECFDF5; font-weight: 700; padding: 0.5rem 1rem; min-height: 40px; border-radius: var(--radius-md, 8px); display: flex; align-items: center; gap: 0.5rem; cursor: pointer; flex-shrink: 0;',
+                    `<i class="fa-solid fa-mobile-screen-button" style="color: #10B981;"></i> <span class="logout-text">App</span>${updateDotHtml}`
                 );
                 announcerHeaderRight.insertBefore(btn, announcerHeaderRight.firstChild);
                 return;

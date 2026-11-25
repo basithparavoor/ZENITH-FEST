@@ -13,7 +13,7 @@
     
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="festos-core.js?v=4.2.2"></script>
+    <script src="festos-core.js?v=4.2.3"></script>
     
     <!-- jsPDF & AutoTable for PDF Generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -2331,11 +2331,22 @@
                     }
                 }
             }
+            if (window.festosAppUpdate && typeof window.festosAppUpdate.mountNavButton === 'function') {
+                window.festosAppUpdate.mountNavButton();
+            }
         }
         if (document.readyState === 'loading') {
-            document.addEventListener("DOMContentLoaded", setupAdminHubBtn);
+            document.addEventListener("DOMContentLoaded", () => {
+                setupAdminHubBtn();
+                if (window.festosAppUpdate && typeof window.festosAppUpdate.mountNavButton === 'function') {
+                    window.festosAppUpdate.mountNavButton();
+                }
+            });
         } else {
             setupAdminHubBtn();
+            if (window.festosAppUpdate && typeof window.festosAppUpdate.mountNavButton === 'function') {
+                window.festosAppUpdate.mountNavButton();
+            }
         }
         
         // --- MODAL & AUTH UTILITIES ---
