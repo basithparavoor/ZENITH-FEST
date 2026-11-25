@@ -2553,19 +2553,44 @@ const festosAppUpdate = {
         }
     },
 
-    startDownload() {
+    async startDownload() {
         const cfg = this._configCache || {};
         const fid = cfg.fid || 'all';
         const festName = cfg.festName || 'Festival';
         const latestVersion = (cfg.fest?.version || cfg.global?.version || 'v4.2.0');
-        const rawUrl = (cfg.fest?.apk_url && cfg.fest.apk_url.trim()) ? cfg.fest.apk_url : '/download-apk';
+        const cleanVersion = String(latestVersion).replace(/^v/i, 'v');
+        const cleanFilename = `${festName.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_')}_${cleanVersion}.apk`;
+        const rawUrl = (cfg.fest?.apk_url && cfg.fest.apk_url.trim()) ? cfg.fest.apk_url : '';
 
-        let targetUrl = rawUrl;
-        if (targetUrl === '/download-apk' || targetUrl === 'VIBRANIUM.apk') {
-            targetUrl = `/download-apk?fest=${encodeURIComponent(fid)}&name=${encodeURIComponent(festName)}&version=${encodeURIComponent(latestVersion.replace(/^v/, ''))}`;
+        // Priority candidate download sources
+        const candidateUrls = [];
+        if (rawUrl && rawUrl !== '/download-apk' && rawUrl !== 'VIBRANIUM.apk' && rawUrl !== 'festos-app.apk') {
+            candidateUrls.push(rawUrl);
         }
+        // 1. Dynamic endpoint
+        candidateUrls.push(`/download-apk?fest=${encodeURIComponent(fid)}&name=${encodeURIComponent(festName)}&version=${encodeURIComponent(cleanVersion.replace(/^v/, ''))}`);
+        // 2. Static root APK files deployed in web root
+        candidateUrls.push('/festos-app.apk');
+        candidateUrls.push('/VIBRANIUM.apk');
+        candidateUrls.push('festos-app.apk');
+        candidateUrls.push('VIBRANIUM.apk');
 
-        const cleanFilename = `${festName.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_')}_${latestVersion}.apk`;
+        let targetUrl = candidateUrls[0];
+        for (const url of candidateUrls) {
+            try {
+                if (url.startsWith('http://') || url.startsWith('https://')) {
+                    targetUrl = url;
+                    break;
+                }
+                const res = await fetch(url, { method: 'HEAD' });
+                if (res.ok) {
+                    targetUrl = url;
+                    break;
+                }
+            } catch(e) {
+                // Ignore network error and continue to static fallback
+            }
+        }
 
         const a = document.createElement('a');
         a.href = targetUrl;
@@ -2578,8 +2603,8 @@ const festosAppUpdate = {
         }, 300);
 
         try {
-            localStorage.setItem('festos_app_installed_version', latestVersion);
-            this._installedVersion = latestVersion;
+            localStorage.setItem('festos_app_installed_version', cleanVersion);
+            this._installedVersion = cleanVersion;
             this._hasUpdate = false;
         } catch(e) {}
 
