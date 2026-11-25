@@ -2798,7 +2798,7 @@ canvas {
 </style>
     <link rel="stylesheet" href="premium-forms.css">
     <link rel="stylesheet" href="newspaper-studio.css">
-    <link rel="stylesheet" href="custom-pickers.css?v=4.3.7">
+    <link rel="stylesheet" href="custom-pickers.css?v=4.3.8">
 </head>
 <body>
 
@@ -6769,89 +6769,204 @@ canvas {
                 order: 2;
             }
         }
-        @media (max-width: 640px) {
+        @media (max-width: 768px) {
+            #display-control {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                overflow-x: hidden !important;
+            }
             #display-control .card {
                 padding: 1rem !important;
                 border-radius: var(--radius-md) !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+            }
+            .disp-main-grid {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 1.25rem !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            .disp-main-grid > div {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                box-sizing: border-box !important;
             }
             .remote-btn-grid {
-                grid-template-columns: repeat(3, 1fr);
-                gap: 0.5rem;
-                margin-bottom: 1rem;
+                display: grid !important;
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                gap: 0.45rem !important;
+                width: 100% !important;
+                margin-bottom: 1rem !important;
+                box-sizing: border-box !important;
             }
             .remote-btn-grid button:nth-child(4) {
-                grid-column: span 1;
+                grid-column: span 1 !important;
             }
             .remote-btn-grid button:nth-child(5) {
-                grid-column: span 2;
+                grid-column: span 2 !important;
+            }
+            .remote-btn-grid .btn {
+                padding: 0.55rem 0.25rem !important;
+                font-size: 0.8rem !important;
+                min-width: 0 !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                white-space: nowrap !important;
             }
             .remote-sub-grid {
-                gap: 0.85rem;
-                padding-top: 0.85rem;
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0.85rem !important;
+                padding-top: 0.85rem !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            .remote-sub-grid > div {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                padding: 0.85rem !important;
             }
             .disp-pin-controls {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 0.5rem;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 0.5rem !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
             }
             .disp-pin-controls select {
                 width: 100% !important;
                 min-width: 0 !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
             }
             .disp-pin-actions {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 0.5rem;
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 0.5rem !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
             }
             .disp-pin-actions button {
                 width: 100% !important;
-                justify-content: center;
+                justify-content: center !important;
             }
             .disp-flash-controls {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 0.5rem;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 0.5rem !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
             }
             .disp-flash-controls input {
                 width: 100% !important;
                 min-width: 0 !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
             }
             .disp-flash-actions {
-                display: flex;
-                gap: 0.5rem;
+                display: flex !important;
+                gap: 0.4rem !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
             }
             .disp-flash-actions select {
-                flex: 0 0 75px;
+                flex: 0 0 70px !important;
+                min-width: 70px !important;
+                max-width: 70px !important;
+                box-sizing: border-box !important;
             }
             .disp-flash-actions button.btn-danger {
-                flex: 1;
-                justify-content: center;
+                flex: 1 !important;
+                min-width: 0 !important;
+                justify-content: center !important;
+                padding: 0.5rem 0.5rem !important;
             }
             .disp-flash-actions button.btn-outline {
-                flex: 0 0 44px;
-                justify-content: center;
+                flex: 0 0 42px !important;
+                min-width: 42px !important;
+                max-width: 42px !important;
+                justify-content: center !important;
+                padding: 0 !important;
             }
             .theme-chip-grid {
-                grid-template-columns: repeat(4, 1fr) !important;
-                gap: 0.35rem !important;
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 0.45rem !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
             }
             .theme-chip {
-                padding: 0.45rem 0.25rem !important;
-                font-size: 0.68rem !important;
+                padding: 0.55rem 0.4rem !important;
+                font-size: 0.78rem !important;
+                font-weight: 700 !important;
                 justify-content: center !important;
                 text-align: center !important;
                 border-radius: 8px !important;
                 white-space: nowrap !important;
                 overflow: hidden !important;
                 text-overflow: ellipsis !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
             }
-            @media (max-width: 380px) {
+            @media (min-width: 480px) and (max-width: 768px) {
                 .theme-chip-grid {
-                    grid-template-columns: repeat(2, 1fr) !important;
+                    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
                 }
             }
             #display-control .grid-2 {
-                grid-template-columns: 1fr !important;
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0.75rem !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            .disp-toggle-row {
+                padding: 0.75rem 0.85rem !important;
+                gap: 0.5rem !important;
+                box-sizing: border-box !important;
+                width: 100% !important;
+            }
+            .disp-toggle-row > div:first-child {
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+                padding-right: 0.5rem !important;
+            }
+            .disp-toggle-row label {
+                flex-shrink: 0 !important;
+            }
+            .disp-preview-card {
+                position: relative !important;
+                top: 0 !important;
+                margin-top: 1rem !important;
+                margin-bottom: 1.5rem !important;
+                order: 2 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+            }
+            .disp-preview-card > div:first-child {
+                padding: 0.65rem 0.85rem !important;
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                gap: 0.5rem !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            .disp-preview-card > div:first-child span {
+                white-space: nowrap !important;
+                font-size: 0.75rem !important;
             }
         }
     </style>
@@ -7025,12 +7140,12 @@ canvas {
                 </div>
 
                 <!-- Live Fest Milestones Progress Toggle -->
-                <div class="form-group" style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-main); padding: 0.9rem 1.25rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1rem;">
-                    <div>
+                <div class="form-group disp-toggle-row" style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-main); padding: 0.9rem 1.25rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1rem; width: 100%; box-sizing: border-box;">
+                    <div style="flex: 1; min-width: 0; padding-right: 0.75rem;">
                         <div style="font-weight: 600; color: var(--text-main); font-size: 0.9rem;">Fest Milestones Tracker Widget</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted);">Displays top progress meter: "% Completed (Events) • Medals Declared"</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.35;">Displays top progress meter: "% Completed (Events) • Medals Declared"</div>
                     </div>
-                    <label style="position: relative; display: inline-block; width: 44px; height: 24px; margin: 0;">
+                    <label style="position: relative; display: inline-block; width: 44px; height: 24px; margin: 0; flex-shrink: 0;">
                         <input type="checkbox" id="disp-show-milestones" style="opacity: 0; width: 0; height: 0;" checked onchange="broadcastInstantThemeUpdate(); this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#D1D5DB'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(20px)' : 'translateX(0)';">
                         <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .3s; border-radius: 34px;"></span>
                         <span style="position: absolute; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; transform: translateX(20px); box-shadow: 0 1px 2px rgba(0,0,0,0.1);"></span>
@@ -7038,13 +7153,13 @@ canvas {
                 </div>
 
                 <!-- DYNAMIC QR CODE SWITCHER -->
-                <div style="background: var(--bg-main); padding: 1.1rem; border-radius: 8px; border: 1px solid var(--border);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                        <div>
+                <div style="background: var(--bg-main); padding: 1.1rem; border-radius: 8px; border: 1px solid var(--border); width: 100%; box-sizing: border-box;">
+                    <div class="disp-toggle-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; width: 100%; box-sizing: border-box;">
+                        <div style="flex: 1; min-width: 0; padding-right: 0.75rem;">
                             <span style="font-weight: 700; color: var(--text-main); font-size: 0.9rem;"><i class="fa-solid fa-qrcode" style="color: var(--primary);"></i> Dynamic QR Code Switcher</span>
-                            <div style="font-size: 0.75rem; color: var(--text-muted);">Configure audience scan destination on the screen</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.35;">Configure audience scan destination on the screen</div>
                         </div>
-                        <label style="position: relative; display: inline-block; width: 44px; height: 24px; margin: 0;">
+                        <label style="position: relative; display: inline-block; width: 44px; height: 24px; margin: 0; flex-shrink: 0;">
                             <input type="checkbox" id="disp-show-qr" style="opacity: 0; width: 0; height: 0;" checked onchange="broadcastInstantThemeUpdate(); this.nextElementSibling.style.backgroundColor = this.checked ? 'var(--success)' : '#D1D5DB'; this.nextElementSibling.nextElementSibling.style.transform = this.checked ? 'translateX(20px)' : 'translateX(0)';">
                             <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--success); transition: .3s; border-radius: 34px;"></span>
                             <span style="position: absolute; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; transform: translateX(20px); box-shadow: 0 1px 2px rgba(0,0,0,0.1);"></span>
@@ -9059,14 +9174,14 @@ function toggleCustomGridFields() {
 <div id="toast-container"></div>
 
 
-<script src="festos-core.js?v=4.3.7"></script>
+<script src="festos-core.js?v=4.3.8"></script>
 <script src="mobile-native.js"></script>
 <script src="id-badge-engine.js?v=3.8.2"></script>
 <script src="preset-templates-engine.js"></script>
 <script src="ai-template-generator.js"></script>
-<script src="admin.js?v=4.3.7"></script>
+<script src="admin.js?v=4.3.8"></script>
     <script src="newspaper-engine.js"></script>
-    <script src="custom-pickers.js?v=4.3.7"></script>
+    <script src="custom-pickers.js?v=4.3.8"></script>
 
 <!-- ========================================================= -->
 <!-- SLIDE-OVER NOTIFICATION CENTER DRAWER (SUITABLE FOR ALL DEVICES) -->

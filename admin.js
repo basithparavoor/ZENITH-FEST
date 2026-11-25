@@ -670,7 +670,12 @@ function switchTab(tabId) {
         else if (tabId === 'branding-settings') loadBrandingSettings();
         else if (tabId === 'participant-points') loadParticipantPoints();
         else if (tabId === 'admin-appeals') loadAdminAppeals(); 
-        else if (tabId === 'display-control') loadDisplaySettings();
+        else if (tabId === 'display-control') {
+            loadDisplaySettings();
+            setTimeout(() => {
+                if (typeof scalePreviewIframe === 'function') scalePreviewIframe();
+            }, 100);
+        }
         else if (tabId === 'schedule-mgmt') loadSchedules();
         else if (tabId === 'poster-templates') {
             const libView = document.getElementById('template-library-view');
@@ -13377,7 +13382,8 @@ function scalePreviewIframe() {
     const iframe = document.getElementById('display-preview-frame');
     if (iframe && iframe.parentElement) {
         const parent = iframe.parentElement;
-        const parentWidth = parent.clientWidth;
+        const parentWidth = parent.clientWidth || parent.getBoundingClientRect().width;
+        if (!parentWidth) return;
         const scale = parentWidth / 1920;
         iframe.style.transform = `scale(${scale})`;
         const calculatedHeight = parentWidth * (1080 / 1920);
