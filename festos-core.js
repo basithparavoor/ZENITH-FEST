@@ -2202,15 +2202,23 @@ const festosAppUpdate = {
     mountNavButton() {
         if (typeof document === 'undefined' || !this.isDownloadEnabled()) return;
 
-        // Ensure ONLY ONE app button exists across the entire navbar/header
-        const existingNavBtns = document.querySelectorAll('.festos-app-update-nav-btn:not(#login-app-download-wrap *)');
-        if (existingNavBtns.length > 0) {
-            // Keep the first one, safely eliminate any duplicate instances
-            for (let i = 1; i < existingNavBtns.length; i++) {
-                existingNavBtns[i].remove();
-            }
-            return;
-        }
+        // Forcefully eliminate ALL existing and legacy app buttons so there is NEVER any repetition
+        const staleSelectors = [
+            '#festos-app-header-btn',
+            '#festos-app-topnav-btn',
+            '#festos-app-mgr-btn',
+            '#header-app-update-btn',
+            '#festos-app-hud-btn',
+            '#festos-app-spectator-btn',
+            '#festos-app-results-link',
+            '#festos-app-announcer-btn',
+            '#festos-app-team-btn',
+            '.festos-app-update-nav-btn'
+        ];
+        document.querySelectorAll(staleSelectors.join(', ')).forEach(el => {
+            if (el.closest('#login-app-download-wrap')) return; // keep login screen button
+            el.remove();
+        });
 
         const cfg = this._configCache || {};
         const isUpdate = this._hasUpdate;
