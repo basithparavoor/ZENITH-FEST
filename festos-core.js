@@ -7,6 +7,16 @@
  * 4. Multi-Tenant Festival Context & Feature Flag Matrix Evaluator
  */
 
+// Fast-apply dark mode to avoid any FOUC before DOMContentLoaded
+if (typeof window !== 'undefined') {
+    try {
+        if (localStorage.getItem('festos_dark_mode') === 'true' || localStorage.getItem('festos_judge_dark_mode') === 'true') {
+            document.documentElement.classList.add('dark-hall-mode');
+            if (document.body) document.body.classList.add('dark-hall-mode');
+        }
+    } catch(e) {}
+}
+
 const FESTOS_SUPABASE_URL = 'https://amdpvvwgttzzwaxnufcs.supabase.co';
 const FESTOS_SUPABASE_KEY = 'sb_publishable_XkHBI5AuYWo4klAdKWI1ag_mp4psVSA';
 
@@ -2824,6 +2834,475 @@ if (typeof window !== 'undefined') {
 }
 
 // =========================================================================
+// 2.4 UNIVERSAL OLED DARK AUDITORIUM MODE ENGINE (festosDarkMode)
+// Provides unified OLED dark mode across all FestOS pages & portals
+// =========================================================================
+const festosDarkMode = {
+    STORAGE_KEY: 'festos_dark_mode',
+    LEGACY_JUDGE_KEY: 'festos_judge_dark_mode',
+
+    isDark() {
+        if (typeof localStorage === 'undefined') return false;
+        return localStorage.getItem(this.STORAGE_KEY) === 'true' || localStorage.getItem(this.LEGACY_JUDGE_KEY) === 'true';
+    },
+
+    init() {
+        if (typeof document === 'undefined') return;
+        this.injectCSS();
+        
+        // Apply persisted state
+        const dark = this.isDark();
+        this.applyState(dark);
+
+        // Mount toggle buttons across all headers
+        this.mountToggleButton();
+
+        // Safety retries for delayed or dynamic portal headers
+        setTimeout(() => this.mountToggleButton(), 300);
+        setTimeout(() => this.mountToggleButton(), 1000);
+    },
+
+    applyState(isDark) {
+        if (typeof document === 'undefined') return;
+        if (isDark) {
+            document.body.classList.add('dark-hall-mode');
+            document.documentElement.classList.add('dark-hall-mode');
+        } else {
+            document.body.classList.remove('dark-hall-mode');
+            document.documentElement.classList.remove('dark-hall-mode');
+        }
+        this.updateButtons(isDark);
+    },
+
+    toggle() {
+        const isDark = !this.isDark();
+        try {
+            localStorage.setItem(this.STORAGE_KEY, isDark ? 'true' : 'false');
+            localStorage.setItem(this.LEGACY_JUDGE_KEY, isDark ? 'true' : 'false');
+        } catch(e) {}
+        this.applyState(isDark);
+        try {
+            window.dispatchEvent(new CustomEvent('festosDarkModeChanged', { detail: { isDark } }));
+        } catch(e) {}
+        return isDark;
+    },
+
+    updateButtons(isDark) {
+        const btns = document.querySelectorAll('#festos-darkmode-toggle-btn, #dark-hall-btn, .festos-darkmode-btn');
+        btns.forEach(btn => {
+            btn.innerHTML = isDark
+                ? '<i class="fa-solid fa-sun" style="color: #F59E0B;"></i>'
+                : '<i class="fa-solid fa-moon" style="color: #64748B;"></i>';
+            btn.title = isDark ? 'Switch to Light Mode' : 'Switch to OLED Dark Auditorium Mode';
+        });
+    },
+
+    mountToggleButton() {
+        if (typeof document === 'undefined') return;
+        
+        // If button already mounted on this page, update icon state and return
+        if (document.getElementById('festos-darkmode-toggle-btn') || document.getElementById('dark-hall-btn')) {
+            this.updateButtons(this.isDark());
+            return;
+        }
+
+        const isDark = this.isDark();
+        const iconHtml = isDark
+            ? '<i class="fa-solid fa-sun" style="color: #F59E0B;"></i>'
+            : '<i class="fa-solid fa-moon" style="color: #64748B;"></i>';
+
+        const createBtn = (className, styleText) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.id = 'festos-darkmode-toggle-btn';
+            btn.className = `festos-darkmode-btn ${className || ''}`.trim();
+            btn.title = isDark ? 'Switch to Light Mode' : 'Switch to OLED Dark Auditorium Mode';
+            btn.style.cssText = styleText || '';
+            btn.innerHTML = iconHtml;
+            btn.onclick = () => festosDarkMode.toggle();
+            return btn;
+        };
+
+        // 1. Admin Dashboard (admin.html) - place beside header-notify-btn
+        const headerNotify = document.getElementById('header-notify-btn');
+        if (headerNotify && headerNotify.parentNode) {
+            const btn = createBtn(
+                'header-notify-btn',
+                'position: relative; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main); display: flex; align-items: center; justify-content: center; font-size: 1.15rem; cursor: pointer; flex-shrink: 0;'
+            );
+            headerNotify.parentNode.insertBefore(btn, headerNotify);
+            return;
+        }
+
+        // 2. Stage Controller & Judge (stage-controller.html, judge.html)
+        const topNavRight = document.querySelector('.top-nav-right, .top-nav-bar > div:last-child');
+        if (topNavRight) {
+            const btn = createBtn(
+                'header-icon-btn',
+                'position: relative; width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main); display: flex; align-items: center; justify-content: center; font-size: 1.05rem; cursor: pointer; flex-shrink: 0;'
+            );
+            topNavRight.insertBefore(btn, topNavRight.firstChild);
+            return;
+        }
+
+        // 3. Manager Dashboard (manager.html)
+        const mgrHeaderActions = document.querySelector('.header-actions');
+        if (document.getElementById('manager-page-title') && mgrHeaderActions) {
+            const btn = createBtn(
+                'btn btn-outline',
+                'position: relative; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main); min-height: 38px; min-width: 38px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; flex-shrink: 0;'
+            );
+            mgrHeaderActions.insertBefore(btn, mgrHeaderActions.firstChild);
+            return;
+        }
+
+        // 4. Super Admin (superadmin.html)
+        const superHeaderActions = document.querySelector('.header-actions');
+        if (document.getElementById('top-page-title') && superHeaderActions) {
+            const btn = createBtn(
+                'btn btn-outline',
+                'position: relative; height: 38px; width: 38px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;'
+            );
+            superHeaderActions.insertBefore(btn, superHeaderActions.firstChild);
+            return;
+        }
+
+        // 5. Announcer Portal (announcements.html)
+        if (document.getElementById('announcer-page-title') || window.location.pathname.includes('announcements')) {
+            const announcerHeaderRight = document.querySelector('.header > div:last-child, .header .header-right, .header > div:not(.header-left)');
+            if (announcerHeaderRight) {
+                const btn = createBtn(
+                    'btn-logout',
+                    'position: relative; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main); padding: 0.5rem; min-height: 40px; min-width: 40px; border-radius: var(--radius-md, 8px); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;'
+                );
+                announcerHeaderRight.insertBefore(btn, announcerHeaderRight.firstChild);
+                return;
+            }
+        }
+
+        // 6. Team Manager (team-manager.html)
+        const teamNavActions = document.querySelector('.navbar-actions');
+        if (teamNavActions) {
+            const btn = createBtn(
+                'btn btn-outline',
+                'position: relative; padding: 0.5rem; min-height: 40px; min-width: 40px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main); border-radius: 8px; flex-shrink: 0;'
+            );
+            teamNavActions.insertBefore(btn, teamNavActions.firstChild);
+            return;
+        }
+
+        // 7. Results Page (results.html)
+        const desktopNavLinks = document.getElementById('desktop-nav-links');
+        if (desktopNavLinks) {
+            const a = document.createElement('a');
+            a.id = 'festos-darkmode-toggle-btn';
+            a.className = 'nav-link festos-darkmode-btn';
+            a.href = '#';
+            a.title = isDark ? 'Switch to Light Mode' : 'Switch to OLED Dark Auditorium Mode';
+            a.style.cssText = 'position: relative; color: var(--text-main); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0.5rem;';
+            a.innerHTML = iconHtml;
+            a.onclick = (e) => { e.preventDefault(); festosDarkMode.toggle(); };
+            desktopNavLinks.appendChild(a);
+            return;
+        }
+
+        // 8. Spectator Page (spectator.html)
+        const spectatorLiveTag = document.querySelector('.header .live-tag');
+        if (spectatorLiveTag && spectatorLiveTag.parentNode) {
+            const btn = createBtn(
+                '',
+                'position: relative; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main); border-radius: 50%; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; margin-left: 8px; flex-shrink: 0;'
+            );
+            spectatorLiveTag.parentNode.insertBefore(btn, spectatorLiveTag);
+            return;
+        }
+    },
+
+    injectCSS() {
+        if (typeof document === 'undefined' || document.getElementById('festos-universal-dark-mode-css')) return;
+        const style = document.createElement('style');
+        style.id = 'festos-universal-dark-mode-css';
+        style.textContent = `
+            /* =========================================================
+               UNIVERSAL OLED DARK AUDITORIUM MODE (festos-core.js)
+               Matches judge.html OLED styling across all pages
+               ========================================================= */
+            body.dark-hall-mode {
+                --bg-main: #09090B !important;
+                --bg-surface: #121215 !important;
+                --bg-surface-elevated: #18181B !important;
+                --input-bg: #18181B !important;
+                --text-main: #F8FAFC !important;
+                --text-muted: #94A3B8 !important;
+                --border: #27272A !important;
+                --border-color: #27272A !important;
+                --border-hover: #3F3F46 !important;
+                background: #09090B !important;
+                background-color: #09090B !important;
+                color: #F8FAFC !important;
+            }
+
+            /* Header & Top Navigation */
+            body.dark-hall-mode .header,
+            body.dark-hall-mode .top-nav-bar,
+            body.dark-hall-mode .navbar,
+            body.dark-hall-mode .main-header,
+            body.dark-hall-mode .top-bar {
+                background: rgba(18, 18, 21, 0.95) !important;
+                border-bottom: 1px solid #27272A !important;
+                color: #F8FAFC !important;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+            }
+            body.dark-hall-mode .header h1,
+            body.dark-hall-mode .header h2,
+            body.dark-hall-mode #page-title,
+            body.dark-hall-mode #manager-page-title,
+            body.dark-hall-mode #announcer-page-title,
+            body.dark-hall-mode #top-page-title {
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode .welcome-text {
+                background: #18181B !important;
+                border: 1px solid #27272A !important;
+                color: #E2E8F0 !important;
+            }
+
+            /* Action Buttons & Badges in Header */
+            body.dark-hall-mode .desktop-only-refresh-btn,
+            body.dark-hall-mode .header-notify-btn,
+            body.dark-hall-mode .header-icon-btn,
+            body.dark-hall-mode .admin-omnisearch-btn,
+            body.dark-hall-mode .cmd-palette-btn,
+            body.dark-hall-mode .menu-toggle,
+            body.dark-hall-mode .sidebar-toggle-btn,
+            body.dark-hall-mode .festos-darkmode-btn {
+                background: #18181B !important;
+                border: 1px solid #27272A !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode .header-notify-btn:hover,
+            body.dark-hall-mode .header-icon-btn:hover,
+            body.dark-hall-mode .desktop-only-refresh-btn:hover,
+            body.dark-hall-mode .festos-darkmode-btn:hover {
+                background: #27272A !important;
+            }
+            body.dark-hall-mode .omnisearch-btn-kbd,
+            body.dark-hall-mode .cmd-palette-btn kbd {
+                background: #27272A !important;
+                border: 1px solid #3F3F46 !important;
+                color: #94A3B8 !important;
+            }
+
+            /* Sidebars & Nav Items */
+            body.dark-hall-mode #sidebar,
+            body.dark-hall-mode .sidebar,
+            body.dark-hall-mode #superSidebar,
+            body.dark-hall-mode .builder-sidebar {
+                background: #121215 !important;
+                border-right: 1px solid #27272A !important;
+            }
+            body.dark-hall-mode .nav-group .nav-main,
+            body.dark-hall-mode .sidebar-nav .sidebar-item,
+            body.dark-hall-mode .builder-nav-item,
+            body.dark-hall-mode .sidebar a {
+                color: #CBD5E1 !important;
+            }
+            body.dark-hall-mode .nav-group .nav-main:hover,
+            body.dark-hall-mode .sidebar-nav .sidebar-item:hover,
+            body.dark-hall-mode .builder-nav-item:hover {
+                background: #18181B !important;
+                color: #FFFFFF !important;
+            }
+            body.dark-hall-mode .nav-group .nav-main.active,
+            body.dark-hall-mode .sidebar-nav .sidebar-item.active,
+            body.dark-hall-mode .builder-nav-item.active {
+                background: rgba(59, 130, 246, 0.2) !important;
+                color: #60A5FA !important;
+            }
+            body.dark-hall-mode .nav-sub {
+                background: #0D0D10 !important;
+                border-left: 2px solid #27272A !important;
+            }
+            body.dark-hall-mode .nav-item {
+                color: #94A3B8 !important;
+            }
+            body.dark-hall-mode .nav-item:hover,
+            body.dark-hall-mode .nav-item.active {
+                color: #60A5FA !important;
+                background: #18181B !important;
+            }
+
+            /* Main Content & Section Layouts */
+            body.dark-hall-mode .main-content,
+            body.dark-hall-mode .container,
+            body.dark-hall-mode #app-screen,
+            body.dark-hall-mode .content-section {
+                background-color: #09090B !important;
+                color: #F8FAFC !important;
+            }
+
+            /* Cards, Panels & Stats */
+            body.dark-hall-mode .card,
+            body.dark-hall-mode .stat-card,
+            body.dark-hall-mode .dashboard-card,
+            body.dark-hall-mode .metric-card,
+            body.dark-hall-mode .table-card,
+            body.dark-hall-mode .action-bar,
+            body.dark-hall-mode .filter-bar,
+            body.dark-hall-mode .filter-card,
+            body.dark-hall-mode .stage-bar,
+            body.dark-hall-mode .panel,
+            body.dark-hall-mode .content-card,
+            body.dark-hall-mode .comp-card,
+            body.dark-hall-mode .participant-card,
+            body.dark-hall-mode .eval-top-card {
+                background: #121215 !important;
+                border: 1px solid #27272A !important;
+                color: #F8FAFC !important;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+            }
+            body.dark-hall-mode .card h2,
+            body.dark-hall-mode .card h3,
+            body.dark-hall-mode .card h4,
+            body.dark-hall-mode .card-title,
+            body.dark-hall-mode .comp-card-title,
+            body.dark-hall-mode .stat-number,
+            body.dark-hall-mode .metric-val {
+                color: #FFFFFF !important;
+            }
+            body.dark-hall-mode .card p,
+            body.dark-hall-mode .stat-label,
+            body.dark-hall-mode .text-muted,
+            body.dark-hall-mode p[style*="color: var(--text-muted)"] {
+                color: #94A3B8 !important;
+            }
+
+            /* Form Elements & Inputs */
+            body.dark-hall-mode input:not([type="checkbox"]):not([type="radio"]),
+            body.dark-hall-mode select,
+            body.dark-hall-mode textarea,
+            body.dark-hall-mode .form-control,
+            body.dark-hall-mode .filter-box select,
+            body.dark-hall-mode .search-input,
+            body.dark-hall-mode .stage-select-box select {
+                background-color: #18181B !important;
+                border: 1px solid #27272A !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode input::placeholder,
+            body.dark-hall-mode textarea::placeholder {
+                color: #64748B !important;
+            }
+            body.dark-hall-mode input:focus,
+            body.dark-hall-mode select:focus,
+            body.dark-hall-mode textarea:focus {
+                border-color: #3B82F6 !important;
+                box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
+            }
+
+            /* Tables */
+            body.dark-hall-mode table {
+                color: #F8FAFC !important;
+                border-color: #27272A !important;
+            }
+            body.dark-hall-mode table thead th,
+            body.dark-hall-mode .table thead th {
+                background: #18181B !important;
+                color: #94A3B8 !important;
+                border-bottom: 1px solid #27272A !important;
+            }
+            body.dark-hall-mode table tbody tr,
+            body.dark-hall-mode .table tbody tr {
+                background: #121215 !important;
+                border-bottom: 1px solid #27272A !important;
+            }
+            body.dark-hall-mode table tbody tr:hover,
+            body.dark-hall-mode .table tbody tr:hover {
+                background: #1A1A1F !important;
+            }
+            body.dark-hall-mode table td,
+            body.dark-hall-mode .table td {
+                border-bottom: 1px solid #27272A !important;
+                color: #E2E8F0 !important;
+            }
+
+            /* Buttons & Dropdowns */
+            body.dark-hall-mode .btn-outline {
+                background: #18181B !important;
+                border-color: #27272A !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode .btn-outline:hover {
+                background: #27272A !important;
+                border-color: #3F3F46 !important;
+            }
+            body.dark-hall-mode .btn-logout {
+                background: #18181B !important;
+                border-color: #27272A !important;
+                color: #F87171 !important;
+            }
+            body.dark-hall-mode .btn-logout:hover {
+                background: rgba(239, 68, 68, 0.15) !important;
+            }
+            body.dark-hall-mode .btn-logout.btn-primary {
+                background: #2563EB !important;
+                color: #FFFFFF !important;
+                border-color: #3B82F6 !important;
+            }
+
+            /* Modals & Overlays */
+            body.dark-hall-mode .modal-overlay {
+                background: rgba(0, 0, 0, 0.8) !important;
+            }
+            body.dark-hall-mode .modal-card,
+            body.dark-hall-mode .modal-content,
+            body.dark-hall-mode .modal-dialog {
+                background: #121215 !important;
+                border: 1px solid #27272A !important;
+                color: #F8FAFC !important;
+                box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7) !important;
+            }
+            body.dark-hall-mode .modal-header,
+            body.dark-hall-mode .modal-footer {
+                border-color: #27272A !important;
+            }
+
+            /* Omnisearch Palette */
+            body.dark-hall-mode .admin-cmd-palette {
+                background: #121215 !important;
+                border: 1px solid #27272A !important;
+            }
+            body.dark-hall-mode .admin-cmd-input {
+                background: #18181B !important;
+                color: #FFFFFF !important;
+            }
+            body.dark-hall-mode .admin-cmd-item {
+                border-bottom: 1px solid #1E293B !important;
+            }
+            body.dark-hall-mode .admin-cmd-item:hover,
+            body.dark-hall-mode .admin-cmd-item.selected {
+                background: #1E293B !important;
+            }
+
+            /* Floating / Mobile Navigation */
+            body.dark-hall-mode .bottom-nav,
+            body.dark-hall-mode .mobile-bottom-nav,
+            body.dark-hall-mode .nav-actions {
+                background: rgba(18, 18, 21, 0.95) !important;
+                border: 1px solid #27272A !important;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+            }
+            body.dark-hall-mode .nav-actions .btn.btn-outline {
+                background: #18181B !important;
+                border: 1px solid #27272A !important;
+                color: #60A5FA !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+};
+
+// =========================================================================
 // 2.5 CRYPTOGRAPHIC EDGE AUTHENTICATION & SUPER ADMIN SIGNATURE SUITE
 // =========================================================================
 const festosCrypto = {
@@ -4859,6 +5338,9 @@ if (typeof document !== 'undefined') {
         } catch (e) {}
         festosBranding.init();
         festosBroadcasts.init();
+        if (typeof festosDarkMode !== 'undefined' && festosDarkMode.init) {
+            festosDarkMode.init();
+        }
         if (typeof festosAppUpdate !== 'undefined' && festosAppUpdate.init) {
             festosAppUpdate.init();
         }
@@ -4987,6 +5469,8 @@ if (typeof window !== 'undefined') {
     window.festosRefreshSupabaseHeaders = festosRefreshSupabaseHeaders;
     window.festosMultiRole = festosMultiRole;
     window.festosAppUpdate = festosAppUpdate;
+    window.festosDarkMode = festosDarkMode;
+    window.toggleDarkHallMode = function() { return festosDarkMode.toggle(); };
 }
 
 

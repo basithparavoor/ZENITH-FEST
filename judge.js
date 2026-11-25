@@ -938,6 +938,9 @@ function updateLiveGradingStats() {
 }
 
 function toggleDarkHallMode() {
+    if (window.festosDarkMode && typeof window.festosDarkMode.toggle === 'function') {
+        return window.festosDarkMode.toggle();
+    }
     const isDark = document.body.classList.toggle('dark-hall-mode');
     const btn = document.getElementById('dark-hall-btn');
     if (btn) {
@@ -945,7 +948,9 @@ function toggleDarkHallMode() {
     }
     try {
         localStorage.setItem('festos_judge_dark_mode', isDark ? 'true' : 'false');
+        localStorage.setItem('festos_dark_mode', isDark ? 'true' : 'false');
     } catch(e) {}
+    return isDark;
 }
 
 if (typeof localStorage !== 'undefined' && localStorage.getItem('festos_judge_dark_mode') === 'true') {
