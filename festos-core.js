@@ -3537,6 +3537,16 @@ const festosDarkMode = {
                 color: #F8FAFC !important;
                 box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
             }
+            body.dark-hall-mode .dash-stat-label,
+            body.dark-hall-mode .dash-stat-sub {
+                color: #94A3B8 !important;
+            }
+            body.dark-hall-mode .dash-stat-value {
+                color: #FFFFFF !important;
+            }
+            body.dark-hall-mode .dash-stat-divider {
+                background: #27272A !important;
+            }
 
             /* All Select Elements, Input Fields & Options across All Portals */
             body.dark-hall-mode select,

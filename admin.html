@@ -980,11 +980,47 @@ tr:hover td { background: var(--bg-main); }
         margin: -0.15rem 0 !important;
     }
     
-    div[style*="display: flex; justify-content: space-between; align-items: center; background: white; padding: 1.5rem;"] {
-        flex-direction: column !important; align-items: stretch !important; gap: 1rem !important;
+/* Mobile Dashboard Stats Card Responsive Fix */
+    .dashboard-stats-card {
+        padding: 0.85rem 0.35rem !important;
+        gap: 0.15rem !important;
+        overflow: visible !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
-    div[style*="width: 1px; height: 40px; background: var(--border);"] {
-        width: 100% !important; height: 1px !important; margin: 0.5rem 0 !important;
+    .dash-stat-item {
+        padding: 0 2px !important;
+        flex: 1 !important;
+        min-width: 0 !important;
+    }
+    .dash-stat-label {
+        font-size: 0.68rem !important;
+        letter-spacing: 0.01em !important;
+        margin-bottom: 0.15rem !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 100% !important;
+    }
+    .dash-stat-val-group {
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 0 !important;
+    }
+    .dash-stat-value {
+        font-size: 1.25rem !important;
+        line-height: 1.15 !important;
+    }
+    .dash-stat-sub {
+        font-size: 0.68rem !important;
+        line-height: 1.1 !important;
+        white-space: nowrap !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.02em !important;
+        color: var(--text-muted) !important;
+    }
+    .dash-stat-divider {
+        height: 32px !important;
     }
 
     .action-bar { flex-direction: column; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; width: 100%; text-align: left; }
@@ -2438,6 +2474,64 @@ tr:hover td { background: var(--bg-main); }
         box-sizing: border-box !important;
     }
 }
+
+/* Dashboard Quick Stats Card */
+.dashboard-stats-card {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background: var(--bg-surface);
+    padding: 1.25rem 1.5rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+.dash-stat-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 0.75rem;
+    min-width: 0;
+}
+.dash-stat-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+}
+.dash-stat-val-group {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+.dash-stat-value {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--text-main);
+    line-height: 1.1;
+}
+.dash-stat-sub {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+.dash-stat-divider {
+    width: 1px;
+    height: 40px;
+    background: var(--border);
+    flex-shrink: 0;
+}
+
 .card {
     min-width: 0 !important;
     box-sizing: border-box !important;
@@ -3553,20 +3647,29 @@ canvas {
                 </div>
 
                 <!-- Stats flex row -->
-                <div class="card dashboard-stats-card" style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); overflow-x: auto;">
-                    <div style="padding: 0 1rem;">
-                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Live Stage</div>
-                        <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);"><span id="dash-live-stage-count">0</span> running</div>
+                <div class="card dashboard-stats-card">
+                    <div class="dash-stat-item">
+                        <div class="dash-stat-label">Live Stage</div>
+                        <div class="dash-stat-val-group">
+                            <span class="dash-stat-value" id="dash-live-stage-count">0</span>
+                            <span class="dash-stat-sub">running</span>
+                        </div>
                     </div>
-                    <div style="width: 1px; height: 40px; background: var(--border);"></div>
-                    <div style="padding: 0 1rem;">
-                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Results</div>
-                        <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);"><span id="pb-pub-val-top">0</span> published</div>
+                    <div class="dash-stat-divider"></div>
+                    <div class="dash-stat-item">
+                        <div class="dash-stat-label">Results</div>
+                        <div class="dash-stat-val-group">
+                            <span class="dash-stat-value" id="pb-pub-val-top">0</span>
+                            <span class="dash-stat-sub">published</span>
+                        </div>
                     </div>
-                    <div style="width: 1px; height: 40px; background: var(--border);"></div>
-                    <div style="padding: 0 1rem;">
-                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Today</div>
-                        <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);"><span id="dash-program-count-today">0</span> scheduled</div>
+                    <div class="dash-stat-divider"></div>
+                    <div class="dash-stat-item">
+                        <div class="dash-stat-label">Today</div>
+                        <div class="dash-stat-val-group">
+                            <span class="dash-stat-value" id="dash-program-count-today">0</span>
+                            <span class="dash-stat-sub">scheduled</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -8876,12 +8979,12 @@ function toggleCustomGridFields() {
 <div id="toast-container"></div>
 
 
-<script src="festos-core.js?v=4.3.5"></script>
+<script src="festos-core.js?v=4.3.6"></script>
 <script src="mobile-native.js"></script>
 <script src="id-badge-engine.js?v=3.8.2"></script>
 <script src="preset-templates-engine.js"></script>
 <script src="ai-template-generator.js"></script>
-<script src="admin.js?v=4.3.2"></script>
+<script src="admin.js?v=4.3.3"></script>
     <script src="newspaper-engine.js"></script>
     <script src="custom-pickers.js?v=4.0"></script>
 
