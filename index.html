@@ -48,6 +48,37 @@
     } catch(e) {}
   })();
 </script>
+<script>
+  (function preseedDomainFestival() {
+    try {
+      var host = (window.location.hostname || '').toLowerCase();
+      var p = new URLSearchParams(window.location.search);
+      var q = (p.get('fest') || p.get('fest_id') || p.get('domain') || p.get('slug') || '').toLowerCase();
+
+      var fests = [
+        { key: 'vib', name: 'VIBRANIUM', logo: 'vibranium-logo.png', apk: 'VIBRANIUM_v4.2.0.apk' },
+        { key: 'elo', name: "ELOQUENTIA '26", logo: 'eloquentia-logo.png', apk: 'ELOQUENTIA_26_v4.2.0.apk' },
+        { key: 'zeit', name: 'ZEITGEIST', logo: 'zeitgeist-logo.png', apk: 'ZEITGEIST_v4.2.0.apk' },
+        { key: 'ely', name: 'ELYSIUM-26', logo: 'elysium-logo.png', apk: 'ELYSIUM_26_v4.2.0.apk' }
+      ];
+
+      var matched = null;
+      for (var i = 0; i < fests.length; i++) {
+        var f = fests[i];
+        if (host.indexOf(f.key) !== -1 || q.indexOf(f.key) !== -1) {
+          matched = f;
+          break;
+        }
+      }
+      if (matched) {
+        window.__PRESEED_FEST__ = matched;
+        document.title = matched.name + ' | Secure Login';
+        var iconEl = document.querySelector('link[rel="icon"]');
+        if (iconEl) iconEl.href = matched.logo;
+      }
+    } catch(e) {}
+  })();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
@@ -460,7 +491,7 @@
             transform: translateY(2px);
         }
 
-        /* Modal Footer Buttons Fix for index.html */
+        /* Modal Footer Buttons Standard Fix */
         .festos-app-footer-btn {
             display: inline-flex !important;
             align-items: center !important;
@@ -474,25 +505,34 @@
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
             border: 1px solid #CBD5E1 !important;
             background: #FFFFFF !important;
-            color: #334155 !important;
+            color: #1E293B !important;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
             line-height: 1.2 !important;
             outline: none !important;
             text-decoration: none !important;
+            font-family: inherit !important;
+            box-sizing: border-box !important;
         }
         .festos-app-footer-btn:hover {
-            background: #F1F5F9 !important;
+            background: #F8FAFC !important;
             border-color: #94A3B8 !important;
             color: #0F172A !important;
             transform: translateY(-1px) !important;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08) !important;
         }
-        .festos-app-footer-btn.btn-close {
+        .festos-app-footer-btn:active {
+            transform: scale(0.98) !important;
+        }
+        .festos-app-footer-btn.btn-close,
+        .festos-app-close-btn {
             background: #F1F5F9 !important;
             border-color: #E2E8F0 !important;
             color: #475569 !important;
         }
-        .festos-app-footer-btn.btn-close:hover {
+        .festos-app-footer-btn.btn-close:hover,
+        .festos-app-close-btn:hover {
             background: #E2E8F0 !important;
+            border-color: #CBD5E1 !important;
             color: #0F172A !important;
         }
 
@@ -512,8 +552,19 @@
     <div class="login-container">
         <div class="header stagger-1">
             <h1 class="brand" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem;">
-                <img id="login-brand-img" src="festos-logo.svg" onerror="this.src='festos-logo.svg'" alt="FestOS Logo" class="festos-dynamic-logo" style="height: 44px; width: auto; max-width: 180px; object-fit: contain; vertical-align: middle;">
-                <span id="login-brand-name" class="festos-dynamic-name">FestOS</span>
+                <script>
+                    (function() {
+                        var m = window.__PRESEED_FEST__;
+                        var logo = m ? m.logo : 'festos-logo.svg';
+                        var name = m ? m.name : 'FestOS';
+                        document.write('<img id="login-brand-img" src="' + logo + '" onerror="this.onerror=null; this.src=\'' + (m ? m.logo : 'festos-logo.svg') + '\';" alt="' + name + ' Logo" class="festos-dynamic-logo" style="height: 48px; width: auto; max-width: 180px; object-fit: contain; vertical-align: middle; border-radius: 8px;">');
+                        document.write('<span id="login-brand-name" class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">' + name + '</span>');
+                    })();
+                </script>
+                <noscript>
+                    <img id="login-brand-img" src="festos-logo.svg" onerror="this.src='festos-logo.svg'" alt="FestOS Logo" class="festos-dynamic-logo" style="height: 44px; width: auto; max-width: 180px; object-fit: contain; vertical-align: middle;">
+                    <span id="login-brand-name" class="festos-dynamic-name">FestOS</span>
+                </noscript>
             </h1>
             <p id="login-subtitle">Enter your credentials to continue</p>
         </div>
@@ -565,7 +616,7 @@
                 </div>
                 <div class="app-badge-content">
                     <span class="app-badge-eyebrow">OFFICIAL ANDROID APP</span>
-                    <span class="app-badge-headline" id="login-app-download-label">Download APK</span>
+                    <span class="app-badge-headline" id="login-app-download-label"><script>document.write(window.__PRESEED_FEST__ ? 'Download ' + window.__PRESEED_FEST__.name + ' APK' : 'Download APK');</script><noscript>Download APK</noscript></span>
                 </div>
                 <div class="app-badge-action">
                     <i class="fa-solid fa-cloud-arrow-down"></i>

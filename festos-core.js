@@ -67,6 +67,41 @@ const festosDomains = {
     INDEX_KEY: 'festos_domain_index',
     FESTS_CACHE_KEY: 'festos_fests_cache',
 
+    STATIC_FESTS: [
+        {
+            id: 'fest_vib26_muml4haa',
+            name: 'VIBRANIUM',
+            slug: 'vib26',
+            domain: 'vibranium.festos.clubad.space',
+            logo: 'vibranium-logo.png',
+            theme_color: '#6366F1'
+        },
+        {
+            id: 'fest_eloquentia_mvtbeu2t',
+            name: "ELOQUENTIA '26",
+            slug: 'eloquentia',
+            domain: 'eloquentia.festos.clubad.space',
+            logo: 'eloquentia-logo.png',
+            theme_color: '#6366F1'
+        },
+        {
+            id: 'fest_zeitgeist_mvdlia5k',
+            name: 'ZEITGEIST',
+            slug: 'zeitgeist',
+            domain: 'zeitgeist.festos.clubad.space',
+            logo: 'zeitgeist-logo.png',
+            theme_color: '#6366F1'
+        },
+        {
+            id: 'fest_elysium26_mw8x8v0o',
+            name: 'ELYSIUM-26',
+            slug: 'elysium26',
+            domain: 'elysium.festos.clubad.space',
+            logo: 'elysium-logo.png',
+            theme_color: '#6366F1'
+        }
+    ],
+
     getHostname() {
         if (typeof window === 'undefined' || !window.location) return '';
         return (window.location.hostname || '').toLowerCase().trim();
@@ -109,10 +144,10 @@ const festosDomains = {
 
     getIndex() {
         try {
-            return JSON.parse(localStorage.getItem(this.INDEX_KEY) || '{}');
-        } catch (e) {
-            return {};
-        }
+            const stored = JSON.parse(localStorage.getItem(this.INDEX_KEY) || '{}');
+            if (stored && Object.keys(stored).length > 0) return stored;
+        } catch (e) {}
+        return this.buildIndex(this.STATIC_FESTS);
     },
 
     setIndex(map) {
@@ -328,30 +363,47 @@ const festosDomains = {
             return window.availableFests.filter(f => f && f.id);
         }
 
-        return [];
+        return this.STATIC_FESTS;
     },
 
     setFestList(fests) {
         try {
             const list = (fests || [])
                 .filter(f => f && f.id)
-                .map(f => ({
-                    id: f.id,
-                    name: f.name || '',
-                    slug: f.slug || '',
-                    domain: f.domain || '',
-                    logo: f.logo || '',
-                    created_at: f.created_at || '',
-                    start_date: f.start_date || f.startDate || '',
-                    end_date: f.end_date || f.endDate || '',
-                    startDate: f.startDate || f.start_date || '',
-                    endDate: f.endDate || f.end_date || '',
-                    status: f.status || 'active',
-                    venue: f.venue || '',
-                    theme_color: f.theme_color || '',
-                    public_results_slug: f.public_results_slug || 'results',
-                    newspaper_config: f.newspaper_config || null
-                }));
+                .map(f => {
+                    let logo = f.logo || '';
+                    if (logo && (logo.startsWith('data:') || logo.length > 10000)) {
+                        const s = (f.slug || f.name || '').toLowerCase();
+                        if (s.includes('vib')) logo = 'vibranium-logo.png';
+                        else if (s.includes('elo')) logo = 'eloquentia-logo.png';
+                        else if (s.includes('zeit')) logo = 'zeitgeist-logo.png';
+                        else if (s.includes('ely')) logo = 'elysium-logo.png';
+                    }
+                    if (!logo) {
+                        const s = (f.slug || f.name || '').toLowerCase();
+                        if (s.includes('vib')) logo = 'vibranium-logo.png';
+                        else if (s.includes('elo')) logo = 'eloquentia-logo.png';
+                        else if (s.includes('zeit')) logo = 'zeitgeist-logo.png';
+                        else if (s.includes('ely')) logo = 'elysium-logo.png';
+                    }
+                    return {
+                        id: f.id,
+                        name: f.name || '',
+                        slug: f.slug || '',
+                        domain: f.domain || '',
+                        logo: logo,
+                        created_at: f.created_at || '',
+                        start_date: f.start_date || f.startDate || '',
+                        end_date: f.end_date || f.endDate || '',
+                        startDate: f.startDate || f.start_date || '',
+                        endDate: f.endDate || f.end_date || '',
+                        status: f.status || 'active',
+                        venue: f.venue || '',
+                        theme_color: f.theme_color || '',
+                        public_results_slug: f.public_results_slug || 'results',
+                        newspaper_config: f.newspaper_config || null
+                    };
+                });
             localStorage.setItem(this.FESTS_CACHE_KEY, JSON.stringify(list));
         } catch (e) { /* ignore */ }
     },
@@ -1027,16 +1079,32 @@ const festosBranding = {
         let festLogo = brandingData.fest_logo ? brandingData.fest_logo.trim() : '';
         const displayMode = brandingData.display_mode || 'both';
 
+        const resolveStaticLogo = (name, slug, id) => {
+            const s = (String(name || '') + ' ' + String(slug || '') + ' ' + String(id || '')).toLowerCase();
+            if (s.includes('vib')) return 'vibranium-logo.png';
+            if (s.includes('elo')) return 'eloquentia-logo.png';
+            if (s.includes('zeit')) return 'zeitgeist-logo.png';
+            if (s.includes('ely')) return 'elysium-logo.png';
+            return '';
+        };
+
         if (isLogin) {
             if (domainFest) {
-                if (!festName) festName = domainFest.name || 'Festival';
-                if (!festLogo && domainFest.logo && !domainFest.logo.includes('festos-logo.svg')) {
-                    festLogo = domainFest.logo;
+                if (!festName || festName === this.DEFAULT_NAME) festName = domainFest.name || 'Festival';
+                if (!festLogo || festLogo.includes('festos-logo.svg')) {
+                    festLogo = (domainFest.logo && !domainFest.logo.includes('festos-logo.svg')) ? domainFest.logo : '';
                 }
-            } else {
-                // ROOT PLATFORM LOGIN: FestOS BRANDING ONLY
-                festName = this.DEFAULT_NAME;
-                festLogo = this.DEFAULT_LOGO;
+            }
+            if (!festName || festName === this.DEFAULT_NAME) {
+                const sub = (typeof festosDomains !== 'undefined') ? festosDomains.getSubdomain() : '';
+                const isBase = (typeof festosDomains !== 'undefined') ? festosDomains.isBaseDomain() : true;
+                if (!sub && isBase) {
+                    festName = this.DEFAULT_NAME;
+                    festLogo = this.DEFAULT_LOGO;
+                }
+            }
+            if (festName && festName !== this.DEFAULT_NAME && (!festLogo || festLogo.includes('festos-logo.svg'))) {
+                festLogo = resolveStaticLogo(festName, domainFest ? domainFest.slug : '', domainFest ? domainFest.id : '');
             }
         } else if (isPlatform) {
             // Super Admin portal: Super Admin software branding
@@ -1048,6 +1116,9 @@ const festosBranding = {
             if (festLogo === 'festos-logo.svg' || festLogo === '/festos-logo.svg') {
                 festLogo = '';
             }
+            if (!festLogo && festName && festName !== this.DEFAULT_NAME) {
+                festLogo = resolveStaticLogo(festName, '', currentFestId || '');
+            }
             if (!festName) {
                 festName = 'Festival';
             }
@@ -1058,7 +1129,7 @@ const festosBranding = {
 
         // 1. Update Title Dynamically
         if (isLogin) {
-            document.title = domainFest ? `${festName} | Secure Login` : `FestOS | Secure Login`;
+            document.title = (festName && festName !== this.DEFAULT_NAME) ? `${festName} | Secure Login` : `FestOS | Secure Login`;
             const loginBadgeLabel = document.getElementById('login-app-download-label');
             if (loginBadgeLabel && validName && festName !== this.DEFAULT_NAME) {
                 loginBadgeLabel.textContent = `Download ${festName} APK`;
@@ -1074,8 +1145,8 @@ const festosBranding = {
 
         // 2. Dynamic Global Favicon Injection (Super Admin, Login, and all portals)
         if (isLogin) {
-            if (domainFest) {
-                const effectiveFavicon = validLogo ? festLogo : this.festEmblemOf(festName, brandingData.theme_color || domainFest.theme_color);
+            if (festName && festName !== this.DEFAULT_NAME) {
+                const effectiveFavicon = validLogo ? festLogo : this.festEmblemOf(festName, brandingData.theme_color || (domainFest && domainFest.theme_color));
                 this.updateFavicon(effectiveFavicon);
             } else {
                 this.updateFavicon(this.DEFAULT_LOGO);
@@ -1100,8 +1171,8 @@ const festosBranding = {
 
             let html = '';
             if (isLogin) {
-                if (domainFest) {
-                    const effectiveLogo = validLogo ? festLogo : this.festEmblemOf(festName, brandingData.theme_color || domainFest.theme_color);
+                if (festName && festName !== this.DEFAULT_NAME) {
+                    const effectiveLogo = validLogo ? festLogo : (resolveStaticLogo(festName, domainFest ? domainFest.slug : '', domainFest ? domainFest.id : '') || this.festEmblemOf(festName, brandingData.theme_color || (domainFest && domainFest.theme_color)));
                     html += `<img id="login-brand-img" src="${effectiveLogo}" alt="${festName} Logo" class="festos-dynamic-logo" style="height: 48px; width: auto; max-width: 180px; object-fit: contain; margin-right: 10px; display: inline-block; vertical-align: middle; border-radius: 8px;">`;
                     html += `<span id="login-brand-name" class="festos-dynamic-name" style="letter-spacing: -0.5px; font-weight: 800; display: inline-block; vertical-align: middle;">${festName}</span>`;
                 } else {
@@ -2232,8 +2303,13 @@ const festosAppUpdate = {
         }
 
         // Dedicated fallback logos for well-known festivals if logo is empty or generic
-        if (festName.toUpperCase().includes('VIBRANIUM') && (!festLogo || festLogo.includes('festos-logo.svg'))) {
-            festLogo = 'vibranium-logo.png';
+        if (!festLogo || festLogo.includes('festos-logo.svg')) {
+            const s = (festName + ' ' + (fid || '')).toLowerCase();
+            if (s.includes('vib')) festLogo = 'vibranium-logo.png';
+            else if (s.includes('elo')) festLogo = 'eloquentia-logo.png';
+            else if (s.includes('zeit')) festLogo = 'zeitgeist-logo.png';
+            else if (s.includes('ely')) festLogo = 'elysium-logo.png';
+            else festLogo = 'festos-logo.svg';
         }
 
         const cleanFestCode = festName.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/[\s\-]+/g, '_');
@@ -2514,7 +2590,15 @@ const festosAppUpdate = {
         const cfg = this._configCache || {};
         const fid = cfg.fid || 'all';
         const festName = cfg.festName || 'FestOS Festival';
-        const festLogo = cfg.festLogo || 'festos-logo.svg';
+        let festLogo = cfg.festLogo || '';
+        if (!festLogo || festLogo.includes('festos-logo.svg')) {
+            const s = (festName + ' ' + (fid || '')).toLowerCase();
+            if (s.includes('vib')) festLogo = 'vibranium-logo.png';
+            else if (s.includes('elo')) festLogo = 'eloquentia-logo.png';
+            else if (s.includes('zeit')) festLogo = 'zeitgeist-logo.png';
+            else if (s.includes('ely')) festLogo = 'elysium-logo.png';
+            else festLogo = 'festos-logo.svg';
+        }
         const latestVersion = (cfg.fest?.version || cfg.global?.version || 'v4.2.0');
         const installed = await this.getInstalledVersion();
         const isNative = Boolean(window.isNativeApp || (window.Capacitor && window.Capacitor.isNativePlatform()));
@@ -2545,7 +2629,7 @@ const festosAppUpdate = {
                 <div class="festos-app-modal-top-accent"></div>
                 <div class="festos-app-modal-header">
                     <div style="display: flex; align-items: center; gap: 14px; min-width: 0;">
-                        <img src="${festLogo}" alt="Logo" class="festos-app-modal-logo" onerror="this.onerror=null; this.src='festos-logo.svg';">
+                        <img src="${festLogo}" alt="Logo" class="festos-app-modal-logo" onerror="this.onerror=null; this.src='${festLogo.includes('.png') ? festLogo : 'festos-logo.svg'}';">
                         <div style="min-width: 0;">
                             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                 <h3 class="festos-app-modal-title">${festName}</h3>
@@ -2615,11 +2699,11 @@ const festosAppUpdate = {
                     </div>
                 </div>
 
-                <div class="festos-app-modal-footer">
-                    <button type="button" class="btn btn-outline festos-app-footer-btn" id="festos-app-check-btn" onclick="festosAppUpdate.checkForUpdates(true)">
-                        <i class="fa-solid fa-arrows-rotate"></i> <span>Check for Updates</span>
+                <div class="festos-app-modal-footer" style="padding: 1rem 1.5rem; background: #F8FAFC; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; gap: 12px; border-radius: 0 0 20px 20px;">
+                    <button type="button" class="festos-app-footer-btn festos-app-check-btn" id="festos-app-check-btn" onclick="festosAppUpdate.checkForUpdates(true)" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0.6rem 1.25rem; font-size: 0.85rem; font-weight: 700; border-radius: 10px; cursor: pointer; border: 1px solid #CBD5E1; background: #FFFFFF; color: #1E293B; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06); line-height: 1.2; outline: none; transition: all 0.2s ease;">
+                        <i class="fa-solid fa-arrows-rotate" style="color: #059669; font-size: 0.85rem;"></i> <span>Check for Updates</span>
                     </button>
-                    <button type="button" class="btn btn-outline festos-app-footer-btn btn-close" onclick="festosAppUpdate.closeModal()">
+                    <button type="button" class="festos-app-footer-btn festos-app-close-btn" onclick="festosAppUpdate.closeModal()" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0.6rem 1.25rem; font-size: 0.85rem; font-weight: 700; border-radius: 10px; cursor: pointer; border: 1px solid #E2E8F0; background: #F1F5F9; color: #475569; line-height: 1.2; outline: none; transition: all 0.2s ease;">
                         <span>Close</span>
                     </button>
                 </div>
@@ -2654,22 +2738,16 @@ const festosAppUpdate = {
         if (rawUrl && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) && !rawUrl.includes('/download-apk')) {
             candidateUrls.push(rawUrl);
         }
-        // Festival-dedicated APK packages
-        candidateUrls.push(`/${cleanFestCode}.apk`);
-        candidateUrls.push(`${cleanFestCode}.apk`);
+        // Festival-dedicated APK packages (versioned and base)
         candidateUrls.push(`/${cleanFilename}`);
+        candidateUrls.push(`/${cleanFestCode}.apk`);
         candidateUrls.push(`${cleanFilename}`);
+        candidateUrls.push(`${cleanFestCode}.apk`);
         candidateUrls.push(`/${slug}.apk`);
-        candidateUrls.push(`${slug}.apk`);
-        // Guaranteed root fallback
         candidateUrls.push('/festos-app.apk');
-        candidateUrls.push('/VIBRANIUM.apk');
         candidateUrls.push('festos-app.apk');
-        candidateUrls.push('VIBRANIUM.apk');
-        // Dynamic endpoint fallback
-        candidateUrls.push(`/download-apk?fest=${encodeURIComponent(fid)}&name=${encodeURIComponent(festName)}&version=${encodeURIComponent(cleanVersion.replace(/^v/, ''))}`);
 
-        let targetUrl = `/${cleanFestCode}.apk`;
+        let targetUrl = `/${cleanFilename}`;
         for (const url of candidateUrls) {
             try {
                 if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -2689,7 +2767,7 @@ const festosAppUpdate = {
         const a = document.createElement('a');
         a.href = targetUrl;
         a.download = cleanFilename;
-        a.target = '_blank';
+        // Do NOT set a.target = '_blank' when using download attribute - causes Chrome download abortion
         document.body.appendChild(a);
         a.click();
         setTimeout(() => {
