@@ -2480,11 +2480,11 @@ function openCompModal(editData = null) {
         <div class="form-group"><label>Competition Name</label><input type="text" id="compName" value="${cName}"></div>
         
         <div style="display: flex; gap: 1rem; margin-bottom: 1.25rem;">
-            <div class="form-group" style="flex: 1; display: flex; align-items: center; gap: 0.5rem; background: var(--primary-light); padding: 1rem; border-radius: var(--radius-md); margin: 0;">
+            <div class="form-group comp-group-box" style="flex: 1; display: flex; align-items: center; gap: 0.5rem; background: var(--primary-light); padding: 1rem; border-radius: var(--radius-md); margin: 0;">
                 <input type="checkbox" id="compIsGroup" ${cIsGroup ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer;">
                 <label for="compIsGroup" style="margin: 0; color: var(--primary); font-weight: 700; cursor: pointer;">Group Event</label>
             </div>
-            <div class="form-group" style="flex: 1; display: flex; align-items: center; gap: 0.5rem; background: #FEF3C7; padding: 1rem; border-radius: var(--radius-md); margin: 0;">
+            <div class="form-group comp-offstage-box" style="flex: 1; display: flex; align-items: center; gap: 0.5rem; background: #FEF3C7; padding: 1rem; border-radius: var(--radius-md); margin: 0;">
                 <input type="checkbox" id="compIsOffstage" ${cIsOffstage ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: #D97706; cursor: pointer;">
                 <label for="compIsOffstage" style="margin: 0; color: #D97706; font-weight: 700; cursor: pointer;">Offstage Event</label>
             </div>
@@ -3615,7 +3615,7 @@ function viewParticipantCard(p) {
             
             /* Top Card */
             .pid-top { 
-                display: flex; gap: 1.5rem; background: white; border: 1px solid var(--border); 
+                display: flex; gap: 1.5rem; background: var(--bg-surface-elevated, var(--bg-surface, white)); border: 1px solid var(--border); 
                 border-radius: 16px; padding: 1.5rem; box-shadow: var(--shadow-sm); align-items: center; 
             }
             .pid-photo { 
@@ -3645,7 +3645,7 @@ function viewParticipantCard(p) {
             .pid-bottom { display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: stretch; }
             
             .pid-qr-card { 
-                background: white; border: 1px solid var(--border); border-radius: 16px; 
+                background: var(--bg-surface-elevated, var(--bg-surface, white)); border: 1px solid var(--border); border-radius: 16px; 
                 padding: 1.25rem; display: flex; flex-direction: column; align-items: center; 
                 justify-content: center; gap: 0.5rem; box-shadow: var(--shadow-sm); 
             }
@@ -3660,7 +3660,7 @@ function viewParticipantCard(p) {
             
             .pid-btn { 
                 width: 100%; justify-content: center; padding: 1rem; border-radius: 12px; 
-                background: white; border: 2px solid var(--border); font-weight: 800; 
+                background: var(--bg-surface-elevated, var(--bg-surface, white)); border: 2px solid var(--border); font-weight: 800; 
                 color: var(--text-main); transition: all 0.2s; box-shadow: var(--shadow-sm); 
                 cursor: pointer; display: flex; align-items: center; gap: 0.5rem; 
                 font-size: 0.9rem; text-transform: uppercase; 
@@ -16082,10 +16082,13 @@ window.updateScheduleVenueUI = function() {
     const offstageNotice = document.getElementById('modSchedOffstageNotice');
     if (!venueBadge) return;
 
+    const isDark = document.body.classList.contains('dark-hall-mode') || document.documentElement.classList.contains('dark-hall-mode');
+
     if (!stageId) {
         venueBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> No Venue Selected (TBD)';
-        venueBadge.style.background = '#F1F5F9';
-        venueBadge.style.color = '#64748B';
+        venueBadge.style.background = isDark ? '#18181B' : '#F1F5F9';
+        venueBadge.style.color = isDark ? '#94A3B8' : '#64748B';
+        venueBadge.style.border = isDark ? '1px solid #27272A' : 'none';
         if (offstageNotice) offstageNotice.style.display = 'none';
         return;
     }
@@ -16095,16 +16098,18 @@ window.updateScheduleVenueUI = function() {
 
     if (isOffstage) {
         venueBadge.innerHTML = `<i class="fa-solid fa-layer-group"></i> Offstage Venue (No judge required to start/end in stage controller)`;
-        venueBadge.style.background = '#FEF3C7';
-        venueBadge.style.color = '#D97706';
+        venueBadge.style.background = isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7';
+        venueBadge.style.color = isDark ? '#FCD34D' : '#D97706';
+        venueBadge.style.border = isDark ? '1px solid rgba(245, 158, 11, 0.3)' : 'none';
         if (offstageNotice) {
             offstageNotice.style.display = 'block';
             offstageNotice.innerHTML = `<i class="fa-solid fa-layer-group" style="margin-right: 4px;"></i> <strong>Offstage Venue:</strong> Stage Controller can start and end this event without an assigned judge. Judge evaluates after completion.`;
         }
     } else {
         venueBadge.innerHTML = `<i class="fa-solid fa-microphone-lines"></i> Onstage Venue (Judge required before starting event)`;
-        venueBadge.style.background = '#ECFDF5';
-        venueBadge.style.color = '#059669';
+        venueBadge.style.background = isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5';
+        venueBadge.style.color = isDark ? '#34D399' : '#059669';
+        venueBadge.style.border = isDark ? '1px solid rgba(16, 185, 129, 0.3)' : 'none';
         if (offstageNotice) offstageNotice.style.display = 'none';
     }
 };

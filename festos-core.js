@@ -3704,19 +3704,256 @@ const festosDarkMode = {
 
             /* Omnisearch Palette */
             body.dark-hall-mode .admin-cmd-palette {
+                background: rgba(18, 18, 21, 0.85) !important;
+            }
+            body.dark-hall-mode .admin-cmd-card {
                 background: #121215 !important;
                 border: 1px solid #27272A !important;
+                box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.75) !important;
+            }
+            body.dark-hall-mode .admin-cmd-header {
+                background: #121215 !important;
+                border-bottom: 1px solid #27272A !important;
             }
             body.dark-hall-mode .admin-cmd-input {
-                background: #18181B !important;
+                background: transparent !important;
                 color: #FFFFFF !important;
             }
+            body.dark-hall-mode .admin-cmd-close-btn {
+                color: #94A3B8 !important;
+            }
+            body.dark-hall-mode .admin-cmd-close-btn:hover {
+                color: #FFFFFF !important;
+                background: #27272A !important;
+            }
+            body.dark-hall-mode .admin-cmd-body {
+                background: #121215 !important;
+            }
+            body.dark-hall-mode .admin-cmd-section-label {
+                background: #18181B !important;
+                color: #94A3B8 !important;
+                border-top: 1px solid #27272A !important;
+                border-bottom: 1px solid #27272A !important;
+            }
             body.dark-hall-mode .admin-cmd-item {
-                border-bottom: 1px solid #1E293B !important;
+                border-bottom: 1px solid #1E1E22 !important;
+                color: #F8FAFC !important;
             }
             body.dark-hall-mode .admin-cmd-item:hover,
             body.dark-hall-mode .admin-cmd-item.selected {
-                background: #1E293B !important;
+                background: #18181B !important;
+            }
+            body.dark-hall-mode .admin-cmd-footer {
+                background: #0D0D10 !important;
+                border-top: 1px solid #27272A !important;
+                color: #94A3B8 !important;
+            }
+
+            /* Universal Modals, Schedule Event Modal & Left-Clipping Fix */
+            body.dark-hall-mode .modal {
+                background: #121215 !important;
+                border: 1px solid #27272A !important;
+                color: #F8FAFC !important;
+                overflow-x: hidden !important;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7) !important;
+            }
+            body.dark-hall-mode .modal-header h2,
+            body.dark-hall-mode #modalTitle {
+                color: #FFFFFF !important;
+            }
+            body.dark-hall-mode .modal .grid-2 {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            body.dark-hall-mode .modal input,
+            body.dark-hall-mode .modal select,
+            body.dark-hall-mode .modal textarea {
+                max-width: 100% !important;
+                min-width: 0 !important;
+                box-sizing: border-box !important;
+            }
+            body.dark-hall-mode #modSchedVenueBadge {
+                background: #18181B !important;
+                color: #94A3B8 !important;
+                border: 1px solid #27272A !important;
+            }
+            body.dark-hall-mode #modSchedOffstageNotice {
+                background: rgba(245, 158, 11, 0.15) !important;
+                border: 1px solid rgba(245, 158, 11, 0.3) !important;
+                color: #FCD34D !important;
+            }
+
+            /* Edit Competition Modal Offstage and Group Event Badges */
+            body.dark-hall-mode .comp-offstage-box,
+            body.dark-hall-mode div:has(#compIsOffstage) {
+                background: rgba(245, 158, 11, 0.12) !important;
+                border: 1px solid rgba(245, 158, 11, 0.3) !important;
+            }
+            body.dark-hall-mode label[for="compIsOffstage"] {
+                color: #FCD34D !important;
+            }
+            body.dark-hall-mode .comp-group-box,
+            body.dark-hall-mode div:has(#compIsGroup) {
+                background: rgba(59, 130, 246, 0.12) !important;
+                border: 1px solid rgba(59, 130, 246, 0.3) !important;
+            }
+            body.dark-hall-mode label[for="compIsGroup"] {
+                color: #93C5FD !important;
+            }
+
+            /* Competitions & Schedule Spreadsheet Table */
+            body.dark-hall-mode .excel-sheet-table th {
+                background: #18181B !important;
+                color: #94A3B8 !important;
+                border-bottom: 2px solid #27272A !important;
+                border-right: 1px solid #27272A !important;
+            }
+            body.dark-hall-mode .excel-sheet-table td {
+                background: #121215 !important;
+                color: #F8FAFC !important;
+                border-bottom: 1px solid #27272A !important;
+                border-right: 1px solid #27272A !important;
+            }
+            body.dark-hall-mode .excel-sheet-table tr:hover td {
+                background: #18181B !important;
+            }
+            body.dark-hall-mode .excel-sheet-table .sheet-cell-input,
+            body.dark-hall-mode .excel-sheet-table .sheet-cell-select {
+                background: #121215 !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode .excel-sheet-table tr.row-dirty td {
+                background: rgba(245, 158, 11, 0.15) !important;
+            }
+            body.dark-hall-mode .excel-sheet-table tr.row-new td {
+                background: rgba(16, 185, 129, 0.15) !important;
+            }
+            body.dark-hall-mode .desktop-sheet-switcher .btn {
+                background: #18181B !important;
+                border-color: #27272A !important;
+                color: #94A3B8 !important;
+            }
+            body.dark-hall-mode .desktop-sheet-switcher .btn.active {
+                background: #27272A !important;
+                color: #FFFFFF !important;
+                border-color: #3F3F46 !important;
+            }
+
+            /* Participant Identity Modal */
+            body.dark-hall-mode .pid-top,
+            body.dark-hall-mode .pid-qr-card,
+            body.dark-hall-mode .pid-photo {
+                background: #18181B !important;
+                border-color: #27272A !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode .pid-name {
+                color: #FFFFFF !important;
+            }
+            body.dark-hall-mode .pid-btn {
+                background: #18181B !important;
+                border-color: #27272A !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode .pid-btn:hover {
+                background: #27272A !important;
+                border-color: var(--primary) !important;
+                color: var(--primary) !important;
+            }
+            body.dark-hall-mode .pid-dob-card {
+                background: rgba(59, 130, 246, 0.12) !important;
+                border-color: rgba(59, 130, 246, 0.3) !important;
+            }
+
+            /* Category Participation Limit Violations Modal */
+            body.dark-hall-mode #auditCategoryLimitModal .modal,
+            body.dark-hall-mode #categoryLimitAuditModal .modal {
+                background: #121215 !important;
+                border-color: #27272A !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode #auditFilterCategory,
+            body.dark-hall-mode #auditFilterStatus {
+                background: #18181B !important;
+                color: #F8FAFC !important;
+                border-color: #27272A !important;
+            }
+
+            /* AI Stage Announcer & Master Program Report */
+            body.dark-hall-mode .ai-deck-card,
+            body.dark-hall-mode #view-ai-announcer .ai-deck-card {
+                background: #121215 !important;
+                border-color: #27272A !important;
+                color: #F8FAFC !important;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+            }
+            body.dark-hall-mode .ai-header {
+                border-bottom: 1px solid #27272A !important;
+            }
+            body.dark-hall-mode .ai-header h2 {
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode #view-ai-announcer select,
+            body.dark-hall-mode #voiceModelModal select,
+            body.dark-hall-mode #manageVoiceModelsModal select,
+            body.dark-hall-mode .tts-studio-select {
+                background-color: #18181B !important;
+                color: #F8FAFC !important;
+                border-color: #27272A !important;
+            }
+            body.dark-hall-mode #report-content,
+            body.dark-hall-mode .category-matrix-card,
+            body.dark-hall-mode .controls-card,
+            body.dark-hall-mode .report-container {
+                background: #121215 !important;
+                border-color: #27272A !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode .category-matrix-header {
+                background: #18181B !important;
+                border-color: #27272A !important;
+            }
+            body.dark-hall-mode .category-matrix-title h3 {
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode .matrix-table th,
+            body.dark-hall-mode .matrix-table td {
+                border-color: #27272A !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode .matrix-table th.vertical {
+                background: #18181B !important;
+            }
+            body.dark-hall-mode .matrix-table td.col-sno,
+            body.dark-hall-mode .matrix-table td.col-team,
+            body.dark-hall-mode .matrix-table td.col-id,
+            body.dark-hall-mode .matrix-table td.col-name {
+                background: #121215 !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode .matrix-table tr:hover td {
+                background: #18181B !important;
+            }
+            body.dark-hall-mode .matrix-check-pill {
+                background: rgba(16, 185, 129, 0.2) !important;
+                color: #34D399 !important;
+            }
+
+            /* Universal OLED Scrollbars */
+            body.dark-hall-mode ::-webkit-scrollbar {
+                width: 8px;
+                height: 8px;
+            }
+            body.dark-hall-mode ::-webkit-scrollbar-track {
+                background: #09090B !important;
+            }
+            body.dark-hall-mode ::-webkit-scrollbar-thumb {
+                background: #27272A !important;
+                border-radius: 4px;
+            }
+            body.dark-hall-mode ::-webkit-scrollbar-thumb:hover {
+                background: #3F3F46 !important;
             }
 
             /* Floating / Mobile Navigation */

@@ -8,7 +8,7 @@
     
     <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="festos-core.js?v=4.3.6"></script>
+    <script src="festos-core.js?v=4.3.7"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -218,6 +218,55 @@
             box-shadow: var(--shadow-sm);
             margin-bottom: 2rem;
             overflow: hidden;
+        }
+
+        body.dark-hall-mode #report-content,
+        body.dark-hall-mode .category-matrix-card,
+        body.dark-hall-mode .controls-card,
+        body.dark-hall-mode .report-container {
+            background: #121215 !important;
+            border-color: #27272A !important;
+            color: #F8FAFC !important;
+        }
+        body.dark-hall-mode .category-matrix-header {
+            background: #18181B !important;
+            border-color: #27272A !important;
+        }
+        body.dark-hall-mode .category-matrix-title h3 {
+            color: #F8FAFC !important;
+        }
+        body.dark-hall-mode .matrix-table th,
+        body.dark-hall-mode .matrix-table td {
+            border-color: #27272A !important;
+            color: #F8FAFC !important;
+        }
+        body.dark-hall-mode .matrix-table th.vertical {
+            background: #18181B !important;
+        }
+        body.dark-hall-mode .matrix-table td.col-sno,
+        body.dark-hall-mode .matrix-table td.col-team,
+        body.dark-hall-mode .matrix-table td.col-id,
+        body.dark-hall-mode .matrix-table td.col-name {
+            background: #121215 !important;
+            color: #F8FAFC !important;
+        }
+        body.dark-hall-mode .matrix-table tr:hover td {
+            background: #18181B !important;
+        }
+        body.dark-hall-mode .matrix-check-pill {
+            background: rgba(16, 185, 129, 0.2) !important;
+            color: #34D399 !important;
+        }
+        @media print {
+            body.dark-hall-mode {
+                background: white !important;
+                color: black !important;
+            }
+            body.dark-hall-mode #report-content,
+            body.dark-hall-mode .category-matrix-card {
+                background: white !important;
+                color: black !important;
+            }
         }
 
         .category-matrix-header {
@@ -443,7 +492,7 @@
         }
     </style>
     <link rel="stylesheet" href="premium-forms.css">
-    <link rel="stylesheet" href="custom-pickers.css?v=4.1">
+    <link rel="stylesheet" href="custom-pickers.css?v=4.3.7">
 </head>
 <body>
 
@@ -1219,6 +1268,6 @@
             init();
         });
     </script>
-    <script src="custom-pickers.js?v=4.0"></script>
+    <script src="custom-pickers.js?v=4.3.7"></script>
 </body>
 </html>

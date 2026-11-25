@@ -166,7 +166,21 @@ tr:hover td { background: var(--bg-main); }
 
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.6); backdrop-filter: blur(4px); z-index: 999; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; padding: 1rem; }
 .modal-overlay.show { display: flex; opacity: 1; }
-.modal { background: var(--bg-surface); width: 100%; max-width: 520px; border-radius: var(--radius-xl); padding: 2rem; box-shadow: var(--shadow-lg); border: 1px solid var(--border); transform: scale(0.95); transition: transform 0.3s ease; max-height: 90vh; overflow-y: auto; }
+.modal { 
+    background: var(--bg-surface); 
+    width: 100%; 
+    max-width: 540px; 
+    border-radius: var(--radius-xl); 
+    padding: 2rem; 
+    box-shadow: var(--shadow-lg); 
+    border: 1px solid var(--border); 
+    transform: scale(0.95); 
+    transition: transform 0.3s ease; 
+    max-height: 90vh; 
+    overflow-y: auto; 
+    overflow-x: hidden !important; 
+    box-sizing: border-box !important; 
+}
 .modal-overlay.show .modal { transform: scale(1); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
 .modal-header h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; font-weight: 600; }
@@ -178,7 +192,9 @@ tr:hover td { background: var(--bg-main); }
 .form-group input[type="checkbox"], .form-group input[type="radio"], .modal input[type="checkbox"], .modal input[type="radio"] { width: auto !important; padding: 0 !important; }
 .form-group input:focus, .form-group select:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px var(--primary-ring); }
 .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; padding-bottom: 0.25rem; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem; }
+.modal .grid-2 { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; width: 100% !important; box-sizing: border-box !important; }
+.modal .form-group, .modal input, .modal select, .modal textarea { min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
 
 .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.4); z-index: 30; opacity: 0; transition: opacity 0.4s; }
 .menu-toggle {
@@ -537,7 +553,7 @@ tr:hover td { background: var(--bg-main); }
 }
 
 .admin-cmd-card {
-    background: #FFFFFF;
+    background: var(--bg-surface);
     border-radius: 18px;
     box-shadow: 0 25px 60px -12px rgba(15, 23, 42, 0.32);
     border: 1px solid var(--border);
@@ -560,7 +576,7 @@ tr:hover td { background: var(--bg-main); }
     padding: 1.1rem 1.4rem;
     border-bottom: 1px solid var(--border);
     gap: 12px;
-    background: #FFFFFF;
+    background: var(--bg-surface);
     flex-shrink: 0;
 }
 .admin-cmd-header i.fa-magnifying-glass {
@@ -853,12 +869,12 @@ tr:hover td { background: var(--bg-main); }
     }
     .header h1,
     #page-title { 
-        font-size: 1.12rem !important; 
+        font-size: 1.05rem !important; 
         font-weight: 800 !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
-        letter-spacing: -0.02em !important;
+        letter-spacing: -0.01em !important;
         margin: 0 !important;
         line-height: 1.2 !important;
         color: var(--text-main) !important;
@@ -869,24 +885,24 @@ tr:hover td { background: var(--bg-main); }
     .header-actions,
     .header > div:last-child { 
         display: flex !important; 
-        gap: 0.35rem !important; 
+        gap: 0.28rem !important; 
         align-items: center !important; 
         flex-shrink: 0 !important; 
     }
     
-    /* Mobile Header Action Buttons: 36px compact circles */
+    /* Mobile Header Action Buttons: 34px compact circles */
     .admin-omnisearch-btn,
     .header-notify-btn,
     .festos-darkmode-btn,
     .festos-app-update-nav-btn,
     .header-icon-btn {
-        width: 36px !important;
-        height: 36px !important;
-        min-width: 36px !important;
-        min-height: 36px !important;
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        min-height: 34px !important;
         border-radius: 50% !important;
         padding: 0 !important;
-        font-size: 0.95rem !important;
+        font-size: 0.92rem !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -896,10 +912,10 @@ tr:hover td { background: var(--bg-main); }
     .header-notify-btn .notify-badge {
         top: -2px !important;
         right: -2px !important;
-        min-width: 16px !important;
-        height: 16px !important;
-        font-size: 0.62rem !important;
-        padding: 0 4px !important;
+        min-width: 15px !important;
+        height: 15px !important;
+        font-size: 0.6rem !important;
+        padding: 0 3px !important;
     }
     .festos-app-update-dot {
         top: 2px !important;
@@ -909,6 +925,7 @@ tr:hover td { background: var(--bg-main); }
     }
     /* Move Sign Out to the sidebar drawer on mobile to eliminate header congestion */
     .header .header-logout-btn,
+    .header button[onclick*="logout"],
     .header .btn-outline[onclick*="logout"] { 
         display: none !important; 
     }
@@ -994,7 +1011,7 @@ tr:hover td { background: var(--bg-main); }
         min-width: 0 !important;
     }
     .dash-stat-label {
-        font-size: 0.68rem !important;
+        font-size: 0.65rem !important;
         letter-spacing: 0.01em !important;
         margin-bottom: 0.15rem !important;
         white-space: nowrap !important;
@@ -1006,18 +1023,20 @@ tr:hover td { background: var(--bg-main); }
         flex-direction: column !important;
         align-items: center !important;
         gap: 0 !important;
+        width: 100% !important;
     }
     .dash-stat-value {
-        font-size: 1.25rem !important;
+        font-size: 1.2rem !important;
         line-height: 1.15 !important;
     }
     .dash-stat-sub {
-        font-size: 0.68rem !important;
+        font-size: 0.6rem !important;
         line-height: 1.1 !important;
         white-space: nowrap !important;
         text-transform: uppercase !important;
-        letter-spacing: 0.02em !important;
+        letter-spacing: 0 !important;
         color: var(--text-muted) !important;
+        overflow: visible !important;
     }
     .dash-stat-divider {
         height: 32px !important;
@@ -1845,13 +1864,58 @@ tr:hover td { background: var(--bg-main); }
     #stages-tbody td:nth-child(1),
     #teams-tbody td:nth-child(1),
     #judges-tbody td:nth-child(1) {
+        display: block !important;
         font-size: 1.05rem;
         font-weight: 600;
         color: var(--primary);
-        justify-content: flex-start;
-        border-bottom: none;
-        padding-bottom: 0;
-        text-align: left;
+        border-bottom: 1px solid var(--border) !important;
+        padding-bottom: 0.75rem !important;
+        text-align: left !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    #teams-tbody td:nth-child(1) > strong,
+    #stages-tbody td:nth-child(1) > strong {
+        display: block !important;
+        font-size: 1.15rem !important;
+        color: var(--text-main) !important;
+        margin-bottom: 0.25rem !important;
+    }
+    #teams-tbody td:nth-child(1) > small,
+    #stages-tbody td:nth-child(1) > small {
+        display: block !important;
+        font-size: 0.8rem !important;
+        line-height: 1.35 !important;
+        color: var(--text-muted) !important;
+        margin-bottom: 0.5rem !important;
+    }
+    #teams-tbody td:nth-child(1) > div,
+    #stages-tbody td:nth-child(1) > div {
+        display: block !important;
+        width: 100% !important;
+        text-align: left !important;
+        box-sizing: border-box !important;
+    }
+    #teams-tbody .manager-accounts-wrap {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 6px !important;
+        width: 100% !important;
+        align-items: stretch !important;
+        box-sizing: border-box !important;
+    }
+    #teams-tbody .manager-account-pill {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        flex-wrap: wrap !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        gap: 6px !important;
+        padding: 6px 10px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
     
     #stages-tbody td:nth-child(1)::before,
@@ -2489,6 +2553,22 @@ tr:hover td { background: var(--bg-main); }
     box-sizing: border-box;
     overflow: hidden;
 }
+body.dark-hall-mode .dashboard-stats-card {
+    background: #121215 !important;
+    border-color: #27272A !important;
+    color: #F8FAFC !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+body.dark-hall-mode .dash-stat-label,
+body.dark-hall-mode .dash-stat-sub {
+    color: #94A3B8 !important;
+}
+body.dark-hall-mode .dash-stat-value {
+    color: #FFFFFF !important;
+}
+body.dark-hall-mode .dash-stat-divider {
+    background: #27272A !important;
+}
 .dash-stat-item {
     flex: 1;
     display: flex;
@@ -2718,7 +2798,7 @@ canvas {
 </style>
     <link rel="stylesheet" href="premium-forms.css">
     <link rel="stylesheet" href="newspaper-studio.css">
-    <link rel="stylesheet" href="custom-pickers.css?v=4.1">
+    <link rel="stylesheet" href="custom-pickers.css?v=4.3.7">
 </head>
 <body>
 
@@ -8979,14 +9059,14 @@ function toggleCustomGridFields() {
 <div id="toast-container"></div>
 
 
-<script src="festos-core.js?v=4.3.6"></script>
+<script src="festos-core.js?v=4.3.7"></script>
 <script src="mobile-native.js"></script>
 <script src="id-badge-engine.js?v=3.8.2"></script>
 <script src="preset-templates-engine.js"></script>
 <script src="ai-template-generator.js"></script>
-<script src="admin.js?v=4.3.3"></script>
+<script src="admin.js?v=4.3.7"></script>
     <script src="newspaper-engine.js"></script>
-    <script src="custom-pickers.js?v=4.0"></script>
+    <script src="custom-pickers.js?v=4.3.7"></script>
 
 <!-- ========================================================= -->
 <!-- SLIDE-OVER NOTIFICATION CENTER DRAWER (SUITABLE FOR ALL DEVICES) -->
