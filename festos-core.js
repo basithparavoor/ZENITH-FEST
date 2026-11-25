@@ -2201,118 +2201,155 @@ const festosAppUpdate = {
 
     mountNavButton() {
         if (typeof document === 'undefined' || !this.isDownloadEnabled()) return;
+
+        // Ensure ONLY ONE app button exists across the entire navbar/header
+        const existingNavBtns = document.querySelectorAll('.festos-app-update-nav-btn:not(#login-app-download-wrap *)');
+        if (existingNavBtns.length > 0) {
+            // Keep the first one, safely eliminate any duplicate instances
+            for (let i = 1; i < existingNavBtns.length; i++) {
+                existingNavBtns[i].remove();
+            }
+            return;
+        }
+
         const cfg = this._configCache || {};
         const isUpdate = this._hasUpdate;
         const updateDotHtml = isUpdate ? '<span class="festos-app-update-dot" title="Update Available"></span>' : '';
 
-        // 1. Top Nav Right (stage-controller.html & judge.html)
-        const topNavRight = document.querySelector('.top-nav-right');
-        if (topNavRight && !document.getElementById('festos-app-topnav-btn')) {
+        const createNavBtn = (extraClass, extraStyle, innerContent) => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.id = 'festos-app-topnav-btn';
-            btn.className = 'header-icon-btn festos-app-update-nav-btn';
+            btn.id = 'festos-app-header-btn';
+            btn.className = `festos-app-update-nav-btn ${extraClass || ''}`.trim();
+            if (extraStyle) btn.style.cssText = extraStyle;
             btn.title = `Festival Mobile App & Updates (${cfg.festName || 'FestOS'})`;
-            btn.innerHTML = `<i class="fa-solid fa-mobile-screen-button" style="color: #10B981;"></i>${updateDotHtml}`;
+            btn.innerHTML = innerContent || `<i class="fa-solid fa-mobile-screen-button"></i>${updateDotHtml}`;
             btn.onclick = () => festosAppUpdate.openModal();
-            topNavRight.insertBefore(btn, topNavRight.firstChild);
-        }
+            return btn;
+        };
 
-        // 2. Header Actions in manager.html & admin.html
-        const headerActions = document.querySelector('.header-actions');
-        if (headerActions && !document.getElementById('festos-app-mgr-btn')) {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.id = 'festos-app-mgr-btn';
-            btn.className = 'btn btn-outline festos-app-update-nav-btn';
-            btn.style.cssText = 'position: relative; border-color: #A7F3D0; color: #059669; background: #ECFDF5; margin-right: 0.5rem; flex-shrink: 0;';
-            btn.title = `Festival App & Updates (${cfg.festName || 'FestOS'})`;
-            btn.innerHTML = `<i class="fa-solid fa-mobile-screen-button"></i> <span>App ${isUpdate ? 'Update' : ''}</span>${updateDotHtml}`;
-            btn.onclick = () => festosAppUpdate.openModal();
-            headerActions.insertBefore(btn, headerActions.firstChild);
-        }
-
-        // 3. Admin Top Bar (admin.html right near notification bell)
+        // 1. Admin Dashboard (admin.html) - exactly ONE circular button before notification bell
         const headerNotify = document.getElementById('header-notify-btn');
-        if (headerNotify && !document.getElementById('header-app-update-btn')) {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.id = 'header-app-update-btn';
-            btn.className = 'header-notify-btn festos-app-update-nav-btn';
-            btn.style.cssText = 'position: relative; width: 42px; height: 42px; border-radius: 50%; border: 1px solid #A7F3D0; background: #ECFDF5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; cursor: pointer; margin-right: 0.5rem; flex-shrink: 0;';
-            btn.title = `Festival Mobile App & Updates (${cfg.festName || 'FestOS'})`;
-            btn.innerHTML = `<i class="fa-solid fa-mobile-screen-button"></i>${updateDotHtml}`;
-            btn.onclick = () => festosAppUpdate.openModal();
+        if (headerNotify && headerNotify.parentNode) {
+            const btn = createNavBtn(
+                'header-notify-btn',
+                'position: relative; width: 42px; height: 42px; border-radius: 50%; border: 1px solid #A7F3D0; background: #ECFDF5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; cursor: pointer; flex-shrink: 0;',
+                `<i class="fa-solid fa-mobile-screen-button"></i>${updateDotHtml}`
+            );
             headerNotify.parentNode.insertBefore(btn, headerNotify);
+            return;
         }
 
-        // 4. Scanner HUD Actions (scan.html)
+        // 2. Super Admin Control Panel (superadmin.html)
+        const superHeaderActions = document.querySelector('.header-actions');
+        if (document.getElementById('top-page-title') && superHeaderActions) {
+            const btn = createNavBtn(
+                'btn btn-outline',
+                'position: relative; height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid #A7F3D0; background: #ECFDF5; color: #059669; display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 700; cursor: pointer; flex-shrink: 0;',
+                `<i class="fa-solid fa-mobile-screen-button"></i> <span>App ${isUpdate ? 'Update' : ''}</span>${updateDotHtml}`
+            );
+            superHeaderActions.insertBefore(btn, superHeaderActions.firstChild);
+            return;
+        }
+
+        // 3. Manager Dashboard (manager.html)
+        const mgrHeaderActions = document.querySelector('.header-actions');
+        if (document.getElementById('manager-page-title') && mgrHeaderActions) {
+            const btn = createNavBtn(
+                'btn btn-outline',
+                'position: relative; border-color: #A7F3D0; color: #059669; background: #ECFDF5; flex-shrink: 0;',
+                `<i class="fa-solid fa-mobile-screen-button"></i> <span>App ${isUpdate ? 'Update' : ''}</span>${updateDotHtml}`
+            );
+            mgrHeaderActions.insertBefore(btn, mgrHeaderActions.firstChild);
+            return;
+        }
+
+        // 4. Judge & Stage Controller (judge.html, stage-controller.html)
+        const topNavRight = document.querySelector('.top-nav-right');
+        if (topNavRight) {
+            const btn = createNavBtn(
+                'header-icon-btn',
+                'position: relative; color: #10B981; flex-shrink: 0;',
+                `<i class="fa-solid fa-mobile-screen-button" style="color: #10B981;"></i>${updateDotHtml}`
+            );
+            topNavRight.insertBefore(btn, topNavRight.firstChild);
+            return;
+        }
+
+        // 5. Announcer Portal (announcements.html)
+        if (document.getElementById('announcer-page-title')) {
+            const announcerHeaderRight = document.querySelector('.header > div:last-child');
+            if (announcerHeaderRight) {
+                const btn = createNavBtn(
+                    'btn-logout',
+                    'position: relative; color: #059669; border-color: #A7F3D0; background: #ECFDF5;',
+                    `<i class="fa-solid fa-mobile-screen-button"></i> <span class="logout-text">App</span>${updateDotHtml}`
+                );
+                announcerHeaderRight.insertBefore(btn, announcerHeaderRight.firstChild);
+                return;
+            }
+        }
+
+        // 6. Team Manager (team-manager.html)
+        const teamNavActions = document.querySelector('.navbar-actions');
+        if (teamNavActions) {
+            const btn = createNavBtn(
+                'btn btn-outline',
+                'position: relative; padding: 0.5rem; min-height: 40px; min-width: 40px; display: flex; align-items: center; justify-content: center; color: #059669; border-color: #A7F3D0; flex-shrink: 0;',
+                `<i class="fa-solid fa-mobile-screen-button"></i>${updateDotHtml}`
+            );
+            teamNavActions.insertBefore(btn, teamNavActions.firstChild);
+            return;
+        }
+
+        // 7. Scanner HUD Actions (scan.html)
         const hudActions = document.querySelector('.hud-actions');
-        if (hudActions && !document.getElementById('festos-app-hud-btn')) {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.id = 'festos-app-hud-btn';
-            btn.className = 'hud-btn festos-app-update-nav-btn';
-            btn.style.cssText = 'position: relative; color: #10B981;';
-            btn.title = `Mobile App & Updates (${cfg.festName || 'FestOS'})`;
-            btn.innerHTML = `<i class="fa-solid fa-mobile-screen-button"></i>${updateDotHtml}`;
-            btn.onclick = () => festosAppUpdate.openModal();
+        if (hudActions) {
+            const btn = createNavBtn(
+                'hud-btn',
+                'position: relative; color: #10B981;',
+                `<i class="fa-solid fa-mobile-screen-button"></i>${updateDotHtml}`
+            );
             hudActions.insertBefore(btn, hudActions.firstChild);
+            return;
         }
 
-        // 5. Spectator Light Header (spectator.html)
-        const spectatorLiveTag = document.querySelector('.header .live-tag');
-        if (spectatorLiveTag && !document.getElementById('festos-app-spectator-btn')) {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.id = 'festos-app-spectator-btn';
-            btn.className = 'festos-app-update-nav-btn';
-            btn.style.cssText = 'position: relative; background: rgba(16, 185, 129, 0.12); border: 1px solid #10B981; color: #059669; border-radius: 9999px; padding: 4px 12px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin-left: auto; margin-right: 8px; flex-shrink: 0;';
-            btn.title = `Download Official App (${cfg.festName || 'FestOS'})`;
-            btn.innerHTML = `<i class="fa-brands fa-android"></i> <span>Get App</span>${updateDotHtml}`;
-            btn.onclick = () => festosAppUpdate.openModal();
-            spectatorLiveTag.parentNode.insertBefore(btn, spectatorLiveTag);
-        }
-
-        // 6. Public Navbar (results.html)
+        // 8. Public Navbar (results.html)
         const desktopNavLinks = document.getElementById('desktop-nav-links');
-        if (desktopNavLinks && !document.getElementById('festos-app-results-link')) {
+        if (desktopNavLinks) {
             const a = document.createElement('a');
-            a.id = 'festos-app-results-link';
+            a.id = 'festos-app-header-btn';
             a.className = 'nav-link festos-app-update-nav-btn';
             a.href = '#';
             a.style.cssText = 'position: relative; color: #059669; font-weight: 800; display: inline-flex; align-items: center; gap: 5px;';
             a.innerHTML = `<i class="fa-brands fa-android" style="color: #16A34A;"></i> <span>App</span>${updateDotHtml}`;
             a.onclick = (e) => { e.preventDefault(); festosAppUpdate.openModal(); };
             desktopNavLinks.appendChild(a);
+            return;
         }
 
-        // 7. Announcer Portal (announcements.html)
-        const announcerHeaderRight = document.querySelector('.header > div:last-child');
-        if (announcerHeaderRight && !document.getElementById('festos-app-announcer-btn')) {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.id = 'festos-app-announcer-btn';
-            btn.className = 'btn-logout festos-app-update-nav-btn';
-            btn.style.cssText = 'position: relative; color: #059669; border-color: #A7F3D0; background: #ECFDF5; margin-right: 0.4rem;';
-            btn.title = `Festival Mobile App & Updates (${cfg.festName || 'FestOS'})`;
-            btn.innerHTML = `<i class="fa-solid fa-mobile-screen-button"></i> <span class="logout-text">App</span>${updateDotHtml}`;
-            btn.onclick = () => festosAppUpdate.openModal();
-            announcerHeaderRight.insertBefore(btn, announcerHeaderRight.firstChild);
+        // 9. Spectator Light Header (spectator.html)
+        const spectatorLiveTag = document.querySelector('.header .live-tag');
+        if (spectatorLiveTag && spectatorLiveTag.parentNode) {
+            const btn = createNavBtn(
+                '',
+                'position: relative; background: rgba(16, 185, 129, 0.12); border: 1px solid #10B981; color: #059669; border-radius: 9999px; padding: 4px 12px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin-left: auto; margin-right: 8px; flex-shrink: 0;',
+                `<i class="fa-brands fa-android"></i> <span>Get App</span>${updateDotHtml}`
+            );
+            spectatorLiveTag.parentNode.insertBefore(btn, spectatorLiveTag);
+            return;
         }
 
-        // 8. Team Manager (team-manager.html)
-        const teamLogout = document.querySelector('button[onclick*="logout"]');
-        if (teamLogout && !document.getElementById('festos-app-team-btn') && !teamLogout.closest('.nav-actions')) {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.id = 'festos-app-team-btn';
-            btn.className = 'btn btn-outline festos-app-update-nav-btn';
-            btn.style.cssText = 'position: relative; padding: 0.5rem; min-height: 40px; min-width: 40px; display: flex; align-items: center; justify-content: center; color: #059669; border-color: #A7F3D0; margin-right: 0.5rem; flex-shrink: 0;';
-            btn.title = `Festival App & Updates (${cfg.festName || 'FestOS'})`;
-            btn.innerHTML = `<i class="fa-solid fa-mobile-screen-button"></i>${updateDotHtml}`;
-            btn.onclick = () => festosAppUpdate.openModal();
-            teamLogout.parentNode.insertBefore(btn, teamLogout);
+        // 10. Fallback for any other custom authenticated header
+        const fallbackLogout = document.querySelector('button[onclick*="logout"]');
+        if (fallbackLogout && fallbackLogout.parentNode && !fallbackLogout.closest('.sidebar')) {
+            const btn = createNavBtn(
+                'btn btn-outline',
+                'position: relative; color: #059669; border-color: #A7F3D0; background: #ECFDF5; margin-right: 0.5rem; flex-shrink: 0;',
+                `<i class="fa-solid fa-mobile-screen-button"></i>${updateDotHtml}`
+            );
+            fallbackLogout.parentNode.insertBefore(btn, fallbackLogout);
+            return;
         }
     },
 
