@@ -2241,8 +2241,14 @@ const festosAppUpdate = {
             '.festos-app-update-nav-btn'
         ];
         document.querySelectorAll(staleSelectors.join(', ')).forEach(el => {
-            if (el.closest('#login-app-download-wrap')) return; // keep login screen button
+            if (el.closest('#login-app-download-wrap') || el.closest('#festosAppUpdateModal')) return;
             el.remove();
+        });
+
+        // Eliminate any other stray buttons wired to open the app modal
+        document.querySelectorAll('button[onclick*="festosAppUpdate.openModal()"]').forEach(btn => {
+            if (btn.closest('#login-app-download-wrap') || btn.closest('#festosAppUpdateModal')) return;
+            btn.remove();
         });
 
         const cfg = this._configCache || {};
@@ -3428,21 +3434,156 @@ const festosDarkMode = {
                 color: #FFFFFF !important;
             }
 
-            /* Modals & Overlays */
+            /* Modals & Popups Across All Portals */
             body.dark-hall-mode .modal-overlay {
-                background: rgba(0, 0, 0, 0.8) !important;
+                background: rgba(0, 0, 0, 0.85) !important;
             }
+            body.dark-hall-mode .modal,
             body.dark-hall-mode .modal-card,
             body.dark-hall-mode .modal-content,
-            body.dark-hall-mode .modal-dialog {
+            body.dark-hall-mode .modal-dialog,
+            body.dark-hall-mode #logoutModal .modal,
+            body.dark-hall-mode #categoryModal .modal,
+            body.dark-hall-mode #relationalDataModal .modal,
+            body.dark-hall-mode #compModal .modal,
+            body.dark-hall-mode #customSlideModal .modal,
+            body.dark-hall-mode #userModal .modal,
+            body.dark-hall-mode #stageModal .modal,
+            body.dark-hall-mode #teamModal .modal,
+            body.dark-hall-mode #participantModal .modal,
+            body.dark-hall-mode #assignJudgeEventsModal .modal,
+            body.dark-hall-mode #judgeDetailsModal .modal,
+            body.dark-hall-mode #bulkValuationModal .modal,
+            body.dark-hall-mode #bulkPrintModal .modal,
+            body.dark-hall-mode #cropperModal .modal {
                 background: #121215 !important;
+                background-color: #121215 !important;
                 border: 1px solid #27272A !important;
                 color: #F8FAFC !important;
-                box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7) !important;
+                box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85) !important;
+            }
+            body.dark-hall-mode .modal h1,
+            body.dark-hall-mode .modal h2,
+            body.dark-hall-mode .modal h3,
+            body.dark-hall-mode .modal-title,
+            body.dark-hall-mode #relationalModalTitle,
+            body.dark-hall-mode #categoryModalTitle,
+            body.dark-hall-mode #cs-modal-title,
+            body.dark-hall-mode #jd-modal-title,
+            body.dark-hall-mode #assign-judge-title,
+            body.dark-hall-mode #confirmModalTitle {
+                color: #FFFFFF !important;
+            }
+            body.dark-hall-mode .modal p,
+            body.dark-hall-mode .modal label,
+            body.dark-hall-mode #confirmModalText {
+                color: #CBD5E1 !important;
             }
             body.dark-hall-mode .modal-header,
             body.dark-hall-mode .modal-footer {
                 border-color: #27272A !important;
+                background: transparent !important;
+            }
+            body.dark-hall-mode .modal .close-btn {
+                background: #18181B !important;
+                border: 1px solid #27272A !important;
+                color: #94A3B8 !important;
+            }
+            body.dark-hall-mode .modal .close-btn:hover {
+                color: #FFFFFF !important;
+                background: #27272A !important;
+            }
+            body.dark-hall-mode #relationalDataModal table,
+            body.dark-hall-mode #relationalDataModal tr,
+            body.dark-hall-mode #judgeDetailsModal table,
+            body.dark-hall-mode #judgeDetailsModal tr {
+                background: #18181B !important;
+                border-color: #27272A !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode #relationalDataModal th,
+            body.dark-hall-mode #judgeDetailsModal th {
+                background: #121215 !important;
+                color: #94A3B8 !important;
+                border-bottom: 1px solid #27272A !important;
+            }
+
+            /* Omnisearch Palette Footer & Card Frame */
+            body.dark-hall-mode .admin-cmd-card,
+            body.dark-hall-mode .admin-cmd-footer {
+                background: #121215 !important;
+                border-color: #27272A !important;
+                color: #94A3B8 !important;
+            }
+            body.dark-hall-mode .admin-cmd-footer kbd,
+            body.dark-hall-mode .admin-cmd-shortcut kbd {
+                background: #18181B !important;
+                border: 1px solid #27272A !important;
+                color: #F8FAFC !important;
+            }
+
+            /* Universal Controls Bars & Filter Bars */
+            body.dark-hall-mode .controls-bar,
+            body.dark-hall-mode .filter-bar,
+            body.dark-hall-mode .filter-card,
+            body.dark-hall-mode #global-filters,
+            body.dark-hall-mode .toolbar,
+            body.dark-hall-mode .manager-toolbar,
+            body.dark-hall-mode .sheet-toolbar,
+            body.dark-hall-mode .dashboard-stats-card {
+                background: #121215 !important;
+                background-color: #121215 !important;
+                border-color: #27272A !important;
+                color: #F8FAFC !important;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+            }
+
+            /* All Select Elements, Input Fields & Options across All Portals */
+            body.dark-hall-mode select,
+            body.dark-hall-mode select.control-input,
+            body.dark-hall-mode .control-input,
+            body.dark-hall-mode .form-control,
+            body.dark-hall-mode #categoryFilter,
+            body.dark-hall-mode #stageFilter,
+            body.dark-hall-mode #statusFilter,
+            body.dark-hall-mode #filter-stage,
+            body.dark-hall-mode #filter-category,
+            body.dark-hall-mode input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="reset"]),
+            body.dark-hall-mode textarea {
+                background: #18181B !important;
+                background-color: #18181B !important;
+                border: 1.5px solid #27272A !important;
+                color: #F8FAFC !important;
+                box-shadow: none !important;
+            }
+            body.dark-hall-mode select option,
+            body.dark-hall-mode .control-input option {
+                background: #18181B !important;
+                background-color: #18181B !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode select.control-input {
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E") !important;
+            }
+
+            /* Active Tab and Sidebar Items */
+            body.dark-hall-mode .tab-btn.active,
+            body.dark-hall-mode .nav-item.active,
+            body.dark-hall-mode .builder-nav-item.active {
+                background: rgba(99, 102, 241, 0.2) !important;
+                color: #818CF8 !important;
+                border: 1px solid rgba(99, 102, 241, 0.4) !important;
+            }
+            body.dark-hall-mode .tab-btn.active i,
+            body.dark-hall-mode .nav-item.active i,
+            body.dark-hall-mode .builder-nav-item.active i {
+                color: #A5B4FC !important;
+            }
+            body.dark-hall-mode .tab-btn:hover,
+            body.dark-hall-mode .nav-item:hover,
+            body.dark-hall-mode .builder-nav-item:hover {
+                background: #18181B !important;
+                color: #F8FAFC !important;
             }
 
             /* Specific Fix: Direct Valuation & Custom Controls in Dark Mode */

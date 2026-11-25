@@ -132,7 +132,7 @@ input[type="password"], input[type="file"], .file-input, textarea[style*="text-t
 .action-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap; }
 .bulk-actions { display: flex; gap: 0.75rem; align-items: center; }
 
-.controls-bar { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; background: white; padding: 1rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border); }
+.controls-bar { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; background: var(--bg-surface); padding: 1rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border); }
 .search-box { flex: 2; min-width: 260px; position: relative; }
 .search-box input { width: 100%; padding: 0.75rem 1rem 0.75rem 2.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.95rem; font-weight: 500; outline: none; transition: var(--transition); background: var(--bg-main); color: var(--text-main); }
 .search-box input:focus { border-color: var(--primary); background: #FFFFFF; box-shadow: 0 0 0 3px var(--primary-ring); }
@@ -166,7 +166,7 @@ tr:hover td { background: var(--bg-main); }
 
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.6); backdrop-filter: blur(4px); z-index: 999; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; padding: 1rem; }
 .modal-overlay.show { display: flex; opacity: 1; }
-.modal { background: white; width: 100%; max-width: 520px; border-radius: var(--radius-xl); padding: 2rem; box-shadow: var(--shadow-lg); transform: scale(0.95); transition: transform 0.3s ease; max-height: 90vh; overflow-y: auto; }
+.modal { background: var(--bg-surface); width: 100%; max-width: 520px; border-radius: var(--radius-xl); padding: 2rem; box-shadow: var(--shadow-lg); border: 1px solid var(--border); transform: scale(0.95); transition: transform 0.3s ease; max-height: 90vh; overflow-y: auto; }
 .modal-overlay.show .modal { transform: scale(1); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
 .modal-header h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; font-weight: 600; }
@@ -3553,7 +3553,7 @@ canvas {
                 </div>
 
                 <!-- Stats flex row -->
-                <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); overflow-x: auto;">
+                <div class="card dashboard-stats-card" style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); overflow-x: auto;">
                     <div style="padding: 0 1rem;">
                         <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Live Stage</div>
                         <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);"><span id="dash-live-stage-count">0</span> running</div>
@@ -8876,12 +8876,12 @@ function toggleCustomGridFields() {
 <div id="toast-container"></div>
 
 
-<script src="festos-core.js?v=4.3.4"></script>
+<script src="festos-core.js?v=4.3.5"></script>
 <script src="mobile-native.js"></script>
 <script src="id-badge-engine.js?v=3.8.2"></script>
 <script src="preset-templates-engine.js"></script>
 <script src="ai-template-generator.js"></script>
-<script src="admin.js?v=4.3.1"></script>
+<script src="admin.js?v=4.3.2"></script>
     <script src="newspaper-engine.js"></script>
     <script src="custom-pickers.js?v=4.0"></script>
 

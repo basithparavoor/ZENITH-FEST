@@ -675,6 +675,12 @@ body, input, button, select, .toast, .card-title {
                 <span id="welcome-msg" class="welcome-text">WELCOME</span>
             </div>
             <div class="top-nav-right" style="display: flex; align-items: center; gap: 0.5rem;">
+                <button type="button" class="header-icon-btn festos-darkmode-btn" id="dark-hall-btn" onclick="festosDarkMode.toggle()" title="Toggle OLED Dark Auditorium Mode">
+                    <i class="fa-solid fa-moon"></i>
+                </button>
+                <button type="button" class="header-icon-btn festos-app-update-nav-btn" id="festos-app-header-btn" onclick="festosAppUpdate.openModal()" title="Festival Mobile App">
+                    <i class="fa-solid fa-mobile-screen-button" style="color: #10B981;"></i>
+                </button>
                 <button type="button" class="header-icon-btn festos-role-btn festos-role-topnav-btn" id="festos-role-topnav-btn" onclick="festosMultiRole.openModal()" title="Switch Portal Role" style="color: #6366F1; display: none;">
                     <i class="fa-solid fa-repeat"></i>
                 </button>
@@ -781,7 +787,7 @@ body, input, button, select, .toast, .card-title {
 
     <div id="toast-container"></div>
 
-    <script src="festos-core.js?v=4.3.4"></script>
+    <script src="festos-core.js?v=4.3.5"></script>
     <script src="stage-controller.js?v=4.2.3"></script>
         <script src="custom-pickers.js?v=4.0"></script>
 </body>
