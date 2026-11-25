@@ -2527,11 +2527,11 @@ const festosAppUpdate = {
                 </div>
 
                 <div class="festos-app-modal-footer">
-                    <button type="button" class="btn btn-outline" id="festos-app-check-btn" onclick="festosAppUpdate.checkForUpdates(true)">
-                        <i class="fa-solid fa-arrows-rotate"></i> Check for Updates
+                    <button type="button" class="btn btn-outline festos-app-footer-btn" id="festos-app-check-btn" onclick="festosAppUpdate.checkForUpdates(true)">
+                        <i class="fa-solid fa-arrows-rotate"></i> <span>Check for Updates</span>
                     </button>
-                    <button type="button" class="btn btn-outline" onclick="festosAppUpdate.closeModal()">
-                        Close
+                    <button type="button" class="btn btn-outline festos-app-footer-btn btn-close" onclick="festosAppUpdate.closeModal()">
+                        <span>Close</span>
                     </button>
                 </div>
             </div>
@@ -2810,13 +2810,52 @@ const festosAppUpdate = {
                 background: white;
             }
             .festos-app-modal-footer {
-                padding: 0.85rem 1.5rem;
+                padding: 1rem 1.5rem;
                 background: #F8FAFC;
                 border-top: 1px solid #E2E8F0;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                gap: 8px;
+                gap: 12px;
+            }
+            .festos-app-footer-btn {
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 8px !important;
+                padding: 0.6rem 1.25rem !important;
+                font-size: 0.85rem !important;
+                font-weight: 700 !important;
+                border-radius: 10px !important;
+                cursor: pointer !important;
+                transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                border: 1px solid #CBD5E1 !important;
+                background: #FFFFFF !important;
+                color: #334155 !important;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+                line-height: 1.2 !important;
+                outline: none !important;
+                text-decoration: none !important;
+            }
+            .festos-app-footer-btn:hover {
+                background: #F1F5F9 !important;
+                border-color: #94A3B8 !important;
+                color: #0F172A !important;
+                transform: translateY(-1px) !important;
+                box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08) !important;
+            }
+            .festos-app-footer-btn:active {
+                transform: scale(0.98) !important;
+            }
+            .festos-app-footer-btn.btn-close {
+                background: #F1F5F9 !important;
+                border-color: #E2E8F0 !important;
+                color: #475569 !important;
+            }
+            .festos-app-footer-btn.btn-close:hover {
+                background: #E2E8F0 !important;
+                color: #0F172A !important;
+                border-color: #CBD5E1 !important;
             }
             @media (max-width: 600px) {
                 .festos-app-qr-section { display: none; }
@@ -3746,6 +3785,27 @@ const festosDarkMode = {
                 background: #121215 !important;
                 border-top: 1px solid #27272A !important;
             }
+            body.dark-hall-mode .festos-app-footer-btn {
+                background: #18181B !important;
+                border-color: #27272A !important;
+                color: #CBD5E1 !important;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+            }
+            body.dark-hall-mode .festos-app-footer-btn:hover {
+                background: #27272A !important;
+                border-color: #3F3F46 !important;
+                color: #FFFFFF !important;
+            }
+            body.dark-hall-mode .festos-app-footer-btn.btn-close {
+                background: #1E1E22 !important;
+                border-color: #2E2E33 !important;
+                color: #94A3B8 !important;
+            }
+            body.dark-hall-mode .festos-app-footer-btn.btn-close:hover {
+                background: #27272A !important;
+                color: #F8FAFC !important;
+                border-color: #3F3F46 !important;
+            }
 
             /* Omnisearch Palette */
             body.dark-hall-mode .admin-cmd-palette {
@@ -3830,21 +3890,28 @@ const festosDarkMode = {
             }
 
             /* Edit Competition Modal Offstage and Group Event Badges */
-            body.dark-hall-mode .comp-offstage-box,
-            body.dark-hall-mode div:has(#compIsOffstage) {
-                background: rgba(245, 158, 11, 0.12) !important;
-                border: 1px solid rgba(245, 158, 11, 0.3) !important;
+            body.dark-hall-mode .comp-offstage-box {
+                background: #18181B !important;
+                border: 1px solid #27272A !important;
             }
             body.dark-hall-mode label[for="compIsOffstage"] {
                 color: #FCD34D !important;
             }
-            body.dark-hall-mode .comp-group-box,
-            body.dark-hall-mode div:has(#compIsGroup) {
-                background: rgba(59, 130, 246, 0.12) !important;
-                border: 1px solid rgba(59, 130, 246, 0.3) !important;
+            body.dark-hall-mode .comp-group-box {
+                background: #18181B !important;
+                border: 1px solid #27272A !important;
             }
             body.dark-hall-mode label[for="compIsGroup"] {
                 color: #93C5FD !important;
+            }
+            body.dark-hall-mode #compAwardType {
+                border-color: #27272A !important;
+                background: #18181B !important;
+                color: #F8FAFC !important;
+            }
+            body.dark-hall-mode #modalBody {
+                background: transparent !important;
+                border: none !important;
             }
 
             /* Competitions & Schedule Spreadsheet Table */
