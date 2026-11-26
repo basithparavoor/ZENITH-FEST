@@ -638,7 +638,7 @@
         let activeSlides = [];
         let currentSlide = 0;
         
-        let lastActionTimestamp = 0;
+        let lastActionTimestamp = Date.now(); // Initialize to current time so stale database actions never auto-fire on page open
         let lastPublishedCount = 0;
         let currentPodiumCompId = null;
         
@@ -836,6 +836,15 @@
         }
         
         const isPreviewMode = new URLSearchParams(window.location.search).get('preview') === 'true';
+        if (isPreviewMode) {
+            try {
+                document.querySelectorAll('audio').forEach(a => {
+                    a.muted = true;
+                    a.pause();
+                    a.removeAttribute('autoplay');
+                });
+            } catch(e) {}
+        }
 
         const currentFestId = window.festosAuth ? window.festosAuth.getCurrentFestId() : (new URLSearchParams(window.location.search).get('fest') || (window.festosDefaultFestId ? window.festosDefaultFestId() : 'fest_zenith_2026'));
 
@@ -1830,9 +1839,14 @@
         // --- HIGH-PERFORMANCE REMOTE ACTION ENGINE ---
         function executeRemoteAction(action) {
             if (!action || !action.type) return;
+            if (isPreviewMode) return; // Never execute remote actions or play audio in preview mode
 
             if (action.type === 'confetti') {
-                document.getElementById('sfx-applause')?.play().catch(()=>{});
+                const sfx = document.getElementById('sfx-applause');
+                if (sfx) {
+                    sfx.currentTime = 0;
+                    sfx.play().catch(()=>{});
+                }
                 fireConfetti();
             } 
             else if (action.type === 'next_slide') {
@@ -1949,8 +1963,13 @@
 
             // 5. Process Live Remote Actions
             if (displaySettings.live_action && displaySettings.live_action.timestamp > lastActionTimestamp) {
-                lastActionTimestamp = displaySettings.live_action.timestamp;
-                executeRemoteAction(displaySettings.live_action);
+                const actionTime = Number(displaySettings.live_action.timestamp) || 0;
+                lastActionTimestamp = actionTime;
+                // Only execute if action was triggered recently (within last 15 seconds) and never in preview mode
+                const isRecent = (Date.now() - actionTime < 15000);
+                if (isRecent && !isPreviewMode) {
+                    executeRemoteAction(displaySettings.live_action);
+                }
             }
 
             // 6. QR Code & Milestones Widget Sync
