@@ -2751,57 +2751,55 @@ const festosAppUpdate = {
         }
     },
 
-    async startDownload() {
+    startDownload() {
         const cfg = this._configCache || {};
         const fid = cfg.fid || 'all';
         const festName = cfg.festName || 'Festival';
         const latestVersion = (cfg.fest?.version || cfg.global?.version || 'v4.2.0');
         const cleanVersion = String(latestVersion).replace(/^v/i, 'v');
-        const cleanFestCode = festName.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/[\s\-]+/g, '_');
-        const cleanFilename = `${cleanFestCode}_${cleanVersion}.apk`;
         const slug = (cfg.fest?.slug || festName.toLowerCase().replace(/[^a-z0-9]/g, ''));
-        const rawUrl = (cfg.fest?.apk_url && cfg.fest.apk_url.trim()) ? cfg.fest.apk_url : '';
+        const s = `${festName} ${fid} ${slug} ${(typeof window !== 'undefined' && window.location ? window.location.hostname : '')}`.toLowerCase();
 
-        // Priority candidate download sources: Dedicated festival APK first!
-        const candidateUrls = [];
-        if (rawUrl && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) && !rawUrl.includes('/download-apk')) {
-            candidateUrls.push(rawUrl);
-        }
-        // Festival-dedicated APK packages (versioned and base)
-        candidateUrls.push(`/${cleanFilename}`);
-        candidateUrls.push(`/${cleanFestCode}.apk`);
-        candidateUrls.push(`${cleanFilename}`);
-        candidateUrls.push(`${cleanFestCode}.apk`);
-        candidateUrls.push(`/${slug}.apk`);
-        candidateUrls.push('/festos-app.apk');
-        candidateUrls.push('festos-app.apk');
+        // 1. Resolve exact dedicated festival APK file immediately (zero async delay preserves user click gesture)
+        let cleanFilename = 'festos-app.apk';
+        let apkPath = '/festos-app.apk';
 
-        let targetUrl = `/${cleanFilename}`;
-        for (const url of candidateUrls) {
-            try {
-                if (url.startsWith('http://') || url.startsWith('https://')) {
-                    targetUrl = url;
-                    break;
-                }
-                const res = await fetch(url, { method: 'HEAD' });
-                if (res.ok) {
-                    targetUrl = url;
-                    break;
-                }
-            } catch(e) {
-                // Ignore network error and continue to static fallback
-            }
+        if (s.includes('elo')) {
+            cleanFilename = 'ELOQUENTIA_26_v4.2.0.apk';
+            apkPath = '/ELOQUENTIA_26_v4.2.0.apk';
+        } else if (s.includes('vib')) {
+            cleanFilename = 'VIBRANIUM_v4.2.0.apk';
+            apkPath = '/VIBRANIUM_v4.2.0.apk';
+        } else if (s.includes('zeit')) {
+            cleanFilename = 'ZEITGEIST_v4.2.0.apk';
+            apkPath = '/ZEITGEIST_v4.2.0.apk';
+        } else if (s.includes('ely')) {
+            cleanFilename = 'ELYSIUM_26_v4.2.0.apk';
+            apkPath = '/ELYSIUM_26_v4.2.0.apk';
         }
 
+        const origin = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+        const downloadUrl = `${origin}${apkPath}`;
+
+        // 2. Primary native direct download anchor (synchronous inside user gesture)
         const a = document.createElement('a');
-        a.href = targetUrl;
+        a.href = downloadUrl;
         a.download = cleanFilename;
-        // Do NOT set a.target = '_blank' when using download attribute - causes Chrome download abortion
+        a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
         setTimeout(() => {
             try { a.remove(); } catch(e) {}
-        }, 300);
+        }, 1000);
+
+        // 3. Fallback direct window location trigger for mobile browsers or if anchor click was suppressed
+        setTimeout(() => {
+            try {
+                window.location.assign(downloadUrl);
+            } catch(e) {
+                try { window.location.href = downloadUrl; } catch(err) {}
+            }
+        }, 350);
 
         try {
             localStorage.setItem('festos_app_installed_version', cleanVersion);
@@ -2810,7 +2808,7 @@ const festosAppUpdate = {
         } catch(e) {}
 
         if (typeof showToast === 'function') {
-            showToast(`Downloading ${cleanFilename}...`, 'success');
+            showToast(`Downloading official ${cleanFilename}...`, 'success');
         }
     },
 
@@ -6340,7 +6338,7 @@ const festosBroadcasts = {
             const rawApk = candidate.apk_url || '/VIBRANIUM.apk';
             const apkUrl = (!rawApk.startsWith('http') && !rawApk.startsWith('/')) ? ('/' + rawApk) : rawApk;
             attachmentHtml = `
-                <a href="${apkUrl}" download="VIBRANIUM.apk" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; background:#16A34A; color:#FFF; padding:4px 11px; border-radius:6px; font-weight:800; font-size:0.78rem; text-decoration:none; margin-left:8px; border:1px solid #4ADE80; box-shadow:0 2px 6px rgba(0,0,0,0.2); transition:transform 0.15s;">
+                <a href="${apkUrl}" download="VIBRANIUM.apk" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; background:#16A34A; color:#FFF; padding:4px 11px; border-radius:6px; font-weight:800; font-size:0.78rem; text-decoration:none; margin-left:8px; border:1px solid #4ADE80; box-shadow:0 2px 6px rgba(0,0,0,0.2); transition:transform 0.15s;">
                     <i class="fa-brands fa-android"></i> <span>Download APK (${candidate.apk_version || 'v3.5.0'})</span>
                 </a>
             ` + attachmentHtml;

@@ -4063,10 +4063,31 @@ function openParticipantModal(editData = null) {
     openModal(isEdit ? 'Edit Participant' : 'Register Participant', modalHtml, saveParticipant);
 
     if (isEdit) {
-        if(editData.team_id) document.getElementById('partTeam').value = editData.team_id;
-        if(editData.category_id) document.getElementById('partCategory').value = editData.category_id;
-        if(pClass && document.getElementById('partClass')) document.getElementById('partClass').value = pClass;
-        setTimeout(() => window.validateAdminDobAndClass(), 100);
+        if(editData.team_id) {
+            const teamEl = document.getElementById('partTeam');
+            if (teamEl) {
+                teamEl.value = editData.team_id;
+                if (teamEl._festosUpdateTrigger) teamEl._festosUpdateTrigger();
+            }
+        }
+        if(editData.category_id) {
+            const catEl = document.getElementById('partCategory');
+            if (catEl) {
+                catEl.value = editData.category_id;
+                if (catEl._festosUpdateTrigger) catEl._festosUpdateTrigger();
+            }
+        }
+        if(pClass && document.getElementById('partClass')) {
+            const classEl = document.getElementById('partClass');
+            classEl.value = pClass;
+            if (classEl._festosUpdateTrigger) classEl._festosUpdateTrigger();
+        }
+        setTimeout(() => {
+            window.validateAdminDobAndClass();
+            if (typeof festosEnhanceSelects === 'function') {
+                festosEnhanceSelects(document.getElementById('formModal'));
+            }
+        }, 60);
     }
 }
 
@@ -20811,12 +20832,12 @@ window.festosDownloadApkDirect = function(targetUrl) {
     const a = document.createElement('a');
     a.href = url;
     a.download = cleanFilename;
-    a.target = '_blank';
+    a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {
         try { a.remove(); } catch(e) {}
-    }, 250);
+    }, 1000);
     if (typeof showToast === 'function') {
         showToast(`Downloading ${cleanFilename}...`, 'success');
     }

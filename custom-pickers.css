@@ -197,19 +197,35 @@ select[data-festos-enhanced="true"] {
 
 /* Floating Dropdown Menu Card (Image 2) */
 #festosFloatingSelectMenu {
-    position: absolute;
-    z-index: 1000000;
+    position: fixed !important;
+    z-index: 10000000 !important;
     background: #ffffff;
     border-radius: var(--festos-radius-menu);
     border: 1px solid rgba(16, 185, 129, 0.25);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.09), 0 4px 12px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.08);
     padding: 7px;
     max-height: 280px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     box-sizing: border-box;
     display: none;
     animation: festosMenuIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
     font-family: inherit;
+}
+
+@media (max-width: 768px) {
+    #festosFloatingSelectMenu {
+        border-radius: 16px !important;
+        padding: 8px !important;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.08) !important;
+        border: 1px solid rgba(16, 185, 129, 0.35) !important;
+        touch-action: pan-y !important;
+    }
+    .festos-select-option {
+        padding: 12px 14px !important;
+        font-size: 0.95rem !important;
+        min-height: 44px !important;
+    }
 }
 
 #festosFloatingSelectMenu.show {

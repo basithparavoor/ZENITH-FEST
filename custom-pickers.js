@@ -91,7 +91,13 @@
         }, { passive: true });
 
         window.addEventListener('scroll', (e) => {
-            if (SELECT_STATE.isOpen && !floatingSelectMenuEl.contains(e.target)) {
+            if (!SELECT_STATE.isOpen) return;
+            // On mobile devices or inside modal dialogues, do not abruptly dismiss on touch scroll
+            if (window.innerWidth <= 768) return;
+            if (e.target && e.target.closest && (e.target.closest('.modal-overlay') || e.target.closest('.modal-card') || e.target.closest('#formModal'))) {
+                return;
+            }
+            if (!floatingSelectMenuEl.contains(e.target)) {
                 closeSelectMenu();
             }
         }, { passive: true, capture: true });
@@ -821,8 +827,11 @@
             itemEl.appendChild(checkSvg);
         }
 
-        itemEl.addEventListener('click', (e) => {
-            e.stopPropagation();
+        const handleSelectOption = (e) => {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
             if (optionEl.disabled) return;
 
             selectEl.selectedIndex = optionEl.index;
@@ -841,7 +850,12 @@
             }
 
             closeSelectMenu();
-        });
+        };
+
+        itemEl.addEventListener('click', handleSelectOption);
+        itemEl.addEventListener('touchend', (e) => {
+            handleSelectOption(e);
+        }, { passive: false });
 
         floatingSelectMenuEl.appendChild(itemEl);
     }
@@ -850,23 +864,55 @@
         if (!floatingSelectMenuEl || !triggerEl || typeof triggerEl.getBoundingClientRect !== 'function') return;
 
         const rect = triggerEl.getBoundingClientRect();
-        const menuWidth = Math.max(rect.width, 180);
+        const isMobile = (window.innerWidth <= 768);
 
-        floatingSelectMenuEl.style.width = `${menuWidth}px`;
-        floatingSelectMenuEl.style.left = `${rect.left + window.scrollX}px`;
+        floatingSelectMenuEl.style.position = 'fixed';
 
-        // Calculate if menu fits below or should flip above
-        const spaceBelow = window.innerHeight - rect.bottom;
-        const estimatedHeight = 240;
+        if (isMobile) {
+            // Full mobile width with 12px viewport gutter
+            floatingSelectMenuEl.style.left = '12px';
+            floatingSelectMenuEl.style.right = '12px';
+            floatingSelectMenuEl.style.width = 'calc(100vw - 24px)';
+            floatingSelectMenuEl.style.maxWidth = 'calc(100vw - 24px)';
 
-        if (spaceBelow < estimatedHeight && rect.top > estimatedHeight) {
-            // Place above trigger
-            floatingSelectMenuEl.style.top = 'auto';
-            floatingSelectMenuEl.style.bottom = `${window.innerHeight - rect.top - window.scrollY + 6}px`;
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top;
+
+            if (spaceBelow < 210 && spaceAbove > spaceBelow) {
+                // Flip upward above trigger
+                floatingSelectMenuEl.style.top = 'auto';
+                floatingSelectMenuEl.style.bottom = `${Math.max(10, window.innerHeight - rect.top + 6)}px`;
+                floatingSelectMenuEl.style.maxHeight = `${Math.max(120, Math.min(280, spaceAbove - 20))}px`;
+            } else {
+                // Place downward below trigger
+                floatingSelectMenuEl.style.bottom = 'auto';
+                floatingSelectMenuEl.style.top = `${Math.min(window.innerHeight - 80, rect.bottom + 6)}px`;
+                floatingSelectMenuEl.style.maxHeight = `${Math.max(120, Math.min(280, spaceBelow - 20))}px`;
+            }
         } else {
-            // Place below trigger
-            floatingSelectMenuEl.style.bottom = 'auto';
-            floatingSelectMenuEl.style.top = `${rect.bottom + window.scrollY + 6}px`;
+            const menuWidth = Math.max(rect.width, 180);
+            const clampLeft = Math.max(10, Math.min(rect.left, window.innerWidth - menuWidth - 10));
+
+            floatingSelectMenuEl.style.right = 'auto';
+            floatingSelectMenuEl.style.width = `${menuWidth}px`;
+            floatingSelectMenuEl.style.maxWidth = `${Math.min(menuWidth, window.innerWidth - 20)}px`;
+            floatingSelectMenuEl.style.left = `${clampLeft}px`;
+
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top;
+            const estimatedHeight = 240;
+
+            if (spaceBelow < estimatedHeight && spaceAbove > spaceBelow) {
+                // Place above trigger
+                floatingSelectMenuEl.style.top = 'auto';
+                floatingSelectMenuEl.style.bottom = `${window.innerHeight - rect.top + 6}px`;
+                floatingSelectMenuEl.style.maxHeight = `${Math.min(280, spaceAbove - 16)}px`;
+            } else {
+                // Place below trigger
+                floatingSelectMenuEl.style.bottom = 'auto';
+                floatingSelectMenuEl.style.top = `${rect.bottom + 6}px`;
+                floatingSelectMenuEl.style.maxHeight = `${Math.min(280, spaceBelow - 16)}px`;
+            }
         }
     }
 

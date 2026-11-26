@@ -33,6 +33,39 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=3600, stale-while-revalidate=86400"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Expose-Headers",
+          "value": "Content-Disposition, Content-Length"
+        }
+      ]
+    },
+    {
+      "source": "/download-apk(.*)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/vnd.android.package-archive"
+        },
+        {
+          "key": "Content-Disposition",
+          "value": "attachment"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, stale-while-revalidate=86400"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Expose-Headers",
+          "value": "Content-Disposition, Content-Length"
         }
       ]
     },
@@ -61,6 +94,12 @@
     { "source": "/verify-certificate", "destination": "/verify-certificate.html" },
     { "source": "/announcements", "destination": "/announcements.html" },
     { "source": "/landing", "destination": "/landing.html" },
+    { "source": "/ELOQUENTIA_26.apk", "destination": "/ELOQUENTIA_26_v4.2.0.apk" },
+    { "source": "/ELOQUENTIA.apk", "destination": "/ELOQUENTIA_26_v4.2.0.apk" },
+    { "source": "/VIBRANIUM.apk", "destination": "/VIBRANIUM_v4.2.0.apk" },
+    { "source": "/ZEITGEIST.apk", "destination": "/ZEITGEIST_v4.2.0.apk" },
+    { "source": "/ELYSIUM.apk", "destination": "/ELYSIUM_26_v4.2.0.apk" },
+    { "source": "/ELYSIUM_26.apk", "destination": "/ELYSIUM_26_v4.2.0.apk" },
     { "source": "/download-apk", "destination": "/festos-app.apk" },
     { "source": "/download-apk/(.*)", "destination": "/festos-app.apk" }
   ]
