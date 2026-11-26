@@ -482,7 +482,12 @@ function initCompactSidebarFlyout() {
         }
 
         // Populate and position flyout
-        const rect = (navMain || navGroup).getBoundingClientRect();
+        const targetNav = navMain || navGroup;
+        if (!targetNav || typeof targetNav.getBoundingClientRect !== 'function') {
+            hideSidebarFlyout();
+            return;
+        }
+        const rect = targetNav.getBoundingClientRect();
         let html = `<div class="flyout-header">${title}</div>`;
         items.forEach(it => {
             if (it.onclick) {
@@ -13382,7 +13387,7 @@ function scalePreviewIframe() {
     const iframe = document.getElementById('display-preview-frame');
     if (iframe && iframe.parentElement) {
         const parent = iframe.parentElement;
-        const parentWidth = parent.clientWidth || parent.getBoundingClientRect().width;
+        const parentWidth = parent.clientWidth || (typeof parent.getBoundingClientRect === 'function' ? parent.getBoundingClientRect().width : 0);
         if (!parentWidth) return;
         const scale = parentWidth / 1920;
         iframe.style.transform = `scale(${scale})`;

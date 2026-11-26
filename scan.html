@@ -1101,7 +1101,8 @@
                 // Ignore if clicked on zoom controls or buttons
                 if (e.target.closest('.zoom-controls, .hud-btn, .reticle-status')) return;
 
-                const rect = container.getBoundingClientRect();
+                const rect = (container && typeof container.getBoundingClientRect === 'function') ? container.getBoundingClientRect() : null;
+                if (!rect) return;
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
 

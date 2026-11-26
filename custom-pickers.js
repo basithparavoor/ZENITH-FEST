@@ -568,7 +568,7 @@
 
     function festosUpdateClockByCoords(e) {
         const wrap = document.getElementById('festosClockWrap');
-        if (!wrap) return;
+        if (!wrap || typeof wrap.getBoundingClientRect !== 'function') return;
 
         const rect = wrap.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
@@ -847,7 +847,7 @@
     }
 
     function positionFloatingMenu(triggerEl) {
-        if (!floatingSelectMenuEl || !triggerEl) return;
+        if (!floatingSelectMenuEl || !triggerEl || typeof triggerEl.getBoundingClientRect !== 'function') return;
 
         const rect = triggerEl.getBoundingClientRect();
         const menuWidth = Math.max(rect.width, 180);

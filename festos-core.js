@@ -17,6 +17,35 @@ if (typeof window !== 'undefined') {
             document.documentElement.classList.add('dark-hall-mode');
             if (document.body) document.body.classList.add('dark-hall-mode');
         }
+
+        // Global defensive safety guard for third-party extensions / positioning libraries
+        if (typeof window.getBoundingClientRect !== 'function') {
+            window.getBoundingClientRect = function() {
+                return {
+                    top: 0, left: 0,
+                    right: window.innerWidth || 0,
+                    bottom: window.innerHeight || 0,
+                    width: window.innerWidth || 0,
+                    height: window.innerHeight || 0,
+                    x: 0, y: 0
+                };
+            };
+        }
+        if (typeof Document !== 'undefined' && typeof Document.prototype.getBoundingClientRect !== 'function') {
+            Document.prototype.getBoundingClientRect = function() {
+                if (document.documentElement && typeof document.documentElement.getBoundingClientRect === 'function') {
+                    return document.documentElement.getBoundingClientRect();
+                }
+                return {
+                    top: 0, left: 0,
+                    right: window.innerWidth || 0,
+                    bottom: window.innerHeight || 0,
+                    width: window.innerWidth || 0,
+                    height: window.innerHeight || 0,
+                    x: 0, y: 0
+                };
+            };
+        }
     } catch(e) {}
 }
 
